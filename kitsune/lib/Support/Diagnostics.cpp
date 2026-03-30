@@ -15,6 +15,7 @@
 #include "kitsune/Core/DIUtils.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
+#include "kitsune/Core/ValueUtils.h"
 #include "kitsune/Support/ErrorHandling.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/IR/DebugInfo.h"
@@ -74,12 +75,33 @@ raw_ostream &llvm::detail::emitDiagnostic(raw_ostream &os,
   return os;
 }
 
+raw_ostream &llvm::detail::emitDiagnostic(raw_ostream &os, const Argument &a,
+                                          DiagnosticSeverity severity,
+                                          StringRef msg) {
+  emitLabel(os, severity);
+  emitMsg(os, msg);
+  llvm::emitDiagnosticTo(os, DiagID::NoteFromArgument, getName(a),
+                         getName(*a.getParent()));
+  return os;
+}
+
 raw_ostream &llvm::detail::emitDiagnostic(raw_ostream &os, const Function &f,
                                           DiagnosticSeverity severity,
                                           StringRef msg) {
   emitLabel(os, severity);
   emitMsg(os, msg);
-  llvm::emitDiagnostic(DiagID::NoteFromFunction, f.getName());
+  llvm::emitDiagnosticTo(os, DiagID::NoteFromFunction, getName(f));
+
+  return os;
+}
+
+raw_ostream &llvm::detail::emitDiagnostic(raw_ostream &os,
+                                          const GlobalVariable &g,
+                                          DiagnosticSeverity severity,
+                                          StringRef msg) {
+  emitLabel(os, severity);
+  emitMsg(os, msg);
+  llvm::emitDiagnosticTo(os, DiagID::NoteFromGlobalVariable, getName(g));
 
   return os;
 }
@@ -95,9 +117,9 @@ raw_ostream &llvm::detail::emitDiagnostic(raw_ostream &os,
   if (loc.empty() && severity != DiagnosticSeverity::DS_Note) {
     if (const BasicBlock *bb = inst.getParent())
       if (bb->hasName())
-        emitDiagnostic(DiagID::NoteFromBasicBlock, bb->getName());
+        emitDiagnosticTo(os, DiagID::NoteFromBasicBlock, getName(*bb));
     if (const Function *f = inst.getFunction())
-      emitDiagnostic(DiagID::NoteFromFunction, f->getName());
+      emitDiagnosticTo(os, DiagID::NoteFromFunction, getName(*f));
   }
   return os;
 }
@@ -112,9 +134,9 @@ raw_ostream &llvm::detail::emitDiagnostic(raw_ostream &os, const Loop &loop,
   if (loc.empty() && severity != DiagnosticSeverity::DS_Note) {
     std::string name = getName(loop);
     if (name.size())
-      emitDiagnostic(DiagID::NoteFromLoop, name);
+      emitDiagnosticTo(os, DiagID::NoteFromLoop, name);
     if (const Function *f = getFunction(loop))
-      emitDiagnostic(DiagID::NoteFromFunction, f->getName());
+      emitDiagnosticTo(os, DiagID::NoteFromFunction, getName(*f));
   }
   return os;
 }
@@ -122,8 +144,12 @@ raw_ostream &llvm::detail::emitDiagnostic(raw_ostream &os, const Loop &loop,
 raw_ostream &llvm::detail::emitDiagnostic(raw_ostream &os, const Value &v,
                                           DiagnosticSeverity severity,
                                           StringRef msg) {
-  if (const auto *f = dyn_cast<Function>(&v))
+  if (const auto *a = dyn_cast<Argument>(&v))
+    return emitDiagnostic(os, *a, severity, msg);
+  else if (const auto *f = dyn_cast<Function>(&v))
     return emitDiagnostic(os, *f, severity, msg);
+  else if (const auto *g = dyn_cast<GlobalVariable>(&v))
+    return emitDiagnostic(os, *g, severity, msg);
   else if (const auto *inst = dyn_cast<Instruction>(&v))
     return emitDiagnostic(os, *inst, severity, msg);
   else

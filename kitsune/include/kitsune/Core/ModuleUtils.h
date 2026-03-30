@@ -22,7 +22,6 @@ namespace llvm {
 
 class LLVMContext;
 class Module;
-class NamedMDNode;
 
 /// \addtogroup kitsune
 /// @{
@@ -30,6 +29,11 @@ class NamedMDNode;
 /// Get the LLVM context from a module. This is useful when generating code from
 /// tablegen macros.
 LLVMContext &getContext(const Module &m);
+
+/// Get the name of an LLVM module. If the module is not named, an empty string
+/// will be returned. We return an std::string instead of a StringRef to be
+/// consistent with the other getName() functions in Kitsune.
+std::string getName(const Module &m);
 
 /// Add a the kit.module.device.module attribute containing information about
 /// the module into itself. This should only be called with a module generated

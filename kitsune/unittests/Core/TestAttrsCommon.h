@@ -15,339 +15,454 @@
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Module.h"
 
-#define TEST_GENERIC_VERIFY_N(OS, OBJ, ENUMCLASS, NAME, IRNAME)                \
+#define OS os
+#define VNULL vnull
+#define VOS vos
+
+#define TEST_GENERIC_VERIFY_N(OBJ, KIND, NAME, IRNAME)                         \
   addMetadata(OBJ, IRNAME, {});                                                \
                                                                                \
   OS.str().clear();                                                            \
-  EXPECT_FALSE(verifyAttr(OBJ, ENUMCLASS::NAME));                              \
-  EXPECT_FALSE(verifyAttr(OBJ, ENUMCLASS::NAME, &OS));                         \
-  EXPECT_TRUE(StringRef(OS.str()).starts_with("Could not get value of type")); \
+  EXPECT_FALSE(verifyAttr(VNULL, OBJ, KIND::NAME));                            \
+  EXPECT_FALSE(verifyAttr(VOS, OBJ, KIND::NAME));                              \
+  EXPECT_TRUE(StringRef(OS.str()).contains("incorrect value count"));          \
                                                                                \
   remove##NAME##Attr((OBJ));
 
-#define TEST_GENERIC_VERIFY_0(OS, OBJ, ENUMCLASS, NAME, IRNAME)                \
+#define TEST_GENERIC_VERIFY_0(OBJ, KIND, NAME, IRNAME)                         \
   addMetadata(OBJ, IRNAME, MDString::get(ctx, ""));                            \
                                                                                \
   OS.str().clear();                                                            \
-  EXPECT_FALSE(verifyAttr(OBJ, ENUMCLASS::NAME));                              \
-  EXPECT_FALSE(verifyAttr(OBJ, ENUMCLASS::NAME, &OS));                         \
-  EXPECT_TRUE(                                                                 \
-      StringRef(OS.str()).starts_with("Unexpected value in attribute"));       \
+  EXPECT_FALSE(verifyAttr(VNULL, OBJ, KIND::NAME));                            \
+  EXPECT_FALSE(verifyAttr(VOS, OBJ, KIND::NAME));                              \
+  EXPECT_TRUE(StringRef(OS.str()).contains("incorrect value count '1'"));      \
                                                                                \
   remove##NAME##Attr(OBJ);
 
-#define TEST_GENERIC_ATTR_0(OBJ, ENUMCLASS, NAME)                              \
-  EXPECT_FALSE(hasAttr(OBJ, ENUMCLASS::NAME));                                 \
-  addAttr(OBJ, ENUMCLASS::NAME);                                               \
-  EXPECT_TRUE(hasAttr(OBJ, ENUMCLASS::NAME));                                  \
-  addAttr(OBJ, ENUMCLASS::NAME);                                               \
-  EXPECT_TRUE(hasAttr(OBJ, ENUMCLASS::NAME));                                  \
-  removeAttr(OBJ, ENUMCLASS::NAME);                                            \
-  EXPECT_FALSE(hasAttr(OBJ, ENUMCLASS::NAME));
+#define TEST_GENERIC_ATTR_0(OBJ, KIND, NAME)                                   \
+  EXPECT_FALSE(hasAttr(OBJ, KIND::NAME));                                      \
+  addAttr(OBJ, KIND::NAME);                                                    \
+  EXPECT_TRUE(hasAttr(OBJ, KIND::NAME));                                       \
+  addAttr(OBJ, KIND::NAME);                                                    \
+  EXPECT_TRUE(hasAttr(OBJ, KIND::NAME));                                       \
+  removeAttr(OBJ, KIND::NAME);                                                 \
+  EXPECT_FALSE(hasAttr(OBJ, KIND::NAME));
 
-#define TEST_GENERIC_ATTR_N(OBJ, ENUMCLASS, NAME)                              \
-  EXPECT_EXIT(addAttr(OBJ, ENUMCLASS::NAME), ::testing::ExitedWithCode(1),     \
+#define TEST_GENERIC_ATTR_N(OBJ, KIND, NAME)                                   \
+  EXPECT_EXIT(addAttr(OBJ, KIND::NAME), ::testing::ExitedWithCode(1),          \
               "error: cannot add attribute");
 
-#define TEST_ATTR_0(OS, OBJ, NAME, IRNAME, CUSTOMVERIFY)                       \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
+#define TEST_ATTR_0(OBJ, KIND, NAME, IRNAME, CUSTOMVERIFY)                     \
+  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
                                                                                \
   add##NAME##Attr(OBJ);                                                        \
   EXPECT_TRUE(has##NAME##Attr(OBJ));                                           \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
+  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
                                                                                \
   add##NAME##Attr(OBJ);                                                        \
   EXPECT_TRUE(has##NAME##Attr(OBJ));                                           \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
+  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
                                                                                \
   remove##NAME##Attr(OBJ);                                                     \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
+  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
                                                                                \
   OS.str().clear();                                                            \
   addMetadata(OBJ, IRNAME, 0);                                                 \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ, &os));                                   \
+  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
+  EXPECT_TRUE(verify##NAME##Attr(VOS, OBJ));                                   \
   EXPECT_TRUE(OS.str().empty());                                               \
   remove##NAME##Attr(OBJ);
 
-#define TEST_ATTR_1(OS, OBJ, NAME, IRNAME, CUSTOMVERIFY, TYPE)                 \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
+#define TEST_ATTR_1(OBJ, KIND, NAME, IRNAME, CUSTOMVERIFY, TYPE)               \
+  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
                                                                                \
-  add##NAME##Attr(OBJ, get<TYPE>(0));                                          \
-  EXPECT_TRUE(has##NAME##Attr(OBJ));                                           \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
-  EXPECT_EQ(get##NAME##Attr(OBJ), get<TYPE>(0));                               \
+  {                                                                            \
+    TYPE v = get<TYPE, KIND::NAME>(0);                                         \
                                                                                \
-  add##NAME##Attr(OBJ, get<TYPE>(1));                                          \
-  EXPECT_TRUE(has##NAME##Attr(OBJ));                                           \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
-  EXPECT_EQ(get##NAME##Attr(OBJ), get<TYPE>(1));                               \
+    add##NAME##Attr(OBJ, v);                                                   \
+    EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
+    if constexpr (::verifyAttr(KIND::NAME))                                    \
+      EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                             \
+    EXPECT_EQ(get##NAME##Attr(OBJ), v);                                        \
+  }                                                                            \
+                                                                               \
+  {                                                                            \
+    TYPE v = get<TYPE, KIND::NAME>(1);                                         \
+                                                                               \
+    add##NAME##Attr(OBJ, v);                                                   \
+    EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
+    if constexpr (::verifyAttr(KIND::NAME))                                    \
+      EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                             \
+    EXPECT_EQ(get##NAME##Attr(OBJ), v);                                        \
+  }                                                                            \
                                                                                \
   remove##NAME##Attr(OBJ);                                                     \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
+  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
                                                                                \
   OS.str().clear();                                                            \
   addMetadata(OBJ, IRNAME, 1);                                                 \
-  EXPECT_FALSE(verify##NAME##Attr(OBJ));                                       \
-  EXPECT_FALSE(verify##NAME##Attr(OBJ, &OS));                                  \
-  EXPECT_TRUE(StringRef(OS.str()).starts_with("Could not get value of type")); \
+  EXPECT_FALSE(verify##NAME##Attr(VNULL, OBJ));                                \
+  EXPECT_FALSE(verify##NAME##Attr(VOS, OBJ));                                  \
+  EXPECT_TRUE(StringRef(OS.str()).contains("missing value of type"));          \
   remove##NAME##Attr(OBJ);
 
-#define TEST_ATTR_2(OS, OBJ, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,    \
+#define TEST_ATTR_2(OBJ, KIND, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,  \
                     ETY1, ENAME1, EN1)                                         \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
+  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
                                                                                \
-  add##NAME##Attr(OBJ, get<ETY0>(0), get<ETY1>(1));                            \
-  EXPECT_TRUE(has##NAME##Attr(OBJ));                                           \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
-  EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), get<ETY0>(0));                 \
-  EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), get<ETY1>(1));                 \
+  {                                                                            \
+    ETY0 v0 = get<ETY0, KIND::NAME>(0);                                        \
+    ETY1 v1 = get<ETY1, KIND::NAME>(1);                                        \
                                                                                \
-  add##NAME##Attr(OBJ, get<ETY0>(1), get<ETY1>(0));                            \
-  EXPECT_TRUE(has##NAME##Attr(OBJ));                                           \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
-  EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), get<ETY0>(1));                 \
-  EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), get<ETY1>(0));                 \
+    add##NAME##Attr(OBJ, v0, v1);                                              \
+    EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
+    EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                               \
+    EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
+    EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
+  }                                                                            \
+                                                                               \
+  {                                                                            \
+    ETY0 v0 = get<ETY0, KIND::NAME>(1);                                        \
+    ETY1 v1 = get<ETY1, KIND::NAME>(0);                                        \
+                                                                               \
+    add##NAME##Attr(OBJ, v0, v1);                                              \
+    EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
+    EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                               \
+    EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
+    EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
+  }                                                                            \
                                                                                \
   remove##NAME##Attr(OBJ);                                                     \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
+  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
                                                                                \
   OS.str().clear();                                                            \
   addMetadata(OBJ, IRNAME, 2);                                                 \
-  EXPECT_FALSE(verify##NAME##Attr(OBJ));                                       \
-  EXPECT_FALSE(verify##NAME##Attr(OBJ, &os));                                  \
-  EXPECT_TRUE(StringRef(OS.str()).starts_with("Could not get value of type")); \
+  EXPECT_FALSE(verify##NAME##Attr(VNULL, OBJ));                                \
+  EXPECT_FALSE(verify##NAME##Attr(VOS, OBJ));                                  \
+  EXPECT_TRUE(StringRef(OS.str()).contains("missing value of type"));          \
   remove##NAME##Attr(OBJ);
 
-#define TEST_ATTR_3(OS, OBJ, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,    \
+#define TEST_ATTR_3(OBJ, KIND, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,  \
                     ETY1, ENAME1, EN1, ETY2, ENAME2, EN2)                      \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
+  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
                                                                                \
-  add##NAME##Attr(OBJ, get<ETY0>(0), get<ETY1>(1), get<ETY2>(2));              \
-  EXPECT_TRUE(has##NAME##Attr(OBJ));                                           \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
-  EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), get<ETY0>(0));                 \
-  EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), get<ETY1>(1));                 \
-  EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), get<ETY2>(2));                 \
+  {                                                                            \
+    ETY0 v0 = get<ETY0, KIND::NAME>(0);                                        \
+    ETY1 v1 = get<ETY1, KIND::NAME>(1);                                        \
+    ETY2 v2 = get<ETY2, KIND::NAME>(2);                                        \
                                                                                \
-  add##NAME##Attr(OBJ, get<ETY0>(2), get<ETY1>(1), get<ETY2>(0));              \
-  EXPECT_TRUE(has##NAME##Attr(OBJ));                                           \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
-  EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), get<ETY0>(2));                 \
-  EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), get<ETY1>(1));                 \
-  EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), get<ETY2>(0));                 \
+    add##NAME##Attr(OBJ, v0, v1, v2);                                          \
+    EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
+    EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                               \
+    EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
+    EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
+    EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), v2);                         \
+  }                                                                            \
+                                                                               \
+  {                                                                            \
+    ETY0 v0 = get<ETY0, KIND::NAME>(2);                                        \
+    ETY1 v1 = get<ETY1, KIND::NAME>(1);                                        \
+    ETY2 v2 = get<ETY2, KIND::NAME>(0);                                        \
+                                                                               \
+    add##NAME##Attr(OBJ, v0, v1, v2);                                          \
+    EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
+    EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                               \
+    EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
+    EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
+    EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), v2);                         \
+  }                                                                            \
                                                                                \
   remove##NAME##Attr(OBJ);                                                     \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
+  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
                                                                                \
   OS.str().clear();                                                            \
   addMetadata(OBJ, IRNAME, 3);                                                 \
-  EXPECT_FALSE(verify##NAME##Attr(OBJ));                                       \
-  EXPECT_FALSE(verify##NAME##Attr(OBJ, &OS));                                  \
-  EXPECT_TRUE(StringRef(OS.str()).starts_with("Could not get value of type")); \
+  EXPECT_FALSE(verify##NAME##Attr(VNULL, OBJ));                                \
+  EXPECT_FALSE(verify##NAME##Attr(VOS, OBJ));                                  \
+  EXPECT_TRUE(StringRef(OS.str()).contains("missing value of type"));          \
   remove##NAME##Attr(OBJ);
 
-#define TEST_ATTR_4(OS, OBJ, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,    \
+#define TEST_ATTR_4(OBJ, KIND, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,  \
                     ETY1, ENAME1, EN1, ETY2, ENAME2, EN2, ETY3, ENAME3, EN3)   \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
+  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
                                                                                \
-  add##NAME##Attr(OBJ, get<ETY0>(0), get<ETY1>(1), get<ETY2>(2),               \
-                  get<ETY3>(3));                                               \
-  EXPECT_TRUE(has##NAME##Attr(OBJ));                                           \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
-  EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), get<ETY0>(0));                 \
-  EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), get<ETY1>(1));                 \
-  EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), get<ETY2>(2));                 \
-  EXPECT_EQ(get##ENAME3##From##NAME##Attr(OBJ), get<ETY3>(3));                 \
+  {                                                                            \
+    ETY0 v0 = get<ETY0, KIND::NAME>(0);                                        \
+    ETY1 v1 = get<ETY1, KIND::NAME>(1);                                        \
+    ETY2 v2 = get<ETY2, KIND::NAME>(2);                                        \
+    ETY3 v3 = get<ETY3, KIND::NAME>(3);                                        \
                                                                                \
-  add##NAME##Attr(OBJ, get<ETY0>(3), get<ETY1>(2), get<ETY2>(1),               \
-                  get<ETY3>(0));                                               \
-  EXPECT_TRUE(has##NAME##Attr(OBJ));                                           \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
-  EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), get<ETY0>(3));                 \
-  EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), get<ETY1>(2));                 \
-  EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), get<ETY2>(1));                 \
-  EXPECT_EQ(get##ENAME3##From##NAME##Attr(OBJ), get<ETY3>(0));                 \
+    add##NAME##Attr(OBJ, v0, v1, v2, v3);                                      \
+    EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
+    EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                               \
+    EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
+    EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
+    EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), v2);                         \
+    EXPECT_EQ(get##ENAME3##From##NAME##Attr(OBJ), v3);                         \
+  }                                                                            \
+                                                                               \
+  {                                                                            \
+    ETY0 v0 = get<ETY0, KIND::NAME>(3);                                        \
+    ETY1 v1 = get<ETY1, KIND::NAME>(2);                                        \
+    ETY2 v2 = get<ETY2, KIND::NAME>(1);                                        \
+    ETY3 v3 = get<ETY3, KIND::NAME>(0);                                        \
+                                                                               \
+    add##NAME##Attr(OBJ, v0, v1, v2, v3);                                      \
+    EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
+    EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                               \
+    EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
+    EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
+    EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), v2);                         \
+    EXPECT_EQ(get##ENAME3##From##NAME##Attr(OBJ), v3);                         \
+  }                                                                            \
                                                                                \
   remove##NAME##Attr(OBJ);                                                     \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
+  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
                                                                                \
   OS.str().clear();                                                            \
   addMetadata(OBJ, IRNAME, 4);                                                 \
-  EXPECT_FALSE(verify##NAME##Attr(OBJ));                                       \
-  EXPECT_FALSE(verify##NAME##Attr(OBJ, &OS));                                  \
-  EXPECT_TRUE(StringRef(OS.str()).starts_with("Could not get value of type")); \
+  EXPECT_FALSE(verify##NAME##Attr(VNULL, OBJ));                                \
+  EXPECT_FALSE(verify##NAME##Attr(VOS, OBJ));                                  \
+  EXPECT_TRUE(StringRef(OS.str()).contains("missing value of type"));          \
   remove##NAME##Attr(OBJ);
 
-#define TEST_ATTR_5(OS, OBJ, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,    \
+#define TEST_ATTR_5(OBJ, KIND, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,  \
                     ETY1, ENAME1, EN1, ETY2, ENAME2, EN2, ETY3, ENAME3, EN3,   \
                     ETY4, ENAME4, EN4)                                         \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
+  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
                                                                                \
-  add##NAME##Attr(OBJ, get<ETY0>(0), get<ETY1>(1), get<ETY2>(2), get<ETY3>(3), \
-                  get<ETY4>(4));                                               \
-  EXPECT_TRUE(has##NAME##Attr(OBJ));                                           \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
-  EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), get<ETY0>(0));                 \
-  EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), get<ETY1>(1));                 \
-  EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), get<ETY2>(2));                 \
-  EXPECT_EQ(get##ENAME3##From##NAME##Attr(OBJ), get<ETY3>(3));                 \
-  EXPECT_EQ(get##ENAME4##From##NAME##Attr(OBJ), get<ETY4>(4));                 \
+  {                                                                            \
+    ETY0 v0 = get<ETY0, KIND::NAME>(0);                                        \
+    ETY1 v1 = get<ETY1, KIND::NAME>(1);                                        \
+    ETY2 v2 = get<ETY2, KIND::NAME>(2);                                        \
+    ETY3 v3 = get<ETY3, KIND::NAME>(3);                                        \
+    ETY4 v4 = get<ETY4, KIND::NAME>(4);                                        \
                                                                                \
-  add##NAME##Attr(OBJ, get<ETY0>(4), get<ETY1>(3), get<ETY2>(2), get<ETY3>(1), \
-                  get<ETY4>(0));                                               \
-  EXPECT_TRUE(has##NAME##Attr(OBJ));                                           \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
-  EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), get<ETY0>(4));                 \
-  EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), get<ETY1>(3));                 \
-  EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), get<ETY2>(2));                 \
-  EXPECT_EQ(get##ENAME3##From##NAME##Attr(OBJ), get<ETY3>(1));                 \
-  EXPECT_EQ(get##ENAME4##From##NAME##Attr(OBJ), get<ETY4>(0));                 \
+    add##NAME##Attr(OBJ, v0, v1, v2, v3, v4);                                  \
+    EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
+    EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                               \
+    EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
+    EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
+    EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), v2);                         \
+    EXPECT_EQ(get##ENAME3##From##NAME##Attr(OBJ), v3);                         \
+    EXPECT_EQ(get##ENAME4##From##NAME##Attr(OBJ), v4);                         \
+  }                                                                            \
+                                                                               \
+  {                                                                            \
+    ETY0 v0 = get<ETY0, KIND::NAME>(4);                                        \
+    ETY1 v1 = get<ETY1, KIND::NAME>(3);                                        \
+    ETY2 v2 = get<ETY2, KIND::NAME>(2);                                        \
+    ETY3 v3 = get<ETY3, KIND::NAME>(1);                                        \
+    ETY4 v4 = get<ETY4, KIND::NAME>(0);                                        \
+                                                                               \
+    add##NAME##Attr(OBJ, v0, v1, v2, v3, v4);                                  \
+    EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
+    EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                               \
+    EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
+    EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
+    EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), v2);                         \
+    EXPECT_EQ(get##ENAME3##From##NAME##Attr(OBJ), v3);                         \
+    EXPECT_EQ(get##ENAME4##From##NAME##Attr(OBJ), v4);                         \
+  }                                                                            \
                                                                                \
   remove##NAME##Attr(OBJ);                                                     \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
+  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
                                                                                \
   OS.str().clear();                                                            \
   addMetadata(OBJ, IRNAME, 5);                                                 \
-  EXPECT_FALSE(verify##NAME##Attr(OBJ));                                       \
-  EXPECT_FALSE(verify##NAME##Attr(OBJ, &OS));                                  \
-  EXPECT_TRUE(StringRef(OS.str()).starts_with("Could not get value of type")); \
+  EXPECT_FALSE(verify##NAME##Attr(VNULL, OBJ));                                \
+  EXPECT_FALSE(verify##NAME##Attr(VOS, OBJ));                                  \
+  EXPECT_TRUE(StringRef(OS.str()).contains("missing value of type"));          \
   remove##NAME##Attr(OBJ);
 
-#define TEST_ATTR_6(OS, OBJ, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,    \
+#define TEST_ATTR_6(OBJ, KIND, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,  \
                     ETY1, ENAME1, EN1, ETY2, ENAME2, EN2, ETY3, ENAME3, EN3,   \
                     ETY4, ENAME4, EN4, ETY5, ENAME5, EN5)                      \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
+  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
                                                                                \
-  add##NAME##Attr(OBJ, get<ETY0>(0), get<ETY1>(1), get<ETY2>(2), get<ETY3>(3), \
-                  get<ETY4>(4), get<ETY5>(5));                                 \
-  EXPECT_TRUE(has##NAME##Attr(OBJ));                                           \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
-  EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), get<ETY0>(0));                 \
-  EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), get<ETY1>(1));                 \
-  EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), get<ETY2>(2));                 \
-  EXPECT_EQ(get##ENAME3##From##NAME##Attr(OBJ), get<ETY3>(3));                 \
-  EXPECT_EQ(get##ENAME4##From##NAME##Attr(OBJ), get<ETY4>(4));                 \
-  EXPECT_EQ(get##ENAME5##From##NAME##Attr(OBJ), get<ETY5>(5));                 \
+  {                                                                            \
+    ETY0 v0 = get<ETY0, KIND::NAME>(0);                                        \
+    ETY1 v1 = get<ETY1, KIND::NAME>(1);                                        \
+    ETY2 v2 = get<ETY2, KIND::NAME>(2);                                        \
+    ETY3 v3 = get<ETY3, KIND::NAME>(3);                                        \
+    ETY4 v4 = get<ETY4, KIND::NAME>(4);                                        \
+    ETY5 v5 = get<ETY5, KIND::NAME>(5);                                        \
                                                                                \
-  add##NAME##Attr(OBJ, get<ETY0>(5), get<ETY1>(4), get<ETY2>(3), get<ETY3>(2), \
-                  get<ETY4>(1), get<ETY5>(0));                                 \
-  EXPECT_TRUE(has##NAME##Attr(OBJ));                                           \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
-  EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), get<ETY0>(5));                 \
-  EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), get<ETY1>(4));                 \
-  EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), get<ETY2>(3));                 \
-  EXPECT_EQ(get##ENAME3##From##NAME##Attr(OBJ), get<ETY3>(2));                 \
-  EXPECT_EQ(get##ENAME4##From##NAME##Attr(OBJ), get<ETY4>(1));                 \
-  EXPECT_EQ(get##ENAME5##From##NAME##Attr(OBJ), get<ETY5>(0));                 \
+    add##NAME##Attr(OBJ, v0, v1, v2, v3, v4, v5);                              \
+    EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
+    EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                               \
+    EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
+    EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
+    EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), v2);                         \
+    EXPECT_EQ(get##ENAME3##From##NAME##Attr(OBJ), v3);                         \
+    EXPECT_EQ(get##ENAME4##From##NAME##Attr(OBJ), v4);                         \
+    EXPECT_EQ(get##ENAME5##From##NAME##Attr(OBJ), v5);                         \
+  }                                                                            \
+                                                                               \
+  {                                                                            \
+    ETY0 v0 = get<ETY0, KIND::NAME>(5);                                        \
+    ETY1 v1 = get<ETY1, KIND::NAME>(4);                                        \
+    ETY2 v2 = get<ETY2, KIND::NAME>(3);                                        \
+    ETY3 v3 = get<ETY3, KIND::NAME>(2);                                        \
+    ETY4 v4 = get<ETY4, KIND::NAME>(1);                                        \
+    ETY5 v5 = get<ETY5, KIND::NAME>(0);                                        \
+                                                                               \
+    add##NAME##Attr(OBJ, v0, v1, v2, v3, v4, v5);                              \
+    EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
+    EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                               \
+    EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
+    EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
+    EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), v2);                         \
+    EXPECT_EQ(get##ENAME3##From##NAME##Attr(OBJ), v3);                         \
+    EXPECT_EQ(get##ENAME4##From##NAME##Attr(OBJ), v4);                         \
+    EXPECT_EQ(get##ENAME5##From##NAME##Attr(OBJ), v5);                         \
+  }                                                                            \
                                                                                \
   remove##NAME##Attr(OBJ);                                                     \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
+  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
                                                                                \
   OS.str().clear();                                                            \
   addMetadata(OBJ, IRNAME, 6);                                                 \
-  EXPECT_FALSE(verify##NAME##Attr(OBJ));                                       \
-  EXPECT_FALSE(verify##NAME##Attr(OBJ, &OS));                                  \
-  EXPECT_TRUE(StringRef(OS.str()).starts_with("Could not get value of type")); \
+  EXPECT_FALSE(verify##NAME##Attr(VNULL, OBJ));                                \
+  EXPECT_FALSE(verify##NAME##Attr(VOS, OBJ));                                  \
+  EXPECT_TRUE(StringRef(OS.str()).contains("missing value of type"));          \
   remove##NAME##Attr(OBJ);
 
-#define TEST_ATTR_7(OS, OBJ, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,    \
+#define TEST_ATTR_7(OBJ, KIND, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,  \
                     ETY1, ENAME1, EN1, ETY2, ENAME2, EN2, ETY3, ENAME3, EN3,   \
                     ETY4, ENAME4, EN4, ETY5, ENAME5, EN5, ETY6, ENAME6, EN6)   \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
+  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
                                                                                \
-  add##NAME##Attr(OBJ, get<ETY0>(0), get<ETY1>(1), get<ETY2>(2), get<ETY3>(3), \
-                  get<ETY4>(4), get<ETY5>(5), get<ETY6>(6));                   \
-  EXPECT_TRUE(has##NAME##Attr(OBJ));                                           \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
-  EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), get<ETY0>(0));                 \
-  EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), get<ETY1>(1));                 \
-  EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), get<ETY2>(2));                 \
-  EXPECT_EQ(get##ENAME3##From##NAME##Attr(OBJ), get<ETY3>(3));                 \
-  EXPECT_EQ(get##ENAME4##From##NAME##Attr(OBJ), get<ETY4>(4));                 \
-  EXPECT_EQ(get##ENAME5##From##NAME##Attr(OBJ), get<ETY5>(5));                 \
-  EXPECT_EQ(get##ENAME6##From##NAME##Attr(OBJ), get<ETY6>(6));                 \
+  {                                                                            \
+    ETY0 v0 = get<ETY0, KIND::NAME>(0);                                        \
+    ETY1 v1 = get<ETY1, KIND::NAME>(1);                                        \
+    ETY2 v2 = get<ETY2, KIND::NAME>(2);                                        \
+    ETY3 v3 = get<ETY3, KIND::NAME>(3);                                        \
+    ETY4 v4 = get<ETY4, KIND::NAME>(4);                                        \
+    ETY5 v5 = get<ETY5, KIND::NAME>(5);                                        \
+    ETY6 v6 = get<ETY6, KIND::NAME>(6);                                        \
                                                                                \
-  add##NAME##Attr(OBJ, get<ETY0>(6), get<ETY1>(5), get<ETY2>(4), get<ETY3>(3), \
-                  get<ETY4>(2), get<ETY5>(1), get<ETY6>(0));                   \
-  EXPECT_TRUE(has##NAME##Attr(OBJ));                                           \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
-  EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), get<ETY0>(6));                 \
-  EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), get<ETY1>(5));                 \
-  EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), get<ETY2>(4));                 \
-  EXPECT_EQ(get##ENAME3##From##NAME##Attr(OBJ), get<ETY3>(3));                 \
-  EXPECT_EQ(get##ENAME4##From##NAME##Attr(OBJ), get<ETY4>(2));                 \
-  EXPECT_EQ(get##ENAME5##From##NAME##Attr(OBJ), get<ETY5>(1));                 \
-  EXPECT_EQ(get##ENAME6##From##NAME##Attr(OBJ), get<ETY6>(0));                 \
+    add##NAME##Attr(OBJ, v0, v1, v2, v3, v4, v5, v6);                          \
+    EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
+    EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                               \
+    EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
+    EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
+    EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), v2);                         \
+    EXPECT_EQ(get##ENAME3##From##NAME##Attr(OBJ), v3);                         \
+    EXPECT_EQ(get##ENAME4##From##NAME##Attr(OBJ), v4);                         \
+    EXPECT_EQ(get##ENAME5##From##NAME##Attr(OBJ), v5);                         \
+    EXPECT_EQ(get##ENAME6##From##NAME##Attr(OBJ), v6);                         \
+  }                                                                            \
+                                                                               \
+  {                                                                            \
+    ETY0 v0 = get<ETY0, KIND::NAME>(6);                                        \
+    ETY1 v1 = get<ETY1, KIND::NAME>(5);                                        \
+    ETY2 v2 = get<ETY2, KIND::NAME>(4);                                        \
+    ETY3 v3 = get<ETY3, KIND::NAME>(3);                                        \
+    ETY4 v4 = get<ETY4, KIND::NAME>(2);                                        \
+    ETY5 v5 = get<ETY5, KIND::NAME>(1);                                        \
+    ETY6 v6 = get<ETY6, KIND::NAME>(0);                                        \
+                                                                               \
+    add##NAME##Attr(OBJ, v0, v1, v2, v3, v4, v5, v6);                          \
+    EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
+    EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                               \
+    EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
+    EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
+    EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), v2);                         \
+    EXPECT_EQ(get##ENAME3##From##NAME##Attr(OBJ), v3);                         \
+    EXPECT_EQ(get##ENAME4##From##NAME##Attr(OBJ), v4);                         \
+    EXPECT_EQ(get##ENAME5##From##NAME##Attr(OBJ), v5);                         \
+    EXPECT_EQ(get##ENAME6##From##NAME##Attr(OBJ), v6);                         \
+  }                                                                            \
                                                                                \
   remove##NAME##Attr(OBJ);                                                     \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
+  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
                                                                                \
   OS.str().clear();                                                            \
   addMetadata(OBJ, IRNAME, 7);                                                 \
-  EXPECT_FALSE(verify##NAME##Attr(OBJ));                                       \
-  EXPECT_FALSE(verify##NAME##Attr(OBJ, &OS));                                  \
-  EXPECT_TRUE(StringRef(OS.str()).starts_with("Could not get value of type")); \
+  EXPECT_FALSE(verify##NAME##Attr(VNULL, OBJ));                                \
+  EXPECT_FALSE(verify##NAME##Attr(VOS, OBJ));                                  \
+  EXPECT_TRUE(StringRef(OS.str()).contains("missing value of type"));          \
   remove##NAME##Attr(OBJ);
 
-#define TEST_ATTR_8(OS, OBJ, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,    \
+#define TEST_ATTR_8(OBJ, KIND, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,  \
                     ETY1, ENAME1, EN1, ETY2, ENAME2, EN2, ETY3, ENAME3, EN3,   \
                     ETY4, ENAME4, EN4, ETY5, ENAME5, EN5, ETY6, ENAME6, EN6,   \
                     ETY7, ENAME7, EN7)                                         \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
+  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
                                                                                \
-  add##NAME##Attr(OBJ, get<ETY0>(0), get<ETY1>(1), get<ETY2>(2), get<ETY3>(3), \
-                  get<ETY4>(4), get<ETY5>(5), get<ETY6>(6), get<ETY7>(7));     \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
-  EXPECT_TRUE(has##NAME##Attr(OBJ));                                           \
-  EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), get<ETY0>(0));                 \
-  EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), get<ETY1>(1));                 \
-  EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), get<ETY2>(2));                 \
-  EXPECT_EQ(get##ENAME3##From##NAME##Attr(OBJ), get<ETY3>(3));                 \
-  EXPECT_EQ(get##ENAME4##From##NAME##Attr(OBJ), get<ETY4>(4));                 \
-  EXPECT_EQ(get##ENAME5##From##NAME##Attr(OBJ), get<ETY5>(5));                 \
-  EXPECT_EQ(get##ENAME6##From##NAME##Attr(OBJ), get<ETY6>(6));                 \
-  EXPECT_EQ(get##ENAME7##From##NAME##Attr(OBJ), get<ETY7>(7));                 \
+  {                                                                            \
+    ETY0 v0 = get<ETY0, KIND::NAME>(0);                                        \
+    ETY1 v1 = get<ETY1, KIND::NAME>(1);                                        \
+    ETY2 v2 = get<ETY2, KIND::NAME>(2);                                        \
+    ETY3 v3 = get<ETY3, KIND::NAME>(3);                                        \
+    ETY4 v4 = get<ETY4, KIND::NAME>(4);                                        \
+    ETY5 v5 = get<ETY5, KIND::NAME>(5);                                        \
+    ETY6 v6 = get<ETY6, KIND::NAME>(6);                                        \
+    ETY7 v7 = get<ETY7, KIND::NAME>(7);                                        \
                                                                                \
-  add##NAME##Attr(OBJ, get<ETY0>(7), get<ETY1>(6), get<ETY2>(5), get<ETY3>(4), \
-                  get<ETY4>(3), get<ETY5>(2), get<ETY6>(1), get<ETY7>(0));     \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
-  EXPECT_TRUE(has##NAME##Attr(OBJ));                                           \
-  EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), get<ETY0>(7));                 \
-  EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), get<ETY1>(6));                 \
-  EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), get<ETY2>(5));                 \
-  EXPECT_EQ(get##ENAME3##From##NAME##Attr(OBJ), get<ETY3>(4));                 \
-  EXPECT_EQ(get##ENAME4##From##NAME##Attr(OBJ), get<ETY4>(3));                 \
-  EXPECT_EQ(get##ENAME5##From##NAME##Attr(OBJ), get<ETY5>(2));                 \
-  EXPECT_EQ(get##ENAME6##From##NAME##Attr(OBJ), get<ETY6>(1));                 \
-  EXPECT_EQ(get##ENAME7##From##NAME##Attr(OBJ), get<ETY7>(0));                 \
+    add##NAME##Attr(OBJ, v0, v1, v2, v3, v4, v5, v6, v7);                      \
+    EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
+    EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                               \
+    EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
+    EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
+    EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), v2);                         \
+    EXPECT_EQ(get##ENAME3##From##NAME##Attr(OBJ), v3);                         \
+    EXPECT_EQ(get##ENAME4##From##NAME##Attr(OBJ), v4);                         \
+    EXPECT_EQ(get##ENAME5##From##NAME##Attr(OBJ), v5);                         \
+    EXPECT_EQ(get##ENAME6##From##NAME##Attr(OBJ), v6);                         \
+    EXPECT_EQ(get##ENAME7##From##NAME##Attr(OBJ), v7);                         \
+  }                                                                            \
+                                                                               \
+  {                                                                            \
+    ETY0 v0 = get<ETY0, KIND::NAME>(7);                                        \
+    ETY1 v1 = get<ETY1, KIND::NAME>(6);                                        \
+    ETY2 v2 = get<ETY2, KIND::NAME>(5);                                        \
+    ETY3 v3 = get<ETY3, KIND::NAME>(4);                                        \
+    ETY4 v4 = get<ETY4, KIND::NAME>(3);                                        \
+    ETY5 v5 = get<ETY5, KIND::NAME>(2);                                        \
+    ETY6 v6 = get<ETY6, KIND::NAME>(1);                                        \
+    ETY7 v7 = get<ETY7, KIND::NAME>(0);                                        \
+                                                                               \
+    add##NAME##Attr(OBJ, v0, v1, v2, v3, v4, v5, v6, v7);                      \
+    EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
+    EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                               \
+    EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
+    EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
+    EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), v2);                         \
+    EXPECT_EQ(get##ENAME3##From##NAME##Attr(OBJ), v3);                         \
+    EXPECT_EQ(get##ENAME4##From##NAME##Attr(OBJ), v4);                         \
+    EXPECT_EQ(get##ENAME5##From##NAME##Attr(OBJ), v5);                         \
+    EXPECT_EQ(get##ENAME6##From##NAME##Attr(OBJ), v6);                         \
+    EXPECT_EQ(get##ENAME7##From##NAME##Attr(OBJ), v7);                         \
+  }                                                                            \
                                                                                \
   remove##NAME##Attr(OBJ);                                                     \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
+  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
                                                                                \
   OS.str().clear();                                                            \
   addMetadata(OBJ, IRNAME, 8);                                                 \
-  EXPECT_FALSE(verify##NAME##Attr(OBJ));                                       \
-  EXPECT_FALSE(verify##NAME##Attr(OBJ, &OS));                                  \
-  EXPECT_TRUE(StringRef(OS.str()).starts_with("Could not get value of type")); \
+  EXPECT_FALSE(verify##NAME##Attr(VNULL, OBJ));                                \
+  EXPECT_FALSE(verify##NAME##Attr(VOS, OBJ));                                  \
+  EXPECT_TRUE(StringRef(OS.str()).contains("missing value of type"));          \
   remove##NAME##Attr(OBJ);
 
 static constexpr llvm::StringRef ll2 = R"(
@@ -383,8 +498,8 @@ for.i.exit:
 !1 = distinct !{!1}
 )";
 
-#define DECLS_LOOP(OS, OBJ, LOOP_F, LOOP_G, LIS)                               \
-  DECLS(OS, OBJ);                                                              \
+#define DECLS_LOOP(OBJ, LOOP_F, LOOP_G, LIS)                                   \
+  DECLS(OBJ);                                                                  \
   std::unique_ptr<Module> m2 = parseIR(getContext(OBJ), ll2);                  \
   Function *f2 = m2->getFunction("f");                                         \
   DominatorTree dtf(*f2);                                                      \
@@ -396,30 +511,40 @@ for.i.exit:
   [[maybe_unused]] Loop *LOOP_F = *lif.begin();                                \
   [[maybe_unused]] Loop *LOOP_G = *lig.begin();
 
-#define TEST_ATTR_LOOP(OS, OBJ, LOOP_F, LOOP_G, LIS, NAME, IRNAME,             \
-                       CUSTOMVERIFY)                                           \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
+#define TEST_ATTR_LOOP(OBJ, LOOP_F, LOOP_G, LIS, NAME, IRNAME, CUSTOMVERIFY)   \
+  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
                                                                                \
   add##NAME##Attr(OBJ, *LOOP_F);                                               \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
+  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
   EXPECT_TRUE(has##NAME##Attr(OBJ));                                           \
   EXPECT_EQ(get##NAME##Attr(OBJ, LIS), LOOP_F);                                \
                                                                                \
   add##NAME##Attr(OBJ, *LOOP_G);                                               \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
+  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
   EXPECT_TRUE(has##NAME##Attr(OBJ));                                           \
   EXPECT_EQ(get##NAME##Attr(OBJ, LIS), LOOP_G);                                \
                                                                                \
   remove##NAME##Attr(OBJ);                                                     \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
-  EXPECT_TRUE(verify##NAME##Attr(OBJ));                                        \
+  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
                                                                                \
   OS.str().clear();                                                            \
   addMetadata(OBJ, IRNAME, 1);                                                 \
-  EXPECT_FALSE(verify##NAME##Attr(OBJ));                                       \
-  EXPECT_FALSE(verify##NAME##Attr(OBJ, &OS));                                  \
-  EXPECT_TRUE(StringRef(OS.str()).starts_with("Could not get value of type")); \
+  EXPECT_FALSE(verify##NAME##Attr(VNULL, OBJ));                                \
+  EXPECT_FALSE(verify##NAME##Attr(VOS, OBJ));                                  \
+  EXPECT_TRUE(StringRef(OS.str()).contains("MDNode is not a valid loop id"));  \
   remove##NAME##Attr(OBJ);
+
+#define TEST_ATTR_ATTRS(OBJ)                                                   \
+  SmallVector<StringRef> inp = {"attr-1", "attr-3", "attr-7"};                 \
+  for (StringRef name : inp)                                                   \
+    addMetadata(OBJ, name, {});                                                \
+                                                                               \
+  SmallVector<StringRef> got;                                                  \
+  for (const MDNode &attr : attrs(OBJ))                                        \
+    got.push_back(getRawAttrName(attr));                                       \
+                                                                               \
+  EXPECT_EQ(inp, got);
 
 #endif // KITSUNE_UNITTEST_TEST_ATTRS_COMMON_H

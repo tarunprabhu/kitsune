@@ -1,4 +1,4 @@
-//===- AttrsImpl.h - Common definitions for Kitsune-specific attributes ---===//
+//=- AttrsImpl.h - Common definitions Kitsune-specific attributes -*- C++ -*-=//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -13,15 +13,11 @@
 #ifndef KITSUNE_LIB_CORE_ATTRS_IMPL_H
 #define KITSUNE_LIB_CORE_ATTRS_IMPL_H
 
-#include "VerifyImpl.h"
 #include "kitsune/Core/AttrsCommon.h"
+#include "kitsune/Core/VerifierInternal.h"
 #include "kitsune/Support/ToString.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Analysis/LoopInfo.h"
-
-#define VERIFY_IMPL(V, OS, ETYPE, ENAME, EN, IRNAME)                           \
-  detail::check(V.has_value(), OS, detail::errMsgNoValueAt, toString<ETYPE>(), \
-                #ENAME, EN, IRNAME)
 
 #define DEFN_ATTR_GENERIC(IRELEM, ENUMKIND)                                    \
   static void setAttrList(IRELEM &, MDNode *attrList);                         \
@@ -29,16 +25,26 @@
   static void removeAttr(IRELEM &, StringRef attrName);                        \
                                                                                \
   bool llvm::hasAttr(const IRELEM &ir, ENUMKIND attr) {                        \
-    return getRawAttr(getAttrName(attr), getAttrList(ir));                     \
+    return getRawAttr(getAttrName(attr), getRawAttrList(ir));                  \
   }                                                                            \
                                                                                \
   void llvm::removeAttr(IRELEM &ir, ENUMKIND attr) {                           \
     ::removeAttr(ir, getAttrName(attr));                                       \
+  }                                                                            \
+                                                                               \
+  iterator_range<AttrIterator> llvm::attrs(const IRELEM &ir) {                 \
+    if (const MDNode *attrList = getRawAttrList(ir)) {                         \
+      AttrIterator beg(attrList);                                              \
+      AttrIterator end(attrList, attrList->getNumOperands());                  \
+                                                                               \
+      return iterator_range(beg, end);                                         \
+    }                                                                          \
+    return iterator_range(AttrIterator(), AttrIterator());                     \
   }
 
 #define DEFN_ATTR_COMMON(IRELEM, ENUMKIND, NAME, IRNAME, CUSTOMVERIFY, TYPE)   \
   bool llvm::has##NAME##Attr(const IRELEM &ir) {                               \
-    return getRawAttr(IRNAME, getAttrList(ir));                                \
+    return getRawAttr(IRNAME, getRawAttrList(ir));                             \
   }                                                                            \
                                                                                \
   void llvm::remove##NAME##Attr(IRELEM &ir) { ::removeAttr(ir, IRNAME); }
@@ -46,44 +52,46 @@
 #define DEFN_ATTR_LOOP(IRELEM, NAME, IRNAME, CUSTOMVERIFY)                     \
   std::optional<Loop *> llvm::get##NAME##Attr(                                 \
       const IRELEM &ir, const SmallVectorImpl<const LoopInfo *> &lis) {        \
-    return getAttrValue(IRNAME, getAttrList(ir), lis);                         \
+    return getAttrValue(IRNAME, getRawAttrList(ir), lis);                      \
   }                                                                            \
                                                                                \
   void llvm::add##NAME##Attr(IRELEM &ir, const Loop &loop) {                   \
     ::addAttr(ir, IRNAME, loop.getLoopID());                                   \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(const IRELEM &ir, raw_ostream *os) {           \
-    bool isValid = true;                                                       \
-    if (has##NAME##Attr(ir)) {                                                 \
-      isValid &= verifyAttrLoop(IRNAME, getAttrList(ir), os);                  \
+  bool llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
+    v.push();                                                                  \
+    if (const MDNode *attr = getRawAttr(IRNAME, getRawAttrList(ir))) {         \
+      if (!detail::verifyRawAttrValueCount(v, *attr, 1))                       \
+        return v.pop();                                                        \
                                                                                \
-      if constexpr (CUSTOMVERIFY) {                                            \
-        MDNode *raw = getRawAttr(IRNAME, getAttrList(ir));                     \
-        MDNode *loopID = cast<MDNode>(raw->getOperand(1));                     \
-        isValid &= verify##NAME##Attr(ir, *loopID, os);                        \
-      }                                                                        \
+      if (!detail::verifyRawAttrValueLoop(v, *attr))                           \
+        return v.pop();                                                        \
+                                                                               \
+      if constexpr (CUSTOMVERIFY)                                              \
+        verify##NAME##Attr(v, ir, *cast<MDNode>(attr->getOperand(1)));         \
     }                                                                          \
-    return isValid;                                                            \
+    return v.pop();                                                            \
   }
 
 #define DEFN_ATTR_0(IRELEM, NAME, IRNAME, CUSTOMVERIFY)                        \
   void llvm::add##NAME##Attr(IRELEM &ir) { ::addAttr(ir, IRNAME, {}); }        \
                                                                                \
-  bool llvm::verify##NAME##Attr(const IRELEM &ir, raw_ostream *os) {           \
-    bool isValid = true;                                                       \
-    if (has##NAME##Attr(ir)) {                                                 \
-      isValid &= verifyAttr0(IRNAME, getAttrList(ir), os);                     \
+  bool llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
+    v.push();                                                                  \
+    if (const MDNode *attr = getRawAttr(IRNAME, getRawAttrList(ir))) {         \
+      if (!detail::verifyRawAttrValueCount(v, *attr, 0))                       \
+        return v.pop();                                                        \
                                                                                \
       if constexpr (CUSTOMVERIFY)                                              \
-        isValid &= verify##NAME##Attr(ir, true, os);                           \
+        verify##NAME##Attr(v, ir, true);                                       \
     }                                                                          \
-    return isValid;                                                            \
+    return v.pop();                                                            \
   }
 
 #define DEFN_ATTR_1(IRELEM, NAME, IRNAME, CUSTOMVERIFY, TYPE)                  \
   std::optional<TYPE> llvm::get##NAME##Attr(const IRELEM &ir) {                \
-    return getAttrValue<TYPE>(IRNAME, getAttrList(ir), 0, 1);                  \
+    return getAttrValue<TYPE>(IRNAME, getRawAttrList(ir), 0, 1);               \
   }                                                                            \
                                                                                \
   void llvm::add##NAME##Attr(IRELEM &ir, const TYPE &val) {                    \
@@ -92,19 +100,20 @@
     ::addAttr(ir, IRNAME, attrVals);                                           \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(const IRELEM &ir, raw_ostream *os) {           \
-    bool isValid = true;                                                       \
-    if (has##NAME##Attr(ir)) {                                                 \
-      std::optional<TYPE> v = get##NAME##Attr(ir);                             \
-      isValid &=                                                               \
-          detail::check(v.has_value(), os,                                     \
-                        "Could not get value of type '{}' in attribute '{}'",  \
-                        toString<TYPE>(), IRNAME);                             \
+  bool llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
+    v.push();                                                                  \
+    if (const MDNode *attr = getRawAttr(IRNAME, getRawAttrList(ir))) {         \
+      if (!detail::verifyRawAttrValueCount(v, *attr, 1))                       \
+        return v.pop();                                                        \
+                                                                               \
+      std::optional<TYPE> val = getRawAttrValue<TYPE>(*attr, 0);               \
+      if (!detail::verifyRawAttrValues(v, *attr, val))                         \
+        return v.pop();                                                        \
                                                                                \
       if constexpr (CUSTOMVERIFY)                                              \
-        isValid &= verify##NAME##Attr(ir, *v, os);                             \
+        verify##NAME##Attr(v, ir, *val);                                       \
     }                                                                          \
-    return isValid;                                                            \
+    return v.pop();                                                            \
   }
 
 #define DEFN_ATTR_2(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
@@ -115,19 +124,21 @@
     ::addAttr(ir, IRNAME, attrVals);                                           \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(const IRELEM &ir, raw_ostream *os) {           \
-    bool isValid = true;                                                       \
-    if (has##NAME##Attr(ir)) {                                                 \
-      std::optional<ETY0> v0 = get##ENAME0##From##NAME##Attr(ir);              \
-      std::optional<ETY1> v1 = get##ENAME1##From##NAME##Attr(ir);              \
+  bool llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
+    v.push();                                                                  \
+    if (const MDNode *attr = getRawAttr(IRNAME, getRawAttrList(ir))) {         \
+      if (!detail::verifyRawAttrValueCount(v, *attr, 2))                       \
+        return v.pop();                                                        \
                                                                                \
-      isValid &= VERIFY_IMPL(v0, os, ETY0, ENAME0, EN0, IRNAME);               \
-      isValid &= VERIFY_IMPL(v1, os, ETY1, ENAME1, EN1, IRNAME);               \
+      std::optional<ETY0> v0 = getRawAttrValue<ETY0>(*attr, 0);                \
+      std::optional<ETY1> v1 = getRawAttrValue<ETY1>(*attr, 1);                \
+      if (!detail::verifyRawAttrValues(v, *attr, v0, v1))                      \
+        return v.pop();                                                        \
                                                                                \
       if constexpr (CUSTOMVERIFY)                                              \
-        isValid &= verify##NAME##Attr(ir, *v0, *v1, os);                       \
+        verify##NAME##Attr(v, ir, *v0, *v1);                                   \
     }                                                                          \
-    return isValid;                                                            \
+    return v.pop();                                                            \
   }
 
 #define DEFN_ATTR_3(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
@@ -140,21 +151,22 @@
     ::addAttr(ir, IRNAME, attrVals);                                           \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(const IRELEM &ir, raw_ostream *os) {           \
-    bool isValid = true;                                                       \
-    if (has##NAME##Attr(ir)) {                                                 \
-      std::optional<ETY0> v0 = get##ENAME0##From##NAME##Attr(ir);              \
-      std::optional<ETY1> v1 = get##ENAME1##From##NAME##Attr(ir);              \
-      std::optional<ETY2> v2 = get##ENAME2##From##NAME##Attr(ir);              \
+  bool llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
+    v.push();                                                                  \
+    if (const MDNode *attr = getRawAttr(IRNAME, getRawAttrList(ir))) {         \
+      if (!detail::verifyRawAttrValueCount(v, *attr, 3))                       \
+        return v.pop();                                                        \
                                                                                \
-      isValid &= VERIFY_IMPL(v0, os, ETY0, ENAME0, EN0, IRNAME);               \
-      isValid &= VERIFY_IMPL(v1, os, ETY1, ENAME1, EN1, IRNAME);               \
-      isValid &= VERIFY_IMPL(v2, os, ETY2, ENAME2, EN2, IRNAME);               \
+      std::optional<ETY0> v0 = getRawAttrValue<ETY0>(*attr, 0);                \
+      std::optional<ETY1> v1 = getRawAttrValue<ETY1>(*attr, 1);                \
+      std::optional<ETY2> v2 = getRawAttrValue<ETY2>(*attr, 2);                \
+      if (!detail::verifyRawAttrValues(v, *attr, v0, v1, v2))                  \
+        return v.pop();                                                        \
                                                                                \
       if constexpr (CUSTOMVERIFY)                                              \
-        isValid &= verify##NAME##Attr(ir, *v0, *v1, *v2, os);                  \
+        verify##NAME##Attr(v, ir, *v0, *v1, *v2);                              \
     }                                                                          \
-    return isValid;                                                            \
+    return v.pop();                                                            \
   }
 
 #define DEFN_ATTR_4(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
@@ -167,23 +179,23 @@
     ::addAttr(ir, IRNAME, attrVals);                                           \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(const IRELEM &ir, raw_ostream *os) {           \
-    bool isValid = true;                                                       \
-    if (has##NAME##Attr(ir)) {                                                 \
-      std::optional<ETY0> v0 = get##ENAME0##From##NAME##Attr(ir);              \
-      std::optional<ETY1> v1 = get##ENAME1##From##NAME##Attr(ir);              \
-      std::optional<ETY2> v2 = get##ENAME2##From##NAME##Attr(ir);              \
-      std::optional<ETY3> v3 = get##ENAME3##From##NAME##Attr(ir);              \
+  bool llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
+    v.push();                                                                  \
+    if (const MDNode *attr = getRawAttr(IRNAME, getRawAttrList(ir))) {         \
+      if (!detail::verifyRawAttrValueCount(v, *attr, 4))                       \
+        return v.pop();                                                        \
                                                                                \
-      isValid &= VERIFY_IMPL(v0, os, ETY0, ENAME0, EN0, IRNAME);               \
-      isValid &= VERIFY_IMPL(v1, os, ETY1, ENAME1, EN1, IRNAME);               \
-      isValid &= VERIFY_IMPL(v2, os, ETY2, ENAME2, EN2, IRNAME);               \
-      isValid &= VERIFY_IMPL(v3, os, ETY3, ENAME3, EN3, IRNAME);               \
+      std::optional<ETY0> v0 = getRawAttrValue<ETY0>(*attr, 0);                \
+      std::optional<ETY1> v1 = getRawAttrValue<ETY1>(*attr, 1);                \
+      std::optional<ETY2> v2 = getRawAttrValue<ETY2>(*attr, 2);                \
+      std::optional<ETY3> v3 = getRawAttrValue<ETY3>(*attr, 3);                \
+      if (!detail::verifyRawAttrValues(v, *attr, v0, v1, v2, v3))              \
+        return v.pop();                                                        \
                                                                                \
       if constexpr (CUSTOMVERIFY)                                              \
-        isValid &= verify##NAME##Attr(ir, *v0, *v1, *v2, *v3, os);             \
+        verify##NAME##Attr(v, ir, *v0, *v1, *v2, *v3);                         \
     }                                                                          \
-    return isValid;                                                            \
+    return v.pop();                                                            \
   }
 
 #define DEFN_ATTR_5(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
@@ -198,25 +210,24 @@
     ::addAttr(ir, IRNAME, attrVals);                                           \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(const IRELEM &ir, raw_ostream *os) {           \
-    bool isValid = true;                                                       \
-    if (has##NAME##Attr(ir)) {                                                 \
-      std::optional<ETY0> v0 = get##ENAME0##From##NAME##Attr(ir);              \
-      std::optional<ETY1> v1 = get##ENAME1##From##NAME##Attr(ir);              \
-      std::optional<ETY2> v2 = get##ENAME2##From##NAME##Attr(ir);              \
-      std::optional<ETY3> v3 = get##ENAME3##From##NAME##Attr(ir);              \
-      std::optional<ETY4> v4 = get##ENAME4##From##NAME##Attr(ir);              \
+  bool llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
+    v.push();                                                                  \
+    if (const MDNode *attr = getRawAttr(IRNAME, getRawAttrList(ir))) {         \
+      if (!detail::verifyRawAttrValueCount(v, *attr, 5))                       \
+        return v.pop();                                                        \
                                                                                \
-      isValid &= VERIFY_IMPL(v0, os, ETY0, ENAME0, EN0, IRNAME);               \
-      isValid &= VERIFY_IMPL(v1, os, ETY1, ENAME1, EN1, IRNAME);               \
-      isValid &= VERIFY_IMPL(v2, os, ETY2, ENAME2, EN2, IRNAME);               \
-      isValid &= VERIFY_IMPL(v3, os, ETY3, ENAME3, EN3, IRNAME);               \
-      isValid &= VERIFY_IMPL(v4, os, ETY4, ENAME4, EN4, IRNAME);               \
+      std::optional<ETY0> v0 = getRawAttrValue<ETY0>(*attr, 0);                \
+      std::optional<ETY1> v1 = getRawAttrValue<ETY1>(*attr, 1);                \
+      std::optional<ETY2> v2 = getRawAttrValue<ETY2>(*attr, 2);                \
+      std::optional<ETY3> v3 = getRawAttrValue<ETY3>(*attr, 3);                \
+      std::optional<ETY4> v4 = getRawAttrValue<ETY4>(*attr, 4);                \
+      if (!detail::verifyRawAttrValues(v, *attr, v0, v1, v2, v3, v4))          \
+        return v.pop();                                                        \
                                                                                \
       if constexpr (CUSTOMVERIFY)                                              \
-        isValid &= verify##NAME##Attr(ir, *v0, *v1, *v2, *v3, *v4, os);        \
+        verify##NAME##Attr(v, ir, *v0, *v1, *v2, *v3, *v4);                    \
     }                                                                          \
-    return isValid;                                                            \
+    return v.pop();                                                            \
   }
 
 #define DEFN_ATTR_6(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
@@ -232,27 +243,25 @@
     ::addAttr(ir, IRNAME, attrVals);                                           \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(const IRELEM &ir, raw_ostream *os) {           \
-    bool isValid = true;                                                       \
-    if (has##NAME##Attr(ir)) {                                                 \
-      std::optional<ETY0> v0 = get##ENAME0##From##NAME##Attr(ir);              \
-      std::optional<ETY1> v1 = get##ENAME1##From##NAME##Attr(ir);              \
-      std::optional<ETY2> v2 = get##ENAME2##From##NAME##Attr(ir);              \
-      std::optional<ETY3> v3 = get##ENAME3##From##NAME##Attr(ir);              \
-      std::optional<ETY4> v4 = get##ENAME4##From##NAME##Attr(ir);              \
-      std::optional<ETY5> v5 = get##ENAME5##From##NAME##Attr(ir);              \
+  bool llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
+    v.push();                                                                  \
+    if (const MDNode *attr = getRawAttr(IRNAME, getRawAttrList(ir))) {         \
+      if (!detail::verifyRawAttrValueCount(v, *attr, 6))                       \
+        return v.pop();                                                        \
                                                                                \
-      isValid &= VERIFY_IMPL(v0, os, ETY0, ENAME0, EN0, IRNAME);               \
-      isValid &= VERIFY_IMPL(v1, os, ETY1, ENAME1, EN1, IRNAME);               \
-      isValid &= VERIFY_IMPL(v2, os, ETY2, ENAME2, EN2, IRNAME);               \
-      isValid &= VERIFY_IMPL(v3, os, ETY3, ENAME3, EN3, IRNAME);               \
-      isValid &= VERIFY_IMPL(v4, os, ETY4, ENAME4, EN4, IRNAME);               \
-      isValid &= VERIFY_IMPL(v5, os, ETY5, ENAME5, EN5, IRNAME);               \
+      std::optional<ETY0> v0 = getRawAttrValue<ETY0>(*attr, 0);                \
+      std::optional<ETY1> v1 = getRawAttrValue<ETY1>(*attr, 1);                \
+      std::optional<ETY2> v2 = getRawAttrValue<ETY2>(*attr, 2);                \
+      std::optional<ETY3> v3 = getRawAttrValue<ETY3>(*attr, 3);                \
+      std::optional<ETY4> v4 = getRawAttrValue<ETY4>(*attr, 4);                \
+      std::optional<ETY5> v5 = getRawAttrValue<ETY5>(*attr, 5);                \
+      if (!detail::verifyRawAttrValues(v, *attr, v0, v1, v2, v3, v4, v5))      \
+        return v.pop();                                                        \
                                                                                \
       if constexpr (CUSTOMVERIFY)                                              \
-        isValid &= verify##NAME##Attr(ir, *v0, *v1, *v2, *v3, *v4, *v5, os);   \
+        verify##NAME##Attr(v, ir, *v0, *v1, *v2, *v3, *v4, *v5);               \
     }                                                                          \
-    return isValid;                                                            \
+    return v.pop();                                                            \
   }
 
 #define DEFN_ATTR_7(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
@@ -269,30 +278,26 @@
     ::addAttr(ir, IRNAME, attrVals);                                           \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(const IRELEM &ir, raw_ostream *os) {           \
-    bool isValid = true;                                                       \
-    if (has##NAME##Attr(ir)) {                                                 \
-      std::optional<ETY0> v0 = get##ENAME0##From##NAME##Attr(ir);              \
-      std::optional<ETY1> v1 = get##ENAME1##From##NAME##Attr(ir);              \
-      std::optional<ETY2> v2 = get##ENAME2##From##NAME##Attr(ir);              \
-      std::optional<ETY3> v3 = get##ENAME3##From##NAME##Attr(ir);              \
-      std::optional<ETY4> v4 = get##ENAME4##From##NAME##Attr(ir);              \
-      std::optional<ETY5> v5 = get##ENAME5##From##NAME##Attr(ir);              \
-      std::optional<ETY6> v6 = get##ENAME6##From##NAME##Attr(ir);              \
+  bool llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
+    v.push();                                                                  \
+    if (const MDNode *attr = getRawAttr(IRNAME, getRawAttrList(ir))) {         \
+      if (!detail::verifyRawAttrValueCount(v, *attr, 7))                       \
+        return v.pop();                                                        \
                                                                                \
-      isValid &= VERIFY_IMPL(v0, os, ETY0, ENAME0, EN0, IRNAME);               \
-      isValid &= VERIFY_IMPL(v1, os, ETY1, ENAME1, EN1, IRNAME);               \
-      isValid &= VERIFY_IMPL(v2, os, ETY2, ENAME2, EN2, IRNAME);               \
-      isValid &= VERIFY_IMPL(v3, os, ETY3, ENAME3, EN3, IRNAME);               \
-      isValid &= VERIFY_IMPL(v4, os, ETY4, ENAME4, EN4, IRNAME);               \
-      isValid &= VERIFY_IMPL(v5, os, ETY5, ENAME5, EN5, IRNAME);               \
-      isValid &= VERIFY_IMPL(v6, os, ETY6, ENAME6, EN6, IRNAME);               \
+      std::optional<ETY0> v0 = getRawAttrValue<ETY0>(*attr, 0);                \
+      std::optional<ETY1> v1 = getRawAttrValue<ETY1>(*attr, 1);                \
+      std::optional<ETY2> v2 = getRawAttrValue<ETY2>(*attr, 2);                \
+      std::optional<ETY3> v3 = getRawAttrValue<ETY3>(*attr, 3);                \
+      std::optional<ETY4> v4 = getRawAttrValue<ETY4>(*attr, 4);                \
+      std::optional<ETY5> v5 = getRawAttrValue<ETY5>(*attr, 5);                \
+      std::optional<ETY6> v6 = getRawAttrValue<ETY6>(*attr, 6);                \
+      if (!detail::verifyRawAttrValues(v, *attr, v0, v1, v2, v3, v4, v5, v6))  \
+        return v.pop();                                                        \
                                                                                \
       if constexpr (CUSTOMVERIFY)                                              \
-        isValid &=                                                             \
-            verify##NAME##Attr(ir, *v0, *v1, *v2, *v3, *v4, *v5, *v6, os);     \
+        verify##NAME##Attr(v, ir, *v0, *v1, *v2, *v3, *v4, *v5, *v6);          \
     }                                                                          \
-    return isValid;                                                            \
+    return v.pop();                                                            \
   }
 
 #define DEFN_ATTR_8(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
@@ -310,37 +315,33 @@
     ::addAttr(ir, IRNAME, attrVals);                                           \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(const IRELEM &ir, raw_ostream *os) {           \
-    bool isValid = true;                                                       \
-    if (has##NAME##Attr(ir)) {                                                 \
-      std::optional<ETY0> v0 = get##ENAME0##From##NAME##Attr(ir);              \
-      std::optional<ETY1> v1 = get##ENAME1##From##NAME##Attr(ir);              \
-      std::optional<ETY2> v2 = get##ENAME2##From##NAME##Attr(ir);              \
-      std::optional<ETY3> v3 = get##ENAME3##From##NAME##Attr(ir);              \
-      std::optional<ETY4> v4 = get##ENAME4##From##NAME##Attr(ir);              \
-      std::optional<ETY5> v5 = get##ENAME5##From##NAME##Attr(ir);              \
-      std::optional<ETY6> v6 = get##ENAME6##From##NAME##Attr(ir);              \
-      std::optional<ETY7> v7 = get##ENAME7##From##NAME##Attr(ir);              \
+  bool llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
+    v.push();                                                                  \
+    if (const MDNode *attr = getRawAttr(IRNAME, getRawAttrList(ir))) {         \
+      if (!detail::verifyRawAttrValueCount(v, *attr, 8))                       \
+        return v.pop();                                                        \
                                                                                \
-      isValid &= VERIFY_IMPL(v0, os, ETY0, ENAME0, EN0, IRNAME);               \
-      isValid &= VERIFY_IMPL(v1, os, ETY1, ENAME1, EN1, IRNAME);               \
-      isValid &= VERIFY_IMPL(v2, os, ETY2, ENAME2, EN2, IRNAME);               \
-      isValid &= VERIFY_IMPL(v3, os, ETY3, ENAME3, EN3, IRNAME);               \
-      isValid &= VERIFY_IMPL(v4, os, ETY4, ENAME4, EN4, IRNAME);               \
-      isValid &= VERIFY_IMPL(v5, os, ETY5, ENAME5, EN5, IRNAME);               \
-      isValid &= VERIFY_IMPL(v6, os, ETY6, ENAME6, EN6, IRNAME);               \
-      isValid &= VERIFY_IMPL(v7, os, ETY7, ENAME7, EN7, IRNAME);               \
+      std::optional<ETY0> v0 = getRawAttrValue<ETY0>(*attr, 0);                \
+      std::optional<ETY1> v1 = getRawAttrValue<ETY1>(*attr, 1);                \
+      std::optional<ETY2> v2 = getRawAttrValue<ETY2>(*attr, 2);                \
+      std::optional<ETY3> v3 = getRawAttrValue<ETY3>(*attr, 3);                \
+      std::optional<ETY4> v4 = getRawAttrValue<ETY4>(*attr, 4);                \
+      std::optional<ETY5> v5 = getRawAttrValue<ETY5>(*attr, 5);                \
+      std::optional<ETY6> v6 = getRawAttrValue<ETY6>(*attr, 6);                \
+      std::optional<ETY7> v7 = getRawAttrValue<ETY7>(*attr, 7);                \
+      if (!detail::verifyRawAttrValues(v, *attr, v0, v1, v2, v3, v4, v5, v6,   \
+                                       v7))                                    \
+        return v.pop();                                                        \
                                                                                \
       if constexpr (CUSTOMVERIFY)                                              \
-        isValid &= verify##NAME##Attr(ir, *v0, *v1, *v2, *v3, *v4, *v5, *v6,   \
-                                      *v7, os);                                \
+        verify##NAME##Attr(v, ir, *v0, *v1, *v2, *v3, *v4, *v5, *v6, *v7);     \
     }                                                                          \
-    return isValid;                                                            \
+    return v.pop();                                                            \
   }
 
 #define DEFN_ATTR_N(IRELEM, NAME, IRNAME, ETY, ENAME, EN, NELEMS)              \
   std::optional<ETY> llvm::get##ENAME##From##NAME##Attr(const IRELEM &ir) {    \
-    return getAttrValue<ETY>(IRNAME, getAttrList(ir), EN, NELEMS);             \
+    return getAttrValue<ETY>(IRNAME, getRawAttrList(ir), EN, NELEMS);          \
   }
 
 #endif // KITSUNE_LIB_CORE_ATTRS_IMPL_H

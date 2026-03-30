@@ -16,6 +16,7 @@
 #include "kitsune/Core/AttrsCommon.h"
 #include "kitsune/Core/InstUtils.h"
 #include "kitsune/Core/MetadataUtils.h"
+#include "kitsune/Core/Verifier.h"
 #include "kitsune/Support/Diagnostics.h"
 #include "kitsune/Support/ErrorHandling.h"
 #include "llvm/ADT/StringSwitch.h"
@@ -30,20 +31,24 @@ static void setAttrList(Instruction &inst, MDNode *attrList) {
 static void addAttr(Instruction &inst, StringRef name,
                     ArrayRef<Metadata *> vals) {
   LLVMContext &ctx = inst.getContext();
-  MDNode *attrList = getAttrList(inst);
+  MDNode *attrList = getRawAttrList(inst);
   MDNode *newAttrList = getAttrListWith(name, vals, attrList, ctx);
 
   setAttrList(inst, newAttrList);
 }
 
 static void removeAttr(Instruction &inst, StringRef attrName) {
-  MDNode *attrList = getAttrList(inst);
+  MDNode *attrList = getRawAttrList(inst);
   MDNode *newAttrList = getAttrListWithout(attrName, attrList);
 
   setAttrList(inst, newAttrList);
 }
 
-MDNode *llvm::getAttrList(const Instruction &inst) {
+raw_ostream &llvm::operator<<(raw_ostream &os, const InstAttrKind &attr) {
+  return os << getAttrName(attr);
+}
+
+MDNode *llvm::getRawAttrList(const Instruction &inst) {
   return inst.getMetadata(LLVMContext::MD_kit_inst_attrs);
 }
 
@@ -66,12 +71,12 @@ std::optional<InstAttrKind> llvm::getInstAttrKind(StringRef name) {
       .Default(std::nullopt);
 }
 
-bool llvm::verifyAttr(const Instruction &inst, InstAttrKind attr,
-                      raw_ostream *os) {
+bool llvm::verifyAttr(KitVerifier &v, const Instruction &inst,
+                      InstAttrKind attr) {
   switch (attr) {
 #define INST_ATTR(NAME, IRNAME, ...)                                           \
   case InstAttrKind::NAME:                                                     \
-    return verify##NAME##Attr(inst, os);
+    return verify##NAME##Attr(v, inst);
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
   }
@@ -81,7 +86,7 @@ bool llvm::verifyAttr(const Instruction &inst, InstAttrKind attr,
 void llvm::addAttr(Instruction &inst, InstAttrKind attr) {
   switch (attr) {
   default:
-    emitDiagnostic(DiagID::ErrAttrWithoutValues, getAttrName(attr));
+    emitDiagnostic(DiagID::ErrAttrAdd, getAttrName(attr));
     exitOnError();
     break;
 #define INST_ATTR_0(NAME, IRNAME, ...)                                         \

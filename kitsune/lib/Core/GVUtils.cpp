@@ -18,3 +18,14 @@ using namespace llvm;
 LLVMContext &llvm::getContext(const GlobalVariable &g) {
   return g.getContext();
 }
+
+std::string llvm::getName(const GlobalVariable &g) {
+  if (g.hasName())
+    return g.getName().str();
+
+  std::string buf;
+  raw_string_ostream os(buf);
+  g.printAsOperand(os, /*PrintType=*/false, g.getParent());
+
+  return buf;
+}

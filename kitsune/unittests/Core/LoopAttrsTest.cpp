@@ -10,6 +10,7 @@
 #include "TestAttrsCommon.h"
 #include "kitsune/Core/AttrsCommon.h"
 #include "kitsune/Core/LoopUtils.h"
+#include "kitsune/Core/Verifier.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/IR/Module.h"
 
@@ -18,6 +19,22 @@
 using namespace llvm;
 
 namespace {
+
+template <typename T, LoopAttrKind Attr> static T get(unsigned idx) {
+  if constexpr (Attr == LoopAttrKind::ThreadsPerBlock) {
+    static_assert(std::is_same_v<T, int32_t>, "Expect to get int32_t");
+    static constexpr T pool[] = {0, 4, 16, 64, 128, 256, 512, 1024};
+    return pool[idx % (sizeof(pool) / sizeof(T))];
+  } else {
+    return get_<T>(idx);
+  }
+}
+
+// In some cases, it is difficult to construct a valid attribute - for instance
+// if the attribute initializer must be valid bitcode. In such cases, we test
+// everything but the verifier. lit tests must be added to ensure that the
+// verification works correctly.
+static constexpr bool verifyAttr(LoopAttrKind attr) { return true; }
 
 static constexpr StringRef ll = R"(
 define void @f(i64 %n) {
@@ -51,7 +68,7 @@ for.i.exit:
 static void addMetadata(Loop &loop, StringRef attrName,
                         ArrayRef<Metadata *> attrVals) {
   LLVMContext &ctx = getContext(loop);
-  MDNode *attrList = getAttrList(loop);
+  MDNode *attrList = getRawAttrList(loop);
   MDNode *newAttrList = getAttrListWith(attrName, attrVals, attrList, ctx);
 
   loop.setLoopID(newAttrList);
@@ -83,9 +100,11 @@ TEST(KitLoopAttrs, attrKind) {
 #include "kitsune/Core/LoopAttrs.inc"
 }
 
-#define DECLS(OS, OBJ)                                                         \
+#define DECLS(OBJ)                                                             \
   std::string buf;                                                             \
-  raw_string_ostream os(buf);                                                  \
+  raw_string_ostream OS(buf);                                                  \
+  [[maybe_unused]] KitVerifier VOS(&OS);                                       \
+  [[maybe_unused]] KitVerifier VNULL;                                          \
   LLVMContext ctx;                                                             \
   std::unique_ptr<Module> m = parseIR(ctx, ll);                                \
   Function *f = m->getFunction("f");                                           \
@@ -94,17 +113,17 @@ TEST(KitLoopAttrs, attrKind) {
   [[maybe_unused]] Loop OBJ = *li.begin()
 
 TEST(KitLoopAttrs, verifyGeneric) {
-  DECLS(os, *loop);
+  DECLS(*loop);
 #define LOOP_ATTR_0(NAME, IRNAME, ...)                                         \
-  TEST_GENERIC_VERIFY_0(os, *loop, LoopAttrKind, NAME, IRNAME)
+  TEST_GENERIC_VERIFY_0(*loop, LoopAttrKind, NAME, IRNAME)
 #define LOOP_ATTR(NAME, IRNAME, ...)                                           \
-  TEST_GENERIC_VERIFY_N(os, *loop, LoopAttrKind, NAME, IRNAME)
+  TEST_GENERIC_VERIFY_N(*loop, LoopAttrKind, NAME, IRNAME)
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
 }
 
 TEST(KitLoopAttrs, attrsGeneric) {
-  DECLS(os, *loop);
+  DECLS(*loop);
 
 #define LOOP_ATTR_0(NAME, ...) TEST_GENERIC_ATTR_0(*loop, LoopAttrKind, NAME)
 #define GET_LOOP_ATTRS
@@ -117,74 +136,79 @@ TEST(KitLoopAttrs, attrsGeneric) {
 }
 
 TEST(KitLoopAttrs, attr0) {
-  DECLS(os, *loop);
-#define LOOP_ATTR_0(...) TEST_ATTR_0(os, *loop, __VA_ARGS__)
+  DECLS(*loop);
+#define LOOP_ATTR_0(...) TEST_ATTR_0(*loop, LoopAttrKind, __VA_ARGS__)
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
 }
 
 TEST(KitLoopAttrs, attr1) {
-  DECLS(os, *loop);
-#define LOOP_ATTR_1(...) TEST_ATTR_1(os, *loop, __VA_ARGS__)
+  DECLS(*loop);
+#define LOOP_ATTR_1(...) TEST_ATTR_1(*loop, LoopAttrKind, __VA_ARGS__)
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
 }
 
 TEST(KitLoopAttrs, attr2) {
-  DECLS(os, *loop);
-#define LOOP_ATTR_2(...) TEST_ATTR_2(os, *loop, __VA_ARGS__)
+  DECLS(*loop);
+#define LOOP_ATTR_2(...) TEST_ATTR_2(*loop, LoopAttrKind, __VA_ARGS__)
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
 }
 
 TEST(KitLoopAttrs, attr3) {
-  DECLS(os, *loop);
-#define LOOP_ATTR_3(...) TEST_ATTR_3(os, *loop, __VA_ARGS__)
+  DECLS(*loop);
+#define LOOP_ATTR_3(...) TEST_ATTR_3(*loop, LoopAttrKind, __VA_ARGS__)
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
 }
 
 TEST(KitLoopAttrs, attr4) {
-  DECLS(os, *loop);
-#define LOOP_ATTR_4(...) TEST_ATTR_4(os, *loop, __VA_ARGS__)
+  DECLS(*loop);
+#define LOOP_ATTR_4(...) TEST_ATTR_4(*loop, LoopAttrKind, __VA_ARGS__)
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
 }
 
 TEST(KitLoopAttrs, attr5) {
-  DECLS(os, *loop);
-#define LOOP_ATTR_5(...) TEST_ATTR_5(os, *loop, __VA_ARGS__)
+  DECLS(*loop);
+#define LOOP_ATTR_5(...) TEST_ATTR_5(*loop, LoopAttrKind, __VA_ARGS__)
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
 }
 
 TEST(KitLoopAttrs, attr6) {
-  DECLS(os, *loop);
-#define LOOP_ATTR_6(...) TEST_ATTR_6(os, *loop, __VA_ARGS__)
+  DECLS(*loop);
+#define LOOP_ATTR_6(...) TEST_ATTR_6(*loop, LoopAttrKind, __VA_ARGS__)
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
 }
 
 TEST(KitLoopAttrs, attr7) {
-  DECLS(os, *loop);
-#define LOOP_ATTR_7(...) TEST_ATTR_7(os, *loop, __VA_ARGS__)
+  DECLS(*loop);
+#define LOOP_ATTR_7(...) TEST_ATTR_7(*loop, LoopAttrKind, __VA_ARGS__)
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
 }
 
 TEST(KitLoopAttrs, attr8) {
-  DECLS(os, *loop);
-#define LOOP_ATTR_8(...) TEST_ATTR_8(os, *loop, __VA_ARGS__)
+  DECLS(*loop);
+#define LOOP_ATTR_8(...) TEST_ATTR_8(*loop, LoopAttrKind, __VA_ARGS__)
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
 }
 
 TEST(KitLoopAttrs, attrLoop) {
-  DECLS_LOOP(os, *loop, loopF, loopG, lis)
+  DECLS_LOOP(*loop, loopF, loopG, lis);
 #define LOOP_ATTR_LOOP(...)                                                    \
-  TEST_ATTR_LOOP(os, *loop, loopF, loopG, lis, __VA_ARGS__)
+  TEST_ATTR_LOOP(*loop, loopF, loopG, lis, __VA_ARGS__)
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
+}
+
+TEST(KitLoopAttrs, attrRange) {
+  DECLS(*loop);
+  TEST_ATTR_ATTRS(*loop)
 }
 
 } // namespace

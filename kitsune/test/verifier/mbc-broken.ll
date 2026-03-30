@@ -11,12 +11,12 @@
 ; RUN:     | %kit-enc --tapir=cuda \
 ; RUN:     | grep "c\"BC" \
 ; RUN:     | sed 's/.kit.emb//g' \
-; RUN:     | sed 's/@.bc/@.bc.2/g'`
+; RUN:     | sed 's/@.bc/@.bc.cuda/g'`
 ;
 ; RUN: MBC_4=`%kit-enc --tapir=hip %s \
 ; RUN:     | grep "c\"BC" \
 ; RUN:     | sed 's/.kit.emb//g' \
-; RUN:     | sed 's/@.bc/@.bc.4/g' \
+; RUN:     | sed 's/@.bc/@.bc.hip/g' \
 ; RUN:     | sed 's/\!0/\!2/g'`
 ;
 ; RUN: printf \
@@ -38,4 +38,4 @@
 ;
 ; CHECK: 'common' global must have a zero initializer
 ; CHECK: ptr @0
-; CHECK: broken embedded module found
+; CHECK: embedded module: broken module found

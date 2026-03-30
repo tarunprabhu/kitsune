@@ -12,4 +12,4 @@
 ; RUN:     | not llvm-as -o /dev/null 2>&1 \
 ; RUN:     | FileCheck %s
 ;
-; CHECK: tapir target in embedded module must match tapir target in host embedded bitcode global variable
+; CHECK: tapir target in device module flags metadata must match tapir target in host embedded bitcode global variable

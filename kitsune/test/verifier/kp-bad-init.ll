@@ -3,7 +3,9 @@
 ;
 ; RUN: not llvm-as %s -o /dev/null 2>&1 | FileCheck %s
 ;
-; CHECK: invalid initializer in global containing kernel properties
+; CHECK: global with attribute 'kit.gv.kernel.properties': invalid initializer
+; CHECK-SAME: Must be a constant struct or zero-initialized{{$}}
+; CHECK-NEXT: from global variable '@0'
 
 @0 = constant { i64, i64, i64, i64 } undef, !kit.gv !0
 

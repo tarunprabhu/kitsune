@@ -25,8 +25,12 @@ class LLVMContext;
 
 /// Get the LLVM context from an instruction. This is useful when generating
 /// code from tablegen macros.
-LLVMContext &getContext(Instruction &inst);
 LLVMContext &getContext(const Instruction &inst);
+
+/// Get the name of an instruction. If the global is unnamed, a string of the
+/// form `%<N>` will be returned. This is how the instruction would appear in
+/// human-readable LLVM-IR.
+std::string getName(const Instruction &inst);
 
 /// Get the class name of the given instruction. This will be a string literal
 /// representing the C++ name of the concrete class of the instruction. For

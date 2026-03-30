@@ -14,6 +14,7 @@
 #ifndef KITSUNE_CORE_FUNC_ATTRS_H
 #define KITSUNE_CORE_FUNC_ATTRS_H
 
+#include "kitsune/Core/AttrsCommon.h"
 #include "kitsune/Core/AttrsInternal.h"
 #include "llvm/ADT/StringRef.h"
 
@@ -32,38 +33,46 @@ enum class FuncAttrKind : uint32_t {
 #include "kitsune/Core/FuncAttrs.inc"
 };
 
+/// Get the name of a function attribute as it would appear in LLVM metadata.
+StringRef getName(FuncAttrKind attr);
+
 /// Get the metadata node containing the list of Kitsune-specific attributes.
 /// If no Kitsune-specific attributes have been attached to the function, this
 /// may return nullptr.
-MDNode *getAttrList(const Function &f);
+MDNode *getRawAttrList(const Function &f);
 
-/// Get the name of the function attribute as it appears in the LLVM-IR
-/// metadata. The result will start with "kit.func.".
+/// Get the name of a function attribute as it would appear in LLVM metadata.
 StringRef getAttrName(FuncAttrKind attr);
 
-/// Get the kind of a Kitsune-specific attribute if the given string is how such
-/// an attribute would appear in LLVM-IR. Otherwise, return std::nullopt.
+/// Get the kind of an attribute if the given string is how the attribute would
+/// appear in LLVM metadata. Otherwise, return std::nullopt.
 std::optional<FuncAttrKind> getFuncAttrKind(StringRef name);
 
-/// Check if the given attribute is present on a function.
+/// Check if an attribute is present on a function.
 bool hasAttr(const Function &f, FuncAttrKind attr);
 
-/// Add an attribute to the function. Only attributes that do not take any
-/// values can be added this way. Providing an attribute that takes values will
-/// result in a catastrophic runtime error.
+/// Add an attribute to a function. Only attributes that do not take any values
+/// can be added this way. Adding an attribute that takes values will result in
+/// a catastrophic runtime error.
 void addAttr(Function &f, FuncAttrKind attr);
 
-/// Remove the attribute from a function. If the function does not contain the
+/// Remove an attribute from a function. If the function does not contain the
 /// attribute, this has no effect.
 void removeAttr(Function &f, FuncAttrKind attr);
 
-/// If the attribute is not present on a function, return true. Otherwise,
-/// return if the expected number of values are found for the attribute, and
-/// each of them can be retrieved. In all other cases, return false. If an
-/// output stream is provided, an error message will be printed to it if the
-/// attribute is invalid.
-bool verifyAttr(const Function &f, FuncAttrKind attr,
-                raw_ostream *os = nullptr);
+/// Verify an attribute \p attr on the function \p f. Returns true if any of the
+/// following are true:
+///
+///   - \p attr is not present on \p f
+///   - \p attr is present with the correct number of values, each of which is
+///     of the correct type.
+///
+/// Otherwise, return false.
+///
+bool verifyAttr(KitVerifier &v, const Function &f, FuncAttrKind attr);
+
+/// Get a range to iterate over the raw function attributes.
+iterator_range<AttrIterator> attrs(const Function &f);
 
 /// @}
 

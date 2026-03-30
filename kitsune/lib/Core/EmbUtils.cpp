@@ -112,14 +112,22 @@ GlobalVariable *llvm::createEmbBCGlobal(const Module &devM, TTID tt,
   return g;
 }
 
-GlobalVariable *llvm::getEmbBCGlobal(TTID tt, Module &m) {
+template <typename G, typename M> static G *getEmbBCGlobal(TTID tt, M &m) {
   // This assumes that only a single embedded bitcode module exists for a given
   // tapir target. This is the current implementation and might change, though
   // that is unlikely.
-  for (GlobalVariable &g : m.globals())
+  for (auto &g : m.globals())
     if (mayContainEmbBC(g, tt))
       return &g;
   return nullptr;
+}
+
+GlobalVariable *llvm::getEmbBCGlobal(TTID tt, Module &m) {
+  return ::getEmbBCGlobal<GlobalVariable>(tt, m);
+}
+
+const GlobalVariable *llvm::getEmbBCGlobal(TTID tt, const Module &m) {
+  return ::getEmbBCGlobal<const GlobalVariable>(tt, m);
 }
 
 GlobalVariable *llvm::resetEmbBCGlobal(const Module &devM, GlobalVariable &g) {
@@ -140,10 +148,19 @@ GlobalVariable *llvm::resetEmbBCGlobal(const Module &devM, GlobalVariable &g) {
   return newG;
 }
 
-Expected<std::unique_ptr<Module>> llvm::getEmbModule(TTID tt, Module &m) {
-  if (GlobalVariable *g = getEmbBCGlobal(tt, m))
+template <typename G, typename M>
+static Expected<std::unique_ptr<Module>> getEmbModule(TTID tt, M &m) {
+  if (auto *g = getEmbBCGlobal(tt, m))
     return parseEmbBCGlobal(*g);
   return nullptr;
+}
+
+Expected<std::unique_ptr<Module>> llvm::getEmbModule(TTID tt, Module &m) {
+  return ::getEmbModule<GlobalVariable>(tt, m);
+}
+
+Expected<std::unique_ptr<Module>> llvm::getEmbModule(TTID tt, const Module &m) {
+  return ::getEmbModule<const GlobalVariable>(tt, m);
 }
 
 Expected<EmbModulesMapTy> llvm::getEmbModules(const Module &m) {

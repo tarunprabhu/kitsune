@@ -74,7 +74,8 @@
 ;
 ; ------------------------------------------------------------------------------
 ;
-; CHECK: Attributes 'bit.code' and 'kernel.properties' are incompatible
+; CHECK-DAG: attribute 'kit.gv.bit.code': not compatible with 'kit.gv.kernel.properties'
+; CHECK-DAG: attribute 'kit.gv.kernel.properties': not compatible with 'kit.gv.bit.code'
 
 define void @kf() {
   ret void

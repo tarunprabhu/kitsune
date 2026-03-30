@@ -50,6 +50,7 @@ Expected<std::unique_ptr<Module>> parseEmbBCGlobal(const GlobalVariable &g);
 /// Get the global variable created by a previous call to \ref createEmbBCGlobal
 /// with the given tapir target if one exists.
 GlobalVariable *getEmbBCGlobal(TTID tt, Module &m);
+const GlobalVariable *getEmbBCGlobal(TTID tt, const Module &m);
 
 /// Reset the initializer of the given global variable \p g with the
 /// serialized bitcode of the given module. All uses of \p g will be replaced
@@ -66,6 +67,7 @@ GlobalVariable *resetEmbBCGlobal(const Module &m, GlobalVariable &g);
 /// by the tapir target, or an error if the embedded bitcode could not be
 /// parsed.
 Expected<std::unique_ptr<Module>> getEmbModule(TTID tt, Module &m);
+Expected<std::unique_ptr<Module>> getEmbModule(TTID tt, const Module &m);
 
 /// Deserialize all the embedded bitcode and return the modules in a map keyed
 /// on the tapir target id that created the module. If any error occurred while

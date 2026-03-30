@@ -23,6 +23,7 @@ add_llvm_component_library(LLVMKitCore
   TargetUtils.cpp
   TypeUtils.cpp
   ValueUtils.cpp
+  Verifier.cpp
 
   DEPENDS
   intrinsics_gen

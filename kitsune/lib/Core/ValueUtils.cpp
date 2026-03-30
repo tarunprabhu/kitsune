@@ -46,3 +46,61 @@ bool llvm::isIntOne(const Value *v) {
 bool llvm::isIntOne(const Value *v, Type *ty) {
   return v->getType() == ty && isIntOne(v);
 }
+
+template <
+    typename M, typename T,
+    std::enable_if_t<std::is_same_v<std::remove_cv_t<T>, Argument>, int> = 0>
+static M *getModule(T &a) {
+  if (auto *f = a.getParent())
+    return f->getParent();
+  return nullptr;
+}
+
+template <
+    typename M, typename T,
+    std::enable_if_t<std::is_same_v<std::remove_cv_t<T>, BasicBlock>, int> = 0>
+static M *getModule(T &bb) {
+  if (auto *f = bb.getParent())
+    return f->getParent();
+  return nullptr;
+}
+
+template <
+    typename M, typename T,
+    std::enable_if_t<std::is_same_v<std::remove_cv_t<T>, Instruction>, int> = 0>
+static M *getModule(T &inst) {
+  if (auto *bb = inst.getParent())
+    return getModule(*bb);
+  return nullptr;
+}
+
+template <typename M, typename T,
+          std::enable_if_t<std::is_same_v<std::remove_cv_t<T>, Value>, int> = 0>
+static M *getModule(T &v) {
+  if (auto *a = dyn_cast<Argument>(&v))
+    return getModule(*a);
+  else if (auto *bb = dyn_cast<BasicBlock>(&v))
+    return getModule(*bb);
+  else if (auto *g = dyn_cast<GlobalValue>(&v))
+    return g->getParent();
+  else if (auto *inst = dyn_cast<Instruction>(&v))
+    return getModule(*inst);
+  return nullptr;
+}
+
+Module *llvm::getModule(Value &v) { return ::getModule<Module>(v); }
+
+const Module *llvm::getModule(const Value &v) {
+  return ::getModule<const Module>(v);
+}
+
+std::string llvm::getName(const Value &v) {
+  if (v.hasName())
+    return v.getName().str();
+
+  std::string buf;
+  raw_string_ostream os(buf);
+
+  v.printAsOperand(os, /*PrintType=*/false, getModule(v));
+  return buf;
+}

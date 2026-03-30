@@ -14,6 +14,7 @@
 #define KITSUNE_CORE_ATTRS_COMMON_H
 
 #include "kitsune/Core/MetadataUtils.h"
+#include "kitsune/Core/VerifierInternal.h"
 #include "kitsune/Support/ToString.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
@@ -25,16 +26,103 @@ namespace llvm {
 class Loop;
 class LoopInfo;
 
+/// \addtogroup kitsune
+/// @{
+
+class KitVerifier;
+
 namespace detail {
 
-static constexpr StringRef errMsgNoValue =
-    "Could not get value of type '{}' in attribute '{}'";
+/// Verify an attribute \p attr that is expected to have a single value. This
+/// value is an MDNode that corresponds to the ID of a loop. Return false if
+/// \p attrName is present in \p attrList and does not have exactly one value.
+/// Without a LoopInfo object, it is impossible to truly verify that the value
+/// is the ID of a loop. Instead, some rudimentary checks are performed - in
+/// particular that the MDNode is distinct and the first operand is a
+/// self-reference. If any of these is not the case, return false. Return true
+/// in all other cases, If false is due to be returned, and the optional output
+/// stream \p os is not nullptr, print an error message to it.
+bool verifyRawAttrValueLoop(KitVerifier &v, const MDNode &attr);
 
-static constexpr StringRef errMsgNoValueAt =
-    "Could not get value of type '{}' for element '{}' at index '{}' in "
-    "attribute '{}'";
+/// Verify that the raw attribute \p attr has the expected number of values,
+/// \p attrVals. If so, return true. Otherwise, if an optional output stream,
+/// \p os, has been provided, write an error message to it.
+bool verifyRawAttrValueCount(KitVerifier &v, const MDNode &attr,
+                             unsigned attrVals);
+
+/// Verify that a raw attribute \p attr has a value of type \p T at index \p i.
+/// \p i must be in the range [0, N) where N is the number of values that the
+/// attribute expects.
+template <typename T>
+bool verifyRawAttrValueAt(KitVerifier &v, const MDNode &attr, unsigned i,
+                          const std::optional<T> &val);
+
+template <typename T, typename... Vals>
+bool verifyRawAttrValuesImpl(KitVerifier &v, const MDNode &attr, unsigned i,
+                             const std::optional<T> &val, const Vals &...vals) {
+  bool ok = verifyRawAttrValueAt(v, attr, i, val);
+  if constexpr (sizeof...(Vals))
+    ok &= detail::verifyRawAttrValuesImpl(v, attr, i + 1, vals...);
+  return ok;
+}
+
+/// Check that the std::optional values, \p vals. If all of them have values,
+/// return true. Otherwise, return false and write an error to the \p os if it
+/// is not nullptr.
+template <typename... Vals>
+bool verifyRawAttrValues(KitVerifier &v, const MDNode &attr,
+                         const Vals &...vals) {
+  return detail::verifyRawAttrValuesImpl(v, attr, 0, vals...);
+}
 
 } // namespace detail
+
+/// Iterator over a raw attribute list.
+class AttrIterator {
+public:
+  using iterator_category = std::forward_iterator_tag;
+  using difference_type = std::ptrdiff_t;
+  using value_type = MDNode &;
+  using pointer = MDNode *;
+  using reference = MDNode &;
+
+public:
+  AttrIterator() : attrList(nullptr), curr(0) {}
+  AttrIterator(const MDNode *attrList) : attrList(attrList), curr(1) {}
+  AttrIterator(const MDNode *attrList, unsigned last)
+      : attrList(attrList), curr(last) {}
+
+  reference operator*() const {
+    return *cast<MDNode>(attrList->getOperand(curr));
+  }
+
+  pointer operator->() const {
+    return cast<MDNode>(attrList->getOperand(curr));
+  }
+
+  AttrIterator &operator++() {
+    curr++;
+    return *this;
+  }
+
+  AttrIterator operator++(int) {
+    AttrIterator tmp = *this;
+    ++(*this);
+    return tmp;
+  }
+
+  friend bool operator==(const AttrIterator &l, const AttrIterator &r) {
+    return l.attrList == r.attrList && l.curr == r.curr;
+  }
+
+  friend bool operator!=(const AttrIterator &l, const AttrIterator &r) {
+    return !(l == r);
+  }
+
+private:
+  const MDNode *attrList = nullptr;
+  unsigned curr = 0;
+};
 
 /// Create a raw attribute metadata node with name \p attrName and values
 /// \p attrVals. This will be of the form
@@ -47,6 +135,21 @@ static constexpr StringRef errMsgNoValueAt =
 /// the ellipses denote the metadata in \p attrVals.
 MDNode *makeRawAttr(LLVMContext &ctx, StringRef attrName,
                     ArrayRef<Metadata *> vals);
+
+/// Get the name of the attribute \p attr.
+StringRef getRawAttrName(const MDNode &attr);
+
+/// Get the value of the raw attribute that is expected to have a exactly one
+/// value that is an LLVM Loop.
+std::optional<Loop *>
+getRawAttrValue(const MDNode &attr,
+                const SmallVectorImpl<const LoopInfo *> &lis);
+
+/// Get the value of the \p i'th value from the raw attribute \p attr that is
+/// expected to be of type \p T. If the value is not present, or if it is not of
+/// type \p T, return std::nullopt.
+template <typename T>
+std::optional<T> getRawAttrValue(const MDNode &attr, size_t i);
 
 /// Create a new empty attribute list. This will be of the form
 ///
@@ -148,37 +251,9 @@ getAttrValue(StringRef attrName, const MDNode *attrList,
 /// this will always return std::nullopt.
 template <typename T>
 std::optional<T> getAttrValue(StringRef attrName, const MDNode *attrList,
-                              unsigned valNo, unsigned vals) {
-  if (attrList && vals && valNo < vals)
-    if (MDNode *md = getRawAttr(attrName, attrList))
-      // The first operand of the metadata node will be the name of the
-      // attribute.
-      if (md->getNumOperands() == vals + 1)
-        return fromMetadata<T>(md->getOperand(valNo + 1));
-  return std::nullopt;
-}
+                              unsigned valNo, unsigned vals);
 
-/// Verify an attribute \p attrName that is not expected to have any values.
-/// Return false if the \p attrName is present in \p attrList and has one or
-/// more values. Return true in all other cases, including when \p attrList is
-/// nullptr, and \p attrName is not present in \p attrList. If false is due to
-/// be returned, and the optional output stream \p os is not nullptr, print an
-/// error message to it.
-bool verifyAttr0(StringRef attrName, const MDNode *attrList,
-                 raw_ostream *os = nullptr);
-
-/// Verify an attribute \p attrName that is expected to have a single value.
-/// This value is an MDNode that corresponds to the ID of a loop. Return false
-/// if \p attrName is present in \p attrList and does not have exactly one
-/// value. Without a LoopInfo object, it is impossible to truly verify that the
-/// value is the ID of a loop. Instead, some rudimentary checks are performed -
-/// in particular that the MDNode is distinct and the first operand is a
-/// self-reference. If any of these is not the case, return false. Return true
-/// in all other cases, including when \p attrList is nullptr, and \p attrName
-/// is not present in \p attrList. If false is due to be returned, and the
-/// optional output stream \p os is not nullptr, print an error message to it.
-bool verifyAttrLoop(StringRef attrName, const MDNode *attrList,
-                    raw_ostream *os = nullptr);
+/// @}
 
 } // namespace llvm
 

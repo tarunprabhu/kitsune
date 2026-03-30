@@ -17,6 +17,17 @@ using namespace llvm;
 
 LLVMContext &llvm::getContext(const Function &f) { return f.getContext(); }
 
+std::string llvm::getName(const Function &f) {
+  if (f.hasName())
+    return f.getName().str();
+
+  std::string buf;
+  raw_string_ostream os(buf);
+  f.printAsOperand(os, /*PrintType=*/false, f.getParent());
+
+  return buf;
+}
+
 void llvm::copyAttrs(Function &dst, const Function &src) {
   for (Attribute attr : src.getAttributes().getFnAttrs())
     dst.addAttributeAtIndex(AttributeList::FunctionIndex, attr);

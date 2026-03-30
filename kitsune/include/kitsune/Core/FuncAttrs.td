@@ -32,6 +32,7 @@ class FuncAttr<Type ValueType = VoidTy> : AttrBase<ValueType> { }
 //------------------------------------------------------------------------------
 
 def Device : FuncAttr<> {
+  let HasCustomVerifier = True;
   let Documentation = [{
 The function is a "device function". This is a function in the device module
 that is reachable from at least one kernel function. This attribute must **not**
@@ -41,6 +42,7 @@ bitcode files.
 }
 
 def Kernel : FuncAttr<> {
+  let HasCustomVerifier = True;
   let Documentation = [{
 The function is a "kernel function". This is a function in the device module
 that was obtained by outlining a tapir loop. With GPU-centric tapir targets,

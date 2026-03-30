@@ -3,7 +3,10 @@
 ;
 ; RUN: not llvm-as %s -o /dev/null 2>&1 | FileCheck %s
 ;
-; CHECK-COUNT-2: invalid initializer in global containing device code
+; CHECK: global with attribute 'kit.gv.device.code': invalid initializer
+; CHECK-SAME: Must be a constant data array or zero-initialized
+; CHECK: global with attribute 'kit.gv.device.code': invalid initializer
+; CHECK-SAME: Must be a constant data array or zero-initialized
 
 @fb.cuda = constant [1 x i8] undef, !kit.gv !0
 @fb.hip = constant [1 x i8] undef, !kit.gv !1

@@ -3,7 +3,7 @@
 ;
 ; RUN: not llvm-as %s -o /dev/null 2>&1 | FileCheck %s
 ;
-; CHECK-COUNT-2: incorrect type of global containing device code
+; CHECK-COUNT-2: global with attribute 'kit.gv.device.code': incorrect type
 
 @fb.cuda = constant i256 zeroinitializer, !kit.gv !0
 @fb.hip = constant i256 zeroinitializer, !kit.gv !1

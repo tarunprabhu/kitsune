@@ -49,7 +49,8 @@
 ;
 ; ------------------------------------------------------------------------------
 ;
-; CHECK: global containing properties of non-existent kernel function
+; CHECK: attribute 'kit.gv.kernel.properties': invalid value at index '1'
+; CHECK-SAME: Kernel function does not exist in embedded module
 
 define void @f() {
   ret void

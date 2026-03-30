@@ -14,6 +14,7 @@
 #ifndef KITSUNE_CORE_INST_ATTRS_H
 #define KITSUNE_CORE_INST_ATTRS_H
 
+#include "kitsune/Core/AttrsCommon.h"
 #include "kitsune/Core/AttrsInternal.h"
 #include "llvm/ADT/StringRef.h"
 
@@ -35,36 +36,41 @@ enum class InstAttrKind : uint32_t {
 /// Get the metadata node containing the list of Kitsune-specific attributes.
 /// If no Kitsune-specific attributes have been added to the instruction, this
 /// may return nullptr.
-MDNode *getAttrList(const Instruction &inst);
+MDNode *getRawAttrList(const Instruction &inst);
 
-/// Get the name of the instruction attribute as it appears in the LLVM-IR
-/// metadata. The result will start with "kit.inst.".
+/// Get the name of an instruction attribute as it appears in LLVM metadata.
+/// The result will start with "kit.inst.".
 StringRef getAttrName(InstAttrKind attr);
 
-/// Get the kind of a Kitsune-specific instruction attribute if the given string
-/// is how such an attribute would appear in LLVM-IR. Otherwise, return
-/// std::nullopt.
+/// Get the kind of an instruction attribute if the given string is how the
+/// attribute would appear in LLVM metadata. Otherwise, return std::nullopt.
 std::optional<InstAttrKind> getInstAttrKind(StringRef name);
 
-/// Check if the given attribute is present on an instruction.
+/// Check if an attribute is present on an instruction.
 bool hasAttr(const Instruction &inst, InstAttrKind attr);
 
-/// Add an attribute to the instruction. Only attributes that do not take any
-/// values can be added this way. Providing an attribute that takes values will
+/// Add an attribute to an instruction. Only attributes that do not take any
+/// values can be added this way. Adding an attribute that takes values will
 /// result in a catastrophic runtime error.
 void addAttr(Instruction &inst, InstAttrKind attr);
 
-/// Remove the attribute from an instructoin. If the instruction does not
-/// contain the attribute, this has no effect.
+/// Remove an attribute from an instruction. If the instruction does not contain
+/// the attribute, this has no effect.
 void removeAttr(Instruction &inst, InstAttrKind attr);
 
-/// If the attribute is not present on an instruction, return true. Otherwise,
-/// return if the expected number of values are found for the attribute, and
-/// each of them can be retrieved. In all other cases, return false. If an
-/// output stream is provided, an error message will be printed to it if the
-/// attribute is invalid.
-bool verifyAttr(const Instruction &inst, InstAttrKind attr,
-                raw_ostream *os = nullptr);
+/// Verify an attribute named \p attr on the function \p f. Returns true if any
+/// of the following are true:
+///
+///   - \p attr is not present on \p f
+///   - \p attr is present with the correct number of values, each of which is
+///     of the correct type.
+///
+/// Otherwise, return false.
+///
+bool verifyAttr(KitVerifier &v, const Instruction &inst, InstAttrKind attr);
+
+/// Get a range to iterate over the raw instruction attributes.
+iterator_range<AttrIterator> attrs(const Instruction &inst);
 
 /// @}
 
