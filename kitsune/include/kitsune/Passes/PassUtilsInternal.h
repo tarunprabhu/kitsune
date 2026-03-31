@@ -207,6 +207,7 @@ public:
 ///
 ///     IR unit  | Member Type
 ///     -------- | --------------
+///     Function | FuncAttrKind
 ///     Loop     | LoopAttrKind
 ///     Module   | ModuleAttrKind
 ///
@@ -214,6 +215,13 @@ public:
 /// declared.
 ///
 /// \code{.cpp}
+///
+///     class FunctionPass : public PassInfoMixin<Pass> {
+///       public:
+///         PreservedAnalyses run(Function &m, FunctionAnalysisManager &am);
+///         ...
+///         static constexpr FuncAttrKind hasRunAttr = FuncAttrKind::<NAME>;
+///     };
 ///
 ///     class LoopPass : public PassInfoMixin<Pass> {
 ///       public:
@@ -268,11 +276,10 @@ template <typename PassT> static constexpr bool check_pass_requirable() {
   static_assert(detail::has_member_attr_v<PassT>,
                 "Requirable pass must have static member named hasRunAttr");
   if constexpr (detail::is_function_pass_v<PassT>)
-    static_assert(false, "Requirable function passes not yet supported");
-  // static_assert(
-  //     std::is_same_v<decltype(PassT::hasRunAttr), const FuncAttrKind>,
-  //     "Requirable pass missing public static member 'hasRunAttr' with type "
-  //     "'const FuncAttrKind'");
+    static_assert(
+        std::is_same_v<decltype(PassT::hasRunAttr), const FuncAttrKind>,
+        "Requirable pass missing public static member 'hasRunAttr' with type "
+        "'const FuncAttrKind'");
   else if constexpr (detail::is_loop_pass_v<PassT>)
     static_assert(
         std::is_same_v<decltype(PassT::hasRunAttr), const LoopAttrKind>,
