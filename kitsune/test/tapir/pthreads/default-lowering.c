@@ -10,7 +10,7 @@
 // CHECK-SAME: ptr {{.*}}%[[A:.+]], i32 {{.*}}%[[SCALE:.+]], i64 {{.*}}%[[N:[^)]+]]
 // CHECK: [[ENTRY:.+]]:
 // CHECK: %[[ARGS:.+]] = alloca { ptr, i32 }
-// CHECK: br {{.+}}, label %[[END:.+]], label %[[BODY:.+]]
+// CHECK: br {{.+}}, label %[[END:.+]], label %[[BODY:[^,]+]]
 // CHECK: [[BODY]]:
 // CHECK: store ptr %[[A]], ptr %[[ARGS]]
 // CHECK: %[[SCALEPOS:.+]] = getelementptr inbounds {{.*}}i8, ptr %[[ARGS]]

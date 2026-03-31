@@ -70,6 +70,7 @@
 ; RUN: opt -Oz --tapir=serial -debug-pass-manager %s -o /dev/null 2>&1 \
 ; RUN:     | FileCheck -check-prefix O123SZ %s
 ;
+; O123SZ:      Running pass:     EarlyAnnotatePass
 ; O123SZ:      Running pass:     PreLowerVerificationPass
 ; O123SZ-NEXT: Running analysis: TTObjectsAnalysis
 ; O123SZ-NEXT: Running analysis: TaskAnalysis

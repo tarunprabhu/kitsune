@@ -29,6 +29,7 @@
 ! RUN:     -Xflang -fdebug-pass-manager 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix O123SZ
 !
+! O123SZ:      Running pass:     EarlyAnnotatePass
 ! O123SZ:      Running pass:     AnnotationRemarksPass
 ! O123SZ-NEXT: Running pass:     LoopSimplifyPass
 ! O123SZ-NEXT: Running analysis: LoopAnalysis

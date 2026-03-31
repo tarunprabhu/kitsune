@@ -43,14 +43,32 @@ bool llvm::isKitsuneOrTapirPipelineAlias(StringRef name) {
          baseName == "tapir-lowering-loops";
 }
 
-bool llvm::useTapirLowering(ThinOrFullLTOPhase phase,
-                            const PipelineTuningOptions &pto) {
+bool llvm::runKitNonLoweringPasses(ThinOrFullLTOPhase phase,
+                                   const PipelineTuningOptions &pto) {
+  // For now, we always run the passes not related to tapir-lowering as long as
+  // a valid tapir target has been provided. When using LTO, this will run both
+  // before and after the bitcode has been linked. It is possible that we only
+  // need to run such passes during the prelink phase, but there is no harm in
+  // running them both times.
+  return pto.TTOpts.has_value();
+}
+
+bool llvm::runTapirLoweringPasses(ThinOrFullLTOPhase phase,
+                                  const PipelineTuningOptions &pto) {
+  // The tapir lowering passes should only be run as part of the post-link
+  // pipeline.
+  //
+  // One big reason to use LTO with tapir is to resolve cross-translation-unit
+  // references, especially with GPU tapir targets. Functions defined in a
+  // different translation unit have to be added to the embedded bitcode modules
+  // before it is compiled to GPU code.
+  //
   if (not pto.TTOpts)
     return false;
   else if (pto.TTOpts->getTTID() == TTID::Nolo)
     return false;
-  else if (phase == ThinOrFullLTOPhase::ThinLTOPreLink or
-           phase == ThinOrFullLTOPhase::FullLTOPreLink)
+  else if (phase == ThinOrFullLTOPhase::FullLTOPreLink or
+           phase == ThinOrFullLTOPhase::ThinLTOPreLink)
     return false;
   else
     return true;

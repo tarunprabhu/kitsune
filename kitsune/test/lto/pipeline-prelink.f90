@@ -4,8 +4,8 @@
 ! tests. Those will eventually be supported, at which time this test should be
 ! updated to include those as well.
 !
-! None of the Kitsune, or Tapir, passes should run during the prelink phase,
-! regardless of the specified optimization level.
+! The Kitsune (Tapir) lowering passes should not be run during the prelink
+! phase of LTO, but the non-lowering passes should be run.
 !
 ! -----------------------------------------------------------------------------
 ! Only the nolo tapir target is allowed at -O0.
@@ -26,14 +26,20 @@
 !
 ! -----------------------------------------------------------------------------
 !
-! CHECK-NOT: PreLowerVerificationPass
-! CHECK-NOT: PreLowerAnnotate
-! CHECK-NOT: SerializePass
-! CHECK-NOT: LoopSpawningPass
-! CHECK-NOT: EmbResolveLibDeviceCallsPass
-! CHECK-NOT: EmbPreparePass
-! CHECK-NOT: EmbLinkLibDeviceBitcodePass
-! CHECK-NOT: EmbOptimizePass
-! CHECK-NOT: RecomputeKernelPropertiesPass
-! CHECK-NOT: GenerateCtorsPass
-! CHECK-NOT: LowerRuntimeIntrinsicsPass
+! CHECK:      Running pass:      EarlyAnnotatePass
+!
+! CHECK-NOT:  Running pass:      PreLowerVerificationPass
+! CHECK-NOT:  Running analysis:  TTObjectsAnalysis
+! CHECK-NOT:  Running pass:      PreLowerAnnotate
+! CHECK-NOT:  Running pass:      SerializePass
+! CHECK-NOT:  Running pass:      LoopSpawningPass
+! CHECK-NOT:  Running pass:      EmbResolveLibDeviceCallsPass
+! CHECK-NOT:  Running pass:      EmbPreparePass
+! CHECK-NOT:  Running pass:      EmbLinkLibDeviceBitcodePass
+! CHECK-NOT:  Running pass:      EmbOptimizePass
+! CHECK-NOT:  Running pass:      RecomputeKernelPropertiesPass
+! CHECK-NOT:  Running pass:      GenerateCtorsPass
+! CHECK-NOT:  Running pass:      LowerRuntimeIntrinsicsPass
+
+subroutine f
+end subroutine f

@@ -22,6 +22,7 @@
 ! RUN:     -Xflang -fdebug-pass-manager 2>&1 \
 ! RUN:     | FileCheck %s
 !
+! CHECK-NOT:  Running pass:     EarlyAnnotatePass
 ! CHECK-NOT:  Running analysis: TTObjectsAnalysis
 ! CHECK-NOT:  Running pass:     PrefetchingPass
 ! CHECK-NOT:  Running pass:     EmbResolveLibDeviceCallsPass

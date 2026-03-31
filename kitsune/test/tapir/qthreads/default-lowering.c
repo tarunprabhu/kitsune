@@ -15,7 +15,7 @@
 // CHECK-SAME: i64 {{[^%]*}}%[[N:[^)]+]])
 // CHECK: [[ENTRY:.+]]:
 // CHECK: %[[ARGS:.+]] = alloca { ptr, i32 }
-// CHECK: br {{.+}}, label %[[END:.+]], label %[[BODY:.+]]
+// CHECK: br {{.+}}, label %[[END:.+]], label %[[BODY:[^,]+]]
 // CHECK: [[BODY]]:
 // CHECK: %[[GS:[0-9]+]] = {{.*}}call i64 @llvm.tapir.loop.grainsize
 // CHECK: %[[ARGPOS:.+]] = getelementptr {{.*}}, ptr %[[ARGS]]

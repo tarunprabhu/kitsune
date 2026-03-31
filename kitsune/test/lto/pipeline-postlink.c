@@ -13,7 +13,8 @@
 // NOLO-NEXT: Running analysis: VerifierAnalysis
 //
 // -----------------------------------------------------------------------------
-// All Kitsune, and Tapir, passes should run during the postlink phase of LTO.
+// The Kitsune (and Tapir) lowering passes should run during the postlink phase
+// of LTO. But the non-lowering passes should not run.
 //
 // RUN: %kitcc -flto -O2 --tapir=serial -o /dev/null %s %sysroot \
 // RUN:     -Xlinker --lto-debug-pass-manager -Xlinker --lto-emit-llvm 2>&1 \
@@ -33,6 +34,8 @@
 //
 // -----------------------------------------------------------------------------
 //
+// O23SZ-NOT:  Running pass:     EarlyAnnotatePass
+//
 // O23SZ:      Running pass:     PreLowerVerificationPass
 // O23SZ-NEXT: Running analysis: TTObjectsAnalysis
 // O23SZ-NEXT: Running pass:     PreLowerAnnotate
@@ -49,3 +52,5 @@
 // O23SZ-NEXT: Running pass:     GenerateCtorsPass
 // O23SZ-NEXT: Running pass:     VerifierPass
 // O23SZ-NEXT: Running analysis: VerifierAnalysis
+
+void f() {}

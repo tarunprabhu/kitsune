@@ -32,10 +32,16 @@ class PipelineTuningOptions;
 /// Is the pass name a Tapir/Kitsune lowering pipeline alias.
 bool isKitsuneOrTapirPipelineAlias(StringRef name);
 
-/// Check if the tapir (and by extension Kitsune) lowering pipeline should be
-/// used.
-bool useTapirLowering(ThinOrFullLTOPhase phase,
-                      const PipelineTuningOptions &pto);
+/// Check if the Kitsune-specific passes that are not part of the lowering
+/// pipeline should be run. These are typically passes that run earlier in
+/// the pipeline.
+bool runKitNonLoweringPasses(ThinOrFullLTOPhase phase,
+                             const PipelineTuningOptions &pto);
+
+/// Check if the passes that are part of the tapir (and by extension Kitsune)
+/// lowering pipeline should be run.
+bool runTapirLoweringPasses(ThinOrFullLTOPhase phase,
+                            const PipelineTuningOptions &pto);
 
 /// Populate a ModulePassManager with the passes that should be run as part of
 /// Kitsune's pre-tapir pipeline. These passes are run immediately before tapir
