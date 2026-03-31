@@ -41,6 +41,13 @@ bitcode files.
 }];
 }
 
+def EarlyAnnotatePass : FuncAttr<> {
+  let Documentation = [{
+The presence of this attribute indicates that the `kit-annotate-early` pass has
+been run on the function.
+}];
+}
+
 def Kernel : FuncAttr<> {
   let HasCustomVerifier = True;
   let Documentation = [{

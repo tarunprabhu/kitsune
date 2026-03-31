@@ -13,6 +13,7 @@
 #ifndef KITSUNE_TRANSFORMS_EARLY_ANNOTATE_H
 #define KITSUNE_TRANSFORMS_EARLY_ANNOTATE_H
 
+#include "kitsune/Core/FuncAttrs.h"
 #include "llvm/IR/PassManager.h"
 
 namespace llvm {
@@ -21,7 +22,12 @@ namespace llvm {
 class EarlyAnnotatePass : public PassInfoMixin<EarlyAnnotatePass> {
 public:
   PreservedAnalyses run(Function &f, FunctionAnalysisManager &am);
+
+public:
+  static constexpr FuncAttrKind hasRunAttr = FuncAttrKind::EarlyAnnotatePass;
 };
+
+static_assert(check_pass_requirable<EarlyAnnotatePass>());
 
 } // namespace llvm
 
