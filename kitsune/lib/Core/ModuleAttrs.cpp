@@ -14,8 +14,8 @@
 #include "kitsune/Core/ModuleAttrs.h"
 #include "AttrsImpl.h"
 #include "ModuleAttrsImpl.h"
+#include "VerifierImpl.h"
 #include "kitsune/Core/ModuleUtils.h"
-#include "kitsune/Core/Verifier.h"
 #include "kitsune/Support/Diagnostics.h"
 #include "kitsune/Support/ErrorHandling.h"
 #include "kitsune/Support/TTIDUtils.h"
@@ -23,6 +23,8 @@
 #include "llvm/IR/Module.h"
 
 using namespace llvm;
+
+//------------------------------------------------------------------------------
 
 MDNode *llvm::detail::getRawAttrList(const Module &m) {
   if (NamedMDNode *nmd = m.getNamedMetadata("kit.module"))
@@ -55,6 +57,15 @@ void llvm::detail::removeAttr(Module &m, StringRef attrName) {
   setAttrList(m, newAttrList);
 }
 
+void llvm::detail::verifyAttr(KitVerifier &v, const Module &m,
+                              StringRef attrName) {
+#define MODULE_ATTR(NAME, IRNAME, ...)                                         \
+  if (attrName == IRNAME)                                                      \
+    return verify##NAME##Attr(v, m);
+#define GET_MODULE_ATTRS
+#include "kitsune/Core/ModuleAttrs.inc"
+}
+
 //------------------------------------------------------------------------------
 
 raw_ostream &llvm::operator<<(raw_ostream &os, const ModuleAttrKind &attr) {
@@ -78,17 +89,6 @@ std::optional<ModuleAttrKind> llvm::getModuleAttrKind(StringRef name) {
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
       .Default(std::nullopt);
-}
-
-bool llvm::verifyAttr(KitVerifier &v, const Module &m, ModuleAttrKind attr) {
-  switch (attr) {
-#define MODULE_ATTR(NAME, IRNAME, ...)                                         \
-  case ModuleAttrKind::NAME:                                                   \
-    return verify##NAME##Attr(v, m);
-#define GET_MODULE_ATTRS
-#include "kitsune/Core/ModuleAttrs.inc"
-  }
-  llvm_unreachable("verifyAttr: Attribute not handled");
 }
 
 void llvm::addAttr(Module &m, ModuleAttrKind attr) {
@@ -133,15 +133,12 @@ DEFN_ATTR_GENERIC(Module, ModuleAttrKind)
 // anything above this line unless you are modifying a core part of the
 // attribute implementation.
 
-bool llvm::verifyDeviceModuleFlagsAttr(KitVerifier &v, const Module &m,
+void llvm::verifyDeviceModuleFlagsAttr(KitVerifier &v, const Module &m,
                                        const TTID &tt, const StringRef &name) {
-  bool ok = true;
   ModuleAttrKind attr = ModuleAttrKind::DeviceModuleFlags;
 
-  ok &= v.check(generatesEmbBC(tt), DiagID::ErrAttrBadValueAt, attr, 0,
-                DiagMessage::errTTEmbBC);
-  ok &= v.check(name.size(), DiagID::ErrAttrBadValueAt, attr, 1,
-                "Module name cannot be empty");
-
-  return ok;
+  v.check(generatesEmbBC(tt), DiagID::ErrAttrBadValueAt, attr, 0,
+          DiagMessage::errTTEmbBC);
+  v.check(name.size(), DiagID::ErrAttrBadValueAt, attr, 1,
+          DiagMessage::errEmptyStr);
 }

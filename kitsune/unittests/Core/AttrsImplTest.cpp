@@ -1,4 +1,4 @@
-//===- AttrsCommonTest.cpp - Unit tests for Kitsune's attr utilities ------===//
+//===- AttrsImplTest.cpp - Core Kitsune attribute implementation tests ----===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,13 +6,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Core/AttrsCommon.h"
 #include "Core/AttrsImpl.h"
 #include "llvm/IR/Metadata.h"
 
 #include "gtest/gtest.h"
 
 using namespace llvm;
+using namespace llvm::detail;
 
 namespace {
 
@@ -58,13 +58,13 @@ TEST(KitAttrsCommon, makeRawAttr) {
   Metadata *strOld = MDString::get(ctx, attrOld);
   Metadata *strNew = MDString::get(ctx, attrNew);
 
-  md = detail::makeRawAttr(ctx, "attr-flag", {});
+  md = makeRawAttr(ctx, "attr-flag", {});
   checkAttrFlag(md);
 
-  md = detail::makeRawAttr(ctx, "attr-new", {strOld});
+  md = makeRawAttr(ctx, "attr-new", {strOld});
   checkAttr(md, attrOld);
 
-  md = detail::makeRawAttr(ctx, "attr2", {strOld, strNew});
+  md = makeRawAttr(ctx, "attr2", {strOld, strNew});
   EXPECT_EQ(cast<MDString>(md->getOperand(0))->getString(), "attr2");
   EXPECT_EQ(cast<MDString>(md->getOperand(1))->getString(), attrOld);
   EXPECT_EQ(cast<MDString>(md->getOperand(2))->getString(), attrNew);
@@ -74,7 +74,7 @@ TEST(KitAttrsCommon, newAttrList) {
   LLVMContext ctx;
   MDNode *md = nullptr;
 
-  md = detail::getNewAttrList(ctx);
+  md = getNewAttrList(ctx);
   checkAttrList(md, 0);
 }
 
@@ -96,7 +96,7 @@ TEST(KitAttrsCommon, newAttrListWith) {
   checkAttr(md->getOperand(1), attrNew);
   checkAttrFlag(md->getOperand(2));
 
-  md = detail::getNewAttrList(ctx);
+  md = getNewAttrList(ctx);
   md = getAttrListWith("attr-flag", {}, md, ctx);
   checkAttrList(md, 1);
   checkAttrFlag(md->getOperand(1));
@@ -109,7 +109,7 @@ TEST(KitAttrsCommon, newAttrListWithout) {
 
   EXPECT_FALSE(getAttrListWithout("attr-flag", nullptr));
 
-  mdEmpty = detail::getNewAttrList(ctx);
+  mdEmpty = getNewAttrList(ctx);
   checkAttrList(mdEmpty, 0);
 
   md = getAttrListWithout("attr-flag", mdEmpty);
@@ -134,15 +134,15 @@ TEST(KitAttrsCommon, getRawAttr) {
   MDNode *md = nullptr;
   MDNode *mdAttr = nullptr;
 
-  md = detail::getNewAttrList(ctx);
-  EXPECT_FALSE(detail::getRawAttr("attr-flag", md));
+  md = getNewAttrList(ctx);
+  EXPECT_FALSE(getRawAttr("attr-flag", md));
 
   md = getAttrListWith("attr-flag", {}, md, ctx);
-  mdAttr = detail::getRawAttr("attr-flag", md);
+  mdAttr = getRawAttr("attr-flag", md);
   EXPECT_TRUE(mdAttr);
   checkAttrFlag(mdAttr);
 
-  EXPECT_FALSE(detail::getRawAttr("attr-new", md));
+  EXPECT_FALSE(getRawAttr("attr-new", md));
 }
 
 TEST(KitAttrsCommon, getRawAttrValue) {
@@ -154,19 +154,19 @@ TEST(KitAttrsCommon, getRawAttrValue) {
   MDNode *attr = nullptr;
 
   md = getAttrListWith("attr", {v0, v1}, nullptr, ctx);
-  attr = detail::getRawAttr("attr", md);
+  attr = getRawAttr("attr", md);
 
   // Out of range.
-  EXPECT_FALSE(detail::getRawAttrValue<StringRef>(*attr, 2));
-  EXPECT_FALSE(detail::getRawAttrValue<StringRef>(*attr, 3));
+  EXPECT_FALSE(getRawAttrValue<StringRef>(*attr, 2));
+  EXPECT_FALSE(getRawAttrValue<StringRef>(*attr, 3));
 
   // Incorrect type at index.
-  EXPECT_FALSE(detail::getRawAttrValue<int32_t>(*attr, 0));
-  EXPECT_FALSE(detail::getRawAttrValue<int64_t>(*attr, 1));
+  EXPECT_FALSE(getRawAttrValue<int32_t>(*attr, 0));
+  EXPECT_FALSE(getRawAttrValue<int64_t>(*attr, 1));
 
   // Correct type at index.
-  EXPECT_EQ(detail::getRawAttrValue<StringRef>(*attr, 0), "beeblebrox");
-  EXPECT_EQ(detail::getRawAttrValue<int32_t>(*attr, 1), 11011010);
+  EXPECT_EQ(getRawAttrValue<StringRef>(*attr, 0), "beeblebrox");
+  EXPECT_EQ(getRawAttrValue<int32_t>(*attr, 1), 11011010);
 }
 
 } // namespace

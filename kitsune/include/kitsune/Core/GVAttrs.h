@@ -14,14 +14,13 @@
 #ifndef KITSUNE_CORE_GV_ATTRS_H
 #define KITSUNE_CORE_GV_ATTRS_H
 
-#include "kitsune/Core/AttrsCommon.h"
+#include "kitsune/Core/AttrsDeclMacros.h"
+#include "kitsune/Core/Tapir.h"
 #include "llvm/ADT/StringRef.h"
 
 namespace llvm {
 
 class GlobalVariable;
-class MDNode;
-class raw_ostream;
 
 /// \addtogroup kitsune
 /// @{
@@ -51,20 +50,6 @@ void addAttr(GlobalVariable &f, GVAttrKind attr);
 /// Remove an attribute from a global variable. If the global variable does not
 /// contain the attribute, this has no effect.
 void removeAttr(GlobalVariable &f, GVAttrKind attr);
-
-/// Verify an attribute \p attr on the global variable \p g. Returns true if any
-/// of the following are true:
-///
-///   - \p attr is not present on \p g
-///   - \p attr is present with the correct number of values, each of which is
-///     of the correct type.
-///
-/// Otherwise, return false.
-///
-bool verifyAttr(KitVerifier &v, const GlobalVariable &g, GVAttrKind attr);
-
-/// Get a range to iterate over the raw global variable attributes.
-iterator_range<AttrIterator> attrs(const GlobalVariable &g);
 
 /// @}
 

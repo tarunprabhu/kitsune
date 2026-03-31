@@ -14,14 +14,14 @@
 #ifndef KITSUNE_CORE_MODULE_ATTRS_H
 #define KITSUNE_CORE_MODULE_ATTRS_H
 
-#include "kitsune/Core/AttrsCommon.h"
+#include "kitsune/Core/AttrsDeclMacros.h"
+#include "kitsune/Core/Tapir.h"
 #include "llvm/ADT/StringRef.h"
 
 namespace llvm {
 
 class Module;
 class MDNode;
-class raw_ostream;
 
 /// \addtogroup kitsune
 /// @{
@@ -51,20 +51,6 @@ void addAttr(Module &m, ModuleAttrKind attr);
 /// Remove an attribute from a module. If the module does not contain the
 /// attribute, this has no effect.
 void removeAttr(Module &m, ModuleAttrKind attr);
-
-/// Verify an attribute \p attr on the module \p m. Returns true if any of the
-/// following are true:
-///
-///   - \p attr is not present on \p m
-///   - \p attr is present with the correct number of values, each of which is
-///     of the correct type.
-///
-/// Otherwise, return false.
-///
-bool verifyAttr(KitVerifier &v, const Module &m, ModuleAttrKind attr);
-
-/// Get a range to iterate over the raw module attributes.
-iterator_range<AttrIterator> attrs(const Module &m);
 
 /// @}
 

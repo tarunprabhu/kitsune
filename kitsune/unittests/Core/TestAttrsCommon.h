@@ -15,10 +15,6 @@
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Module.h"
 
-#define OS os
-#define VNULL vnull
-#define VOS vos
-
 // Add an attribute with the given name and of `n` "empty" values.
 template <typename IRElem>
 static void addAttr(IRElem &ir, llvm::StringRef attrName, unsigned n) {
@@ -30,32 +26,69 @@ static void addAttr(IRElem &ir, llvm::StringRef attrName, unsigned n) {
   llvm::detail::addAttr(ir, attrName, attrVals);
 }
 
+#define TEST_VERIFY_TRUE(OBJ, NAME)                                            \
+  do {                                                                         \
+    KitVerifier verifier(nullptr);                                             \
+                                                                               \
+    verify##NAME##Attr(verifier, OBJ);                                         \
+    EXPECT_TRUE(verifier.result());                                            \
+  } while (0)
+
+#define TEST_VERIFY_FALSE(OBJ, NAME)                                           \
+  do {                                                                         \
+    KitVerifier verifier(nullptr);                                             \
+                                                                               \
+    verify##NAME##Attr(verifier, OBJ);                                         \
+    EXPECT_FALSE(verifier.result());                                           \
+  } while (0)
+
+#define TEST_VERIFY_ERR_0(OBJ, NAME)                                           \
+  do {                                                                         \
+    std::string buf;                                                           \
+    raw_string_ostream os(buf);                                                \
+    KitVerifier verifier(&os);                                                 \
+                                                                               \
+    verify##NAME##Attr(verifier, OBJ);                                         \
+    EXPECT_TRUE(verifier.result());                                            \
+    EXPECT_TRUE(buf.empty());                                                  \
+  } while (0)
+
+#define TEST_VERIFY_ERR(OBJ, NAME, ERR)                                        \
+  do {                                                                         \
+    std::string buf;                                                           \
+    raw_string_ostream os(buf);                                                \
+    KitVerifier verifier(&os);                                                 \
+                                                                               \
+    verify##NAME##Attr(verifier, OBJ);                                         \
+    EXPECT_FALSE(verifier.result());                                           \
+    EXPECT_TRUE(StringRef(buf).contains(ERR));                                 \
+  } while (0)
+
 #define TEST_GENERIC_VERIFY_N(OBJ, KIND, NAME, IRNAME)                         \
   detail::addAttr(OBJ, IRNAME, {});                                            \
                                                                                \
-  OS.str().clear();                                                            \
-  EXPECT_FALSE(verifyAttr(VNULL, OBJ, KIND::NAME));                            \
-  EXPECT_FALSE(verifyAttr(VOS, OBJ, KIND::NAME));                              \
-  EXPECT_TRUE(StringRef(OS.str()).contains("incorrect value count"));          \
+  TEST_VERIFY_FALSE(OBJ, NAME);                                                \
+  TEST_VERIFY_ERR(OBJ, NAME, "incorrect value count");                         \
                                                                                \
   remove##NAME##Attr((OBJ));
 
 #define TEST_GENERIC_VERIFY_0(OBJ, KIND, NAME, IRNAME)                         \
   detail::addAttr(OBJ, IRNAME, MDString::get(ctx, ""));                        \
                                                                                \
-  OS.str().clear();                                                            \
-  EXPECT_FALSE(verifyAttr(VNULL, OBJ, KIND::NAME));                            \
-  EXPECT_FALSE(verifyAttr(VOS, OBJ, KIND::NAME));                              \
-  EXPECT_TRUE(StringRef(OS.str()).contains("incorrect value count '1'"));      \
+  TEST_VERIFY_FALSE(OBJ, NAME);                                                \
+  TEST_VERIFY_ERR(OBJ, NAME, "incorrect value count '1'");                     \
                                                                                \
   remove##NAME##Attr(OBJ);
 
 #define TEST_GENERIC_ATTR_0(OBJ, KIND, NAME)                                   \
   EXPECT_FALSE(hasAttr(OBJ, KIND::NAME));                                      \
+                                                                               \
   addAttr(OBJ, KIND::NAME);                                                    \
   EXPECT_TRUE(hasAttr(OBJ, KIND::NAME));                                       \
+                                                                               \
   addAttr(OBJ, KIND::NAME);                                                    \
   EXPECT_TRUE(hasAttr(OBJ, KIND::NAME));                                       \
+                                                                               \
   removeAttr(OBJ, KIND::NAME);                                                 \
   EXPECT_FALSE(hasAttr(OBJ, KIND::NAME));
 
@@ -64,31 +97,29 @@ static void addAttr(IRElem &ir, llvm::StringRef attrName, unsigned n) {
               "error: cannot add attribute");
 
 #define TEST_ATTR_0(OBJ, KIND, NAME, IRNAME, CUSTOMVERIFY)                     \
-  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
+  TEST_VERIFY_TRUE(OBJ, NAME);                                                 \
                                                                                \
   add##NAME##Attr(OBJ);                                                        \
   EXPECT_TRUE(has##NAME##Attr(OBJ));                                           \
-  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
+  TEST_VERIFY_TRUE(OBJ, NAME);                                                 \
                                                                                \
   add##NAME##Attr(OBJ);                                                        \
   EXPECT_TRUE(has##NAME##Attr(OBJ));                                           \
-  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
+  TEST_VERIFY_TRUE(OBJ, NAME);                                                 \
                                                                                \
   remove##NAME##Attr(OBJ);                                                     \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
-  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
+  TEST_VERIFY_TRUE(OBJ, NAME);                                                 \
                                                                                \
-  OS.str().clear();                                                            \
   ::addAttr(OBJ, IRNAME, 0);                                                   \
-  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
-  EXPECT_TRUE(verify##NAME##Attr(VOS, OBJ));                                   \
-  EXPECT_TRUE(OS.str().empty());                                               \
+  TEST_VERIFY_TRUE(OBJ, NAME);                                                 \
+  TEST_VERIFY_ERR_0(OBJ, NAME);                                                \
   remove##NAME##Attr(OBJ);
 
 #define TEST_ATTR_1(OBJ, KIND, NAME, IRNAME, CUSTOMVERIFY, TYPE)               \
-  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
+  TEST_VERIFY_TRUE(OBJ, NAME);                                                 \
                                                                                \
   {                                                                            \
     TYPE v = get<TYPE, KIND::NAME>(0);                                         \
@@ -96,7 +127,7 @@ static void addAttr(IRElem &ir, llvm::StringRef attrName, unsigned n) {
     add##NAME##Attr(OBJ, v);                                                   \
     EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
     if constexpr (::verifyAttr(KIND::NAME))                                    \
-      EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                             \
+      TEST_VERIFY_TRUE(OBJ, NAME);                                             \
     EXPECT_EQ(get##NAME##Attr(OBJ), v);                                        \
   }                                                                            \
                                                                                \
@@ -106,25 +137,23 @@ static void addAttr(IRElem &ir, llvm::StringRef attrName, unsigned n) {
     add##NAME##Attr(OBJ, v);                                                   \
     EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
     if constexpr (::verifyAttr(KIND::NAME))                                    \
-      EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                             \
+      TEST_VERIFY_TRUE(OBJ, NAME);                                             \
     EXPECT_EQ(get##NAME##Attr(OBJ), v);                                        \
   }                                                                            \
                                                                                \
   remove##NAME##Attr(OBJ);                                                     \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
-  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
+  TEST_VERIFY_TRUE(OBJ, NAME);                                                 \
                                                                                \
-  OS.str().clear();                                                            \
   ::addAttr(OBJ, IRNAME, 1);                                                   \
-  EXPECT_FALSE(verify##NAME##Attr(VNULL, OBJ));                                \
-  EXPECT_FALSE(verify##NAME##Attr(VOS, OBJ));                                  \
-  EXPECT_TRUE(StringRef(OS.str()).contains("missing value of type"));          \
+  TEST_VERIFY_FALSE(OBJ, NAME);                                                \
+  TEST_VERIFY_ERR(OBJ, NAME, "missing value of type");                         \
   remove##NAME##Attr(OBJ);
 
 #define TEST_ATTR_2(OBJ, KIND, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,  \
                     ETY1, ENAME1, EN1)                                         \
-  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
+  TEST_VERIFY_TRUE(OBJ, NAME);                                                 \
                                                                                \
   {                                                                            \
     ETY0 v0 = get<ETY0, KIND::NAME>(0);                                        \
@@ -133,7 +162,7 @@ static void addAttr(IRElem &ir, llvm::StringRef attrName, unsigned n) {
     add##NAME##Attr(OBJ, v0, v1);                                              \
     EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
     if constexpr (::verifyAttr(KIND::NAME))                                    \
-      EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                             \
+      TEST_VERIFY_TRUE(OBJ, NAME);                                             \
     EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
     EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
   }                                                                            \
@@ -145,26 +174,24 @@ static void addAttr(IRElem &ir, llvm::StringRef attrName, unsigned n) {
     add##NAME##Attr(OBJ, v0, v1);                                              \
     EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
     if constexpr (::verifyAttr(KIND::NAME))                                    \
-      EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                             \
+      TEST_VERIFY_TRUE(OBJ, NAME);                                             \
     EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
     EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
   }                                                                            \
                                                                                \
   remove##NAME##Attr(OBJ);                                                     \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
-  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
+  TEST_VERIFY_TRUE(OBJ, NAME);                                                 \
                                                                                \
-  OS.str().clear();                                                            \
   ::addAttr(OBJ, IRNAME, 2);                                                   \
-  EXPECT_FALSE(verify##NAME##Attr(VNULL, OBJ));                                \
-  EXPECT_FALSE(verify##NAME##Attr(VOS, OBJ));                                  \
-  EXPECT_TRUE(StringRef(OS.str()).contains("missing value of type"));          \
+  TEST_VERIFY_FALSE(OBJ, NAME);                                                \
+  TEST_VERIFY_ERR(OBJ, NAME, "missing value of type");                         \
   remove##NAME##Attr(OBJ);
 
 #define TEST_ATTR_3(OBJ, KIND, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,  \
                     ETY1, ENAME1, EN1, ETY2, ENAME2, EN2)                      \
-  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
+  TEST_VERIFY_TRUE(OBJ, NAME);                                                 \
                                                                                \
   {                                                                            \
     ETY0 v0 = get<ETY0, KIND::NAME>(0);                                        \
@@ -174,7 +201,7 @@ static void addAttr(IRElem &ir, llvm::StringRef attrName, unsigned n) {
     add##NAME##Attr(OBJ, v0, v1, v2);                                          \
     EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
     if constexpr (::verifyAttr(KIND::NAME))                                    \
-      EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                             \
+      TEST_VERIFY_TRUE(OBJ, NAME);                                             \
     EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
     EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
     EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), v2);                         \
@@ -188,7 +215,7 @@ static void addAttr(IRElem &ir, llvm::StringRef attrName, unsigned n) {
     add##NAME##Attr(OBJ, v0, v1, v2);                                          \
     EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
     if constexpr (::verifyAttr(KIND::NAME))                                    \
-      EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                             \
+      TEST_VERIFY_TRUE(OBJ, NAME);                                             \
     EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
     EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
     EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), v2);                         \
@@ -196,19 +223,17 @@ static void addAttr(IRElem &ir, llvm::StringRef attrName, unsigned n) {
                                                                                \
   remove##NAME##Attr(OBJ);                                                     \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
-  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
+  TEST_VERIFY_TRUE(OBJ, NAME);                                                 \
                                                                                \
-  OS.str().clear();                                                            \
   ::addAttr(OBJ, IRNAME, 3);                                                   \
-  EXPECT_FALSE(verify##NAME##Attr(VNULL, OBJ));                                \
-  EXPECT_FALSE(verify##NAME##Attr(VOS, OBJ));                                  \
-  EXPECT_TRUE(StringRef(OS.str()).contains("missing value of type"));          \
+  TEST_VERIFY_FALSE(OBJ, NAME);                                                \
+  TEST_VERIFY_ERR(OBJ, NAME, "missing value of type");                         \
   remove##NAME##Attr(OBJ);
 
 #define TEST_ATTR_4(OBJ, KIND, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,  \
                     ETY1, ENAME1, EN1, ETY2, ENAME2, EN2, ETY3, ENAME3, EN3)   \
-  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
+  TEST_VERIFY_TRUE(OBJ, NAME);                                                 \
                                                                                \
   {                                                                            \
     ETY0 v0 = get<ETY0, KIND::NAME>(0);                                        \
@@ -219,7 +244,7 @@ static void addAttr(IRElem &ir, llvm::StringRef attrName, unsigned n) {
     add##NAME##Attr(OBJ, v0, v1, v2, v3);                                      \
     EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
     if constexpr (::verifyAttr(KIND::NAME))                                    \
-      EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                             \
+      TEST_VERIFY_TRUE(OBJ, NAME);                                             \
     EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
     EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
     EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), v2);                         \
@@ -235,7 +260,7 @@ static void addAttr(IRElem &ir, llvm::StringRef attrName, unsigned n) {
     add##NAME##Attr(OBJ, v0, v1, v2, v3);                                      \
     EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
     if constexpr (::verifyAttr(KIND::NAME))                                    \
-      EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                             \
+      TEST_VERIFY_TRUE(OBJ, NAME);                                             \
     EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
     EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
     EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), v2);                         \
@@ -244,20 +269,18 @@ static void addAttr(IRElem &ir, llvm::StringRef attrName, unsigned n) {
                                                                                \
   remove##NAME##Attr(OBJ);                                                     \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
-  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
+  TEST_VERIFY_TRUE(OBJ, NAME);                                                 \
                                                                                \
-  OS.str().clear();                                                            \
   ::addAttr(OBJ, IRNAME, 4);                                                   \
-  EXPECT_FALSE(verify##NAME##Attr(VNULL, OBJ));                                \
-  EXPECT_FALSE(verify##NAME##Attr(VOS, OBJ));                                  \
-  EXPECT_TRUE(StringRef(OS.str()).contains("missing value of type"));          \
+  TEST_VERIFY_FALSE(OBJ, NAME);                                                \
+  TEST_VERIFY_ERR(OBJ, NAME, "missing value of type");                         \
   remove##NAME##Attr(OBJ);
 
 #define TEST_ATTR_5(OBJ, KIND, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,  \
                     ETY1, ENAME1, EN1, ETY2, ENAME2, EN2, ETY3, ENAME3, EN3,   \
                     ETY4, ENAME4, EN4)                                         \
-  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
+  TEST_VERIFY_TRUE(OBJ, NAME);                                                 \
                                                                                \
   {                                                                            \
     ETY0 v0 = get<ETY0, KIND::NAME>(0);                                        \
@@ -269,7 +292,7 @@ static void addAttr(IRElem &ir, llvm::StringRef attrName, unsigned n) {
     add##NAME##Attr(OBJ, v0, v1, v2, v3, v4);                                  \
     EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
     if constexpr (::verifyAttr(KIND::NAME))                                    \
-      EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                             \
+      TEST_VERIFY_TRUE(OBJ, NAME);                                             \
     EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
     EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
     EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), v2);                         \
@@ -287,7 +310,7 @@ static void addAttr(IRElem &ir, llvm::StringRef attrName, unsigned n) {
     add##NAME##Attr(OBJ, v0, v1, v2, v3, v4);                                  \
     EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
     if constexpr (::verifyAttr(KIND::NAME))                                    \
-      EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                             \
+      TEST_VERIFY_TRUE(OBJ, NAME);                                             \
     EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
     EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
     EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), v2);                         \
@@ -297,20 +320,18 @@ static void addAttr(IRElem &ir, llvm::StringRef attrName, unsigned n) {
                                                                                \
   remove##NAME##Attr(OBJ);                                                     \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
-  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
+  TEST_VERIFY_TRUE(OBJ, NAME);                                                 \
                                                                                \
-  OS.str().clear();                                                            \
   ::addAttr(OBJ, IRNAME, 5);                                                   \
-  EXPECT_FALSE(verify##NAME##Attr(VNULL, OBJ));                                \
-  EXPECT_FALSE(verify##NAME##Attr(VOS, OBJ));                                  \
-  EXPECT_TRUE(StringRef(OS.str()).contains("missing value of type"));          \
+  TEST_VERIFY_FALSE(OBJ, NAME);                                                \
+  TEST_VERIFY_ERR(OBJ, NAME, "missing value of type");                         \
   remove##NAME##Attr(OBJ);
 
 #define TEST_ATTR_6(OBJ, KIND, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,  \
                     ETY1, ENAME1, EN1, ETY2, ENAME2, EN2, ETY3, ENAME3, EN3,   \
                     ETY4, ENAME4, EN4, ETY5, ENAME5, EN5)                      \
-  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
+  TEST_VERIFY_TRUE(OBJ, NAME);                                                 \
                                                                                \
   {                                                                            \
     ETY0 v0 = get<ETY0, KIND::NAME>(0);                                        \
@@ -323,7 +344,7 @@ static void addAttr(IRElem &ir, llvm::StringRef attrName, unsigned n) {
     add##NAME##Attr(OBJ, v0, v1, v2, v3, v4, v5);                              \
     EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
     if constexpr (::verifyAttr(KIND::NAME))                                    \
-      EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                             \
+      TEST_VERIFY_TRUE(OBJ, NAME);                                             \
     EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
     EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
     EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), v2);                         \
@@ -343,7 +364,7 @@ static void addAttr(IRElem &ir, llvm::StringRef attrName, unsigned n) {
     add##NAME##Attr(OBJ, v0, v1, v2, v3, v4, v5);                              \
     EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
     if constexpr (::verifyAttr(KIND::NAME))                                    \
-      EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                             \
+      TEST_VERIFY_TRUE(OBJ, NAME);                                             \
     EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
     EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
     EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), v2);                         \
@@ -354,20 +375,18 @@ static void addAttr(IRElem &ir, llvm::StringRef attrName, unsigned n) {
                                                                                \
   remove##NAME##Attr(OBJ);                                                     \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
-  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
+  TEST_VERIFY_TRUE(OBJ, NAME);                                                 \
                                                                                \
-  OS.str().clear();                                                            \
   ::addAttr(OBJ, IRNAME, 6);                                                   \
-  EXPECT_FALSE(verify##NAME##Attr(VNULL, OBJ));                                \
-  EXPECT_FALSE(verify##NAME##Attr(VOS, OBJ));                                  \
-  EXPECT_TRUE(StringRef(OS.str()).contains("missing value of type"));          \
+  TEST_VERIFY_FALSE(OBJ, NAME);                                                \
+  TEST_VERIFY_ERR(OBJ, NAME, "missing value of type");                         \
   remove##NAME##Attr(OBJ);
 
 #define TEST_ATTR_7(OBJ, KIND, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,  \
                     ETY1, ENAME1, EN1, ETY2, ENAME2, EN2, ETY3, ENAME3, EN3,   \
                     ETY4, ENAME4, EN4, ETY5, ENAME5, EN5, ETY6, ENAME6, EN6)   \
-  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
+  TEST_VERIFY_TRUE(OBJ, NAME);                                                 \
                                                                                \
   {                                                                            \
     ETY0 v0 = get<ETY0, KIND::NAME>(0);                                        \
@@ -381,7 +400,7 @@ static void addAttr(IRElem &ir, llvm::StringRef attrName, unsigned n) {
     add##NAME##Attr(OBJ, v0, v1, v2, v3, v4, v5, v6);                          \
     EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
     if constexpr (::verifyAttr(KIND::NAME))                                    \
-      EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                             \
+      TEST_VERIFY_TRUE(OBJ, NAME);                                             \
     EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
     EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
     EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), v2);                         \
@@ -403,7 +422,7 @@ static void addAttr(IRElem &ir, llvm::StringRef attrName, unsigned n) {
     add##NAME##Attr(OBJ, v0, v1, v2, v3, v4, v5, v6);                          \
     EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
     if constexpr (::verifyAttr(KIND::NAME))                                    \
-      EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                             \
+      TEST_VERIFY_TRUE(OBJ, NAME);                                             \
     EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
     EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
     EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), v2);                         \
@@ -415,21 +434,19 @@ static void addAttr(IRElem &ir, llvm::StringRef attrName, unsigned n) {
                                                                                \
   remove##NAME##Attr(OBJ);                                                     \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
-  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
+  TEST_VERIFY_TRUE(OBJ, NAME);                                                 \
                                                                                \
-  OS.str().clear();                                                            \
   ::addAttr(OBJ, IRNAME, 7);                                                   \
-  EXPECT_FALSE(verify##NAME##Attr(VNULL, OBJ));                                \
-  EXPECT_FALSE(verify##NAME##Attr(VOS, OBJ));                                  \
-  EXPECT_TRUE(StringRef(OS.str()).contains("missing value of type"));          \
+  TEST_VERIFY_FALSE(OBJ, NAME);                                                \
+  TEST_VERIFY_ERR(OBJ, NAME, "missing value of type");                         \
   remove##NAME##Attr(OBJ);
 
 #define TEST_ATTR_8(OBJ, KIND, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,  \
                     ETY1, ENAME1, EN1, ETY2, ENAME2, EN2, ETY3, ENAME3, EN3,   \
                     ETY4, ENAME4, EN4, ETY5, ENAME5, EN5, ETY6, ENAME6, EN6,   \
                     ETY7, ENAME7, EN7)                                         \
-  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
+  TEST_VERIFY_TRUE(OBJ, NAME);                                                 \
                                                                                \
   {                                                                            \
     ETY0 v0 = get<ETY0, KIND::NAME>(0);                                        \
@@ -444,7 +461,7 @@ static void addAttr(IRElem &ir, llvm::StringRef attrName, unsigned n) {
     add##NAME##Attr(OBJ, v0, v1, v2, v3, v4, v5, v6, v7);                      \
     EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
     if constexpr (::verifyAttr(KIND::NAME))                                    \
-      EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                             \
+      TEST_VERIFY_TRUE(OBJ, NAME);                                             \
     EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
     EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
     EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), v2);                         \
@@ -468,7 +485,7 @@ static void addAttr(IRElem &ir, llvm::StringRef attrName, unsigned n) {
     add##NAME##Attr(OBJ, v0, v1, v2, v3, v4, v5, v6, v7);                      \
     EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
     if constexpr (::verifyAttr(KIND::NAME))                                    \
-      EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                             \
+      TEST_VERIFY_TRUE(OBJ, NAME);                                             \
     EXPECT_EQ(get##ENAME0##From##NAME##Attr(OBJ), v0);                         \
     EXPECT_EQ(get##ENAME1##From##NAME##Attr(OBJ), v1);                         \
     EXPECT_EQ(get##ENAME2##From##NAME##Attr(OBJ), v2);                         \
@@ -481,13 +498,11 @@ static void addAttr(IRElem &ir, llvm::StringRef attrName, unsigned n) {
                                                                                \
   remove##NAME##Attr(OBJ);                                                     \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
-  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
+  TEST_VERIFY_TRUE(OBJ, NAME);                                                 \
                                                                                \
-  OS.str().clear();                                                            \
   ::addAttr(OBJ, IRNAME, 8);                                                   \
-  EXPECT_FALSE(verify##NAME##Attr(VNULL, OBJ));                                \
-  EXPECT_FALSE(verify##NAME##Attr(VOS, OBJ));                                  \
-  EXPECT_TRUE(StringRef(OS.str()).contains("missing value of type"));          \
+  TEST_VERIFY_FALSE(OBJ, NAME);                                                \
+  TEST_VERIFY_ERR(OBJ, NAME, "missing value of type");                         \
   remove##NAME##Attr(OBJ);
 
 static constexpr llvm::StringRef ll2 = R"(
@@ -538,30 +553,28 @@ for.i.exit:
 
 #define TEST_ATTR_LOOP(OBJ, LOOP_F, LOOP_G, LIS, KIND, NAME, IRNAME,           \
                        CUSTOMVERIFY)                                           \
-  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
+  TEST_VERIFY_TRUE(OBJ, NAME);                                                 \
                                                                                \
   add##NAME##Attr(OBJ, *LOOP_F);                                               \
   EXPECT_TRUE(has##NAME##Attr(OBJ));                                           \
   if constexpr (::verifyAttr(KIND::NAME))                                      \
-    EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                               \
+    TEST_VERIFY_TRUE(OBJ, NAME);                                               \
   EXPECT_EQ(get##NAME##Attr(OBJ, LIS), LOOP_F);                                \
                                                                                \
   add##NAME##Attr(OBJ, *LOOP_G);                                               \
   EXPECT_TRUE(has##NAME##Attr(OBJ));                                           \
   if constexpr (::verifyAttr(KIND::NAME))                                      \
-    EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                               \
+    TEST_VERIFY_TRUE(OBJ, NAME);                                               \
   EXPECT_EQ(get##NAME##Attr(OBJ, LIS), LOOP_G);                                \
                                                                                \
   remove##NAME##Attr(OBJ);                                                     \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
-  EXPECT_TRUE(verify##NAME##Attr(VNULL, OBJ));                                 \
+  TEST_VERIFY_TRUE(OBJ, NAME);                                                 \
                                                                                \
-  OS.str().clear();                                                            \
   ::addAttr(OBJ, IRNAME, 1);                                                   \
-  EXPECT_FALSE(verify##NAME##Attr(VNULL, OBJ));                                \
-  EXPECT_FALSE(verify##NAME##Attr(VOS, OBJ));                                  \
-  EXPECT_TRUE(StringRef(OS.str()).contains("MDNode is not a valid loop id"));  \
+  TEST_VERIFY_FALSE(OBJ, NAME);                                                \
+  TEST_VERIFY_ERR(OBJ, NAME, "MDNode is not a valid loop id");                 \
   remove##NAME##Attr(OBJ);
 
 #define TEST_ATTR_ATTRS(OBJ)                                                   \
@@ -570,7 +583,7 @@ for.i.exit:
     detail::addAttr(OBJ, name, {});                                            \
                                                                                \
   SmallVector<StringRef> got;                                                  \
-  for (const MDNode &attr : attrs(OBJ))                                        \
+  for (const MDNode &attr : detail::attrs(OBJ))                                \
     got.push_back(detail::getRawAttrName(attr));                               \
                                                                                \
   EXPECT_EQ(inp, got);

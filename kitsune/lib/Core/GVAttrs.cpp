@@ -14,6 +14,7 @@
 #include "kitsune/Core/GVAttrs.h"
 #include "AttrsImpl.h"
 #include "GVAttrsImpl.h"
+#include "VerifierImpl.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/GVUtils.h"
 #include "kitsune/Core/ModuleAttrs.h"
@@ -28,6 +29,8 @@
 #include "llvm/IR/Module.h"
 
 using namespace llvm;
+
+//------------------------------------------------------------------------------
 
 MDNode *llvm::detail::getRawAttrList(const GlobalVariable &g) {
   return g.getMetadata(LLVMContext::MD_kit_gv_attrs);
@@ -53,6 +56,15 @@ void llvm::detail::removeAttr(GlobalVariable &g, StringRef attrName) {
   setAttrList(g, newAttrList);
 }
 
+void llvm::detail::verifyAttr(KitVerifier &v, const GlobalVariable &g,
+                              StringRef attrName) {
+#define GV_ATTR(NAME, IRNAME, ...)                                             \
+  if (attrName == IRNAME)                                                      \
+    return verify##NAME##Attr(v, g);
+#define GET_GV_ATTRS
+#include "kitsune/Core/GVAttrs.inc"
+}
+
 //------------------------------------------------------------------------------
 
 raw_ostream &llvm::operator<<(raw_ostream &os, const GVAttrKind &attr) {
@@ -76,18 +88,6 @@ std::optional<GVAttrKind> llvm::getGVAttrKind(StringRef name) {
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"
       .Default(std::nullopt);
-}
-
-bool llvm::verifyAttr(KitVerifier &v, const GlobalVariable &g,
-                      GVAttrKind attr) {
-  switch (attr) {
-#define GV_ATTR(NAME, IRNAME, ...)                                             \
-  case GVAttrKind::NAME:                                                       \
-    return verify##NAME##Attr(v, g);
-#define GET_GV_ATTRS
-#include "kitsune/Core/GVAttrs.inc"
-  }
-  llvm_unreachable("verifyAttr: Attribute not handled");
 }
 
 void llvm::addAttr(GlobalVariable &g, GVAttrKind attr) {
@@ -132,153 +132,133 @@ DEFN_ATTR_GENERIC(GlobalVariable, GVAttrKind)
 // anything above this line unless you are modifying a core part of the
 // attribute implementation.
 
-static bool verifyEmbModuleMetadata(KitVerifier &v, const Module &embM) {
-  bool ok = true;
-
+static void verifyEmbModuleMetadata(KitVerifier &v, const Module &embM) {
   ModuleAttrKind reqd = ModuleAttrKind::DeviceModuleFlags;
-  ok &= v.check(hasDeviceModuleFlagsAttr(embM), DiagID::ErrEmbModuleGeneric,
-                formatv("missing required attribute '{}'", reqd).str());
-
-  return ok;
+  v.check(hasDeviceModuleFlagsAttr(embM), DiagID::ErrEmbModuleGeneric,
+          formatv("missing required attribute '{}'", reqd).str());
 }
 
-static bool verifyEmbModule(KitVerifier &v, const Module &embM,
+static void verifyEmbModule(KitVerifier &v, const Module &embM,
                             TTID ttFromHostGV) {
-  bool ok = true;
   for (const GlobalVariable &g : embM.globals()) {
-    ok &= v.check(!hasBitCodeAttr(g), g, DiagID::ErrEmbModuleGeneric,
-                  "cannot contain embedded bitcode");
-    ok &= v.check(!hasDeviceCodeAttr(g), g, DiagID::ErrEmbModuleGeneric,
-                  "cannot contain embedded device code");
+    v.check(!hasBitCodeAttr(g), g, DiagID::ErrEmbModuleGeneric,
+            "cannot contain embedded bitcode");
+    v.check(!hasDeviceCodeAttr(g), g, DiagID::ErrEmbModuleGeneric,
+            "cannot contain embedded device code");
   }
 
-  ok &= verifyEmbModuleMetadata(v, embM);
+  verifyEmbModuleMetadata(v, embM);
   if (std::optional<TTID> tt = getTTIDFromDeviceModuleFlagsAttr(embM))
-    ok &= v.check(tt == ttFromHostGV, DiagID::ErrEmbModuleGeneric,
-                  "tapir target in device module flags metadata must match "
-                  "tapir target in host embedded bitcode global variable");
+    v.check(tt == ttFromHostGV, DiagID::ErrEmbModuleGeneric,
+            "tapir target in device module flags metadata must match "
+            "tapir target in host embedded bitcode global variable");
 
-  ok &= v.check(verifyModule(embM, /*kitOnly=*/false, v.getOstream()),
-                DiagID::ErrEmbModuleGeneric, "broken module found");
+  v.check(verifyModule(embM, /*kitOnly=*/false, v.getOstream()),
+          DiagID::ErrEmbModuleGeneric, "broken module found");
 
-  return ok;
+  return;
 }
 
-bool llvm::verifyBitCodeAttr(KitVerifier &v, const GlobalVariable &g,
+void llvm::verifyBitCodeAttr(KitVerifier &v, const GlobalVariable &g,
                              const TTID &tt) {
-  bool ok = true;
   GVAttrKind attr = GVAttrKind::BitCode;
 
   for (GVAttrKind a : {GVAttrKind::DeviceCode, GVAttrKind::KernelProperties})
-    ok &= v.check(!hasAttr(g, a), g, DiagID::ErrAttrNotCompatible, attr, a);
+    v.check(!hasAttr(g, a), g, DiagID::ErrAttrNotCompatible, attr, a);
 
-  ok &= v.check(generatesEmbBC(tt), g, DiagID::ErrAttrBadValue, attr,
-                DiagMessage::errTTEmbBC);
+  v.check(generatesEmbBC(tt), g, DiagID::ErrAttrBadValue, attr,
+          DiagMessage::errTTEmbBC);
 
   // Check the global variable to which the attribute is attached.
-  ok &= v.check(g.hasName(), g, DiagID::ErrAttrGlobalNoName, attr);
-  ok &= v.check(isByteArrayTy(g.getValueType()), g,
-                DiagID::ErrAttrGlobalBadType, attr);
-  ok &= v.check(g.hasInitializer(), g, DiagID::ErrAttrGlobalNoInit, attr);
-  if (!ok)
-    return ok;
+  v.check(g.hasName(), g, DiagID::ErrAttrGlobalNoName, attr);
+  v.check(isByteArrayTy(g.getValueType()), g, DiagID::ErrAttrGlobalBadType,
+          attr);
+  if (!v.check(g.hasInitializer(), g, DiagID::ErrAttrGlobalNoInit, attr))
+    return;
 
   const Constant *init = g.getInitializer();
-  ok &= v.check(isa<ConstantDataArray>(init), g, DiagID::ErrAttrGlobalBadInit,
-                attr, "Must be a constant data array");
-  if (!ok)
-    return ok;
+  if (!v.check(isa<ConstantDataArray>(init), g, DiagID::ErrAttrGlobalBadInit,
+               attr, "Must be a constant data array"))
+    return;
 
   StringRef bc = cast<ConstantDataArray>(init)->getAsString();
-  ok &= v.check(isBitcode(bc.bytes_begin(), bc.bytes_end()), g,
-                DiagID::ErrAttrGlobalBadInit, attr, "Does not contain bitcode");
-  if (!ok)
-    return ok;
+  if (!v.check(isBitcode(bc.bytes_begin(), bc.bytes_end()), g,
+               DiagID::ErrAttrGlobalBadInit, attr, "Does not contain bitcode"))
+    return;
 
   LLVMContext &ctx = g.getContext();
   std::unique_ptr<MemoryBuffer> buf = MemoryBuffer::getMemBuffer(bc);
   Expected<std::unique_ptr<Module>> mOrErr = parseBitcodeFile(*buf, ctx);
   if (!mOrErr) {
     handleAllErrors(mOrErr.takeError(), [&](ErrorInfoBase &e) {
-      ok &= v.check(false, g, DiagID::ErrAttrGlobalBadInit, attr,
-                    "Could not parse bitcode");
+      v.check(false, g, DiagID::ErrAttrGlobalBadInit, attr,
+              "Could not parse bitcode");
     });
-    return ok;
+    return;
   }
 
-  ok &= verifyEmbModule(v, *mOrErr.get(), tt);
-
-  return ok;
+  verifyEmbModule(v, *mOrErr.get(), tt);
 }
 
-bool llvm::verifyDeviceCodeAttr(KitVerifier &v, const GlobalVariable &g,
+void llvm::verifyDeviceCodeAttr(KitVerifier &v, const GlobalVariable &g,
                                 const TTID &tt) {
-  bool ok = true;
   GVAttrKind attr = GVAttrKind::DeviceCode;
 
   for (GVAttrKind a : {GVAttrKind::BitCode, GVAttrKind::KernelProperties})
-    ok &= v.check(!hasAttr(g, a), g, DiagID::ErrAttrNotCompatible, attr, a);
+    v.check(!hasAttr(g, a), g, DiagID::ErrAttrNotCompatible, attr, a);
 
-  ok &= v.check(generatesEmbBC(tt), g, DiagID::ErrAttrBadValue, attr,
-                DiagMessage::errTTEmbBC);
+  v.check(generatesEmbBC(tt), g, DiagID::ErrAttrBadValue, attr,
+          DiagMessage::errTTEmbBC);
 
   // Check the global variable to which the attribute is attached.
-  ok &= v.check(g.hasName(), g, DiagID::ErrAttrGlobalNoName, attr);
-  ok &= v.check(isByteArrayTy(g.getValueType()), g,
-                DiagID::ErrAttrGlobalBadType, attr);
-  ok &= v.check(g.hasInitializer(), g, DiagID::ErrAttrGlobalNoInit, attr);
-  if (!ok)
-    return ok;
+  v.check(g.hasName(), g, DiagID::ErrAttrGlobalNoName, attr);
+  v.check(isByteArrayTy(g.getValueType()), g, DiagID::ErrAttrGlobalBadType,
+          attr);
+  if (!v.check(g.hasInitializer(), g, DiagID::ErrAttrGlobalNoInit, attr))
+    return;
 
   const Constant *init = g.getInitializer();
-  ok &= v.check(isa<ConstantDataArray>(init) || init->isZeroValue(), g,
-                DiagID::ErrAttrGlobalBadInit, attr,
-                "Must be a constant data array or zero-initialized");
-
-  return ok;
+  v.check(isa<ConstantDataArray>(init) || init->isZeroValue(), g,
+          DiagID::ErrAttrGlobalBadInit, attr,
+          "Must be a constant data array or zero-initialized");
 }
 
-bool llvm::verifyKernelPropertiesAttr(KitVerifier &v, const GlobalVariable &g,
+void llvm::verifyKernelPropertiesAttr(KitVerifier &v, const GlobalVariable &g,
                                       const TTID &tt, const StringRef &name) {
-  bool ok = true;
   GVAttrKind attr = GVAttrKind::KernelProperties;
 
   for (GVAttrKind a : {GVAttrKind::BitCode, GVAttrKind::DeviceCode})
-    ok &= v.check(!hasAttr(g, a), DiagID::ErrAttrNotCompatible, attr, a);
+    v.check(!hasAttr(g, a), DiagID::ErrAttrNotCompatible, attr, a);
 
-  ok &= v.check(generatesEmbBC(tt), g, DiagID::ErrAttrBadValueAt, attr, 0,
-                DiagMessage::errTTEmbBC);
-  ok &= v.check(name.size(), g, DiagID::ErrAttrBadValueAt, attr, 1,
-                "Kernel name cannot be empty");
+  v.check(generatesEmbBC(tt), g, DiagID::ErrAttrBadValueAt, attr, 0,
+          DiagMessage::errTTEmbBC);
+  v.check(name.size(), g, DiagID::ErrAttrBadValueAt, attr, 1,
+          "Kernel name cannot be empty");
 
   // Check the global variable to which the attribute has been attached.
-  ok &= v.check(g.hasInitializer(), g, DiagID::ErrAttrGlobalNoInit, attr);
-  if (!ok)
-    return ok;
+  if (!v.check(g.hasInitializer(), g, DiagID::ErrAttrGlobalNoInit, attr))
+    return;
 
   const Constant *init = g.getInitializer();
-  ok &= v.check(isa<ConstantStruct>(init) || init->isZeroValue(), g,
-                DiagID::ErrAttrGlobalBadInit, attr,
-                "Must be a constant struct or zero-initialized");
-  if (!ok)
-    return ok;
+  if (!v.check(isa<ConstantStruct>(init) || init->isZeroValue(), g,
+               DiagID::ErrAttrGlobalBadInit, attr,
+               "Must be a constant struct or zero-initialized"))
+    return;
 
   const Module *hostM = g.getParent();
   Expected<std::unique_ptr<Module>> embMOrErr = getEmbModule(tt, *hostM);
   if (!embMOrErr) {
     handleAllErrors(embMOrErr.takeError(), [&](ErrorInfoBase &e) {
-      ok &= v.check(false, g, DiagID::ErrAttrGeneric, attr,
-                    "requires valid embedded bitcode");
+      v.check(false, g, DiagID::ErrAttrGeneric, attr,
+              "requires valid embedded bitcode");
     });
-    return ok;
+    return;
   }
 
   // Since the embedded bitcode global variable is removed after the embedded
   // device code is generated, the module may not contain an embedded module
   // at all.
   if (std::unique_ptr<Module> embM = std::move(embMOrErr.get()))
-    ok &= v.check(embM->getFunction(name), g, DiagID::ErrAttrBadValueAt, attr,
-                  1, "Kernel function does not exist in embedded module");
-
-  return ok;
+    v.check(embM->getFunction(name), g, DiagID::ErrAttrBadValueAt, attr, 1,
+            "Kernel function does not exist in embedded module");
 }

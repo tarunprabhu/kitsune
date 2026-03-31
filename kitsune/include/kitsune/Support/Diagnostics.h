@@ -37,6 +37,8 @@ class DiagMessage {
 public:
   static constexpr StringRef errTTEmbBC =
       "Tapir target does not generate embedded bitcode";
+
+  static constexpr StringRef errEmptyStr = "Cannot be an empty string";
 };
 
 /// ID's for the various diagnostics that can be emitted by Kitsune. These are

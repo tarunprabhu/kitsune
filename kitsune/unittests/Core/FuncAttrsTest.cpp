@@ -9,10 +9,9 @@
 #include "kitsune/Core/FuncAttrs.h"
 #include "Core/AttrsImpl.h"
 #include "Core/FuncAttrsImpl.h"
+#include "Core/VerifierImpl.h"
 #include "TestAttrsCommon.h"
-#include "kitsune/Core/AttrsCommon.h"
 #include "kitsune/Core/FuncUtils.h"
-#include "kitsune/Core/Verifier.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Module.h"
 
@@ -52,10 +51,6 @@ TEST(KitFuncAttrs, attrKind) {
 }
 
 #define DECLS(OBJ)                                                             \
-  std::string buf;                                                             \
-  raw_string_ostream OS(buf);                                                  \
-  [[maybe_unused]] KitVerifier VOS(&OS);                                       \
-  [[maybe_unused]] KitVerifier VNULL;                                          \
   LLVMContext ctx;                                                             \
   Module m("", ctx);                                                           \
   Type *voidTy = Type::getVoidTy(ctx);                                         \

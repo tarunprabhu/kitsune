@@ -9,10 +9,9 @@
 #include "kitsune/Core/GVAttrs.h"
 #include "Core/AttrsImpl.h"
 #include "Core/GVAttrsImpl.h"
+#include "Core/VerifierImpl.h"
 #include "TestAttrsCommon.h"
-#include "kitsune/Core/AttrsCommon.h"
 #include "kitsune/Core/GVUtils.h"
-#include "kitsune/Core/Verifier.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Module.h"
 
@@ -58,10 +57,6 @@ TEST(KitGVAttrs, attrKind) {
 }
 
 #define DECLS(OBJ)                                                             \
-  std::string buf;                                                             \
-  raw_string_ostream OS(buf);                                                  \
-  [[maybe_unused]] KitVerifier VOS(&OS);                                       \
-  [[maybe_unused]] KitVerifier VNULL;                                          \
   LLVMContext ctx;                                                             \
   Module m("", ctx);                                                           \
   Type *i32 = Type::getInt32Ty(ctx);                                           \

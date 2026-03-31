@@ -9,10 +9,9 @@
 #include "kitsune/Core/LoopAttrs.h"
 #include "Core/AttrsImpl.h"
 #include "Core/LoopAttrsImpl.h"
+#include "Core/VerifierImpl.h"
 #include "TestAttrsCommon.h"
-#include "kitsune/Core/AttrsCommon.h"
 #include "kitsune/Core/LoopUtils.h"
-#include "kitsune/Core/Verifier.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/IR/Module.h"
 
@@ -87,10 +86,6 @@ for.i.exit:
 )";
 
 #define DECLS(OBJ)                                                             \
-  std::string buf;                                                             \
-  raw_string_ostream OS(buf);                                                  \
-  [[maybe_unused]] KitVerifier VOS(&OS);                                       \
-  [[maybe_unused]] KitVerifier VNULL;                                          \
   LLVMContext ctx;                                                             \
   std::unique_ptr<Module> m = parseIR(ctx, ll);                                \
   Function *f = m->getFunction("f");                                           \
