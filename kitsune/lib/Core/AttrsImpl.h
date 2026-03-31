@@ -13,6 +13,7 @@
 #ifndef KITSUNE_LIB_CORE_ATTRS_IMPL_H
 #define KITSUNE_LIB_CORE_ATTRS_IMPL_H
 
+#include "AttrsIterator.h"
 #include "kitsune/Core/MetadataUtils.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Analysis/LoopInfo.h"
@@ -139,6 +140,10 @@ getRawAttrValue(const MDNode &attr,
 template <typename T>
 std::optional<T> getRawAttrValue(const MDNode &attr, unsigned i);
 
+/// Get a range that can be used to iterate over the raw attributes in the raw
+/// attribute list \p attrList. \p attrList may be nullptr.
+iterator_range<AttrIterator> getRawAttrsRange(const MDNode *attrList);
+
 /// Verify that the raw attribute \p attr has the expected number of values,
 /// \p attrVals. If so, return true. Otherwise, if an optional output stream,
 /// \p os, has been provided, write an error message to it.
@@ -195,13 +200,7 @@ bool verifyRawAttrValues(KitVerifier &v, const MDNode &attr,
   }                                                                            \
                                                                                \
   iterator_range<detail::AttrIterator> llvm::detail::attrs(const IRELEM &ir) { \
-    if (const MDNode *attrList = detail::getRawAttrList(ir)) {                 \
-      detail::AttrIterator beg(attrList);                                      \
-      detail::AttrIterator end(attrList, attrList->getNumOperands());          \
-                                                                               \
-      return iterator_range(beg, end);                                         \
-    }                                                                          \
-    return iterator_range(AttrIterator(), AttrIterator());                     \
+    return getRawAttrsRange(detail::getRawAttrList(ir));                       \
   }
 
 #define DEFN_ATTR_COMMON(IRELEM, KIND, NAME, IRNAME, CUSTOMVERIFY, TYPE)       \

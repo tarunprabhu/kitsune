@@ -20,6 +20,8 @@
 #include "VerifierImpl.h"
 #include "kitsune/Core/Attrs.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/Analysis/LoopInfo.h"
+#include "llvm/IR/Dominators.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Verifier.h"
@@ -39,8 +41,11 @@ KitVerifier &KitVerifier::verify(const Function &f) {
   for (const_inst_iterator i = inst_begin(f), e = inst_end(f); i != e; ++i)
     verify(*i);
 
-  for (const MDNode &attr : detail::attrs(f))
-    detail::verifyAttr(*this, f, detail::getRawAttrName(attr));
+  DominatorTree dt(const_cast<Function&>(f));
+  LoopInfo li(dt);
+  for (const Loop *loop : li)
+    for (const MDNode &attr : detail::attrs(*loop))
+      detail::verifyAttr(*this, *loop, detail::getRawAttrName(attr));
 
   return *this;
 }
