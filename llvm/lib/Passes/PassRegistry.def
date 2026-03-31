@@ -620,6 +620,11 @@ FUNCTION_PASS("view-dom-only", DomOnlyViewer())
 FUNCTION_PASS("view-post-dom", PostDomViewer())
 FUNCTION_PASS("view-post-dom-only", PostDomOnlyViewer())
 FUNCTION_PASS("wasm-eh-prepare", WasmEHPreparePass())
+
+// Kitsune-specific function passes. Keep these separate from the rest because
+// it makes merges a bit easier at times.
+FUNCTION_PASS("kit-annotate-early", EarlyAnnotatePass())
+
 #undef FUNCTION_PASS
 
 #ifndef FUNCTION_PASS_WITH_PARAMS

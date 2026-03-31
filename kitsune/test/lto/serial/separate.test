@@ -29,7 +29,7 @@
 # LOWERED-SAME: {{[^%]*}}%[[A:[^,]+]],
 # LOWERED-SAME: {{[^%]*}}%[[B:[^,]+]],
 # LOWERED-SAME: i64 {{[^%]*}}%[[N:[^,]+]])
-# LOWERED: br {{.+}}, label %[[END:.+]], label %[[BODY:.+]]
+# LOWERED: br {{.+}}, label %[[END:.+]], label %[[BODY:[^,]+]]
 # LOWERED: [[BODY]]:
 # LOWERED: %[[I:.+]] = phi i64
 # LOWERED: %[[IDXA:.+]] = tail call {{.*}}(ptr {{.*}}, i64 {{.*}}%[[I]])

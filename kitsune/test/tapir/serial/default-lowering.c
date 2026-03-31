@@ -8,7 +8,7 @@
 // CHECK-SAME: i32 {{[^%]*}}%[[SCALE:[^,]+]],
 // CHECK-SAME: i64 {{[^%]*}}%[[N:[^,]+]])
 // CHECK: [[ENTRY:.+]]:
-// CHECK: br {{.+}}, label %[[END:.+]], label %[[BODY:.+]]
+// CHECK: br {{.+}}, label %[[END:.+]], label %[[BODY:[^,]+]]
 // CHECK: [[BODY]]:
 // CHECK: %[[I:.+]] = phi i64
 // CHECK: %[[IDX:.+]] = getelementptr {{.*}}i32, ptr %[[A]], i64 %[[I]]

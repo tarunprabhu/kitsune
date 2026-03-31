@@ -11,7 +11,7 @@
 # CHECK-SAME: ptr {{[^%]*}}%[[A:[^,]+]],
 # CHECK-SAME: ptr {{[^%]*}}%[[B:[^,]+]],
 # CHECK-SAME: i64 {{[^%]*}}%[[N:[^,]+]])
-# CHECK: br {{.+}}, label %[[END:.+]], label %[[BODY:.+]]
+# CHECK: br {{.+}}, label %[[END:.+]], label %[[BODY:[^,]+]]
 # CHECK: [[BODY]]:
 # CHECK: %[[I:.+]] = phi i64
 # CHECK: %[[IDXA:.+]] = tail call {{.*}}(ptr {{.*}}, i64 {{.*}}%[[I]])
