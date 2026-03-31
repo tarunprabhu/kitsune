@@ -126,7 +126,9 @@ MDNode *llvm::detail::makeRawAttr(LLVMContext &ctx, StringRef attrName,
 }
 
 StringRef llvm::detail::getRawAttrName(const MDNode &attr) {
-  return cast<MDString>(attr.getOperand(0))->getString();
+  if (const auto* mdStr = dyn_cast<MDString>(attr.getOperand(0)))
+    return mdStr->getString();
+  return "<unknown>";
 }
 
 std::optional<Loop *>
@@ -160,6 +162,17 @@ MDNode *llvm::detail::getRawAttr(StringRef attrName, const MDNode *attrList) {
             if (mdStr->getString() == attrName)
               return md;
   return nullptr;
+}
+
+iterator_range<detail::AttrIterator>
+llvm::detail::getRawAttrsRange(const MDNode *attrList) {
+  if (attrList) {
+    AttrIterator beg(attrList);
+    AttrIterator end(attrList, attrList->getNumOperands());
+
+    return iterator_range(beg, end);
+  }
+  return iterator_range(AttrIterator(), AttrIterator());
 }
 
 MDNode *llvm::detail::getNewAttrList(LLVMContext &ctx) {
