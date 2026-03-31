@@ -14,16 +14,17 @@
 #include "kitsune/Core/InstAttrs.h"
 #include "AttrsImpl.h"
 #include "InstAttrsImpl.h"
-#include "kitsune/Core/AttrsCommon.h"
+#include "VerifierImpl.h"
 #include "kitsune/Core/InstUtils.h"
 #include "kitsune/Core/MetadataUtils.h"
-#include "kitsune/Core/Verifier.h"
 #include "kitsune/Support/Diagnostics.h"
 #include "kitsune/Support/ErrorHandling.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/IR/Instructions.h"
 
 using namespace llvm;
+
+//------------------------------------------------------------------------------
 
 MDNode *llvm::detail::getRawAttrList(const Instruction &inst) {
   return inst.getMetadata(LLVMContext::MD_kit_inst_attrs);
@@ -49,6 +50,15 @@ void llvm::detail::removeAttr(Instruction &inst, StringRef attrName) {
   setAttrList(inst, newAttrList);
 }
 
+void llvm::detail::verifyAttr(KitVerifier &v, const Instruction &inst,
+                              StringRef attrName) {
+#define INST_ATTR(NAME, IRNAME, ...)                                           \
+  if (attrName == IRNAME)                                                      \
+    return llvm::verify##NAME##Attr(v, inst);
+#define GET_INST_ATTRS
+#include "kitsune/Core/InstAttrs.inc"
+}
+
 //------------------------------------------------------------------------------
 
 raw_ostream &llvm::operator<<(raw_ostream &os, const InstAttrKind &attr) {
@@ -72,18 +82,6 @@ std::optional<InstAttrKind> llvm::getInstAttrKind(StringRef name) {
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
       .Default(std::nullopt);
-}
-
-bool llvm::verifyAttr(KitVerifier &v, const Instruction &inst,
-                      InstAttrKind attr) {
-  switch (attr) {
-#define INST_ATTR(NAME, IRNAME, ...)                                           \
-  case InstAttrKind::NAME:                                                     \
-    return verify##NAME##Attr(v, inst);
-#define GET_INST_ATTRS
-#include "kitsune/Core/InstAttrs.inc"
-  }
-  llvm_unreachable("verifyAttr: Attribute not handled");
 }
 
 void llvm::addAttr(Instruction &inst, InstAttrKind attr) {

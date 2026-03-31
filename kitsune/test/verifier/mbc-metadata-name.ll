@@ -5,7 +5,7 @@
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: attribute 'kit.module.device.module.flags': invalid value at index '1'
-; CHECK-SAME: Module name cannot be empty
+; CHECK-SAME: Cannot be an empty string
 ; CHECK-NEXT: embedded module: broken module found
 
 !kit.module = !{!0}

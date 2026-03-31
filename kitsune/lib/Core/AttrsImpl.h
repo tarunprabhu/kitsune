@@ -13,16 +13,137 @@
 #ifndef KITSUNE_LIB_CORE_ATTRS_IMPL_H
 #define KITSUNE_LIB_CORE_ATTRS_IMPL_H
 
-#include "kitsune/Core/AttrsCommon.h"
+#include "kitsune/Core/MetadataUtils.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Analysis/LoopInfo.h"
 
 namespace llvm {
 
+class LLVMContext;
 class MDNode;
+
 class KitVerifier;
 
 namespace detail {
+
+/// Create a new empty attribute list. This will be of the form
+///
+/// \code{llvm}
+///     !0 = distinct !{!0}
+/// \endcode
+MDNode *getNewAttrList(LLVMContext &ctx);
+
+/// Get an attribute list containing the attribute with name \p attrName and
+/// values \p attrVals. \p attrList is the existing attribute list. It may be
+/// null in which case the returned list will contain a single attribute. If
+/// the attribute already exists in \p attrList, its value(s) will be replaced
+/// with new new value(s).
+///
+/// Some examples are provided below. In each, a call is followed by an example
+/// of the new attribute list that will be returned. An optional old attribute
+/// list may also be provided.
+///
+/// **New attribute list**
+///
+/// \code{c++}
+///     getAttrListWithAttr("new-attr", {...}, nullptr, ctx);
+/// \endcode
+///
+/// This will return the following new attribute list.
+///
+/// \code{llvm}
+///     !0 = distinct !{!0, !1}
+///     !1 = !{!"new-attr", ...}
+/// \endcode{llvm}
+///
+///
+/// **Add an attribute that is not in the list**
+///
+/// \code{llvm}
+///     !0 = distinct !{!0, !1, !2}
+///     !1 = !{!"attr-flag"}
+///     !2 = !{!"attr-1", i32 32767}
+/// \endcode
+///
+/// \code{c++}
+///     getAttrListWithAttr("new-attr", {...}, <attrList>, ctx);
+/// \endcode
+///
+/// \code{c++}
+///     !0 = distinct !{!0, !1, !2, !3}
+///     !1 = !{!"attr-flag"}
+///     !2 = !{!"attr-1", i32 32767}
+///     !3 = !{!"new-attr", ...}
+/// \endcode
+///
+///
+/// **Update the value of an attribute in the list**
+///
+/// \code{llvm}
+///     !0 = distinct !{!0, !1, !2}
+///     !1 = !{!"new-attr", !"old"}
+///     !2 = !{!"attr-flag"}
+/// \endcode
+///
+/// \code{c++}
+///     getAttrListWithAttr("new-attr", {!"new"}, <attrList>, ctx);
+/// \endcode
+///
+/// \code{llvm}
+///     !0 = distinct !{!0, !1, !2}
+///     !1 = !{!"attr-flag"}
+///     !2 = !{!"new-attr", !"new"}
+/// \endcode
+///
+MDNode *getAttrListWith(StringRef attrName, const ArrayRef<Metadata *> attrVals,
+                        MDNode *attrList, LLVMContext &ctx);
+
+/// Remove the attribute named \p attrName from \p attrList. If the attribute
+/// exists in the list, a new MDNode will be created and returned. Otherwise,
+/// \p attrList will be returned. If removing the result would result in an
+/// empty list, return nullptr. If \p attrList is nullptr, returns nullptr.
+MDNode *getAttrListWithout(StringRef attrName, MDNode *attrList);
+
+/// Create a raw attribute metadata node with name \p attrName and values
+/// \p attrVals. This will be of the form
+///
+/// \code{llvm}
+///     !0 = !{!"<NAME>", ...}
+/// \endcode
+///
+/// where <NAME> is the name of the attribute as specified in \p attrName and
+/// the ellipses denote the metadata in \p attrVals.
+MDNode *makeRawAttr(LLVMContext &ctx, StringRef attrName,
+                    ArrayRef<Metadata *> vals);
+
+/// If the attribute list \p attrList contains an attribute \p attrName, return
+/// the MDNode for that attribute. Otherwise, return nullptr. If found, the
+/// MDNode that is returned will have at least one operand. This will be an
+/// MDString whose value is the name of the attribute. If any other operands
+/// are present, they will be the values accepted by the attribute. If
+/// \p attrList is nullptr, this will also return nullptr.
+MDNode *getRawAttr(StringRef attrName, const MDNode *attrList);
+
+/// Get the name of the attribute \p attr.
+StringRef getRawAttrName(const MDNode &attr);
+
+/// Get the value of the raw attribute that is expected to have a exactly one
+/// value that is an LLVM Loop.
+std::optional<Loop *>
+getRawAttrValue(const MDNode &attr,
+                const SmallVectorImpl<const LoopInfo *> &lis);
+
+/// Get the value of the \p i'th value from the raw attribute \p attr that is
+/// expected to be of type \p T. If the value is not present, or if it is not of
+/// type \p T, return std::nullopt.
+template <typename T>
+std::optional<T> getRawAttrValue(const MDNode &attr, unsigned i);
+
+/// Verify that the raw attribute \p attr has the expected number of values,
+/// \p attrVals. If so, return true. Otherwise, if an optional output stream,
+/// \p os, has been provided, write an error message to it.
+bool verifyRawAttrValueCount(KitVerifier &v, const MDNode &attr,
+                             unsigned attrVals);
 
 /// Verify an attribute \p attr that is expected to have a single value. This
 /// value is an MDNode that corresponds to the ID of a loop. Return false if
@@ -34,12 +155,6 @@ namespace detail {
 /// in all other cases, If false is due to be returned, and the optional output
 /// stream \p os is not nullptr, print an error message to it.
 bool verifyRawAttrValueLoop(KitVerifier &v, const MDNode &attr);
-
-/// Verify that the raw attribute \p attr has the expected number of values,
-/// \p attrVals. If so, return true. Otherwise, if an optional output stream,
-/// \p os, has been provided, write an error message to it.
-bool verifyRawAttrValueCount(KitVerifier &v, const MDNode &attr,
-                             unsigned attrVals);
 
 /// Verify that a raw attribute \p attr has a value of type \p T at index \p i.
 /// \p i must be in the range [0, N) where N is the number of values that the
@@ -66,48 +181,6 @@ bool verifyRawAttrValues(KitVerifier &v, const MDNode &attr,
   return detail::verifyRawAttrValuesImpl(v, attr, 0, vals...);
 }
 
-/// Get the name of the attribute \p attr.
-StringRef getRawAttrName(const MDNode &attr);
-
-/// Get the value of the raw attribute that is expected to have a exactly one
-/// value that is an LLVM Loop.
-std::optional<Loop *>
-getRawAttrValue(const MDNode &attr,
-                const SmallVectorImpl<const LoopInfo *> &lis);
-
-/// Get the value of the \p i'th value from the raw attribute \p attr that is
-/// expected to be of type \p T. If the value is not present, or if it is not of
-/// type \p T, return std::nullopt.
-template <typename T>
-std::optional<T> getRawAttrValue(const MDNode &attr, unsigned i);
-
-/// If the attribute list \p attrList contains an attribute \p attrName, return
-/// the MDNode for that attribute. Otherwise, return nullptr. If found, the
-/// MDNode that is returned will have at least one operand. This will be an
-/// MDString whose value is the name of the attribute. If any other operands
-/// are present, they will be the values accepted by the attribute. If
-/// \p attrList is nullptr, this will also return nullptr.
-MDNode *getRawAttr(StringRef attrName, const MDNode *attrList);
-
-/// Create a raw attribute metadata node with name \p attrName and values
-/// \p attrVals. This will be of the form
-///
-/// \code{llvm}
-///     !0 = !{!"<NAME>", ...}
-/// \endcode
-///
-/// where <NAME> is the name of the attribute as specified in \p attrName and
-/// the ellipses denote the metadata in \p attrVals.
-MDNode *makeRawAttr(LLVMContext &ctx, StringRef attrName,
-                    ArrayRef<Metadata *> vals);
-
-/// Create a new empty attribute list. This will be of the form
-///
-/// \code{llvm}
-///     !0 = distinct !{!0}
-/// \endcode
-MDNode *getNewAttrList(LLVMContext &ctx);
-
 } // namespace detail
 
 } // namespace llvm
@@ -121,10 +194,10 @@ MDNode *getNewAttrList(LLVMContext &ctx);
     detail::removeAttr(ir, getAttrName(attr));                                 \
   }                                                                            \
                                                                                \
-  iterator_range<AttrIterator> llvm::attrs(const IRELEM &ir) {                 \
+  iterator_range<detail::AttrIterator> llvm::detail::attrs(const IRELEM &ir) { \
     if (const MDNode *attrList = detail::getRawAttrList(ir)) {                 \
-      AttrIterator beg(attrList);                                              \
-      AttrIterator end(attrList, attrList->getNumOperands());                  \
+      detail::AttrIterator beg(attrList);                                      \
+      detail::AttrIterator end(attrList, attrList->getNumOperands());          \
                                                                                \
       return iterator_range(beg, end);                                         \
     }                                                                          \
@@ -151,36 +224,32 @@ MDNode *getNewAttrList(LLVMContext &ctx);
     detail::addAttr(ir, IRNAME, loop.getLoopID());                             \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
-    v.push();                                                                  \
+  void llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
     if (const MDNode *attr =                                                   \
             detail::getRawAttr(IRNAME, detail::getRawAttrList(ir))) {          \
       if (!detail::verifyRawAttrValueCount(v, *attr, 1))                       \
-        return v.pop();                                                        \
+        return;                                                                \
                                                                                \
       if (!detail::verifyRawAttrValueLoop(v, *attr))                           \
-        return v.pop();                                                        \
+        return;                                                                \
                                                                                \
       if constexpr (CUSTOMVERIFY)                                              \
         verify##NAME##Attr(v, ir, *cast<MDNode>(attr->getOperand(1)));         \
     }                                                                          \
-    return v.pop();                                                            \
   }
 
 #define DEFN_ATTR_0(IRELEM, NAME, IRNAME, CUSTOMVERIFY)                        \
   void llvm::add##NAME##Attr(IRELEM &ir) { detail::addAttr(ir, IRNAME, {}); }  \
                                                                                \
-  bool llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
-    v.push();                                                                  \
+  void llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
     if (const MDNode *attr =                                                   \
             detail::getRawAttr(IRNAME, detail::getRawAttrList(ir))) {          \
       if (!detail::verifyRawAttrValueCount(v, *attr, 0))                       \
-        return v.pop();                                                        \
+        return;                                                                \
                                                                                \
       if constexpr (CUSTOMVERIFY)                                              \
         verify##NAME##Attr(v, ir, true);                                       \
     }                                                                          \
-    return v.pop();                                                            \
   }
 
 #define DEFN_ATTR_1(IRELEM, NAME, IRNAME, CUSTOMVERIFY, TYPE)                  \
@@ -198,21 +267,19 @@ MDNode *getNewAttrList(LLVMContext &ctx);
     detail::addAttr(ir, IRNAME, attrVals);                                     \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
-    v.push();                                                                  \
+  void llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
     if (const MDNode *attr =                                                   \
             detail::getRawAttr(IRNAME, detail::getRawAttrList(ir))) {          \
       if (!detail::verifyRawAttrValueCount(v, *attr, 1))                       \
-        return v.pop();                                                        \
+        return;                                                                \
                                                                                \
       std::optional<TYPE> val = detail::getRawAttrValue<TYPE>(*attr, 0);       \
       if (!detail::verifyRawAttrValues(v, *attr, val))                         \
-        return v.pop();                                                        \
+        return;                                                                \
                                                                                \
       if constexpr (CUSTOMVERIFY)                                              \
         verify##NAME##Attr(v, ir, *val);                                       \
     }                                                                          \
-    return v.pop();                                                            \
   }
 
 #define DEFN_ATTR_2(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
@@ -223,22 +290,20 @@ MDNode *getNewAttrList(LLVMContext &ctx);
     detail::addAttr(ir, IRNAME, attrVals);                                     \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
-    v.push();                                                                  \
+  void llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
     if (const MDNode *attr =                                                   \
             detail::getRawAttr(IRNAME, detail::getRawAttrList(ir))) {          \
       if (!detail::verifyRawAttrValueCount(v, *attr, 2))                       \
-        return v.pop();                                                        \
+        return;                                                                \
                                                                                \
       std::optional<ETY0> v0 = detail::getRawAttrValue<ETY0>(*attr, 0);        \
       std::optional<ETY1> v1 = detail::getRawAttrValue<ETY1>(*attr, 1);        \
       if (!detail::verifyRawAttrValues(v, *attr, v0, v1))                      \
-        return v.pop();                                                        \
+        return;                                                                \
                                                                                \
       if constexpr (CUSTOMVERIFY)                                              \
         verify##NAME##Attr(v, ir, *v0, *v1);                                   \
     }                                                                          \
-    return v.pop();                                                            \
   }
 
 #define DEFN_ATTR_3(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
@@ -251,23 +316,21 @@ MDNode *getNewAttrList(LLVMContext &ctx);
     detail::addAttr(ir, IRNAME, attrVals);                                     \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
-    v.push();                                                                  \
+  void llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
     if (const MDNode *attr =                                                   \
             detail::getRawAttr(IRNAME, detail::getRawAttrList(ir))) {          \
       if (!detail::verifyRawAttrValueCount(v, *attr, 3))                       \
-        return v.pop();                                                        \
+        return;                                                                \
                                                                                \
       std::optional<ETY0> v0 = detail::getRawAttrValue<ETY0>(*attr, 0);        \
       std::optional<ETY1> v1 = detail::getRawAttrValue<ETY1>(*attr, 1);        \
       std::optional<ETY2> v2 = detail::getRawAttrValue<ETY2>(*attr, 2);        \
       if (!detail::verifyRawAttrValues(v, *attr, v0, v1, v2))                  \
-        return v.pop();                                                        \
+        return;                                                                \
                                                                                \
       if constexpr (CUSTOMVERIFY)                                              \
         verify##NAME##Attr(v, ir, *v0, *v1, *v2);                              \
     }                                                                          \
-    return v.pop();                                                            \
   }
 
 #define DEFN_ATTR_4(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
@@ -280,24 +343,22 @@ MDNode *getNewAttrList(LLVMContext &ctx);
     detail::addAttr(ir, IRNAME, attrVals);                                     \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
-    v.push();                                                                  \
+  void llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
     if (const MDNode *attr =                                                   \
             detail::getRawAttr(IRNAME, detail::getRawAttrList(ir))) {          \
       if (!detail::verifyRawAttrValueCount(v, *attr, 4))                       \
-        return v.pop();                                                        \
+        return;                                                                \
                                                                                \
       std::optional<ETY0> v0 = detail::getRawAttrValue<ETY0>(*attr, 0);        \
       std::optional<ETY1> v1 = detail::getRawAttrValue<ETY1>(*attr, 1);        \
       std::optional<ETY2> v2 = detail::getRawAttrValue<ETY2>(*attr, 2);        \
       std::optional<ETY3> v3 = detail::getRawAttrValue<ETY3>(*attr, 3);        \
       if (!detail::verifyRawAttrValues(v, *attr, v0, v1, v2, v3))              \
-        return v.pop();                                                        \
+        return;                                                                \
                                                                                \
       if constexpr (CUSTOMVERIFY)                                              \
         verify##NAME##Attr(v, ir, *v0, *v1, *v2, *v3);                         \
     }                                                                          \
-    return v.pop();                                                            \
   }
 
 #define DEFN_ATTR_5(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
@@ -312,12 +373,11 @@ MDNode *getNewAttrList(LLVMContext &ctx);
     detail::addAttr(ir, IRNAME, attrVals);                                     \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
-    v.push();                                                                  \
+  void llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
     if (const MDNode *attr =                                                   \
             detail::getRawAttr(IRNAME, detail::getRawAttrList(ir))) {          \
       if (!detail::verifyRawAttrValueCount(v, *attr, 5))                       \
-        return v.pop();                                                        \
+        return;                                                                \
                                                                                \
       std::optional<ETY0> v0 = detail::getRawAttrValue<ETY0>(*attr, 0);        \
       std::optional<ETY1> v1 = detail::getRawAttrValue<ETY1>(*attr, 1);        \
@@ -325,12 +385,11 @@ MDNode *getNewAttrList(LLVMContext &ctx);
       std::optional<ETY3> v3 = detail::getRawAttrValue<ETY3>(*attr, 3);        \
       std::optional<ETY4> v4 = detail::getRawAttrValue<ETY4>(*attr, 4);        \
       if (!detail::verifyRawAttrValues(v, *attr, v0, v1, v2, v3, v4))          \
-        return v.pop();                                                        \
+        return;                                                                \
                                                                                \
       if constexpr (CUSTOMVERIFY)                                              \
         verify##NAME##Attr(v, ir, *v0, *v1, *v2, *v3, *v4);                    \
     }                                                                          \
-    return v.pop();                                                            \
   }
 
 #define DEFN_ATTR_6(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
@@ -346,12 +405,12 @@ MDNode *getNewAttrList(LLVMContext &ctx);
     detail::addAttr(ir, IRNAME, attrVals);                                     \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
-    v.push();                                                                  \
+  void llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
+                                                                               \
     if (const MDNode *attr =                                                   \
             detail::getRawAttr(IRNAME, detail::getRawAttrList(ir))) {          \
       if (!detail::verifyRawAttrValueCount(v, *attr, 6))                       \
-        return v.pop();                                                        \
+        return;                                                                \
                                                                                \
       std::optional<ETY0> v0 = detail::getRawAttrValue<ETY0>(*attr, 0);        \
       std::optional<ETY1> v1 = detail::getRawAttrValue<ETY1>(*attr, 1);        \
@@ -360,12 +419,11 @@ MDNode *getNewAttrList(LLVMContext &ctx);
       std::optional<ETY4> v4 = detail::getRawAttrValue<ETY4>(*attr, 4);        \
       std::optional<ETY5> v5 = detail::getRawAttrValue<ETY5>(*attr, 5);        \
       if (!detail::verifyRawAttrValues(v, *attr, v0, v1, v2, v3, v4, v5))      \
-        return v.pop();                                                        \
+        return;                                                                \
                                                                                \
       if constexpr (CUSTOMVERIFY)                                              \
         verify##NAME##Attr(v, ir, *v0, *v1, *v2, *v3, *v4, *v5);               \
     }                                                                          \
-    return v.pop();                                                            \
   }
 
 #define DEFN_ATTR_7(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
@@ -382,12 +440,11 @@ MDNode *getNewAttrList(LLVMContext &ctx);
     detail::addAttr(ir, IRNAME, attrVals);                                     \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
-    v.push();                                                                  \
+  void llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
     if (const MDNode *attr =                                                   \
             detail::getRawAttr(IRNAME, detail::getRawAttrList(ir))) {          \
       if (!detail::verifyRawAttrValueCount(v, *attr, 7))                       \
-        return v.pop();                                                        \
+        return;                                                                \
                                                                                \
       std::optional<ETY0> v0 = detail::getRawAttrValue<ETY0>(*attr, 0);        \
       std::optional<ETY1> v1 = detail::getRawAttrValue<ETY1>(*attr, 1);        \
@@ -397,12 +454,11 @@ MDNode *getNewAttrList(LLVMContext &ctx);
       std::optional<ETY5> v5 = detail::getRawAttrValue<ETY5>(*attr, 5);        \
       std::optional<ETY6> v6 = detail::getRawAttrValue<ETY6>(*attr, 6);        \
       if (!detail::verifyRawAttrValues(v, *attr, v0, v1, v2, v3, v4, v5, v6))  \
-        return v.pop();                                                        \
+        return;                                                                \
                                                                                \
       if constexpr (CUSTOMVERIFY)                                              \
         verify##NAME##Attr(v, ir, *v0, *v1, *v2, *v3, *v4, *v5, *v6);          \
     }                                                                          \
-    return v.pop();                                                            \
   }
 
 #define DEFN_ATTR_8(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
@@ -420,12 +476,11 @@ MDNode *getNewAttrList(LLVMContext &ctx);
     detail::addAttr(ir, IRNAME, attrVals);                                     \
   }                                                                            \
                                                                                \
-  bool llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
-    v.push();                                                                  \
+  void llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
     if (const MDNode *attr =                                                   \
             detail::getRawAttr(IRNAME, detail::getRawAttrList(ir))) {          \
       if (!detail::verifyRawAttrValueCount(v, *attr, 8))                       \
-        return v.pop();                                                        \
+        return;                                                                \
                                                                                \
       std::optional<ETY0> v0 = detail::getRawAttrValue<ETY0>(*attr, 0);        \
       std::optional<ETY1> v1 = detail::getRawAttrValue<ETY1>(*attr, 1);        \
@@ -437,12 +492,12 @@ MDNode *getNewAttrList(LLVMContext &ctx);
       std::optional<ETY7> v7 = detail::getRawAttrValue<ETY7>(*attr, 7);        \
       if (!detail::verifyRawAttrValues(v, *attr, v0, v1, v2, v3, v4, v5, v6,   \
                                        v7))                                    \
-        return v.pop();                                                        \
+        return;                                                                \
                                                                                \
       if constexpr (CUSTOMVERIFY)                                              \
-        verify##NAME##Attr(v, ir, *v0, *v1, *v2, *v3, *v4, *v5, *v6, *v7);     \
+        llvm::verify##NAME##Attr(v, ir, *v0, *v1, *v2, *v3, *v4, *v5, *v6,     \
+                                 *v7);                                         \
     }                                                                          \
-    return v.pop();                                                            \
   }
 
 #define DEFN_ATTR_N(IRELEM, NAME, IRNAME, ETY, ENAME, EN, NELEMS)              \

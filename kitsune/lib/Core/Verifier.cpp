@@ -12,11 +12,13 @@
 
 #include "kitsune/Core/Verifier.h"
 #include "AttrsImpl.h"
-#include "kitsune/Core/FuncAttrs.h"
-#include "kitsune/Core/GVAttrs.h"
-#include "kitsune/Core/InstAttrs.h"
-#include "kitsune/Core/LoopAttrs.h"
-#include "kitsune/Core/ModuleAttrs.h"
+#include "FuncAttrsImpl.h"
+#include "GVAttrsImpl.h"
+#include "InstAttrsImpl.h"
+#include "LoopAttrsImpl.h"
+#include "ModuleAttrsImpl.h"
+#include "VerifierImpl.h"
+#include "kitsune/Core/Attrs.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Module.h"
@@ -24,47 +26,48 @@
 
 using namespace llvm;
 
-void KitVerifier::verify(const Argument &a) {
+KitVerifier &KitVerifier::verify(const Argument &a) {
   // Argument attributes have not been implemented. When they are, they should
   // be verified.
+  return *this;
 }
 
-void KitVerifier::verify(const Function &f) {
+KitVerifier &KitVerifier::verify(const Function &f) {
   for (const Argument &a : f.args())
     verify(a);
 
   for (const_inst_iterator i = inst_begin(f), e = inst_end(f); i != e; ++i)
     verify(*i);
 
-  for (const MDNode &attr : attrs(f)) {
-    StringRef attrName = detail::getRawAttrName(attr);
-    verifyAttr(*this, f, *getFuncAttrKind(attrName));
-  }
+  for (const MDNode &attr : detail::attrs(f))
+    detail::verifyAttr(*this, f, detail::getRawAttrName(attr));
+
+  return *this;
 }
 
-void KitVerifier::verify(const GlobalAlias &g) {
+KitVerifier &KitVerifier::verify(const GlobalAlias &g) {
   // Nothing Kitsune-specific to be done here.
+  return *this;
 }
 
-void KitVerifier::verify(const GlobalIFunc &g) {
+KitVerifier &KitVerifier::verify(const GlobalIFunc &g) {
   // Nothing Kitsune-specific to be done here.
+  return *this;
 }
 
-void KitVerifier::verify(const GlobalVariable &g) {
-  for (const MDNode &attr : attrs(g)) {
-    StringRef attrName = detail::getRawAttrName(attr);
-    verifyAttr(*this, g, *getGVAttrKind(attrName));
-  }
+KitVerifier &KitVerifier::verify(const GlobalVariable &g) {
+  for (const MDNode &attr : detail::attrs(g))
+    detail::verifyAttr(*this, g, detail::getRawAttrName(attr));
+  return *this;
 }
 
-void KitVerifier::verify(const Instruction &inst) {
-  for (const MDNode &attr : attrs(inst)) {
-    StringRef attrName = detail::getRawAttrName(attr);
-    verifyAttr(*this, inst, *getInstAttrKind(attrName));
-  }
+KitVerifier &KitVerifier::verify(const Instruction &inst) {
+  for (const MDNode &attr : detail::attrs(inst))
+    detail::verifyAttr(*this, inst, detail::getRawAttrName(attr));
+  return *this;
 }
 
-void KitVerifier::verify(const Module &m) {
+KitVerifier &KitVerifier::verify(const Module &m) {
   for (const Function &f : m.functions())
     if (f.size())
       verify(f);
@@ -78,10 +81,8 @@ void KitVerifier::verify(const Module &m) {
   for (const GlobalVariable &g : m.globals())
     verify(g);
 
-  for (const MDNode &attr : attrs(m)) {
-    StringRef attrName = detail::getRawAttrName(attr);
-    verifyAttr(*this, m, *getModuleAttrKind(attrName));
-  }
+  for (const MDNode &attr : detail::attrs(m))
+    detail::verifyAttr(*this, m, detail::getRawAttrName(attr));
 
   // Some checks of "related" attributes cannot be reasonably added to the
   // verifier of either attribute. Do those here.
@@ -108,30 +109,28 @@ void KitVerifier::verify(const Module &m) {
     check(n <= 1, DiagID::ErrTooManyBitCodeGlobals, tt);
     check(dcGlobals.contains(tt), DiagID::ErrMissingDeviceCodeGlobal, tt);
   }
+
+  return *this;
 }
 
 bool llvm::verifyFunction(const Function &f, bool kitOnly, raw_ostream *os) {
-  if (!kitOnly)
-    // LLVM's verifyFunction will call this function with kitOnly == true, so
-    // Kitsune-specific verification will be performed then. But the value
-    // returned by verifyFunction will be the opposite of what this function
-    // should return.
-    return !verifyFunction(f, os);
+  if (kitOnly)
+    return KitVerifier(os).verify(f).result();
 
-  KitVerifier v(os);
-  v.verify(f);
-  return v.result();
+  // LLVM's verifyFunction will call this function with kitOnly == true, so
+  // Kitsune-specific verification will be performed then. But the value
+  // returned by llvm::verifyFunction will be the opposite of what this function
+  // should return.
+  return !verifyFunction(f, os);
 }
 
 bool llvm::verifyModule(const Module &m, bool kitOnly, raw_ostream *os) {
-  if (!kitOnly)
-    // LLVM's verifyModule will call this function with kitOnly == true, so
-    // Kitsune-specific verification will be performed then. But the value
-    // returned by verifyFunction will be the opposite of what this function
-    // should return.
-    return !verifyModule(m, os);
+  if (kitOnly)
+    return KitVerifier(os).verify(m).result();
 
-  KitVerifier v(os);
-  v.verify(m);
-  return v.result();
+  // LLVM's verifyModule will call this function with kitOnly == true, so
+  // Kitsune-specific verification will be performed then. But the value
+  // returned by llvm::verifyModule will be the opposite of what this function
+  // should return.
+  return !verifyModule(m, os);
 }

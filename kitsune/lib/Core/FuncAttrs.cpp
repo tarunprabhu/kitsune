@@ -14,14 +14,16 @@
 #include "kitsune/Core/FuncAttrs.h"
 #include "AttrsImpl.h"
 #include "FuncAttrsImpl.h"
+#include "VerifierImpl.h"
 #include "kitsune/Core/FuncUtils.h"
-#include "kitsune/Core/Verifier.h"
 #include "kitsune/Support/Diagnostics.h"
 #include "kitsune/Support/ErrorHandling.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/IR/Function.h"
 
 using namespace llvm;
+
+//------------------------------------------------------------------------------
 
 MDNode *llvm::detail::getRawAttrList(const Function &f) {
   return f.getMetadata(LLVMContext::MD_kit_func_attrs);
@@ -47,6 +49,15 @@ void llvm::detail::removeAttr(Function &f, StringRef attrName) {
   setAttrList(f, newAttrList);
 }
 
+void llvm::detail::verifyAttr(KitVerifier &v, const Function &f,
+                              StringRef attrName) {
+#define FUNC_ATTR(NAME, IRNAME, ...)                                           \
+  if (attrName == IRNAME)                                                      \
+    return verify##NAME##Attr(v, f);
+#define GET_FUNC_ATTRS
+#include "kitsune/Core/FuncAttrs.inc"
+}
+
 //------------------------------------------------------------------------------
 
 raw_ostream &llvm::operator<<(raw_ostream &os, const FuncAttrKind &attr) {
@@ -70,17 +81,6 @@ std::optional<FuncAttrKind> llvm::getFuncAttrKind(StringRef name) {
 #define GET_FUNC_ATTRS
 #include "kitsune/Core/FuncAttrs.inc"
       .Default(std::nullopt);
-}
-
-bool llvm::verifyAttr(KitVerifier &v, const Function &f, FuncAttrKind attr) {
-  switch (attr) {
-#define FUNC_ATTR(NAME, IRNAME, ...)                                           \
-  case FuncAttrKind::NAME:                                                     \
-    return verify##NAME##Attr(v, f);
-#define GET_FUNC_ATTRS
-#include "kitsune/Core/FuncAttrs.inc"
-  }
-  llvm_unreachable("verifyAttr: Attribute not handled");
 }
 
 void llvm::addAttr(Function &f, FuncAttrKind attr) {
@@ -125,24 +125,16 @@ DEFN_ATTR_GENERIC(Function, FuncAttrKind)
 // anything above this line unless you are modifying a core part of the
 // attribute implementation.
 
-bool llvm::verifyDeviceAttr(KitVerifier &v, const Function &f,
+void llvm::verifyDeviceAttr(KitVerifier &v, const Function &f,
                             const bool &hasAttr) {
-  bool ok = true;
   FuncAttrKind attr = FuncAttrKind::Device;
-
-  ok &= v.check(!hasKernelAttr(f), f, DiagID::ErrAttrNotCompatible, attr,
-                FuncAttrKind::Kernel);
-
-  return ok;
+  v.check(!hasKernelAttr(f), f, DiagID::ErrAttrNotCompatible, attr,
+          FuncAttrKind::Kernel);
 }
 
-bool llvm::verifyKernelAttr(KitVerifier &v, const Function &f,
+void llvm::verifyKernelAttr(KitVerifier &v, const Function &f,
                             const bool &hasAttr) {
-  bool ok = true;
   FuncAttrKind attr = FuncAttrKind::Kernel;
-
-  ok &= v.check(!hasDeviceAttr(f), f, DiagID::ErrAttrNotCompatible, attr,
-                FuncAttrKind::Device);
-
-  return ok;
+  v.check(!hasDeviceAttr(f), f, DiagID::ErrAttrNotCompatible, attr,
+          FuncAttrKind::Device);
 }

@@ -12,8 +12,8 @@
 
 #include "llvm/Transforms/Tapir/LoopSpawningTI.h"
 #include "kitsune/Analysis/TTObjectsAnalysis.h"
-#include "kitsune/Core/AttrsCommon.h"
 #include "kitsune/Core/LoopAttrs.h"
+#include "kitsune/Core/MetadataUtils.h"
 #include "kitsune/Core/Tapir.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
@@ -1293,6 +1293,15 @@ void LoopSpawningImpl::getAllTapirLoopInputs(
 // value. Even this is done "by hand" by constructing the raw attribute and
 // calling the attribute implementation functions directly. These are not really
 // intended to be used this way.
+//
+// We deliberately declare the private implementation function as an indicator
+// that we should find another way of doing this.
+namespace llvm {
+namespace detail {
+MDNode *getAttrListWith(StringRef attrName, const ArrayRef<Metadata *> attrVals,
+                        MDNode *attrList, LLVMContext &ctx);
+} // namespace detail
+} // namespace llvm
 static void resetSpawnStrategyInClonedLoop(const Loop *L,
                                            ValueToValueMapTy &VMap) {
   auto *clonedLatch = cast_or_null<BasicBlock>(VMap[L->getLoopLatch()]);
@@ -1304,7 +1313,7 @@ static void resetSpawnStrategyInClonedLoop(const Loop *L,
     StringRef attrName = getAttrName(LoopAttrKind::SpawnStrategy);
     Metadata *attrVal = toMetadata(defaultTapirSpawnStrategy, ctx);
 
-    getAttrListWith(attrName, attrVal, loopMD, ctx);
+    detail::getAttrListWith(attrName, attrVal, loopMD, ctx);
   }
 }
 

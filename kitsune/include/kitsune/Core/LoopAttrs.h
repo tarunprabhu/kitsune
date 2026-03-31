@@ -15,14 +15,13 @@
 #ifndef KITSUNE_CORE_LOOP_ATTRS_H
 #define KITSUNE_CORE_LOOP_ATTRS_H
 
-#include "kitsune/Core/AttrsCommon.h"
+#include "kitsune/Core/AttrsDeclMacros.h"
+#include "kitsune/Core/Tapir.h"
 #include "llvm/ADT/StringRef.h"
 
 namespace llvm {
 
 class Loop;
-class MDNode;
-class raw_ostream;
 
 /// \addtogroup kitsune
 /// @{
@@ -55,20 +54,6 @@ void addAttr(Loop &loop, LoopAttrKind attr);
 /// Remove an attribute from a loop. If the loop does not contain the attribute,
 /// this has no effect.
 void removeAttr(Loop &loop, LoopAttrKind attr);
-
-/// Verify an attribute \p attr on the loop \p loop. Returns true if any of the
-/// following are true:
-///
-///   - \p attr is not present on \p loop
-///   - \p attr is present with the correct number of values, each of which is
-///     of the correct type.
-///
-/// Otherwise, return false.
-///
-bool verifyAttr(KitVerifier &v, const Loop &loop, LoopAttrKind attr);
-
-/// Get a range to iterate over the raw loop attributes.
-iterator_range<AttrIterator> attrs(const Loop &loop);
 
 /// @}
 

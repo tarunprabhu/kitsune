@@ -14,8 +14,8 @@
 #include "kitsune/Core/LoopAttrs.h"
 #include "AttrsImpl.h"
 #include "LoopAttrsImpl.h"
+#include "VerifierImpl.h"
 #include "kitsune/Core/LoopUtils.h"
-#include "kitsune/Core/Verifier.h"
 #include "kitsune/Support/Diagnostics.h"
 #include "kitsune/Support/ErrorHandling.h"
 #include "llvm/ADT/SmallVector.h"
@@ -24,6 +24,8 @@
 #include "llvm/IR/Module.h"
 
 using namespace llvm;
+
+//------------------------------------------------------------------------------
 
 MDNode *llvm::detail::getRawAttrList(const Loop &loop) {
   return loop.getLoopID();
@@ -49,6 +51,15 @@ void llvm::detail::removeAttr(Loop &loop, StringRef attrName) {
   setAttrList(loop, newAttrList);
 }
 
+void llvm::detail::verifyAttr(KitVerifier &v, const Loop &loop,
+                              StringRef attrName) {
+#define LOOP_ATTR(NAME, IRNAME, ...)                                           \
+  if (attrName == IRNAME)                                                      \
+    return verify##NAME##Attr(v, loop);
+#define GET_LOOP_ATTRS
+#include "kitsune/Core/LoopAttrs.inc"
+}
+
 //------------------------------------------------------------------------------
 
 raw_ostream &llvm::operator<<(raw_ostream &os, const LoopAttrKind &attr) {
@@ -72,17 +83,6 @@ std::optional<LoopAttrKind> llvm::getLoopAttrKind(StringRef name) {
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
       .Default(std::nullopt);
-}
-
-bool llvm::verifyAttr(KitVerifier &v, const Loop &loop, LoopAttrKind attr) {
-  switch (attr) {
-#define LOOP_ATTR(NAME, IRNAME, ...)                                           \
-  case LoopAttrKind::NAME:                                                     \
-    return verify##NAME##Attr(v, loop);
-#define GET_LOOP_ATTRS
-#include "kitsune/Core/LoopAttrs.inc"
-  }
-  llvm_unreachable("verifyAttr: Attribute not handled");
 }
 
 void llvm::addAttr(Loop &loop, LoopAttrKind attr) {
@@ -127,14 +127,13 @@ DEFN_ATTR_GENERIC(Loop, LoopAttrKind)
 // anything above this line unless you are modifying a core part of the
 // attribute implementation.
 
-bool llvm::verifyNameAttr(KitVerifier &v, const Loop &loop,
+void llvm::verifyNameAttr(KitVerifier &v, const Loop &loop,
                           const StringRef &name) {
-  return v.check(name.size(), loop, DiagID::ErrAttrBadValue,
-                 "Cannot be an empty string");
+  v.check(name.size(), loop, DiagID::ErrAttrBadValue, DiagMessage::errEmptyStr);
 }
 
-bool llvm::verifyThreadsPerBlockAttr(KitVerifier &v, const Loop &loop,
+void llvm::verifyThreadsPerBlockAttr(KitVerifier &v, const Loop &loop,
                                      const int32_t &tpb) {
-  return v.check(tpb >= 0 && tpb <= 1024, loop, DiagID::ErrAttrBadValue,
-                 "Must be in the range [0,1024]");
+  v.check(tpb >= 0 && tpb <= 1024, loop, DiagID::ErrAttrBadValue,
+          "Must be in the range [0,1024]");
 }

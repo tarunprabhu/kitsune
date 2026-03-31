@@ -14,14 +14,13 @@
 #ifndef KITSUNE_CORE_INST_ATTRS_H
 #define KITSUNE_CORE_INST_ATTRS_H
 
-#include "kitsune/Core/AttrsCommon.h"
+#include "kitsune/Core/AttrsDeclMacros.h"
+#include "kitsune/Core/Tapir.h"
 #include "llvm/ADT/StringRef.h"
 
 namespace llvm {
 
 class Instruction;
-class MDNode;
-class raw_ostream;
 
 /// \addtogroup kitsune
 /// @{
@@ -51,20 +50,6 @@ void addAttr(Instruction &inst, InstAttrKind attr);
 /// Remove an attribute from an instruction. If the instruction does not contain
 /// the attribute, this has no effect.
 void removeAttr(Instruction &inst, InstAttrKind attr);
-
-/// Verify an attribute named \p attr on the function \p f. Returns true if any
-/// of the following are true:
-///
-///   - \p attr is not present on \p f
-///   - \p attr is present with the correct number of values, each of which is
-///     of the correct type.
-///
-/// Otherwise, return false.
-///
-bool verifyAttr(KitVerifier &v, const Instruction &inst, InstAttrKind attr);
-
-/// Get a range to iterate over the raw instruction attributes.
-iterator_range<AttrIterator> attrs(const Instruction &inst);
 
 /// @}
 

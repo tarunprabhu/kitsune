@@ -1,4 +1,4 @@
-//===- AttrsCommon.cpp - Utilities common to Kitsune-specific attributes --===//
+//===- AttrsImpl.cpp - Core implementation of Kitsune-specific attributes -===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Utilities shared by Kitsune-specific attributes.
+// Core implementation of Kitsune-specific attributes.
 //
 // All Kitsune's attributes follow the pattern of LLVM's loop attributes.
 // Consider the example below:
@@ -29,9 +29,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Core/AttrsCommon.h"
 #include "AttrsImpl.h"
-#include "kitsune/Core/Verifier.h"
+#include "VerifierImpl.h"
 #include "kitsune/Support/Diagnostics.h"
 #include "kitsune/Support/ToString.h"
 #include "llvm/ADT/SmallVector.h"
@@ -167,6 +166,40 @@ MDNode *llvm::detail::getNewAttrList(LLVMContext &ctx) {
   return makeAttrList(ctx, {nullptr});
 }
 
+MDNode *llvm::detail::getAttrListWith(StringRef attrName,
+                                      const ArrayRef<Metadata *> attrVals,
+                                      MDNode *attrList, LLVMContext &ctx) {
+  MDNode *attr = detail::makeRawAttr(ctx, attrName, attrVals);
+  if (std::optional<unsigned> i = getAttrIndex(attrName, attrList))
+    return replaceInAttrList(attrList, *i, attr);
+  else
+    return appendToAttrList(attrList, attr);
+}
+
+MDNode *llvm::detail::getAttrListWithout(StringRef attrName, MDNode *attrList) {
+  if (!attrList)
+    return nullptr;
+
+  LLVMContext &ctx = attrList->getContext();
+
+  // Since we will always create a new attribute list node, the first element
+  // must be a self-reference. It will be replaced when the new attribute list
+  // is created.
+  SmallVector<Metadata *, 8> newAttrs = {nullptr};
+  for (Metadata *op : attrList->operands().drop_front())
+    if (auto *md = dyn_cast<MDNode>(op))
+      if (auto *mdStr = dyn_cast<MDString>(md->getOperand(0)))
+        if (mdStr->getString() != attrName)
+          newAttrs.push_back(md);
+
+  if (newAttrs.size() == 1)
+    return nullptr;
+  else if (newAttrs.size() == attrList->getNumOperands())
+    return attrList;
+  else
+    return makeAttrList(ctx, newAttrs);
+}
+
 using MaybeI8 = std::optional<int8_t>;
 using MaybeU8 = std::optional<uint8_t>;
 using MaybeI16 = std::optional<int16_t>;
@@ -225,39 +258,3 @@ template bool llvm::detail::verifyRawAttrValueAt(KitVerifier &, const MDNode &,
 template bool llvm::detail::verifyRawAttrValueAt(KitVerifier &, const MDNode &,
                                                  unsigned,
                                                  const MaybeSpawnStrategy &);
-
-// -----------------------------------------------------------------------------
-
-MDNode *llvm::getAttrListWith(StringRef attrName,
-                              const ArrayRef<Metadata *> attrVals,
-                              MDNode *attrList, LLVMContext &ctx) {
-  MDNode *attr = detail::makeRawAttr(ctx, attrName, attrVals);
-  if (std::optional<unsigned> i = getAttrIndex(attrName, attrList))
-    return replaceInAttrList(attrList, *i, attr);
-  else
-    return appendToAttrList(attrList, attr);
-}
-
-MDNode *llvm::getAttrListWithout(StringRef attrName, MDNode *attrList) {
-  if (!attrList)
-    return nullptr;
-
-  LLVMContext &ctx = attrList->getContext();
-
-  // Since we will always create a new attribute list node, the first element
-  // must be a self-reference. It will be replaced when the new attribute list
-  // is created.
-  SmallVector<Metadata *, 8> newAttrs = {nullptr};
-  for (Metadata *op : attrList->operands().drop_front())
-    if (auto *md = dyn_cast<MDNode>(op))
-      if (auto *mdStr = dyn_cast<MDString>(md->getOperand(0)))
-        if (mdStr->getString() != attrName)
-          newAttrs.push_back(md);
-
-  if (newAttrs.size() == 1)
-    return nullptr;
-  else if (newAttrs.size() == attrList->getNumOperands())
-    return attrList;
-  else
-    return makeAttrList(ctx, newAttrs);
-}

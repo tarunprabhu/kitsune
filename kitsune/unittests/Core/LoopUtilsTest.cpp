@@ -9,7 +9,6 @@
 #include "kitsune/Core/LoopUtils.h"
 #include "Core/AttrsImpl.h"
 #include "TestUtils.h"
-#include "kitsune/Core/AttrsCommon.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/IR/Dominators.h"

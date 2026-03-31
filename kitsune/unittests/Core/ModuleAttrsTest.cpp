@@ -9,10 +9,9 @@
 #include "kitsune/Core/ModuleAttrs.h"
 #include "Core/AttrsImpl.h"
 #include "Core/ModuleAttrsImpl.h"
+#include "Core/VerifierImpl.h"
 #include "TestAttrsCommon.h"
-#include "kitsune/Core/AttrsCommon.h"
 #include "kitsune/Core/ModuleUtils.h"
-#include "kitsune/Core/Verifier.h"
 #include "llvm/IR/Module.h"
 
 #include "gtest/gtest.h"
@@ -54,10 +53,6 @@ TEST(KitModuleAttrs, attrKind) {
 }
 
 #define DECLS(OBJ)                                                             \
-  std::string buf;                                                             \
-  raw_string_ostream OS(buf);                                                  \
-  [[maybe_unused]] KitVerifier VOS(&OS);                                       \
-  [[maybe_unused]] KitVerifier VNULL;                                          \
   LLVMContext ctx;                                                             \
   Module OBJ("", ctx);
 
