@@ -155,42 +155,6 @@ public:
                                                TaskInfo &ti);
 };
 
-/// Return if the loop is a tapir loop.
-bool isTapirLoop(Loop &loop, TaskInfo &ti);
-
-/// Returns true if the loop is a tapir loop and ANY of the following conditions
-/// hold:
-///
-///   - The loop is a top-level loop
-///   - None of the ancestors of the loop are tapir loops
-///
-bool isTopLevelTapirLoop(Loop &loop, TaskInfo &ti);
-
-/// Returns true if the loop is a tapir loop and ALL of the following
-/// conditions hold:
-///
-///   - The tapir.loop.target attribute of the loop is a GPU-centric tapir
-///     target such as 'cuda', or 'hip'.
-///
-///   - Any tapir loops contained within it have the same tapir.loop.target
-///     attribute.
-///
-/// No assumptions are made about the structure of the subloops. Any non-tapir
-/// subloops are ignored.
-///
-bool isTapirLoopForGPU(Loop &loop, TaskInfo &ti);
-
-/// Returns true if the loop is a top-level tapir loop and isTapirLoopForGPU
-/// returns true for the loop. See the documentation for isTapirLoopForGPU for
-/// more details.
-bool isTopLevelTapirLoopForGPU(Loop &loop, TaskInfo &ti);
-
-/// Get the roots of all tapir loop nests in a function.
-SmallVector<Loop *, 4> getTopLevelTapirLoops(LoopInfo &li, TaskInfo &ti);
-
-/// Get all the tapir loops in a function.
-SmallVector<Loop *, 4> getTapirLoops(LoopInfo &li, TaskInfo &ti);
-
 } // namespace llvm
 
 #endif // KITSUNE_ANALYSIS_TAPIR_LOOP_NEST_ANALYSIS_H
