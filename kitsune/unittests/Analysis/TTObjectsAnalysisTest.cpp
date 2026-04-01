@@ -23,222 +23,153 @@ using namespace llvm;
 
 namespace {
 
-constexpr StringRef moduleNoHints = R"m(
-target triple = "x86_64-unknown-linux-gnu"
+static constexpr StringRef noTapirLoops = R"m(
+define void @f(i64 %n) {
+entry:
+  br label %for.i
 
-define void @f(ptr nocapture noundef writeonly %c, i64 noundef %n) {
+for.i:
+  %i = phi i64 [ 0, %entry ], [ %i.inc, %for.i ]
+  %i.inc = add i64 %i, 1
+  %i.cmp = icmp eq i64 %i.inc, %n
+  br i1 %i.cmp, label %for.i.exit, label %for.i, !llvm.loop !0
+
+for.i.exit:
+  br label %for.j
+
+for.j:
+  %j = phi i64 [ 0, %for.i.exit ], [ %j.inc, %for.j ]
+  %j.inc = add i64 %j, 1
+  %j.cmp = icmp eq i64 %j.inc, %n
+  br i1 %j.cmp, label %for.j.exit, label %for.j, !llvm.loop !1
+
+for.j.exit:
+  ret void
+}
+
+!0 = distinct !{!0}
+!1 = distinct !{!1}
+)m";
+
+static constexpr StringRef mixed1 = R"m(
+define void @f(i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
-  %cmp5 = icmp sgt i64 %n, 0
-  br i1 %cmp5, label %detach.preheader, label %sync
-
-detach.preheader:
   br label %detach
 
 detach:
-  %iv = phi i64 [ 0, %detach.preheader ], [ %iv.next, %inc ]
-  %iv.next = add nuw nsw i64 %iv, 1
+  %iv = phi i64 [ 0, %entry ], [ %iv.next, %inc ]
   detach within %syncreg, label %body, label %inc
 
 body:
-  %arrayidx = getelementptr inbounds i64, ptr %c, i64 %iv
-  store i64 %n, ptr %arrayidx, align 4
   reattach within %syncreg, label %inc
 
 inc:
+  %iv.next = add i64 %iv, 1
   %exitcond.not = icmp eq i64 %iv.next, %n
   br i1 %exitcond.not, label %sync, label %detach, !llvm.loop !0
 
 sync:
-  sync within %syncreg, label %end
-
-end:
-  br label %entry2
+  sync within %syncreg, label %entry2
 
 entry2:
   %syncreg2 = tail call token @llvm.syncregion.start()
-  %cmp6 = icmp sgt i64 %n, 0
-  br i1 %cmp6, label %detach.preheader2, label %sync2
-
-detach.preheader2:
   br label %detach2
 
 detach2:
-  %iv2 = phi i64 [ 0, %detach.preheader2 ], [ %iv.next2, %inc2 ]
-  %iv.next2 = add nuw nsw i64 %iv2, 1
+  %iv2 = phi i64 [ 0, %entry2 ], [ %iv.next2, %inc2 ]
   detach within %syncreg2, label %body2, label %inc2
 
 body2:
-  %arrayidx2 = getelementptr inbounds i64, ptr %c, i64 %iv2
-  store i64 %n, ptr %arrayidx2, align 4
   reattach within %syncreg2, label %inc2
 
 inc2:
+  %iv.next2 = add i64 %iv2, 1
   %exitcond.not2 = icmp eq i64 %iv.next2, %n
-  br i1 %exitcond.not2, label %sync2, label %detach2, !llvm.loop !0
+  br i1 %exitcond.not2, label %sync2, label %detach2, !llvm.loop !2
 
 sync2:
   sync within %syncreg2, label %end2
 
 end2:
-  ret void
-}
-
-!0 = distinct !{!0, !1, !2, !3}
-!1 = !{!"tapir.loop.spawn.strategy", i32 1}
-!2 = !{!"tapir.loop.target", i32 1}
-!3 = !{!"llvm.loop.unroll.disable"}
-)m";
-
-constexpr StringRef moduleWithHintsMixed = R"m(
-target triple = "x86_64-unknown-linux-gnu"
-
-define void @f(ptr nocapture noundef writeonly %c, i64 noundef %n) {
-entry:
-  %syncreg = tail call token @llvm.syncregion.start()
-  %cmp5 = icmp sgt i64 %n, 0
-  br i1 %cmp5, label %detach.preheader, label %sync
-
-detach.preheader:
-  br label %detach
-
-detach:
-  %iv = phi i64 [ 0, %detach.preheader ], [ %iv.next, %inc ]
-  %iv.next = add nuw nsw i64 %iv, 1
-  detach within %syncreg, label %body, label %inc
-
-body:
-  %arrayidx = getelementptr inbounds i64, ptr %c, i64 %iv
-  store i64 %n, ptr %arrayidx, align 4
-  reattach within %syncreg, label %inc
-
-inc:
-  %exitcond.not = icmp eq i64 %iv.next, %n
-  br i1 %exitcond.not, label %sync, label %detach, !llvm.loop !0
-
-sync:
-  sync within %syncreg, label %end
-
-end:
-  br label %entry2
-
-entry2:
-  %syncreg2 = tail call token @llvm.syncregion.start()
-  %cmp6 = icmp sgt i64 %n, 0
-  br i1 %cmp6, label %detach.preheader2, label %sync2
-
-detach.preheader2:
-  br label %detach2
-
-detach2:
-  %iv2 = phi i64 [ 0, %detach.preheader2 ], [ %iv.next2, %inc2 ]
-  %iv.next2 = add nuw nsw i64 %iv2, 1
-  detach within %syncreg2, label %body2, label %inc2
-
-body2:
-  %arrayidx2 = getelementptr inbounds i64, ptr %c, i64 %iv2
-  store i64 %n, ptr %arrayidx2, align 4
-  reattach within %syncreg2, label %inc2
-
-inc2:
-  %exitcond.not2 = icmp eq i64 %iv.next2, %n
-  br i1 %exitcond.not2, label %sync2, label %detach2, !llvm.loop !4
-
-sync2:
-  sync within %syncreg2, label %end2
-
-end2:
-  ret void
-}
-
-!0 = distinct !{!0, !1, !2, !3}
-!1 = !{!"tapir.loop.spawn.strategy", i32 1}
-!2 = !{!"tapir.loop.target", i32 1}
-!3 = !{!"llvm.loop.unroll.disable"}
-!4 = distinct !{!4, !5, !6, !3}
-!5 = !{!"tapir.loop.spawn.strategy", i32 4}
-!6 = !{!"tapir.loop.target", i32 1024}
-)m";
-
-class KitTTObjectsAnalysis : public ::testing::Test {
-public:
-  KitTTObjectsAnalysis() {
-    InitializeAllTargets();
-    InitializeAllTargetMCs();
-  }
-};
-
-// There are no tapir loops. getRequiredTTs() should return an empty list. Even
-// so, a tapir target for the prrimary tapir target must have been created.
-TEST_F(KitTTObjectsAnalysis, noTapirLoops) {
-  constexpr StringRef ir = R"m(
-target triple = "x86_64-unknown-linux-gnu"
-
-define void @f(ptr nocapture noundef writeonly %c, i64 noundef %n) {
-entry:
-  %cmp5 = icmp sgt i64 %n, 0
-  br i1 %cmp5, label %detach.preheader, label %sync
-
-detach.preheader:
-  br label %detach
-
-detach:
-  %iv = phi i64 [ 0, %detach.preheader ], [ %iv.next, %inc ]
-  %iv.next = add nuw nsw i64 %iv, 1
-  br label %body
-
-body:
-  %arrayidx = getelementptr inbounds i64, ptr %c, i64 %iv
-  store i64 %n, ptr %arrayidx, align 4
-  br label %inc
-
-inc:
-  %exitcond.not = icmp eq i64 %iv.next, %n
-  br i1 %exitcond.not, label %sync, label %detach, !llvm.loop !0
-
-sync:
-  br label %entry2
-
-entry2:
-  %cmp6 = icmp sgt i64 %n, 0
-  br i1 %cmp6, label %detach.preheader2, label %sync2
-
-detach.preheader2:
-  br label %detach2
-
-detach2:
-  %iv2 = phi i64 [ 0, %detach.preheader2 ], [ %iv.next2, %inc2 ]
-  %iv.next2 = add nuw nsw i64 %iv2, 1
-  br label %body2
-
-body2:
-  %arrayidx2 = getelementptr inbounds i64, ptr %c, i64 %iv2
-  store i64 %n, ptr %arrayidx2, align 4
-  br label %inc2
-
-inc2:
-  %exitcond.not2 = icmp eq i64 %iv.next2, %n
-  br i1 %exitcond.not2, label %sync2, label %detach2, !llvm.loop !0
-
-sync2:
   ret void
 }
 
 !0 = distinct !{!0, !1}
-!1 = !{!"llvm.loop.unroll.disable"}
+!1 = !{!"tapir.loop.target", i32 1}
+!2 = distinct !{!2, !3}
+!3 = !{!"tapir.loop.target", i32 1024}
 )m";
 
+static constexpr StringRef mixed2 = R"m(
+define void @f(i64 %n) {
+entry:
+  %syncreg = tail call token @llvm.syncregion.start()
+  br label %detach
+
+detach:
+  %iv = phi i64 [ 0, %entry ], [ %iv.next, %inc ]
+  detach within %syncreg, label %body, label %inc
+
+body:
+  reattach within %syncreg, label %inc
+
+inc:
+  %iv.next = add i64 %iv, 1
+  %exitcond.not = icmp eq i64 %iv.next, %n
+  br i1 %exitcond.not, label %sync, label %detach, !llvm.loop !0
+
+sync:
+  sync within %syncreg, label %end
+
+end:
+  ret void
+}
+
+define void @g(i64 %n) {
+entry:
+  %syncreg = tail call token @llvm.syncregion.start()
+  br label %detach
+
+detach:
+  %iv = phi i64 [ 0, %entry ], [ %iv.next, %inc ]
+  detach within %syncreg, label %body, label %inc
+
+body:
+  reattach within %syncreg, label %inc
+
+inc:
+  %iv.next = add i64 %iv, 1
+  %exitcond.not = icmp eq i64 %iv.next, %n
+  br i1 %exitcond.not, label %sync, label %detach, !llvm.loop !2
+
+sync:
+  sync within %syncreg, label %end
+
+end:
+  ret void
+}
+
+!0 = distinct !{!0, !1}
+!1 = !{!"tapir.loop.target", i32 1}
+!2 = distinct !{!2, !3}
+!3 = !{!"tapir.loop.target", i32 1024}
+)m";
+
+// There are no tapir loops. getRequiredTTs() should return an empty list. Even
+// so, a tapir target for the prrimary tapir target must have been created.
+TEST(KitTTObjectsAnalysis, noTapirLoops) {
   LLVMContext ctx;
   SMDiagnostic err;
-  driver::KitsuneOptions kitOpts;
-  std::optional<TTOptions> tto = std::nullopt;
+  std::unique_ptr<Module> m = parseAssemblyString(noTapirLoops, err, ctx);
+  Function *f = m->getFunction("f");
 
+  driver::KitsuneOptions kitOpts;
   kitOpts.setTTID(TTID::Serial);
   kitOpts.setCudaArch("sm_17");
-  tto = *TTOptions::create(kitOpts, OptznLevel::O2, FPOpFusion::Standard);
 
-  std::unique_ptr<Module> m = parseAssemblyString(ir, err, ctx);
-  Function *f = m->getFunction("f");
+  std::optional<TTOptions> tto =
+      TTOptions::create(kitOpts, OptznLevel::O2, FPOpFusion::Standard);
 
   FunctionAnalysisManager fam;
   fam.registerPass([&] { return DominatorTreeAnalysis(); });
@@ -264,171 +195,38 @@ sync2:
   EXPECT_TRUE(ttObjs.hasTT(TTID::Serial));
 }
 
-// None of the tapir loops have a tapir target set on them. getRequiredTTs()
-// should only return the primary tapir target id.
-TEST_F(KitTTObjectsAnalysis, noHints) {
+// If a tapir target options object has not been set, getRequiredTTs() will
+// always return an empty vector.
+TEST(KitTTObjectsAnalysis, noTTO) {
   LLVMContext ctx;
   SMDiagnostic err;
-  driver::KitsuneOptions kitOpts;
-  std::optional<TTOptions> tto = std::nullopt;
-
-  kitOpts.setTTID(TTID::Serial);
-  tto = *TTOptions::create(kitOpts, OptznLevel::O2, FPOpFusion::Standard);
-
-  std::unique_ptr<Module> m = parseAssemblyString(moduleNoHints, err, ctx);
+  std::unique_ptr<Module> m = parseAssemblyString(mixed1, err, ctx);
   Function *f = m->getFunction("f");
 
-  FunctionAnalysisManager fam;
-  fam.registerPass([&] { return DominatorTreeAnalysis(); });
-  fam.registerPass([&] { return LoopAnalysis(); });
-  fam.registerPass([&] { return PassInstrumentationAnalysis(); });
-  fam.registerPass([&] { return TaskAnalysis(); });
-
   ModuleAnalysisManager mam;
-  mam.registerPass([&] { return FunctionAnalysisManagerModuleProxy(fam); });
-  mam.registerPass([&] { return PassInstrumentationAnalysis(); });
+  auto tta = std::make_unique<TTObjectsAnalysis>(std::nullopt);
 
-  auto tta = std::make_unique<TTObjectsAnalysis>(tto);
   TTObjects ttObjs = tta->run(*m, mam);
 
-  // The expected array will be in ascending order. If the order of tapir
-  // targets or their numerical values are changed, this will need to be
-  // updated.
-  TTID expected[] = {TTID::Serial};
-  EXPECT_EQ(ttObjs.getRequiredTTs(*f), ArrayRef(expected));
-  EXPECT_EQ(ttObjs.getRequiredTTs(*m), ArrayRef(expected));
-
-  EXPECT_TRUE(ttObjs.hasTT(TTID::Serial));
-  EXPECT_FALSE(ttObjs.hasTT(TTID::Cuda));
-  EXPECT_FALSE(ttObjs.hasTT(TTID::OpenCilk));
+  EXPECT_FALSE(ttObjs.hasTTID());
+  EXPECT_FALSE(ttObjs.getTTIDOrNull());
+  EXPECT_EQ(ttObjs.getRequiredTTs(*f).size(), 0UL);
+  EXPECT_EQ(ttObjs.getRequiredTTs(*m).size(), 0UL);
 }
 
-// One of the two tapir loops has a target set, the other does not.
-// getRequiredTTs() should return the primary tapir target ID and the target on
-// the loop.
-TEST_F(KitTTObjectsAnalysis, withHintsMixed) {
-  LLVMContext ctx;
-  SMDiagnostic err;
-  driver::KitsuneOptions kitOpts;
-  std::optional<TTOptions> tto = std::nullopt;
-
-  kitOpts.setTTID(TTID::Serial);
-  tto = *TTOptions::create(kitOpts, OptznLevel::O2, FPOpFusion::Standard);
-
-  std::unique_ptr<Module> m =
-      parseAssemblyString(moduleWithHintsMixed, err, ctx);
-  Function *f = m->getFunction("f");
-
-  FunctionAnalysisManager fam;
-  fam.registerPass([&] { return DominatorTreeAnalysis(); });
-  fam.registerPass([&] { return LoopAnalysis(); });
-  fam.registerPass([&] { return PassInstrumentationAnalysis(); });
-  fam.registerPass([&] { return TaskAnalysis(); });
-
-  ModuleAnalysisManager mam;
-  mam.registerPass([&] { return FunctionAnalysisManagerModuleProxy(fam); });
-  mam.registerPass([&] { return PassInstrumentationAnalysis(); });
-
-  auto tta = std::make_unique<TTObjectsAnalysis>(tto);
-  TTObjects ttObjs = tta->run(*m, mam);
-
-  // The expected array will be in ascending order. If the order of tapir
-  // targets or their numerical values are changed, this will need to be
-  // updated.
-  TTID expected[] = {TTID::Serial, TTID::Pthreads};
-  EXPECT_EQ(ttObjs.getRequiredTTs(*f), ArrayRef(expected));
-  EXPECT_EQ(ttObjs.getRequiredTTs(*m), ArrayRef(expected));
-
-  EXPECT_TRUE(ttObjs.hasTT(TTID::Serial));
-  EXPECT_TRUE(ttObjs.hasTT(TTID::Pthreads));
-  EXPECT_FALSE(ttObjs.hasTT(TTID::Cuda));
-  EXPECT_FALSE(ttObjs.hasTT(TTID::Hip));
-  EXPECT_FALSE(ttObjs.hasTT(TTID::OpenCilk));
-}
-
-// All tapir loops have a tapir target set on them. getRequiredTTs() should not
+// All tapir loops must have a tapir target set. getRequiredTTs() should not
 // return the primary tapir target id. TapirTarget objects should have been
 // created for each of the id's.
-TEST_F(KitTTObjectsAnalysis, withHintsNoDefault) {
-  constexpr StringRef ir = R"m(
-target triple = "x86_64-unknown-linux-gnu"
-
-define void @f(ptr nocapture noundef writeonly %c, i64 noundef %n) {
-entry:
-  %syncreg = tail call token @llvm.syncregion.start()
-  %cmp5 = icmp sgt i64 %n, 0
-  br i1 %cmp5, label %detach.preheader, label %sync
-
-detach.preheader:
-  br label %detach
-
-detach:
-  %iv = phi i64 [ 0, %detach.preheader ], [ %iv.next, %inc ]
-  %iv.next = add nuw nsw i64 %iv, 1
-  detach within %syncreg, label %body, label %inc
-
-body:
-  %arrayidx = getelementptr inbounds i64, ptr %c, i64 %iv
-  store i64 %n, ptr %arrayidx, align 4
-  reattach within %syncreg, label %inc
-
-inc:
-  %exitcond.not = icmp eq i64 %iv.next, %n
-  br i1 %exitcond.not, label %sync, label %detach, !llvm.loop !0
-
-sync:
-  sync within %syncreg, label %end
-
-end:
-  br label %entry2
-
-entry2:
-  %syncreg2 = tail call token @llvm.syncregion.start()
-  %cmp6 = icmp sgt i64 %n, 0
-  br i1 %cmp6, label %detach.preheader2, label %sync2
-
-detach.preheader2:
-  br label %detach2
-
-detach2:
-  %iv2 = phi i64 [ 0, %detach.preheader2 ], [ %iv.next2, %inc2 ]
-  %iv.next2 = add nuw nsw i64 %iv2, 1
-  detach within %syncreg2, label %body2, label %inc2
-
-body2:
-  %arrayidx2 = getelementptr inbounds i64, ptr %c, i64 %iv2
-  store i64 %n, ptr %arrayidx2, align 4
-  reattach within %syncreg2, label %inc2
-
-inc2:
-  %exitcond.not2 = icmp eq i64 %iv.next2, %n
-  br i1 %exitcond.not2, label %sync2, label %detach2, !llvm.loop !4
-
-sync2:
-  sync within %syncreg2, label %end2
-
-end2:
-  ret void
-}
-
-!0 = distinct !{!0, !1, !2, !3}
-!1 = !{!"tapir.loop.spawn.strategy", i32 1}
-!2 = !{!"llvm.loop.unroll.disable"}
-!3 = !{!"tapir.loop.target", i32 1024}
-!4 = distinct !{!4, !1, !2, !5}
-!5 = !{!"tapir.loop.target", i32 1}
-)m";
-
+TEST(KitTTObjectsAnalysis, mixed) {
   LLVMContext ctx;
   SMDiagnostic err;
-  driver::KitsuneOptions kitOpts;
-  std::optional<TTOptions> tto = std::nullopt;
-
-  kitOpts.setTTID(TTID::Serial);
-  tto = *TTOptions::create(kitOpts, OptznLevel::O2, FPOpFusion::Standard);
-
-  std::unique_ptr<Module> m = parseAssemblyString(ir, err, ctx);
+  std::unique_ptr<Module> m = parseAssemblyString(mixed1, err, ctx);
   Function *f = m->getFunction("f");
+
+  driver::KitsuneOptions kitOpts;
+  kitOpts.setTTID(TTID::Serial);
+  std::optional<TTOptions> tto =
+      TTOptions::create(kitOpts, OptznLevel::O2, FPOpFusion::Standard);
 
   FunctionAnalysisManager fam;
   fam.registerPass([&] { return DominatorTreeAnalysis(); });
@@ -443,9 +241,8 @@ end2:
   auto tta = std::make_unique<TTObjectsAnalysis>(tto);
   TTObjects ttObjs = tta->run(*m, mam);
 
-  // The expected array will be in ascending order. If the order of tapir
-  // targets or their numerical values are changed, this will need to be
-  // updated.
+  // The expected array will be in ascending order of the integer values of the
+  // TTID's. These are unlikely to change.
   TTID expected[] = {TTID::Serial, TTID::Pthreads};
   EXPECT_EQ(ttObjs.getRequiredTTs(*f), ArrayRef(expected));
   EXPECT_EQ(ttObjs.getRequiredTTs(*m), ArrayRef(expected));
@@ -457,104 +254,27 @@ end2:
 }
 
 // TODO: The test below requires 3 tapir targets to have been built. Currently,
-// we only guarantee that the 'serial' and 'pthreads' targets will be built.
-// The choice of 'opencilk' as the third required tapir target here is quite
+// only the 'serial' and 'pthreads' targets will be built unconditionally. The
+// choice of 'opencilk' as the third required tapir target here is completely
 // arbitrary. If we ever have a third tapir target that is guaranteed to be
 // built, that should be used instead so this test can be built and run
 // unconditionally.
 #if KITSUNE_OPENCILK_ENABLED
-// Check that in a module with multiple functions, the required TT's are
+
+// Check that, in a module with multiple functions, the required TT's are
 // computed correctly for both the functions and the module. In each case, a
 // TapirTarget object should have been created. A tapir target for the primary
 // tapir target will also have been created unconditionally.
-TEST_F(KitTTObjectsAnalysis, withMultipleFuncs) {
-  constexpr StringRef ir = R"m(
-target triple = "x86_64-unknown-linux-gnu"
-
-define void @f(ptr nocapture noundef writeonly %c, i64 noundef %n) {
-entry:
-  %syncreg = tail call token @llvm.syncregion.start()
-  %cmp5 = icmp sgt i64 %n, 0
-  br i1 %cmp5, label %detach.preheader, label %sync
-
-detach.preheader:
-  br label %detach
-
-detach:
-  %iv = phi i64 [ 0, %detach.preheader ], [ %iv.next, %inc ]
-  %iv.next = add nuw nsw i64 %iv, 1
-  detach within %syncreg, label %body, label %inc
-
-body:
-  %arrayidx = getelementptr inbounds i64, ptr %c, i64 %iv
-  store i64 %n, ptr %arrayidx, align 4
-  reattach within %syncreg, label %inc
-
-inc:
-  %exitcond.not = icmp eq i64 %iv.next, %n
-  br i1 %exitcond.not, label %sync, label %detach, !llvm.loop !0
-
-sync:
-  sync within %syncreg, label %end
-
-end:
-  ret void
-}
-
-define void @g(ptr nocapture noundef writeonly %c, i64 noundef %n) {
-entry:
-  %syncreg = tail call token @llvm.syncregion.start()
-  %cmp6 = icmp sgt i64 %n, 0
-  br i1 %cmp6, label %detach.preheader, label %sync
-
-detach.preheader:
-  br label %detach
-
-detach:
-  %iv = phi i64 [ 0, %detach.preheader ], [ %iv.next, %inc ]
-  %iv.next = add nuw nsw i64 %iv, 1
-  detach within %syncreg, label %body, label %inc
-
-body:
-  %arrayidx = getelementptr inbounds i64, ptr %c, i64 %iv
-  store i64 %n, ptr %arrayidx, align 4
-  reattach within %syncreg, label %inc
-
-inc:
-  %exitcond.not = icmp eq i64 %iv.next, %n
-  br i1 %exitcond.not, label %sync, label %detach, !llvm.loop !4
-
-sync:
-  sync within %syncreg, label %end
-
-end:
-  ret void
-}
-
-!0 = distinct !{!0, !1, !2, !3}
-!1 = !{!"tapir.loop.spawn.strategy", i32 4}
-!2 = !{!"tapir.loop.target", i32 1024}
-!3 = !{!"llvm.loop.unroll.disable"}
-!4 = distinct !{!4, !5, !6, !3}
-!5 = !{!"tapir.loop.spawn.strategy", i32 2}
-!6 = !{!"tapir.loop.target", i32 8}
-)m";
-
-  // FIXME: This requires certain tapir targets to be enabled. However,
-  // Kitsune's build system allows only a subset of the tapir targets to be
-  // built, so there is a chance that either the cuda or opencilk tapir targets
-  // has not been enabled. This is far from ideal. Something that may be
-  // slightly better is to tweak the input above to use two tapir targets that
-  // have been enabled.
+TEST(KitTTObjectsAnalysis, withMultipleFuncs) {
   LLVMContext ctx;
   SMDiagnostic err;
   driver::KitsuneOptions kitOpts;
   std::optional<TTOptions> tto = std::nullopt;
 
-  kitOpts.setTTID(TTID::Serial);
+  kitOpts.setTTID(TTID::OpenCilk);
   tto = *TTOptions::create(kitOpts, OptznLevel::O2, FPOpFusion::Standard);
 
-  std::unique_ptr<Module> m = parseAssemblyString(ir, err, ctx);
+  std::unique_ptr<Module> m = parseAssemblyString(mixed2, err, ctx);
   Function *f = m->getFunction("f");
   Function *g = m->getFunction("g");
 
@@ -571,58 +291,22 @@ end:
   auto tta = std::make_unique<TTObjectsAnalysis>(tto);
   TTObjects ttObjs = tta->run(*m, mam);
 
-  // The expected array will be in ascending order. If the order of tapir
-  // targets or their numerical values are changed, this will need to be
-  // updated.
-  TTID expectedF[] = {TTID::Pthreads};
-  TTID expectedG[] = {TTID::OpenCilk};
-  TTID expected[] = {TTID::OpenCilk, TTID::Pthreads};
+  // The expected array will be in ascending order of the integer values of the
+  // TTID's. These are unlikely to change.
+  TTID expectedF[] = {TTID::Serial};
+  TTID expectedG[] = {TTID::Pthreads};
+  TTID expected[] = {TTID::Serial, TTID::Pthreads};
   EXPECT_EQ(ttObjs.getRequiredTTs(*f), ArrayRef(expectedF));
   EXPECT_EQ(ttObjs.getRequiredTTs(*g), ArrayRef(expectedG));
   EXPECT_EQ(ttObjs.getRequiredTTs(*m), ArrayRef(expected));
 
-  EXPECT_TRUE(ttObjs.hasTT(TTID::Serial));
   EXPECT_TRUE(ttObjs.hasTT(TTID::OpenCilk));
+  EXPECT_TRUE(ttObjs.hasTT(TTID::Serial));
   EXPECT_TRUE(ttObjs.hasTT(TTID::Pthreads));
   EXPECT_FALSE(ttObjs.hasTT(TTID::Cuda));
   EXPECT_FALSE(ttObjs.hasTT(TTID::Hip));
 }
+
 #endif // KITSUNE_OPENCILK_ENABLED
-
-// If a tapir target options object has not been set, getRequiredTTs() will
-// always return an empty vector.
-TEST_F(KitTTObjectsAnalysis, noTTO) {
-  LLVMContext ctx;
-  SMDiagnostic err;
-  std::optional<TTOptions> tto = std::nullopt;
-
-  {
-    std::unique_ptr<Module> m =
-        parseAssemblyString(moduleWithHintsMixed, err, ctx);
-    Function *f = m->getFunction("f");
-
-    ModuleAnalysisManager mam;
-    auto tta = std::make_unique<TTObjectsAnalysis>(std::nullopt);
-    TTObjects ttObjs = tta->run(*m, mam);
-
-    EXPECT_FALSE(ttObjs.hasTTID());
-    EXPECT_FALSE(ttObjs.getTTIDOrNull());
-    EXPECT_EQ(ttObjs.getRequiredTTs(*f).size(), 0UL);
-  }
-
-  {
-    std::unique_ptr<Module> m = parseAssemblyString(moduleNoHints, err, ctx);
-    Function *f = m->getFunction("f");
-
-    ModuleAnalysisManager mam;
-    auto tta = std::make_unique<TTObjectsAnalysis>(std::nullopt);
-    TTObjects ttObjs = tta->run(*m, mam);
-
-    EXPECT_FALSE(ttObjs.hasTTID());
-    EXPECT_FALSE(ttObjs.getTTIDOrNull());
-    EXPECT_EQ(ttObjs.getRequiredTTs(*f).size(), 0UL);
-    EXPECT_EQ(ttObjs.getRequiredTTs(*m).size(), 0UL);
-  }
-}
 
 } // namespace
