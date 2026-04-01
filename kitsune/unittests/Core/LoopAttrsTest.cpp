@@ -180,9 +180,9 @@ TEST(KitLoopAttrs, attr8) {
 }
 
 TEST(KitLoopAttrs, attrLoop) {
-  DECLS_LOOP(*loop, loopF, loopG, lis);
+  DECLS_LOOP(*loop, loopF, loopG);
 #define LOOP_ATTR_LOOP(...)                                                    \
-  TEST_ATTR_LOOP(*loop, loopF, loopG, lis, LoopAttrKind, __VA_ARGS__)
+  TEST_ATTR_LOOP(*loop, loopF, loopG, LoopAttrKind, __VA_ARGS__)
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
 }

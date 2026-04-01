@@ -143,9 +143,9 @@ TEST(KitModuleAttrs, attr8) {
 }
 
 TEST(KitModuleAttrs, attrLoop) {
-  DECLS_LOOP(m, loopF, loopG, lis);
+  DECLS_LOOP(m, loopF, loopG);
 #define MODULE_ATTR_LOOP(...)                                                  \
-  TEST_ATTR_LOOP(m, loopF, loopG, lis, ModuleAttrKind, __VA_ARGS__)
+  TEST_ATTR_LOOP(m, loopF, loopG, ModuleAttrKind, __VA_ARGS__)
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
 }

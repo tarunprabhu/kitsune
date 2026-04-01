@@ -145,9 +145,9 @@ TEST(KitFuncAttrs, attr8) {
 }
 
 TEST(KitFuncAttrs, attrLoop) {
-  DECLS_LOOP(*f, loopF, loopG, lis);
+  DECLS_LOOP(*f, loopF, loopG);
 #define FUNC_ATTR_LOOP(...)                                                    \
-  TEST_ATTR_LOOP(*f, loopF, loopG, lis, FuncAttrKind, __VA_ARGS__)
+  TEST_ATTR_LOOP(*f, loopF, loopG, FuncAttrKind, __VA_ARGS__)
 #define GET_FUNC_ATTRS
 #include "kitsune/Core/FuncAttrs.inc"
 }

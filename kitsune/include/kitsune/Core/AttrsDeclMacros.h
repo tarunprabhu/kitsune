@@ -16,7 +16,7 @@
 namespace llvm {
 
 class Loop;
-class LoopInfo;
+class MDNode;
 
 } // namespace llvm
 
@@ -25,8 +25,7 @@ class LoopInfo;
   void remove##NAME##Attr(IRELEM &ir);
 
 #define DECL_ATTR_LOOP(IRELEM, NAME, IRNAME, CUSTOMVERIFY)                     \
-  std::optional<Loop *> get##NAME##Attr(                                       \
-      const IRELEM &ir, const SmallVectorImpl<const LoopInfo *> &lis);         \
+  std::optional<MDNode *> get##NAME##Attr(const IRELEM &ir);                   \
   void add##NAME##Attr(IRELEM &ir, const Loop &loop);
 
 #define DECL_ATTR_N(IRELEM, NAME, IRNAME, ETY, ENAME, EN, NELEMS)              \

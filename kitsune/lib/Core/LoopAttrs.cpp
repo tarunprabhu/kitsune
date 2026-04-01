@@ -18,7 +18,6 @@
 #include "kitsune/Core/LoopUtils.h"
 #include "kitsune/Support/Diagnostics.h"
 #include "kitsune/Support/ErrorHandling.h"
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/IR/Module.h"

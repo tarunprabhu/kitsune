@@ -538,7 +538,7 @@ for.i.exit:
 !1 = distinct !{!1}
 )";
 
-#define DECLS_LOOP(OBJ, LOOP_F, LOOP_G, LIS)                                   \
+#define DECLS_LOOP(OBJ, LOOP_F, LOOP_G)                                        \
   DECLS(OBJ);                                                                  \
   std::unique_ptr<Module> m2 = parseIR(getContext(OBJ), ll2);                  \
   Function *f2 = m2->getFunction("f");                                         \
@@ -547,12 +547,10 @@ for.i.exit:
   Function *g2 = m2->getFunction("g");                                         \
   DominatorTree dtg(*g2);                                                      \
   LoopInfo lig(dtg);                                                           \
-  SmallVector<const LoopInfo *, 4> LIS = {&lig, &lif};                         \
   [[maybe_unused]] Loop *LOOP_F = *lif.begin();                                \
   [[maybe_unused]] Loop *LOOP_G = *lig.begin();
 
-#define TEST_ATTR_LOOP(OBJ, LOOP_F, LOOP_G, LIS, KIND, NAME, IRNAME,           \
-                       CUSTOMVERIFY)                                           \
+#define TEST_ATTR_LOOP(OBJ, LOOP_F, LOOP_G, KIND, NAME, IRNAME, CUSTOMVERIFY)  \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
   TEST_VERIFY_TRUE(OBJ, NAME);                                                 \
                                                                                \
@@ -560,13 +558,13 @@ for.i.exit:
   EXPECT_TRUE(has##NAME##Attr(OBJ));                                           \
   if constexpr (::verifyAttr(KIND::NAME))                                      \
     TEST_VERIFY_TRUE(OBJ, NAME);                                               \
-  EXPECT_EQ(get##NAME##Attr(OBJ, LIS), LOOP_F);                                \
+  EXPECT_EQ(get##NAME##Attr(OBJ), LOOP_F->getLoopID());                        \
                                                                                \
   add##NAME##Attr(OBJ, *LOOP_G);                                               \
   EXPECT_TRUE(has##NAME##Attr(OBJ));                                           \
   if constexpr (::verifyAttr(KIND::NAME))                                      \
     TEST_VERIFY_TRUE(OBJ, NAME);                                               \
-  EXPECT_EQ(get##NAME##Attr(OBJ, LIS), LOOP_G);                                \
+  EXPECT_EQ(get##NAME##Attr(OBJ), LOOP_G->getLoopID());                        \
                                                                                \
   remove##NAME##Attr(OBJ);                                                     \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
