@@ -15,14 +15,13 @@
 
 #include "AttrsIterator.h"
 #include "kitsune/Core/MetadataUtils.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Analysis/LoopInfo.h"
 
 namespace llvm {
 
 class LLVMContext;
-class MDNode;
-
 class KitVerifier;
 
 namespace detail {
@@ -96,7 +95,7 @@ MDNode *getNewAttrList(LLVMContext &ctx);
 ///     !2 = !{!"new-attr", !"new"}
 /// \endcode
 ///
-MDNode *getAttrListWith(StringRef attrName, const ArrayRef<Metadata *> attrVals,
+MDNode *getAttrListWith(StringRef attrName, ArrayRef<Metadata *> attrVals,
                         MDNode *attrList, LLVMContext &ctx);
 
 /// Remove the attribute named \p attrName from \p attrList. If the attribute
@@ -128,11 +127,9 @@ MDNode *getRawAttr(StringRef attrName, const MDNode *attrList);
 /// Get the name of the attribute \p attr.
 StringRef getRawAttrName(const MDNode &attr);
 
-/// Get the value of the raw attribute that is expected to have a exactly one
-/// value that is an LLVM Loop.
-std::optional<Loop *>
-getRawAttrValue(const MDNode &attr,
-                const SmallVectorImpl<const LoopInfo *> &lis);
+/// Get the metadata node containing the \p i'th value from the raw attribute
+/// \p attr. If the value at the given index is not present, return nullptr.
+Metadata *getRawAttrValueMD(const MDNode &attr, unsigned i);
 
 /// Get the value of the \p i'th value from the raw attribute \p attr that is
 /// expected to be of type \p T. If the value is not present, or if it is not of
@@ -211,11 +208,12 @@ bool verifyRawAttrValues(KitVerifier &v, const MDNode &attr,
   void llvm::remove##NAME##Attr(IRELEM &ir) { detail::removeAttr(ir, IRNAME); }
 
 #define DEFN_ATTR_LOOP(IRELEM, NAME, IRNAME, CUSTOMVERIFY)                     \
-  std::optional<Loop *> llvm::get##NAME##Attr(                                 \
-      const IRELEM &ir, const SmallVectorImpl<const LoopInfo *> &lis) {        \
+  std::optional<MDNode *> llvm::get##NAME##Attr(const IRELEM &ir) {            \
     if (const MDNode *attr =                                                   \
             detail::getRawAttr(IRNAME, detail::getRawAttrList(ir)))            \
-      return detail::getRawAttrValue(*attr, lis);                              \
+      if (Metadata *md = detail::getRawAttrValueMD(*attr, 0))                  \
+        if (auto *mdNode = dyn_cast<MDNode>(md))                               \
+          return mdNode;                                                       \
     return std::nullopt;                                                       \
   }                                                                            \
                                                                                \

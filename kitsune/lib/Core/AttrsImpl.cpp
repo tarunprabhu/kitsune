@@ -126,30 +126,23 @@ MDNode *llvm::detail::makeRawAttr(LLVMContext &ctx, StringRef attrName,
 }
 
 StringRef llvm::detail::getRawAttrName(const MDNode &attr) {
-  if (const auto* mdStr = dyn_cast<MDString>(attr.getOperand(0)))
+  if (const auto *mdStr = dyn_cast<MDString>(attr.getOperand(0)))
     return mdStr->getString();
   return "<unknown>";
 }
 
-std::optional<Loop *>
-llvm::detail::getRawAttrValue(const MDNode &attr,
-                              const SmallVectorImpl<const LoopInfo *> &lis) {
-  if (attr.getNumOperands() == 2) {
-    Metadata *val = attr.getOperand(1);
-    for (const LoopInfo *li : lis)
-      for (Loop *loop : *li)
-        if (val == loop->getLoopID())
-          return loop;
-  }
-  return std::nullopt;
+Metadata *llvm::detail::getRawAttrValueMD(const MDNode &attr, unsigned i) {
+  // The first operand of the attribute will be the name of the attribute.
+  unsigned attrIdx = i + 1;
+  if (attrIdx < attr.getNumOperands())
+    return attr.getOperand(attrIdx);
+  return nullptr;
 }
 
 template <typename T>
 std::optional<T> llvm::detail::getRawAttrValue(const MDNode &attr, unsigned i) {
-  // The first operand of the attribute will be the name of the attribute.
-  unsigned attrIdx = i + 1;
-  if (attrIdx < attr.getNumOperands())
-    return fromMetadata<T>(attr.getOperand(attrIdx));
+  if (Metadata *md = getRawAttrValueMD(attr, i))
+    return fromMetadata<T>(md);
   return std::nullopt;
 }
 
@@ -180,7 +173,7 @@ MDNode *llvm::detail::getNewAttrList(LLVMContext &ctx) {
 }
 
 MDNode *llvm::detail::getAttrListWith(StringRef attrName,
-                                      const ArrayRef<Metadata *> attrVals,
+                                      ArrayRef<Metadata *> attrVals,
                                       MDNode *attrList, LLVMContext &ctx) {
   MDNode *attr = detail::makeRawAttr(ctx, attrName, attrVals);
   if (std::optional<unsigned> i = getAttrIndex(attrName, attrList))

@@ -150,9 +150,9 @@ TEST(KitGVAttrs, attr8) {
 }
 
 TEST(KitGVAttrs, attrLoop) {
-  DECLS_LOOP(*g, loopF, loopG, lis);
+  DECLS_LOOP(*g, loopF, loopG);
 #define GV_ATTR_LOOP(...)                                                      \
-  TEST_ATTR_LOOP(*g, loopF, loopG, lis, GVAttrKind, __VA_ARGS__)
+  TEST_ATTR_LOOP(*g, loopF, loopG, GVAttrKind, __VA_ARGS__)
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"
 }

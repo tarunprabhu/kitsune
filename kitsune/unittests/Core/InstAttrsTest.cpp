@@ -147,9 +147,9 @@ TEST(KitInstAttrs, attr8) {
 }
 
 TEST(KitInstAttrs, attrLoop) {
-  DECLS_LOOP(*inst, loopF, loopG, lis);
+  DECLS_LOOP(*inst, loopF, loopG);
 #define INST_ATTR_LOOP(...)                                                    \
-  TEST_ATTR_LOOP(*inst, loopF, loopG, lis, InstAttrKind, __VA_ARGS__)
+  TEST_ATTR_LOOP(*inst, loopF, loopG, InstAttrKind, __VA_ARGS__)
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
 }
