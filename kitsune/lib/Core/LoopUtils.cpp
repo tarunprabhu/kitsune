@@ -52,18 +52,27 @@ void llvm::clearTapirLoopAttrs(Loop &loop) {
   loop.setLoopID(newLoopMD);
 }
 
-static void collectSubLoops(Loop &loop, SmallVector<Loop *, 4> &subLoops) {
-  for (Loop *subLoop : loop.getSubLoops()) {
+template <typename L>
+static void collectSubLoops(L &loop, SmallVector<L *, 4> &subLoops) {
+  for (L *subLoop : loop.getSubLoops()) {
     subLoops.push_back(subLoop);
     collectSubLoops(*subLoop, subLoops);
   }
 }
 
-SmallVector<Loop *, 4> llvm::getAllSubLoops(Loop &loop) {
-  SmallVector<Loop *, 4> subLoops;
+template <typename L> static SmallVector<L *, 4> getAllSubLoops(L &loop) {
+  SmallVector<L *, 4> subLoops;
   collectSubLoops(loop, subLoops);
 
   return subLoops;
+}
+
+SmallVector<Loop *, 4> llvm::getAllSubLoops(Loop &loop) {
+  return ::getAllSubLoops<Loop>(loop);
+}
+
+SmallVector<const Loop *, 4> llvm::getAllSubLoops(const Loop &loop) {
+  return ::getAllSubLoops<const Loop>(loop);
 }
 
 SmallVector<BasicBlock *, 8> llvm::getBlocksNotInSubLoops(const Loop &loop) {
@@ -87,59 +96,57 @@ BasicBlock *llvm::getUniqueBackEdge(const Loop &loop) {
   return nullptr;
 }
 
-bool llvm::isTapirLoop(Loop &loop, TaskInfo &ti) {
-  return getTaskIfTapirLoop(&loop, &ti);
-}
+bool llvm::isTapirLoop(const Loop &loop) { return hasTargetAttr(loop); }
 
 // Return true if any of the ancestors of a loop are tapir loops. The given
 // loop is not required to be a tapir loop. If the given loop is a top-level
 // loop, return false.
-static bool isAnyAncestorTapirLoop(Loop &loop, TaskInfo &ti) {
+static bool isAnyAncestorTapirLoop(const Loop &loop) {
   Loop *parentLoop = loop.getParentLoop();
   if (!parentLoop)
     return false;
-  else if (isTapirLoop(*parentLoop, ti))
+  else if (isTapirLoop(*parentLoop))
     return true;
   else
-    return isAnyAncestorTapirLoop(*parentLoop, ti);
+    return isAnyAncestorTapirLoop(*parentLoop);
 }
 
-bool llvm::isTopLevelTapirLoop(Loop &loop, TaskInfo &ti) {
-  return isTapirLoop(loop, ti) && not isAnyAncestorTapirLoop(loop, ti);
+bool llvm::isTopLevelTapirLoop(const Loop &loop) {
+  return isTapirLoop(loop) && not isAnyAncestorTapirLoop(loop);
 }
 
-bool llvm::isTapirLoopForGPU(Loop &loop, TaskInfo &ti) {
-  if (!isTapirLoop(loop, ti))
+bool llvm::isTapirLoopForGPU(const Loop &loop) {
+  if (!isTapirLoop(loop))
     return false;
 
   TTID tt = *getTargetAttr(loop);
   if (tt != TTID::Cuda && tt != TTID::Hip)
     return false;
 
-  for (Loop *subLoop : getAllSubLoops(loop))
-    if (isTapirLoop(*subLoop, ti))
+  for (const Loop *subLoop : getAllSubLoops(loop))
+    if (isTapirLoop(*subLoop))
       if (getTargetAttr(*subLoop) != tt)
         return false;
 
   return true;
 }
 
-bool llvm::isTopLevelTapirLoopForGPU(Loop &loop, TaskInfo &ti) {
-  return isTopLevelTapirLoop(loop, ti) && isTapirLoopForGPU(loop, ti);
+bool llvm::isTopLevelTapirLoopForGPU(const Loop &loop) {
+  return isTopLevelTapirLoop(loop) && isTapirLoopForGPU(loop);
 }
 
-SmallVector<Loop *, 4> llvm::getTopLevelTapirLoops(LoopInfo &li, TaskInfo &ti) {
+SmallVector<Loop *, 4> llvm::getTopLevelTapirLoops(LoopInfo &li) {
   SmallVector<Loop *, 4> loops;
   for (Loop *loop : li.getLoopsInPreorder())
-    if (isTopLevelTapirLoop(*loop, ti))
+    if (isTopLevelTapirLoop(*loop))
       loops.push_back(loop);
   return loops;
 }
 
-SmallVector<Loop *, 4> llvm::getTapirLoops(LoopInfo &li, TaskInfo &ti) {
+SmallVector<Loop *, 4> llvm::getTapirLoops(LoopInfo &li) {
   SmallVector<Loop *, 4> loops;
   for (Loop *loop : li.getLoopsInPreorder())
-    if (isTapirLoop(*loop, ti))
+    if (isTapirLoop(*loop))
       loops.push_back(loop);
   return loops;
 }

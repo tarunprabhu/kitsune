@@ -14,7 +14,6 @@
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
 #include "llvm/Analysis/ScalarEvolution.h"
-#include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
@@ -358,10 +357,12 @@ bool TapirLoopNest::sanityCheckInnerLoop(const Loop &loop,
   return true;
 }
 
-TapirLoopNest::TapirLoopNest(Loop &root, TaskInfo &ti, ScalarEvolution &se)
-    : nest(root, se) {
-  assert(getTaskIfTapirLoop(&root, &ti) &&
-         "Root of tapir loop nest must be a tapir loop");
+TapirLoopNest::TapirLoopNest(Loop &root, ScalarEvolution &se) : nest(root, se) {
+  assert(isTapirLoop(root) && "Root of tapir loop nest must be a tapir loop");
+  assert(root.isLoopSimplifyForm() &&
+         "Root of tapir loop nest must be in loop simplify form");
+  assert(root.isRotatedForm() &&
+         "Root of tapir loop nest must be in loop rotate form");
 
   // `root` is guaranteed to be a tapir loop. It is perfect by definition.
   perfectTapirLoops.push_back(&root);
@@ -378,7 +379,7 @@ TapirLoopNest::TapirLoopNest(Loop &root, TaskInfo &ti, ScalarEvolution &se)
     if (!sanityCheckInnerLoop(*innerLoop, se))
       break;
 
-    if (!isTapirLoop(*innerLoop, ti))
+    if (!isTapirLoop(*innerLoop))
       break;
 
     if (!arePerfectlyNested(*outerLoop, *innerLoop, se))
@@ -388,12 +389,12 @@ TapirLoopNest::TapirLoopNest(Loop &root, TaskInfo &ti, ScalarEvolution &se)
   }
 }
 
-std::unique_ptr<TapirLoopNest>
-TapirLoopNest::create(Loop &loop, ScalarEvolution &se, TaskInfo &ti) {
-  if (!getTaskIfTapirLoop(&loop, &ti)) {
+std::unique_ptr<TapirLoopNest> TapirLoopNest::create(Loop &loop,
+                                                     ScalarEvolution &se) {
+  if (!isTapirLoop(loop)) {
     LLVM_DEBUG(dbgs() << "Root of loop nest, '" << loop.getName()
                       << "', is not a tapir loop.\n");
     return nullptr;
   }
-  return std::unique_ptr<TapirLoopNest>(new TapirLoopNest(loop, ti, se));
+  return std::unique_ptr<TapirLoopNest>(new TapirLoopNest(loop, se));
 }

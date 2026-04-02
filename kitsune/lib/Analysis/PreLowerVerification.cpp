@@ -145,7 +145,7 @@ private:
   void checkConsistentTTsForGPU(Loop &root) {
     TTID ttRoot = *getTargetAttr(root);
     for (Loop *subLoop : getAllSubLoops(root)) {
-      if (isTapirLoop(*subLoop, ti)) {
+      if (isTapirLoop(*subLoop)) {
         TTID tt = *getTargetAttr(*subLoop);
         if (tt != ttRoot) {
           emitDiag(*subLoop, DiagID::ErrTTIncompatibleLoopGPU, tt, ttRoot);
@@ -161,7 +161,7 @@ private:
   void checkConsistentTTsForCPU(Loop &root) {
     TTID ttRoot = *getTargetAttr(root);
     for (Loop *subLoop : getAllSubLoops(root)) {
-      if (isTapirLoop(*subLoop, ti)) {
+      if (isTapirLoop(*subLoop)) {
         TTID tt = *getTargetAttr(*subLoop);
         if (isGPUTT(tt) || tt != ttRoot) {
           // FIXME: We don't yet support multi-target compilation anyway, but
@@ -181,14 +181,14 @@ private:
   // loops contained within it must be perfectly nested. Otherwise, they are
   // likely to be serialized.
   void checkLoopNestStructureForGPU(Loop &root) {
-    std::unique_ptr<TapirLoopNest> nest = TapirLoopNest::create(root, se, ti);
+    std::unique_ptr<TapirLoopNest> nest = TapirLoopNest::create(root, se);
     assert(nest && "Could not create tapir loop nest object");
 
     ArrayRef<Loop *> perfectLoops = nest->getPerfectTapirLoops();
     SmallSetVector<Loop *, 4> perfectSet(perfectLoops.begin(),
                                          perfectLoops.end());
     for (Loop *loop : nest->getLoops()) {
-      if (isTapirLoop(*loop, ti)) {
+      if (isTapirLoop(*loop)) {
         if (!perfectSet.contains(loop)) {
           emitDiag(*loop, DiagID::WarnParallelLoopImperfectlyNested);
           emitDiag(DiagID::NoteLoopNestRoot, getName(root));
@@ -246,7 +246,7 @@ private:
   /// consistent. This primarily checks the tapir targets on the subloops and
   /// the loop nest structure.
   void checkTopLevelTapirLoops(Function &f) {
-    for (Loop *loop : getTopLevelTapirLoops(li, ti))
+    for (Loop *loop : getTopLevelTapirLoops(li))
       checkTopLevelTapirLoop(*loop);
   }
 
@@ -324,7 +324,7 @@ private:
   /// loops.
   void checkTapirInsts(const Function &f) {
     SmallSet<const BasicBlock *, 8> bbs;
-    for (const Loop *loop : getTapirLoops(li, ti))
+    for (const Loop *loop : getTapirLoops(li))
       for (const BasicBlock *bb : getBlocksNotInSubLoops(*loop))
         bbs.insert(bb);
 
