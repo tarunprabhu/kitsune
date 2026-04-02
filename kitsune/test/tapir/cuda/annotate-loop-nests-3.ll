@@ -257,18 +257,14 @@ for.i.end:
 define void @pspp(i64 %m, i64 %n, i64 %p, i64 %q) {
 entry:
   %syncreg.i = tail call token @llvm.syncregion.start()
-  %cmp.m.not = icmp eq i64 %m, 0
-  %cmp.n.not = icmp eq i64 %n, 0
-  %cmp.p.not = icmp eq i64 %p, 0
-  %cmp.q.not = icmp eq i64 %q, 0
-  br i1 %cmp.m.not, label %for.i.exit, label %for.i.header
+  br label %for.i.header
 
 for.i.header:
   %i = phi i64 [ 0, %entry ], [ %inc.i, %for.i.latch ]
   detach within %syncreg.i, label %for.i.body, label %for.i.latch
 
 for.i.body:
-  br i1 %cmp.n.not, label %for.j.exit, label %for.j.header
+  br label %for.j.header
 
 for.j.header:
   %j = phi i64 [ 0, %for.i.body ], [ %inc.j, %for.j.latch ]
@@ -276,7 +272,7 @@ for.j.header:
 
 for.j.body:
   %syncreg.k = tail call token @llvm.syncregion.start()
-  br i1 %cmp.p.not, label %for.k.exit, label %for.k.header
+  br label %for.k.header
 
 for.k.header:
   %k = phi i64 [ 0, %for.j.body ], [ %inc.k, %for.k.latch ]
@@ -284,7 +280,7 @@ for.k.header:
 
 for.k.body:
   %syncreg.l = tail call token @llvm.syncregion.start()
-  br i1 %cmp.q.not, label %for.l.exit, label %for.l.header
+  br label %for.l.header
 
 for.l.header:
   %l = phi i64 [ 0, %for.k.body ], [ %inc.l, %for.l.latch ]

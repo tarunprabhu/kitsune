@@ -22,7 +22,6 @@
 namespace llvm {
 
 class LoopInfo;
-class TaskInfo;
 
 /// An object that wraps a tapir loop nest. A tapir loop nest is a loop nest
 /// where the root is a tapir loop. Subloops may or may not be tapir loops.
@@ -55,7 +54,7 @@ private:
   LoopVectorTy perfectTapirLoops;
 
 private:
-  TapirLoopNest(Loop &loop, TaskInfo &ti, ScalarEvolution &se);
+  TapirLoopNest(Loop &loop, ScalarEvolution &se);
 
   /// When constructing the loop nest, check some basic properties of an "outer"
   /// loop. This is relative to some other "inner" loop. It is not necessarily
@@ -151,8 +150,7 @@ public:
   /// Here, tapir loop nest objects can be created that are rooted at any of
   /// the forall loops since each of these is a valid tapir loop nest.
   ///
-  static std::unique_ptr<TapirLoopNest> create(Loop &loop, ScalarEvolution &se,
-                                               TaskInfo &ti);
+  static std::unique_ptr<TapirLoopNest> create(Loop &loop, ScalarEvolution &se);
 };
 
 } // namespace llvm

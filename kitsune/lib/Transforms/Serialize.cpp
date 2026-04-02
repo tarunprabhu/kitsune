@@ -143,10 +143,10 @@ static bool serializeLoop(Loop &loop, Task &task) {
 ///     greater than the depth of the outer tapir loop nest. This can be
 ///     because one of the ancestors of the tapir loop is a non-tapir loop.
 ///
-static void populateGPULoopsToSerialize(LoopInfo &li, TaskInfo &ti,
+static void populateGPULoopsToSerialize(LoopInfo &li,
                                         SetVector<Loop *> &loopsToSerialize) {
-  auto shouldSerializeLoop = [](Loop &loop, TaskInfo &ti) -> bool {
-    if (!isTapirLoop(loop, ti))
+  auto shouldSerializeLoop = [](const Loop &loop) -> bool {
+    if (!isTapirLoop(loop))
       return false;
 
     // In cases such as those shown below, the innermost forall loops will not
@@ -166,15 +166,15 @@ static void populateGPULoopsToSerialize(LoopInfo &li, TaskInfo &ti,
   };
 
   for (Loop *loop : li.getLoopsInPreorder())
-    if (isTopLevelTapirLoopForGPU(*loop, ti))
+    if (isTopLevelTapirLoopForGPU(*loop))
       for (Loop *subLoop : getAllSubLoops(*loop))
-        if (shouldSerializeLoop(*subLoop, ti))
+        if (shouldSerializeLoop(*subLoop))
           loopsToSerialize.insert(subLoop);
 }
 
-SetVector<Loop *> getLoopsToSerialize(LoopInfo &li, TaskInfo &ti) {
+SetVector<Loop *> getLoopsToSerialize(LoopInfo &li) {
   SetVector<Loop *> loopsToSerialize;
-  populateGPULoopsToSerialize(li, ti, loopsToSerialize);
+  populateGPULoopsToSerialize(li, loopsToSerialize);
 
   return loopsToSerialize;
 }
@@ -187,7 +187,7 @@ static bool run(Function &f, FunctionAnalysisManager &am) {
   LoopInfo &li = am.getResult<LoopAnalysis>(f);
   TaskInfo &ti = am.getResult<TaskAnalysis>(f);
 
-  for (Loop *loop : getLoopsToSerialize(li, ti))
+  for (Loop *loop : getLoopsToSerialize(li))
     changed |= serializeLoop(*loop, *getTaskIfTapirLoop(loop, &ti));
 
   return changed;

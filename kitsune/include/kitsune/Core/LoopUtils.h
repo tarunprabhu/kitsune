@@ -55,6 +55,7 @@ void clearTapirLoopAttrs(Loop &loop);
 
 /// Recursively gather all subloops of the given loop.
 SmallVector<Loop *, 4> getAllSubLoops(Loop &loop);
+SmallVector<const Loop *, 4> getAllSubLoops(const Loop &loop);
 
 /// Get all the basic blocks in a loop that are not part of any subloops. For
 /// instance, given the loop structure shown below (where the indentation
@@ -80,8 +81,9 @@ SmallVector<BasicBlock *, 8> getBlocksNotInSubLoops(const Loop &loop);
 /// Get the unique backedge in the loop, if one exists.
 BasicBlock *getUniqueBackEdge(const Loop &loop);
 
-/// Return if the loop is a tapir loop.
-bool isTapirLoop(Loop &loop, TaskInfo &ti);
+/// Return true if the loop is a tapir loop. This only checks if the loop has
+/// the `tapir.loop.target` attribute.
+bool isTapirLoop(const Loop &loop);
 
 /// Returns true if the loop is a tapir loop and ANY of the following conditions
 /// hold:
@@ -89,7 +91,7 @@ bool isTapirLoop(Loop &loop, TaskInfo &ti);
 ///   - The loop is a top-level loop
 ///   - None of the ancestors of the loop are tapir loops
 ///
-bool isTopLevelTapirLoop(Loop &loop, TaskInfo &ti);
+bool isTopLevelTapirLoop(const Loop &loop);
 
 /// Returns true if the loop is a tapir loop and ALL of the following
 /// conditions hold:
@@ -103,18 +105,18 @@ bool isTopLevelTapirLoop(Loop &loop, TaskInfo &ti);
 /// No assumptions are made about the structure of the subloops. Any non-tapir
 /// subloops are ignored.
 ///
-bool isTapirLoopForGPU(Loop &loop, TaskInfo &ti);
+bool isTapirLoopForGPU(const Loop &loop);
 
 /// Returns true if the loop is a top-level tapir loop and isTapirLoopForGPU
 /// returns true for the loop. See the documentation for isTapirLoopForGPU for
 /// more details.
-bool isTopLevelTapirLoopForGPU(Loop &loop, TaskInfo &ti);
+bool isTopLevelTapirLoopForGPU(const Loop &loop);
 
 /// Get the roots of all tapir loop nests in a function.
-SmallVector<Loop *, 4> getTopLevelTapirLoops(LoopInfo &li, TaskInfo &ti);
+SmallVector<Loop *, 4> getTopLevelTapirLoops(LoopInfo &li);
 
 /// Get all the tapir loops in a function.
-SmallVector<Loop *, 4> getTapirLoops(LoopInfo &li, TaskInfo &ti);
+SmallVector<Loop *, 4> getTapirLoops(LoopInfo &li);
 
 /// @}
 

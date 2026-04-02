@@ -11,7 +11,6 @@
 #include "TestUtils.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "llvm/Analysis/LoopInfo.h"
-#include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Module.h"
 
@@ -21,17 +20,20 @@ using namespace llvm;
 
 namespace {
 
-struct LoopInfoContext {
+class KitLoopUtils : public ::testing::Test {
+protected:
   LLVMContext ctx;
-  std::unique_ptr<Module> m;
+  std::unique_ptr<Module> m = nullptr;
   Function *f = nullptr;
-  DominatorTree dt;
-  LoopInfo li;
-  TaskInfo ti;
+  std::unique_ptr<DominatorTree> dt = nullptr;
+  std::unique_ptr<LoopInfo> li = nullptr;
 
-  LoopInfoContext(StringRef ir, StringRef fname)
-      : m(parseIR(ctx, ir)), f(m->getFunction(fname)), dt(*f), li(dt) {
-    ti.recalculate(*f, dt);
+protected:
+  void setup(StringRef ll, StringRef fname) {
+    m = parseIR(ctx, ll);
+    f = m->getFunction(fname);
+    dt = std::make_unique<DominatorTree>(*f);
+    li = std::make_unique<LoopInfo>(*dt);
   }
 };
 
@@ -39,7 +41,7 @@ static bool hasLoopAttr(const Loop &loop, StringRef attrName) {
   return detail::getRawAttr(attrName, loop.getLoopID());
 }
 
-constexpr StringRef loop1 = R"(
+static constexpr StringRef loop1 = R"(
 define void @f(i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
@@ -67,12 +69,10 @@ for.i.exit:
 !0 = distinct !{!0}
 )";
 
-TEST(KitLoopUtils, clearAttrs) {
-  LoopInfoContext liCtx(loop1, "f");
-  LLVMContext &ctx = liCtx.ctx;
-  LoopInfo &li = liCtx.li;
+TEST_F(KitLoopUtils, clearAttrs) {
+  setup(loop1, "f");
 
-  Loop *loop = li.getLoopsInPreorder().front();
+  Loop *loop = li->getLoopsInPreorder().front();
   MDNode *md = MDNode::get(ctx, {MDString::get(ctx, "loop.unroll")});
   addLoweringEnabledAttr(*loop);
   addPerfectDepthAttr(*loop, 17U);
@@ -94,7 +94,7 @@ TEST(KitLoopUtils, clearAttrs) {
   EXPECT_EQ(loop->getLoopID()->getNumOperands(), 2U);
 }
 
-constexpr StringRef loop3_2 = R"(
+static constexpr StringRef loop3_2 = R"(
 define void @f(i64 %m, i64 %n, i64 %p, i64 %q) {
 entry:
   br label %for.i.header
@@ -141,40 +141,44 @@ for.i.exit:
 !2 = distinct !{!2}
 !3 = distinct !{!3})";
 
-TEST(KitLoopUtils, getAllSubLoops) {
-  std::unique_ptr<LoopInfoContext> liCtx = nullptr;
+TEST_F(KitLoopUtils, getAllSubLoops) {
+  Loop *loopI = nullptr;
+  Loop *loopJ = nullptr;
+  Loop *loopK = nullptr;
+  Loop *loopL = nullptr;
 
-  liCtx.reset(new LoopInfoContext(loop3_2, "f"));
-  Loop *loopI = liCtx->li.getLoopsInPreorder()[0];
-  Loop *loopJ = loopI->getSubLoops()[0];
-  Loop *loopK = loopJ->getSubLoops()[0];
-  Loop *loopL = loopJ->getSubLoops()[1];
+  setup(loop3_2, "f");
+  loopI = li->getLoopsInPreorder()[0];
+  loopJ = loopI->getSubLoops()[0];
+  loopK = loopJ->getSubLoops()[0];
+  loopL = loopJ->getSubLoops()[1];
 
   EXPECT_EQ(getAllSubLoops(*loopI).size(), 3U);
   EXPECT_EQ(getAllSubLoops(*loopJ).size(), 2U);
   EXPECT_EQ(getAllSubLoops(*loopK).size(), 0U);
   EXPECT_EQ(getAllSubLoops(*loopL).size(), 0U);
 
-  liCtx.reset(new LoopInfoContext(loop1, "f"));
-  EXPECT_EQ(getAllSubLoops(*liCtx->li.getLoopsInPreorder()[0]).size(), 0U);
+  setup(loop1, "f");
+  EXPECT_EQ(getAllSubLoops(**li->begin()).size(), 0U);
 }
 
-TEST(KitLoopUtils, getBlocksNotInSubLoops) {
-  std::unique_ptr<LoopInfoContext> liCtx = nullptr;
+TEST_F(KitLoopUtils, getBlocksNotInSubLoops) {
   Loop *loopI = nullptr;
   Loop *loopJ = nullptr;
   Loop *loopK = nullptr;
   Loop *loopL = nullptr;
 
-  liCtx.reset(new LoopInfoContext(loop1, "f"));
-  loopI = liCtx->li.getLoopsInPreorder()[0];
+  setup(loop1, "f");
+  loopI = li->getLoopsInPreorder()[0];
+
   EXPECT_EQ(getBlocksNotInSubLoops(*loopI).size(), 3U);
 
-  liCtx.reset(new LoopInfoContext(loop3_2, "f"));
-  loopI = liCtx->li.getLoopsInPreorder()[0];
+  setup(loop3_2, "f");
+  loopI = li->getLoopsInPreorder()[0];
   loopJ = loopI->getSubLoops()[0];
   loopK = loopJ->getSubLoops()[0];
   loopL = loopJ->getSubLoops()[1];
+
   EXPECT_EQ(getBlocksNotInSubLoops(*loopI).size(), 2U);
   EXPECT_EQ(getBlocksNotInSubLoops(*loopJ).size(), 3U);
   EXPECT_EQ(getBlocksNotInSubLoops(*loopK).size(), 1U);
@@ -194,7 +198,7 @@ TEST(KitLoopUtils, getBlocksNotInSubLoops) {
 //   }
 // }
 //
-constexpr StringRef loop3MixedGPU = R"(
+static constexpr StringRef loop3MixedGPU = R"(
 define void @f(i64 %m, i64 %n, i64 %p, i64 %q) {
 entry:
   %syncreg.i = tail call token @llvm.syncregion.start()
@@ -458,7 +462,16 @@ for.i.end:
 !5 = !{!"tapir.loop.target", i32 4}
 )";
 
-constexpr StringRef loop2 = R"(
+// This consists of two loops of the form
+//
+// forall (i ...) {
+//   ;
+// }
+// forall (i2 ...) {
+//   ;
+// }
+//
+static constexpr StringRef loop2 = R"(
 define void @f(i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
@@ -503,136 +516,117 @@ exit:
 !2 = distinct !{!2, !1}
 )";
 
-TEST(KitLoopUtils, isTapirLoop) {
-  LoopInfoContext liCtx(loop3MixedGPU, "f");
-  LoopInfo &li = liCtx.li;
-  TaskInfo &ti = liCtx.ti;
-
-  Loop *loopI = li.getLoopsInPreorder()[0];
+TEST_F(KitLoopUtils, isTapirLoop) {
+  setup(loop3MixedGPU, "f");
+  Loop *loopI = li->getLoopsInPreorder()[0];
   Loop *loopJ = loopI->getSubLoops()[0];
   Loop *loopK = loopJ->getSubLoops()[0];
   Loop *loopL = loopJ->getSubLoops()[1];
 
-  EXPECT_TRUE(isTapirLoop(*loopI, ti));
-  EXPECT_TRUE(isTapirLoop(*loopJ, ti));
-  EXPECT_FALSE(isTapirLoop(*loopK, ti));
-  EXPECT_TRUE(isTapirLoop(*loopL, ti));
+  EXPECT_TRUE(isTapirLoop(*loopI));
+  EXPECT_TRUE(isTapirLoop(*loopJ));
+  EXPECT_FALSE(isTapirLoop(*loopK));
+  EXPECT_TRUE(isTapirLoop(*loopL));
 }
 
-TEST(KitLoopUtils, isTopLevelTapirLoop) {
-  LoopInfoContext liCtx(loop3MixedGPU, "f");
-  LoopInfo &li = liCtx.li;
-  TaskInfo &ti = liCtx.ti;
-
-  Loop *loopI = li.getLoopsInPreorder()[0];
+TEST_F(KitLoopUtils, isTopLevelTapirLoop) {
+  setup(loop3MixedGPU, "f");
+  Loop *loopI = li->getLoopsInPreorder()[0];
   Loop *loopJ = loopI->getSubLoops()[0];
   Loop *loopK = loopJ->getSubLoops()[0];
   Loop *loopL = loopJ->getSubLoops()[1];
 
-  EXPECT_TRUE(isTopLevelTapirLoop(*loopI, ti));
-  EXPECT_FALSE(isTopLevelTapirLoop(*loopJ, ti));
-  EXPECT_FALSE(isTopLevelTapirLoop(*loopK, ti));
-  EXPECT_FALSE(isTopLevelTapirLoop(*loopL, ti));
+  EXPECT_TRUE(isTopLevelTapirLoop(*loopI));
+  EXPECT_FALSE(isTopLevelTapirLoop(*loopJ));
+  EXPECT_FALSE(isTopLevelTapirLoop(*loopK));
+  EXPECT_FALSE(isTopLevelTapirLoop(*loopL));
 }
 
-TEST(KitLoopUtils, isTapirLoopForGPU) {
-  {
-    LoopInfoContext liCtx(loop3MixedCPU, "f");
-    LoopInfo &li = liCtx.li;
-    TaskInfo &ti = liCtx.ti;
+TEST_F(KitLoopUtils, isTapirLoopForGPU) {
+  Loop *loopI = nullptr;
+  Loop *loopJ = nullptr;
+  Loop *loopK = nullptr;
+  Loop *loopL = nullptr;
 
-    Loop *loopI = li.getLoopsInPreorder()[0];
-    Loop *loopJ = loopI->getSubLoops()[0];
-    Loop *loopK = loopJ->getSubLoops()[0];
-    Loop *loopL = loopJ->getSubLoops()[1];
+  setup(loop3MixedCPU, "f");
+  loopI = li->getLoopsInPreorder()[0];
+  loopJ = loopI->getSubLoops()[0];
+  loopK = loopJ->getSubLoops()[0];
+  loopL = loopJ->getSubLoops()[1];
 
-    EXPECT_FALSE(isTapirLoopForGPU(*loopI, ti));
-    EXPECT_FALSE(isTapirLoopForGPU(*loopJ, ti));
-    EXPECT_FALSE(isTapirLoopForGPU(*loopK, ti));
-    EXPECT_FALSE(isTapirLoopForGPU(*loopL, ti));
-  }
+  EXPECT_FALSE(isTapirLoopForGPU(*loopI));
+  EXPECT_FALSE(isTapirLoopForGPU(*loopJ));
+  EXPECT_FALSE(isTapirLoopForGPU(*loopK));
+  EXPECT_FALSE(isTapirLoopForGPU(*loopL));
 
-  {
-    LoopInfoContext liCtx(loop3MixedGPU, "f");
-    LoopInfo &li = liCtx.li;
-    TaskInfo &ti = liCtx.ti;
+  setup(loop3MixedGPU, "f");
+  loopI = li->getLoopsInPreorder()[0];
+  loopJ = loopI->getSubLoops()[0];
+  loopK = loopJ->getSubLoops()[0];
+  loopL = loopJ->getSubLoops()[1];
 
-    Loop *loopI = li.getLoopsInPreorder()[0];
-    Loop *loopJ = loopI->getSubLoops()[0];
-    Loop *loopK = loopJ->getSubLoops()[0];
-    Loop *loopL = loopJ->getSubLoops()[1];
+  EXPECT_TRUE(isTapirLoopForGPU(*loopI));
+  EXPECT_TRUE(isTapirLoopForGPU(*loopJ));
+  EXPECT_FALSE(isTapirLoopForGPU(*loopK));
+  EXPECT_TRUE(isTapirLoopForGPU(*loopL));
 
-    EXPECT_TRUE(isTapirLoopForGPU(*loopI, ti));
-    EXPECT_TRUE(isTapirLoopForGPU(*loopJ, ti));
-    EXPECT_FALSE(isTapirLoopForGPU(*loopK, ti));
-    EXPECT_TRUE(isTapirLoopForGPU(*loopL, ti));
-  }
+  setup(loop3MixedMixed, "f");
+  loopI = li->getLoopsInPreorder()[0];
+  loopJ = loopI->getSubLoops()[0];
+  loopK = loopJ->getSubLoops()[0];
+  loopL = loopJ->getSubLoops()[1];
 
-  {
-    LoopInfoContext liCtx(loop3MixedMixed, "f");
-    LoopInfo &li = liCtx.li;
-    TaskInfo &ti = liCtx.ti;
-
-    Loop *loopI = li.getLoopsInPreorder()[0];
-    Loop *loopJ = loopI->getSubLoops()[0];
-    Loop *loopK = loopJ->getSubLoops()[0];
-    Loop *loopL = loopJ->getSubLoops()[1];
-
-    EXPECT_FALSE(isTapirLoopForGPU(*loopI, ti));
-    EXPECT_FALSE(isTapirLoopForGPU(*loopJ, ti));
-    EXPECT_FALSE(isTapirLoopForGPU(*loopK, ti));
-    EXPECT_TRUE(isTapirLoopForGPU(*loopL, ti));
-  }
+  EXPECT_FALSE(isTapirLoopForGPU(*loopI));
+  EXPECT_FALSE(isTapirLoopForGPU(*loopJ));
+  EXPECT_FALSE(isTapirLoopForGPU(*loopK));
+  EXPECT_TRUE(isTapirLoopForGPU(*loopL));
 }
 
-TEST(KitLoopUtils, isTopLevelTapirLoopForGPU) {
-  {
-    LoopInfoContext liCtx(loop3MixedGPU, "f");
-    LoopInfo &li = liCtx.li;
-    TaskInfo &ti = liCtx.ti;
+TEST_F(KitLoopUtils, isTopLevelTapirLoopForGPU) {
+  Loop *loopI = nullptr;
+  Loop *loopJ = nullptr;
+  Loop *loopK = nullptr;
+  Loop *loopL = nullptr;
 
-    Loop *loopI = li.getLoopsInPreorder()[0];
-    Loop *loopJ = loopI->getSubLoops()[0];
-    Loop *loopK = loopJ->getSubLoops()[0];
-    Loop *loopL = loopJ->getSubLoops()[1];
+  setup(loop3MixedGPU, "f");
 
-    EXPECT_TRUE(isTopLevelTapirLoopForGPU(*loopI, ti));
-    EXPECT_FALSE(isTopLevelTapirLoopForGPU(*loopJ, ti));
-    EXPECT_FALSE(isTopLevelTapirLoopForGPU(*loopK, ti));
-    EXPECT_FALSE(isTopLevelTapirLoopForGPU(*loopL, ti));
-  }
+  loopI = li->getLoopsInPreorder()[0];
+  loopJ = loopI->getSubLoops()[0];
+  loopK = loopJ->getSubLoops()[0];
+  loopL = loopJ->getSubLoops()[1];
 
-  {
-    LoopInfoContext liCtx(loop3MixedMixed, "f");
-    LoopInfo &li = liCtx.li;
-    TaskInfo &ti = liCtx.ti;
+  EXPECT_TRUE(isTopLevelTapirLoopForGPU(*loopI));
+  EXPECT_FALSE(isTopLevelTapirLoopForGPU(*loopJ));
+  EXPECT_FALSE(isTopLevelTapirLoopForGPU(*loopK));
+  EXPECT_FALSE(isTopLevelTapirLoopForGPU(*loopL));
 
-    Loop *loopI = li.getLoopsInPreorder()[0];
-    Loop *loopJ = loopI->getSubLoops()[0];
-    Loop *loopK = loopJ->getSubLoops()[0];
-    Loop *loopL = loopJ->getSubLoops()[1];
+  setup(loop3MixedMixed, "f");
 
-    EXPECT_FALSE(isTopLevelTapirLoopForGPU(*loopI, ti));
-    EXPECT_FALSE(isTopLevelTapirLoopForGPU(*loopJ, ti));
-    EXPECT_FALSE(isTopLevelTapirLoopForGPU(*loopK, ti));
-    EXPECT_FALSE(isTopLevelTapirLoopForGPU(*loopL, ti));
-  }
+  loopI = li->getLoopsInPreorder()[0];
+  loopJ = loopI->getSubLoops()[0];
+  loopK = loopJ->getSubLoops()[0];
+  loopL = loopJ->getSubLoops()[1];
+
+  EXPECT_FALSE(isTopLevelTapirLoopForGPU(*loopI));
+  EXPECT_FALSE(isTopLevelTapirLoopForGPU(*loopJ));
+  EXPECT_FALSE(isTopLevelTapirLoopForGPU(*loopK));
+  EXPECT_FALSE(isTopLevelTapirLoopForGPU(*loopL));
 }
 
-TEST(KitLoopUtils, getTopLevelTapirLoops) {
-  LoopInfoContext liCtx2(loop2, "f");
-  EXPECT_EQ(getTopLevelTapirLoops(liCtx2.li, liCtx2.ti).size(), 2U);
+TEST_F(KitLoopUtils, getTopLevelTapirLoops) {
+  setup(loop2, "f");
+  EXPECT_EQ(getTopLevelTapirLoops(*li).size(), 2U);
 
-  LoopInfoContext liCtx3(loop3MixedCPU, "f");
-  EXPECT_EQ(getTopLevelTapirLoops(liCtx3.li, liCtx3.ti).size(), 1U);
+  setup(loop3MixedCPU, "f");
+  EXPECT_EQ(getTopLevelTapirLoops(*li).size(), 1U);
 }
 
-TEST(KitLoopUtils, getTapirLoops) {
-  LoopInfoContext liCtx2(loop2, "f");
-  EXPECT_EQ(getTapirLoops(liCtx2.li, liCtx2.ti).size(), 2U);
+TEST_F(KitLoopUtils, getTapirLoops) {
+  setup(loop2, "f");
+  EXPECT_EQ(getTapirLoops(*li).size(), 2U);
 
-  LoopInfoContext liCtx3(loop3MixedCPU, "f");
-  EXPECT_EQ(getTapirLoops(liCtx3.li, liCtx3.ti).size(), 3U);
+  setup(loop3MixedCPU, "f");
+  EXPECT_EQ(getTapirLoops(*li).size(), 3U);
 }
 
 } // namespace

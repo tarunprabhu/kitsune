@@ -27,7 +27,6 @@
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/ScalarEvolution.h"
-#include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/IR/Module.h"
 
 #define DEBUG_TYPE "kit-annotate-prelower"
@@ -39,9 +38,8 @@ using namespace llvm;
 /// perfectly nested tapir loops. This only adds the perfect depth and perfect
 /// level annotations to the appropriate tapir loops and the lowering enabled
 /// annotation to the root.
-static void annotateTapirLoopsForGPU(Loop &root, ScalarEvolution &se,
-                                     TaskInfo &ti) {
-  std::unique_ptr<TapirLoopNest> nest = TapirLoopNest::create(root, se, ti);
+static void annotateTapirLoopsForGPU(Loop &root, ScalarEvolution &se) {
+  std::unique_ptr<TapirLoopNest> nest = TapirLoopNest::create(root, se);
   assert(nest && "Loop must be a tapir loop");
 
   ArrayRef<Loop *> perfectLoops = nest->getPerfectTapirLoops();
@@ -71,13 +69,12 @@ PreservedAnalyses PreLowerAnnotatePass::run(Module &m,
 
     LoopInfo &li = fam.getResult<LoopAnalysis>(f);
     ScalarEvolution &se = fam.getResult<ScalarEvolutionAnalysis>(f);
-    TaskInfo &ti = fam.getResult<TaskAnalysis>(f);
 
     /// Find the subloops that are contained within a tapir loop nest consisting
     /// of loops that are to be run on a GPU. These will be ignored.
     SmallSet<Loop *, 8> ignore;
     for (Loop *loop : li.getLoopsInPreorder())
-      if (isTopLevelTapirLoopForGPU(*loop, ti))
+      if (isTopLevelTapirLoopForGPU(*loop))
         for (Loop *subLoop : getAllSubLoops(*loop))
           ignore.insert(subLoop);
 
@@ -85,9 +82,9 @@ PreservedAnalyses PreLowerAnnotatePass::run(Module &m,
       if (ignore.contains(loop))
         continue;
 
-      if (isTopLevelTapirLoopForGPU(*loop, ti))
-        annotateTapirLoopsForGPU(*loop, se, ti);
-      else if (isTapirLoop(*loop, ti))
+      if (isTopLevelTapirLoopForGPU(*loop))
+        annotateTapirLoopsForGPU(*loop, se);
+      else if (isTapirLoop(*loop))
         addLoweringEnabledAttr(*loop);
     }
   }
