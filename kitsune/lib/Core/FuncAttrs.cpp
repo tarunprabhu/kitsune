@@ -103,7 +103,6 @@ DEFN_ATTR_GENERIC(Function, FuncAttrKind)
 #define GET_FUNC_ATTRS
 #include "kitsune/Core/FuncAttrs.inc"
 
-#define FUNC_ATTR_LOOP(...) DEFN_ATTR_LOOP(Function, __VA_ARGS__)
 #define FUNC_ATTR_0(...) DEFN_ATTR_0(Function, __VA_ARGS__)
 #define FUNC_ATTR_1(...) DEFN_ATTR_1(Function, __VA_ARGS__)
 #define FUNC_ATTR_2(...) DEFN_ATTR_2(Function, __VA_ARGS__)

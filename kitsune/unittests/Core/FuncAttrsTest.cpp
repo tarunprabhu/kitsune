@@ -21,20 +21,11 @@ using namespace llvm;
 
 namespace {
 
-template <typename T, FuncAttrKind Attr> static T get(unsigned idx) {
-  return get_<T>(idx);
-}
+// Override get<>() and verifyAttr<> if needed. See documentation in the base
+// class for details.
+class KitFuncAttrs : public TestAttrsBase<KitFuncAttrs, FuncAttrKind> {};
 
-// In some cases, it is difficult to construct a valid attribute - for instance
-// if the attribute initializer must be valid bitcode. In such cases, we test
-// everything but the verifier. lit tests must be added to ensure that the
-// verification works correctly.
-[[maybe_unused]]
-static constexpr bool verifyAttr(FuncAttrKind attr) {
-  return true;
-}
-
-TEST(KitFuncAttrs, attrName) {
+TEST_F(KitFuncAttrs, attrName) {
 #define FUNC_ATTR(NAME, IRNAME, ...)                                           \
   EXPECT_EQ(getAttrName(FuncAttrKind::NAME), IRNAME);                          \
   EXPECT_TRUE(getAttrName(FuncAttrKind::NAME).starts_with("kit.func."));
@@ -42,7 +33,7 @@ TEST(KitFuncAttrs, attrName) {
 #include "kitsune/Core/FuncAttrs.inc"
 }
 
-TEST(KitFuncAttrs, attrKind) {
+TEST_F(KitFuncAttrs, attrKind) {
   EXPECT_EQ(getFuncAttrKind("keble"), std::nullopt);
 #define FUNC_ATTR(NAME, IRNAME, ...)                                           \
   EXPECT_EQ(getFuncAttrKind(IRNAME), FuncAttrKind::NAME);
@@ -50,16 +41,8 @@ TEST(KitFuncAttrs, attrKind) {
 #include "kitsune/Core/FuncAttrs.inc"
 }
 
-#define DECLS(OBJ)                                                             \
-  LLVMContext ctx;                                                             \
-  Module m("", ctx);                                                           \
-  Type *voidTy = Type::getVoidTy(ctx);                                         \
-  FunctionType *fty = FunctionType::get(voidTy, {}, /*IsVarArg=*/false);       \
-  [[maybe_unused]] Function OBJ =                                              \
-      cast<Function>(m.getOrInsertFunction("f", fty).getCallee());
-
-TEST(KitFuncAttrs, verifyGeneric) {
-  DECLS(*f);
+TEST_F(KitFuncAttrs, verifyGeneric) {
+  DECLS;
 #define FUNC_ATTR_0(NAME, IRNAME, ...)                                         \
   TEST_GENERIC_VERIFY_0(*f, FuncAttrKind, NAME, IRNAME)
 #define FUNC_ATTR(NAME, IRNAME, ...)                                           \
@@ -68,8 +51,8 @@ TEST(KitFuncAttrs, verifyGeneric) {
 #include "kitsune/Core/FuncAttrs.inc"
 }
 
-TEST(KitFuncAttrs, attrsGeneric) {
-  DECLS(*f);
+TEST_F(KitFuncAttrs, attrsGeneric) {
+  DECLS;
 
 #define FUNC_ATTR_0(NAME, ...) TEST_GENERIC_ATTR_0(*f, FuncAttrKind, NAME)
 #define GET_FUNC_ATTRS
@@ -81,79 +64,71 @@ TEST(KitFuncAttrs, attrsGeneric) {
 #include "kitsune/Core/FuncAttrs.inc"
 }
 
-TEST(KitFuncAttrs, attr0) {
-  DECLS(*f);
+TEST_F(KitFuncAttrs, attr0) {
+  DECLS;
 #define FUNC_ATTR_0(...) TEST_ATTR_0(*f, FuncAttrKind, __VA_ARGS__)
 #define GET_FUNC_ATTRS
 #include "kitsune/Core/FuncAttrs.inc"
 }
 
-TEST(KitFuncAttrs, attr1) {
-  DECLS(*f);
+TEST_F(KitFuncAttrs, attr1) {
+  DECLS;
 #define FUNC_ATTR_1(...) TEST_ATTR_1(*f, FuncAttrKind, __VA_ARGS__)
 #define GET_FUNC_ATTRS
 #include "kitsune/Core/FuncAttrs.inc"
 }
 
-TEST(KitFuncAttrs, attr2) {
-  DECLS(*f);
+TEST_F(KitFuncAttrs, attr2) {
+  DECLS;
 #define FUNC_ATTR_2(...) TEST_ATTR_2(*f, FuncAttrKind, __VA_ARGS__)
 #define GET_FUNC_ATTRS
 #include "kitsune/Core/FuncAttrs.inc"
 }
 
-TEST(KitFuncAttrs, attr3) {
-  DECLS(*f);
+TEST_F(KitFuncAttrs, attr3) {
+  DECLS;
 #define FUNC_ATTR_3(...) TEST_ATTR_3(*f, FuncAttrKind, __VA_ARGS__)
 #define GET_FUNC_ATTRS
 #include "kitsune/Core/FuncAttrs.inc"
 }
 
-TEST(KitFuncAttrs, attr4) {
-  DECLS(*f);
+TEST_F(KitFuncAttrs, attr4) {
+  DECLS;
 #define FUNC_ATTR_4(...) TEST_ATTR_4(*f, FuncAttrKind, __VA_ARGS__)
 #define GET_FUNC_ATTRS
 #include "kitsune/Core/FuncAttrs.inc"
 }
 
-TEST(KitFuncAttrs, attr5) {
-  DECLS(*f);
+TEST_F(KitFuncAttrs, attr5) {
+  DECLS;
 #define FUNC_ATTR_5(...) TEST_ATTR_5(*f, FuncAttrKind, __VA_ARGS__)
 #define GET_FUNC_ATTRS
 #include "kitsune/Core/FuncAttrs.inc"
 }
 
-TEST(KitFuncAttrs, attr6) {
-  DECLS(*f);
+TEST_F(KitFuncAttrs, attr6) {
+  DECLS;
 #define FUNC_ATTR_6(...) TEST_ATTR_6(*f, FuncAttrKind, __VA_ARGS__)
 #define GET_FUNC_ATTRS
 #include "kitsune/Core/FuncAttrs.inc"
 }
 
-TEST(KitFuncAttrs, attr7) {
-  DECLS(*f);
+TEST_F(KitFuncAttrs, attr7) {
+  DECLS;
 #define FUNC_ATTR_7(...) TEST_ATTR_7(*f, FuncAttrKind, __VA_ARGS__)
 #define GET_FUNC_ATTRS
 #include "kitsune/Core/FuncAttrs.inc"
 }
 
-TEST(KitFuncAttrs, attr8) {
-  DECLS(*f);
+TEST_F(KitFuncAttrs, attr8) {
+  DECLS;
 #define FUNC_ATTR_8(...) TEST_ATTR_8(*f, FuncAttrKind, __VA_ARGS__)
 #define GET_FUNC_ATTRS
 #include "kitsune/Core/FuncAttrs.inc"
 }
 
-TEST(KitFuncAttrs, attrLoop) {
-  DECLS_LOOP(*f, loopF, loopG);
-#define FUNC_ATTR_LOOP(...)                                                    \
-  TEST_ATTR_LOOP(*f, loopF, loopG, FuncAttrKind, __VA_ARGS__)
-#define GET_FUNC_ATTRS
-#include "kitsune/Core/FuncAttrs.inc"
-}
-
-TEST(KitFuncAttrs, attrRange) {
-  DECLS(*f);
+TEST_F(KitFuncAttrs, attrRange) {
+  DECLS;
   TEST_ATTR_ATTRS(*f)
 }
 

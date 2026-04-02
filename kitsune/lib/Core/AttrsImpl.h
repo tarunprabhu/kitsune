@@ -116,6 +116,9 @@ MDNode *getAttrListWithout(StringRef attrName, MDNode *attrList);
 MDNode *makeRawAttr(LLVMContext &ctx, StringRef attrName,
                     ArrayRef<Metadata *> vals);
 
+/// Create a raw metadata node that will contain the value of an attribute.
+template <typename T> Metadata *makeRawAttrValue(LLVMContext &ctx, T const &v);
+
 /// If the attribute list \p attrList contains an attribute \p attrName, return
 /// the MDNode for that attribute. Otherwise, return nullptr. If found, the
 /// MDNode that is returned will have at least one operand. This will be an
@@ -207,34 +210,6 @@ bool verifyRawAttrValues(KitVerifier &v, const MDNode &attr,
                                                                                \
   void llvm::remove##NAME##Attr(IRELEM &ir) { detail::removeAttr(ir, IRNAME); }
 
-#define DEFN_ATTR_LOOP(IRELEM, NAME, IRNAME, CUSTOMVERIFY)                     \
-  std::optional<MDNode *> llvm::get##NAME##Attr(const IRELEM &ir) {            \
-    if (const MDNode *attr =                                                   \
-            detail::getRawAttr(IRNAME, detail::getRawAttrList(ir)))            \
-      if (Metadata *md = detail::getRawAttrValueMD(*attr, 0))                  \
-        if (auto *mdNode = dyn_cast<MDNode>(md))                               \
-          return mdNode;                                                       \
-    return std::nullopt;                                                       \
-  }                                                                            \
-                                                                               \
-  void llvm::add##NAME##Attr(IRELEM &ir, const Loop &loop) {                   \
-    detail::addAttr(ir, IRNAME, loop.getLoopID());                             \
-  }                                                                            \
-                                                                               \
-  void llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
-    if (const MDNode *attr =                                                   \
-            detail::getRawAttr(IRNAME, detail::getRawAttrList(ir))) {          \
-      if (!detail::verifyRawAttrValueCount(v, *attr, 1))                       \
-        return;                                                                \
-                                                                               \
-      if (!detail::verifyRawAttrValueLoop(v, *attr))                           \
-        return;                                                                \
-                                                                               \
-      if constexpr (CUSTOMVERIFY)                                              \
-        verify##NAME##Attr(v, ir, *cast<MDNode>(attr->getOperand(1)));         \
-    }                                                                          \
-  }
-
 #define DEFN_ATTR_0(IRELEM, NAME, IRNAME, CUSTOMVERIFY)                        \
   void llvm::add##NAME##Attr(IRELEM &ir) { detail::addAttr(ir, IRNAME, {}); }  \
                                                                                \
@@ -258,9 +233,9 @@ bool verifyRawAttrValues(KitVerifier &v, const MDNode &attr,
     return std::nullopt;                                                       \
   }                                                                            \
                                                                                \
-  void llvm::add##NAME##Attr(IRELEM &ir, const TYPE &val) {                    \
+  void llvm::add##NAME##Attr(IRELEM &ir, TYPE const &val) {                    \
     LLVMContext &ctx = getContext(ir);                                         \
-    Metadata *attrVals[] = {toMetadata(val, ctx)};                             \
+    Metadata *attrVals[] = {detail::makeRawAttrValue(ctx, val)};               \
     detail::addAttr(ir, IRNAME, attrVals);                                     \
   }                                                                            \
                                                                                \
@@ -281,9 +256,10 @@ bool verifyRawAttrValues(KitVerifier &v, const MDNode &attr,
 
 #define DEFN_ATTR_2(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
                     ETY1, ENAME1, EN1)                                         \
-  void llvm::add##NAME##Attr(IRELEM &ir, const ETY0 &e0, const ETY1 &e1) {     \
+  void llvm::add##NAME##Attr(IRELEM &ir, ETY0 const &e0, ETY1 const &e1) {     \
     LLVMContext &ctx = getContext(ir);                                         \
-    Metadata *attrVals[] = {toMetadata(e0, ctx), toMetadata(e1, ctx)};         \
+    Metadata *attrVals[] = {detail::makeRawAttrValue(ctx, e0),                 \
+                            detail::makeRawAttrValue(ctx, e1)};                \
     detail::addAttr(ir, IRNAME, attrVals);                                     \
   }                                                                            \
                                                                                \
@@ -305,11 +281,12 @@ bool verifyRawAttrValues(KitVerifier &v, const MDNode &attr,
 
 #define DEFN_ATTR_3(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
                     ETY1, ENAME1, EN1, ETY2, ENAME2, EN2)                      \
-  void llvm::add##NAME##Attr(IRELEM &ir, const ETY0 &e0, const ETY1 &e1,       \
-                             const ETY2 &e2) {                                 \
+  void llvm::add##NAME##Attr(IRELEM &ir, ETY0 const &e0, ETY1 const &e1,       \
+                             ETY2 const &e2) {                                 \
     LLVMContext &ctx = getContext(ir);                                         \
-    Metadata *attrVals[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),          \
-                            toMetadata(e2, ctx)};                              \
+    Metadata *attrVals[] = {detail::makeRawAttrValue(ctx, e0),                 \
+                            detail::makeRawAttrValue(ctx, e1),                 \
+                            detail::makeRawAttrValue(ctx, e2)};                \
     detail::addAttr(ir, IRNAME, attrVals);                                     \
   }                                                                            \
                                                                                \
@@ -332,11 +309,12 @@ bool verifyRawAttrValues(KitVerifier &v, const MDNode &attr,
 
 #define DEFN_ATTR_4(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
                     ETY1, ENAME1, EN1, ETY2, ENAME2, EN2, ETY3, ENAME3, EN3)   \
-  void llvm::add##NAME##Attr(IRELEM &ir, const ETY0 &e0, const ETY1 &e1,       \
-                             const ETY2 &e2, const ETY3 &e3) {                 \
+  void llvm::add##NAME##Attr(IRELEM &ir, ETY0 const &e0, ETY1 const &e1,       \
+                             ETY2 const &e2, ETY3 const &e3) {                 \
     LLVMContext &ctx = getContext(ir);                                         \
-    Metadata *attrVals[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),          \
-                            toMetadata(e2, ctx), toMetadata(e3, ctx)};         \
+    Metadata *attrVals[] = {                                                   \
+        detail::makeRawAttrValue(ctx, e0), detail::makeRawAttrValue(ctx, e1),  \
+        detail::makeRawAttrValue(ctx, e2), detail::makeRawAttrValue(ctx, e3)}; \
     detail::addAttr(ir, IRNAME, attrVals);                                     \
   }                                                                            \
                                                                                \
@@ -361,12 +339,13 @@ bool verifyRawAttrValues(KitVerifier &v, const MDNode &attr,
 #define DEFN_ATTR_5(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
                     ETY1, ENAME1, EN1, ETY2, ENAME2, EN2, ETY3, ENAME3, EN3,   \
                     ETY4, ENAME4, EN4)                                         \
-  void llvm::add##NAME##Attr(IRELEM &ir, const ETY0 &e0, const ETY1 &e1,       \
-                             const ETY2 &e2, const ETY3 &e3, const ETY4 &e4) { \
+  void llvm::add##NAME##Attr(IRELEM &ir, ETY0 const &e0, ETY1 const &e1,       \
+                             ETY2 const &e2, ETY3 const &e3, ETY4 const &e4) { \
     LLVMContext &ctx = getContext(ir);                                         \
-    Metadata *attrVals[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),          \
-                            toMetadata(e2, ctx), toMetadata(e3, ctx),          \
-                            toMetadata(e4, ctx)};                              \
+    Metadata *attrVals[] = {                                                   \
+        detail::makeRawAttrValue(ctx, e0), detail::makeRawAttrValue(ctx, e1),  \
+        detail::makeRawAttrValue(ctx, e2), detail::makeRawAttrValue(ctx, e3),  \
+        detail::makeRawAttrValue(ctx, e4)};                                    \
     detail::addAttr(ir, IRNAME, attrVals);                                     \
   }                                                                            \
                                                                                \
@@ -392,13 +371,14 @@ bool verifyRawAttrValues(KitVerifier &v, const MDNode &attr,
 #define DEFN_ATTR_6(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
                     ETY1, ENAME1, EN1, ETY2, ENAME2, EN2, ETY3, ENAME3, EN3,   \
                     ETY4, ENAME4, EN4, ETY5, ENAME5, EN5)                      \
-  void llvm::add##NAME##Attr(IRELEM &ir, const ETY0 &e0, const ETY1 &e1,       \
-                             const ETY2 &e2, const ETY3 &e3, const ETY4 &e4,   \
-                             const ETY5 &e5) {                                 \
+  void llvm::add##NAME##Attr(IRELEM &ir, ETY0 const &e0, ETY1 const &e1,       \
+                             ETY2 const &e2, ETY3 const &e3, ETY4 const &e4,   \
+                             ETY5 const &e5) {                                 \
     LLVMContext &ctx = getContext(ir);                                         \
-    Metadata *attrVals[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),          \
-                            toMetadata(e2, ctx), toMetadata(e3, ctx),          \
-                            toMetadata(e4, ctx), toMetadata(e5, ctx)};         \
+    Metadata *attrVals[] = {                                                   \
+        detail::makeRawAttrValue(ctx, e0), detail::makeRawAttrValue(ctx, e1),  \
+        detail::makeRawAttrValue(ctx, e2), detail::makeRawAttrValue(ctx, e3),  \
+        detail::makeRawAttrValue(ctx, e4), detail::makeRawAttrValue(ctx, e5)}; \
     detail::addAttr(ir, IRNAME, attrVals);                                     \
   }                                                                            \
                                                                                \
@@ -426,14 +406,15 @@ bool verifyRawAttrValues(KitVerifier &v, const MDNode &attr,
 #define DEFN_ATTR_7(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
                     ETY1, ENAME1, EN1, ETY2, ENAME2, EN2, ETY3, ENAME3, EN3,   \
                     ETY4, ENAME4, EN4, ETY5, ENAME5, EN5, ETY6, ENAME6, EN6)   \
-  void llvm::add##NAME##Attr(IRELEM &ir, const ETY0 &e0, const ETY1 &e1,       \
-                             const ETY2 &e2, const ETY3 &e3, const ETY4 &e4,   \
-                             const ETY5 &e5, const ETY6 &e6) {                 \
+  void llvm::add##NAME##Attr(IRELEM &ir, ETY0 const &e0, ETY1 const &e1,       \
+                             ETY2 const &e2, ETY3 const &e3, ETY4 const &e4,   \
+                             ETY5 const &e5, ETY6 const &e6) {                 \
     LLVMContext &ctx = getContext(ir);                                         \
-    Metadata *attrVals[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),          \
-                            toMetadata(e2, ctx), toMetadata(e3, ctx),          \
-                            toMetadata(e4, ctx), toMetadata(e5, ctx),          \
-                            toMetadata(e6, ctx)};                              \
+    Metadata *attrVals[] = {                                                   \
+        detail::makeRawAttrValue(ctx, e0), detail::makeRawAttrValue(ctx, e1),  \
+        detail::makeRawAttrValue(ctx, e2), detail::makeRawAttrValue(ctx, e3),  \
+        detail::makeRawAttrValue(ctx, e4), detail::makeRawAttrValue(ctx, e5),  \
+        detail::makeRawAttrValue(ctx, e6)};                                    \
     detail::addAttr(ir, IRNAME, attrVals);                                     \
   }                                                                            \
                                                                                \
@@ -462,14 +443,15 @@ bool verifyRawAttrValues(KitVerifier &v, const MDNode &attr,
                     ETY1, ENAME1, EN1, ETY2, ENAME2, EN2, ETY3, ENAME3, EN3,   \
                     ETY4, ENAME4, EN4, ETY5, ENAME5, EN5, ETY6, ENAME6, EN6,   \
                     ETY7, ENAME7, EN7)                                         \
-  void llvm::add##NAME##Attr(IRELEM &ir, const ETY0 &e0, const ETY1 &e1,       \
-                             const ETY2 &e2, const ETY3 &e3, const ETY4 &e4,   \
-                             const ETY5 &e5, const ETY6 &e6, const ETY7 &e7) { \
+  void llvm::add##NAME##Attr(IRELEM &ir, ETY0 const &e0, ETY1 const &e1,       \
+                             ETY2 const &e2, ETY3 const &e3, ETY4 const &e4,   \
+                             ETY5 const &e5, ETY6 const &e6, ETY7 const &e7) { \
     LLVMContext &ctx = getContext(ir);                                         \
-    Metadata *attrVals[] = {toMetadata(e0, ctx), toMetadata(e1, ctx),          \
-                            toMetadata(e2, ctx), toMetadata(e3, ctx),          \
-                            toMetadata(e4, ctx), toMetadata(e5, ctx),          \
-                            toMetadata(e6, ctx), toMetadata(e7, ctx)};         \
+    Metadata *attrVals[] = {                                                   \
+        detail::makeRawAttrValue(ctx, e0), detail::makeRawAttrValue(ctx, e1),  \
+        detail::makeRawAttrValue(ctx, e2), detail::makeRawAttrValue(ctx, e3),  \
+        detail::makeRawAttrValue(ctx, e4), detail::makeRawAttrValue(ctx, e5),  \
+        detail::makeRawAttrValue(ctx, e6), detail::makeRawAttrValue(ctx, e7)}; \
     detail::addAttr(ir, IRNAME, attrVals);                                     \
   }                                                                            \
                                                                                \
@@ -502,7 +484,7 @@ bool verifyRawAttrValues(KitVerifier &v, const MDNode &attr,
     if (const MDNode *attr =                                                   \
             detail::getRawAttr(IRNAME, detail::getRawAttrList(ir)))            \
       if (attr->getNumOperands() == NELEMS + 1)                                \
-        return fromMetadata<ETY>(attr->getOperand(EN + 1));                    \
+        return detail::getRawAttrValue<ETY>(*attr, EN);                        \
     return std::nullopt;                                                       \
   }
 

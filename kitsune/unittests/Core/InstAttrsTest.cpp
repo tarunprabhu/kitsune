@@ -21,20 +21,11 @@ using namespace llvm;
 
 namespace {
 
-template <typename T, InstAttrKind Attr> static T get(unsigned idx) {
-  return ::get_<T>(idx);
-}
+// Override get<>() and verifyAttr<> if needed. See documentation in the base
+// class for details.
+class KitInstAttrs : public TestAttrsBase<KitInstAttrs, InstAttrKind> {};
 
-// In some cases, it is difficult to construct a valid attribute - for instance
-// if the attribute initializer must be valid bitcode. In such cases, we test
-// everything but the verifier. lit tests must be added to ensure that the
-// verification works correctly.
-[[maybe_unused]]
-static constexpr bool verifyAttr(InstAttrKind attr) {
-  return true;
-}
-
-TEST(KitInstAttrs, attrName) {
+TEST_F(KitInstAttrs, attrName) {
 #define INST_ATTR(NAME, IRNAME, ...)                                           \
   EXPECT_EQ(getAttrName(InstAttrKind::NAME), IRNAME);                          \
   EXPECT_TRUE(getAttrName(InstAttrKind::NAME).starts_with("kit.inst."));
@@ -42,7 +33,7 @@ TEST(KitInstAttrs, attrName) {
 #include "kitsune/Core/InstAttrs.inc"
 }
 
-TEST(KitInstAttrs, attrKind) {
+TEST_F(KitInstAttrs, attrKind) {
   EXPECT_EQ(getInstAttrKind("queen's"), std::nullopt);
 #define INST_ATTR(NAME, IRNAME, ...)                                           \
   EXPECT_EQ(getInstAttrKind(IRNAME), InstAttrKind::NAME);
@@ -50,18 +41,8 @@ TEST(KitInstAttrs, attrKind) {
 #include "kitsune/Core/InstAttrs.inc"
 }
 
-#define DECLS(OBJ)                                                             \
-  LLVMContext ctx;                                                             \
-  Type *voidTy = Type::getVoidTy(ctx);                                         \
-  FunctionType *fty = FunctionType::get(voidTy, {}, /*IsVarArg=*/false);       \
-  Module m("", ctx);                                                           \
-  Function *f = cast<Function>(m.getOrInsertFunction("f", fty).getCallee());   \
-  BasicBlock *bb = BasicBlock::Create(ctx, "entry", f);                        \
-  [[maybe_unused]] ReturnInst OBJ =                                            \
-      ReturnInst::Create(ctx, /*retVal=*/nullptr, bb->getFirstInsertionPt());
-
-TEST(KitInstAttrs, verifyGeneric) {
-  DECLS(*inst);
+TEST_F(KitInstAttrs, verifyGeneric) {
+  DECLS;
 #define INST_ATTR_0(NAME, IRNAME, ...)                                         \
   TEST_GENERIC_VERIFY_0(*inst, InstAttrKind, NAME, IRNAME)
 #define INST_ATTR(NAME, IRNAME, ...)                                           \
@@ -70,8 +51,8 @@ TEST(KitInstAttrs, verifyGeneric) {
 #include "kitsune/Core/InstAttrs.inc"
 }
 
-TEST(KitInstAttrs, attrsGeneric) {
-  DECLS(*inst);
+TEST_F(KitInstAttrs, attrsGeneric) {
+  DECLS;
 
 #define INST_ATTR_0(NAME, ...) TEST_GENERIC_ATTR_0(*inst, InstAttrKind, NAME)
 #define GET_INST_ATTRS
@@ -83,79 +64,71 @@ TEST(KitInstAttrs, attrsGeneric) {
 #include "kitsune/Core/InstAttrs.inc"
 }
 
-TEST(KitInstAttrs, attr0) {
-  DECLS(*inst);
+TEST_F(KitInstAttrs, attr0) {
+  DECLS;
 #define INST_ATTR_0(...) TEST_ATTR_0(*inst, InstAttrKind, __VA_ARGS__)
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
 }
 
-TEST(KitInstAttrs, attr1) {
-  DECLS(*inst);
+TEST_F(KitInstAttrs, attr1) {
+  DECLS;
 #define INST_ATTR_1(...) TEST_ATTR_1(*inst, InstAttrKind, __VA_ARGS__)
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
 }
 
-TEST(KitInstAttrs, attr2) {
-  DECLS(*inst);
+TEST_F(KitInstAttrs, attr2) {
+  DECLS;
 #define INST_ATTR_2(...) TEST_ATTR_2(*inst, InstAttrKind, __VA_ARGS__)
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
 }
 
-TEST(KitInstAttrs, attr3) {
-  DECLS(*inst);
+TEST_F(KitInstAttrs, attr3) {
+  DECLS;
 #define INST_ATTR_3(...) TEST_ATTR_3(*inst, InstAttrKind, __VA_ARGS__)
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
 }
 
-TEST(KitInstAttrs, attr4) {
-  DECLS(*inst);
+TEST_F(KitInstAttrs, attr4) {
+  DECLS;
 #define INST_ATTR_4(...) TEST_ATTR_4(*inst, InstAttrKind, __VA_ARGS__)
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
 }
 
-TEST(KitInstAttrs, attr5) {
-  DECLS(*inst);
+TEST_F(KitInstAttrs, attr5) {
+  DECLS;
 #define INST_ATTR_5(...) TEST_ATTR_5(*inst, InstAttrKind, __VA_ARGS__)
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
 }
 
-TEST(KitInstAttrs, attr6) {
-  DECLS(*inst);
+TEST_F(KitInstAttrs, attr6) {
+  DECLS;
 #define INST_ATTR_6(...) TEST_ATTR_6(*inst, InstAttrKind, __VA_ARGS__)
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
 }
 
-TEST(KitInstAttrs, attr7) {
-  DECLS(*inst);
+TEST_F(KitInstAttrs, attr7) {
+  DECLS;
 #define INST_ATTR_7(...) TEST_ATTR_7(*inst, InstAttrKind, __VA_ARGS__)
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
 }
 
-TEST(KitInstAttrs, attr8) {
-  DECLS(*inst);
+TEST_F(KitInstAttrs, attr8) {
+  DECLS;
 #define INST_ATTR_8(...) TEST_ATTR_8(*inst, InstAttrKind, __VA_ARGS__)
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
 }
 
-TEST(KitInstAttrs, attrLoop) {
-  DECLS_LOOP(*inst, loopF, loopG);
-#define INST_ATTR_LOOP(...)                                                    \
-  TEST_ATTR_LOOP(*inst, loopF, loopG, InstAttrKind, __VA_ARGS__)
-#define GET_INST_ATTRS
-#include "kitsune/Core/InstAttrs.inc"
-}
-
-TEST(KitInstAttrs, attrRange) {
-  DECLS(*inst);
+TEST_F(KitInstAttrs, attrRange) {
+  DECLS;
   TEST_ATTR_ATTRS(*inst)
 }
 

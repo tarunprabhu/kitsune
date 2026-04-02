@@ -38,6 +38,19 @@
 
 using namespace llvm;
 
+using MaybeI8 = std::optional<int8_t>;
+using MaybeU8 = std::optional<uint8_t>;
+using MaybeI16 = std::optional<int16_t>;
+using MaybeU16 = std::optional<uint16_t>;
+using MaybeI32 = std::optional<int32_t>;
+using MaybeU32 = std::optional<uint32_t>;
+using MaybeI64 = std::optional<int64_t>;
+using MaybeU64 = std::optional<uint64_t>;
+using MaybeF32 = std::optional<float>;
+using MaybeF64 = std::optional<double>;
+using MaybeStr = std::optional<StringRef>;
+using MaybeMDNode = std::optional<MDNode *>;
+
 // Create a new MDNode that will act as an attribute list with the given
 // attributes.
 static MDNode *makeAttrList(LLVMContext &ctx, ArrayRef<Metadata *> attrs) {
@@ -114,6 +127,14 @@ bool llvm::detail::verifyRawAttrValueAt(KitVerifier &v, const MDNode &attr,
                  toString<T>(), i);
 }
 
+template <>
+bool llvm::detail::verifyRawAttrValueAt(KitVerifier &v, const MDNode &attr,
+                                        unsigned i, const MaybeMDNode &val) {
+  StringRef attrName = cast<MDString>(attr.getOperand(0))->getString();
+  return v.check(val.has_value(), DiagID::ErrAttrNoValueAt, attrName,
+                 "llvm::MDNode*", i);
+}
+
 MDNode *llvm::detail::makeRawAttr(LLVMContext &ctx, StringRef attrName,
                                   ArrayRef<Metadata *> attrVals) {
   SmallVector<Metadata *, 8> ops;
@@ -123,6 +144,16 @@ MDNode *llvm::detail::makeRawAttr(LLVMContext &ctx, StringRef attrName,
   ops.append(attrVals.begin(), attrVals.end());
 
   return MDNode::get(ctx, ops);
+}
+
+template <typename T>
+Metadata *llvm::detail::makeRawAttrValue(LLVMContext &ctx, T const &v) {
+  return toMetadata<T>(v, ctx);
+}
+
+template <>
+Metadata *llvm::detail::makeRawAttrValue(LLVMContext &ctx, MDNode *const &v) {
+  return v;
 }
 
 StringRef llvm::detail::getRawAttrName(const MDNode &attr) {
@@ -143,6 +174,15 @@ template <typename T>
 std::optional<T> llvm::detail::getRawAttrValue(const MDNode &attr, unsigned i) {
   if (Metadata *md = getRawAttrValueMD(attr, i))
     return fromMetadata<T>(md);
+  return std::nullopt;
+}
+
+template <>
+std::optional<MDNode *> llvm::detail::getRawAttrValue(const MDNode &attr,
+                                                      unsigned i) {
+  if (Metadata *md = getRawAttrValueMD(attr, i))
+    if (auto *mdNode = dyn_cast<MDNode>(md))
+      return mdNode;
   return std::nullopt;
 }
 
@@ -206,20 +246,33 @@ MDNode *llvm::detail::getAttrListWithout(StringRef attrName, MDNode *attrList) {
     return makeAttrList(ctx, newAttrs);
 }
 
-using MaybeI8 = std::optional<int8_t>;
-using MaybeU8 = std::optional<uint8_t>;
-using MaybeI16 = std::optional<int16_t>;
-using MaybeU16 = std::optional<uint16_t>;
-using MaybeI32 = std::optional<int32_t>;
-using MaybeU32 = std::optional<uint32_t>;
-using MaybeI64 = std::optional<int64_t>;
-using MaybeU64 = std::optional<uint64_t>;
-using MaybeF32 = std::optional<float>;
-using MaybeF64 = std::optional<double>;
-using MaybeStr = std::optional<StringRef>;
-
 using MaybeTTID = std::optional<TTID>;
 using MaybeSpawnStrategy = std::optional<TapirSpawnStrategy>;
+
+template Metadata *llvm::detail::makeRawAttrValue(LLVMContext &,
+                                                  const int8_t &);
+template Metadata *llvm::detail::makeRawAttrValue(LLVMContext &,
+                                                  const uint8_t &);
+template Metadata *llvm::detail::makeRawAttrValue(LLVMContext &,
+                                                  const int16_t &);
+template Metadata *llvm::detail::makeRawAttrValue(LLVMContext &,
+                                                  const uint16_t &);
+template Metadata *llvm::detail::makeRawAttrValue(LLVMContext &,
+                                                  const int32_t &);
+template Metadata *llvm::detail::makeRawAttrValue(LLVMContext &,
+                                                  const uint32_t &);
+template Metadata *llvm::detail::makeRawAttrValue(LLVMContext &,
+                                                  const int64_t &);
+template Metadata *llvm::detail::makeRawAttrValue(LLVMContext &,
+                                                  const uint64_t &);
+template Metadata *llvm::detail::makeRawAttrValue(LLVMContext &, const float &);
+template Metadata *llvm::detail::makeRawAttrValue(LLVMContext &,
+                                                  const double &);
+template Metadata *llvm::detail::makeRawAttrValue(LLVMContext &,
+                                                  const StringRef &);
+template Metadata *llvm::detail::makeRawAttrValue(LLVMContext &, const TTID &);
+template Metadata *llvm::detail::makeRawAttrValue(LLVMContext &,
+                                                  const TapirSpawnStrategy &);
 
 template MaybeI8 llvm::detail::getRawAttrValue(const MDNode &, unsigned);
 template MaybeU8 llvm::detail::getRawAttrValue(const MDNode &, unsigned);
