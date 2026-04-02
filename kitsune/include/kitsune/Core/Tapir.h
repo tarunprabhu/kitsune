@@ -54,31 +54,30 @@ namespace llvm {
 ///
 enum class TTID : uint32_t {
   /// Pseudo tapir target that does not lower tapir instructions. This is
-  /// primarily useful to generate, LLVM IR containing tapir instructions.
+  /// primarily useful to generate LLVM IR containing tapir instructions.
   Nolo = 0x0,
 
   /// Lower to a straightforward serial implementation.
   Serial = 0x1,
 
-  /// Lower to Kitsune's NVIDIA GPU runtime (cuda).
+  /// Lower to run on NVIDIA GPU's.
   Cuda = 0x2,
 
-  /// Lower to Kitsune's AMD GPU runtime (hip).
+  /// Lower to run on AMD GPU's.
   Hip = 0x4,
 
-  /// Lower to the OpenCilk runtime.
+  /// Lower to use the OpenCilk runtime.
   OpenCilk = 0x8,
 
-  // Lower to kitsune's JIT-enabled, GPU-agnostic runtime.
-  // FIXME: This has been disabled for now, but should be re-enabled shortly.
+  // Lower to a JIT-enabled, GPU-agnostic runtime. The original implementation
+  // of this is largely obsolete, but we may add a new JIT-enabled runtime in
+  // the future. Until then, we reserve the actual ID.
   // GPUABI = 0x10,
 
-  /// Lower to the qthreads runtime.
-  /// FIXME: This is currently disabled and needs to be updated before it can be
-  /// re-enabled.
+  /// Lower to use the Qthreads runtime.
   Qthreads = 0x20,
 
-  /// Lower to Legoin's Realm runtime.
+  /// Lower to use Legion's Realm runtime.
   /// FIXME: This is currently disabled and needs to be updated before it can be
   /// re-enabled.
   Realm = 0x40,
@@ -95,9 +94,8 @@ enum class TTID : uint32_t {
   /// FIXME: Almost certainly obsolete.
   OpenMP = 0x200,
 
-  /// Lowering using POSIX threads (pthreads). On POSIX platforms, these are
-  /// guaranteed to be available, but this may not be the case on non-POSIX
-  /// systems.
+  /// Lowering to use POSIX threads (pthreads). On POSIX platforms, these are
+  /// guaranteed to be available.
   Pthreads = 0x400,
 
   /// Lower using a tapir target that is loaded from tapir target plugin. The
