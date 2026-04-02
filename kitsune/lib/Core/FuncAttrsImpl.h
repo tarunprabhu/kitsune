@@ -60,7 +60,6 @@ void verifyAttr(KitVerifier &v, const Function &f, StringRef attrName);
 #define GET_FUNC_ATTRS
 #include "kitsune/Core/FuncAttrs.inc"
 
-#define FUNC_ATTR_LOOP(...) DECL_ATTR_IMPL_LOOP(Function, __VA_ARGS__)
 #define FUNC_ATTR_0(...) DECL_ATTR_IMPL_0(Function, __VA_ARGS__)
 #define FUNC_ATTR_1(...) DECL_ATTR_IMPL_1(Function, __VA_ARGS__)
 #define FUNC_ATTR_2(...) DECL_ATTR_IMPL_2(Function, __VA_ARGS__)

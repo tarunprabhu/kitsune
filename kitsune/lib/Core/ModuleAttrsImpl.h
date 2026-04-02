@@ -60,7 +60,6 @@ void verifyAttr(KitVerifier &v, const Module &m, StringRef attrName);
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
 
-#define MODULE_ATTR_LOOP(...) DECL_ATTR_IMPL_LOOP(Module, __VA_ARGS__)
 #define MODULE_ATTR_0(...) DECL_ATTR_IMPL_0(Module, __VA_ARGS__)
 #define MODULE_ATTR_1(...) DECL_ATTR_IMPL_1(Module, __VA_ARGS__)
 #define MODULE_ATTR_2(...) DECL_ATTR_IMPL_2(Module, __VA_ARGS__)

@@ -26,8 +26,6 @@ static bool isBasic(const Record &type) {
   return type.isSubClassOf("BasicType");
 }
 
-static bool isLoop(const Record &type) { return type.getName() == "LoopTy"; }
-
 static bool isTuple(const Record &type) {
   return type.isSubClassOf("TupleType");
 }
@@ -60,14 +58,6 @@ StringRef KitAttrHeaderEmitter::getElemMacroArgs() const {
   return "(NAME, IRNAME, ETY, ENAME, EN, NELEMS)";
 }
 
-std::string KitAttrHeaderEmitter::getLoopMacroName() const {
-  return getBaseMacroName() + "_LOOP";
-}
-
-StringRef KitAttrHeaderEmitter::getLoopMacroArgs() const {
-  return "(NAME, IRNAME, CUSTOMVERIFY)";
-}
-
 std::string KitAttrHeaderEmitter::getMacroName(unsigned n) const {
   std::string buf;
   raw_string_ostream os(buf);
@@ -90,8 +80,6 @@ std::string KitAttrHeaderEmitter::getMacroName(const Record &type) const {
       os << 1;
   else if (isTuple(type))
     os << type.getValueAsListOfDefs("Elements").size();
-  else if (isLoop(type))
-    os << "LOOP";
   os.flush();
 
   return buf;
@@ -152,18 +140,6 @@ void KitAttrHeaderEmitter::emitMacroDefn(raw_ostream &os, unsigned n) {
   os << "\n";
 }
 
-void KitAttrHeaderEmitter::emitLoopMacroDefn(raw_ostream &os) {
-  std::string macroName = getLoopMacroName();
-  StringRef macroArgs = getLoopMacroArgs();
-
-  os << "#ifndef " << macroName << "\n";
-  os << "#define " << macroName << macroArgs << " \\\n";
-  os << "    " << getBaseMacroName()
-     << "(NAME, IRNAME, CUSTOMVERIFY, llvm::Loop*)\n";
-  os << "#endif // " << macroName << "\n";
-  os << "\n";
-}
-
 void KitAttrHeaderEmitter::emitAttr(raw_ostream &os, const Record &attr) {
   const Record *type = attr.getValueAsDef("ValueType");
 
@@ -183,8 +159,6 @@ void KitAttrHeaderEmitter::emitAttr(raw_ostream &os, const Record &attr) {
       args.push_back(elemName.str());
       args.push_back(std::to_string(i));
     }
-  } else if (isLoop(*type)) {
-    // Nothing to be added here.
   }
 
   StringRef attrName = attr.getName();
@@ -225,7 +199,6 @@ void KitAttrHeaderEmitter::emitBaseMacroDef(raw_ostream &os) {
 void KitAttrHeaderEmitter::emitMacroDefs(raw_ostream &os) {
   for (unsigned i = 0; i <= MaxTupleElements; ++i)
     emitMacroDefn(os, i);
-  emitLoopMacroDefn(os);
 }
 
 void KitAttrHeaderEmitter::emitAttrs(raw_ostream &os) {
@@ -235,7 +208,6 @@ void KitAttrHeaderEmitter::emitAttrs(raw_ostream &os) {
 }
 
 void KitAttrHeaderEmitter::emitMacroUndefs(raw_ostream &os) {
-  os << "#undef " << getLoopMacroName() << "\n";
   for (unsigned i = MaxTupleElements + 1; i > 0; --i)
     os << "#undef " << getMacroName(i - 1) << "\n";
   os << "\n";
@@ -277,7 +249,12 @@ void KitAttrHeaderEmitter::run(raw_ostream &os) {
         PrintFatalError(attr->getLoc(), "Not enough elements in tuple");
       else if (n > MaxTupleElements)
         PrintFatalError(attr->getLoc(), "Too many elements in tuple");
-    } else if (!isBasic(*type) && !isLoop(*type)) {
+    } else if (isBasic(*type)) {
+      StringRef typeName = type->getValueAsString("Name");
+      if (typeName.ends_with("*") && typeName != "llvm::MDNode*")
+        PrintFatalError(attr->getLoc(),
+                        "Only pointers to raw MDNode's are supported");
+    } else {
       PrintFatalError(attr->getLoc(),
                       "Type of value not a basic or tuple type");
     }

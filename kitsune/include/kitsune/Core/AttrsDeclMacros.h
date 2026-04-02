@@ -24,10 +24,6 @@ class MDNode;
   bool has##NAME##Attr(const IRELEM &ir);                                      \
   void remove##NAME##Attr(IRELEM &ir);
 
-#define DECL_ATTR_LOOP(IRELEM, NAME, IRNAME, CUSTOMVERIFY)                     \
-  std::optional<MDNode *> get##NAME##Attr(const IRELEM &ir);                   \
-  void add##NAME##Attr(IRELEM &ir, const Loop &loop);
-
 #define DECL_ATTR_N(IRELEM, NAME, IRNAME, ETY, ENAME, EN, NELEMS)              \
   std::optional<ETY> get##ENAME##From##NAME##Attr(const IRELEM &);
 
@@ -35,49 +31,49 @@ class MDNode;
   void add##NAME##Attr(IRELEM &ir);
 
 #define DECL_ATTR_1(IRELEM, NAME, IRNAME, CUSTOMVERIFY, TYPE)                  \
-  void add##NAME##Attr(IRELEM &ir, const TYPE &val);                           \
-  std::optional<TYPE> get##NAME##Attr(const IRELEM &f);
+  std::optional<TYPE> get##NAME##Attr(const IRELEM &f);                        \
+  void add##NAME##Attr(IRELEM &ir, TYPE const &val);
 
 #define DECL_ATTR_2(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
                     ETY1, ENAME1, EN1)                                         \
-  void add##NAME##Attr(IRELEM &ir, const ETY0 &e0, const ETY1 &e1);
+  void add##NAME##Attr(IRELEM &ir, ETY0 const &e0, ETY1 const &e1);
 
 #define DECL_ATTR_3(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
                     ETY1, ENAME1, EN1, ETY2, ENAME2, EN2)                      \
-  void add##NAME##Attr(IRELEM &ir, const ETY0 &e0, const ETY1 &e1,             \
-                       const ETY2 &e2);
+  void add##NAME##Attr(IRELEM &ir, ETY0 const &e0, ETY1 const &e1,             \
+                       ETY2 const &e2);
 
 #define DECL_ATTR_4(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
                     ETY1, ENAME1, EN1, ETY2, ENAME2, EN2, ETY3, ENAME3, EN3)   \
-  void add##NAME##Attr(IRELEM &ir, const ETY0 &e0, const ETY1 &e1,             \
-                       const ETY2 &e2, const ETY3 &e3);
+  void add##NAME##Attr(IRELEM &ir, ETY0 const &e0, ETY1 const &e1,             \
+                       ETY2 const &e2, ETY3 const &e3);
 
 #define DECL_ATTR_5(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
                     ETY1, ENAME1, EN1, ETY2, ENAME2, EN2, ETY3, ENAME3, EN3,   \
                     ETY4, ENAME4, EN4)                                         \
-  void add##NAME##Attr(IRELEM &ir, const ETY0 &e0, const ETY1 &e1,             \
-                       const ETY2 &e2, const ETY3 &e3, const ETY4 &e4);
+  void add##NAME##Attr(IRELEM &ir, ETY0 const &e0, ETY1 const &e1,             \
+                       ETY2 const &e2, ETY3 const &e3, ETY4 const &e4);
 
 #define DECL_ATTR_6(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
                     ETY1, ENAME1, EN1, ETY2, ENAME2, EN2, ETY3, ENAME3, EN3,   \
                     ETY4, ENAME4, EN4, ETY5, ENAME5, EN5)                      \
-  void add##NAME##Attr(IRELEM &ir, const ETY0 &e0, const ETY1 &e1,             \
-                       const ETY2 &e2, const ETY3 &e3, const ETY4 &e4,         \
-                       const ETY5 &e5);
+  void add##NAME##Attr(IRELEM &ir, ETY0 const &e0, ETY1 const &e1,             \
+                       ETY2 const &e2, ETY3 const &e3, ETY4 const &e4,         \
+                       ETY5 const &e5);
 
 #define DECL_ATTR_7(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
                     ETY1, ENAME1, EN1, ETY2, ENAME2, EN2, ETY3, ENAME3, EN3,   \
                     ETY4, ENAME4, EN4, ETY5, ENAME5, EN5, ETY6, ENAME6, EN6)   \
-  void add##NAME##Attr(IRELEM &ir, const ETY0 &e0, const ETY1 &e1,             \
-                       const ETY2 &e2, const ETY3 &e3, const ETY4 &e4,         \
-                       const ETY5 &e5, const ETY6 &e6);
+  void add##NAME##Attr(IRELEM &ir, ETY0 const &e0, ETY1 const &e1,             \
+                       ETY2 const &e2, ETY3 const &e3, ETY4 const &e4,         \
+                       ETY5 const &e5, ETY6 const &e6);
 
 #define DECL_ATTR_8(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \
                     ETY1, ENAME1, EN1, ETY2, ENAME2, EN2, ETY3, ENAME3, EN3,   \
                     ETY4, ENAME4, EN4, ETY5, ENAME5, EN5, ETY6, ENAME6, EN6,   \
                     ETY7, ENAME7, EN7)                                         \
-  void add##NAME##Attr(IRELEM &ir, const ETY0 &e0, const ETY1 &e1,             \
-                       const ETY2 &e2, const ETY3 &e3, const ETY4 &e4,         \
-                       const ETY5 &e5, const ETY6 &e6, const ETY7 &e7);
+  void add##NAME##Attr(IRELEM &ir, ETY0 const &e0, ETY1 const &e1,             \
+                       ETY2 const &e2, ETY3 const &e3, ETY4 const &e4,         \
+                       ETY5 const &e5, ETY6 const &e6, ETY7 const &e7);
 
 #endif // KITSUNE_CORE_ATTRS_DECL_MACROS_H

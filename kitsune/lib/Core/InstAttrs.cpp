@@ -104,7 +104,6 @@ DEFN_ATTR_GENERIC(Instruction, InstAttrKind)
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
 
-#define INST_ATTR_LOOP(...) DEFN_ATTR_LOOP(Instruction, __VA_ARGS__)
 #define INST_ATTR_0(...) DEFN_ATTR_0(Instruction, __VA_ARGS__)
 #define INST_ATTR_1(...) DEFN_ATTR_1(Instruction, __VA_ARGS__)
 #define INST_ATTR_2(...) DEFN_ATTR_2(Instruction, __VA_ARGS__)

@@ -68,6 +68,11 @@ def I64Ty : BasicType<"int64_t">;
 def F32Ty : BasicType<"float">;
 def F64Ty : BasicType<"double">;
 
+// A special case for attributes whose value is the ID of a loop. The loop ID is
+// a raw MDNode. A pointer to this will be returned by the getter of an
+// attribute whose value is of this type.
+def LoopIDTy : BasicType<"llvm::MDNode*">;
+
 // We use LLVM's StringRef for all string types.
 def StrTy : BasicType<"llvm::StringRef">;
 
@@ -75,14 +80,6 @@ def StrTy : BasicType<"llvm::StringRef">;
 // here, but others may be defined in the files with specific attributes.
 def TTIDTy : BasicType<"llvm::TTID", True>;
 def SpawnStrategyTy : BasicType<"llvm::TapirSpawnStrategy", True>;
-
-
-//-----------------------------------------------------------------------------
-//
-// A special case for attributes whose value is a loop. This requires special
-// handling, so we create a separate type for it. This cannot be used as an
-// element of a tuple type below. This, again is intentional.
-def LoopTy : Type {}
 
 //-----------------------------------------------------------------------------
 //

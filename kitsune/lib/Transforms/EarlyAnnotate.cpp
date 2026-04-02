@@ -33,7 +33,7 @@ PreservedAnalyses EarlyAnnotatePass::run(Function &f,
         if (li.getLoopFor(bb) == loop)
           for (Instruction &inst : *bb)
             if (!hasSourceLoopAttr(inst))
-              addSourceLoopAttr(inst, *loop);
+              addSourceLoopAttr(inst, loop->getLoopID());
 
   // This only adds metadata that should not invalidate any analyses.
   return PreservedAnalyses::all();

@@ -57,7 +57,6 @@ void removeAttr(Instruction &inst, InstAttrKind attr);
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
 
-#define INST_ATTR_LOOP(...) DECL_ATTR_LOOP(Instruction, __VA_ARGS__)
 #define INST_ATTR_0(...) DECL_ATTR_0(Instruction, __VA_ARGS__)
 #define INST_ATTR_1(...) DECL_ATTR_1(Instruction, __VA_ARGS__)
 #define INST_ATTR_2(...) DECL_ATTR_2(Instruction, __VA_ARGS__)

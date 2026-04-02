@@ -123,12 +123,12 @@ protected:
   /// Get the <BASE_MACRO_ARGS>
   virtual llvm::StringRef getBaseMacroArgs() const;
 
+  /// Get the macro name for an element of a tuple-valued attribute.
   virtual std::string getElemMacroName() const;
 
+  /// Get the arguments required by a macro for an element of tuple-valued
+  /// attribute.
   virtual llvm::StringRef getElemMacroArgs() const;
-
-  virtual std::string getLoopMacroName() const;
-  virtual llvm::StringRef getLoopMacroArgs() const;
 
   /// Get the <MACRO_NAME_*> for the given number of tuple elements.
   virtual std::string getMacroName(unsigned n) const;
@@ -145,9 +145,6 @@ protected:
 
   /// Emit the definition of a macro for the given number of tuple elements.
   virtual void emitMacroDefn(llvm::raw_ostream &os, unsigned n);
-
-  /// Emit the definition of a macro for a single loop.
-  virtual void emitLoopMacroDefn(llvm::raw_ostream &os);
 
   virtual void emitAttrsGuardIn(llvm::raw_ostream &os);
   virtual void emitBaseMacroDef(llvm::raw_ostream &os);
