@@ -12,6 +12,7 @@
 
 #include "kitsune/Core/Verifier.h"
 #include "AttrsImpl.h"
+#include "ArgAttrsImpl.h"
 #include "FuncAttrsImpl.h"
 #include "GVAttrsImpl.h"
 #include "InstAttrsImpl.h"
@@ -29,8 +30,8 @@
 using namespace llvm;
 
 KitVerifier &KitVerifier::verify(const Argument &a) {
-  // Argument attributes have not been implemented. When they are, they should
-  // be verified.
+  for (const MDNode &attr : detail::attrs(a))
+    detail::verifyAttr(*this, a, detail::getRawAttrName(attr));
   return *this;
 }
 

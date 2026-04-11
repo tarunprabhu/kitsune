@@ -60,6 +60,7 @@ depending on what is of interest to you.
     KitFlangOptionsDoc
     KitAttrsDoc
     KitLLVMAttrsDoc
+    KitArgAttrsDoc
     KitFuncAttrsDoc
     KitGVAttrsDoc
     KitInstAttrsDoc

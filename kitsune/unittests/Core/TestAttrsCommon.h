@@ -85,7 +85,7 @@ protected:
 static constexpr llvm::StringRef ll2 = R"(
 @g1 = global i32 zeroinitializer
 
-define void @f1(i64 %n) {
+define void @f1(i64 %n, i64 %a) {
 entry:
   br label %for.i.header
 
@@ -128,7 +128,7 @@ for.i.exit:
   DominatorTree dtf1(*f1), dtf2(*f2);                                          \
   LoopInfo lif1(dtf1), lif2(dtf2);                                             \
                                                                                \
-  a = f1->getArg(0);                                                           \
+  a = f1->getArg(1);                                                           \
   f = f1;                                                                      \
   g = g1;                                                                      \
   inst = inst1;                                                                \
