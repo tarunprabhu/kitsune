@@ -87,15 +87,12 @@ the embedded bitcode is implemented.
 - These global variables are currently named, but the names are not
   significant. In the future, unnamed globals may be used.
 
-* These global variables have the [kit_bc](llvm-attr-kit-bc) attribute
-  indicating that the initializer consists of a serialized device module. It
-  also has the [kit_tt](llvm-attr-kit-tt) attribute whose value is the
-  integer representation of the tapir target that created the module. If the
-  attribute indicates that the global variable was created by the
-  [cuda](tapir-targets-cuda) tapir target, the device module will be compiled
-  for an NVIDIA GPU. If the attribute indicates that the global variable was
-  created by the [hip](tapir-targets-hip) tapir target, the device module will
-  be compiled for an AMD GPU.
+* These globals have the [`kit.gv.bit.code`](gv-attr-bit-code) attribute
+  indicating that the initializer is a serialized device module. The attribute
+  value is the integer representation of the tapir target that created the
+  module. The module in the initializer will eventually be compiled to device
+  code. Depending on the tapir target that created the global, this may be an
+  NVIDIA or AMD GPU.
 
 ```{note}
 **Future changes**: These globals are not added to a specific section, but we
