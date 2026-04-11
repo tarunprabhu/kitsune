@@ -296,7 +296,6 @@ if (KITSUNE_ENABLE_SPHINX)
         index.md
         KitInstructionsDoc.md
         KitIntrinsicsDoc.md
-        KitLLVMAttrsDoc.md
         KitPassesDoc.md
         KitsuneTestSuite.md
         KokkosSupport.md

@@ -34,7 +34,7 @@ which `Function`'s are a subclass). This intentionally does not use the
 function attribute mechanism for two reasons:
 
 * The function attribute mechanism in LLVM only allows string-valued attributes.
-  This would limit our ability to associate other objecs with functions in the
+  This would limit our ability to associate other objects with functions in the
   future if that is determined to be useful.
 
 * Adding function attributes would require changes to be made to core LLVM each
