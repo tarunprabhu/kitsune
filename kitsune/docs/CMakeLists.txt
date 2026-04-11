@@ -231,6 +231,12 @@ if (KITSUNE_ENABLE_SPHINX)
         kitsune-attrs-doc
         kitsune-html-source-dir)
 
+      gen_kit_rst(${HTML_SOURCE_DIR}/KitArgAttrsDoc.rst
+        ${CMAKE_CURRENT_SOURCE_DIR}/KitArgAttrsDoc.td
+        -gen-kit-arg-attr-doc
+        kitsune-arg-attrs-doc
+        kitsune-html-source-dir)
+
       gen_kit_rst(${HTML_SOURCE_DIR}/KitFuncAttrsDoc.rst
         ${CMAKE_CURRENT_SOURCE_DIR}/KitFuncAttrsDoc.td
         -gen-kit-func-attr-doc
@@ -323,6 +329,7 @@ if (KITSUNE_ENABLE_SPHINX)
         kitsune-attrs-doc
         kitsune-clang-options-doc
         kitsune-flang-options-doc
+        kitsune-arg-attrs-doc
         kitsune-func-attrs-doc
         kitsune-gv-attrs-doc
         kitsune-inst-attrs-doc

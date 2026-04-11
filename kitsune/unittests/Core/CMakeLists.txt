@@ -5,6 +5,8 @@ set(LLVM_LINK_COMPONENTS
 )
 
 add_kitsune_unittest_with_input_files(KitCoreTests
+  ArgAttrsTest.cpp
+  ArgUtilsTest.cpp
   AttrsImplTest.cpp
   ConstantUtilsTest.cpp
   DIUtilsTest.cpp
