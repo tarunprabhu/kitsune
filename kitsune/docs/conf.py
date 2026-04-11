@@ -118,7 +118,7 @@ copyright = "2018-%d, Triad National Security, LLC" % date.today().year
 # |version| and |release|, also used in various other places throughout the
 # built documents. These are currently set to zero because we don't use them.
 # Should somebody consider in the future to change them, they need to be updated
-# everytime a new release comes out.
+# each time a new release comes out.
 #
 # The short version.
 # version = '0'

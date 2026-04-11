@@ -87,7 +87,7 @@ private:
   unsigned kokkos : 1;
 
   /// If "Kokkos mode" is enabled, should the initialization of libkokkoscore
-  /// be overrident.
+  /// be overridden.
   unsigned kokkosNoInit : 1;
 
   /// Should loop strip-mining be enabled.

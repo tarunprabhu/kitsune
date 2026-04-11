@@ -506,7 +506,7 @@ void GPUTTLoopBase::emitIndexCalculation(IRBuilder<> &builder, PHINode *iv,
   //
   // The calculation below assumes that iv0.[[D]] == 0.This is enforced earlier
   // in the lowering process and is unlikely to ever change. If this is ever
-  // non-zero, it will likely cause a lot of problems everwhere.
+  // non-zero, it will likely cause a lot of problems everywhere.
   //
   Value *tid = builder.CreateIntrinsic(getThreadIdFn(), {}, {}, n("tid"));
   Value *bid = builder.CreateIntrinsic(getBlockIdFn(), {}, {}, n("bid"));

@@ -36,7 +36,7 @@ namespace {
 ///
 /// Registering the fat binary image (and all the associated components) is
 /// an undocumented portion of the CUDA API. One place to peek for some details
-/// hides in the cuda header files; specifially fatbinary_section.h. This shows
+/// hides in the cuda header files; specifically fatbinary_section.h. This shows
 /// the following struct that we need to have in the host side code.
 ///
 ///    struct fatbinC_Wrapper_t {

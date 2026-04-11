@@ -1,4 +1,4 @@
-; Constant global variabes used in a kernel (or device) function must be in a
+; Constant global variables used in a kernel (or device) function must be in a
 ; specific address space. However, simply setting the address space is not
 ; sufficient since we need to ensure that the change in address space does not
 ; affect the instructions in the body. For instance, if the global is passed to

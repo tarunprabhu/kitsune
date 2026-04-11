@@ -47,7 +47,7 @@
 /// tapir target(s) used. This is here if the code is not compiled with Kitsune,
 /// and simply calls the system's default memory allocator (malloc).
 /// \param bytes The number of bytes to allocate.
-/// \return The pointer ointer to the allocated buffer.
+/// \return The pointer to the allocated buffer.
 EXTERN_C inline void *__attribute__((malloc))
 kitsune_mobile_alloc(size_t bytes) {
   return malloc(bytes);

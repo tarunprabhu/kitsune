@@ -110,7 +110,7 @@ template <typename PassT> static constexpr bool pass_requirable_impl() {
   return false;
 }
 
-// Convience helper to check if a pass is requirable.
+// Convenience helper to check if a pass is requirable.
 template <typename PassT>
 constexpr bool pass_requirable_v = pass_requirable_impl<PassT>();
 

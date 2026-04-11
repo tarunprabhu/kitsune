@@ -1,4 +1,4 @@
-; Check that intrinsics that map to Kitsune's phtreads runtime are lowered
+; Check that intrinsics that map to Kitsune's pthreads runtime are lowered
 ; correctly. If more intrinsics are created, they should be added here to test
 ; basic intrinsic lowering.
 ;

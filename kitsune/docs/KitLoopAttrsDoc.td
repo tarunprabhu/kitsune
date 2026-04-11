@@ -94,7 +94,7 @@ Three attributes have been attached to the loop,
   !3 = !{!"tapir.loop.target", i32 1024}
 
 Here, ``tapir.loop.perfect.depth`` is a valued attribute and therefore, the
-acutal value of the attribute is 3. However ``tapir.loop.target`` is an
+actual value of the attribute is 3. However ``tapir.loop.target`` is an
 enum attribute. In this case, the value is of type ``TTID``, and the integer
 value of 1024 corresponds to ``TTID::Pthreads``.
 

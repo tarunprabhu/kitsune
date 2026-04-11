@@ -2,7 +2,7 @@
 !
 ! FIXME: Fortran support is as yet incomplete. When it is integrated in, we
 ! this should pass, but some changes, especially to the check lines may be
-! requied.
+! required.
 ! XFAIL: *
 !
 ! Check that the embedded module passes in a pass plugin are registered and

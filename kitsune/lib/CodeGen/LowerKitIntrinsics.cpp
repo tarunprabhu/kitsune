@@ -534,7 +534,7 @@ private:
   /// The given call instruction is a call to a kitsune intrinsic. This may
   /// lower it (in some cases, the instruction will not be lowered - for
   /// instance if the primary tapir target is one that does not permit
-  /// lowering). Returns true if the call to the instrinsic was replaced, false
+  /// lowering). Returns true if the call to the intrinsic was replaced, false
   /// otherwise.
   bool lowerIntrinsic(CallInst &call) {
     bool changed = false;
@@ -612,7 +612,7 @@ public:
   }
 };
 
-/// Pass, for the legacy pass manger, that lowers kitsune-specific intrinsics.
+/// Pass, for the legacy pass manager, that lowers kitsune-specific intrinsics.
 class LowerKitIntrinsicsLegacyPass : public ModulePass {
 public:
   LowerKitIntrinsicsLegacyPass() : ModulePass(ID) {

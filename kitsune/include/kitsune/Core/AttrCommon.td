@@ -42,7 +42,7 @@ class Type;
 // must be a builtin type, or an enum defined in the llvm namespace.
 // llvm::StringRef's are treated as special cases and are deemed to be "basic"
 // since there is excellent support for handling them in as both standard C++
-// objects and as LLVM value's - including metadata. Integer types with explicit
+// objects and as LLVM Value's - including metadata. Integer types with explicit
 // bitwidths are strongly preferred over `int`, `long` etc. Floating point types
 // are also allowed, but here, we use `float` and `double` since explicit
 // width types are not provided in C++.
@@ -123,7 +123,7 @@ class AttrBase<Type ValueTypeParam = VoidTy> {
   //                             raw_ostream *os);
   //
   // For attributes that take a single value, this must be as shown below.
-  // TYPE is the type of the attribute value. `v` is the vaue of the attribute.
+  // TYPE is the type of the attribute value. `v` is the value of the attribute.
   //
   //     bool verify##NAME##Attr(const IRElem &ir, const TYPE &ty,
   //                             raw_ostream *os);

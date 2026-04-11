@@ -18,6 +18,7 @@
 
 namespace llvm {
 
+/// \ingroup kitsune
 /// Annotator pass that runs early in the pipeline.
 class EarlyAnnotatePass : public PassInfoMixin<EarlyAnnotatePass> {
 public:
