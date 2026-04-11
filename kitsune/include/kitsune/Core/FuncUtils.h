@@ -29,7 +29,7 @@ class LLVMContext;
 LLVMContext &getContext(const Function &f);
 
 /// Get the name of a function. If the function is unnamed, a string of the form
-/// `@<N>` will be returned. This is how the global would appear in
+/// `@<N>` will be returned. This is how the function name would appear in
 /// human-readable LLVM-IR.
 std::string getName(const Function &f);
 

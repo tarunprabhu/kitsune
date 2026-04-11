@@ -68,7 +68,7 @@ enum class OptznLevel {
   /// Like -O2 but with extra optimizations to reduce code size
   Os,
 
-  /// Like -Os, but is more aggessive when it comes to reducing code size
+  /// Like -Os, but is more aggressive when it comes to reducing code size
   Oz,
 };
 

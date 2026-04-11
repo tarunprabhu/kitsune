@@ -302,7 +302,7 @@ if (NOT LLVM_ENABLE_RTTI)
 endif ()
 
 # Since we have not linked any LLVM libraries, the plugin object will contain
-# undefined symbols. On Darwin, this will raise an error unles we expicitly
+# undefined symbols. On Darwin, this will raise an error unless we explicitly
 # instruct the linker to allow undefined variables. On Linux and *BSD,
 # undefined symbols are allowed by default.
 target_link_options(PrintFunctionNamesPlugin PUBLIC

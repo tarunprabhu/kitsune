@@ -259,7 +259,7 @@ if (NOT LLVM_ENABLE_RTTI)
 endif ()
 
 # Since we have not linked any LLVM libraries, the plugin object will contain
-# undefined symbols. On Darwin, this will raise an error unles we expicitly
+# undefined symbols. On Darwin, this will raise an error unless we explicitly
 # instruct the linker to allow undefined variables. On Linux and *BSD,
 # undefined symbols are allowed by default.
 target_link_options(CustomTT PUBLIC
@@ -356,7 +356,7 @@ Note that even when using `opt`, the command-line options do not change. This is
 not the case with other LLVM plugins, in particular, the
 [pass plugins](WritingPassPlugin.md).
 
-In the examples above, any other contraints imposed by Kitsune have been
+In the examples above, any other constraints imposed by Kitsune have been
 omitted for clarity. For instance, Kitsune's compiler drivers may require
 optimizations to be  enabled when using the `custom` tapir target. In this case,
 at least `-O1` may have to be provided.

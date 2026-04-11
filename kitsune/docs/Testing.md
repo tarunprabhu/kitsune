@@ -382,7 +382,7 @@ exercises a complex path through Kitsune that cannot be reasonably tested in a
 core test.
 ```
 
-[^2]: For code that makes extensive use of floating point arithmetic, the results produced when compiling with Kitsune may not be bitwise-identical to those produced by other compilers. This has to do with the fundamental limitations of floating-point arithemtic and its interaction with compiler optimizations.
+[^2]: For code that makes extensive use of floating point arithmetic, the results produced when compiling with Kitsune may not be bitwise-identical to those produced by other compilers. This has to do with the fundamental limitations of floating-point arithmetic and its interaction with compiler optimizations.
 
 ## Runtime tests
 

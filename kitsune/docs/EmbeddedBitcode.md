@@ -22,7 +22,7 @@ host module. This document describes the design of this part of Kitsune.
 
 <!--
     XXX: The bullet points for the lists here intentionally alternate. It
-    seems ot be the only way to convince sphinx to render this as a loose
+    seems to be the only way to convince sphinx to render this as a loose
     list. Yes, it is utterly ridiculous! There is probably some other stupid
     bug somewhere, but I couldn't be bothered to try and track it down.
 -->
@@ -66,7 +66,7 @@ host module. This document describes the design of this part of Kitsune.
   be the case when compiling for a system containing multiple GPU's with
   different architectures that are intended to be used simultaneously.
 
-[^1]: In principle, more than one optional embedded module would have to be supported since we may be compling for a system containing multiple GPU's with different architectures.
+[^1]: In principle, more than one optional embedded module would have to be supported since we may be compiling for a system containing multiple GPU's with different architectures.
 
 ## Embedded Bitcode Design
 

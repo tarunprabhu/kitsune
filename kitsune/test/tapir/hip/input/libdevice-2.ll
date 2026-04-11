@@ -2,7 +2,7 @@
 ;
 ; @__ocml_fmuladd_f32 is not defined here and any attempt to use LLVM tools on
 ; this will fail the verifier. This is intention because this is intended to
-; test that when linking hte libdevice bitcode into the kernel module, the LLVM
+; test that when linking the libdevice bitcode into the kernel module, the LLVM
 ; linker object is driven correctly.
 ;
 ; ------------------------------------------------------------------------------

@@ -7,7 +7,7 @@
 ; memory operations and the number of floating point operations. We only check
 ; for these since this particular kernel has been crafted such that those values
 ; can be computed easily. If we change the kernel properties that are computed,
-; this test, and the type of the global variable will have to be udpated.
+; this test, and the type of the global variable will have to be updated.
 ;
 ; RUN: opt --tapir=hip -passes='loop-spawning,kit-kernel-properties' -S %s \
 ; RUN:     | FileCheck %s

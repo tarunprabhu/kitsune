@@ -78,7 +78,7 @@ Kitsune-specific, but is used, perhaps exclusively, in Kitsune's documentation.
 : A [pass](glossary-pass) that traverses the callgraph of a
   [module](glossary-module) from the bottom-up (callees before callers).
   These are typically analysis passes, but they need not be. They must also
-  satsify the criteria enumerated
+  satisfy the criteria enumerated
   [here](https://llvm.org/docs/WritingAnLLVMPass.html#the-callgraphsccpass-class).
   In most cases, a [function pass](glossary-function-pass) should probably be
   preferred over writing a CallGraphSCC pass.
