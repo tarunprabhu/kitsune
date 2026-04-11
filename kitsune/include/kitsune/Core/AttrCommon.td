@@ -59,10 +59,10 @@ class BasicType<string NameParam, Bool IsEnumParam = False> : Type {
 def VoidTy : BasicType<"void">;
 
 // Builtin integer types.
-def I8Ty : BasicType<"int8_t">;
-def I16Ty : BasicType<"int16_t">;
-def I32Ty : BasicType<"int32_t">;
-def I64Ty : BasicType<"int64_t">;
+def U8Ty : BasicType<"uint8_t">;
+def U16Ty : BasicType<"uint16_t">;
+def U32Ty : BasicType<"uint32_t">;
+def U64Ty : BasicType<"uint64_t">;
 
 // Floating point types.
 def F32Ty : BasicType<"float">;

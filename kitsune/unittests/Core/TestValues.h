@@ -31,9 +31,7 @@ T get(unsigned idx) {
   return pool[idx % 2];
 }
 
-template <typename T,
-          std::enable_if_t<
-              std::is_same_v<T, int8_t> || std::is_same_v<T, uint8_t>, int> = 0>
+template <typename T, std::enable_if_t<std::is_same_v<T, uint8_t>, int> = 0>
 T get(unsigned idx) {
   static constexpr T pool[] = {
       2, 13, 73, 167, 179, 181, 199, 211,
@@ -41,9 +39,7 @@ T get(unsigned idx) {
   return pool[idx % (sizeof(pool) / sizeof(T))];
 }
 
-template <typename T, std::enable_if_t<std::is_same_v<T, int16_t> ||
-                                           std::is_same_v<T, uint16_t>,
-                                       int> = 0>
+template <typename T, std::enable_if_t<std::is_same_v<T, uint16_t>, int> = 0>
 T get(unsigned idx) {
   static constexpr T pool[] = {
       373, 1103, 4409, 7793, 11939, 18253, 21169, 31219,
@@ -51,9 +47,7 @@ T get(unsigned idx) {
   return pool[idx % (sizeof(pool) / sizeof(T))];
 }
 
-template <typename T, std::enable_if_t<std::is_same_v<T, int32_t> ||
-                                           std::is_same_v<T, uint32_t>,
-                                       int> = 0>
+template <typename T, std::enable_if_t<std::is_same_v<T, uint32_t>, int> = 0>
 T get(unsigned idx) {
   static constexpr T pool[] = {
       63949, 65713, 69313, 73009, 76801, 84673, 106033, 108301,
@@ -61,9 +55,7 @@ T get(unsigned idx) {
   return pool[idx % (sizeof(pool) / sizeof(T))];
 }
 
-template <typename T, std::enable_if_t<std::is_same_v<T, int64_t> ||
-                                           std::is_same_v<T, uint64_t>,
-                                       int> = 0>
+template <typename T, std::enable_if_t<std::is_same_v<T, uint64_t>, int> = 0>
 T get(unsigned idx) {
   static constexpr T pool[] = {
       17179869143L,  34359738319L,  68719476713L,   137438953403L,

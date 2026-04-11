@@ -32,7 +32,7 @@ public:
   }
 
   template <>
-  int32_t get<int32_t, LoopAttrKind::ThreadsPerBlock>(unsigned idx) {
+  uint32_t get<uint32_t, LoopAttrKind::ThreadsPerBlock>(unsigned idx) {
     static constexpr int32_t pool[] = {0, 4, 16, 64, 128, 256, 512, 1024};
     return pool[idx % (sizeof(pool) / sizeof(int32_t))];
   }

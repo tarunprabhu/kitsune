@@ -81,7 +81,7 @@ tapir targets.
 // attribute in OpenCilk. We may change this in the future to be more consistent
 // with the other attribute names, but that would require changes to most tests
 // in llvm/lib/Transforms/Tapir.
-def Grainsize : LoopAttr<I32Ty> {
+def Grainsize : LoopAttr<U32Ty> {
   let Documentation = [{
 Certain tapir targets may launch one task per iteration of a parallel loop.
 The overhead of these task launches and syncs can overwhelm any gains obtained
@@ -118,7 +118,7 @@ lowering a parent tapir loop that is passed to a tapir target.
 }];
 }
 
-def PerfectDepth : LoopAttr<I32Ty> {
+def PerfectDepth : LoopAttr<U32Ty> {
   let Documentation = [{
 The value of the perfect depth attribute indicates the level of the deepest
 tapir loop in a tapir loop nest that is perfectly nested relative to the root
@@ -166,7 +166,7 @@ to the root which is why the perfect depth is also 2.
 }];
 }
 
-def PerfectLevel : LoopAttr<I32Ty> {
+def PerfectLevel : LoopAttr<U32Ty> {
   let Documentation = [{
 The value of the perfect level attribute indicates the level of a tapir loop in
 a perfect tapir loop nest.
@@ -229,7 +229,7 @@ present on all tapir loops.
 }];
 }
 
-def ThreadsPerBlock : LoopAttr<I32Ty> {
+def ThreadsPerBlock : LoopAttr<U32Ty> {
   let HasCustomVerifier = True;
   let Documentation = [{
 If this attribute is present on a tapir loop, its value will be the number of
