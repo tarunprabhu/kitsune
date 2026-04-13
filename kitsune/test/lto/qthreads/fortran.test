@@ -13,38 +13,42 @@
 # RUN:     | FileCheck %s
 #
 # CHECK: define {{.*}}void @_Z6vecadd{{[^(]+}}(
-# CHECK-SAME: ptr addrspace(67) writeonly %[[C:[^,]+]],
-# CHECK-SAME: ptr addrspace(67) readonly %[[A:[^,]+]],
-# CHECK-SAME: ptr addrspace(67) readonly %[[B:[^,]+]],
-# CHECK-SAME: i64 {{.*}}%[[N:[^,]+]])
-# CHECK: %[[PACK:.+]] = alloca
-# CHECK: store ptr addrspace(67) %[[A]], ptr %[[PACK]]
-# CHECK: %[[PACK1:.+]] = getelementptr {{.*}}i8, ptr %[[PACK]]
-# CHECK: store ptr addrspace(67) %[[B]], ptr %[[PACK1]]
-# CHECK: %[[PACK2:.+]] = getelementptr {{.*}}i8, ptr %[[PACK]]
-# CHECK: store ptr addrspace(67) %[[C]], ptr %[[PACK2]]
-# CHECK: %[[CTX:.+]] = call ptr @llvm.kit.async.launch.threads(
-# CHECK-SANE: i32 1024,
-# CHECK-SAME: ptr @[[OUTLINED:_Z6vecadd[^,]+]],
+# CHECK-SAME: ptr {{[^%]*}}%[[C:[^,]+]],
+# CHECK-SAME: ptr {{[^%]*}}%[[A:[^,]+]],
+# CHECK-SAME: ptr {{[^%]*}}%[[B:[^,]+]],
+# CHECK-SAME: i64 {{[^%]*}}%[[N:[^,]+]])
+# CHECK: %[[PACK:.+]] = alloca {{[{]}}
+# CHECK-SAME: ptr addrspace(67)
+# CHECK-SAME: ptr addrspace(67)
+# CHECK-SAME: ptr addrspace(67)
+# CHECK-SAME: {{[}]}}
+# CHECK: %[[ARGA:[0-9]+]] = getelementptr {{.*}}, ptr %[[PACK]]
+# CHECK-NEXT: store ptr {{.*}}%[[A]], ptr %[[ARGA]]
+# CHECK-NEXT: %[[ARGB:[0-9]+]] = getelementptr {{.*}}, ptr %[[PACK]]
+# CHECK-NEXT: store ptr {{.*}}%[[B]], ptr %[[ARGB]]
+# CHECK-NEXT: %[[ARGC:[0-9]+]] = getelementptr {{.*}}, ptr %[[PACK]]
+# CHECK-NEXT: store ptr {{.*}}%[[C]], ptr %[[ARGC]]
+# CHECK: call void @llvm.kit.launch.threads(
+# CHECK-SAME: i32 32,
+# CHECK-SAME: ptr @[[OUTLINED:[^,]+]],
 # CHECK-SAME: i64 0,
 # CHECK-SAME: i64 %[[N]],
 # CHECK-SAME: i64 0,
 # CHECK-SAME: ptr %[[PACK]])
-# CHECK: call void @llvm.kit.sync.threads(i32 1024, ptr %[[CTX]])
 # CHECK: ret void
 #
-# CHECK: define internal fastcc void @[[OUTLINED]](
+# CHECK: define internal fastcc void @[[OUTLINED:_Z6vecaddN7kitsune10mobile_ptrIdEES1_S1_m.outline_.ls1]](
 # CHECK-SAME: i64 %[[START:[^,]+]],
 # CHECK-SAME: i64 %[[END:[^,]+]],
-# CHECK-SAME: i64 %[[GRAINSIZE:[^,]+]],
 # CHECK-SAME: ptr {{.*}}%[[ARGS:[^)]+]])
-# CHECK: %[[ARGB:.+]] = getelementptr i8, ptr %[[ARGS]], i64 8
-# CHECK: %[[ARGC:.+]] = getelementptr i8, ptr %[[ARGS]], i64 16
 # CHECK: br label %[[BODY:.+]]
-# CHECK: [[BODY:.+]]:
-# CHECK: %[[I:.+]] = phi i64
-# CHECK: %[[PTRA:.+]] = load ptr addrspace(67), ptr %[[ARGS]]
+# CHECK: [[BODY]]:
+# CHECK: %[[I:[0-9]+]] = phi i64
+# CHECK: %[[ARGA:.+]] = getelementptr {{.*}}, ptr %[[ARGS]], i32 0, i32 0
+# CHECK: %[[PTRA:.+]] = load ptr addrspace(67), ptr %[[ARGA]]
+# CHECK: %[[ARGB:.+]] = getelementptr {{.*}}, ptr %[[ARGS]], i32 0, i32 1
 # CHECK: %[[PTRB:.+]] = load ptr addrspace(67), ptr %[[ARGB]]
+# CHECK: %[[ARGC:.+]] = getelementptr {{.*}}, ptr %[[ARGS]], i32 0, i32 2
 # CHECK: %[[PTRC:.+]] = load ptr addrspace(67), ptr %[[ARGC]]
 # CHECK: %[[IDXA:.+]] = {{.*}}call
 # CHECK: %[[VA:.+]] = load double, ptr %[[IDXA]]

@@ -38,7 +38,6 @@
 # LOWERED-SAME: ptr addrspace(67)
 # LOWERED-SAME: ptr addrspace(67)
 # LOWERED-SAME: {{[}]}}
-# LOWERED: %[[GS:[0-9]+]] = call i64 @llvm.tapir.loop.grainsize
 # LOWERED: %[[ARGA:[0-9]+]] = getelementptr {{.*}}, ptr %[[PACK]]
 # LOWERED: store ptr {{.*}}%[[A]], ptr %[[ARGA]]
 # LOWERED: %[[ARGB:[0-9]+]] = getelementptr {{.*}}, ptr %[[PACK]]
@@ -47,17 +46,16 @@
 # LOWERED: store ptr {{.*}}%[[C]], ptr %[[ARGC]]
 # LOWERED: call void @llvm.kit.launch.threads(
 # LOWERED-SANE: i32 32,
-# LOWERED-SAME: ptr @[[WRAPPER:_Z6vecadd[^,]+]],
+# LOWERED-SAME: ptr @[[OUTLINED:_Z6vecadd[^,]+]],
 # LOWERED-SAME: i64 0,
 # LOWERED-SAME: i64 %[[N]],
-# LOWERED-SAME: i64 %[[GS]],
+# LOWERED-SAME: i64 0,
 # LOWERED-SAME: ptr %[[PACK]])
 # LOWERED: ret void
 #
 # LOWERED: define internal fastcc void @[[OUTLINED:_Z6vecaddN7kitsune10mobile_ptrIdEES1_S1_m.outline_.ls1]](
 # LOWERED-SAME: i64 %[[START:[^,]+]],
 # LOWERED-SAME: i64 %[[END:[^,]+]],
-# LOWERED-SAME: i64 %[[GRAINSIZE:[^,]+]],
 # LOWERED-SAME: ptr {{.*}}%[[ARGS:[^)]+]])
 # LOWERED: br label %[[BODY:.+]]
 # LOWERED: [[BODY]]:
@@ -80,14 +78,3 @@
 # LOWERED: br i1 %[[ICMP]], label %[[EXIT:.+]], label %[[BODY]]
 # LOWERED: [[EXIT]]:
 # LOWERED: ret void
-#
-# LOWERED: define internal fastcc void @[[WRAPPER]](
-# LOWERED-SAME: i64 %[[START:[^,]+]],
-# LOWERED-SAME: i64 %[[END:[^,]+]],
-# LOWERED-SAME: ptr {{.*}}%[[ARGS:[^)]+]])
-# LOWERED-NEXT: call fastcc {{.*}}void @[[OUTLINED]](
-# LOWERED-SAME: i64 %[[START]],
-# LOWERED-SAME: i64 %[[END]],
-# LOWERED-SAME: i64 0,
-# LOWERED-SAME: ptr %[[ARGS]])
-# LOWERED-NEXT: ret void

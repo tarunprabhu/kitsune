@@ -18,8 +18,7 @@
 # CHECK-SAME: ptr addrspace(67)
 # CHECK-SAME: ptr addrspace(67)
 # CHECK-SAME: {{[}]}}
-# CHECK: %[[GS:[0-9]+]] = call i64 @llvm.tapir.loop.grainsize
-# CHECK-NEXT: %[[ARGA:[0-9]+]] = getelementptr {{.*}}, ptr %[[PACK]]
+# CHECK: %[[ARGA:[0-9]+]] = getelementptr {{.*}}, ptr %[[PACK]]
 # CHECK-NEXT: store ptr {{.*}}%[[A]], ptr %[[ARGA]]
 # CHECK-NEXT: %[[ARGB:[0-9]+]] = getelementptr {{.*}}, ptr %[[PACK]]
 # CHECK-NEXT: store ptr {{.*}}%[[B]], ptr %[[ARGB]]
@@ -27,17 +26,16 @@
 # CHECK-NEXT: store ptr {{.*}}%[[C]], ptr %[[ARGC]]
 # CHECK: call void @llvm.kit.launch.threads(
 # CHECK-SAME: i32 32,
-# CHECK-SAME: ptr @[[WRAPPER:[^,]+]],
+# CHECK-SAME: ptr @[[OUTLINED:[^,]+]],
 # CHECK-SAME: i64 0,
 # CHECK-SAME: i64 %[[N]],
-# CHECK-SAME: i64 %[[GS]],
+# CHECK-SAME: i64 0,
 # CHECK-SAME: ptr %[[PACK]])
 # CHECK: ret void
 #
 # CHECK: define internal fastcc void @[[OUTLINED:_Z6vecaddN7kitsune10mobile_ptrIdEES1_S1_m.outline_.ls1]](
 # CHECK-SAME: i64 %[[START:[^,]+]],
 # CHECK-SAME: i64 %[[END:[^,]+]],
-# CHECK-SAME: i64 %[[GRAINSIZE:[^,]+]],
 # CHECK-SAME: ptr {{.*}}%[[ARGS:[^)]+]])
 # CHECK: br label %[[BODY:.+]]
 # CHECK: [[BODY]]:
@@ -60,15 +58,4 @@
 # CHECK: br i1 %[[ICMP]], label %[[EXIT:.+]], label %[[BODY]]
 # CHECK: [[EXIT]]:
 # CHECK: ret void
-#
-# CHECK: define internal fastcc void @[[WRAPPER]](
-# CHECK-SAME: i64 %[[START:[^,]+]],
-# CHECK-SAME: i64 %[[END:[^,]+]],
-# CHECK-SAME: ptr {{.*}}%[[ARGS:[^)]+]])
-# CHECK-NEXT: call fastcc {{.*}}void @[[OUTLINED]](
-# CHECK-SAME: i64 %[[START]],
-# CHECK-SAME: i64 %[[END]],
-# CHECK-SAME: i64 0,
-# CHECK-SAME: ptr %[[ARGS]])
-# CHECK-NEXT: ret void
 
