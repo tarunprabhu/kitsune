@@ -2,6 +2,7 @@ set(SOURCES
   GPUTTCommon.cpp
   GPUTTLoop.cpp
   OpenMPTT.cpp
+  PthreadsTT.cpp
   SerialTT.cpp
   TapirTargets.cpp
 )
@@ -12,10 +13,6 @@ endif ()
 
 if (KITSUNE_HIP_ENABLED)
   list(APPEND SOURCES HipABI.cpp)
-endif ()
-
-if (KITSUNE_PTHREADS_ENABLED)
-  list(APPEND SOURCES PthreadsTT.cpp)
 endif ()
 
 if (KITSUNE_QTHREADS_ENABLED)

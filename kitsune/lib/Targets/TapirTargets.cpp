@@ -16,6 +16,8 @@
 #include "kitsune/Support/Diagnostics.h"
 #include "kitsune/Support/ErrorHandling.h"
 #include "kitsune/Targets/OpenMPTT.h"
+#include "kitsune/Targets/PthreadsTT.h"
+#include "kitsune/Targets/SerialTT.h"
 
 #if KITSUNE_CUDA_ENABLED
 #include "kitsune/Targets/CudaABI.h"
@@ -37,20 +39,12 @@
 #include "llvm/Transforms/Tapir/OpenCilkABI.h"
 #endif
 
-#if KITSUNE_PTHREADS_ENABLED
-#include "kitsune/Targets/PthreadsTT.h"
-#endif
-
 #if KITSUNE_QTHREADS_ENABLED
 #include "kitsune/Targets/QthreadsTT.h"
 #endif
 
 #if KITSNUE_REALM_ENABLED
 #include "kitsune/Targets/RealmABI.h"
-#endif
-
-#if KITSUNE_SERIAL_ENABLED
-#include "kitsune/Targets/SerialTT.h"
 #endif
 
 using namespace llvm;
@@ -122,11 +116,7 @@ static std::unique_ptr<TapirTarget> makeOpenMPTT(Module &m,
 
 static std::unique_ptr<TapirTarget> makePthreadsTT(Module &m,
                                                    const TTOptions &tto) {
-#if KITSUNE_PTHREADS_ENABLED
   return std::make_unique<PthreadsTT>(m, tto);
-#else
-  fatalTTNotEnabled(TTID::Pthreads);
-#endif
 }
 
 static std::unique_ptr<TapirTarget> makeQthreadsTT(Module &m,
@@ -149,11 +139,7 @@ static std::unique_ptr<TapirTarget> makeRealmTT(Module &m,
 
 static std::unique_ptr<TapirTarget> makeSerialTT(Module &m,
                                                  const TTOptions &tto) {
-#if KITSUNE_SERIAL_ENABLED
   return std::make_unique<SerialTT>(m, tto);
-#else
-  fatalTTNotEnabled(TTID::Serial);
-#endif
 }
 
 std::unique_ptr<TapirTarget> llvm::makeTT(TTID tt, Module &m,
