@@ -36,8 +36,16 @@ KitVerifier &KitVerifier::verify(const Argument &a) {
 }
 
 KitVerifier &KitVerifier::verify(const Function &f) {
+  for (const MDNode &attr : detail::attrs(f))
+    detail::verifyAttr(*this, f, detail::getRawAttrName(attr));
+
   for (const Argument &a : f.args())
     verify(a);
+
+  // Functions without a body may have attributes that must be verified. The
+  // same for the arguments. But don't bother with anything else.
+  if (!f.size())
+    return *this;
 
   for (const_inst_iterator i = inst_begin(f), e = inst_end(f); i != e; ++i)
     verify(*i);
@@ -75,8 +83,7 @@ KitVerifier &KitVerifier::verify(const Instruction &inst) {
 
 KitVerifier &KitVerifier::verify(const Module &m) {
   for (const Function &f : m.functions())
-    if (f.size())
-      verify(f);
+    verify(f);
 
   for (const GlobalAlias &g : m.aliases())
     verify(g);
