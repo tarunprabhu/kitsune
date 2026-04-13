@@ -133,12 +133,10 @@ static void wrapper(int32_t *globalTID, int32_t *localTID, KitOpenMPThrdFn f,
                            &lastIter, &lower, &upper, &stride, /*incr=*/1,
                            /*chunk=*/1);
 
-  __kitrt_message(LABEL, "Bounds for thread [%d,%d] => [%ld,%ld)",
+  __kitrt_message(LABEL, "Running on thread [%d,%d]: [%ld, %ld)",
                   *globalTID, *localTID, lower, upper + 1);
   if (lower <= upper)
     f(lower, upper + 1, grainSize, args);
-  __kitrt_message(LABEL, "Done on thread [%d,%d]", *globalTID, *localTID);
-
   __kmpc_for_static_fini(&staticLoopLoc, *globalTID);
 }
 
@@ -153,13 +151,11 @@ static void wrapper(int32_t *globalTID, int32_t *localTID, KitOpenMPThrdFn f,
 /// \param args Pointer to the struct containing data to be passed to \p f
 extern "C" void __kitomp_launch(KitOpenMPThrdFn f, int64_t start, int64_t end,
                                 int64_t grainSize, void *args) {
-  __kitrt_message(LABEL, "Launching threads");
-  __kitrt_message(LABEL, "Iteration range: [%ld, %ld)", start, end);
-
+  __kitrt_message(LABEL, "Launching multithreaded loop: [%ld, %ld)", start,
+                  end);
   __kmpc_fork_call(&staticLoopLoc, 5, (kmpc_micro)&wrapper, f, start, end,
                    grainSize, args);
-
-  __kitrt_message(LABEL, "Joined threads");
+  __kitrt_message(LABEL, "Finished multithreaded loop");
 }
 
 /// Initialize kitsune's OpenMP runtime as well as the actual OpenMP runtime.

@@ -80,15 +80,15 @@ using KitQthrThrdFn = void (*)(const unsigned long start,
 /// \param args A struct containing data to be passed to \p f
 extern "C" void __kitqthr_launch(KitQthrThrdFn f, int64_t start, int64_t end,
                                  int64_t grainSize, void *args) {
-  __kitrt_message(LABEL, "Launching threads");
-  __kitrt_message(LABEL, "Iteration range: [%ld, %ld)", start, end);
+  __kitrt_message(LABEL, "Launching multithreaded loop: [%ld, %ld)", start,
+                  end);
 
   // TODO: In some cases, it may be beneficial to use qt_loop_balance() here
   // instead of qt_loop_balance_simple. We should run some tests to see if this
   // is ever the case.
   qt_loop_balance_simple(start, end, f, args);
 
-  __kitrt_message(LABEL, "Joined threads");
+  __kitrt_message(LABEL, "Finished multithreaded loop");
 }
 
 /// Initialize kitsune's qthreads runtime as well as the actual qthreads
@@ -99,7 +99,9 @@ extern "C" void __kitqthr_initialize(void) {
   __kitrt_initialize();
   __kitrt_message(LABEL, "Initializing Kitsune qthreads runtime");
 
+  __kitrt_message(LABEL, "Initializing Qthreads runtime");
   qthread_initialize();
+  __kitrt_message(LABEL, "Initialized Qthreads runtime");
 
   __kitrt_message(LABEL, "Number of shepherds = %d", qthread_num_shepherds());
   __kitrt_message(LABEL, "Number of workers = %d", qthread_num_workers());
@@ -110,7 +112,9 @@ extern "C" void __kitqthr_initialize(void) {
 extern "C" void __kitqthr_finalize(void) {
   __kitrt_message(LABEL, "Finalizing Kitsune qthreads runtime");
 
+  __kitrt_message(LABEL, "Finalizing Qthreads runtime");
   qthread_finalize();
+  __kitrt_message(LABEL, "Finalized Qthreads runtime");
 
   __kitrt_message(LABEL, "Finalized Kitsune qthreads runtime");
 }

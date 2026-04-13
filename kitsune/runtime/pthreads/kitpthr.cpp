@@ -60,7 +60,7 @@
 #include <pthread.h>
 #include <thread>
 
-#define LABEL "kitphr"
+#define LABEL "kitpthr"
 
 [[noreturn]] static void kitpthrHandleCreateError(int err) {
   const char *lede = "Could not create thread";
@@ -237,8 +237,8 @@ static void *kitpthrThrdStartFn(KitPthrThrdInfo *thrdInfo) {
 extern "C" KitPthrContext *__kitpthr_launch(KitPthrThrdFn f, int64_t start,
                                             int64_t end, int64_t grainSize,
                                             void *args) {
-  __kitrt_message(LABEL, "Launching threads");
-  __kitrt_message(LABEL, "Iteration range: [%ld, %ld)", start, end);
+  __kitrt_message(LABEL, "Launching multithreaded loop: [%ld, %ld)", start,
+                  end);
 
   // This is the number of threads that *may* be launched. However, there may
   // not be enough for work for all threads, so the actual number of threads
@@ -283,8 +283,8 @@ extern "C" KitPthrContext *__kitpthr_launch(KitPthrThrdFn f, int64_t start,
                                  (pthread_start_t)kitpthrThrdStartFn,
                                  &ctx->thrdInfo[i]))
       kitpthrHandleCreateError(err);
-    __kitrt_message(LABEL, "Launched [%ld, %ld) on thread %ld", info.start,
-                    info.end, i);
+    __kitrt_message(LABEL, "Running on thread %ld: [%ld, %ld)", i,
+                    info.start, info.end);
   }
 
   return ctx;
@@ -294,7 +294,7 @@ extern "C" KitPthrContext *__kitpthr_launch(KitPthrThrdFn f, int64_t start,
 /// \p ctx is the context returned by that call. \p ctx may be nullptr, in which
 /// case, this function does nothing.
 extern "C" void __kitpthr_sync(KitPthrContext *ctx) {
-  __kitrt_message(LABEL, "Joining: %ld threads", ctx->thrds);
+  __kitrt_message(LABEL, "Joining %ld threads", ctx->thrds);
   for (size_t i = 0; i < ctx->thrds; ++i) {
     if (int err = pthread_join(ctx->thrdInfo[i].id, nullptr))
       kitpthrHandleJoinError(err);
