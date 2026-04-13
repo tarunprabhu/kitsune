@@ -12,7 +12,6 @@
 
 #include "llvm/Transforms/Utils/TapirUtils.h"
 #include "kitsune/Core/LoopAttrs.h"
-#include "kitsune/Support/ToString.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Analysis/CFG.h"
 #include "llvm/Analysis/DomTreeUpdater.h"
@@ -1289,7 +1288,7 @@ bool llvm::mayBeUnsynced(const BasicBlock *BB) {
 
     for (const BasicBlock *PredBB : predecessors(CurrBB)) {
       // If we find a predecessor via reattach instructions, then
-      // wconservatively return that we may not be synced.
+      // conservatively return that we may not be synced.
       if (isa<ReattachInst>(PredBB->getTerminator()))
         return true;
 

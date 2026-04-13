@@ -10,10 +10,8 @@ set(LLVM_LINK_COMPONENTS
   Core
   IRPrinter
   IRReader
-  KitAnalysis
-  KitCodeGen
   KitCore
-  KitSupport
+  KitPasses
   MC
   MIRParser
   Passes

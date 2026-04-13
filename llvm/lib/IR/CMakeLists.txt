@@ -88,26 +88,14 @@ add_llvm_component_library(LLVMCore
   DEPENDS
   intrinsics_gen
 
-  # Including BitReader here results in a circular dependence since BitReader
-  # requires Core. This is a known issue in Kitsune. We need BitReader in order
-  # to verify embedded modules. The fix would be to move the verifier out of
-  # Core, which will make it much harder to keep up with LLVM, so we resign
-  # ourselves to having a cycle here.
-  #
-  # We want all IR verification to be carried out in the main verifier which is
-  # in this library. Doing so cleanly requires utilities from KitCore which
-  # already depends on this. We now have yet another circular dependence.
-  # Ideally, we would like the verifier to live outside LLVMCore in which case,
-  # we could easily break this dependence cycle, but that would cause us no end
-  # of problems when merging, so, regrettably, we introduce (yet another)
-  # circular dependence.
-  #
+  # The main LLVM verifier calls Kitsune's verifier. This results in a
+  # dependence on KitCore, which in turn depends on LLVMCore, resulting in a
+  # circular dependence. There isn't really any way around this since we have
+  # committed to keeping all of Kitsune's code in its own directory.
   LINK_COMPONENTS
   BinaryFormat
-  BitReader
   Demangle
   KitCore
-  KitSupport
   Remarks
   Support
   TargetParser
