@@ -11,64 +11,43 @@
 //
 // CHECK-LABEL: @f(
 // CHECK-SAME: ptr {{[^%]*}}%[[A:[^,]+]],
-// CHECK-SAME: i32 {{[^%]*}}%[[SCALE:[^,]+]],
 // CHECK-SAME: i64 {{[^%]*}}%[[N:[^)]+]])
-// CHECK: [[ENTRY:.+]]:
-// CHECK: %[[ARGS:.+]] = alloca { ptr, i32 }
-// CHECK: br {{.+}}, label %[[END:.+]], label %[[BODY:[^,]+]]
-// CHECK: [[BODY]]:
-// CHECK: %[[GS:[0-9]+]] = {{.*}}call i64 @llvm.tapir.loop.grainsize
-// CHECK: %[[ARGPOS:.+]] = getelementptr {{.*}}, ptr %[[ARGS]]
-// CHECK: store ptr %[[A]], ptr %[[ARGPOS]]
-// CHECK: %[[SCALEPOS:.+]] = getelementptr {{.*}}, ptr %[[ARGS]]
-// CHECK: store i32 %[[SCALE]], ptr %[[SCALEPOS]]
-// CHECK: call void @llvm.kit.launch.threads(
+// CHECK-NEXT: [[ENTRY:.+]]:
+// CHECK-NEXT: %[[ARGS:.+]] = alloca { ptr }
+// CHECK: [[BODY:.+]]:
+// CHECK-NEXT: %[[ARGPOS:.+]] = getelementptr {{.*}}, ptr %[[ARGS]]
+// CHECK-NEXT: store ptr %[[A]], ptr %[[ARGPOS]]
+// CHECK-NEXT: call void @llvm.kit.launch.threads(
 // CHECK-SAME: i32 32,
-// CHECK-SAME: ptr @[[WRAPPER:[^,]+]],
+// CHECK-SAME: ptr @[[OUTLINED:[^,]+]],
 // CHECK-SAME: i64 0,
 // CHECK-SAME: i64 %[[N]],
-// CHECK-SAME: i64 %[[GS]],
+// CHECK-SAME: i64 0,
 // CHECK-SAME: ptr %[[ARGS]])
-// CHECK: br label %[[END:.+]]
-// CHECK: [[END]]:
-// CHECK: ret void
 //
 // CHECK: define internal fastcc void @[[OUTLINED:[A-Za-z0-9._-]+]](
 // CHECK-SAME: i64 %[[START:[^,]+]],
 // CHECK-SAME: i64 %[[END:[^,]+]],
-// CHECK-SAME: i64 %[[GRAINSIZE:[^,]+]],
 // CHECK-SAME: ptr {{[^%]*}}%[[ARGS:[^)]+]])
 // CHECK: [[ENTRY:.+]]:
-// CHECK: br label %[[BODY:.+]]
-// CHECK: [[BODY:.+]]:
+// CHECK: br label %[[HEADER:.+]]
+// CHECK: [[HEADER]]:
 // CHECK: %[[I:.+]] = phi i64
-// CHECK: %[[IDX:.+]] = getelementptr {{.*}}i32, ptr {{.+}}, i64 %[[I]]
-// CHECK: %[[V:.+]] = load i32, ptr %[[IDX]]
-// CHECK: %[[SCALED:.+]] = mul {{.*}}i32 %[[V]]
-// CHECK: store i32 %[[SCALED]], ptr %[[IDX]]
+// CHECK: br label %[[BODY:.+]]
+// CHECK: [[BODY]]:
+// CHECK: %[[APOS:.+]] = getelementptr {{.*}}i64, ptr {{.+}}, i64 %[[I]]
+// CHECK: store i64 %[[I]], ptr %[[APOS]]
 // CHECK: add {{.*}}i64 %[[I]], 1
-// CHECK: br {{.+}}, label %[[END:.+]], label %[[BODY]]
+// CHECK: br {{.+}}, label %[[END:.+]], label %[[HEADER]]
 // CHECK: [[END]]:
 // CHECK: ret void
-//
-// CHECK: define internal fastcc void @[[WRAPPER]](
-// CHECK-SAME: i64 %[[START:[^,]+]],
-// CHECK-SAME: i64 %[[END:[^,]+]],
-// CHECK-SAME: ptr {{.*}}%[[ARGS:[^)]+]])
-// CHECK-NEXT: [[ENTRY:.+]]:
-// CHECK-NEXT: call {{.*}}void @[[OUTLINED]](
-// CHECK-SAME: i64 %[[START]],
-// CHECK-SAME: i64 %[[END]],
-// CHECK-SAME: i64 0,
-// CHECK-SAME: ptr %[[ARGS]])
-// CHECK-NEXT: ret void
 
 #include <kitsune.h>
 
-void f(int *a, int scale, size_t n) {
+void f(size_t *a, size_t n) {
   // clang-format off
   forall (size_t i = 0; i < n; ++i) {
-    a[i] *= scale;
+    a[i] = i;
   }
   // clang-format on
 }
