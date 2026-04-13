@@ -4,5 +4,6 @@ add_llvm_component_library(LLVMKitPasses
   LINK_COMPONENTS
   Core
   KitAnalysis
+  KitCodeGen
   KitTransforms
 )

@@ -14,7 +14,6 @@ add_llvm_component_library(LLVMAsmParser
   LINK_COMPONENTS
   BinaryFormat
   Core
-  KitSupport
   Support
   TargetParser
   )

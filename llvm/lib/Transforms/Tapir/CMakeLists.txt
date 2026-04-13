@@ -54,7 +54,6 @@ add_llvm_component_library(LLVMTapirOpts
   IRReader
   KitAnalysis
   KitCore
-  KitSupport
   Linker
   Scalar
   Support

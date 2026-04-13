@@ -113,7 +113,6 @@ add_llvm_component_library(LLVMTransformUtils
   Core
   ProfileData
   KitCore
-  KitSupport
   Support
   TargetParser
   )
