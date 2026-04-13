@@ -54,6 +54,9 @@
 ; RUN:       | FileCheck --check-prefix=FREE %s \
 ; RUN: %}
 ;
+; RUN: opt --tapir=openmp -passes='kit-lower-intrinsics' -S %s \
+; RUN:     | FileCheck --check-prefix=FREE %s
+;
 ; RUN: opt --tapir=pthreads -passes='kit-lower-intrinsics' -S %s \
 ; RUN:     | FileCheck --check-prefix=FREE %s
 ;

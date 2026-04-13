@@ -24,6 +24,7 @@ usually require dependencies that may not be available on all platforms.
 |[custom](#custom) | N/A | &check; | &check; | &check; | &check; | &check; |
 |[hip](#hip) | GPU (AMD) | &cross; | &check; | &cross; | &cross; | &cross; |
 |[opencilk](#opencilk) | CPU | &cross; | &check; | &check; | &check; | &check; |
+|[openmp](#openmp) | CPU | &check; | &check; | &check; | &check; | &check; |
 |[nolo](#nolo) | - | &check; | &check; | &check; | &check; | &check; |
 |[pthreads](#pthreads) | CPU | &check; | &check; | &check; | &check; | &check; |
 |[qthreads](#qthreads) | CPU | &cross; | &check; | &check; | &check; | &cross; |
@@ -231,27 +232,6 @@ this tapir target start with the prefix `--tapir-hip-`. Options starting with
 `--tapir-gpu-` are also recognized by this tapir target.
 
 
-(tapir-targets-opencilk)=
-### opencilk
-
-The [opencilk](#opencilk) tapir target lowers parallel loops to use
-[Cheetah](https://github.com/OpenCilk/cheetah), the runtime system for
-[OpenCilk](https://github.com/OpenCilk/opencilk-project). This will typically
-use as many Cilk workers as there are CPU cores on the system. The number of
-workers can be set explicitly by setting the `CILK_NWORKERS` environment
-variable. For instance, in the example below, exactly 4 Cilk workers will be
-used regardless of the number of cores that are available on the system.
-
-```shell
-$ kitcc --tapir=opencilk -o a.out ...
-$ CILK_NWORKERS=4 ./a.out
-```
-
-If the opencilk tapir target is enabled when
-[building Kitsune](GettingStarted.md#building-kitsune), a suitable version of
-Cheetah will be automatically downloaded and built.
-
-
 (tapir-targets-nolo)=
 ### nolo
 
@@ -303,6 +283,46 @@ forall.inc:
 forall.sync:
   sync within %syncreg, label %forall.end
 ```
+
+
+(tapir-targets-opencilk)=
+### opencilk
+
+The [opencilk](#opencilk) tapir target lowers parallel loops to use
+[Cheetah](https://github.com/OpenCilk/cheetah), the runtime system for
+[OpenCilk](https://github.com/OpenCilk/opencilk-project). This will typically
+use as many Cilk workers as there are CPU cores on the system. The number of
+workers can be set explicitly by setting the `CILK_NWORKERS` environment
+variable. For instance, in the example below, exactly 4 Cilk workers will be
+used regardless of the number of cores that are available on the system.
+
+```shell
+$ kitcc --tapir=opencilk -o a.out ...
+$ CILK_NWORKERS=4 ./a.out
+```
+
+If the opencilk tapir target is enabled when
+[building Kitsune](GettingStarted.md#building-kitsune), a suitable version of
+Cheetah will be automatically downloaded and built.
+
+
+(tapir-target-openmp)=
+### openmp
+
+The [openmp](#openmp) tapir target lowers parallel loops to use LLVM's
+[OpenMP](https://openmp.llvm.org/design/Runtimes.html#openmp-runtimes) runtime.
+This will automatically choose the number of threads depending on the number of
+CPU cores available on the system. The number of threads can be set explicitly
+by setting the `OMP_NUM_THREADS` environment variable. For example, in the
+example below, exactly 4 threads will be used regardless of the number of cores.
+
+```shell
+$ kitcc --tapir=openmp -o a.out ...
+$ OMP_NUM_THREADS=4 ./a.out
+```
+
+The distribution of iterations across threads is handled by the OpenMP runtime.
+Kitsune uses a thin runtime that wraps around OpenMP's runtime.
 
 
 (tapir-targets-pthreads)=
@@ -413,23 +433,17 @@ some code to support them is present. Enabling these will require changes to the
 build system as well as Kitsune's source code. These are listed below for
 reference. Some of these are likely to be supported in the future.
 
-(tapir-targets-openmp)=
-### openmp
-
-The openmp tapir target lowers parallel loops to use OpenMP's runtime system.
-This tapir target will likely be removed in favor of the [omptask](#omptask)
-tapir target.
-
-(tapir-targets-omptask)=
-### omptask
-
-The omptask tapir target lowers parallel loops to use kmpc task runtime calls.
-
 (tapir-targets-lambda)=
 ### lambda
 
 The lambda tapir target lowers parallel loops to use a generic runtime system
 that operates on spawned computations as lambdas.
+
+(tapir-targets-omptask)=
+### omptask
+
+The omptask tapir target lowers parallel loops to use kmpc task runtime calls.
+These are provided by LLVM's OpenMP runtime library, `libomp`.
 
 (tapir-targets-realm)=
 ### realm

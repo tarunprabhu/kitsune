@@ -51,7 +51,7 @@
 # -----------------------------------------------------------------------------
 #
 # Check that when certain frontends and tapir targets are disabled, the correct
-# correct value is reported.
+# value is reported.
 #
 # RUN: %if kitsune-no-kokkos %{ \
 # RUN:   %kit-config --kokkos | FileCheck %s -check-prefix OFF \
@@ -75,10 +75,6 @@
 #
 # RUN: %if kitsune-no-opencilk %{ \
 # RUN:   %kit-config --opencilk-target | FileCheck %s -check-prefix OFF \
-# RUN: %}
-#
-# RUN: %if kitsune-no-openmp %{ \
-# RUN:   %kit-config --openmp-target | FileCheck %s -check-prefix OFF \
 # RUN: %}
 #
 # RUN: %if kitsune-no-qthreads %{ \

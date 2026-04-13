@@ -91,6 +91,7 @@ CodeGenFunction::GetTapirSpawnStrategy(ArrayRef<const Attr *> Attrs) {
     case llvm::TTID::OpenCilk:
       return llvm::TapirSpawnStrategy::DivideAndConquer;
     case llvm::TTID::Custom:
+    case llvm::TTID::OpenMP:
     case llvm::TTID::Pthreads:
     case llvm::TTID::Qthreads:
       return llvm::TapirSpawnStrategy::Basic;
@@ -120,6 +121,8 @@ CodeGenFunction::GetTapirTarget(ArrayRef<const Attr *> Attrs) {
         return llvm::TTID::Hip;
       case TapirTargetAttr::OpenCilk:
         return llvm::TTID::OpenCilk;
+      case TapirTargetAttr::OpenMP:
+        return llvm::TTID::OpenMP;
       case TapirTargetAttr::Pthreads:
         return llvm::TTID::Pthreads;
       case TapirTargetAttr::Qthreads:

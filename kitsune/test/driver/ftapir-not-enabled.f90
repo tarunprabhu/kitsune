@@ -28,11 +28,6 @@
 ! RUN:       | FileCheck %s -check-prefix OPENCILK \
 ! RUN: %}
 !
-! RUN: %if kitsune-no-openmp %{ \
-! RUN:   not %kitfc -fsyntax-only --tapir=openmp %s 2>&1 \
-! RUN:       | FileCheck %s -check-prefix OPENMP \
-! RUN: %}
-!
 ! RUN: %if kitsune-no-qthreads %{ \
 ! RUN:   not %kitfc -fsyntax-only --tapir=qthreads %s 2>&1 \
 ! RUN:       | FileCheck %s -check-prefix QTHREADS \
@@ -48,7 +43,6 @@
 ! LAMBDA: tapir target 'lambda' was not enabled when kitsune was built
 ! OMPTASK: tapir target 'omptask' was not enabled when kitsune was built
 ! OPENCILK: tapir target 'opencilk' was not enabled when kitsune was built
-! OPENMP: tapir target 'openmp' was not enabled when kitsune was built
 ! QTHREADS: tapir target 'qthreads' was not enabled when kitsune was built
 ! REALM: tapir target 'realm' was not enabled when kitsune was built
 

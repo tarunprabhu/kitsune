@@ -10,6 +10,7 @@
 !
 ! RUN: %kitfc -### --tapir=nolo -O1 %s
 ! RUN: %kitfc -### --tapir=serial -O1 %s
+! RUN: %kitfc -### --tapir=openmp -O1 %s
 ! RUN: %kitfc -### --tapir=pthreads -O1 %s
 ! RUN: %kitxx -### --tapir=custom --tapir-plugin=plugin-file -O1 %s
 ! RUN: %if kitsune-cuda %{ \
@@ -51,11 +52,3 @@
 ! RUN:     | FileCheck %s --check-prefix=NOT-ENABLED
 !
 ! NOT-ENABLED: tapir target '{{.+}}' was not enabled
-!
-! ------------------------------------------------------------------------------
-! Unlike the tapir targets in the list above, these are likely to be removed
-! completely and not resurrected. If that happens, they should be removed from
-! here.
-!
-! RUN: not %kitfc -### --tapir=openmp -O1 %s 2>&1 \
-! RUN:     | FileCheck %s --check-prefix=NOT-ENABLED

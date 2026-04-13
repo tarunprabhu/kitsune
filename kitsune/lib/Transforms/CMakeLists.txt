@@ -12,6 +12,7 @@ add_llvm_component_library(LLVMKitTransforms
   GenerateCtors.cpp
   GenerateCtorCuda.cpp
   GenerateCtorHip.cpp
+  GenerateCtorOpenMP.cpp
   GenerateCtorPthreads.cpp
   GenerateCtorQthreads.cpp
   PreLowerAnnotate.cpp
@@ -23,7 +24,7 @@ add_llvm_component_library(LLVMKitTransforms
   intrinsics_gen
 
   # The pass that optimizes embedded modules constructs a private pass pipeline
-  # and runs a standard sequence of optimization passses on the module. This
+  # and runs a standard sequence of optimization passes on the module. This
   # requires a PassBuilder which is provided by Passes. However, Passes in turn
   # requires this library, KitTransforms, in order to instantiate the passes
   # when constructing the pipeline, thus resulting in a circular dependence.

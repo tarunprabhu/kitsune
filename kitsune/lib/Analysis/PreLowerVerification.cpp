@@ -220,6 +220,7 @@ private:
     case TTID::Nolo:
     case TTID::Serial:
     case TTID::OpenCilk:
+    case TTID::OpenMP:
     case TTID::Pthreads:
     case TTID::Qthreads:
       checkConsistentTTsForCPU(loop);
@@ -235,7 +236,6 @@ private:
       return;
     case TTID::Lambda:
     case TTID::OMPTask:
-    case TTID::OpenMP:
     case TTID::Realm:
       break;
     }

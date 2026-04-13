@@ -33,9 +33,9 @@ def TapirTarget : StmtAttr {
     EnumArgument<"TapirTargetAttrType", "TapirTargetAttrTy",
                  /*is_string=*/ true,
                  ["nolo", "serial", "cuda", "custom", "hip", "opencilk",
-                  "pthreads", "qthreads"],
+                  "openmp", "pthreads", "qthreads"],
                  ["Nolo", "Serial", "Cuda", "Custom", "Hip", "OpenCilk",
-                  "Pthreads", "Qthreads"],
+                  "OpenMP", "Pthreads", "Qthreads"],
                  0>
   ];
   let Documentation = [TapirTargetDocs];

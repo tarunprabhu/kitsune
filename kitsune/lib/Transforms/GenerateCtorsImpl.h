@@ -44,13 +44,17 @@ using GetTLI = std::function<TargetLibraryInfo &(Function &)>;
 using GenerateCtorImplFn = std::function<void(
     Module &, GetTLI, const TTOptions &, GenerateCtorOptions &)>;
 
-/// Generate a global constructor and destructor for kitsune's cuda runtime.
+/// Generate a global constructor and destructor for Kitsune's cuda runtime.
 void genCtorCuda(Module &m, GetTLI getTLI, const TTOptions &ttOpts,
                  const GenerateCtorOptions &ctorOpts);
 
-/// Generate a global constructor and destructor for kitsune's hip runtime.
+/// Generate a global constructor and destructor for Kitsune's hip runtime.
 void genCtorHip(Module &m, GetTLI getTLI, const TTOptions &ttOpts,
                 const GenerateCtorOptions &ctorOpts);
+
+/// Generate a global constructor and destructor for Kitsune's openmp runtime.
+void genCtorOpenMP(Module &m, GetTLI getTLI, const TTOptions &ttOpts,
+                   const GenerateCtorOptions &ctorOpts);
 
 /// Generate a global constructor and destructor for Kitsune's pthreads runtime.
 void genCtorPthreads(Module &m, GetTLI getTLI, const TTOptions &ttOpts,
