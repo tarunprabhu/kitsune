@@ -2899,6 +2899,30 @@ TLI_DEFINE_SIG_INTERNAL(Void, Ptr)
 /// @}
 
 /// @{
+/// Kitsune runtime library functions for the openmp tapir target
+
+/// void __kitomp_finalize(void);
+TLI_DEFINE_ENUM_INTERNAL(kitomp_finalize)
+TLI_DEFINE_STRING_INTERNAL("__kitomp_finalize")
+TLI_DEFINE_SIG_INTERNAL(Void)
+
+/// void __kitomp_initialize(void);
+TLI_DEFINE_ENUM_INTERNAL(kitomp_initialize)
+TLI_DEFINE_STRING_INTERNAL("__kitomp_initialize")
+TLI_DEFINE_SIG_INTERNAL(Void)
+
+/// void __kitomp_launch(void(*thread_f)(int64_t, int64_t, int64_t, void*),
+///                      int64_t start,
+///                      int64_t end,
+///                      int64_t grainSize,
+///                      void* args);
+TLI_DEFINE_ENUM_INTERNAL(kitomp_launch)
+TLI_DEFINE_STRING_INTERNAL("__kitomp_launch")
+TLI_DEFINE_SIG_INTERNAL(Void, Ptr, Int64, Int64, Int64, Ptr)
+
+/// @}
+
+/// @{
 /// Kitsune runtime library functions for the pthreads tapir target
 
 /// void __kitpthr_finalize(void);

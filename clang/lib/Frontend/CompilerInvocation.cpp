@@ -4808,13 +4808,13 @@ void CompilerInvocationBase::GenerateKitsuneArgs(const KitsuneOptions &Opts,
                   Opts.getOpenCilkRuntimeBCFile());
       return;
     case llvm::TTID::Nolo:
+    case llvm::TTID::OpenMP:
     case llvm::TTID::Pthreads:
     case llvm::TTID::Qthreads:
     case llvm::TTID::Serial:
       // These do not have any target-specific options that need to be
       // generated.
       return;
-    case llvm::TTID::OpenMP:
     case llvm::TTID::Lambda:
     case llvm::TTID::OMPTask:
     case llvm::TTID::Realm:

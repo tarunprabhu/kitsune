@@ -15,6 +15,7 @@
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Support/Diagnostics.h"
 #include "kitsune/Support/ErrorHandling.h"
+#include "kitsune/Targets/OpenMPTT.h"
 
 #if KITSUNE_CUDA_ENABLED
 #include "kitsune/Targets/CudaABI.h"
@@ -116,7 +117,7 @@ static std::unique_ptr<TapirTarget> makeOpenCilkTT(Module &m,
 
 static std::unique_ptr<TapirTarget> makeOpenMPTT(Module &m,
                                                  const TTOptions &tto) {
-  llvm_unreachable("'openmp' tapir target is out of date");
+  return std::make_unique<OpenMPTT>(m, tto);
 }
 
 static std::unique_ptr<TapirTarget> makePthreadsTT(Module &m,

@@ -91,7 +91,9 @@ enum class TTID : uint32_t {
   /// FIXME: This has not been fully implemented or tested.
   OMPTask = 0x100,
 
-  /// FIXME: Almost certainly obsolete.
+  /// Lower to use OpenMP's runtime. This will use libomp that is built together
+  /// with Kitsune. Using other OpenMP libraries is not (and likely will never
+  /// be) supported.
   OpenMP = 0x200,
 
   /// Lowering to use POSIX threads (pthreads). On POSIX platforms, these are

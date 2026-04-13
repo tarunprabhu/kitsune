@@ -944,12 +944,6 @@ public:
   AddKitsuneOpenCilkLinkerArgs(const llvm::opt::ArgList &Args,
                                llvm::opt::ArgStringList &CmdArgs) const;
 
-  /// Add compiler/LTO arguments for the openmp tapir target. If MLLVM is true,
-  /// all options will be prepended with -mllvm.
-  virtual void AddKitsuneOpenMPCommonArgs(const llvm::opt::ArgList &Args,
-                                          llvm::opt::ArgStringList &CmdArgs,
-                                          bool MLLVM = false) const;
-
   /// Add linker options for the openmp tapir target.
   virtual void
   AddKitsuneOpenMPLinkerArgs(const llvm::opt::ArgList &Args,

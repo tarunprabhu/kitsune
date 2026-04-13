@@ -2270,14 +2270,6 @@ void ToolChain::AddKitsuneOpenCilkCommonArgs(const ArgList &Args,
             *BC);
 }
 
-void ToolChain::AddKitsuneOpenMPCommonArgs(const ArgList &Args,
-                                           ArgStringList &CmdArgs,
-                                           bool MLLVM) const {
-  // Don't hit unreachable if an error has already occurred
-  if (!getDriver().getDiags().getNumErrors())
-    llvm_unreachable("NOT IMPLEMENTED: ToolChain::AddKitsuneOpenMPCommonArgs");
-}
-
 void ToolChain::AddKitsuneRealmCommonArgs(const ArgList &Args,
                                           ArgStringList &CmdArgs,
                                           bool MLLVM) const {
@@ -2323,12 +2315,10 @@ void ToolChain::AddKitsuneCompilerArgs(const ArgList &Args,
     case TTID::OpenCilk:
       return AddKitsuneOpenCilkCommonArgs(Args, CmdArgs);
     case TTID::OpenMP:
-      return AddKitsuneOpenMPCommonArgs(Args, CmdArgs);
     case TTID::Pthreads:
-      // There are no options specific to this tapir target that must be handled
-      return;
     case TTID::Qthreads:
-      // There are no options specific to this tapir target that must be handled
+      // There are no options specific to these tapir targets that must be
+      // handled
       return;
     case TTID::Realm:
       return AddKitsuneRealmCommonArgs(Args, CmdArgs);
@@ -2487,17 +2477,10 @@ void ToolChain::AddKitsuneOpenCilkLinkerArgs(const ArgList &Args,
 
 void ToolChain::AddKitsuneOpenMPLinkerArgs(const ArgList &Args,
                                            ArgStringList &CmdArgs) const {
-  // Unconditionally fail so that when (if) we ever resurrect the qthreads tapir
-  // target, we know to look here and do whatever is appropriate.
-  //
-  // The flags here are for reference because they were in some cmake file in
-  // in the Kitsune repo. I have no idea if this is actually correct.
-  //
-  // -fopenmp -lomp
-  //
-  // Don't hit unreachable if an error has already occurred
-  if (!getDriver().getDiags().getNumErrors())
-    llvm_unreachable("NOT IMPLEMENTED: ToolChain::AddKitsuneOpenMPLinkerArgs");
+  // Nothing to do here for now. At some point, we will fix the issue of
+  // libkitrt requiring dependencies of all tapir target instead of just those
+  // actually being used. When that happens, libraries required by the qthreads
+  // tapir target can be linked here.
 }
 
 void ToolChain::AddKitsuneQthreadsLinkerArgs(const ArgList &Args,
@@ -2584,9 +2567,18 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
   // We always link in libkitrt if a tapir target or special Kokkos handling has
   // been specified.
   if (TT or IsKokkos) {
-    // This should be linked before libkitrt. At some point, we may have a
-    // static archive, libqthread.a. In that case, it would have to be linked
-    // before uses of the methods in the library in libkitrt.
+    // These should be linked before libkitrt. At some point, we may have a
+    // static archives for libomp and libqthreads. In that case, they would have
+    // to be linked before uses of the methods in the library in libkitrt.
+    if constexpr (kitOpenMPEnabled()) {
+      const char *LibDir = Args.MakeArgString(concat(D.ResourceDir, "lib"));
+      CmdArgs.push_back("-L");
+      CmdArgs.push_back(LibDir);
+      CmdArgs.push_back("-rpath");
+      CmdArgs.push_back(LibDir);
+      CmdArgs.push_back("-lomp");
+    }
+
     if constexpr (kitQthreadsEnabled()) {
       const char *LibDir = Args.MakeArgString(concat(D.ResourceDir, "lib"));
       CmdArgs.push_back("-L");
@@ -2660,9 +2652,7 @@ void ToolChain::AddKitsuneLTOArgs(const ArgList &Args,
     case TTID::OpenCilk:
       return AddKitsuneOpenCilkCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
     case TTID::OpenMP:
-      return AddKitsuneOpenMPCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
     case TTID::Pthreads:
-      return;
     case TTID::Qthreads:
       return;
     case TTID::Realm:

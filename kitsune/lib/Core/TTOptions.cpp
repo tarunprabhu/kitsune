@@ -304,6 +304,7 @@ Error TTOptions::validate() const {
   case TTID::OpenCilk:
     return validateOpenCilkOptions();
   case TTID::Nolo:
+  case TTID::OpenMP:
   case TTID::Pthreads:
   case TTID::Qthreads:
   case TTID::Serial:
@@ -312,7 +313,6 @@ Error TTOptions::validate() const {
     return Error::success();
   case TTID::Lambda:
   case TTID::OMPTask:
-  case TTID::OpenMP:
   case TTID::Realm:
     // These options are not fully supported.
     break;

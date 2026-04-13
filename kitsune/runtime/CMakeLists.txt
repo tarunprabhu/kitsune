@@ -43,6 +43,19 @@ add_library(${KITSUNE_OBJLIB} OBJECT
   memory.cpp
   memory_map.cpp)
 
+# These runtimes are always enabled since their corresponding tapir targets are
+# always built.
+target_sources(${KITSUNE_OBJLIB} PUBLIC
+  openmp/kitomp.cpp
+  pthreads/kitpthr.cpp)
+
+# FIXME: We really should split the runtimes into separate libraries - one for
+# each tapir target. That way, we won't have to add options such as those below
+# to the compile lines for all runtimes.
+target_include_directories(${KITSUNE_OBJLIB} PUBLIC
+  ${LLVM_MONOREPO_SOURCE_DIR}/openmp/runtime/src
+  ${KITSUNE_OPENMP_BINARY_DIR}/openmp/runtime/src)
+
 if (KITSUNE_CUDA_ENABLED)
   target_sources(${KITSUNE_OBJLIB} PUBLIC
     cuda/kitcuda.cpp
@@ -118,10 +131,6 @@ if (KITSUNE_QTHREADS_ENABLED)
   target_sources(${KITSUNE_OBJLIB} PUBLIC
     qthreads/kitqthr.cpp)
 endif ()
-
-# The pthreads tapir target is always enabled
-target_sources(${KITSUNE_OBJLIB} PUBLIC
-  pthreads/kitpthr.cpp)
 
 set_target_properties(${KITSUNE_OBJLIB} PROPERTIES
   POSITION_INDEPENDENT_CODE 1)

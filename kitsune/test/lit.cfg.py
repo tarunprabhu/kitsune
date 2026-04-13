@@ -189,11 +189,6 @@ if config.kitsune_opencilk_enabled:
 else:
     config.available_features.add("kitsune-no-opencilk")
 
-if config.kitsune_openmp_enabled:
-    config.available_features.add("kitsune-openmp")
-else:
-    config.available_features.add("kitsune-no-openmp")
-
 if config.kitsune_qthreads_enabled:
     config.available_features.add("kitsune-qthreads")
 else:

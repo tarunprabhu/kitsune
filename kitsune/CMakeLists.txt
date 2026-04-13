@@ -547,14 +547,101 @@ if (KITSUNE_OPENCILK_ENABLED)
     USE_SOURCE_PERMISSIONS)
 endif()
 
+# TODO: KITSUNE_OPENMP_ENABLED is always true. At some point, we might move
+# the setup of the dependencies to their own files since this particular file
+# is becoming fairly unwieldy. Until then, the conditional really serves as a
+# marker that the code in the body is part of the configuration of the openmp
+# tapir target.
 if (KITSUNE_OPENMP_ENABLED)
-  message(FATAL_ERROR "NOT YET IMPLEMENTED: 'openmp' tapir target")
-  message(STATUS "Kitsune: openmp tapir target enabled")
+  # We build OpenMP from the same LLVM checkout from which Kitsune is being
+  # built. We don't use LLVM's standard mechanisms for this because OpenMP is
+  # treated as a runtime by LLVM while Kitsune is a project. This means that it
+  # is difficult (and probably impossible) to ensure that libomp will be built
+  # before Kitsune. libomp.so is also present in a directory that is not easily
+  # accessible, so the library cannot be copied to
+  message(STATUS "Kitsune: openmp target enabled")
 
-  # FIXME: Unconditionally fail so that when (if) the openmp tapir target is
-  # ever resurrected, we know to look here and do whatever is appropriate.
-  message(FATAL_ERROR "TODO: Do we need to check for libomp?")
-endif()
+  set(KITSUNE_OPENMP_C_FLAGS "")
+  if (KITSUNE_SYSROOT)
+    string(APPEND KITSUNE_OPENMP_C_FLAGS " --sysroot=${KITSUNE_SYSROOT}")
+  endif ()
+  string(REPLACE ";" | KITSUNE_OPENMP_C_FLAGS "${KITSUNE_OPENMP_C_FLAGS}")
+
+  set(KITSUNE_OPENMP_CXX_FLAGS "")
+  if (KITSUNE_SYSROOT)
+    string(APPEND KITSUNE_OPENMP_CXX_FLAGS " --sysroot=${KITSUNE_SYSROOT}")
+  endif ()
+  string(REPLACE ";" | KITSUNE_OPENMP_CXX_FLAGS "${KITSUNE_OPENMP_CXX_FLAGS}")
+
+  set(KITSUNE_OPENMP_SOURCE_DIR ${CMAKE_SOURCE_DIR}/../runtimes)
+  set(KITSUNE_OPENMP_BINARY_DIR ${KITSUNE_TARGETS_BINARY_DIR}/openmp/build)
+  set(KITSUNE_OPENMP_INSTALL_DIR ${KITSUNE_TARGETS_BINARY_DIR}/openmp/install)
+
+  # TODO: This configuration will only build a dynamic shared object (DSO) for
+  # libomp. We would like both a DSO as well as a static archive. Currently,
+  # there does not seem to be a way of building both at the same time. For now,
+  # we build only the DSO, but it would be good to find a way to have both.
+  #
+  # This is a fairly minimal build of openmp to avoid spending time building
+  # things that Kitsune does not directly use. At some point, if we feel it is
+  # helpful to build, for instance, the ompt tools, the configuration options
+  # here should be modified. We disable libomptarget since we will not be using
+  # this build for offloading.
+  set(KITSUNE_OPENMP_BUILD_CMAKE_FLAGS
+    -DCMAKE_C_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang
+    -DCMAKE_C_COMPILER_LAUNCHER=${CMAKE_C_COMPILER_LAUNCHER}
+    -DCMAKE_C_FLAGS=${KITSUNE_OPENMP_C_FLAGS}
+    -DCMAKE_C_COMPILER_WORKS=1
+    -DCMAKE_CXX_COMPILER=${LLVM_RUNTIME_OUTPUT_INTDIR}/clang++
+    -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
+    -DCMAKE_CXX_FLAGS=${KITSUNE_OPENMP_CXX_FLAGS}
+    -DCMAKE_CXX_COMPILER_WORKS=1
+    -DCMAKE_INSTALL_PREFIX=${KITSUNE_OPENMP_INSTALL_DIR}
+    -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+    -DCMAKE_COLOR_DIAGNOSTICS=${CMAKE_COLOR_DIAGNOSTICS}
+    -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
+    -DCMAKE_SIZEOF_VOID_P=${CMAKE_SIZEOF_VOID_P}
+    -DCLANG_RESOURCE_DIR=${CLANG_RESOURCE_INTDIR}
+    -DLLVM_BINARY_DIR=${CMAKE_BINARY_DIR}
+    -DLLVM_ENABLE_RUNTIMES=openmp
+    -DOPENMP_ENABLE_LIBOMPTARGET=OFF
+    -DOPENMP_ENABLE_LIBOMP_PROFILING=OFF
+    -DOPENMP_ENABLE_OMPT_TOOLS=OFF
+    -DLIBOMP_OMPD_SUPPORT=OFF)
+
+  # The openmp tests are not very cheap, so we don't run them before installing.
+  # But we probably should.
+  ExternalProject_Add(openmp
+    DEPENDS                 clang lld
+    SOURCE_DIR              ${KITSUNE_OPENMP_SOURCE_DIR}
+    BINARY_DIR              ${KITSUNE_OPENMP_BINARY_DIR}
+    CMAKE_ARGS              ${KITSUNE_OPENMP_BUILD_CMAKE_FLAGS}
+    LIST_SEPARATOR          |
+    TEST_BEFORE_INSTALL     FALSE
+    USES_TERMINAL_PATCH     TRUE
+    USES_TERMINAL_CONFIGURE TRUE
+    USES_TERMINAL_BUILD     TRUE
+    USES_TERMINAL_INSTALL   TRUE
+    UPDATE_DISCONNECTED     TRUE
+    ALWAYS_BUILD            TRUE)
+
+  # Copy the openmp files into a "staging" area. This allows kitsune to be
+  # run from the build directory.
+  add_custom_target(openmp-copy-to-build-dir ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${KITSUNE_OPENMP_INSTALL_DIR}
+    ${CLANG_RESOURCE_INTDIR}
+    COMMENT "Copying OpenMP to the 'top-level' build directory"
+    VERBATIM USES_TERMINAL)
+  add_dependencies(openmp-copy-to-build-dir openmp)
+
+  # NOTE: The trailing slash after the directory to copy is required.
+  install(DIRECTORY ${KITSUNE_OPENMP_INSTALL_DIR}/
+    DESTINATION ${CLANG_RESOURCE_INSTALL_DIR}
+    USE_SOURCE_PERMISSIONS)
+
+  list(APPEND KITSUNE_RUNTIME_DEPENDS openmp-copy-to-build-dir)
+endif ()
 
 if (KITSUNE_QTHREADS_ENABLED)
   # We currently don't allow using a pre-built qthreads. It should be ok to do
@@ -697,6 +784,7 @@ set(KITSUNE_RUNTIME_CONFIGURE_ARGS
   -DLLVM_VERSION_MAJOR=${LLVM_VERSION_MAJOR}
   -DLLVM_VERSION_MINOR=${LLVM_VERSION_MINOR}
   -DLLVM_VERSION_PATCH=${LLVM_VERSION_PATCH}
+  -DLLVM_MONOREPO_SOURCE_DIR=${LLVM_MONOREPO_SOURCE_DIR}
   -DLLVM_BINARY_DIR=${LLVM_BINARY_DIR}
   -DLLVM_INCLUDE_DIR=${LLVM_INCLUDE_DIR}
   -DLLVM_LIBRARY_DIR=${LLVM_LIBRARY_DIR}
@@ -712,10 +800,14 @@ set(KITSUNE_RUNTIME_CONFIGURE_ARGS
   -DKITSUNE_LIBNAME_STATIC=${KITSUNE_LIBNAME_STATIC}
   -DKITSUNE_COMMON_LIB_NAMES=${KITSUNE_COMMON_LIB_NAMES}
   -DKITSUNE_COMMON_LIB_DIRS=${KITSUNE_COMMON_LIB_DIRS}
-  -DKITSUNE_COMMON_LIB_LIBS=${KITSUNE_COMMON_LIB_LIBS}
+  -DKITSUNE_COMMON_LIB_LIBS=${KITSUNE_COMMON_LIB_LIBS})
+
+list(APPEND KITSUNE_RUNTIME_CONFIGURE_ARGS
   -DKITSUNE_CUDA_ENABLED=${KITSUNE_CUDA_ENABLED}
   -DKITSUNE_HIP_ENABLED=${KITSUNE_HIP_ENABLED}
-  -DKITSUNE_QTHREADS_ENABLED=${KITSUNE_QTHREADS_ENABLED})
+  -DKITSUNE_QTHREADS_ENABLED=${KITSUNE_QTHREADS_ENABLED}
+  -DKITSUNE_OPENMP_BINARY_DIR=${KITSUNE_OPENMP_BINARY_DIR})
+
 if (KITSUNE_CUDA_ENABLED)
   list(APPEND KITSUNE_RUNTIME_CONFIGURE_ARGS
     -DKITSUNE_CUDA_INC_DIRS=${KITSUNE_CUDA_INC_DIRS}
@@ -724,13 +816,14 @@ if (KITSUNE_CUDA_ENABLED)
     -DKITSUNE_CUDA_LIB_LIBS=${KITSUNE_CUDA_LIB_LIBS}
     -DKITCUDA_ENABLE_NVTX=${KITCUDA_ENABLE_NVTX})
 endif()
+
 if (KITSUNE_HIP_ENABLED)
   list(APPEND KITSUNE_RUNTIME_CONFIGURE_ARGS
     -DKITSUNE_HIP_INC_DIRS=${KITSUNE_HIP_INC_DIRS}
     -DKITSUNE_HIP_LIB_NAMES=${KITSUNE_HIP_LIB_NAMES}
     -DKITSUNE_HIP_LIB_DIRS=${KITSUNE_HIP_LIB_DIRS}
     -DKITSUNE_HIP_LIB_LIBS=${KITSUNE_HIP_LIB_LIBS})
-endif ()
+endif()
 
 # We don't descend into the runtime subdirectory because that should only be
 # configured when the runtimes are built. All the cmake environment variables

@@ -952,6 +952,9 @@ static void initializeLibCalls(TargetLibraryInfoImpl &TLI, const Triple &T,
     TLI.setUnavailable(LibFunc_kithip_symbol_memcpy_dtoh);
     TLI.setUnavailable(LibFunc_kithip_symbol_memcpy_htod);
     TLI.setUnavailable(LibFunc_kithip_sync_stream);
+    TLI.setUnavailable(LibFunc_kitomp_finalize);
+    TLI.setUnavailable(LibFunc_kitomp_initialize);
+    TLI.setUnavailable(LibFunc_kitomp_launch);
     TLI.setUnavailable(LibFunc_kitpthr_finalize);
     TLI.setUnavailable(LibFunc_kitpthr_initialize);
     TLI.setUnavailable(LibFunc_kitpthr_launch);

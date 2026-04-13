@@ -264,10 +264,15 @@ if (NOT CMAKE_SYSTEM_NAME IN_LIST KITSUNE_SUPPORTED_SYSTEMS)
   message(FATAL_ERROR "Kitsune is not supported on ${CMAKE_SYSTEM_NAME}")
 endif ()
 
+set(KITSUNE_SOURCE_DIR ${CMAKE_SOURCE_DIR}/../kitsune)
+cmake_path(ABSOLUTE_PATH KITSUNE_SOURCE_DIR NORMALIZE)
+
+set(LLVM_MONOREPO_SOURCE_DIR ${CMAKE_SOURCE_DIR}/../)
+cmake_path(ABSOLUTE_PATH LLVM_MONOREPO_SOURCE_DIR NORMALIZE)
+
 # Kitsune is registered as a tool, so it will be built in this directory (unless
 # LLVM changes the location where tools are built, in which case, this should be
 # updated).
-set(KITSUNE_SOURCE_DIR ${CMAKE_SOURCE_DIR}/../kitsune)
 set(KITSUNE_BINARY_DIR ${CMAKE_BINARY_DIR}/tools/kitsune)
 
 include_directories(${KITSUNE_SOURCE_DIR}/include)
@@ -493,8 +498,7 @@ foreach(l IN LISTS KITSUNE_ENABLED_LANGS)
       message(STATUS "enable flang project")
     endif ()
 
-    if (NOT "all" IN_LIST LLVM_ENABLE_RUNTIMES AND
-        NOT "flang-rt" IN_LIST LLVM_ENABLE_RUNTIMES)
+    if (NOT "flang-rt" IN_LIST LLVM_ENABLE_RUNTIMES)
       list(APPEND LLVM_ENABLE_RUNTIMES "flang-rt")
       message(STATUS "enable flang-rt runtime")
     endif ()
@@ -505,8 +509,7 @@ foreach(l IN LISTS KITSUNE_ENABLED_LANGS)
       message(STATUS "enable mlir project")
     endif ()
 
-    if (NOT "all" IN_LIST LLVM_ENABLE_RUNTIMES AND
-        NOT "compiler-rt" IN_LIST LLVM_ENABLE_RUNTIMES)
+    if (NOT "compiler-rt" IN_LIST LLVM_ENABLE_RUNTIMES)
       list(APPEND LLVM_ENABLE_RUNTIMES "compiler-rt")
       message(STATUS "enable compiler-rt runtime")
     endif ()
@@ -546,7 +549,7 @@ set(KITSUNE_OMPTASK_ENABLED OFF CACHE INTERNAL
   "Enable 'omptask' tapir target" FORCE)
 set(KITSUNE_OPENCILK_ENABLED OFF CACHE INTERNAL
   "Enable 'opencilk' tapir target" FORCE)
-set(KITSUNE_OPENMP_ENABLED OFF CACHE INTERNAL
+set(KITSUNE_OPENMP_ENABLED ON CACHE INTERNAL
   "Enable 'openmp' tapir target" FORCE)
 set(KITSUNE_PTHREADS_ENABLED ON CACHE INTERNAL
   "Enable 'pthreads' tapir target" FORCE)
@@ -576,7 +579,7 @@ not provided explicitly"
   FORCE)
 
 set(KITSUNE_GUARANTEED_TAPIR_TARGETS
-  "custom;pthreads;serial"
+  "custom;openmp;pthreads;serial"
   CACHE INTERNAL
   "The tapir targets that are always built"
   FORCE)

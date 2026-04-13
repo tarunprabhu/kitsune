@@ -1,0 +1,60 @@
+# REQUIRES: kitfc
+#
+# FIXME: Support to lower DO loops using tapir instructions has not been
+# implemented yet.
+# XFAIL: *
+#
+# Check a standard lowering using LTO.
+#
+# RUN: %kitfc -flto --tapir=openmp -fno-inline -O2 -o - %sysroot \
+# RUN:     -Wl,--lto-emit-llvm \
+# RUN:     %S/../input/add.f90 %S/../input/main.f90 \
+# RUN:     | llvm-dis \
+# RUN:     | FileCheck %s
+#
+# CHECK: define {{.*}}void @_Z6vecadd{{[^(]+}}(
+# CHECK-SAME: ptr addrspace(67) writeonly %[[C:[^,]+]],
+# CHECK-SAME: ptr addrspace(67) readonly %[[A:[^,]+]],
+# CHECK-SAME: ptr addrspace(67) readonly %[[B:[^,]+]],
+# CHECK-SAME: i64 {{.*}}%[[N:[^,]+]])
+# CHECK: %[[PACK:.+]] = alloca
+# LOWERED: %[[GS:[0-9]+]] = call i64 @llvm.tapir.loop.grainsize
+# CHECK: store ptr addrspace(67) %[[A]], ptr %[[PACK]]
+# CHECK: %[[PACK1:.+]] = getelementptr {{.*}}i8, ptr %[[PACK]]
+# CHECK: store ptr addrspace(67) %[[B]], ptr %[[PACK1]]
+# CHECK: %[[PACK2:.+]] = getelementptr {{.*}}i8, ptr %[[PACK]]
+# CHECK: store ptr addrspace(67) %[[C]], ptr %[[PACK2]]
+# CHECK: %[[CTX:.+]] = call ptr @llvm.kit.launch.threads(
+# CHECK-SANE: i32 512,
+# CHECK-SAME: ptr @[[OUTLINED:_Z6vecadd[^,]+]],
+# CHECK-SAME: i64 0,
+# CHECK-SAME: i64 %[[N]],
+# CHECK-SAME: i64 %[[GS]],
+# CHECK-SAME: ptr %[[PACK]])
+# CHECK: ret void
+#
+# CHECK: define internal fastcc void @[[OUTLINED]](
+# CHECK-SAME: i64 %[[START:[^,]+]],
+# CHECK-SAME: i64 %[[END:[^,]+]],
+# CHECK-SAME: i64 %[[GRAINSIZE:[^,]+]],
+# CHECK-SAME: ptr {{.*}}%[[ARGS:[^)]+]])
+# CHECK: %[[ARGB:.+]] = getelementptr i8, ptr %[[ARGS]], i64 8
+# CHECK: %[[ARGC:.+]] = getelementptr i8, ptr %[[ARGS]], i64 16
+# CHECK: br label %[[BODY:.+]]
+# CHECK: [[BODY:.+]]:
+# CHECK: %[[I:.+]] = phi i64
+# CHECK: %[[PTRA:.+]] = load ptr addrspace(67), ptr %[[ARGS]]
+# CHECK: %[[PTRB:.+]] = load ptr addrspace(67), ptr %[[ARGB]]
+# CHECK: %[[PTRC:.+]] = load ptr addrspace(67), ptr %[[ARGC]]
+# CHECK: %[[IDXA:.+]] = {{.*}}call
+# CHECK: %[[VA:.+]] = load double, ptr %[[IDXA]]
+# CHECK: %[[IDXB:.+]] = {{.*}}call
+# CHECK: %[[VB:.+]] = load double, ptr %[[IDXB]]
+# CHECK: %[[SUM:.+]] = fadd double %[[VA]], %[[VB]]
+# CHECK: %[[IDXC:.+]] = {{.*}}call
+# CHECK: store double %[[SUM]], ptr %[[IDXC]]
+# CHECK: add {{.*}}i64 %[[I]], 1
+# CHECK: %[[ICMP:.+]] = icmp
+# CHECK: br i1 %[[ICMP]], label %[[EXIT:.+]], label %[[BODY]]
+# CHECK: [[EXIT]]:
+# CHECK: ret void

@@ -10,10 +10,15 @@
 // This file implements the OpenMP ABI to converts Tapir instructions to calls
 // into the OpenMP runtime system.
 //
+//
+//                                   IMPORTANT
+//
+// This tapir target has been superseded by the OpenMPTT tapir target. This is
+// currently not used anywhere. However, we keep it in the repo for now. The
+// lowering strategy used here may be useful when lowering other frontend
+// constructs that Kitsune may, eventually, support.
+//
 //===----------------------------------------------------------------------===//
-
-#pragma warning "OpenMPABI needs to be updated"
-#if 0
 
 #include "llvm/Transforms/Tapir/OpenMPABI.h"
 #include "llvm/IR/DebugInfoMetadata.h"
@@ -763,5 +768,3 @@ void OpenMPABI::postProcessFunction(Function &F, bool ProcessingTapirLoops) {
 }
 
 void llvm::OpenMPABI::postProcessHelper(Function &F) {}
-
-#endif // 0

@@ -1412,6 +1412,7 @@ bool llvm::inferNonMandatoryLibFuncAttrs(Function &F,
   case LibFunc_kithip_symbol_memcpy_dtoh:
   case LibFunc_kithip_symbol_memcpy_htod:
   case LibFunc_kithip_sync_stream:
+  case LibFunc_kitomp_launch:
   case LibFunc_kitpthr_launch:
   case LibFunc_kitpthr_sync:
   case LibFunc_kitqthr_launch:
@@ -1540,6 +1541,7 @@ FunctionCallee llvm::getOrInsertLibFunc(Module *M, const TargetLibraryInfo &TLI,
   case LibFunc_vsnprintf:
     break;
 
+  case LibFunc_kitomp_launch:
   case LibFunc_kitpthr_launch:
   case LibFunc_kitpthr_sync:
   case LibFunc_kitqthr_launch:

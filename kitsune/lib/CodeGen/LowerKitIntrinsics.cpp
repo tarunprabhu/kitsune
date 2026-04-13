@@ -85,6 +85,13 @@ static const KitsuneRuntimeFuncMap kitHipFuncs = {
     {Intrinsic::kit_thread_stream, LibFunc_kithip_get_thread_stream},
 };
 
+/// Kitsune runtime functions for the openmp tapir target.
+static const KitsuneRuntimeFuncMap kitOpenMPFuncs = {
+    {Intrinsic::kit_finalize, LibFunc_kitomp_finalize},
+    {Intrinsic::kit_initialize, LibFunc_kitomp_initialize},
+    {Intrinsic::kit_launch_threads, LibFunc_kitomp_launch},
+};
+
 /// Kitsune runtime functions for the pthreads tapir target.
 static const KitsuneRuntimeFuncMap kitPthreadsFuncs = {
     {Intrinsic::kit_finalize, LibFunc_kitpthr_finalize},
@@ -105,6 +112,7 @@ static const KitsuneRuntimeFuncMap kitQthreadsFuncs = {
 static const std::map<TTID, KitsuneRuntimeFuncMap> kitTTFuncs = {
     {TTID::Cuda, kitCudaFuncs},
     {TTID::Hip, kitHipFuncs},
+    {TTID::OpenMP, kitOpenMPFuncs},
     {TTID::Pthreads, kitPthreadsFuncs},
     {TTID::Qthreads, kitQthreadsFuncs},
 };
@@ -227,6 +235,7 @@ private:
       // When using the 'nolo' tapir target, we should never get here, but in
       // case we do, just default to using libc's malloc.
     case TTID::OpenCilk:
+    case TTID::OpenMP:
     case TTID::Pthreads:
     case TTID::Serial:
       return getOrInsertLibFunc(m, LibFunc_malloc);
@@ -240,7 +249,6 @@ private:
       return getOrInsertLibFunc(m, LibFunc_malloc);
     case TTID::Lambda:
     case TTID::OMPTask:
-    case TTID::OpenMP:
     case TTID::Realm:
       // These tapir targets are not fully supported yet, but add them to this
       // switch to ensure that a warning is emitted when a new tapir target is
@@ -272,6 +280,7 @@ private:
       // When using the 'nolo' tapir target, we should never get here, but in
       // case we do, just default to using libc's free.
     case TTID::OpenCilk:
+    case TTID::OpenMP:
     case TTID::Pthreads:
     case TTID::Serial:
       return getOrInsertLibFunc(m, LibFunc_free);
@@ -282,7 +291,6 @@ private:
       return getOrInsertLibFunc(m, LibFunc_free);
     case TTID::Lambda:
     case TTID::OMPTask:
-    case TTID::OpenMP:
     case TTID::Realm:
       // These tapir targets are not fully supported yet, but add them to this
       // switch to ensure that a warning is emitted when a new tapir target is

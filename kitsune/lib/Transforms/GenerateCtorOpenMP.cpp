@@ -1,0 +1,123 @@
+//==- GenerateCtorOpenMP.cpp - Generate ctor for Kitsune's OpenMP runtime --==//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// Generate a global constructor and destructor for Kitsune's OpenMP runtime.
+//
+//===----------------------------------------------------------------------===//
+
+#include "GenerateCtorsImpl.h"
+#include "kitsune/Core/ConstantUtils.h"
+#include "kitsune/Core/TTOptions.h"
+#include "kitsune/Core/Tapir.h"
+// #include "llvm/Analysis/TargetLibraryInfo.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/Module.h"
+#include "llvm/Transforms/Utils/BuildLibCalls.h"
+#include "llvm/Transforms/Utils/ModuleUtils.h"
+
+using namespace llvm;
+
+namespace {
+
+/// Helper class to generate a ctor for kitomp (Kitsune's runtime for the openmp
+/// tapir target).
+class GenerateCtorOpenMP {
+private:
+  detail::GetTLI getTLI;
+  const TTOptions &tto;
+
+private:
+  Function *createCtor(Module &m, Function *dtor) {
+    LLVMContext &ctx = m.getContext();
+    IRBuilder<> builder(ctx);
+
+    Type *voidTy = Type::getVoidTy(ctx);
+    PointerType *ptrTy = PointerType::getUnqual(ctx);
+    Type *boolTy = Type::getInt8Ty(ctx);
+
+    bool verbose = tto.getKitrtVerbose();
+
+    Constant *ctt = toConstant(TTID::OpenMP, ctx);
+    Constant *cVerbose = ConstantInt::get(boolTy, verbose, /*IsSigned=*/false);
+
+    FunctionType *ctorTy = FunctionType::get(voidTy, ptrTy, /*IsVarArg=*/false);
+    Function *ctor = Function::Create(ctorTy, GlobalValue::InternalLinkage,
+                                      ".kitomp.ctor", &m);
+
+    BasicBlock *bbEntry = BasicBlock::Create(ctx, "entry", ctor);
+    BasicBlock *bbExit = BasicBlock::Create(ctx, "exit", ctor);
+
+    builder.SetInsertPoint(bbEntry);
+
+    // We can't enable verbose mode until after we call initialize.
+    builder.CreateIntrinsic(Intrinsic::kit_initialize, ctt);
+    builder.CreateIntrinsic(Intrinsic::kit_enable_verbose, cVerbose);
+
+    // Now add the dtor to help us clean up at program exit.
+    TargetLibraryInfo &tli = getTLI(*ctor);
+    FunctionCallee atExit = getOrInsertLibFunc(&m, tli, LibFunc_atexit);
+    builder.CreateCall(atExit, dtor);
+
+    builder.CreateBr(bbExit);
+
+    builder.SetInsertPoint(bbExit);
+    builder.CreateRetVoid();
+
+    return ctor;
+  }
+
+  Function *createDtor(Module &m) {
+    LLVMContext &ctx = m.getContext();
+    IRBuilder<> builder(ctx);
+
+    Type *voidTy = Type::getVoidTy(ctx);
+    PointerType *ptrTy = PointerType::getUnqual(ctx);
+
+    Constant *ctt = toConstant(TTID::OpenMP, ctx);
+
+    FunctionType *dtorTy = FunctionType::get(voidTy, ptrTy, /*IsVarArg=*/false);
+    Function *dtor = Function::Create(dtorTy, GlobalValue::InternalLinkage,
+                                      ".kitomp.dtor", &m);
+
+    BasicBlock *bbEntry = BasicBlock::Create(ctx, "entry", dtor);
+    BasicBlock *bbExit = BasicBlock::Create(ctx, "exit", dtor);
+
+    builder.SetInsertPoint(bbEntry);
+    builder.CreateIntrinsic(Intrinsic::kit_finalize, {ctt});
+    builder.CreateBr(bbExit);
+
+    builder.SetInsertPoint(bbExit);
+    builder.CreateRetVoid();
+
+    return dtor;
+  }
+
+public:
+  GenerateCtorOpenMP(detail::GetTLI getTLI, const TTOptions &tto)
+      : getTLI(getTLI), tto(tto) {}
+
+  void run(Module &m) {
+    Function *dtor = createDtor(m);
+    Function *ctor = createCtor(m, dtor);
+
+    // Set the priority of this ctor to be very low so it is one of the last to
+    // run.
+    appendToGlobalCtors(m, ctor, 65536);
+  }
+};
+
+} // namespace
+
+void llvm::detail::genCtorOpenMP(Module &m, detail::GetTLI getTLI,
+                                 const TTOptions &tto,
+                                 const detail::GenerateCtorOptions &) {
+  GenerateCtorOpenMP(getTLI, tto).run(m);
+}
