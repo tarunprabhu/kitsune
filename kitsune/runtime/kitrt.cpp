@@ -56,6 +56,7 @@
 #include <cstring>
 #include <ctype.h>
 #include <execinfo.h>
+#include <mutex>
 #include <type_traits>
 
 // FIXME: Combine these global variables into a single struct. This should
@@ -83,6 +84,9 @@ void __kitrt_initialize() {
 // the variable list of arguments \p args must be of the appropriate types.
 static void __kitrt_log(const char *label, const char *category,
                         const char *msg, va_list args) {
+  static std::mutex mtx;
+  std::lock_guard<std::mutex> guard(mtx);
+
   // TODO: It would be nice if we could colorize the label.
   if (label)
     fprintf(stderr, "%s: ", label);
