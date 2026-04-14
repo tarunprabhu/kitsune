@@ -28,9 +28,6 @@ namespace {
 /// \ingroup kitsune
 class OpenMPLoop : public LoopOutlineProcessor {
 public:
-  /// Create a loop outline processor for the openmp tapir target.
-  /// \param m The host module
-  /// \param ttOpts The tapir target options
   OpenMPLoop(Module &m, const TTOptions &tto)
       : LoopOutlineProcessor(m, m, tto,
                              CloneFunctionChangeType::GlobalChanges) {}
@@ -74,10 +71,10 @@ OpenMPTT::OpenMPTT(Module &m, const TTOptions &tto) : TapirTarget(m, tto) {}
 bool OpenMPTT::shouldDoOutlining(const Function &f) const { return true; }
 
 Value *OpenMPTT::lowerGrainsizeCall(CallInst *call) {
-  /// In this tapir target, we do not use a grain size, so always return 0.
-  /// Otherwise, this will have to be a call to a function from the runtime that
-  /// calculates the grainsize, or the results of the analysis on the loop that
-  /// determines an appropriate grainsize value to use.
+  // In this tapir target, we do not use a grain size, so always return 0.
+  // Otherwise, this will have to be a call to a function from the runtime that
+  // calculates the grainsize, or the results of the analysis on the loop that
+  // determines an appropriate grainsize value to use.
   Constant *gs = ConstantInt::get(call->getType(), 0);
   call->replaceAllUsesWith(gs);
   return gs;
