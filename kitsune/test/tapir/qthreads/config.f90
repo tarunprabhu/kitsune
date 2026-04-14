@@ -24,9 +24,9 @@
 !
 ! CHECK-CUSTOM: Configuration file: {{.*}}/input/qthreads.cfg
 ! CHECK-CUSTOM: "-fc1"
-! CHECK-CUSTOM-SAME: "-D" "some_preprocessor_flag"
-! CHECK-CUSTOM-SAME: "-Wsome_compiler_flag"
-! CHECK-CUSTOM-NEXT: "-some_linker_flag"
+! CHECK-CUSTOM-SAME: "-D" "qthreads_preprocessor_flag"
+! CHECK-CUSTOM-SAME: "-Wqthreads_compiler_flag"
+! CHECK-CUSTOM-NEXT: "-qthreads_linker_flag"
 !
 ! -----------------------------------------------------------------------------
 ! If configuration files for both the driver and the tapir target are present,
@@ -53,9 +53,9 @@
 ! BOTH: Configuration file: {{.*}}/input/cfgs/kitfc.cfg
 ! BOTH: Configuration file: {{.*}}/input/cfgs/qthreads.cfg
 ! BOTH: "-fc1"
-! BOTH-SAME: "-D" "driver_preprocessor_flag"
-! BOTH-SAME: "-D" "tapir_preprocessor_flag"
-! BOTH-SAME: "-Wdriver_compiler_flag"
-! BOTH-SAME: "-Wtapir_compiler_flag"
-! BOTH-NEXT: "-driver_linker_flag"
-! BOTH-SAME: "-tapir_linker_flag"
+! BOTH-SAME: "-D" "qthreads_driver_preprocessor_flag"
+! BOTH-SAME: "-D" "qthreads_custom_preprocessor_flag"
+! BOTH-SAME: "-Wqthreads_driver_compiler_flag"
+! BOTH-SAME: "-Wqthreads_custom_compiler_flag"
+! BOTH-NEXT: "-qthreads_driver_linker_flag"
+! BOTH-SAME: "-qthreads_custom_linker_flag"

@@ -22,9 +22,9 @@
 //
 // CUSTOM: Configuration file: {{.*}}/input/opencilk.cfg
 // CUSTOM: "-cc1"
-// CUSTOM-SAME: "-D" "some_preprocessor_flag"
-// CUSTOM-SAME: "-Wsome_compiler_flag"
-// CUSTOM-NEXT: "-some_linker_flag"
+// CUSTOM-SAME: "-D" "opencilk_preprocessor_flag"
+// CUSTOM-SAME: "-Wopencilk_compiler_flag"
+// CUSTOM-NEXT: "-opencilk_linker_flag"
 //
 // -----------------------------------------------------------------------------
 // If configuration files for both the driver and the tapir target are present,
@@ -51,9 +51,9 @@
 // BOTH: Configuration file: {{.*}}/input/cfgs/kit++.cfg
 // BOTH: Configuration file: {{.*}}/input/cfgs/opencilk.cfg
 // BOTH: "-cc1"
-// BOTH-SAME: "-D" "driver_preprocessor_flag"
-// BOTH-SAME: "-D" "tapir_preprocessor_flag"
-// BOTH-SAME: "-Wdriver_compiler_flag"
-// BOTH-SAME: "-Wtapir_compiler_flag"
-// BOTH-NEXT: "-driver_linker_flag"
-// BOTH-SAME: "-tapir_linker_flag"
+// BOTH-SAME: "-D" "opencilk_driver_preprocessor_flag"
+// BOTH-SAME: "-D" "opencilk_custom_preprocessor_flag"
+// BOTH-SAME: "-Wopencilk_driver_compiler_flag"
+// BOTH-SAME: "-Wopencilk_custom_compiler_flag"
+// BOTH-NEXT: "-opencilk_driver_linker_flag"
+// BOTH-SAME: "-opencilk_custom_linker_flag"
