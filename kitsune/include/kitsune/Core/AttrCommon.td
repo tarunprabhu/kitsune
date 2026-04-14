@@ -24,11 +24,6 @@ def TapirOnly : AllowedOnKind;
 def NormalOnly : AllowedOnKind;
 def TapirOrNormal : AllowedOnKind;
 
-// Boolean type and values since these are not available in TableGen.
-class Bool;
-def True : Bool;
-def False : Bool;
-
 // Basic class for all types for an attribute value. This is intended to be
 // "abstract" in the sense that it is not intended to be used directly by
 // users i.e. those writing .td files. Instead one of the classes that inherits
@@ -49,9 +44,9 @@ class Type;
 //
 // Pointer types are *not* allowed here.
 //
-class BasicType<string NameParam, Bool IsEnumParam = False> : Type {
+class BasicType<string NameParam, bit IsEnumParam = false> : Type {
   string Name = NameParam;
-  Bool IsEnum = IsEnumParam;
+  bit IsEnum = IsEnumParam;
 }
 
 // A void type. This should only be used for "flag" attributes i.e. those that
@@ -78,8 +73,8 @@ def StrTy : BasicType<"llvm::StringRef">;
 
 // Enumerations that are used in attributes. In general, we include all enums
 // here, but others may be defined in the files with specific attributes.
-def TTIDTy : BasicType<"llvm::TTID", True>;
-def SpawnStrategyTy : BasicType<"llvm::TapirSpawnStrategy", True>;
+def TTIDTy : BasicType<"llvm::TTID", true>;
+def SpawnStrategyTy : BasicType<"llvm::TapirSpawnStrategy", true>;
 
 //-----------------------------------------------------------------------------
 //
@@ -109,7 +104,7 @@ class AttrBase<Type ValueTypeParam = VoidTy> {
   // this must be VoidTy.
   Type ValueType = ValueTypeParam;
 
-  // If True, the attribute has a custom verifier. In this case, a custom
+  // If true, the attribute has a custom verifier. In this case, a custom
   // verifier function with the appropriate signature must be provided. The
   // signature of this function depends on the type of the attribute. In the
   // examples below, IRElem is the type of the LLVM IR entity to which the
@@ -149,7 +144,7 @@ class AttrBase<Type ValueTypeParam = VoidTy> {
   // error message may be printed to it if the attribute is not valid. The
   // verifier must return true if the attribute is valid, false otherwise.
   //
-  Bool HasCustomVerifier = False;
+  bit HasCustomVerifier = false;
 
   // Documentation for this attribute. This is used to generate the HTML docs.
   code Documentation = [{}];
