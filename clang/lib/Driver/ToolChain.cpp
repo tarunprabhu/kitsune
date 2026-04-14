@@ -2566,7 +2566,7 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
 
   // We always link in libkitrt if a tapir target or special Kokkos handling has
   // been specified.
-  if (TT or IsKokkos) {
+  if (IsKokkos || (TT && *TT != TTID::Nolo)) {
     // These should be linked before libkitrt. At some point, we may have a
     // static archives for libomp and libqthreads. In that case, they would have
     // to be linked before uses of the methods in the library in libkitrt.

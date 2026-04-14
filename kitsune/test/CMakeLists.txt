@@ -172,9 +172,9 @@ endif ()
 # organization of tests in this directory. check-kitsune-<TT> is more ergonomic
 # and saves a bit of typing during development.
 foreach(TT IN LISTS KITSUNE_ENABLED_TAPIR_TARGETS)
-  add_custom_target(check-kitsune-${TT}
-    DEPENDS check-kitsune-tapir-${TT})
+  add_custom_target(check-kitsune-${TT} DEPENDS check-kitsune-tapir-${TT})
 endforeach()
+add_custom_target(check-kitsune-nolo DEPENDS check-kitsune-tapir-nolo)
 
 # Like the targets to check for the individual tapir targets above, these are
 # provided for convenience.
