@@ -26,9 +26,9 @@
 //
 // CUSTOM: Configuration file: {{.*}}/input/hip.cfg
 // CUSTOM: "-cc1"
-// CUSTOM-SAME: "-D" "some_preprocessor_flag"
-// CUSTOM-SAME: "-Wsome_compiler_flag"
-// CUSTOM-NEXT: "-some_linker_flag"
+// CUSTOM-SAME: "-D" "hip_preprocessor_flag"
+// CUSTOM-SAME: "-Whip_compiler_flag"
+// CUSTOM-NEXT: "-hip_linker_flag"
 // CUSTOM-SAME: -lkitrt
 // CUSTOM-SAME: "-lamdhip64"
 //
@@ -57,11 +57,11 @@
 // BOTH: Configuration file: {{.*}}/input/cfgs/kit++.cfg
 // BOTH: Configuration file: {{.*}}/input/cfgs/hip.cfg
 // BOTH: "-cc1"
-// BOTH-SAME: "-D" "driver_preprocessor_flag"
-// BOTH-SAME: "-D" "tapir_preprocessor_flag"
-// BOTH-SAME: "-Wdriver_compiler_flag"
-// BOTH-SAME: "-Wtapir_compiler_flag"
-// BOTH-NEXT: "-driver_linker_flag"
-// BOTH-SAME: "-tapir_linker_flag"
+// BOTH-SAME: "-D" "hip_driver_preprocessor_flag"
+// BOTH-SAME: "-D" "hip_custom_preprocessor_flag"
+// BOTH-SAME: "-Whip_driver_compiler_flag"
+// BOTH-SAME: "-Whip_custom_compiler_flag"
+// BOTH-NEXT: "-hip_driver_linker_flag"
+// BOTH-SAME: "-hip_custom_linker_flag"
 // BOTH-SAME: -lkitrt
 // BOTH-SAME: -lamdhip64

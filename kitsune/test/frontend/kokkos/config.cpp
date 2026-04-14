@@ -1,6 +1,6 @@
 // -----------------------------------------------------------------------------
-// Check that providing a custom config directory without a target-specific
-// configuration file in it is ok.
+// Check that providing a custom config directory without a configuration file
+// for kokkos is ok.
 //
 // RUN: %kitxx -### --kokkos --tapir=nolo --config-system-dir=%S \
 // RUN:     %s 2>&1 \
@@ -19,8 +19,8 @@
 // CUSTOM-NOEXIST-NOT: Configuration file: {{.*}}/kokkos.cfg
 //
 // -----------------------------------------------------------------------------
-// Check that providing a custom config directory with a target-specific
-// configuration file leads to the file being found and the contents used.
+// Check that providing a custom config directory with a configuration file
+// for kokkos leads to the file being found and the contents used.
 //
 // RUN: %kitxx -### --kokkos --tapir=nolo \
 // RUN:     --config-system-dir=%S/input/cfg1 %s 2>&1 \
@@ -38,9 +38,9 @@
 //
 // CUSTOM: Configuration file: {{.*}}/kokkos.cfg
 // CUSTOM: "-cc1"
-// CUSTOM-SAME: "-D" "some_preprocessor_flag"
-// CUSTOM-SAME: "-Wsome_compiler_flag"
-// CUSTOM-NEXT: "-some_linker_flag"
+// CUSTOM-SAME: "-D" "kokkos1_preprocessor_flag"
+// CUSTOM-SAME: "-Wkokkos1_compiler_flag"
+// CUSTOM-NEXT: "-kokkos1_linker_flag"
 //
 // -----------------------------------------------------------------------------
 // If configuration files for both the kokkos and the tapir target are present,
@@ -76,12 +76,12 @@
 // BOTH: Configuration file: {{.*}}/input/cfg2/kokkos.cfg
 // BOTH: Configuration file: {{.*}}/input/cfg2/serial.cfg
 // BOTH: "-cc1"
-// BOTH-SAME: "-D" "kokkos_preprocessor_flag"
-// BOTH-SAME: "-D" "serial_preprocessor_flag"
-// BOTH-SAME: "-Wkokkos_compiler_flag"
-// BOTH-SAME: "-Wserial_compiler_flag"
-// BOTH-NEXT: "-kokkos_linker_flag"
-// BOTH-SAME: "-serial_linker_flag"
+// BOTH-SAME: "-D" "kokkos2_preprocessor_flag"
+// BOTH-SAME: "-D" "kokkos2_serial_preprocessor_flag"
+// BOTH-SAME: "-Wkokkos2_compiler_flag"
+// BOTH-SAME: "-Wkokkos2_serial_compiler_flag"
+// BOTH-NEXT: "-kokkos2_linker_flag"
+// BOTH-SAME: "-kokkos2_serial_linker_flag"
 //
 // -----------------------------------------------------------------------------
 // If configuration files for the driver, kokkos and the tapir target are all
@@ -111,12 +111,12 @@
 // ALL: Configuration file: {{.*}}/input/cfg3/kokkos.cfg
 // ALL: Configuration file: {{.*}}/input/cfg3/serial.cfg
 // ALL: "-cc1"
-// ALL-SAME: "-D" "driver_preprocessor_flag"
-// ALL-SAME: "-D" "kokkos_preprocessor_flag"
-// ALL-SAME: "-D" "serial_preprocessor_flag"
-// ALL-SAME: "-Wdriver_compiler_flag"
-// ALL-SAME: "-Wkokkos_compiler_flag"
-// ALL-SAME: "-Wserial_compiler_flag"
-// ALL-NEXT: "-driver_linker_flag"
-// ALL-SAME: "-kokkos_linker_flag"
-// ALL-SAME: "-serial_linker_flag"
+// ALL-SAME: "-D" "kokkos3_driver_preprocessor_flag"
+// ALL-SAME: "-D" "kokkos3_preprocessor_flag"
+// ALL-SAME: "-D" "kokkos3_serial_preprocessor_flag"
+// ALL-SAME: "-Wkokkos3_driver_compiler_flag"
+// ALL-SAME: "-Wkokkos3_compiler_flag"
+// ALL-SAME: "-Wkokkos3_serial_compiler_flag"
+// ALL-NEXT: "-kokkos3_driver_linker_flag"
+// ALL-SAME: "-kokkos3_linker_flag"
+// ALL-SAME: "-kokkos3_serial_linker_flag"

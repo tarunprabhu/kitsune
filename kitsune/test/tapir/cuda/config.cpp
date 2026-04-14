@@ -27,9 +27,9 @@
 //
 // CUSTOM: Configuration file: {{.*}}/input/cuda.cfg
 // CUSTOM: "-cc1"
-// CUSTOM-SAME: "-D" "some_preprocessor_flag"
-// CUSTOM-SAME: "-Wsome_compiler_flag"
-// CUSTOM-NEXT: "-some_linker_flag"
+// CUSTOM-SAME: "-D" "cuda_preprocessor_flag"
+// CUSTOM-SAME: "-Wcuda_compiler_flag"
+// CUSTOM-NEXT: "-cuda_linker_flag"
 // CUSTOM-SAME: -lkitrt
 // CUSTOM-SAME: -lcuda
 // CUSTOM-SAME: -lcudart_static
@@ -59,12 +59,12 @@
 // BOTH: Configuration file: {{.*}}/input/cfgs/kit++.cfg
 // BOTH: Configuration file: {{.*}}/input/cfgs/cuda.cfg
 // BOTH: "-cc1"
-// BOTH-SAME: "-D" "driver_preprocessor_flag"
-// BOTH-SAME: "-D" "tapir_preprocessor_flag"
-// BOTH-SAME: "-Wdriver_compiler_flag"
-// BOTH-SAME: "-Wtapir_compiler_flag"
-// BOTH-NEXT: "-driver_linker_flag"
-// BOTH-SAME: "-tapir_linker_flag"
+// BOTH-SAME: "-D" "cuda_driver_preprocessor_flag"
+// BOTH-SAME: "-D" "cuda_custom_preprocessor_flag"
+// BOTH-SAME: "-Wcuda_driver_compiler_flag"
+// BOTH-SAME: "-Wcuda_custom_compiler_flag"
+// BOTH-NEXT: "-cuda_driver_linker_flag"
+// BOTH-SAME: "-cuda_custom_linker_flag"
 // BOTH-SAME: -lkitrt
 // BOTH-SAME: -lcuda
 // BOTH-SAME: -lcudart_static
