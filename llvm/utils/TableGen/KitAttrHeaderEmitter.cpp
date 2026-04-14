@@ -30,12 +30,6 @@ static bool isTuple(const Record &type) {
   return type.isSubClassOf("TupleType");
 }
 
-static bool isTrue(const Record &v) {
-  if (!v.isSubClassOf("Bool"))
-    PrintFatalError(v.getLoc(), "Can only check if boolean values are true");
-  return v.getName() == "True";
-}
-
 std::string KitAttrHeaderEmitter::getBaseMacroName() const {
   std::string buf;
   raw_string_ostream os(buf);
@@ -164,7 +158,7 @@ void KitAttrHeaderEmitter::emitAttr(raw_ostream &os, const Record &attr) {
   StringRef attrName = attr.getName();
   std::string irName = quote(getIRName(attr));
   std::string macroName = getMacroName(*type);
-  bool hasCustomVerifier = isTrue(*attr.getValueAsDef("HasCustomVerifier"));
+  bool hasCustomVerifier = attr.getValueAsBit("HasCustomVerifier");
 
   os << macroName << "(" << attrName;
   os << ", " << irName;
