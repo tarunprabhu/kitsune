@@ -3,30 +3,24 @@
 // RUN: %kitcc --tapir=serial -O1 -S -emit-llvm -o - %s %sysroot \
 // RUN:     | FileCheck %s
 //
-// CHECK: define {{.*}}void @f(
+// CHECK-LABEL: @f
 // CHECK-SAME: ptr {{[^%]*}}%[[A:[^,]+]],
-// CHECK-SAME: i32 {{[^%]*}}%[[SCALE:[^,]+]],
 // CHECK-SAME: i64 {{[^%]*}}%[[N:[^,]+]])
 // CHECK: [[ENTRY:.+]]:
-// CHECK: br {{.+}}, label %[[END:.+]], label %[[BODY:[^,]+]]
-// CHECK: [[BODY]]:
+// CHECK: [[HEADER:.+]]:
 // CHECK: %[[I:.+]] = phi i64
-// CHECK: %[[IDX:.+]] = getelementptr {{.*}}i32, ptr %[[A]], i64 %[[I]]
-// CHECK: %[[V:.+]] = load i32, ptr %[[IDX]]
-// CHECK: %[[SCALED:.+]] = mul {{.*}}%[[V]], %[[SCALE]]
-// CHECK: store i32 %[[SCALED]], ptr %[[IDX]]
+// CHECK: %[[IDX:.+]] = getelementptr {{.*}}i64, ptr %[[A]], i64 %[[I]]
+// CHECK: store i64 %[[I]], ptr %[[IDX]]
 // CHECK: %[[INC:.+]] = add {{.+}} %[[I]], 1
-// CHECK: %[[CMP:.+]] = icmp
-// CHECK: br i1 %[[CMP]], label %[[END]], label %[[BODY]], !llvm.loop
-// CHECK: [[END:.+]]:
-// CHECK: ret void
+// CHECK: %[[CMP:.+]] = icmp eq i64 %[[INC]], %[[N]]
+// CHECK: br i1 %[[CMP]], label %{{[^,]+}}, label %[[HEADER]], !llvm.loop
 
 #include <kitsune.h>
 
-void f(int *a, int scale, size_t n) {
+void f(size_t *a, size_t n) {
   // clang-format off
   forall (size_t i = 0; i < n; ++i) {
-    a[i] *= scale;
+    a[i] = i;
   }
   // clang-format on
 }

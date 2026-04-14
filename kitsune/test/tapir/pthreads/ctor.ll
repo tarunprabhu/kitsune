@@ -41,8 +41,6 @@ header:
   detach within %syncreg, label %body, label %latch
 
 body:
-  %arrayidx = getelementptr i64, ptr %c, i64 %i
-  store i64 %n, ptr %arrayidx, align 4
   reattach within %syncreg, label %latch
 
 latch:

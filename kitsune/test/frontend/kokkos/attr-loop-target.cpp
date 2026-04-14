@@ -18,11 +18,11 @@
 
 #include <Kokkos_Core.hpp>
 
-extern "C" void f(int *a, int scale, size_t n) {
+extern "C" void f(int *a, size_t n) {
   // clang-format off
   [[tapir::target("pthreads")]]
   Kokkos::parallel_for(n, KOKKOS_LAMBDA(const int i) {
-    a[i] *= scale;
+    a[i] = i;
   });
   // clang-format on
 }

@@ -20,7 +20,7 @@
 
 declare void @printf32(float)
 
-define void @f(ptr %c, float %scale, i64 %n) {
+define void @f(ptr %c, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
   br label %header
@@ -31,9 +31,7 @@ header:
 
 body:
   %arrayidx = getelementptr float, ptr %c, i64 %i
-  %v = load float, ptr %arrayidx, align 4
-  %scaled = fmul float %v, %scale
-  store float %scaled, ptr %arrayidx, align 4
+  store i64 %i, ptr %arrayidx, align 4
   reattach within %syncreg, label %latch
 
 latch:

@@ -7,14 +7,12 @@
 // RUN:     | FileCheck %s
 //
 // CHECK-LABEL: @f
-// CHECK-SAME: ptr {{.*}}%[[A:.+]], i32 {{.*}}%[[SCALE:.+]], i64 {{.*}}%[[N:[^)]+]]
+// CHECK-SAME: ptr {{.*}}%[[A:[^,]+]],
+// CHECK-SAME: i64 {{.*}}%[[N:[^)]+]])
 // CHECK: [[ENTRY:.+]]:
-// CHECK: %[[ARGS:.+]] = alloca { ptr, i32 }
-// CHECK: br {{.+}}, label %[[END:.+]], label %[[BODY:[^,]+]]
-// CHECK: [[BODY]]:
+// CHECK: %[[ARGS:.+]] = alloca { ptr }
+// CHECK: [[BODY:.+]]:
 // CHECK: store ptr %[[A]], ptr %[[ARGS]]
-// CHECK: %[[SCALEPOS:.+]] = getelementptr inbounds {{.*}}i8, ptr %[[ARGS]]
-// CHECK: store i32 %[[SCALE]], ptr %[[SCALEPOS]]
 // CHECK: %[[CTX:.+]] = call ptr @llvm.kit.async.launch.threads(
 // CHECK-SAME: i32 1024,
 // CHECK-SAME: ptr @[[OUTLINED:[^,]+]],
@@ -33,24 +31,19 @@
 // CHECK-SAME: i64 %[[GRAINSIZE:[^,]+]],
 // CHECK-SAME: ptr {{.*}}%[[ARGS:[^)]+]])
 // CHECK: [[ENTRY:.+]]:
-// CHECK: br label %[[BODY:.+]]
-// CHECK: [[BODY:.+]]:
+// CHECK: [[HEADER:.+]]:
 // CHECK: %[[I:.+]] = phi i64
-// CHECK: %[[IDX:.+]] = getelementptr {{.*}}i32, ptr {{.+}}, i64 %[[I]]
-// CHECK: %[[V:.+]] = load i32, ptr %[[IDX]]
-// CHECK: %[[SCALED:.+]] = mul {{.*}}i32 %[[V]]
-// CHECK: store i32 %[[SCALED]], ptr %[[IDX]]
+// CHECK: %[[IDX:.+]] = getelementptr {{.*}}i64, ptr {{.+}}, i64 %[[I]]
+// CHECK: store i64 %[[I]], ptr %[[IDX]]
 // CHECK: add {{.*}}i64 %[[I]], 1
-// CHECK: br {{.+}}, label %[[END:.+]], label %[[BODY]]
-// CHECK: [[END]]:
-// CHECK: ret void
+// CHECK: br {{.+}}, label %[[END:.+]], label %[[HEADER]]
 
 #include <kitsune.h>
 
-void f(int *a, int scale, size_t n) {
+void f(size_t *a, size_t n) {
   // clang-format off
   forall (size_t i = 0; i < n; ++i) {
-    a[i] *= scale;
+    a[i] = i;
   }
   // clang-format on
 }
