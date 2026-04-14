@@ -27,14 +27,10 @@ namespace {
 /// \ingroup kitsune
 class PthreadsLoop : public LoopOutlineProcessor {
 public:
-  /// Create a loop outline processor for the pthreads tapir target.
-  /// \param m The host module
-  /// \param ttOpts The tapir target options
-  PthreadsLoop(Module &m, const TTOptions &ttOpts)
-      : LoopOutlineProcessor(m, m, ttOpts,
+  PthreadsLoop(Module &m, const TTOptions &tto)
+      : LoopOutlineProcessor(m, m, tto,
                              CloneFunctionChangeType::GlobalChanges) {}
-
-  ~PthreadsLoop() = default;
+  virtual ~PthreadsLoop() = default;
 
   /// Returns an ArgStructMode enum value describing how inputs to the
   /// underlying task of a tapir loop should be passed to the task.
@@ -79,21 +75,22 @@ PthreadsTT::PthreadsTT(Module &m, const TTOptions &ttOpts)
 bool PthreadsTT::shouldDoOutlining(const Function &f) const { return true; }
 
 Value *PthreadsTT::lowerGrainsizeCall(CallInst *call) {
-  // We don't use a grain size in this tapir target, so set it to zero to
-  // indicate that it is unused.
+  // In this tapir target, we do not use a grain size, so always return 0.
+  // Otherwise, this will have to be a call to a function from the runtime that
+  // calculates the grainsize, or the results of the analysis on the loop that
+  // determines an appropriate grainsize value to use.
   Value *zero = ConstantInt::get(call->getType(), 0);
   call->replaceAllUsesWith(zero);
   return zero;
 }
 
 void PthreadsTT::lowerSync(SyncInst &si) {
-  // This is only called from the TapirToTarget pass. In some cases, the sync
-  // instruction is removed by SimplifyCFG, in which case this is never called.
-  // Because of this behavior, we generate a call to __kitpthr_sync()
-  // immediately after the call to __kitpthr_launch(). If we do get here, we
-  // only need to replace the sync instruction with a simple branch.
-
-  ReplaceInstWithInst(&si, BranchInst::Create(si.getSuccessor(0)));
+  // This is only called from the TapirToTarget pass. However, after loop
+  // spawning, there will be nothing for that pass to do, so this is not
+  // expected to be called. In case it is, fail catastrophically since it would
+  // imply that something elsewhere has changed and this may have to be modified
+  // to keep up.
+  llvm_unreachable("PthreadsTT: Unexpected invocation of lowerSync() callback");
 }
 
 LoopOutlineProcessor *

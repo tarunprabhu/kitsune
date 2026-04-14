@@ -1,4 +1,4 @@
-//===- SerialTT.cpp - Implementation of the serial tapir target -----------===//
+//===- SerialTT.cpp - Tapir target that serializes tapir loops ------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -27,8 +27,8 @@ namespace {
 /// \ingroup kitsune
 class SerialLoop : public LoopOutlineProcessor {
 public:
-  SerialLoop(Module &m, const TTOptions &opts)
-      : LoopOutlineProcessor(m, m, opts,
+  SerialLoop(Module &m, const TTOptions &tto)
+      : LoopOutlineProcessor(m, m, tto,
                              CloneFunctionChangeType::GlobalChanges) {}
   virtual ~SerialLoop() = default;
 
@@ -42,22 +42,22 @@ public:
 
 } // namespace
 
-SerialTT::SerialTT(Module &m, const TTOptions &ttOpts)
-    : TapirTarget(m, ttOpts) {}
+SerialTT::SerialTT(Module &m, const TTOptions &tto) : TapirTarget(m, tto) {}
 
 bool SerialTT::shouldDoOutlining(const Function &f) const { return false; }
 
 Value *SerialTT::lowerGrainsizeCall(CallInst *call) {
-  /// Get the actual grainsize that is to be used. In this tapir target, we do
-  /// not use a grain size, so always return 0.
+  /// In this tapir target, we do not use a grain size, so always return 0.
   Value *gs = ConstantInt::get(call->getType(), 0);
   call->replaceAllUsesWith(gs);
   return gs;
 }
 
 void SerialTT::lowerSync(SyncInst &si) {
-  // This is only called from the TapirToTarget pass. In some cases, the sync
-  // instruction is removed by SimplifyCFG, in which case this is never called.
+  // This is only called from the TapirToTarget pass. If the sync instruction
+  // has not already been removed (for instance, by the SimplifyCFG pass), we
+  // can simply replace the instruction with an unconditional branch since there
+  // is no parallel work here to sync.
   ReplaceInstWithInst(&si, BranchInst::Create(si.getSuccessor(0)));
 }
 
