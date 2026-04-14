@@ -9,11 +9,11 @@
 
 #include <kitsune.h>
 
-void f(int *a, int scale, size_t n) {
+void f(size_t *a, size_t n) {
   // clang-format off
   [[tapir::target("openmp")]]
   forall (size_t i = 0; i < n; ++i) {
-    a[i] *= scale;
+    a[i] = i;
   }
   // clang-format on
 }
