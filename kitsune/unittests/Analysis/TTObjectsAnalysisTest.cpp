@@ -253,14 +253,6 @@ TEST(KitTTObjectsAnalysis, mixed) {
   EXPECT_FALSE(ttObjs.hasTT(TTID::Hip));
 }
 
-// TODO: The test below requires 3 tapir targets to have been built. Currently,
-// only the 'serial' and 'pthreads' targets will be built unconditionally. The
-// choice of 'opencilk' as the third required tapir target here is completely
-// arbitrary. If we ever have a third tapir target that is guaranteed to be
-// built, that should be used instead so this test can be built and run
-// unconditionally.
-#if KITSUNE_OPENCILK_ENABLED
-
 // Check that, in a module with multiple functions, the required TT's are
 // computed correctly for both the functions and the module. In each case, a
 // TapirTarget object should have been created. A tapir target for the primary
@@ -271,7 +263,7 @@ TEST(KitTTObjectsAnalysis, withMultipleFuncs) {
   driver::KitsuneOptions kitOpts;
   std::optional<TTOptions> tto = std::nullopt;
 
-  kitOpts.setTTID(TTID::OpenCilk);
+  kitOpts.setTTID(TTID::OpenMP);
   tto = *TTOptions::create(kitOpts, OptznLevel::O2, FPOpFusion::Standard);
 
   std::unique_ptr<Module> m = parseAssemblyString(mixed2, err, ctx);
@@ -300,13 +292,11 @@ TEST(KitTTObjectsAnalysis, withMultipleFuncs) {
   EXPECT_EQ(ttObjs.getRequiredTTs(*g), ArrayRef(expectedG));
   EXPECT_EQ(ttObjs.getRequiredTTs(*m), ArrayRef(expected));
 
-  EXPECT_TRUE(ttObjs.hasTT(TTID::OpenCilk));
+  EXPECT_TRUE(ttObjs.hasTT(TTID::OpenMP));
   EXPECT_TRUE(ttObjs.hasTT(TTID::Serial));
   EXPECT_TRUE(ttObjs.hasTT(TTID::Pthreads));
   EXPECT_FALSE(ttObjs.hasTT(TTID::Cuda));
   EXPECT_FALSE(ttObjs.hasTT(TTID::Hip));
 }
-
-#endif // KITSUNE_OPENCILK_ENABLED
 
 } // namespace
