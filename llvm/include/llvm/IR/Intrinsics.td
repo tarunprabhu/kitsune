@@ -2912,7 +2912,8 @@ def int_experimental_convergence_loop
 //===----------------------------------------------------------------------===//
 // Kitsune-specific intrinsics
 //===----------------------------------------------------------------------===//
-include "llvm/IR/IntrinsicsKitsune.td"
+
+include "kitsune/Core/Intrinsics.td"
 
 //===----------------------------------------------------------------------===//
 // Target-specific intrinsics
