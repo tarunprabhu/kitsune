@@ -1,4 +1,4 @@
-//===- IntrinsicsKitsune.td - Defines Kitsune intrinsics ---*- tablegen -*-===//
+//===- Intrinsics.td - Kitsune-specific intrinsics ---------*- tablegen -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,9 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file defines the Kitsune-specific intrinsics. In the intrinsics here,
-// boolean arguments have type i8 instead of i1 to simplify the lowering since,
-// in the runtime, booleans are always 8-bit.
+// This file defines the Kitsune-specific intrinsics.
 //
 //===----------------------------------------------------------------------===//
 //
@@ -18,6 +16,9 @@
 //   of the code expect this. Failing to do so could result in miscompilation
 //   since analyses may make incorrect assumptions about data being available
 //   when reordering kernel launches.
+//
+// - Boolean arguments must have type i8, not i1. This is to simplify lowering
+//   since, in the runtime, booleans are always 8-bit.
 //
 //===----------------------------------------------------------------------===//
 

@@ -3263,7 +3263,7 @@ def int_task_frameaddress
 
 //===------------------------- Kitsune Intrinsics -------------------------===//
 
-include "llvm/IR/IntrinsicsKitsune.td"
+include "kitsune/Core/IntrinsicsKitsune.td"
 
 //===----------------------------------------------------------------------===//
 // Target-specific intrinsics
