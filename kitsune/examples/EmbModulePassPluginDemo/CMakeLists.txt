@@ -8,8 +8,11 @@ endif ()
 
 add_llvm_pass_plugin(kit-emb-pass-plugin-demo
   EmbModulePassPluginDemo.cpp
+
   DEPENDS
   intrinsics_gen
+  kitsune_generated
+
   BUILDTREE_ONLY)
 
 # Set the OUTPUT_NAME property because we need to retrieve it for use in the

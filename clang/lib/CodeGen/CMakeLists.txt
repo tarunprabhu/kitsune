@@ -177,6 +177,7 @@ add_clang_library(clangCodeGen
   DEPENDS
   vt_gen
   intrinsics_gen
+  kitsune_generated
   ClangDriverOptions
   # These generated headers are included transitively.
   target_parser_gen

@@ -11,4 +11,8 @@ set(LLVM_LINK_COMPONENTS
 )
 
 add_llvm_tool(kit-mbc
-  kit-mbc.cpp)
+  kit-mbc.cpp
+
+  DEPENDS
+  intrinsics_gen
+  kitsune_generated)

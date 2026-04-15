@@ -22,6 +22,7 @@ add_llvm_component_library(LLVMKitTransforms
 
   DEPENDS
   intrinsics_gen
+  kitsune_generated
 
   # The pass that optimizes embedded modules constructs a private pass pipeline
   # and runs a standard sequence of optimization passes on the module. This

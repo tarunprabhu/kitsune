@@ -9,6 +9,7 @@ add_llvm_component_library(LLVMKitCodeGen
 
   DEPENDS
   intrinsics_gen
+  kitsune_generated
 
   LINK_COMPONENTS
   Analysis
