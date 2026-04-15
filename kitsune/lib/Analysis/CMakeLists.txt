@@ -5,6 +5,7 @@ add_llvm_component_library(LLVMKitAnalysis
 
   DEPENDS
   intrinsics_gen
+  kitsune_generated
 
   # Including TapirOpts here results in a circular dependence since TapirOpts
   # depends on KitAnalysis. The issue is that the TapirTargetAnalysis pass

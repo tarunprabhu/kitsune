@@ -10,8 +10,11 @@ endif ()
 # LLVM's build system.
 add_llvm_pass_plugin(kit-tt-plugin-demo
   TTPluginDemo.cpp
+
   DEPENDS
   intrinsics_gen
+  kitsune_generated
+
   BUILDTREE_ONLY
 )
 

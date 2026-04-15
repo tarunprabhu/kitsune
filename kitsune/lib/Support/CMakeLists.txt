@@ -17,6 +17,9 @@ add_llvm_component_library(LLVMKitSupport
   COMPONENT_NAME
   KitSupport
 
+  DEPENDS
+  kitsune_generated
+
   LINK_COMPONENTS
   Support
 )
