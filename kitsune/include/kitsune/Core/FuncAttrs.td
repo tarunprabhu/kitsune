@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 include "kitsune/Core/AttrCommon.td"
+include "kitsune/Core/FuncAttrDocs.td"
 
 // Base class for all Kitsune-specific function attributes.
 //
@@ -31,29 +32,20 @@ class FuncAttr<Type ValueType = VoidTy> : AttrBase<ValueType> { }
 
 //------------------------------------------------------------------------------
 
+// Flag indicating that the function is a "device function".
 def Device : FuncAttr<> {
   let HasCustomVerifier = true;
-  let Documentation = [{
-The function is a "device function". This is a function in the device module
-that is reachable from at least one kernel function. This attribute must **not**
-be applied to "library" functions such as those provided by the libdevice
-bitcode files.
-}];
+  let Documentation = KitDeviceDoc;
 }
 
+// Flag to indicate that the kit-annotate-early pass has been run on the
+// function.
 def EarlyAnnotatePass : FuncAttr<> {
-  let Documentation = [{
-The presence of this attribute indicates that the `kit-annotate-early` pass has
-been run on the function.
-}];
+  let Documentation = KitEarlyAnnotatePassDoc;
 }
 
+// Flag indicating that the function is a "kernel function".
 def Kernel : FuncAttr<> {
   let HasCustomVerifier = true;
-  let Documentation = [{
-The function is a "kernel function". This is a function in the device module
-that was obtained by outlining a tapir loop. With GPU-centric tapir targets,
-this is the entry point into the GPU and will be launched onto the GPU by
-Kitsune's runtime.
-}];
+  let Documentation = KitKernelDoc;
 }

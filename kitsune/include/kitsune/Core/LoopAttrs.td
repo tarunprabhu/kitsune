@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 include "kitsune/Core/AttrCommon.td"
+include "kitsune/Core/LoopAttrDocs.td"
 
 // Base class for all Kitsune-specific loop attributes. These are most likely to
 // be added to tapir loops, but they may be added to regular loops as well.
@@ -51,189 +52,67 @@ class LoopAttr<Type ValueType = VoidTy> : AttrBase<ValueType>{}
 
 //------------------------------------------------------------------------------
 
+// The name of a loop - usually a tapir loop. This can be useful for debugging
+// or when one is compelled to read LLVM-IR.
 def Name : LoopAttr<StrTy> {
   let HasCustomVerifier = true;
-  let Documentation = [{
-A human-readable name for the loop. This is useful in debugging and diagnostics
-when debug information is not available.
-}];
+  let Documentation = KitLoopNameDoc;
 }
 
-// This can only be attached to normal loops since the process of serializing it
-// will have converted a tapir loop to a regular loop.
+// Flag indicating that the loop is a serialized tapir loop.
 def Serialized : LoopAttr<> {
-   let Documentation = [{
-The presence of this attribute indicates that the loop on which it is present
-is a tapir loop that was serialized.
-}];
+   let Documentation = KitLoopSerializedDoc;
 }
 
+// Flag indicating that the tapir loop is lowered to a GPU kernel, and Kitsune's
+// runtime will perform autotuning on the launch parameters when launching the
+// GPU kernel generated from this tapir loop.
+// TODO: Rename this to AutotuneKernelLaunch
 def AutotuneLaunch : LoopAttr<> {
-  let Documentation = [{
-If present, this attribute indicates that the runtime should use autotuning to
-find optimal kernel launch parameters. This is only used by the 'cuda' and 'hip'
-tapir targets.
-}];
+  let Documentation = KitLoopAutotuneLaunchDoc;
 }
 
+// The grainsize to use when lowering the tapir loop.
 // We name this Grainsize to ensure that the name of the generated attribute is
 // tapir.loop.grainsize. This is backwards compatible with the name of the
 // attribute in OpenCilk. We may change this in the future to be more consistent
 // with the other attribute names, but that would require changes to most tests
 // in llvm/lib/Transforms/Tapir.
 def Grainsize : LoopAttr<U32Ty> {
-  let Documentation = [{
-Certain tapir targets may launch one task per iteration of a parallel loop.
-The overhead of these task launches and syncs can overwhelm any gains obtained
-by running the iterations in parallel. In such cases, it may be beneficial to
-reduce the degree of parallelism by strip-mining the loop. When this is done,
-a smaller number of parallel tasks will be launched, but each will do extra work
-by running some number of iterations serially.
-
-The grain size is the number of iterations that are executed serially in such
-cases.
-
-Consider the parallel loop shown on the left below. After strip-mining, it may
-resemble the loop on the right. Note the use of the grainsize, `gs` in the
-loops on the right.
-
-.. code-block:: c++
-
-  parallel_for(i : {0, n}) {            parallel_for(i : {0, n / gs}) {
-                                            for (j : {i * gs, (i + 1) * gs}) {
-       ...                                      ...
-                                            }
-  }                                     }
-}];
+  let Documentation = KitLoopGrainsizeDoc;
 }
 
+// Flag indicating that the loop spawning pass should lowrer the tapir loop
+// using the tapir target specified in the loop's target attribute. Tapir loops
+// that do not have this attribute set will not be lowered by the loop-spawning
+// pass.
 def LoweringEnabled : LoopAttr<> {
-  let Documentation = [{
-If this attribute is present in a tapir loop, it will be lowered using the tapir
-target specified in the value of this attribute. Tapir loops that do not contain
-this attribute will not be lowered directly in the loop spawning pass. This does
-not mean that such tapir loops will not be lowered, just that they will not be
-passed directly to a tapir target. They will almost certainly be handled when
-lowering a parent tapir loop that is passed to a tapir target.
-}];
+  let Documentation = KitLoopLoweringEnabledDoc;
 }
 
+// The number of perfectly nested tapir loops rooted at the given loop.
 def PerfectDepth : LoopAttr<U32Ty> {
-  let Documentation = [{
-The value of the perfect depth attribute indicates the level of the deepest
-tapir loop in a tapir loop nest that is perfectly nested relative to the root
-i.e. the outermost tapir loop.
-
-.. note::
-  A tapir loop nest is a loop nest where the root is a tapir loop. All loops
-  between the deepest tapir loop and the root must also be tapir loops.
-
-For instance, in the loops shown below, the perfect depth will be 2.
-
-.. code-block :: c++
-
-  parallel_for (i ...) {                 parallel_for (i ...) {
-      parallel_for (j ...) {                 parallel_for (j ...) {
-          ...                                    for (k ...) {
-      }                                              ...
-  }                                              }
-                                             }
-                                         }
-
-The loop on the left consists of a nest of perfectly nested tapir loops. In this
-case, the depth of the loop nest also happens to be 2. On the other hand, the
-depth of the loop nest on the right is 3. However, since only the first two
-loops in the nest are tapir loops, the perfect depth is 2.
-
-The perfect depth of the loops shown below are also 2.
-
-.. code-block :: c++
-
-  parallel_for (i ...) {                        parallel_for (i ...) {
-      parallel_for (j ...) {                        parallel_for (j ...) {
-          for (k ...) {                                 stmt;
-              parallel_for (l ...) {                    parallel_for (k ...) {
-                  ...                                        ...
-              }                                         }
-          }                                         }
-      }                                         }
-  }
-
-The perfect depth of that loop is despite all 4 loops in the nest being
-perfectly nested since the loop at depth 3 is not a tapir loop. On the right,
-the innermost loop is a parallel loop, but it is not perfectly nested relative
-to the root which is why the perfect depth is also 2.
-}];
+  let Documentation = KitLoopPerfectDepthDoc;
 }
 
+// The nesting level of a loop that is perfectly nested within a loop nest.
 def PerfectLevel : LoopAttr<U32Ty> {
-  let Documentation = [{
-The value of the perfect level attribute indicates the level of a tapir loop in
-a perfect tapir loop nest.
-
-.. note::
-  A tapir loop nest is a loop nest where the root is a tapir loop. All loops
-  between the deepest tapir loop and the root must also be tapir loops.
-
-In the code shown below, the perfect level of each loop is shown in trailing
-comments.
-
-.. code-block::c++
-
-  parallel_for (i ...) {               // Perfect level = 1
-      parallel_for (j ...) {           // Perfect level = 2
-          for (k ...) {
-              parallel_for (l ...) {
-                  ...
-              }
-          }
-      }
-  }
-
-Here, the innermost tapir loop does not have a perfect level since its parent
-is not a tapir loop. As a result, it is not part of the tapir loop nest. On
-the other hand, in the loop nest below, the innermost tapir loop does not have
-a perfect level since it is not perfectly nested relative to the root of the
-tapir loop.
-
-.. code-block::c++
-
-  parallel_for (i ...) {          // Perfect level = 1
-      parallel_for (j ...) {      // Perfect level = 2
-          stmt;
-          parallel_for (k ...) {
-               ...
-          }
-      }
-  }
-
-From the examples shown here, it is evident that the perfect level of a tapir
-loop must be less than or equal to the perfect depth of the tapir loop nest of
-which the tapir loop is a part.
-}];
+  let Documentation = KitLoopPerfectLevelDoc;
 }
 
+// The spawn strategy for the tapir loop.
 def SpawnStrategy : LoopAttr<SpawnStrategyTy> {
-  let Documentation = [{
-The spawn strategy attribute mainly determines whether a tapir loop should be
-outlined. At some point, it may be used for something more, but right now, its
-use is limited. This attribute is required to be present on all tapir loops.
-}];
+  let Documentation = KitLoopSpawnStrategyDoc;
 }
 
+// The tapir target to use when lowering the tapir loop.
 def Target : LoopAttr<TTIDTy> {
-  let Documentation = [{
-If this attribute is present in a tapir loop, it will be lowered using the tapir
-target specified in the attribute's value. This attribute is required to be
-present on all tapir loops.
-}];
+  let Documentation = KitLoopTargetDoc;
 }
 
+// The number of threads per block to use when launching a GPU kernel generated
+// from a tapir loop nest.
 def ThreadsPerBlock : LoopAttr<U32Ty> {
   let HasCustomVerifier = true;
-  let Documentation = [{
-If this attribute is present on a tapir loop, its value will be the number of
-threads per block used when launching the GPU kernel obtained when the loop is
-lowered using one of the GPU-centric tapir targets.
-}];
+  let Documentation = KitLoopThreadsPerBlockDoc;
 }

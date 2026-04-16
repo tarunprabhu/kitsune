@@ -10,6 +10,11 @@
 //
 //===----------------------------------------------------------------------===//
 
+// Documentation for a Kitsune-specific attribute.
+class KitDocAttr {
+  code Documentation;
+}
+
 // Base class whose specializations specify the type of construct to which an
 // attribute can be added. Only three specializations of this class are allowed.
 // These are listed below
@@ -147,5 +152,7 @@ class AttrBase<Type ValueTypeParam = VoidTy> {
   bit HasCustomVerifier = false;
 
   // Documentation for this attribute. This is used to generate the HTML docs.
-  code Documentation = [{}];
+  KitDocAttr Documentation;
 }
+
+//------------------------------------------------------------------------------

@@ -157,7 +157,8 @@ void KitAttrDocEmitter::emitAttrArgs(raw_ostream &os, const Record &attr) {
 }
 
 void KitAttrDocEmitter::emitAttrDoc(raw_ostream &os, const Record &attr) {
-  os << attr.getValueAsString("Documentation") << "\n";
+  const Record *doc = attr.getValueAsDef("Documentation");
+  os << doc->getValueAsString("Documentation") << "\n";
 }
 
 void KitAttrDocEmitter::run(raw_ostream &os) {
@@ -167,8 +168,12 @@ void KitAttrDocEmitter::run(raw_ostream &os) {
                     "no documentation will be generated.");
 
   std::vector<const Record *> ordered;
-  for (const Record *r : records.getAllDerivedDefinitions(getAttrBase()))
+  for (const Record *r : records.getAllDerivedDefinitions(getAttrBase())) {
+    if (!r->getValueAsDef("Documentation"))
+      PrintFatalError(r->getLoc(),
+                      "Attribute missing required definition: 'Documentation'");
     ordered.push_back(r);
+  }
   std::sort(ordered.begin(), ordered.end(),
             [](const Record *l, const Record *r) -> bool {
               return l->getName() < r->getName();
