@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 include "kitsune/Core/AttrCommon.td"
+include "kitsune/Core/InstAttrDocs.td"
 
 // Base class for all Kitsune-specific instruction attributes. For now, the
 // attributes are not constrained to be applied to only certain instruction
@@ -33,45 +34,8 @@ class InstAttr<Type ValueType = VoidTy> : AttrBase<ValueType> { }
 
 //------------------------------------------------------------------------------
 
+// The value of this attribute is the nearest loop to which the instruction
+// originally (before any optimizations) belonged.
 def SourceLoop : InstAttr<LoopIDTy> {
-  let Documentation = [{
-This attribute should only be attached to instructions that were originally,
-i.e. at the time of IR-generation, part of a loop. The value is the metadata
-node that is the ID of the loop to which the instruction originally belonged.
-This loop will be the "nearest" parent of the instruction. Consider the example
-below:
-
-.. code-block::c++
-
-  for (i ...) {
-      for (j ...) {
-          func();
-          ...
-      }
-  }
-
-Here, the value of the SourceLoop metadata attached to the call instruction
-(where the callee is `func`) will be the ID of the `j`-loop since it is the
-nearest parent loop.
-
-This is expressly intended to be used for the "provenance" of instructions. For
-example, if the LICM pass were to hoist the call to `func` from the innermost
-loop as shown below:
-
-.. code-block::c++
-
-  for (i ...) {
-      func();
-      for (j ...) {
-          ...
-      }
-  }
-
-the value of this metadata node is expected to be **unchanged**. With this
-transformation, the nearest parent of the call instruction would be the `i`-loop
-but the SourceLoop attribute value should still be the `j`-loop.
-
-Note that if the original source loop were to be deleted, the value of this
-attribute would be `null`.
-}];
+  let Documentation = KitSourceLoopDoc;
 }

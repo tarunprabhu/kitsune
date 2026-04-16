@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 include "kitsune/Core/AttrCommon.td"
+include "kitsune/Core/ArgAttrDocs.td"
 
 // Base class for all Kitsune-specific argument attributes.
 //
