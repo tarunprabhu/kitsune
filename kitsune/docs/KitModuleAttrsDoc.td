@@ -28,8 +28,11 @@ LLVM Module Attribute Reference
 
   <br/>
 
-These are Kitsune-specific "attributes" that may be added to LLVM modules. These
-appear as named metadata nodes in the module. Each attribute may take some
+These are Kitsune-specific "attributes" that may be added to LLVM modules. More
+general information about creating and using Kitsune's LLVM IR attributes can be
+found :doc:`here <LLVMIRAttributes>`.
+
+These appear as named metadata nodes in the module. Each attribute may take some
 number of values. For a given attribute, the number of values and their types
 are fixed. These values may be integers, strings or enums.
 

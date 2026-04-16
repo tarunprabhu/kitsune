@@ -29,7 +29,10 @@ LLVM Loop Attribute Reference
   <br/>
 
 These are Kitsune-specific "attributes" that may be attached to LLVM loops.
-They are actually added to LLVM's loop metadata. Each attribute appears in the
+More general information about creating and using Kitsune's LLVM IR attributes
+can be found :doc:`here <LLVMIRAttributes>`.
+
+These are added to LLVM's standard loop metadata. Each attribute appears in the
 metadata as a pair consisting of a string that identifies the attribute and a
 value for the attribute.
 

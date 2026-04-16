@@ -29,9 +29,11 @@ LLVM Function Attribute Reference
   <br/>
 
 These are Kitsune-specific attributes that may be attached to LLVM functions.
-These use the existing metadata mechanism available for `GlobalObject`'s (of
-which `Function`'s are a subclass). This intentionally does not use the
-function attribute mechanism for two reasons:
+More general information about creating and using Kitsune's LLVM IR attributes
+can be found :doc:`here <LLVMIRAttributes>`.
+
+These intentionally do not use LLVM's stanard function attribute mechanism for
+two reasons:
 
 * The function attribute mechanism in LLVM only allows string-valued attributes.
   This would limit our ability to associate other objects with functions in the
@@ -42,6 +44,9 @@ function attribute mechanism for two reasons:
   rebuild. Since Kitsune is primarily intended to be a research compiler, we
   anticipate adding new attributes fairly often. The compilation costs of such
   changes would be excessive.
+
+Instead, they use the existing metadata mechanism available for `GlobalObject`'s
+(of which `Function`'s are a subclass).
 
 Kitsune's function attributes must be one of the following kinds.
 

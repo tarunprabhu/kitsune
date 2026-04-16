@@ -29,6 +29,9 @@ LLVM Global Variable Attribute Reference
   <br/>
 
 These are Kitsune-specific attributes that may be attached to global variables.
+More general information about creating and using Kitsune's LLVM IR attributes
+can be found :doc:`here <LLVMIRAttributes>`.
+
 These attributes must be one of the following kinds.
 
 * **Flag Attributes**: These are attributes that do not take a value. Only

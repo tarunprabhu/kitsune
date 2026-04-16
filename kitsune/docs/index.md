@@ -97,6 +97,7 @@ depending on what is of interest to you.
     AddingTapirTarget
     AddingKitsuneIntrinsic
     BuildingDocumentation
+    LLVMIRAttributes
     KitsuneTestSuite
     Testing
     LLVMTools
