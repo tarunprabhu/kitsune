@@ -53,3 +53,11 @@ LLVM_FIXED_MD_KIND(MD_DIAssignID, "DIAssignID", 38)
 LLVM_FIXED_MD_KIND(MD_coro_outside_frame, "coro.outside.frame", 39)
 LLVM_FIXED_MD_KIND(MD_mmra, "mmra", 40)
 LLVM_FIXED_MD_KIND(MD_noalias_addrspace, "noalias.addrspace", 41)
+// Make LLVM aware of all the metadata nodes that contain Kitsune-specific
+// metadata. It is not clear that we need to register all of them, but do so
+// just in case.
+LLVM_FIXED_MD_KIND(MD_kit_arg_attrs, "kit.args", 42)
+LLVM_FIXED_MD_KIND(MD_kit_func_attrs, "kit.func", 43)
+LLVM_FIXED_MD_KIND(MD_kit_gv_attrs, "kit.gv", 44)
+LLVM_FIXED_MD_KIND(MD_kit_inst_attrs, "kit.inst", 45)
+LLVM_FIXED_MD_KIND(MD_kit_module_attrs, "kit.module", 46)
