@@ -1,0 +1,716 @@
+//===- IntrinsicDocs.td - Docs for Kitsune's intrinsics ----*- tablegen -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// Documentation for Kitsune-specific intrinsics. These are used to generate
+// the HTML documentation.
+//
+//===----------------------------------------------------------------------===//
+
+// The category to which the intrinsic belongs. This is only used when
+// organizing the documentation.
+class KitDocCategory {
+  // The text to be used in the section header when generating the
+  // documentation.
+  string Header;
+
+  // The text for the introductory paragraph for the section containing
+  // intrinsics in this category.
+  code Intro;
+}
+
+// Memory allocation intrinsics.
+def KitDocCatMemAlloc : KitDocCategory {
+  let Header = "Memory Allocation Intrinsics";
+  let Intro = [{
+These intrinsics specifically allocate and free
+:doc:`mobile buffers <MemoryManagement>`.
+}];
+}
+
+// Intrinsics shared by Kitsune's various runtimes.
+def KitDocCatCommon : KitDocCategory {
+  let Header = "Common Intrinsics";
+  let Intro = [{
+These intrinsics correspond to operations that are likely to be supported by
+several tapir targets and their associated runtimes.
+}];
+}
+
+// Intrinsics used by Ktsune's multithreaded CPU runtimes.
+def KitDocCatThreading : KitDocCategory {
+  let Header = "Threading Intrinsics";
+  let Intro = [{
+These intrinsics are generally used by tapir targets that lower to a
+multithreaded runtime such as OpenMP or Qthreads. These generally operate by
+splitting iterations of a :ref:`tapir loop <glossary-tapir-loop>` across threads
+on a CPU.
+}];
+}
+
+// Intrinsics used by the GPU-centric tapir targets.
+def KitDocCatGPU : KitDocCategory {
+  let Header = "GPU-centric Intrinsics";
+  let Intro = [{
+These intrinsics are only be used by the GPU-centric tapir targets,
+:ref:`cuda <tapir-targets-cuda>` and :ref:`hip <tapir-targets-hip>`.
+}];
+}
+
+// Documentation for the parameter of an intrinsic.
+class KitDocParam<string NameParam, string DescrParam> {
+  // The name of the parameter.
+  string Name = NameParam;
+
+  // Description of the parameter.
+  string Descr = DescrParam;
+}
+
+// Documentation for a Kitsune-specific intrinsic.
+class KitDocIntrinsic {
+  // The category to which this intrinsic belongs. This is only used when
+  // generating the HTML documentation.
+  KitDocCategory Category;
+
+  // Documentation for the intrinsic function parameters. This must, obviously,
+  // be kept consistent with the intrinsics signature.
+  list<KitDocParam> ParamDocs;
+
+  // Description of the intrinsic.
+  code Descr;
+}
+
+def KitMobileAllocDoc : KitDocIntrinsic {
+  let Category = KitDocCatMemAlloc;
+  let ParamDocs = [
+      KitDocParam<"size", "The number of bytes to allocate">
+  ];
+  let Descr = [{
+Allocate a mobile buffer of `size` bytes. The lowering of this intrinsic may
+depend on:
+
+  - The tapir target(s) that have been enabled
+  - The uses of the allocated buffer
+
+.. note::
+  As of April 2026, uses of the allocated buffer are *not* considered - only
+  the primary tapir target is used to decide how the intrinsic is lowered.
+
+The allocated memory must be freed using the :ref:`llvm.kit.mobile.free`
+intrinsic.
+}];
+}
+
+def KitMobileFreeDoc : KitDocIntrinsic {
+  let Category = KitDocCatMemAlloc;
+  let ParamDocs = [
+      KitDocParam<"buf", "The mobile buffer to be freed">
+  ];
+  let Descr = [{
+Free a mobile buffer that was previously allocated using
+:ref:`llvm.kit.mobile.alloc`.
+}];
+}
+
+def KitInitializeDoc : KitDocIntrinsic {
+  let Category = KitDocCatCommon;
+  let ParamDocs = [
+      KitDocParam<"tt", "The ID of the tapir target calling the intrinsic">
+  ];
+  let Descr = [{
+Initialize Kitsune's runtime(s). This will initialize the runtime specific to
+the tapir target `tt`, as well as the common runtime shared by all tapir
+targets.
+}];
+}
+
+def KitFinalizeDoc : KitDocIntrinsic {
+  let Category = KitDocCatCommon;
+  let ParamDocs = [
+      KitDocParam<"tt", "The ID of the tapir target calling the intrinsic">
+  ];
+  let Descr = [{
+Finalize Kitsune's runtime(s). This will initialize the runtime specific to
+the tapir target `tt`, as well as the common runtime shared by all tapir
+targets.
+}];
+}
+
+def KitEnableVerboseDoc : KitDocIntrinsic {
+  let Category = KitDocCatCommon;
+  let ParamDocs = [
+      KitDocParam<"enable", "Non-zero to enable verbose mode, 0 to disable it">
+  ];
+  let Descr = [{
+Enable/disable verbose mode in Kitsune's runtime.
+
+.. note::
+  This intrinsic does not take a tapir target id because verbose mode is common
+  to all tapir targets. In the future, we may support enabling verbose mode on
+  select tapir targets. But this is only useful for multi-target compilation
+  and execution. This is not yet supported.
+}];
+}
+
+def KitLaunchThreadsDoc : KitDocIntrinsic {
+  let Category = KitDocCatThreading;
+  let ParamDocs = [
+      KitDocParam<"tt", "The ID of the tapir target calling the intrinsic">,
+      KitDocParam<"threadFunc", "The function executed on each thread">,
+      KitDocParam<"beg", "Start value of the loop induction variable">,
+      KitDocParam<"end", "Trip count of the loop">,
+      KitDocParam<"grainSize", "The grain size (currently unused)">,
+      KitDocParam<"argBundle", "Argument bundle passed to `threadFunc`">
+  ];
+  let Descr = [{
+Launch a parallel loop on one or more CPU threads.
+
+Currently, `beg` must be 0. `grainSize` is not used and may be removed in the
+future. `threadFunc` runs on each thread and handles a subset of the loop
+iterations. The actual signature of the function will depend on the tapir target
+that calls this, but will generally take at least a start index, an end index
+and the `argBundle`. `argBundle` is a pointer to a struct containing values that
+will be used by `thrdFunc`. The struct is specific to a given parallel loop and
+will typically consist of the entities used in the body of the loop.
+
+.. code :: c++
+
+  parallel_for(size_t i = 0; i < n; ++i)
+      dst[i] = src[i]
+
+For instance, in the loop above, `argBundle` will be a pointer to a struct
+consisting of two pointers, `dst` and `src`.
+
+This blocks until all threads launched by the intrinsic have finished executing.
+For the asynchronous equivalent of this intrinsic, see
+:ref:`llvm.kit.async.launch.threads`.
+}];
+}
+
+def KitAsyncLaunchThreadsDoc : KitDocIntrinsic {
+  let Category = KitDocCatThreading;
+  let ParamDocs = [
+      KitDocParam<"tt", "The ID of the tapir target calling the intrinsic">,
+      KitDocParam<"threadFunc", "The function executed on each thread">,
+      KitDocParam<"beg", "Start value of the loop induction variable">,
+      KitDocParam<"end", "Trip count of the loop">,
+      KitDocParam<"grainSize", "The grain size (currently unused)">,
+      KitDocParam<"argBundle", "Argument bundle passed to `threadFunc`">
+  ];
+  let Descr = [{
+Launch a parallel loop on one or more CPU threads. This is non-blocking and
+will return immediately.
+
+Returns a pointer to an opaque thread context object. This object must be passed
+to :ref:`llvm.kit.sync.threads` in order to synchronize the threads. It is the
+caller's responsiblity to ensure that any memory that is used by `threadFunc`
+is not used until after all threads launched here have finished executing i.e.
+after the threads have been synchronized.
+
+Currently, `beg` must be 0. `grainSize` is not used and may be removed in the
+future. `threadFunc` runs on each thread and handles a subset of the loop
+iterations. The actual signature of the function will depend on the tapir target
+that calls this, but will generally take at least a start index, an end index
+and the `argBundle`. `argBundle` is a pointer to a struct containing values that
+will be used by `thrdFunc`. The struct is specific to a given parallel loop and
+will typically consist of the entities used in the body of the loop.
+
+.. code :: c++
+
+  parallel_for(size_t i = 0; i < n; ++i)
+      dst[i] = src[i]
+
+For instance, in the loop above, `argBundle` will be a pointer to a struct
+consisting of two pointers, `dst` and `src`.
+
+For the synchronous, i.e. blocking, equivalent of this intrinsic, see
+:ref:`llvm.kit.launch.threads`.
+}];
+}
+
+def KitSyncThreadsDoc : KitDocIntrinsic {
+  let Category = KitDocCatThreading;
+  let ParamDocs = [
+    KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
+    KitDocParam<"ctx", "The thread context to synchronize">
+  ];
+  let Descr = [{
+Block until all threads launched by an earlier call to
+:ref:`llvm.kit.async.launch.threads` have finished executing. `ctx` must be the
+context object returned by that earlier call.
+}];
+}
+
+def KitAsyncMemcpyDToHDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [
+    KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
+    KitDocParam<"dest", "Pointer to the destination buffer (on the host)">,
+    KitDocParam<"source", "Pointer to the source buffer (on the device)">,
+    KitDocParam<"n", "The number of bytes to copy">,
+    KitDocParam<"stream", "The stream on which to carry out the copy">
+  ];
+  let Descr = [{
+Copy data from a device (usually a GPU) to the host.
+
+This is a non-blocking call i.e. it will return immediately - potentially before
+all the data has been copied. For the blocking equivalent of this, see
+:ref:`llvm.kit.memcpy.dtoh`.
+}];
+}
+
+def KitAsyncMemcpyHToDDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [
+    KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
+    KitDocParam<"dest", "Pointer to the destination buffer (on the device)">,
+    KitDocParam<"source", "Pointer to the source buffer (on the host)">,
+    KitDocParam<"n", "The number of bytes to copy">,
+    KitDocParam<"stream", "The stream on which to carry out the copy">
+  ];
+  let Descr = [{
+Copy data from the host to a device (usually a GPU).
+
+This is a non-blocking call i.e. it will return immediately - potentially before
+all the data has been copied. For the blocking equivalent of this, see
+:ref:`llvm.kit.memcpy.htod`.
+}];
+}
+
+def KitMemcpyDToHDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [
+    KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
+    KitDocParam<"dest", "Pointer to the destination buffer (on the host)">,
+    KitDocParam<"source", "Pointer to the source buffer (on the device)">,
+    KitDocParam<"n", "The number of bytes to copy">,
+  ];
+  let Descr = [{
+Copy data from a device (usually a GPU) to the host.
+
+This is a blocking call. For the non-blocking equivalent of this, see
+:ref:`llvm.kit.async.memcpy.dtoh`.
+}];
+}
+
+def KitMemcpyHToDDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [
+    KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
+    KitDocParam<"dest", "Pointer to the destination buffer (on the device)">,
+    KitDocParam<"source", "Pointer to the source buffer (on the host)">,
+    KitDocParam<"n", "The number of bytes to copy">,
+  ];
+  let Descr = [{
+Copy data from the host to a device (usually a GPU).
+
+This is a blocking call. For the non-blocking equivalent of this, see
+:ref:`llvm.kit.async.memcpy.htod`.
+}];
+}
+
+def KitAsyncPrefetchDToHDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [
+    KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
+    KitDocParam<"ptr", "Pointer to the buffer (on the device) to prefetch">,
+    KitDocParam<"n", "The number of bytes to prefetch">,
+    KitDocParam<"stream", "The stream on which to carry out the prefetch">
+  ];
+  let Descr = [{
+Prefetch data from a device (usually a GPU) to the host. This will be lowered to
+a call to a function in Kitsune's runtime.
+
+Returns the stream on which the prefetch was carried out. If `stream` is not
+`nullptr`, this will be returned. Otherwise, a new stream will be created and
+returned. `n` may be -1, in which case the number of bytes to prefetch will be
+determined by the runtime.
+
+This is a non-blocking intrinsic and may return before all the data has been
+prefetched.
+}];
+}
+
+def KitAsyncPrefetchHToDDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [
+    KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
+    KitDocParam<"ptr", "Pointer to the buffer (on the host) to prefetch">,
+    KitDocParam<"n", "The number of bytes to prefetch">,
+    KitDocParam<"stream", "The stream on which to carry out the prefetch">
+  ];
+  let Descr = [{
+Prefetch data from the host to a device (usually a GPU). This will be lowered to
+a call to a function in Kitsune's runtime.
+
+Returns the stream on which the prefetch was carried out. If `stream` is not
+`nullptr`, this will be returned. Otherwise, a new stream will be created and
+returned. `n` may be -1, in which case the number of bytes to prefetch will be
+determined by the runtime.
+
+This is a non-blocking intrinsic and may return before all the data has been
+prefetched.
+}];
+}
+
+def KitGPUEnableKernelLaunchRefinementDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [
+      KitDocParam<"tt", "The ID of the tapir target calling the intrinsic">,
+      KitDocParam<"enable", "Non-zero to enable kernel launch refinement, 0 to disable it">
+  ];
+  let Descr = [{
+Enable launch refinement. Setting this will cause Kitsune's runtime to calculate
+a kernel's launch parameters based on some heuristic. In the case of NVIDIA
+GPU's, this is an occupancy-based heuristic provided by Cuda.
+
+.. note::
+  As of May 2025, this is only implemented in kitsune's cuda runtime. If this is
+  implemented for kitsune's hip runtime as well, this comment should be updated.
+}];
+}
+
+def KitGPUEnableXnackDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [
+      KitDocParam<"enable", "Non-zero to enable xnack, 0 to disable it">
+  ];
+  let Descr = [{
+Enable xnack in Kitsune's runtime. This is only relevant for the
+:ref:`hip <tapir-targets-hip>` tapir target and its associated Kitsune runtime.
+}];
+}
+
+def KitGPUEnableYAxisKernelLaunchDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [
+      KitDocParam<"tt", "The ID of the tapir target calling the intrinsic">,
+      KitDocParam<"enable", "Non-zero to enable the y-axis launch pattern, 0 to disable it">
+  ];
+  let Descr = [{
+Enable the Y-axis launch pattern for all GPU kernels.
+
+.. note::
+  As of May 2025, this is has only been implemented for the
+  :ref:`hip <tapir-targets-hip>` tapir target.
+}];
+}
+
+def KitGPUSymbolAddressDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [
+    KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
+    KitDocParam<"deviceCode", "The global variable containing compiled device code">,
+    KitDocParam<"name", "The name of the symbol">
+  ];
+  let Descr = [{
+Get the address of a symbol on a device (typically a GPU). This is typically
+used to get a pointer to a global variable, but it could, in principle, be used
+to get the address of any global value.
+}];
+}
+
+def KitGPUTIDXDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [];
+  let Descr = [{
+Get the thread index in the `x` dimension in a GPU kernel. In a
+multi-dimensional kernel launch, this will be the fastest-changing index.
+This is lowered to one of the following intrinsics:
+
+.. csv-table::
+  :header: "", ""
+
+  NVPTX, `nvvm.read.ptx.sreg.tid.x`
+  AMDGPU, `amdgcn.workitem.id.x`
+}];
+}
+
+def KitGPUTIDYDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [];
+  let Descr = [{
+Get the thread index in the `y` dimension in a GPU kernel. In a
+multi-dimensional kernel launch, this will be the second-fastest-changing index.
+This is lowered to one of the following intrinsics:
+
+.. csv-table::
+  :header: "", ""
+
+  NVPTX, `nvvm.read.ptx.sreg.tid.y`
+  AMDGPU, `amdgcn.workitem.id.y`
+}];
+}
+
+def KitGPUTIDZDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [];
+  let Descr = [{
+Get the thread index in the `z` dimension in a GPU kernel. In a 3-dimensional
+kernel launch, this will be the slowest-changing index. This is lowered to one
+of the following intrinsics:
+
+.. csv-table::
+  :header: "", ""
+
+  NVPTX, `nvvm.read.ptx.sreg.tid.z`
+  AMDGPU, `amdgcn.workitem.id.z`
+}];
+}
+
+def KitGPUBlockIDXDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [];
+  let Descr = [{
+Get the block index in the `x` dimension in a GPU kernel. In a
+multi-dimensional kernel launch, this will be the fastest-changing index.
+This is lowered to one of the following intrinsics:
+
+.. csv-table::
+   :header: "", ""
+
+   NVPTX, `nvvm.read.ptx.sreg.ctaid.x`
+   AMDGPU, `amdgcn.workgroup.id.x`
+}];
+}
+
+def KitGPUBlockIDYDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [];
+  let Descr = [{
+Get the block index in the `y` dimension in a GPU kernel. In a
+multi-dimensional kernel launch, this will be the second-fastest-changing index.
+This is lowered to one of the following intrinsics:
+
+.. csv-table::
+   :header: "", ""
+
+   NVPTX, `nvvm.read.ptx.sreg.ctaid.y`
+   AMDGPU, `amdgcn.workgroup.id.y`
+}];
+}
+
+def KitGPUBlockIDZDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [];
+  let Descr = [{
+Get the block index in the `z` dimension in a GPU kernel. In a 3-dimensional
+kernel launch, this will be the slowest-changing index. This is lowered to one
+of the following intrinsics:
+
+.. csv-table::
+   :header: "", ""
+
+   NVPTX, `nvvm.read.ptx.sreg.ctaid.z`
+   AMDGPU, `amdgcn.workgroup.id.z`
+}];
+}
+
+def KitGPUBlockSizeXDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [];
+  let Descr = [{
+Get the number of blocks in the `x` dimension in a GPU kernel. In a
+multi-dimensional kernel launch, this will be the fastest-changing index.
+This is lowered to one of the following:
+
+.. csv-table::
+   :header: "", ""
+
+   NVPTX, `nvvm.read.ptx.sreg.ntid.x`
+   AMDGPU, `__ockl_get_local_size(0)`
+
+Note that in AMDGPU kernels, the intrinsic is lowered to a function from a
+vendor-provided bitcode file, which is called with a specific argument.
+}];
+}
+
+def KitGPUBlockSizeYDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [];
+  let Descr = [{
+Get the number of blocks in the `y` dimension in a GPU kernel. In a
+multi-dimensional kernel launch, this will be the second-fastest-changing index.
+This is lowered to one of the following:
+
+.. csv-table::
+   :header: "", ""
+
+   NVPTX, `nvvm.read.ptx.sreg.ntid.y`
+   AMDGPU, `__ockl_get_local_size(1)`
+
+Note that in AMDGPU kernels, the intrinsic is lowered to a function from a
+vendor-provided bitcode file, which is called with a specific argument.
+}];
+}
+
+def KitGPUBlockSizeZDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [];
+  let Descr = [{
+Get the number of blocks in the `z` dimension in a GPU kernel. In a
+3-dimensional kernel launch, this will be the slowest-changing index. This is
+lowered to one of the following:
+
+.. csv-table::
+   :header: "", ""
+
+   NVPTX, `nvvm.read.ptx.sreg.ntid.z`
+   AMDGPU, `__ockl_get_local_size(2)`
+
+Note that in AMDGPU kernels, the intrinsic is lowered to a function from a
+vendor-provided bitcode file, which is called with a specific argument.
+}];
+}
+
+def KitGPUGridSizeXDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [];
+  let Descr = [{
+Get the number of grids in the `x` dimension in a GPU kernel. In a
+multi-dimensional kernel launch, this will be the fastest-changing index.
+This is lowered to one of the following:
+
+.. csv-table::
+   :header: "", ""
+
+   NVPTX, `nvvm.read.ptx.sreg.nctaid.x`
+   AMDGPU, `__ockl_get_global_size(0)`
+
+Note that in AMDGPU kernels, the intrinsic is lowered to a function from a
+vendor-provided bitcode file, which is called with a specific argument.
+}];
+}
+
+def KitGPUGridSizeYDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [];
+  let Descr = [{
+Get the number of grids in the `y` dimension in a GPU kernel. In a
+multi-dimensional kernel launch, this will be the second-fastest-changing index.
+This is lowered to one of the following:
+
+.. csv-table::
+   :header: "", ""
+
+   NVPTX, `nvvm.read.ptx.sreg.nctaid.y`
+   AMDGPU, `__ockl_get_global_size(1)`
+
+Note that in AMDGPU kernels, the intrinsic is lowered to a function from a
+vendor-provided bitcode file, which is called with a specific argument.
+}];
+}
+
+def KitGPUGridSizeZDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [];
+  let Descr = [{
+Get the number of grids in the `z` dimension in a GPU kernel. In a
+3-dimensional kernel launch, this will be the slowest-changing index. This is
+lowered to one of the following:
+
+.. csv-table::
+   :header: "", ""
+
+   NVPTX, `nvvm.read.ptx.sreg.nctaid.z`
+   AMDGPU, `__ockl_get_global_size(2)`
+
+Note that in AMDGPU kernels, the intrinsic is lowered to a function from a
+vendor-provided bitcode file, which is called with a specific argument.
+}];
+}
+
+def KitAsyncGPULaunchKernelDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [
+      KitDocParam<"tt", "The ID of the tapir target calling the intrinsic">,
+      KitDocParam<"devCode", "The global variable containing the compiled kernel">,
+      KitDocParam<"name", "The name of the kernel to launch">,
+      KitDocParam<"tcZ", "Trip count of the loop at depth 3, or 0 if there is no such loop">,
+      KitDocParam<"tcY", "Trip count of the loop at depth 2, or 0 if there is no such loop">,
+      KitDocParam<"tcX", "Trip count of the loop at depth 1">,
+      KitDocParam<"tpb", "The threads per block to use when launching the kernel">,
+      KitDocParam<"props", "Pre-computed properties of the kernel being launched">,
+      KitDocParam<"stream", "The stream on which to launch the kernel">,
+      KitDocParam<"...", "Additional arguments required by the GPU kernel">
+  ];
+  let Descr = [{
+Launch a GPU kernel on a specific stream. The kernel will have been compiled
+from a nest of parallel loops with depth in the range [1,3] inclusive.
+
+This will return the stream on which the kernel was launched. This will be the
+same as `stream` if `stream` was not `nullptr`. If `stream` is `nullptr`, a
+suitable stream will be created and that stream will be returned. The stream is
+a pointer to an opaque object and must not be examined directly.
+
+The variable number of arguments are additional arguments required by the
+kernel. These will typically be entities used within the loop nest that has been
+compiled to a GPU kernel.
+
+.. code :: c++
+
+  parallel_for(size_t i = 0; i < n; ++i)
+      dst[i] = src[i]
+
+For instance, in the loop above, `dst` and `src` will be arguments to this
+intrinsic since they are used in the body of the parallel loop.
+
+This is a non-blocking intrinsic and will return immediately. The returned
+stream can be used to synchronize the GPU i.e. to block until all kernels that
+were launched on the stream have finished executing. This is done by passing the
+stream to the :ref:`llvm.kit.sync.stream` intrinsic. It is the callers
+responsibility to ensure that the GPU has finished executing before any memory
+modified by the kernel is used - either on the host or by another GPU kernel.
+}];
+}
+
+def KitGPUSyncStreamDoc : KitDocIntrinsic {
+   let Category = KitDocCatGPU;
+   let ParamDocs = [
+      KitDocParam<"tt", "The ID of the tapir target calling the intrinsic">,
+      KitDocParam<"stream", "The stream on to synchronize">,
+   ];
+   let Descr = [{
+Synchronize a GPU stream. This will block until all GPU kernels launched on
+the stream have finished executing.
+}];
+}
+
+def KitGPUGetStreamDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [
+      KitDocParam<"tt", "The ID of the tapir target calling the intrinsic">
+  ];
+  let Descr = [{
+Get a new GPU stream. Returns a pointer to the opaque stream object. This
+pointer must not be used to examine the returned object directly.
+}];
+}
+
+def KitGPUSetFixedTPBDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [
+      KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
+      KitDocParam<"tpb", "The threads per block value">,
+  ];
+  let Descr = [{
+Set a fixed number of threads per block to use when launching kernels generated
+by the tapir target `tt`.
+}];
+}
+
+def KitGPUSetMaxTPBDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [
+      KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
+      KitDocParam<"tpb", "The threads per block value">,
+  ];
+  let Descr = [{
+Set the maximum number of threads per block to use when launching kernels
+generated by the tapir target `tt`.
+}];
+}

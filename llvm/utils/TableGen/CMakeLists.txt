@@ -65,6 +65,7 @@ add_tablegen(llvm-tblgen LLVM
   KitGVAttrHeaderEmitter.cpp
   KitInstAttrDocEmitter.cpp
   KitInstAttrHeaderEmitter.cpp
+  KitIntrinsicsDocEmitter.cpp
   KitLoopAttrDocEmitter.cpp
   KitLoopAttrHeaderEmitter.cpp
   KitModuleAttrDocEmitter.cpp

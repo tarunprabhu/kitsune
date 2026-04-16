@@ -306,7 +306,7 @@ If the opencilk tapir target is enabled when
 Cheetah will be automatically downloaded and built.
 
 
-(tapir-target-openmp)=
+(tapir-targets-openmp)=
 ### openmp
 
 The [openmp](#openmp) tapir target lowers parallel loops to use LLVM's
