@@ -67,3 +67,11 @@ LLVM_FIXED_MD_KIND(MD_mem_cache_hint, "mem.cache_hint", 52)
 LLVM_FIXED_MD_KIND(MD_block_uniformity_profile, "block.uniformity.profile", 53)
 LLVM_FIXED_MD_KIND(MD_callgraph, "callgraph", 54)
 
+// Make LLVM aware of all the metadata nodes that contain Kitsune-specific
+// metadata. It is not clear that we need to register all of them, but do so
+// just in case.
+LLVM_FIXED_MD_KIND(MD_kit_arg_attrs, "kit.args", 55)
+LLVM_FIXED_MD_KIND(MD_kit_func_attrs, "kit.func", 56)
+LLVM_FIXED_MD_KIND(MD_kit_gv_attrs, "kit.gv", 57)
+LLVM_FIXED_MD_KIND(MD_kit_inst_attrs, "kit.inst", 58)
+LLVM_FIXED_MD_KIND(MD_kit_module_attrs, "kit.module", 59)
