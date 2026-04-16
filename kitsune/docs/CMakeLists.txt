@@ -305,6 +305,7 @@ if (KITSUNE_ENABLE_SPHINX)
         KitsuneTestSuite.md
         KokkosSupport.md
         LanguageExtensions.md
+        LLVMIRAttributes.md
         LLVMTools.md
         LTO.md
         MemoryManagement.md

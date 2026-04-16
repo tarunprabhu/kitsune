@@ -29,7 +29,10 @@ LLVM Argument Attribute Reference
   <br/>
 
 These are Kitsune-specific attributes that may be attached to the arguments of
-LLVM functions. This intentionally does not use the function/argument attribute
+LLVM functions. More general information about creating and using Kitsune's
+LLVM IR attributes can be found :doc:`here <LLVMIRAttributes>`.
+
+These intentionally do not use LLVM's standard function/argument attribute
 mechanism for two reasons:
 
 * The argument attribute mechanism in LLVM only allows string-valued attributes.

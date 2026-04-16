@@ -29,10 +29,13 @@ LLVM Instruction Attribute Reference
   <br/>
 
 These are Kitsune-specific "attributes" that may be attached to LLVM
-instructions. These use the existing instruction attribute mechanism available
-for LLVM's instructions. However, these are **not** registered with LLVM, so
-they do not have a `kind` that LLVM knows about. They are used exclusively by
-Kitsune's passes.
+instructions. More general information about creating and using Kitsune's
+LLVM IR attributes can be found :doc:`here <LLVMIRAttributes>`.
+
+These use the existing instruction attribute mechanism available for LLVM's
+instructions. However, these are **not** registered with LLVM, so they do not
+have a `kind` that LLVM knows about. They are used exclusively by Kitsune's
+passes.
 
 Kitsune's instruction attributes must be one of the following kinds.
 
