@@ -14,16 +14,13 @@
 // CHECK-SAME: --tapir-hip-xnack=on
 // CHECK-SAME: --tapir-hip-features={{[^"]*}}"
 // CHECK-SAME: --tapir-hip-runtime-bcs={{[^"]+}}"
-//
 // CHECK-SAME: --tapir-lld={{[^"]+}}"
 // CHECK-SAME: --tapir-gpu-prefetch
 //
-// Strip-mining is disabled by default on GPU tapir targets.
-//
 // CHECK-NOT: -fstripmine
 //
-// It is a pain to check for the actual linker executable. There are far too
-// many options depending on the platform, so just check the next line for the
+// The next line is expected to be the linker invocation. Since it is difficult
+// to reliably check the name of the linker executable, just check for the
 // expected linker flags.
 //
 // CHECK-NEXT: -lkitrt
@@ -31,10 +28,11 @@
 //
 // -----------------------------------------------------------------------------
 // Check that the stripmine pass is disabled by default. This checks that the
-// the pipeline tuning options object value is set correctly by default.
+// pipeline tuning options object value is set correctly by default.
 //
 // RUN: %kitxx -mllvm -print-pipeline-passes -O2 --tapir=hip \
-// RUN:      -S -emit-llvm %s | FileCheck %s -check-prefix STRIPMINE-PASS
+// RUN:     -S -emit-llvm -o /dev/null %s 2>&1 \
+// RUN:     | FileCheck %s -check-prefix STRIPMINE-PASS
 //
 // STRIPMINE-PASS-NOT: loop-stripmine
 //

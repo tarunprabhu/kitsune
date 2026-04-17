@@ -8,22 +8,21 @@
 !
 ! CHECK: -fc1
 ! CHECK-SAME: --tapir=serial
-! CHECK-SAME: -fstripmine
 !
-! It is a pain to check for the actual linker executable. There are far too
-! many options depending on the platform, so just check the next line for the
+! CHECK-NOT: -fstripmine
+!
+! The next line is expected to be the linker invocation. Since it is difficult
+! to reliably check the name of the linker executable, just check for the
 ! expected linker flags.
 !
 ! CHECK-NEXT: -lkitrt
 !
 ! ------------------------------------------------------------------------------
-! Check that the stripmine pass is enabled by default. This checks that the
-! the pipeline tuning options object value is set correctly by default.
+! Check that the stripmine pass is disabled by default. This checks that the
+! pipeline tuning options object is setup correctly.
 !
 ! RUN: %kitfc -mllvm -print-pipeline-passes -O2 --tapir=serial \
-! RUN:     -S -emit-llvm %s 2>&1 \
+! RUN:     -S -emit-llvm -o /dev/null %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix STRIPMINE-PASS
 !
-! STRIPMINE-PASS: loop-stripmine
-
-end program
+! STRIPMINE-PASS-NOT: loop-stripmine

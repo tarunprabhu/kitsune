@@ -6,8 +6,8 @@
 // CHECK: "-cc1"
 // CHECK-SAME: -I{{[^ ]*}}/include/kokkos
 //
-// It is a pain to check for the actual linker executable. There are far too
-// many options depending on the platform, so just check the next line for the
+// The next line is expected to be the linker invocation. Since it is difficult
+// to reliably check the name of the linker executable, just check for the
 // expected linker flags.
 //
 // CHECK: -lkokkoscore

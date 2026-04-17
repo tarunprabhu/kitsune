@@ -8,23 +8,24 @@
 !
 ! CHECK: -fc1
 ! CHECK-SAME: --tapir=qthreads
-! CHECK-SAME: -fstripmine
 !
-! It is a pain to check for the actual linker executable. There are far too
-! many options depending on the platform, so just check the next line for the
+! CHECK-NOT: -fstripmine
+!
+! The next line is expected to be the linker invocation. Since it is difficult
+! to reliably check the name of the linker executable, just check for the
 ! expected linker flags.
 !
 ! CHECK-NEXT: -lqthread
 ! CHECK-SAME: -lkitrt
 !
 ! ------------------------------------------------------------------------------
-! Check that the stripmine pass is not enabled by default.
+! Check that the stripmine pass is disabled by default. This checks that the
+! pipeline tuning options object is setup correctly.
 !
 ! RUN: %kitfc -mllvm -print-pipeline-passes -O2 --tapir=qthreads \
-! RUN:     -S -emit-llvm %s | FileCheck %s -check-prefix STRIPMINE-PASS
+! RUN:     -S -emit-llvm -o /dev/null %s 2>&1 \
+! RUN:     | FileCheck %s -check-prefix STRIPMINE-PASS
 !
-! STRIPMINE-PASS: loop-stripmine
+! STRIPMINE-PASS-NOT: loop-stripmine
 !
 ! ------------------------------------------------------------------------------
-
-end program
