@@ -15,15 +15,12 @@
 ! CHECK-SAME: --tapir-cuda-virt-arch=compute_{{[0-9]+}}
 ! CHECK-SAME: --tapir-cuda-features={{[^"]+}}"
 ! CHECK-SAME: --tapir-cuda-runtime-bc={{[^"]+}}.bc"
-!
 ! CHECK-SAME: --tapir-gpu-prefetch
-!
-! Stripmining is disabled by default on GPU tapir targets.
 !
 ! CHECK-NOT: -fstripmine
 !
-! It is a pain to check for the actual linker executable. There are far too
-! many options depending on the platform, so just check the next line for the
+! The next line is expected to be the linker invocation. Since it is difficult
+! to reliably check the name of the linker executable, just check for the
 ! expected linker flags.
 !
 ! CHECK-NEXT: -lkitrt
@@ -31,14 +28,14 @@
 ! CHECK-SAME: -lcudart_static
 !
 ! ------------------------------------------------------------------------------
-! Check that the stripmine pass is disabled by default.
+! Check that the stripmine pass is disabled by default. This checks that the
+! pipeline tuning options object is setup correctly.
 !
 ! RUN: %kitfc -mllvm -print-pipeline-passes -O2 \
 ! RUN:     --tapir=cuda --tapir-cuda-arch=sm_86 \
-! RUN:     -S -emit-llvm %s | FileCheck %s -check-prefix STRIPMINE-PASS
+! RUN:     -S -emit-llvm -o /dev/null %s 2>&1 \
+! RUN:     | FileCheck %s -check-prefix STRIPMINE-PASS
 !
 ! STRIPMINE-PASS-NOT: loop-stripmine
 !
 ! ------------------------------------------------------------------------------
-
-end program

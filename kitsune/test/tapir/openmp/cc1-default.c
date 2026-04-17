@@ -6,21 +6,24 @@
 //
 // CHECK: -cc1
 // CHECK-SAME: --tapir=openmp
-// CHECK-SAME: -fstripmine
 //
-// It is a pain to check for the actual linker executable. There are far too
-// many options depending on the platform, so just check the next line for the
+// CHECK-NOT: -fstripmine
+//
+// The next line is expected to be the linker invocation. Since it is difficult
+// to reliably check the name of the linker executable, just check for the
 // expected linker flags.
 //
 // CHECK-NEXT: -lomp
 // CHECK-SAME: -lkitrt
 //
 // -----------------------------------------------------------------------------
-// Check that the stripmine pass is enabled by default.
+// Check that the stripmine pass is disabled by default. This checks that the
+// pipeline tuning options object is setup correctly.
 //
-// RUN: %kitcc -mllvm -print-pipeline-passes -O2 --tapir=openmp \
-// RUN:      -S -emit-llvm %s | FileCheck %s -check-prefix STRIPMINE-PASS
+// RUN: %kitcc -mllvm -print-pipeline-passes -O2 --tapir=openmp -S \
+// RUN:     -S -emit-llvm -o /dev/null %s 2>&1 \
+// RUN:     | FileCheck %s -check-prefix STRIPMINE-PASS
 //
-// STRIPMINE-PASS: loop-stripmine
+// STRIPMINE-PASS-NOT: loop-stripmine
 //
 // -----------------------------------------------------------------------------

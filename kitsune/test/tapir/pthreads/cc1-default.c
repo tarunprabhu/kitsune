@@ -2,10 +2,10 @@
 // Check that the default options added to the internal command lines (for -cc1
 // and the linker) are as expected.
 //
-// RUN: %kitxx -### --tapir=qthreads -O2 %s 2>&1 | FileCheck %s
+// RUN: %kitcc -### --tapir=pthreads -O2 %s 2>&1 | FileCheck %s
 //
 // CHECK: -cc1
-// CHECK-SAME: --tapir=qthreads
+// CHECK-SAME: --tapir=pthreads
 //
 // CHECK-NOT: -fstripmine
 //
@@ -13,17 +13,14 @@
 // to reliably check the name of the linker executable, just check for the
 // expected linker flags.
 //
-// CHECK-NEXT: -lqthread
-// CHECK-SAME: -lkitrt
+// CHECK-NEXT: -lkitrt
 //
 // -----------------------------------------------------------------------------
 // Check that the stripmine pass is disabled by default. This checks that the
 // pipeline tuning options object is setup correctly.
 //
-// RUN: %kitxx -mllvm -print-pipeline-passes -O2 --tapir=qthreads \
+// RUN: %kitcc -mllvm -print-pipeline-passes -O2 --tapir=pthreads \
 // RUN:     -S -emit-llvm -o /dev/null %s 2>&1 \
 // RUN:     | FileCheck %s -check-prefix STRIPMINE-PASS
 //
 // STRIPMINE-PASS-NOT: loop-stripmine
-//
-// -----------------------------------------------------------------------------

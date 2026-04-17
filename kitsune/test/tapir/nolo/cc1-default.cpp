@@ -6,7 +6,8 @@
 //
 // CHECK: -cc1
 // CHECK-SAME: --tapir=nolo
-// CHECK-SAME: -fstripmine
+//
+// CHECK-NOT: -fstripmine
 //
 // This pass adds nothing to the linker, so there is nothing to check for. But
 // we do check for the absence of libkitrt.
@@ -14,11 +15,13 @@
 // CHECK-NOT: -lkitrt
 //
 // -----------------------------------------------------------------------------
-// Check that the stripmine pass is enabled by default.
+// Check that the stripmine pass is disabled by default. This checks that the
+// pipeline tuning options object is setup correctly.
 //
 // RUN: %kitxx -mllvm -print-pipeline-passes -O2 --tapir=nolo \
-// RUN:      -S -emit-llvm %s | FileCheck %s -check-prefix STRIPMINE-PASS
+// RUN:     -S -emit-llvm -o /dev/null %s 2>&1 \
+// RUN:     | FileCheck %s -check-prefix STRIPMINE-PASS
 //
-// STRIPMINE-PASS: loop-stripmine
+// STRIPMINE-PASS-NOT: loop-stripmine
 //
 // -----------------------------------------------------------------------------

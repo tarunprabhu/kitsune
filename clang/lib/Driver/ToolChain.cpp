@@ -2342,19 +2342,17 @@ void ToolChain::AddKitsuneCompilerArgs(const ArgList &Args,
     Args.AddLastArg(CmdArgs, options::OPT_tapir_EQ);
     AddTTArgs(*TT, Args, CmdArgs);
 
-    // If a tapir target is not given, for consistency with clang, stripmining
-    // is never enabled. If the tapir target is a CPU tapir target, stripmining
-    // is only enabled at certain optimization levels or if explicitly enabled
-    // with the -fstripmine flag. It is disabled if -fno-stripmine is given. For
-    // GPU tapir targets, stripmining must be enabled explicitly.
-    if (TT == TTID::Cuda || TT == TTID::Custom || TT == TTID::Hip) {
+    // For consistency with clang, stripmining is not enabled as long --tapir is
+    // not used. Otherwise, if the tapir target is 'opencilk', stripmining is
+    // enabled automatically, but only at certain optimization levels. For all
+    // other tapir targets, it must be enabled explicitly.
+    if (TT != TTID::OpenCilk) {
       if (Args.hasArg(options::OPT_fstripmine))
         CmdArgs.push_back("-fstripmine");
-    } else {
-      if (Args.hasFlag(
-              options::OPT_fstripmine, options::OPT_fno_stripmine,
-              shouldEnableVectorizerAtOLevel(Args, /*isSlpVec=*/false)))
-        CmdArgs.push_back("-fstripmine");
+    } else if (Args.hasFlag(
+                   options::OPT_fstripmine, options::OPT_fno_stripmine,
+                   shouldEnableVectorizerAtOLevel(Args, /*isSlpVec=*/false))) {
+      CmdArgs.push_back("-fstripmine");
     }
   }
 }
