@@ -55,13 +55,20 @@
 // to ${LLVM_MONOREPO_SOURCE_DIR}/openmp/runtime/src.
 #include "kmp.h"
 
-#include <algorithm>
-#include <cstdarg>
 #include <cstdint>
-#include <cstdio>
 #include <string_view>
 
 #define LABEL "kitomp"
+
+// Not all functions are exposed in the internal header kmp.h. These are used by
+// clang when generating LLVM-IR, so it is "reasonable" to use these here.
+// For consistency, we may want to forward declare everything that we need from
+// that header and just dropping the include.
+extern "C" void __kmpc_for_static_init_8(ident_t *loc, int32_t gtid,
+                                         int32_t schedtype, int32_t *plastiter,
+                                         int64_t *plower, int64_t *pupper,
+                                         int64_t *pstride, int64_t incr,
+                                         int64_t chunk);
 
 /// "Location" information needed by libomp's functions. It would be good to
 /// get actual source information, but that would need to come from the
@@ -116,27 +123,47 @@ static ident_t staticLoopLoc = {
 using KitOpenMPThrdFn = void (*)(const int64_t start, const int64_t end,
                                  const int64_t gs, void *args);
 
-extern "C" void __kmpc_for_static_init_8(ident_t *loc, int32_t gtid,
-                                         int32_t schedtype, int32_t *plastiter,
-                                         int64_t *plower, int64_t *pupper,
-                                         int64_t *pstride, int64_t incr,
-                                         int64_t chunk);
-
-static void wrapper(int32_t *globalTID, int32_t *localTID, KitOpenMPThrdFn f,
-                    int64_t start, int64_t end, int64_t grainSize, void *args) {
+/// This wraps the function \p f that will be launched on each thread. It
+/// calculates the range of iterations that should be executed by \p f, then,
+/// invokes it with that range. This uses static scheduling - so every thread
+/// will execute a roughly equal subset of the iterations.
+///
+/// The exact subset of the iterations to calculate on a thread is determined
+/// by libomp functions that are called here.
+static void staticLoopWrapper(int32_t *globalTID, int32_t *localTID,
+                              KitOpenMPThrdFn f, int64_t start, int64_t end,
+                              int64_t grainSize, void *args) {
+  // These functions take an inclusive range of iterations. Consider the loop
+  // below:
+  //
+  //     forall (long i = 0; i < n; ++i)
+  //         ...
+  //
+  // Here, the loop bounds are [0, n) since i will never be equal to `n - 1` in
+  // the loop body. Since the libomp functions expect - and return - inclusive
+  // ranges. the upper bound is set to `n - 1`.
+  //
   int32_t lastIter = 0;
   int64_t lower = start;
-  int64_t upper = end;
+  int64_t upper = end - 1;
   int64_t stride = 1;
 
+  // Calculate the subset of iterations to be executed by this thread. This will
+  // return an inclusive range in lower and upper i.e. upper will be the last
+  // iteration to be executed on this thread - not the value one past the last
+  // iteration.
   __kmpc_for_static_init_8(&staticLoopLoc, *globalTID, kmp_sch_static,
                            &lastIter, &lower, &upper, &stride, /*incr=*/1,
                            /*chunk=*/1);
 
-  __kitrt_message(LABEL, "Running on thread [%d,%d]: [%ld, %ld)",
-                  *globalTID, *localTID, lower, upper + 1);
+  // Since upper will be the last iteration to be executed on the thread, and
+  // the body of f is guaranteed to be of the form `i < UPPER_BOUND`, we pass
+  // upper + 1 to f.
+  __kitrt_message(LABEL, "Running on thread %d:%d: [%ld, %ld)", *globalTID,
+                  *localTID, lower, upper + 1);
   if (lower <= upper)
     f(lower, upper + 1, grainSize, args);
+
   __kmpc_for_static_fini(&staticLoopLoc, *globalTID);
 }
 
@@ -153,8 +180,8 @@ extern "C" void __kitomp_launch(KitOpenMPThrdFn f, int64_t start, int64_t end,
                                 int64_t grainSize, void *args) {
   __kitrt_message(LABEL, "Launching multithreaded loop: [%ld, %ld)", start,
                   end);
-  __kmpc_fork_call(&staticLoopLoc, 5, (kmpc_micro)&wrapper, f, start, end,
-                   grainSize, args);
+  __kmpc_fork_call(&staticLoopLoc, 5, (kmpc_micro)&staticLoopWrapper, f, start,
+                   end, grainSize, args);
   __kitrt_message(LABEL, "Finished multithreaded loop");
 }
 

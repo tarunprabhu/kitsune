@@ -54,10 +54,7 @@
 #include <qthread.h>
 #include <qthread/qloop.h>
 
-#include <algorithm>
-#include <cstdarg>
 #include <cstdint>
-#include <cstdio>
 
 #define LABEL "kitqthr"
 
