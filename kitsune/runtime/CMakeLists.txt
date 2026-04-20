@@ -49,6 +49,11 @@ target_sources(${KITSUNE_OBJLIB} PUBLIC
   openmp/kitomp.cpp
   pthreads/kitpthr.cpp)
 
+if (LLVM_ENABLE_ASSERTIONS)
+  target_compile_options(${KITSUNE_OBJLIB} PUBLIC
+    -UNDEBUG)
+endif()
+
 # FIXME: We really should split the runtimes into separate libraries - one for
 # each tapir target. That way, we won't have to add options such as those below
 # to the compile lines for all runtimes.
