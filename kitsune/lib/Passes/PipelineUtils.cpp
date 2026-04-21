@@ -17,6 +17,7 @@
 #include "kitsune/CodeGen/EmbLowerKitIntrinsics.h"
 #include "kitsune/CodeGen/LowerKitIntrinsics.h"
 #include "kitsune/CodeGen/StripKitAddrSpaces.h"
+#include "kitsune/Transforms/DeLICM.h"
 #include "kitsune/Transforms/EmbLinkLibDeviceBitcode.h"
 #include "kitsune/Transforms/EmbLowerKitIntrinsicsLibDevice.h"
 #include "kitsune/Transforms/EmbOptimize.h"
@@ -94,6 +95,14 @@ ModulePassManager llvm::populateKitPreLoopSpawningPasses(
     PassBuilder &pb, OptimizationLevel optLevel, ThinOrFullLTOPhase ltoPhase,
     const PipelineTuningOptions &pto) {
   ModulePassManager mpm;
+
+  // Run simplifycfg and loop-simplify after the DeLICM pass since it may leave
+  // empty basic blocks around.
+  FunctionPassManager fpm;
+  fpm.addPass(DeLICMPass());
+  fpm.addPass(SimplifyCFGPass());
+  fpm.addPass(LoopSimplifyPass());
+  mpm.addPass(createModuleToFunctionPassAdaptor(std::move(fpm)));
 
   // At optimization level O0,, loop spawning will not be run, so there is no
   // point in running the other Kitsune-specific passes.

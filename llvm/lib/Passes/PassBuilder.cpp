@@ -23,6 +23,7 @@
 #include "kitsune/CodeGen/StripKitAddrSpaces.h"
 #include "kitsune/Passes/PipelineUtils.h"
 #include "kitsune/Support/OptznLevelUtils.h"
+#include "kitsune/Transforms/DeLICM.h"
 #include "kitsune/Transforms/EarlyAnnotate.h"
 #include "kitsune/Transforms/EmbLinkLibDeviceBitcode.h"
 #include "kitsune/Transforms/EmbLowerKitIntrinsicsLibDevice.h"

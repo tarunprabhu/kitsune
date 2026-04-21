@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Analysis/TapirLoopNestAnalysis.h"
+#include "kitsune/Core/InstUtils.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
 #include "llvm/Analysis/ScalarEvolution.h"
@@ -22,42 +23,128 @@
 
 using namespace llvm;
 
-/// Check if the given basic block is empty.
-static bool isEmpty(const BasicBlock &bb) { return bb.size() == 1; }
+namespace {
 
-/// Check if the instruction is call to the llvm.syncregion.start() intrinsic.
-static bool isCallSyncRegionStart(const Instruction &inst) {
-  if (const auto *call = dyn_cast<CallBase>(&inst))
-    if (const Function *f = call->getCalledFunction())
-      if (f->getIntrinsicID() == Intrinsic::syncregion_start)
-        return true;
+/// Check if a given pair of loops are perfectly nested with respect to one
+/// another.
+class PerfectNestChecker {
+protected:
+  using IsSafeBB = std::function<bool(PerfectNestChecker *, BasicBlock &)>;
+  using IsSafeInst = std::function<bool(Instruction &)>;
+
+private:
+  /// The instructions whose presence make the loop nest imperfect.
+  SmallSetVector<Instruction *, 4> &unsafeInsts;
+
+protected:
+  /// Check if the given basic block is empty.
+  bool isEmpty(BasicBlock &bb);
+  bool isEmptyRecordUnsafe(BasicBlock &bb);
+
+  /// Return true if the given basic block is empty, or contains a single call
+  /// to create a syncregion.
+  bool isEmptyOrOnlyCallsSyncRegionStart(BasicBlock &bb);
+
+  /// Check that all instructions in the given block are safe as determined by
+  /// \p isInstSafe.
+  bool checkInstsInBlock(BasicBlock &bb,
+                         std::function<bool(Instruction &)> isInstSafe);
+
+  /// Check if there is a unique path between \p from and \p end. All blocks in
+  /// this path must be "safe", as determined by the given \p isSafe function.
+  /// In all cases, the intermediate blocks must have unique successor.
+  BasicBlock *skipSafeBlocksUntil(BasicBlock *from, BasicBlock *end,
+                                  IsSafeBB isSafeBB);
+
+  /// Check if there is a unique path between \p from and \p end, where the only
+  /// basic blocks on the path are "safe" as determined by \p isSafe. Safe
+  /// blocks are typically empty, or consist exclusively of instructions that
+  /// may be safely ignored when determining if tapir loops are perfectly
+  /// nested.
+  bool hasUniqueSafePathBetween(BasicBlock &from, BasicBlock &to,
+                                IsSafeBB isSafeBB);
+
+  /// Determine whether the loops structure violates basic requirements for
+  /// perfect nesting:
+  ///
+  ///  - the inner loop should be the outer loop's only child
+  ///
+  ///  - the outer loop header should 'flow' into the inner loop preheader
+  ///    or jump around the inner loop to the outer loop latch
+  ///
+  ///  - if the inner loop latch exits the inner loop, it should 'flow' into
+  ///    the outer loop latch.
+  ///
+  /// Returns true if the loop structure satisfies the basic requirements and
+  /// false otherwise.
+  bool checkLoopsStructure(Loop &outerLoop, Loop &innerLoop,
+                           ScalarEvolution &se);
+
+  /// Get the compare instruction that guards the inner loop. This will skip
+  /// the body of the loop if the trip count is less than the start value of the
+  /// loop induction variable.
+  CmpInst *getInnerLoopGuardCmp(Loop &innerLoop) const;
+
+  /// Check if the outer loop header only contains the expected set of
+  /// instructions. In addition to a certain set of instructions, the outer loop
+  /// header may contain the inner loop guard branch, i.e. the branch that skips
+  /// the inner loop entirely if the loop trip count is determined to be <= 0.
+  bool checkOuterLoopHeader(BasicBlock &header, CmpInst *innerLoopGuardCmp);
+
+  bool checkOuterLoopLatch(BasicBlock &latch, CmpInst *latchCmpInst,
+                           const Loop::LoopBounds &bounds);
+
+public:
+  PerfectNestChecker(SmallSetVector<Instruction *, 4> &unsafeInsts);
+
+  bool run(Loop &outerLoop, Loop &innerLoop, ScalarEvolution &se);
+};
+
+} // namespace
+
+PerfectNestChecker::PerfectNestChecker(
+    SmallSetVector<Instruction *, 4> &unsafeInsts)
+    : unsafeInsts(unsafeInsts) {}
+
+bool PerfectNestChecker::isEmptyRecordUnsafe(BasicBlock &bb) {
+  if (bb.size() == 1)
+    return true;
+
+  for (Instruction &inst : bb)
+    if (!inst.isTerminator())
+      unsafeInsts.insert(&inst);
   return false;
 }
 
-/// Check if the given basic block contains a single call to an intrinsic that
-/// creates a syncregion.
-static bool onlyCallsSyncRegionStart(const BasicBlock &bb) {
-  return bb.size() == 2 && isCallSyncRegionStart(bb.front());
+bool PerfectNestChecker::isEmpty(BasicBlock &bb) {
+  return bb.size() == 1;
 }
 
-/// Return true if the given basic block is empty, or contains a single call to
-/// create a syncregion.
-static bool isEmptyOrOnlyCallsSyncRegionStart(const BasicBlock &bb) {
-  return isEmpty(bb) || onlyCallsSyncRegionStart(bb);
+bool PerfectNestChecker::isEmptyOrOnlyCallsSyncRegionStart(BasicBlock &bb) {
+  auto onlyCallsSyncRegionStart = [&](BasicBlock &bb) -> bool {
+    return bb.size() == 2 && isCallSyncRegionStart(bb.front());
+  };
+
+  // We shouldn't call isEmpty() here, or we will end up recording unsafe
+  // instructions multiple times.
+  if (isEmpty(bb) || onlyCallsSyncRegionStart(bb))
+    return true;
+
+  for (Instruction &inst : bb)
+    if (!inst.isTerminator() && !isCallSyncRegionStart(inst))
+      unsafeInsts.insert(&inst);
+  return false;
 }
 
-/// Check if there is a unique path between \p from and \p end. All blocks in
-/// this path must be "safe", as determined by the given \p isSafe function.
-/// In all cases, the intermediate blocks must have unique successor.
-static const BasicBlock *
-skipSafeBlocksUntil(const BasicBlock *from, const BasicBlock *end,
-                    std::function<bool(const BasicBlock &bb)> isSafe) {
+BasicBlock *PerfectNestChecker::skipSafeBlocksUntil(BasicBlock *from,
+                                                    BasicBlock *end,
+                                                    IsSafeBB isSafeBB) {
   // Get the unique successor of a basic block. This treats detach instructions
   // as a special case where the detached block is assumed to be the only
   // successor. This is not true in general, but it is true for loops,
   // especially for tapir loops.
-  auto getUniqueSuccessor = [](const BasicBlock &bb) -> const BasicBlock * {
-    if (const auto *detach = dyn_cast<DetachInst>(bb.getTerminator()))
+  auto getUniqueSuccessor = [](BasicBlock &bb) -> BasicBlock * {
+    if (auto *detach = dyn_cast<DetachInst>(bb.getTerminator()))
       return detach->getDetached();
     return bb.getUniqueSuccessor();
   };
@@ -66,10 +153,10 @@ skipSafeBlocksUntil(const BasicBlock *from, const BasicBlock *end,
     return from;
 
   // `visited` is used to avoid running into an infinite loop.
-  SmallPtrSet<const BasicBlock *, 4> visited;
-  const BasicBlock *bb = getUniqueSuccessor(*from);
-  const BasicBlock *bbPred = from;
-  while (bb && bb != end && isSafe(*bb) && !visited.count(bb)) {
+  SmallPtrSet<BasicBlock *, 4> visited;
+  BasicBlock *bb = getUniqueSuccessor(*from);
+  BasicBlock *bbPred = from;
+  while (bb && bb != end && isSafeBB(this, *bb) && !visited.count(bb)) {
     visited.insert(bb);
     bbPred = bb;
     bb = getUniqueSuccessor(*bb);
@@ -78,40 +165,23 @@ skipSafeBlocksUntil(const BasicBlock *from, const BasicBlock *end,
   return (bb == end) ? end : bbPred;
 }
 
-/// Check if there is a unique path between \p from and \p end, where the only
-/// basic blocks on the path are "safe" as determined by \p isSafe. Safe blocks
-/// are typically empty, or consist exclusively of instructions that may be
-/// safely ignored when determining if tapir loops are perfectly nested.
-static bool
-hasUniqueSafePathBetween(const BasicBlock &from, const BasicBlock &to,
-                         std::function<bool(const BasicBlock &)> isSafe) {
-  return skipSafeBlocksUntil(&from, &to, isSafe) == &to;
+bool PerfectNestChecker::hasUniqueSafePathBetween(BasicBlock &from,
+                                                  BasicBlock &to,
+                                                  IsSafeBB isSafeBB) {
+  return skipSafeBlocksUntil(&from, &to, isSafeBB) == &to;
 }
 
-/// Determine whether the loops structure violates basic requirements for
-/// perfect nesting:
-///
-///  - the inner loop should be the outer loop's only child
-///
-///  - the outer loop header should 'flow' into the inner loop preheader
-///    or jump around the inner loop to the outer loop latch
-///
-///  - if the inner loop latch exits the inner loop, it should 'flow' into
-///    the outer loop latch.
-///
-/// Returns true if the loop structure satisfies the basic requirements and
-/// false otherwise.
-static bool checkLoopsStructure(const Loop &outerLoop, const Loop &innerLoop,
-                                ScalarEvolution &se) {
+bool PerfectNestChecker::checkLoopsStructure(Loop &outerLoop, Loop &innerLoop,
+                                             ScalarEvolution &se) {
   LLVM_DEBUG(dbgs() << "Checking the structure of loops '"
                     << outerLoop.getName() << "' and '" << innerLoop.getName()
                     << "'.\n";);
 
-  const BasicBlock *outerLoopHeader = outerLoop.getHeader();
-  const BasicBlock *outerLoopLatch = outerLoop.getLoopLatch();
-  const BasicBlock *innerLoopPreheader = innerLoop.getLoopPreheader();
-  const BasicBlock *innerLoopLatch = innerLoop.getLoopLatch();
-  const BasicBlock *innerLoopExit = innerLoop.getExitBlock();
+  BasicBlock *outerLoopHeader = outerLoop.getHeader();
+  BasicBlock *outerLoopLatch = outerLoop.getLoopLatch();
+  BasicBlock *innerLoopPreheader = innerLoop.getLoopPreheader();
+  BasicBlock *innerLoopLatch = innerLoop.getLoopLatch();
+  BasicBlock *innerLoopExit = innerLoop.getExitBlock();
 
   // We expect rotated loops. The inner loop should have a single exit block.
   if (outerLoop.getExitingBlock() != outerLoopLatch ||
@@ -123,40 +193,38 @@ static bool checkLoopsStructure(const Loop &outerLoop, const Loop &innerLoop,
   }
 
   // Returns whether the block `exitBlock` contains at least one LCSSA Phi node.
-  auto containsLCSSAPhi = [](const BasicBlock &exitBlock) {
-    return any_of(exitBlock.phis(), [](const PHINode &phi) {
-      return phi.getNumIncomingValues() == 1;
-    });
+  auto containsLCSSAPhi = [](BasicBlock &exitBlock) {
+    return any_of(exitBlock.phis(),
+                  [](PHINode &phi) { return phi.getNumIncomingValues() == 1; });
   };
 
   // Returns whether the block `bb` qualifies for being an extra Phi block. The
   // extra Phi block is the additional block inserted after the exit block of an
   // "guarded" inner loop which contains "only" Phi nodes corresponding to the
   // LCSSA Phi nodes in the exit block.
-  auto isExtraPhiBlock = [&](const BasicBlock &bb) {
+  auto isExtraPhiBlock = [&](BasicBlock &bb) {
     return &*bb.getFirstNonPHIIt() == bb.getTerminator() &&
-           all_of(bb.phis(), [&](const PHINode &phi) {
-             return all_of(phi.blocks(), [&](const BasicBlock *incomingBlock) {
+           all_of(bb.phis(), [&](PHINode &phi) {
+             return all_of(phi.blocks(), [&](BasicBlock *incomingBlock) {
                return incomingBlock == innerLoopExit ||
                       incomingBlock == outerLoopHeader;
              });
            });
   };
 
-  /// Returns true if the successor of the from block is the same as the end,
-  /// with potential empty or
+  IsSafeBB isEmpty = &PerfectNestChecker::isEmpty;
 
-  const BasicBlock *extraPhiBlock = nullptr;
   // Ensure the only branch that may exist between the loops is the inner loop
   // guard.
+  BasicBlock *extraPhiBlock = nullptr;
   if (outerLoopHeader != innerLoopPreheader) {
-    const BasicBlock *outerLoopHeaderSucc = skipSafeBlocksUntil(
-        outerLoopHeader, innerLoopPreheader, isEmptyOrOnlyCallsSyncRegionStart);
+    BasicBlock *outerLoopHeaderSucc = skipSafeBlocksUntil(
+        outerLoopHeader, innerLoopPreheader,
+        &PerfectNestChecker::isEmptyOrOnlyCallsSyncRegionStart);
 
     // no conditional branch present
     if (outerLoopHeaderSucc != innerLoopPreheader) {
-      const auto *br =
-          dyn_cast<BranchInst>(outerLoopHeaderSucc->getTerminator());
+      auto *br = dyn_cast<BranchInst>(outerLoopHeaderSucc->getTerminator());
 
       if (!br || br != innerLoop.getLoopGuardBranch()) {
         LLVM_DEBUG(dbgs() << "Successor of outer loop header must must be "
@@ -168,7 +236,7 @@ static bool checkLoopsStructure(const Loop &outerLoop, const Loop &innerLoop,
 
       // The successors of the inner loop guard should be the inner loop
       // preheader or the outer loop latch possibly through empty blocks.
-      for (const BasicBlock *succ : br->successors()) {
+      for (BasicBlock *succ : br->successors()) {
         if (hasUniqueSafePathBetween(*succ, *innerLoopPreheader, isEmpty))
           continue;
         if (hasUniqueSafePathBetween(*succ, *outerLoopLatch, isEmpty))
@@ -209,26 +277,21 @@ static bool checkLoopsStructure(const Loop &outerLoop, const Loop &innerLoop,
   return true;
 }
 
-static CmpInst *getInnerLoopGuardCmp(const Loop &innerLoop) {
+CmpInst *PerfectNestChecker::getInnerLoopGuardCmp(Loop &innerLoop) const {
   if (BranchInst *innerGuard = innerLoop.getLoopGuardBranch())
     if (auto *cmpInst = dyn_cast<CmpInst>(innerGuard->getCondition()))
       return cmpInst;
   return nullptr;
 }
 
-static bool
-checkInstsInBlock(const BasicBlock &bb,
-                  std::function<bool(const Instruction &)> isInstSafe) {
-  return all_of(bb, isInstSafe);
+bool PerfectNestChecker::checkInstsInBlock(BasicBlock &bb,
+                                           IsSafeInst isSafeInst) {
+  return all_of(bb, isSafeInst);
 }
 
-/// Check if the outer loop header only contains the expected set of
-/// instructions. In addition to a certain set of instructions, the outer loop
-/// header may contain the inner loop guard branch, i.e. the branch that skips
-/// the inner loop entirely if the loop trip count is determined to be <= 0.
-static bool checkOuterLoopHeader(const BasicBlock &header,
-                                 CmpInst *innerLoopGuardCmp) {
-  auto isInstSafe = [&innerLoopGuardCmp](const Instruction &inst) -> bool {
+bool PerfectNestChecker::checkOuterLoopHeader(BasicBlock &header,
+                                              CmpInst *innerLoopGuardCmp) {
+  auto isSafeInst = [&innerLoopGuardCmp](Instruction &inst) -> bool {
     // The only comparison instruction allowed is the inner loop guard
     // comparison. Otherwise, PHINode's, BranchInst's and DetachInst's are
     // allowed, though we should check that these are exactly those that we
@@ -241,15 +304,15 @@ static bool checkOuterLoopHeader(const BasicBlock &header,
     return false;
   };
 
-  return checkInstsInBlock(header, isInstSafe);
+  return checkInstsInBlock(header, isSafeInst);
 }
 
-static bool checkOuterLoopLatch(const BasicBlock &latch,
-                                const CmpInst *latchCmpInst,
-                                const Loop::LoopBounds &bounds) {
+bool PerfectNestChecker::checkOuterLoopLatch(BasicBlock &latch,
+                                             CmpInst *latchCmpInst,
+                                             const Loop::LoopBounds &bounds) {
   Instruction *step = &bounds.getStepInst();
 
-  auto isInstSafe = [&latchCmpInst, &step](const Instruction &inst) -> bool {
+  auto isSafeInst = [&latchCmpInst, &step](Instruction &inst) -> bool {
     // The only binary instruction allowed is the outer loop step instruction,
     // the only comparison instruction allowed is the outer loop latch compare
     // instruction. Otherwise, certain instructions are safe, but nothing else
@@ -263,11 +326,11 @@ static bool checkOuterLoopLatch(const BasicBlock &latch,
     return false;
   };
 
-  return checkInstsInBlock(latch, isInstSafe);
+  return checkInstsInBlock(latch, isSafeInst);
 }
 
-static bool arePerfectlyNested(const Loop &outerLoop, const Loop &innerLoop,
-                               ScalarEvolution &se) {
+bool PerfectNestChecker::run(Loop &outerLoop, Loop &innerLoop,
+                             ScalarEvolution &se) {
   LLVM_DEBUG(dbgs() << "Checking whether loop '" << outerLoop.getName()
                     << "' and '" << innerLoop.getName()
                     << "' are perfectly nested.\n");
@@ -279,12 +342,12 @@ static bool arePerfectlyNested(const Loop &outerLoop, const Loop &innerLoop,
 
   // Check the code surrounding the inner loop for instructions that are deemed
   // unsafe.
-  const BasicBlock *outerHeader = outerLoop.getHeader();
-  const BasicBlock *outerLatch = outerLoop.getLoopLatch();
+  BasicBlock *outerHeader = outerLoop.getHeader();
+  BasicBlock *outerLatch = outerLoop.getLoopLatch();
   CmpInst *outerLatchCmp = outerLoop.getLatchCmpInst();
   const std::optional<Loop::LoopBounds> outerBounds = outerLoop.getBounds(se);
 
-  const BasicBlock *innerPreheader = innerLoop.getLoopPreheader();
+  BasicBlock *innerPreheader = innerLoop.getLoopPreheader();
   CmpInst *innerGuardCmp = getInnerLoopGuardCmp(innerLoop);
 
   bool isSafe = checkOuterLoopHeader(*outerHeader, innerGuardCmp) &&
@@ -296,9 +359,9 @@ static bool arePerfectlyNested(const Loop &outerLoop, const Loop &innerLoop,
     // loop. These should be checked here, just to be safe. For now, we are
     // relying on Kitsune's verifier running and bailing out with an error if
     // the tapir loops are not structured exactly as we expect.
-    const BasicBlock &innerExit = *innerLoop.getExitBlock();
+    BasicBlock &innerExit = *innerLoop.getExitBlock();
     isSafe &= isEmptyOrOnlyCallsSyncRegionStart(*innerPreheader) &&
-              isEmpty(innerExit);
+              isEmptyRecordUnsafe(innerExit);
   }
 
   if (!isSafe) {
@@ -382,7 +445,8 @@ TapirLoopNest::TapirLoopNest(Loop &root, ScalarEvolution &se) : nest(root, se) {
     if (!isTapirLoop(*innerLoop))
       break;
 
-    if (!arePerfectlyNested(*outerLoop, *innerLoop, se))
+    PerfectNestChecker perfectNestChecker(unsafeInsts);
+    if (!perfectNestChecker.run(*outerLoop, *innerLoop, se))
       break;
 
     perfectTapirLoops.push_back(innerLoop);
