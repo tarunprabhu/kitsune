@@ -37,6 +37,9 @@ std::string getName(const Instruction &inst);
 /// instance, "BinaryOperator", "ICmpInst", "FCmpInst", "DetachInst" etc.
 StringRef getInstClassName(const Instruction &inst);
 
+/// Is the instruction a call to the llvm.syncregion.start() intrinsic.
+bool isCallSyncRegionStart(const Instruction &inst);
+
 /// @}
 
 } // namespace llvm

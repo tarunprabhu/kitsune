@@ -52,6 +52,7 @@
 #include "kithip.h"
 #include "kithip_rtinfo.h"
 
+#include <cmath>
 #include <mutex>
 #include <stdint.h>
 #include <stdio.h>
@@ -307,13 +308,13 @@ static hipStream_t launchKernel1(hipFunction_t f, void **args, size_t tcX,
 
 static hipStream_t launchKernel2(hipFunction_t f, void **args, size_t tcY,
                                  size_t tcX, unsigned tpb, hipStream_t stream) {
-  assert(kithip_rt::useYLaunch() &&
+  assert(!kithip_rt::useYLaunch() &&
          "Y-axis launches not supported for 2D launches");
 
   // FIXME: The threads per block (tpb) value should be split across the
   // threads launched in each direction.
-  unsigned tpbX = tpb;
-  unsigned tpbY = tpb;
+  unsigned tpbX = sqrt(tcX * tcY);
+  unsigned tpbY = sqrt(tcX * tcY);
   unsigned tpbZ = 1;
   unsigned bpgX = (tcX + tpbX - 1) / tpbX;
   unsigned bpgY = (tcY + tpbY - 1) / tpbY;
@@ -327,7 +328,7 @@ static hipStream_t launchKernel2(hipFunction_t f, void **args, size_t tcY,
     fprintf(stderr, "  threads: [%d, %d, %d]\n", tpbX, tpbY, tpbZ);
   }
 
-  assert(0 && "launchKernel2 not yet implemented");
+  // assert(0 && "launchKernel2 not yet implemented");
   HIP_SAFE_CALL(hipModuleLaunchKernel(f, bpgX, bpgY, bpgZ, tpbX, tpbY, tpbZ,
                                       sharedMemSize, stream, args, NULL));
   return stream;
@@ -336,7 +337,7 @@ static hipStream_t launchKernel2(hipFunction_t f, void **args, size_t tcY,
 static hipStream_t launchKernel3(hipFunction_t f, void **args, size_t tcZ,
                                  size_t tcY, size_t tcX, unsigned tpb,
                                  hipStream_t stream) {
-  assert(kithip_rt::useYLaunch() &&
+  assert(!kithip_rt::useYLaunch() &&
          "Y-axis launches not supported for 3D launches");
 
   // FIXME: The threads per block (tpb) value should be split across the

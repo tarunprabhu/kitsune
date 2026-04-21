@@ -16,7 +16,7 @@
 #ifndef KITSUNE_ANALYSIS_TAPIR_LOOP_NEST_ANALYSIS_H
 #define KITSUNE_ANALYSIS_TAPIR_LOOP_NEST_ANALYSIS_H
 
-#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/SetVector.h"
 #include "llvm/Analysis/LoopNestAnalysis.h"
 
 namespace llvm {
@@ -49,9 +49,18 @@ class LoopInfo;
 /// objects are *NOT* intended to be interchangeable.
 ///
 class TapirLoopNest {
+public:
+  using UnsafeInstsList = SmallSetVector<Instruction *, 4>;
+
 private:
+  /// The underlying loop nest object.
   LoopNest nest;
+
+  /// The perfectly nested tapir loops in the nest.
   LoopVectorTy perfectTapirLoops;
+
+  /// The instructions that make the loop nest imperfect.
+  UnsafeInstsList unsafeInsts;
 
 private:
   TapirLoopNest(Loop &loop, ScalarEvolution &se);
@@ -67,6 +76,9 @@ private:
   bool sanityCheckInnerLoop(const Loop &loop, ScalarEvolution &se) const;
 
 public:
+  /// Get the raw loop nest object.
+  const LoopNest &getLoopNest() const { return nest; }
+
   /// Get the maximum perfect nesting depth of tapir loops in the nest.
   /// For example, given the loop nest:
   ///
@@ -114,10 +126,10 @@ public:
   /// given the loop nest:
   ///
   /// \code
-  ///   forall(i)         // loop at level 1 and Root of the nest
-  ///     for(j1)         // loop at level 2
-  ///       forall(k)     // loop at level 3
-  ///     forall(j2)      // loop at level 2
+  ///   forall (i ...)         // loop at level 1 and root of the nest
+  ///     for (j1 ...)         // loop at level 2
+  ///       forall (k ...)     // loop at level 3
+  ///     forall (j2 ...)      // loop at level 2
   /// \endcode
   ///
   /// getNestDepth() would return 3. Note that this does not distinguish between
@@ -135,6 +147,10 @@ public:
 
   /// Get the function to which this tapir loop nest belongs.
   Function *getParent() const { return nest.getParent(); }
+
+  const UnsafeInstsList &getUnsafeInsts() const {
+    return unsafeInsts;
+  }
 
 public:
   /// Create a tapir loop nest object rooted at the given loop. If the loop is

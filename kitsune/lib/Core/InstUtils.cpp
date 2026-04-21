@@ -46,3 +46,11 @@ StringRef llvm::getInstClassName(const Instruction &inst) {
   }
   llvm_unreachable("getClassName: Instruction opcode not handled");
 }
+
+bool llvm::isCallSyncRegionStart(const Instruction &inst) {
+  if (const auto *call = dyn_cast<CallBase>(&inst))
+    if (const Function *f = call->getCalledFunction())
+      if (f->getIntrinsicID() == Intrinsic::syncregion_start)
+        return true;
+  return false;
+}

@@ -40,11 +40,14 @@
 ; RUN:     -o /dev/null 2>&1 \
 ; RUN:     | FileCheck %s -check-prefix O123SZ
 ;
-; O123SZ:      Running pass:     PreLowerVerificationPass
+; O123SZ:      Running pass:     DeLICMPass
+; O123SZ-NEXT: Running analysis: ScalarEvolutionAnalysis
+; O123SZ-NEXT: Running pass:     SimplifyCFGPass
+; O123SZ-NEXT: Running pass:     LoopSimplifyPass
+; O123SZ-NEXT: Running pass:     PreLowerVerificationPass
 ; O123SZ-NEXT: Running analysis: TTObjectsAnalysis
 ; O123SZ-NEXT: Running analysis: TaskAnalysis
 ; O123SZ-NEXT: Running analysis: PostDominatorTreeAnalysis
-; O123SZ-NEXT: Running analysis: ScalarEvolutionAnalysis
 ; O123SZ-NEXT: Running pass:     PreLowerAnnotate
 ; O123SZ-NEXT: Running pass:     SerializePass
 ; O123SZ-NEXT: Running pass:     LoopSpawningPass

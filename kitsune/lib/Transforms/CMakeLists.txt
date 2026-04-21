@@ -1,4 +1,5 @@
 add_llvm_component_library(LLVMKitTransforms
+  DeLICM.cpp
   EarlyAnnotate.cpp
   EmbLinkLibDeviceBitcode.cpp
   EmbLowerKitIntrinsicsLibDevice.cpp
@@ -26,9 +27,10 @@ add_llvm_component_library(LLVMKitTransforms
 
   # The pass that optimizes embedded modules constructs a private pass pipeline
   # and runs a standard sequence of optimization passes on the module. This
-  # requires a PassBuilder which is provided by Passes. However, Passes in turn
-  # requires this library, KitTransforms, in order to instantiate the passes
-  # when constructing the pipeline, thus resulting in a circular dependence.
+  # requires a PassBuilder which is provided by libLLVMPasses. However,
+  # libLLVMPasses requires this library, libLLVMKitTransforms, to instantiate
+  # the passes when constructing the pass pipeline, thus resulting in a circular
+  # dependence.
   #
   #     libLLVMPasses => libLLVMKitTransforms => libLLVMPasses
   #
