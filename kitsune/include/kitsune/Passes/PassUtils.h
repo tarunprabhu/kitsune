@@ -14,5 +14,22 @@
 #define KITSUNE_PASSES_PASS_UTILS_H
 
 #include "kitsune/Passes/PassUtilsInternal.h"
+#include "llvm/IR/Analysis.h"
+
+namespace llvm {
+
+/// Get a PreservedAnalyses object that indicates that all analyses are
+/// preserved.
+PreservedAnalyses getPreservedAnalysesAll();
+
+/// Get a PreservedAnalyses object that indicates that all analyses that depend
+/// on the CFG are preserved.
+PreservedAnalyses getPreservedAnalysesCFG();
+
+/// Get a PreservedAnalyses object that indicates that all analyses have been
+/// invalidated.
+PreservedAnalyses getPreservedAnalysesNone();
+
+} // namespace llvm
 
 #endif // KITSUNE_PASSES_PASS_UTILS_H
