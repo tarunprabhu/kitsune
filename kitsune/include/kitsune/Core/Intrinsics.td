@@ -30,7 +30,9 @@
 //
 //----------------------------------------------------------------------------//
 
-include "kitsune/Core/IntrinsicDocs.td"
+// The file is included in llvm/IR/Intrinsics.td. Specifying the full relative
+// path this way works with all the ways that file is used in the repo.
+include "../../kitsune/include/kitsune/Core/IntrinsicDocs.td"
 
 // Pointers to data in Kitsune's mobile address space.
 def llvm_mobile_ptr_ty : LLVMQualPointerType<67>;
