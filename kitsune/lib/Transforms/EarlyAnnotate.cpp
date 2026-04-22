@@ -23,17 +23,10 @@ using namespace llvm;
 
 PreservedAnalyses EarlyAnnotatePass::run(Function &f,
                                          FunctionAnalysisManager &am) {
-  LoopInfo &li = am.getResult<LoopAnalysis>(f);
-
-  // Add the source loop attribute to instructions. We only do so for
-  // instructions contained within tapir loops.
-  for (Loop *loop : li.getLoopsInPreorder())
-    if (hasTargetAttr(*loop))
-      for (BasicBlock *bb : loop->getBlocks())
-        if (li.getLoopFor(bb) == loop)
-          for (Instruction &inst : *bb)
-            if (!hasSourceLoopAttr(inst))
-              addSourceLoopAttr(inst, loop->getLoopID());
+  // This pass was initially added as a requirement for the kit-delicm pass.
+  // But the implementation of kit-delicm no longer requires this. As a result,
+  // this does nothing. We leave it around in case we have some use for it in
+  // the future.
 
   // This only adds metadata that should not invalidate any analyses.
   return PreservedAnalyses::all();
