@@ -19,7 +19,7 @@
 #include "kitsune/CodeGen/StripKitAddrSpaces.h"
 #include "kitsune/Transforms/DeLICM.h"
 #include "kitsune/Transforms/EmbLinkLibDeviceBitcode.h"
-#include "kitsune/Transforms/EmbLowerKitIntrinsicsLibDevice.h"
+#include "kitsune/Transforms/EmbLowerKitIntrinsicsEarly.h"
 #include "kitsune/Transforms/EmbOptimize.h"
 #include "kitsune/Transforms/EmbPrepare.h"
 #include "kitsune/Transforms/EmbResolveLibDeviceCalls.h"
@@ -131,7 +131,7 @@ llvm::populateKitPostTapirPasses(PassBuilder &pb, OptimizationLevel optLevel,
     pb.invokeKitsunePostTapirEarlyEPCallbacks(mpm, optLevel);
 
     mpm.addPass(PrefetchForDevicePass());
-    mpm.addPass(EmbLowerKitIntrinsicsLibDevicePass());
+    mpm.addPass(EmbLowerKitIntrinsicsEarlyPass());
     mpm.addPass(EmbResolveLibDeviceCallsPass());
     mpm.addPass(EmbPreparePass());
     mpm.addPass(EmbLinkLibDeviceBitcodePass());

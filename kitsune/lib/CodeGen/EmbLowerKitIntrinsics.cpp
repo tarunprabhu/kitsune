@@ -90,17 +90,20 @@ static bool lowerKitsuneHipIntrinsics(Module &embM) {
   auto getNewCallee = [](Intrinsic::ID id) -> Intrinsic::ID {
     switch (id) {
     case Intrinsic::kit_gpu_thread_id_x:
-      return Intrinsic::amdgcn_workitem_id_x;
     case Intrinsic::kit_gpu_thread_id_y:
-      return Intrinsic::amdgcn_workitem_id_y;
     case Intrinsic::kit_gpu_thread_id_z:
-      return Intrinsic::amdgcn_workitem_id_z;
     case Intrinsic::kit_gpu_block_id_x:
-      return Intrinsic::amdgcn_workgroup_id_x;
     case Intrinsic::kit_gpu_block_id_y:
-      return Intrinsic::amdgcn_workgroup_id_y;
     case Intrinsic::kit_gpu_block_id_z:
-      return Intrinsic::amdgcn_workgroup_id_z;
+    case Intrinsic::kit_gpu_block_size_x:
+    case Intrinsic::kit_gpu_block_size_y:
+    case Intrinsic::kit_gpu_block_size_z:
+    case Intrinsic::kit_gpu_grid_size_x:
+    case Intrinsic::kit_gpu_grid_size_y:
+    case Intrinsic::kit_gpu_grid_size_z:
+      llvm_unreachable(
+          "GPU thread intrinsics in AMDGPU device modules should have been "
+          "replaced by the emb-lower-intrinsics-early pass");
     default:
       return Intrinsic::not_intrinsic;
     }
