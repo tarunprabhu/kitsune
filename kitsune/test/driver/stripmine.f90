@@ -17,7 +17,7 @@
 ! RUN:     | FileCheck %s -check-prefixes=ALLOWED,STRIPMINE
 !
 ! RUN: %kitfc -### -fno-stripmine %s 2>&1 \
-! RUN:     | FileCheck %s -check-prefix ALLOWED,NO-STRIPMINE
+! RUN:     | FileCheck %s -check-prefixes=ALLOWED,NO-STRIPMINE
 !
 ! ALLOWED-NOT: must be used with a Kitsune frontend
 ! STRIPMINE: -fstripmine
