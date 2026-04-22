@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-cuda
+;
 ; The loop bounds of perfectly nested tapir loops with the 'cuda' tapir target
 ; must be invariant with respect to the root.
 ;

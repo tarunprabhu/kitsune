@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-cuda
+;
 ; All perfectly nested tapir loops intended to be lowered with the 'cuda' tapir
 ; target must be canonical.
 ;

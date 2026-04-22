@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-hip
+;
 ; The loop bounds of perfectly nested tapir loops with the 'hip' tapir target
 ; must be invariant with respect to the root.
 ;

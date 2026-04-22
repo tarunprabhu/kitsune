@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-hip
+;
 ; Check that the correct diagnostics are emitted for each imperfectly nested
 ; tapir loop in a loop nest where the root has the 'hip' tapir target.
 ;

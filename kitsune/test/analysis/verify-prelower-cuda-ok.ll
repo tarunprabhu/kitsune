@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-cuda
+;
 ; Check that no diagnostics are emitted when a perfectly nested tapir loop nest
 ; where the root has the 'cuda' tapir target is verified.
 ;

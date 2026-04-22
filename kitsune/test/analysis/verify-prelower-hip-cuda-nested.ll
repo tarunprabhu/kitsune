@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-hip && kitsune-cuda
+;
 ; If a top-level loop has the hip tapir target, check that the correct
 ; diagnostic is emitted when at least one subloop has the cuda tapir target.
 ;

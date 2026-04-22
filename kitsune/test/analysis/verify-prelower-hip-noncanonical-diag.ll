@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-hip
+;
 ; All perfectly nested tapir loops intended to be lowered with the 'hip' tapir
 ; target must be canonical.
 ;
