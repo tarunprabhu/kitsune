@@ -41,7 +41,7 @@
 ! O23SZ-NEXT: Running pass:     LoopSpawningPass
 ! O23SZ-NEXT: Running pass:     TapirToTargetPass
 ! O23SZ:      Running pass:     PrefetchForDevicePass
-! O23SZ-NEXT: Running pass:     EmbLowerKitIntrinsicsLibDevicePass
+! O23SZ-NEXT: Running pass:     EmbLowerKitIntrinsicsEarlyPass
 ! O23SZ-NEXT: Running pass:     EmbResolveLibDeviceCallsPass
 ! O23SZ-NEXT: Running pass:     EmbPreparePass
 ! O23SZ-NEXT: Running pass:     EmbLinkLibDeviceBitcodePass

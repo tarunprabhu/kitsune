@@ -2,7 +2,7 @@ add_llvm_component_library(LLVMKitTransforms
   DeLICM.cpp
   EarlyAnnotate.cpp
   EmbLinkLibDeviceBitcode.cpp
-  EmbLowerKitIntrinsicsLibDevice.cpp
+  EmbLowerKitIntrinsicsEarly.cpp
   EmbPrepare.cpp
   EmbPrepareCuda.cpp
   EmbPrepareHip.cpp

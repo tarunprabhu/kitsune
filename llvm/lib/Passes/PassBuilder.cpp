@@ -26,7 +26,7 @@
 #include "kitsune/Transforms/DeLICM.h"
 #include "kitsune/Transforms/EarlyAnnotate.h"
 #include "kitsune/Transforms/EmbLinkLibDeviceBitcode.h"
-#include "kitsune/Transforms/EmbLowerKitIntrinsicsLibDevice.h"
+#include "kitsune/Transforms/EmbLowerKitIntrinsicsEarly.h"
 #include "kitsune/Transforms/EmbOptimize.h"
 #include "kitsune/Transforms/EmbPrepare.h"
 #include "kitsune/Transforms/EmbResolveLibDeviceCalls.h"
