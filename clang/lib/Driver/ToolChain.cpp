@@ -2862,7 +2862,8 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
     }
 
     if constexpr (kitQthreadsEnabled()) {
-      const char *LibDir = Args.MakeArgString(concat(D.ResourceDir, "lib"));
+      const char *LibDir =
+          Args.MakeArgString(concat(D.ResourceDir, kitQthreadsLibDir()));
       CmdArgs.push_back("-L");
       CmdArgs.push_back(LibDir);
       CmdArgs.push_back("-rpath");

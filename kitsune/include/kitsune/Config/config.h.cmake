@@ -151,6 +151,10 @@
 // Has the qthreads tapir target been enabled
 #cmakedefine01 KITSUNE_QTHREADS_ENABLED
 
+// The name of the directory to which libqthread will be installed. This is
+// lib or lib64 depending on the platform.
+#define KITSUNE_QTHREADS_LIBDIR "@KITSUNE_QTHREADS_LIBDIR@"
+
 // -----------------------------------------------------------------------------
 
 // Has the realm tapir target been enabled

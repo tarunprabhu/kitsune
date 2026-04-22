@@ -219,6 +219,10 @@ constexpr bool kitPthreadsEnabled() { return KITSUNE_PTHREADS_ENABLED; }
 /// Has the qthreads tapir target been enabled.
 constexpr bool kitQthreadsEnabled() { return KITSUNE_QTHREADS_ENABLED; }
 
+// The name of the directory where libqthread can be found. This is usually
+// "lib" or "lib64" depending on the platform.
+constexpr StringRef kitQthreadsLibDir() { return KITSUNE_QTHREADS_LIBDIR; }
+
 //------------------------------------------------------------------------------
 
 /// Has the realm tapir target been enabled.
