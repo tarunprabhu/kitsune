@@ -3197,6 +3197,7 @@ def int_experimental_convergence_loop
 
 //===----------------- Structure Protection Intrinsics --------------------===//
 
+<<<<<<< HEAD
 def int_protected_field_ptr :
   DefaultAttrsIntrinsic<[llvm_anyptr_ty],
                         [LLVMMatchType<0>, llvm_i64_ty, llvm_i1_ty],
@@ -3263,7 +3264,12 @@ def int_task_frameaddress
 
 //===------------------------- Kitsune Intrinsics -------------------------===//
 
-include "kitsune/Core/IntrinsicsKitsune.td"
+// The includes are this way because some tests in llvm/test/Tablegen add
+// ${CMAKE_SOURCE_DIR}/llvm/include as an include directory (here,
+// ${CMAKE_SOURCE_DIR} is the top-level of the source monorepo). This is an
+// easier fix than changing all the tests there. This also works with all other
+// uses of this file.
+include "../../kitsune/include/kitsune/Core/Intrinsics.td"
 
 //===----------------------------------------------------------------------===//
 // Target-specific intrinsics
