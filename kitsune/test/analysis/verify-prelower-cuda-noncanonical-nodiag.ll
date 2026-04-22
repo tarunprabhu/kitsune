@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-cuda
+;
 ; Check that the verifier does not emit a diagnostic message for certain
 ; non-canonical loops in a tapir loop nest for the GPU.
 ;

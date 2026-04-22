@@ -1,3 +1,5 @@
+; REQUIRES: kitsune-cuda
+;
 ; If a top-level loop has the cuda tapir target, check that the correct
 ; diagnostic is emitted when at least one subloop has a serial tapir target.
 ; This is a separate test because it is a case where this situation can be
