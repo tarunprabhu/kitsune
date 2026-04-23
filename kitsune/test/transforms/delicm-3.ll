@@ -1,5 +1,5 @@
 ; Check that the kit-delicm pass sinks instructions into loop nests of depth
-; 2 correctly.
+; 3 correctly.
 ;
 ; RUN: opt -passes='kit-delicm' -S %s 2>&1 \
 ; RUN:     | FileCheck %s
