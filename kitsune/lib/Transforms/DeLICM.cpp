@@ -161,7 +161,9 @@ public:
 SmallVector<Loop *, 4> DeLICM::getPotentialPerfectTapirLoops(Loop &root) const {
   LoopNest nest(root, se);
   SmallVector<Loop *, 4> tapirLoops = {&root};
-  for (unsigned d = 2; d <= nest.getNestDepth(); ++d) {
+  unsigned depthRoot = root.getLoopDepth();
+  unsigned depthInner = depthRoot + nest.getNestDepth();
+  for (unsigned d = depthRoot + 1; d < depthInner; ++d) {
     LoopVectorTy loops = nest.getLoopsAtDepth(d);
     if (loops.size() != 1)
       break;
