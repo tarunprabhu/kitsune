@@ -14375,7 +14375,7 @@ def err_cuda_device_kernel_launch_require_rdc
 def note_ovl_candidate_no_mobile: Note<
     "candidate %sub{select_ovl_candidate_kind}0,1,2 not viable: "
     "%ordinal4 argument (%3) does not accept mobile pointer. Consider using "
-    "__kitsune_unsafe_cast">;
+    "__kitsune_mobile_cast_unsafe">;
 def note_ovl_candidate_with_mobile: Note<
     "candidate %sub{select_ovl_candidate_kind}0,1,2 not viable: "
     "%ordinal4 argument (%3) requires mobile pointer">;
