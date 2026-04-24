@@ -209,6 +209,10 @@ find_library(LIB_DL dl REQUIRED)
 list(APPEND KITSUNE_COMMON_LIB_NAMES dl)
 list(APPEND KITSUNE_COMMON_LIB_LIBS ${LIB_DL})
 
+find_library(LIB_M m REQUIRED)
+list(APPEND KITSUNE_COMMON_LIB_NAMES m)
+list(APPEND KITSUNE_COMMON_LIB_LIBS ${LIB_M})
+
 # The pthread functions are now part of libc. libpthread was removed from glibc
 # 2.34. There is no need to explicitly link this in unless we have older
 # versions of libc around. We should consider removing this from here at some

@@ -51,6 +51,8 @@
 
 #include "kitcuda.h"
 #include "kitcuda_dylib.h"
+
+#include <cmath>
 #include <mutex>
 #include <string>
 
@@ -368,10 +370,15 @@ static CUstream launchKernel1(CUfunction f, void **args, size_t tcX,
 
 static CUstream launchKernel2(CUfunction f, void **args, size_t tcY, size_t tcX,
                               unsigned tpb, CUstream stream) {
-  // FIXME: The threads per block (tpb) value should be split across the
-  // threads launched in each direction.
-  unsigned tpbX = tpb;
-  unsigned tpbY = tpb;
+  // FIXME: Using the same number of threads in both X and Y directions is not a
+  // great idea. However, computing a suitable value is not exactly
+  // straightforward and may well depend on the kernel being launched. In that
+  // case, the compiler may have to provide hints for the value to use in each
+  // direction separately. This would require a change to the runtime interface.
+  // For now, we simply do something that is correct, but probably inefficient.
+  unsigned t = sqrt(tpb);
+  unsigned tpbX = nearestPowerOf2LE(t);
+  unsigned tpbY = nearestPowerOf2LE(t);
   unsigned tpbZ = 1;
   unsigned bpgX = (tcX + tpbX - 1) / tpbX;
   unsigned bpgY = (tcY + tpbY - 1) / tpbY;
@@ -385,7 +392,6 @@ static CUstream launchKernel2(CUfunction f, void **args, size_t tcY, size_t tcX,
     fprintf(stderr, "  threads: [%d, %d, %d]\n", tpbX, tpbY, tpbZ);
   }
 
-  assert(0 && "launchKernel2 not yet implemented");
   CU_SAFE_CALL(cuLaunchKernel_p(f, bpgX, bpgY, bpgZ, tpbX, tpbY, tpbZ,
                                 sharedMemSize, stream, args, NULL));
   return stream;
@@ -393,11 +399,16 @@ static CUstream launchKernel2(CUfunction f, void **args, size_t tcY, size_t tcX,
 
 static CUstream launchKernel3(CUfunction f, void **args, size_t tcZ, size_t tcY,
                               size_t tcX, unsigned tpb, CUstream stream) {
-  // FIXME: The threads per block (tpb) value should be split across the
-  // threads launched in each direction.
-  unsigned tpbX = tpb;
-  unsigned tpbY = tpb;
-  unsigned tpbZ = tpb;
+  // FIXME: Using the same number of threads in X, Y and Z directions is not a
+  // great idea. However, computing a suitable value is not exactly
+  // straightforward and may well depend on the kernel being launched. In that
+  // case, the compiler may have to provide hints for the value to use in each
+  // direction separately. This would require a change to the runtime interface.
+  // For now, we simply do something that is correct, but probably inefficient.
+  unsigned t = cbrt(tpb);
+  unsigned tpbX = nearestPowerOf2LE(t);
+  unsigned tpbY = nearestPowerOf2LE(t);
+  unsigned tpbZ = nearestPowerOf2LE(t);
   unsigned bpgX = (tcX + tpbX - 1) / tpbX;
   unsigned bpgY = (tcY + tpbY - 1) / tpbY;
   unsigned bpgZ = (tcZ + tpbZ - 1) / tpbZ;
@@ -411,7 +422,6 @@ static CUstream launchKernel3(CUfunction f, void **args, size_t tcZ, size_t tcY,
     fprintf(stderr, "  threads: [%d, %d, %d]\n", tpbX, tpbY, tpbZ);
   }
 
-  assert(0 && "launchKernel3 not yet implemented");
   CU_SAFE_CALL(cuLaunchKernel_p(f, bpgX, bpgY, bpgZ, tpbX, tpbY, tpbZ,
                                 sharedMemSize, stream, args, NULL));
   return stream;

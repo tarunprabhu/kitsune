@@ -311,10 +311,15 @@ static hipStream_t launchKernel2(hipFunction_t f, void **args, size_t tcY,
   assert(!kithip_rt::useYLaunch() &&
          "Y-axis launches not supported for 2D launches");
 
-  // FIXME: The threads per block (tpb) value should be split across the
-  // threads launched in each direction.
-  unsigned tpbX = sqrt(tcX * tcY);
-  unsigned tpbY = sqrt(tcX * tcY);
+  // FIXME: Using the same number of threads in both X and Y directions is not a
+  // great idea. However, computing a suitable value is not exactly
+  // straightforward and may well depend on the kernel being launched. In that
+  // case, the compiler may have to provide hints for the value to use in each
+  // direction separately. This would require a change to the runtime interface.
+  // For now, we simply do something that is correct, but probably inefficient.
+  unsigned t = sqrt(tpb);
+  unsigned tpbX = nearestPowerOf2LE(t);
+  unsigned tpbY = nearestPowerOf2LE(t);
   unsigned tpbZ = 1;
   unsigned bpgX = (tcX + tpbX - 1) / tpbX;
   unsigned bpgY = (tcY + tpbY - 1) / tpbY;
@@ -328,7 +333,6 @@ static hipStream_t launchKernel2(hipFunction_t f, void **args, size_t tcY,
     fprintf(stderr, "  threads: [%d, %d, %d]\n", tpbX, tpbY, tpbZ);
   }
 
-  // assert(0 && "launchKernel2 not yet implemented");
   HIP_SAFE_CALL(hipModuleLaunchKernel(f, bpgX, bpgY, bpgZ, tpbX, tpbY, tpbZ,
                                       sharedMemSize, stream, args, NULL));
   return stream;
@@ -340,11 +344,16 @@ static hipStream_t launchKernel3(hipFunction_t f, void **args, size_t tcZ,
   assert(!kithip_rt::useYLaunch() &&
          "Y-axis launches not supported for 3D launches");
 
-  // FIXME: The threads per block (tpb) value should be split across the
-  // threads launched in each direction.
-  unsigned tpbX = tpb;
-  unsigned tpbY = tpb;
-  unsigned tpbZ = tpb;
+  // FIXME: Using the same number of threads in X, Y and Z directions is not a
+  // great idea. However, computing a suitable value is not exactly
+  // straightforward and may well depend on the kernel being launched. In that
+  // case, the compiler may have to provide hints for the value to use in each
+  // direction separately. This would require a change to the runtime interface.
+  // For now, we simply do something that is correct, but probably inefficient.
+  unsigned t = cbrt(tpb);
+  unsigned tpbX = nearestPowerOf2LE(t);
+  unsigned tpbY = nearestPowerOf2LE(t);
+  unsigned tpbZ = nearestPowerOf2LE(t);
   unsigned bpgX = (tcX + tpbX - 1) / tpbX;
   unsigned bpgY = (tcY + tpbY - 1) / tpbY;
   unsigned bpgZ = (tcZ + tpbZ - 1) / tpbZ;
@@ -358,7 +367,6 @@ static hipStream_t launchKernel3(hipFunction_t f, void **args, size_t tcZ,
     fprintf(stderr, "  threads: [%d, %d, %d]\n", tpbX, tpbY, tpbZ);
   }
 
-  assert(0 && "launchKernel3 not yet implemented");
   HIP_SAFE_CALL(hipModuleLaunchKernel(f, bpgX, bpgY, bpgZ, tpbX, tpbY, tpbZ,
                                       sharedMemSize, stream, args, NULL));
   return stream;
