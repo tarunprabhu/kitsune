@@ -231,6 +231,12 @@ if (KITSUNE_ENABLE_SPHINX)
         kitsune-attrs-doc
         kitsune-html-source-dir)
 
+      gen_kit_rst(${HTML_SOURCE_DIR}/KitCBuiltinsDoc.rst
+        ${CMAKE_CURRENT_SOURCE_DIR}/KitCBuiltinsDoc.td
+        -gen-kit-cbuiltins-doc
+        kitsune-cbuiltins-doc
+        kitsune-html-source-dir)
+
       gen_kit_rst(${HTML_SOURCE_DIR}/KitIntrinsicsDoc.rst
         ${CMAKE_CURRENT_SOURCE_DIR}/KitIntrinsicsDoc.td
         -gen-kit-intrinsics-doc
@@ -332,6 +338,7 @@ if (KITSUNE_ENABLE_SPHINX)
 
       add_dependencies(docs-kitsune-html
         kitsune-attrs-doc
+        kitsune-cbuiltins-doc
         kitsune-clang-options-doc
         kitsune-flang-options-doc
         kitsune-arg-attrs-doc

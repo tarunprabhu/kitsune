@@ -26,6 +26,10 @@ include(TableGen)
 function(kitsune_tablegen source dest)
   cmake_parse_arguments(ARGS "" "TARGET" "DEPENDS" ${ARGN})
 
+  set(LLVM_INC_DIR "${LLVM_MONOREPO_SOURCE_DIR}/llvm/include")
+  set(CLANG_INC_DIR "${LLVM_MONOREPO_SOURCE_DIR}/clang/include")
+  set(KITSUNE_INC_DIR "${LLVM_MONOREPO_SOURCE_DIR}/kitsune/include")
+
   # The tablegen function below is what is used by LLVM and requires
   # LLVM_TARGET_DEFINITIONS to be set to the source tablegen file.
   set(LLVM_TARGET_DEFINITIONS ${source})
@@ -34,7 +38,7 @@ function(kitsune_tablegen source dest)
   # LLVM_TABLEGEN_EXE, which contains the path to the llvm-tblgen executable. At
   # some point, we should probably set a corresponding KITSUNE_TABLEGEN_EXE
   # variable and use that instead.
-  tablegen(LLVM ${dest} ${ARGS_UNPARSED_ARGUMENTS})
+  tablegen(LLVM ${dest} ${ARGS_UNPARSED_ARGUMENTS} -I${LLVM_INC_DIR} -I${CLANG_INC_DIR} -I${KITSUNE_INC_DIR})
 
   if(ARGS_TARGET)
     add_public_tablegen_target(${ARGS_TARGET})
