@@ -42,12 +42,19 @@
 // to be compiled with another compiler and maintain "reasonable" behavior.
 #ifndef __kitsune__
 
-/// Allocate \p bytes bytes in a mobile buffer. In Kitsune, this is a builtin
-/// that is replaced with a suitable memory allocation function depending on the
-/// tapir target(s) used. This is here if the code is not compiled with Kitsune,
-/// and simply calls the system's default memory allocator (malloc).
+/// Allocate a mobile buffer. In Kitsune, this is a builtin. When lowering to
+/// LLVM-IR, it will be replaced with an intrinsic that will eventually be
+/// replaced with a suitable memory allocation function depending on the tapir
+/// target(s) used. The definition of this function will effectively be dropped.
+/// In this case, the return type will actually be `void *[[kitsune::mobile]]`.
+///
+/// If the code is not compiled with Kitsune, the definition of this
+/// function will be exposed and the default memory allocator will be called.
+/// The return type in this case will be `void*`.
+///
 /// \param bytes The number of bytes to allocate.
-/// \return The pointer to the allocated buffer.
+/// \return The pointer to the allocated buffer or nullptr if there is
+///         insufficient memory available.
 EXTERN_C inline void *__attribute__((malloc))
 kitsune_mobile_alloc(size_t bytes) {
   return malloc(bytes);
@@ -55,11 +62,17 @@ kitsune_mobile_alloc(size_t bytes) {
 
 /// Deallocate (free) a mobile buffer that was previously allocated with
 /// kitsune_mobile_alloc. In Kitsune, this is an intrinsic that is replaced with
-/// a call to an appropriate runtime function. This is here if the code is not
-/// compiled with Kitsune and simply calls the system's default deallocator.
-EXTERN_C inline void kitsune_mobile_free(void *ptr) { return free(ptr); }
+/// a call to an appropriate runtime function depending on the tapir target(s)
+/// in use.
+///
+/// If the code is not compiled with Kitsune, the definition of this function
+/// will be exposed. In this case, the standard memory deallocation function
+/// will be called.
+///
+/// \param ptr Pointer to the memory to deallocate.
+EXTERN_C inline void kitsune_mobile_free(void *ptr) { free(ptr); }
 
-#endif // __kitsune__
+#endif // !__kitsune__
 
 #ifdef __cplusplus
 
@@ -157,6 +170,33 @@ private:
 } // namespace kitsune
 
 #endif // ! __cplusplus
+
+/// @{
+/// WARNING: The functions here are temporary workarounds that are intended to
+/// make it "easier" to port existing code to use Kitsune. These may be removed
+/// without notice. These are intentionally not available on other compilers.
+#ifdef __kitsune__
+
+/// Allocate a mobile buffer.
+///
+/// WARNING: This casts away the [[kitsune::mobile]] attribute from the return
+/// type. This function may be removed without notice.
+EXTERN_C inline void *__attribute__((malloc, always_inline))
+kitsune_mobile_alloc__(size_t bytes) {
+  return (void *)kitsune_mobile_alloc(bytes);
+}
+
+/// Free a mobile buffer previously allocated with kitsune_mobile_alloc__.
+///
+/// WARNING: This may cause a catastrophic failure if \p ptr was not previously
+/// allocated with kitsune_mobile_alloc.
+EXTERN_C inline void __attribute__((always_inline))
+kitsune_mobile_free__(void *ptr) {
+  kitsune_mobile_free(__kitsune_mobile_cast_unsafe(ptr));
+}
+
+#endif // __kitsune__
+/// @}
 
 #undef EXTERN_C
 
