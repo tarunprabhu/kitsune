@@ -49,7 +49,7 @@ int f5(int *ptr) { return *ptr; }
 int f6(int *[[kitsune::mobile]] ptr) {
   // expected-error@+1 {{no matching function for call to 'f5'}}
   return f5(ptr);
-  // expected-note-re@-5 {{candidate function not viable: {{.*}} does not accept mobile pointer. Consider using __kitsune_unsafe_cast}}
+  // expected-note-re@-5 {{candidate function not viable: {{.*}} does not accept mobile pointer. Consider using __kitsune_mobile_cast_unsafe}}
 }
 
 int *f7(int *[[kitsune::mobile]] ptr) {
