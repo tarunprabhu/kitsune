@@ -161,6 +161,13 @@ void __kitrt_unset_env(const char *varname) {
     __kitrt_warn("kitrt", "could not unset environment variable '%s'", varname);
 }
 
+unsigned nearestPowerOf2LE(unsigned n) {
+  unsigned p = 1;
+  while (p <= n)
+    p <<= 1;
+  return p >> 1;
+}
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

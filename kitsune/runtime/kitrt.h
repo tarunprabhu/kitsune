@@ -144,6 +144,11 @@ void __kitrt_warn(const char *label, const char *msg, ...);
 void __kitrt_message(const char *label, const char *msg, ...);
 
 /**
+ * Get the nearest power of 2 that is less than or equal to \p n.
+ */
+unsigned nearestPowerOf2LE(unsigned n);
+
+/**
  * *** EXPERIMENTAL: This is a new interface between the compiler and
  * the runtime.  It is a quick set of details regarding the particular
  * instruction mix of a kernel and any device-side functions it calls.
