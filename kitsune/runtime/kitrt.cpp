@@ -50,6 +50,7 @@
 
 #include "kitrt.h"
 
+#include <algorithm>
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
@@ -57,7 +58,8 @@
 #include <ctype.h>
 #include <execinfo.h>
 #include <mutex>
-#include <type_traits>
+#include <stdexcept>
+#include <string>
 
 // FIXME: Combine these global variables into a single struct. This should
 // also be private. However, we expose it because it is examined often by
@@ -172,97 +174,113 @@ unsigned nearestPowerOf2LE(unsigned n) {
 } // extern "C"
 #endif
 
-template <typename T>
-static bool parse(const char *varname, const char *str, T &out);
-
-template <> bool parse(const char *varname, const char *str, int &out) {
-  out = atoi(str);
-  return true;
+template <typename F, typename V, typename... Args>
+static bool parseInto(V &out, const std::string &vstr, const char *vname,
+                      F converter, Args &&...args) {
+  try {
+    std::size_t pos = 0;
+    auto tmp = converter(vstr, &pos, args...);
+    if (pos == vstr.size()) {
+      out = tmp;
+      return true;
+    }
+    __kitrt_warn("kitrt",
+                 "ignoring environment variable '%s'. Values contains unparsed "
+                 "characters",
+                 vname);
+  } catch (std::invalid_argument) {
+    __kitrt_warn("kitrt",
+                 "ignoring environment variable '%s'. Value is not valid",
+                 vname);
+  } catch (std::out_of_range) {
+    __kitrt_warn("kitrt",
+                 "ignoring environment variable '%s'. Value is not in range",
+                 vname);
+  }
+  return false;
 }
 
-template <> bool parse(const char *varname, const char *str, unsigned &out) {
-  out = atoi(str);
-  return true;
-}
+template <typename V>
+static bool parseInto(V &v, const std::string &str, const char *vname);
 
-template <> bool parse(const char *varname, const char *str, bool &out) {
-  char *lstr = strdup(str);
-  for (int i = 0; str[i]; i++)
-    lstr[i] = tolower(str[i]);
+template <>
+bool parseInto(bool &v, const std::string &vstr, const char *vname) {
+  auto equals = [](const std::string &l, const std::string &r) -> bool {
+    return std::equal(l.begin(), l.end(), r.begin(),
+                      [](unsigned char cl, unsigned char cr) -> bool {
+                        return std::tolower(cl) == std::tolower(cr);
+                      });
+  };
 
-  if (!strcmp(lstr, "true") || !strcmp(lstr, "1")) {
-    out = true;
-  } else if (!strcmp(lstr, "false") || !strcmp(lstr, "0")) {
-    out = false;
+  if (equals(vstr, "true") || vstr == "1") {
+    v = true;
+  } else if (equals(vstr, "false") || vstr == "0") {
+    v = false;
   } else {
+    // FIXME: We should be more strict and reject this, but for now, we are
+    // permissive.
     __kitrt_warn("kitrt",
                  "environment variable '%s' not set to 'true' or 'false'. "
                  "Assuming 'true'",
-                 varname);
-    out = true;
+                 vname);
+    v = true;
   }
   return true;
 }
 
-template <> bool parse(const char *varname, const char *str, long &out) {
-  out = atol(str);
-  return true;
+template <> bool parseInto(int &v, const std::string &vstr, const char *vname) {
+  using Converter = int(const std::string &, std::size_t *, int);
+  return parseInto(v, vstr, vname, (Converter *)&std::stoi, /*base=*/10);
 }
 
 template <>
-bool parse(const char *varname, const char *str, unsigned long &out) {
-  out = atol(str);
-  return true;
-}
-
-template <> bool parse(const char *varname, const char *str, long long &out) {
-  out = atoll(str);
-  return true;
+bool parseInto(unsigned &v, const std::string &vstr, const char *vname) {
+  using Converter = int(const std::string &, std::size_t *, int);
+  return parseInto(v, vstr, vname, (Converter *)&std::stoi, /*base=*/10);
 }
 
 template <>
-bool parse(const char *varname, const char *str, unsigned long long &out) {
-  out = atoll(str);
-  return true;
+bool parseInto(long &v, const std::string &vstr, const char *vname) {
+  using Converter = long(const std::string &, std::size_t *, int);
+  return parseInto(v, vstr, vname, (Converter *)&std::stol, /*base=*/10);
 }
 
-template <> bool parse(const char *varname, const char *str, float &out) {
-  out = (float)atof(str);
-  return true;
+template <>
+bool parseInto(unsigned long &v, const std::string &vstr, const char *vname) {
+  using Converter = unsigned long(const std::string &, std::size_t *, int);
+  return parseInto(v, vstr, vname, (Converter *)&std::stoul, /*base=*/10);
 }
 
-template <> bool parse(const char *varname, const char *str, double &out) {
-  out = atof(str);
-  return true;
+template <>
+bool parseInto(long long &v, const std::string &vstr, const char *vname) {
+  using Converter = long long(const std::string &, std::size_t *, int);
+  return parseInto(v, vstr, vname, (Converter *)&std::stoll, /*base=*/10);
 }
 
-template <typename ValueType>
-bool __kitrt_get_env_value(const char *varname, ValueType &value) {
-  assert(varname && "Expected variable name");
+template <>
+bool parseInto(unsigned long long &v, const std::string &vstr,
+               const char *vname) {
+  using Converter = unsigned long long(const std::string &, std::size_t *, int);
+  return parseInto(v, vstr, vname, (Converter *)&std::stoull, /*base=*/10);
+}
 
-  if (char *vstr = getenv(varname)) {
-    if constexpr (std::is_same_v<ValueType, int>)
-      return parse<int>(varname, vstr, value);
-    else if constexpr (std::is_same_v<ValueType, unsigned>)
-      return parse<unsigned>(varname, vstr, value);
-    else if constexpr (std::is_same_v<ValueType, bool>)
-      return parse<bool>(varname, vstr, value);
-    else if constexpr (std::is_same_v<ValueType, long>)
-      return parse<long>(varname, vstr, value);
-    else if constexpr (std::is_same_v<ValueType, unsigned long>)
-      return parse<unsigned long>(varname, vstr, value);
-    else if constexpr (std::is_same_v<ValueType, long long>)
-      return parse<long long>(varname, vstr, value);
-    else if constexpr (std::is_same_v<ValueType, unsigned long long>)
-      return parse<unsigned long long>(varname, vstr, value);
-    else if constexpr (std::is_same_v<ValueType, float>)
-      return parse<float>(varname, vstr, value);
-    else if constexpr (std::is_same_v<ValueType, double>)
-      return parse<double>(varname, vstr, value);
-    else
-      static_assert(0 && "No registered environment variable parser for type");
-  }
+template <>
+bool parseInto(float &v, const std::string &vstr, const char *vname) {
+  using Converter = float(const std::string &, std::size_t *);
+  return parseInto(v, vstr, vname, (Converter *)&std::stof);
+}
 
+template <>
+bool parseInto(double &v, const std::string &vstr, const char *vname) {
+  using Converter = double(const std::string &, std::size_t *);
+  return parseInto(v, vstr, vname, (Converter *)&std::stod);
+}
+
+template <typename V> bool __kitrt_get_env_value(const char *vname, V &v) {
+  assert(vname && "Expected variable name");
+
+  if (char *vstr = getenv(vname))
+    return parseInto<V>(v, vstr, vname);
   return false;
 }
 
