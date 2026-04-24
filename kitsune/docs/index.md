@@ -59,6 +59,7 @@ depending on what is of interest to you.
     KitClangOptionsDoc
     KitFlangOptionsDoc
     KitAttrsDoc
+    KitCBuiltinsDoc
     KitArgAttrsDoc
     KitFuncAttrsDoc
     KitGVAttrsDoc
