@@ -64,8 +64,7 @@ def int_kit_launch_threads
                     llvm_ptr_ty], // argument bundle
                    [ImmArg<ArgIndex<0>>,
                     NonNull<ArgIndex<1>>,
-                    NonNull<ArgIndex<5>>,
-                    IntrInaccessibleMemOrArgMemOnly, IntrHasSideEffects]> {
+                    NonNull<ArgIndex<5>>]> {
   let Doc = KitLaunchThreadsDoc;
 }
 
@@ -81,8 +80,7 @@ def int_kit_async_launch_threads
                    [NonNull<RetIndex>, Dereferenceable<RetIndex, 16>,
                     ImmArg<ArgIndex<0>>,
                     NonNull<ArgIndex<1>>,
-                    NonNull<ArgIndex<5>>,
-                    IntrInaccessibleMemOrArgMemOnly, IntrHasSideEffects]> {
+                    NonNull<ArgIndex<5>>]> {
   let Doc = KitAsyncLaunchThreadsDoc;
 }
 
@@ -91,8 +89,7 @@ def int_kit_async_launch_threads
 def int_kit_sync_threads
     : KitIntrinsic<[], [llvm_i32_ty, llvm_ptr_ty],
                    [ImmArg<ArgIndex<0>>,
-                    NonNull<ArgIndex<1>>, Dereferenceable<ArgIndex<1>, 16>,
-                    IntrInaccessibleMemOrArgMemOnly, IntrHasSideEffects]> {
+                    NonNull<ArgIndex<1>>, Dereferenceable<ArgIndex<1>, 16>]> {
   let Doc = KitSyncThreadsDoc;
 }
 
@@ -170,8 +167,7 @@ def int_kit_async_launch_kernel
                     llvm_ptr_ty,  // kernel properties
                     llvm_ptr_ty,  // stream
                     llvm_vararg_ty],
-                   [ImmArg<ArgIndex<0>>, IntrInaccessibleMemOrArgMemOnly,
-                    IntrHasSideEffects]> {
+                   [ImmArg<ArgIndex<0>>]> {
   let Doc = KitAsyncGPULaunchKernelDoc;
 }
 
@@ -183,8 +179,7 @@ def int_kit_async_memcpy_dtoh
                     llvm_ptr_ty,  // pointer to device memory (source)
                     llvm_i64_ty,  // number of bytes to copy
                     llvm_ptr_ty], // the stream on which to perform the copy
-                   [ImmArg<ArgIndex<0>>, IntrInaccessibleMemOrArgMemOnly,
-                    IntrHasSideEffects]> {
+                   [ImmArg<ArgIndex<0>>]> {
   let Doc = KitAsyncMemcpyDToHDoc;
 }
 
@@ -196,8 +191,7 @@ def int_kit_async_memcpy_htod
                     llvm_ptr_ty,  // pointer to host memory (source)
                     llvm_i64_ty,  // number of bytes to copy
                     llvm_ptr_ty], // the stream on which to perform the copy
-                   [ImmArg<ArgIndex<0>>, IntrInaccessibleMemOrArgMemOnly,
-                    IntrHasSideEffects]> {
+                   [ImmArg<ArgIndex<0>>]> {
   let Doc = KitAsyncMemcpyHToDDoc;
 }
 
@@ -208,8 +202,7 @@ def int_kit_async_prefetch_dtoh
                     llvm_ptr_ty,  // pointer to memory to prefetch
                     llvm_i64_ty,  // number of bytes to prefetch
                     llvm_ptr_ty], // stream
-                   [ImmArg<ArgIndex<0>>, IntrInaccessibleMemOrArgMemOnly,
-                    IntrHasSideEffects]> {
+                   [ImmArg<ArgIndex<0>>]> {
   let Doc = KitAsyncPrefetchDToHDoc;
 }
 
@@ -220,23 +213,21 @@ def int_kit_async_prefetch_htod
                     llvm_ptr_ty,  // pointer to memory to prefetch
                     llvm_i64_ty,  // number of bytes to prefetch
                     llvm_ptr_ty], // stream
-                   [ImmArg<ArgIndex<0>>, IntrInaccessibleMemOrArgMemOnly,
-                    IntrHasSideEffects, IntrWillReturn]> {
+                   [ImmArg<ArgIndex<0>>, IntrWillReturn]> {
   let Doc = KitAsyncPrefetchHToDDoc;
 }
 
 // Allocate a mobile buffer.
 def int_kit_mobile_alloc
     : KitIntrinsic<[llvm_mobile_ptr_ty], [llvm_i64_ty],
-                   [IntrInaccessibleMemOnly, NoAlias<RetIndex>]> {
+                   [NoAlias<RetIndex>]> {
   let Doc = KitMobileAllocDoc;
 }
 
 // Free a mobile buffer previously allocated by llvm.kit.mobile.alloc.
 def int_kit_mobile_free
     : KitIntrinsic<[], [llvm_mobile_ptr_ty],
-                   [IntrInaccessibleMemOrArgMemOnly,
-                    NoCapture<ArgIndex<0>>, ReadNone<ArgIndex<0>>]> {
+                   [NoCapture<ArgIndex<0>>, ReadNone<ArgIndex<0>>]> {
   let Doc = KitMobileFreeDoc;
 }
 
@@ -244,16 +235,14 @@ def int_kit_mobile_free
 // TODO: Rename this to int_kit_gpu_enable_kernel_launch_refinement.
 def int_kit_enable_refine_launches
     : KitIntrinsic<[], [llvm_i32_ty, llvm_i8_ty],
-                   [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>,
-                    IntrInaccessibleMemOnly, IntrHasSideEffects]> {
+                   [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>]> {
   let Doc = KitGPUEnableKernelLaunchRefinementDoc;
 }
 
 // Enable/disable verbose mode in Kitsune's runtime.
 def int_kit_enable_verbose
     : KitIntrinsic<[], [llvm_i8_ty],
-                   [ImmArg<ArgIndex<0>>, IntrInaccessibleMemOrArgMemOnly,
-                    IntrHasSideEffects]> {
+                   [ImmArg<ArgIndex<0>>]> {
   let Doc = KitEnableVerboseDoc;
 }
 
@@ -261,8 +250,7 @@ def int_kit_enable_verbose
 // and its associated kitsune runtime.
 // TODO: Rename this to int_kit_gpu_enable_xnack
 def int_kit_enable_xnack
-    : KitIntrinsic<[], [llvm_i8_ty],
-                   [IntrInaccessibleMemOnly, IntrHasSideEffects]> {
+    : KitIntrinsic<[], [llvm_i8_ty], []> {
   let Doc = KitGPUEnableXnackDoc;
 }
 
@@ -270,24 +258,20 @@ def int_kit_enable_xnack
 // TODO: Rename this to int_kit_gpu_enable_y_axis_kernel_launch
 def int_kit_enable_y_axis_launches
     : KitIntrinsic<[], [llvm_i32_ty, llvm_i8_ty],
-                   [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>,
-                    IntrInaccessibleMemOnly, IntrHasSideEffects]> {
+                   [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>]> {
   let Doc = KitGPUEnableYAxisKernelLaunchDoc;
 }
 
 // Finalize Kitsune's runtime.
 def int_kit_finalize
-    : KitIntrinsic<[], [llvm_i32_ty],
-                   [ImmArg<ArgIndex<0>>, IntrInaccessibleMemOnly,
-                    IntrHasSideEffects]> {
+    : KitIntrinsic<[], [llvm_i32_ty], [ImmArg<ArgIndex<0>>]> {
   let Doc = KitFinalizeDoc;
 }
 
 // Initialize Kitsune's runtime.
 def int_kit_initialize
     : KitIntrinsic<[], [llvm_i32_ty],
-                   [ImmArg<ArgIndex<0>>, IntrInaccessibleMemOnly,
-                    IntrHasSideEffects]> {
+                   [ImmArg<ArgIndex<0>>]> {
   let Doc = KitInitializeDoc;
 }
 
@@ -298,8 +282,7 @@ def int_kit_memcpy_dtoh
                     llvm_ptr_ty,  // pointer to host memory (destination)
                     llvm_ptr_ty,  // pointer to device memory (source)
                     llvm_i64_ty], // number of bytes to copy
-                   [ImmArg<ArgIndex<0>>, IntrInaccessibleMemOrArgMemOnly,
-                    IntrHasSideEffects]> {
+                   [ImmArg<ArgIndex<0>>]> {
   let Doc = KitMemcpyDToHDoc;
 }
 
@@ -310,18 +293,15 @@ def int_kit_memcpy_htod
                     llvm_ptr_ty,  // pointer to device memory (destination)
                     llvm_ptr_ty,  // pointer to host memory (source)
                     llvm_i64_ty], // number of bytes to copy
-                   [ImmArg<ArgIndex<0>>, IntrInaccessibleMemOrArgMemOnly,
-                    IntrHasSideEffects]> {
+                   [ImmArg<ArgIndex<0>>]> {
   let Doc = KitMemcpyHToDDoc;
 }
 
 // Set the fixed number of threads per block to use when launching GPU kernels.
 // TODO: Rename this to int_kit_gpu_set_fixed_tpb
 def int_kit_set_fixed_tpb
-    : KitIntrinsic<[],
-                   [llvm_i32_ty, llvm_i32_ty],
-                   [ImmArg<ArgIndex<0>>, IntrInaccessibleMemOnly,
-                    IntrHasSideEffects]> {
+    : KitIntrinsic<[], [llvm_i32_ty, llvm_i32_ty],
+                   [ImmArg<ArgIndex<0>>]> {
   let Doc = KitGPUSetFixedTPBDoc;
 }
 
@@ -329,11 +309,8 @@ def int_kit_set_fixed_tpb
 // kernels.
 // TODO: Rename this to int_kit_gpu_set_max_tpb
 def int_kit_set_max_tpb
-    : KitIntrinsic<[],
-                   [llvm_i32_ty,  // tapir target id
-                    llvm_i32_ty], // threads per block
-                   [ImmArg<ArgIndex<0>>, IntrInaccessibleMemOnly,
-                    IntrHasSideEffects]> {
+    : KitIntrinsic<[], [llvm_i32_ty, llvm_i32_ty],
+                   [ImmArg<ArgIndex<0>>]> {
   let Doc = KitGPUSetMaxTPBDoc;
 }
 
@@ -342,8 +319,7 @@ def int_kit_set_max_tpb
 def int_kit_symbol_device_ptr
     : KitIntrinsic<[llvm_ptr_ty],
                    [llvm_i32_ty, llvm_ptr_ty, llvm_ptr_ty],
-                   [ImmArg<ArgIndex<0>>, IntrInaccessibleMemOrArgMemOnly,
-                    IntrHasSideEffects]> {
+                   [ImmArg<ArgIndex<0>>]> {
   let Doc = KitGPUSymbolAddressDoc;
 }
 
@@ -356,8 +332,7 @@ def int_kit_symbol_memcpy_dtoh
                  llvm_ptr_ty,  // pointer to symbol on the host
                  llvm_ptr_ty,  // pointer to symbol on the device
                  llvm_i64_ty], // number of bytes to copy
-                [ImmArg<ArgIndex<0>>, IntrInaccessibleMemOrArgMemOnly,
-                 IntrHasSideEffects]>;
+                [ImmArg<ArgIndex<0>>]>;
 
 // Copy a symbol from host to device.
 // FIXME: The runtime call here simply calls cuMemcpyHtoD. We should consider
@@ -368,26 +343,20 @@ def int_kit_symbol_memcpy_htod
                  llvm_ptr_ty,  // pointer to symbol on the device
                  llvm_ptr_ty,  // pointer to symbol on the host
                  llvm_i64_ty], // number of bytes to copy
-                [ImmArg<ArgIndex<0>>, IntrInaccessibleMemOrArgMemOnly,
-                 IntrHasSideEffects]>;
+                [ImmArg<ArgIndex<0>>]>;
 
 // Synchronize a GPU stream.
 // TODO: Rename this to int_kit_gpu_sync_stream
 def int_kit_sync_stream
-    : KitIntrinsic<[],
-                   [llvm_i32_ty,
-                    llvm_ptr_ty],
-                   [ImmArg<ArgIndex<0>>, IntrInaccessibleMemOrArgMemOnly,
-                    IntrHasSideEffects]> {
+    : KitIntrinsic<[], [llvm_i32_ty, llvm_ptr_ty],
+                   [ImmArg<ArgIndex<0>>]> {
   let Doc = KitGPUSyncStreamDoc;
 }
 
 // Get a new GPU stream.
 // TODO: Rename this to int_kit_gpu_get_stream
 def int_kit_thread_stream
-    : KitIntrinsic<[llvm_ptr_ty],
-                   [llvm_i32_ty],
-                   [ImmArg<ArgIndex<0>>, IntrInaccessibleMemOrArgMemOnly,
-                    IntrHasSideEffects]> {
+    : KitIntrinsic<[llvm_ptr_ty], [llvm_i32_ty],
+                   [ImmArg<ArgIndex<0>>]> {
   let Doc = KitGPUGetStreamDoc;
 }
