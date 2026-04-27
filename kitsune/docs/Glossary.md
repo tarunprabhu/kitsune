@@ -15,6 +15,14 @@ Kitsune-specific, but is used, perhaps exclusively, in Kitsune's documentation.
 (glossary-a)=
 ## A
 
+(glossary-accelerator)=
+**accelerator**
+: A [compute unit](glossary-compute-unit) that is specially designed to perform
+  certain computing tasks very efficiently. For instance, a GPU
+  (Graphics Processing Unit) is optimized for graphics and image processing,
+  while a Tensor Processing Unit (TPU) is well-suited for low-precision
+  convolutional neural networks.
+
 (glossary-analysis-manager)=
 **analysis manager**
 : An object that works in conjunction with a
@@ -93,6 +101,12 @@ Kitsune-specific, but is used, perhaps exclusively, in Kitsune's documentation.
   [LLVM-IR](glossary-llvm-ir) from the
   [AST](https://clang.llvm.org/docs/IntroductionToTheClangAST.html).
   In Kitsune, we only use it to mean machine-code generation.
+
+(glossary-compute-unit)=
+**compute unit**
+: Hardware device capable of carrying out some computation. In the context of
+  Kitsune, this could mean a CPU or an [accelerator](glossary-accelerator) such
+  as a GPU, TPU, or even an FPGA.
 
 <!----------------------------------------------------------------------------->
 
@@ -352,6 +366,11 @@ Kitsune-specific, but is used, perhaps exclusively, in Kitsune's documentation.
 (glossary-m)=
 ## M
 
+(glossary-memory-space)=
+**memory space**
+: The memory, typically RAM, associated with a
+  [compute unit](glossary-compute-unit).
+
 (glossary-meta-pass)=
 **meta-pass**
 : A name that, when passed to the `-passes` option to `opt` results in a
@@ -374,6 +393,16 @@ Kitsune-specific, but is used, perhaps exclusively, in Kitsune's documentation.
   [FIR](https://flang.llvm.org/docs/FIRLangRef.html)
   (Fortran Intermediate Representation) are very
   closely tied to a specific [source language](glossary-source-language).
+
+(glossary-mobile-buffer)=
+**mobile buffer**
+: A region of memory allocated in a [memory space](glossary-memory-space), `A`
+  whose contents may be needed by a [compute unit](glossary-compute-unit) with
+  a disjoint memory space, `B`.
+
+(glossary-mobile-pointer)=
+**mobile pointer**
+: A pointer to a [mobile buffer](glossary-mobile-buffer).
 
 (glossary-module)=
 **module**
