@@ -187,7 +187,8 @@ private:
       if (devG.isConstant())
         continue;
 
-      GlobalVariable *hostG = m.getGlobalVariable(devG.getName());
+      GlobalVariable *hostG = m.getGlobalVariable(devG.getName(),
+                                                  /*AllowInternal=*/true);
       assert(hostG && "Could not find corresponding global on host");
 
       uint64_t size = dl.getTypeAllocSize(hostG->getType());
