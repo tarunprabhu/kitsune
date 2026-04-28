@@ -48,7 +48,8 @@ protected:
   /// Check that all instructions in the given block are safe as determined by
   /// \p isInstSafe.
   bool checkInstsInBlock(BasicBlock &bb,
-                         std::function<bool(Instruction &)> isInstSafe);
+                         std::function<bool(Instruction &)> isInstSafe,
+                         StringRef label);
 
   /// Check if there is a unique path between \p from and \p end. All blocks in
   /// this path must be "safe", as determined by the given \p isSafe function.
@@ -116,9 +117,7 @@ bool PerfectNestChecker::isEmptyRecordUnsafe(BasicBlock &bb) {
   return false;
 }
 
-bool PerfectNestChecker::isEmpty(BasicBlock &bb) {
-  return bb.size() == 1;
-}
+bool PerfectNestChecker::isEmpty(BasicBlock &bb) { return bb.size() == 1; }
 
 bool PerfectNestChecker::isEmptyOrOnlyCallsSyncRegionStart(BasicBlock &bb) {
   auto onlyCallsSyncRegionStart = [&](BasicBlock &bb) -> bool {
@@ -285,8 +284,16 @@ CmpInst *PerfectNestChecker::getInnerLoopGuardCmp(Loop &innerLoop) const {
 }
 
 bool PerfectNestChecker::checkInstsInBlock(BasicBlock &bb,
-                                           IsSafeInst isSafeInst) {
-  return all_of(bb, isSafeInst);
+                                           IsSafeInst isSafeInst,
+                                           StringRef label) {
+  for (Instruction &inst : bb) {
+    if (!isSafeInst(inst)) {
+      LLVM_DEBUG(dbgs() << "Unsafe instruction in " << label << ": " << inst
+                        << "\n");
+      return false;
+    }
+  }
+  return true;
 }
 
 bool PerfectNestChecker::checkOuterLoopHeader(BasicBlock &header,
@@ -304,7 +311,7 @@ bool PerfectNestChecker::checkOuterLoopHeader(BasicBlock &header,
     return false;
   };
 
-  return checkInstsInBlock(header, isSafeInst);
+  return checkInstsInBlock(header, isSafeInst, "outer loop header");
 }
 
 bool PerfectNestChecker::checkOuterLoopLatch(BasicBlock &latch,
@@ -326,7 +333,7 @@ bool PerfectNestChecker::checkOuterLoopLatch(BasicBlock &latch,
     return false;
   };
 
-  return checkInstsInBlock(latch, isSafeInst);
+  return checkInstsInBlock(latch, isSafeInst, "outer loop latch");
 }
 
 bool PerfectNestChecker::run(Loop &outerLoop, Loop &innerLoop,
@@ -426,6 +433,7 @@ TapirLoopNest::TapirLoopNest(Loop &root, ScalarEvolution &se) : nest(root, se) {
          "Root of tapir loop nest must be in loop simplify form");
   assert(root.isRotatedForm() &&
          "Root of tapir loop nest must be in loop rotate form");
+  LLVM_DEBUG(dbgs() << "Outermost loop: " << getName(root) << "\n");
 
   // `root` is guaranteed to be a tapir loop. It is perfect by definition.
   perfectTapirLoops.push_back(&root);
@@ -435,19 +443,34 @@ TapirLoopNest::TapirLoopNest(Loop &root, ScalarEvolution &se) : nest(root, se) {
   unsigned depth = nest.getNestDepth();
   for (unsigned d = outermostDepth + 1; d < outermostDepth + depth; ++d) {
     Loop *outerLoop = perfectTapirLoops.back();
-    if (!sanityCheckOuterLoop(*outerLoop, se))
+    LLVM_DEBUG(dbgs() << "Checking loop at depth " << d << ": "
+                      << getName(*outerLoop) << "\n");
+
+    if (!sanityCheckOuterLoop(*outerLoop, se)) {
+      LLVM_DEBUG(dbgs() << "Outer loop failed sanity check: "
+                        << getName(*outerLoop) << "\n");
       break;
+    }
 
     Loop *innerLoop = nest.getLoopsAtDepth(d).front();
-    if (!sanityCheckInnerLoop(*innerLoop, se))
+    if (!sanityCheckInnerLoop(*innerLoop, se)) {
+      LLVM_DEBUG(dbgs() << "Inner loop failed sanity check: "
+                        << getName(*innerLoop) << "\n");
       break;
+    }
 
-    if (!isTapirLoop(*innerLoop))
+    if (!isTapirLoop(*innerLoop)) {
+      LLVM_DEBUG(dbgs() << "Inner loop is not tapir loop: "
+                        << getName(*innerLoop) << "\n");
       break;
+    }
 
     PerfectNestChecker perfectNestChecker(unsafeInsts);
-    if (!perfectNestChecker.run(*outerLoop, *innerLoop, se))
+    if (!perfectNestChecker.run(*outerLoop, *innerLoop, se)) {
+      LLVM_DEBUG(dbgs() << "Inner loop not perfectly nested: "
+                        << getName(*innerLoop) << "\n");
       break;
+    }
 
     perfectTapirLoops.push_back(innerLoop);
   }

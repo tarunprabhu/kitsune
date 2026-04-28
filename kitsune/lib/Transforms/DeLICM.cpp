@@ -58,6 +58,8 @@
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Instructions.h"
 
+#define DEBUG_TYPE "kit-delicm"
+
 using namespace llvm;
 
 namespace {
@@ -230,8 +232,10 @@ bool DeLICM::moveUnsafeInsts(const UnsafeInstsList &unsafeInsts) {
   do {
     moved = false;
     for (Instruction *inst : unsafeInsts) {
+      LLVM_DEBUG(dbgs() << "DeLICM: unsafe: " << *inst << "\n");
       BasicBlock::iterator insertPt = getInsertionPointFor(inst);
       if (insertPt->getPrevNode() != inst) {
+        LLVM_DEBUG(dbgs() << "DeLICM: move before: " << *insertPt << "\n");
         inst->moveBeforePreserving(insertPt);
         moved = true;
         changed = true;
@@ -259,8 +263,10 @@ bool DeLICM::run(Function &f) {
         Loop *loop = loops[d];
         std::unique_ptr<TapirLoopNest> nest = TapirLoopNest::create(*loop, se);
         const UnsafeInstsList &unsafeInsts = nest->getUnsafeInsts();
-        if (nest->getMaxPerfectDepth() == 1 && shouldDeLICM(unsafeInsts))
+        if (nest->getMaxPerfectDepth() == 1 && shouldDeLICM(unsafeInsts)) {
+          LLVM_DEBUG(dbgs() << "DeLICM: In loop: " << getName(*loop) << "\n");
           changed |= moveUnsafeInsts(unsafeInsts);
+        }
       }
     }
   }
