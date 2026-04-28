@@ -1943,6 +1943,36 @@ static bool ensureZeroStartIV(Loop *L, const DataLayout &DL,
   return true;
 }
 
+static bool MoveIVIncrToLatch(Loop *L, const DataLayout &DL,
+                              ScalarEvolution *SE, DominatorTree *DT) {
+  BasicBlock *LatchBlock = L->getLoopLatch();
+
+  const SCEV *ExitCount = SE->getExitCount(L, LatchBlock);
+  if (isa<SCEVCouldNotCompute>(ExitCount))
+    return false;
+
+  PHINode *IndVar = FindLoopCounter(L, LatchBlock, ExitCount, SE, DT);
+  if (!IndVar)
+    return false;
+
+  Instruction *const IncVar =
+      cast<Instruction>(IndVar->getIncomingValueForBlock(LatchBlock));
+
+  // Just handle the simple case here. If the increment has exactly two uses,
+  // one must be the PHINode in the loop header, the other must be compare
+  // instruction in the loop latch.
+  if (IncVar->getParent() == L->getHeader())
+    if (IncVar->getNumUses() == 2)
+      for (User* U : IncVar->users())
+        if (auto *I = dyn_cast<Instruction>(U))
+          if (!isa<PHINode>(I) && I->getParent() == LatchBlock) {
+            IncVar->moveBeforePreserving(I->getIterator());
+            return true;
+          }
+
+  return false;
+}
+
 //===----------------------------------------------------------------------===//
 //  IndVarSimplify driver. Manage several subpasses of IV simplification.
 //===----------------------------------------------------------------------===//
@@ -2109,6 +2139,12 @@ bool IndVarSimplify::run(Loop *L) {
 
   // Clean up dead instructions.
   Changed |= DeleteDeadPHIs(L->getHeader(), TLI, MSSAU.get());
+
+  // If the induction variable of a tapir loop was widened, the loop increment
+  // will have been added to the loop header. Move it down to the latch if
+  // possible.
+  if (IsTapirLoop)
+    Changed |= MoveIVIncrToLatch(L, DL, SE, DT);
 
   // Check a post-condition.
   assert(L->isRecursivelyLCSSAForm(*DT, *LI) &&
