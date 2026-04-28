@@ -3,6 +3,7 @@ add_llvm_component_library(LLVMKitCore
   ArgAttrs.cpp
   ArgUtils.cpp
   AttrsImpl.cpp
+  BasicBlockUtils.cpp
   ConstantUtils.cpp
   DIUtils.cpp
   EmbUtils.cpp
