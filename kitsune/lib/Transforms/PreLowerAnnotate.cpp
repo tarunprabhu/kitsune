@@ -51,11 +51,19 @@ static void annotateTapirLoopsForGPU(Loop &root, ScalarEvolution &se) {
   // tapir loop nest. The "perfect.level" annotation must be added to all
   // loops, including the root.
   unsigned depth = nest->getMaxPerfectDepth();
-
   addLoweringEnabledAttr(root);
   addPerfectDepthAttr(root, depth);
-  for (unsigned d = 1; d <= depth; ++d)
-    addPerfectLevelAttr(*perfectLoops[d - 1], d);
+  LLVM_DEBUG(dbgs() << "PreLowerAnnotate: Add lowering enable on root '"
+                    << getName(root) << "'\n");
+  LLVM_DEBUG(dbgs() << "PreLowerAnnotate: Add perfect depth '" << depth
+                    << "' on root\n");
+
+  for (unsigned d = 1; d <= depth; ++d) {
+    Loop *loop = perfectLoops[d - 1];
+    addPerfectLevelAttr(*loop, d);
+    LLVM_DEBUG(dbgs() << "PreLowerAnnotate: Add perfect level on loop '"
+                      << getName(*loop) << "'\n");
+  }
 }
 
 PreservedAnalyses PreLowerAnnotatePass::run(Module &m,

@@ -358,6 +358,7 @@ static CUstream launchKernel1(CUfunction f, void **args, size_t tcX,
   size_t sharedMemSize = 0;
 
   if (__kitrt_verbose_mode()) {
+    fprintf(stderr, "  1D kernel launch\n");
     fprintf(stderr, "  trip count (X): %ld\n", tcX);
     fprintf(stderr, "  blocks: [%d, %d, %d]\n", bpgX, bpgY, bpgZ);
     fprintf(stderr, "  threads: [%d, %d, %d]\n", tpbX, tpbY, tpbZ);
@@ -386,6 +387,7 @@ static CUstream launchKernel2(CUfunction f, void **args, size_t tcY, size_t tcX,
   size_t sharedMemSize = 0;
 
   if (__kitrt_verbose_mode()) {
+    fprintf(stderr, "  2D kernel launch\n");
     fprintf(stderr, "  trip count (Y): %ld\n", tcY);
     fprintf(stderr, "  trip count (X): %ld\n", tcX);
     fprintf(stderr, "  blocks: [%d, %d, %d]\n", bpgX, bpgY, bpgZ);
@@ -415,6 +417,7 @@ static CUstream launchKernel3(CUfunction f, void **args, size_t tcZ, size_t tcY,
   size_t sharedMemSize = 0;
 
   if (__kitrt_verbose_mode()) {
+    fprintf(stderr, "  3D kernel launch\n");
     fprintf(stderr, "  trip count (Z): %ld\n", tcZ);
     fprintf(stderr, "  trip count (Y): %ld\n", tcY);
     fprintf(stderr, "  trip count (X): %ld\n", tcX);
