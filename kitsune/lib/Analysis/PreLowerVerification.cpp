@@ -46,6 +46,7 @@
 #include "kitsune/Analysis/PreLowerVerification.h"
 #include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/Analysis/TapirLoopNestAnalysis.h"
+#include "kitsune/Core/BasicBlockUtils.h"
 #include "kitsune/Core/InstUtils.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
@@ -307,8 +308,30 @@ private:
       return;
     }
     const SyncInst *syncInst = *syncInsts.begin();
-    if (!pdt.dominates(syncInst, loop.getLoopLatch()->getTerminator()))
-      emitDiag(loop, DiagID::ErrTapirLoopSyncMustPostDominate);
+
+    // We have to check that the sync instruction post-dominates the loop. We
+    // do this by checking that each of the loop exit blocks is post-dominated
+    // by the sync instruction. We expect that the tapir loop is in
+    // loop-simplify form at this time. This would imply that all exit blocks
+    // are dominated by the loop header. Therefore, if the body of the loop is
+    // entered, and a sync instruction post-dominates all exits, then the sync
+    // is guaranteed to be encountered when the loop body is exited.
+    //
+    // When doing so, we deliberately skip "unreachable" blocks i.e. those
+    // blocks that consist of a single unreachable instruction. We have to do
+    // this as a special case because the presence of such blocks will cause
+    // the post-dominator tree to report that the sync does not post-dominate
+    // the exit. While the semantics of LLVM's unreachable instruction are not
+    // formally specified at the time of writing this, it is reasonable to
+    // assume that encountering it at runtime will result in a catastrophic
+    // failure. In the CFG, therefore, there can be no path from there to a sync
+    // instruction.
+    SmallVector<BasicBlock *, 4> exits;
+    loop.getUniqueExitBlocks(exits);
+    for (BasicBlock *exit : exits)
+      if (!isUnreachable(*exit))
+        if (!pdt.dominates(syncInst, &exit->front()))
+          emitDiag(loop, DiagID::ErrTapirLoopSyncMustPostDominate);
 
     checkSyncRegionDefn(*detachInst);
     checkSyncRegionDefn(*reattachInst);
