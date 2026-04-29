@@ -9,24 +9,40 @@
 // Annotator that run early in the pipeline.
 //
 // This is intended to run early in the pipeline to add annotations before most
-// optimization passes have run. These annotations are typically
-// Kitsune-specific instruction attributes, but they need not be just those.
+// optimization passes have run. These annotations are intended to control the
+// behavior of passes that run later in the pipeline.
 //
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Transforms/EarlyAnnotate.h"
-#include "kitsune/Core/InstAttrs.h"
-#include "kitsune/Core/LoopAttrs.h"
+#include "kitsune/Core/LoopUtils.h"
 #include "llvm/Analysis/LoopInfo.h"
 
 using namespace llvm;
 
+static void disableUnrollingForTapirLoops(LoopInfo &li) {
+  // Unconditionally disables unrolling on all tapir loops may degrade
+  // performance in certain cases. In those cases, it may be more better to
+  // serialize a tapir loop and allow the optimizer to unroll it. A pass that
+  // performs an appropriate cost analysis and conditionally disables unrolling
+  // should eventually be developed. At that time, this can be removed.
+  for (Loop *loop : li.getLoopsInPreorder())
+    if (isTapirLoop(*loop))
+      loop->setLoopAlreadyUnrolled();
+}
+
 PreservedAnalyses EarlyAnnotatePass::run(Function &f,
                                          FunctionAnalysisManager &am) {
-  // This pass was initially added as a requirement for the kit-delicm pass.
-  // But the implementation of kit-delicm no longer requires this. As a result,
-  // this does nothing. We leave it around in case we have some use for it in
-  // the future.
+  LoopInfo &li = am.getResult<LoopAnalysis>(f);
+
+  // Disable unrolling on all tapir loops. The OpenCilk compiler relies on the
+  // tapir-to-target pass to handle the multiple detach instructions that result
+  // from unrolling a tapir loop. However, Kitsune's tapir targets operate
+  // primarily on loop nests and require these to have a single detach
+  // instruction. Disabling unrolling is the only way to ensure that, especially
+  // at higher optimization levels, we do not end up with a tapir loop nest
+  // that Kitsune's tapir targets are unable to process.
+  disableUnrollingForTapirLoops(li);
 
   // This only adds metadata that should not invalidate any analyses.
   return PreservedAnalyses::all();
