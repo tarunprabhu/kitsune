@@ -147,9 +147,12 @@ private:
   /// instruction \p inst.
   BasicBlock::iterator getInsertionPointFor(Instruction *inst) const;
 
-  /// Move the given unsafe instructions. Return true if at least one
-  /// instruction was moved, false otherwise.
-  bool moveUnsafeInsts(const UnsafeInstsList &unsafeInsts);
+  /// Move the given unsafe instructions. These are instructions that resulted
+  /// in the only child of \p loop not being perfectly nested relative to
+  /// \p loop. The instructions are moved as deep as possible into the body of
+  /// the only child of loop. Return true if at least one instruction was moved,
+  /// false otherwise.
+  bool moveUnsafeInsts(const UnsafeInstsList &unsafeInsts, Loop &loop);
 
 public:
   DeLICM(DominatorTree &dt, LoopInfo &li, ScalarEvolution &se)
@@ -226,17 +229,28 @@ BasicBlock::iterator DeLICM::getInsertionPointFor(Instruction *inst) const {
   return dest->getFirstInsertionPt();
 }
 
-bool DeLICM::moveUnsafeInsts(const UnsafeInstsList &unsafeInsts) {
+bool DeLICM::moveUnsafeInsts(const UnsafeInstsList &unsafeInsts, Loop &loop) {
   bool changed = false;
   bool moved;
   do {
     moved = false;
     for (Instruction *inst : unsafeInsts) {
       LLVM_DEBUG(dbgs() << "DeLICM: unsafe: " << *inst << "\n");
-      BasicBlock::iterator insertPt = getInsertionPointFor(inst);
-      if (insertPt->getPrevNode() != inst) {
-        LLVM_DEBUG(dbgs() << "DeLICM: move before: " << *insertPt << "\n");
-        inst->moveBeforePreserving(insertPt);
+      BasicBlock::iterator dest = getInsertionPointFor(inst);
+
+      // In some cases, the best place for an instruction might be in the same
+      // loop. In this case, we should not move it.
+      bool movingToSameLoop = li.getLoopFor(dest->getParent()) == &loop;
+
+      // Since this is looping over the same set of instructions until
+      // convergence, we must ensure that we do not "move" an instruction to
+      // exactly where it already is. This can happen after the first round of
+      // moves.
+      bool movingToSamePoint = dest->getPrevNode() == inst;
+
+      if (!movingToSameLoop && !movingToSamePoint) {
+        LLVM_DEBUG(dbgs() << "DeLICM: move before: " << *dest << "\n");
+        inst->moveBeforePreserving(dest);
         moved = true;
         changed = true;
       }
@@ -265,7 +279,7 @@ bool DeLICM::run(Function &f) {
         const UnsafeInstsList &unsafeInsts = nest->getUnsafeInsts();
         if (nest->getMaxPerfectDepth() == 1 && shouldDeLICM(unsafeInsts)) {
           LLVM_DEBUG(dbgs() << "DeLICM: In loop: " << getName(*loop) << "\n");
-          changed |= moveUnsafeInsts(unsafeInsts);
+          changed |= moveUnsafeInsts(unsafeInsts, *loop);
         }
       }
     }
