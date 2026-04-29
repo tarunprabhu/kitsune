@@ -404,11 +404,11 @@ void GPUTTLoopBase::setupLoopControlArgs(TapirLoopInfo *tl,
     llvm_unreachable("getTripCount: Didn't find induction variable");
   };
 
+  assert(tl->getInductionVars()->size() == 1 &&
+         "Tapir loop must have a single primary induction variable");
+
   // Iterate over the loops in reverse order because the arguments to the
   // kernel function are always in order from innermost to outermost.
-  //
-  // The loops are required to be canonical and have a single induction
-  // variable.
   for (unsigned i = 0; i < getDepth(); ++i) {
     Loop *loop = loops[i];
     BasicBlock *ph = loop->getLoopPreheader();
