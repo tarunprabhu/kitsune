@@ -274,7 +274,7 @@ if (KITSUNE_CUDA_ENABLED)
 
   # The lowest unsupported cuda version that is greater than the minimum
   # supported version
-  set(KITSUNE_CUDA_VERSION_MAX 13.2)
+  set(KITSUNE_CUDA_VERSION_MAX 13.3)
 
   set(KITSUNE_CUDA_VERSION ${CUDAToolkit_VERSION_MAJOR}.${CUDAToolkit_VERSION_MINOR})
   if (KITSUNE_CUDA_VERSION VERSION_LESS KITSUNE_CUDA_VERSION_MIN
