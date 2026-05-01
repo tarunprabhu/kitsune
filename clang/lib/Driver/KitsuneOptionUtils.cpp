@@ -118,8 +118,6 @@ std::optional<StringRef> clang::getTTConfigFileName(const opt::ArgList &args) {
     return "qthreads.cfg";
   case TTID::Realm:
     return "realm.cfg";
-  case TTID::GPU:
-    return "gpu.cfg";
   }
   llvm_unreachable("getTTConfigFile: TTID not handled");
 }
@@ -336,7 +334,6 @@ static bool parseKitsuneTTArgs(KitsuneOptions &kitOpts, TTID tt,
   case llvm::TTID::Realm:
     return parseKitsuneRealmArgs(kitOpts, args, optTable, diags);
   case llvm::TTID::Serial:
-  case llvm::TTID::GPU: // TODO:?
     return true;
   }
   llvm_unreachable("ParseKitsuneTTArgs: TTID not handled");

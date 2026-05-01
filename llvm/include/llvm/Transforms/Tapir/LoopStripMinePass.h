@@ -24,7 +24,7 @@ class LoopStripMinePass : public PassInfoMixin<LoopStripMinePass> {
 public:
   explicit LoopStripMinePass() {}
 
-  PreservedAnalyses run(Module &F, ModuleAnalysisManager &AM);
+  PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
 };
 
 } // end namespace llvm

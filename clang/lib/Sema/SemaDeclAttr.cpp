@@ -8525,10 +8525,6 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
           << AL << AL.isRegularKeywordAttribute() << D->getLocation();
     handleSimpleAttribute<PointerFieldProtectionAttr>(S, D, AL);
     break;
-
-  case ParsedAttr::AT_KitsuneReduction:
-    handleSimpleAttribute<KitsuneReductionAttr>(S, D, AL);
-    break;
   }
 }
 
