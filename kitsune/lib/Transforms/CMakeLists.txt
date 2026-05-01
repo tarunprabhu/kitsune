@@ -18,6 +18,7 @@ add_llvm_component_library(LLVMKitTransforms
   GenerateCtorQthreads.cpp
   PreLowerAnnotate.cpp
   PrefetchForDevice.cpp
+  PrepareReductionLoopsGPU.cpp
   RecomputeKernelProperties.cpp
   Serialize.cpp
 
