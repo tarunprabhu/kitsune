@@ -179,9 +179,6 @@ static void CheckTTEnabled(const Driver &D, llvm::TTID TT) {
     if constexpr (!llvm::kitRealmEnabled())
       D.Diag(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(TT);
     return;
-  case llvm::TTID::GPU:
-    // TODO: Check this
-    return;
   case llvm::TTID::Serial:
     // The serial tapir target is always enabled
     return;

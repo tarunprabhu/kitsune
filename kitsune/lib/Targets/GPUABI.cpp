@@ -12,6 +12,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+#pragma warning "GPUABI has been deprecated"
+#if 0
+
 #include "llvm/Transforms/Tapir/GPUABI.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
@@ -408,3 +411,4 @@ void LLVMLoop::processOutlinedLoopCall(TapirLoopInfo &TL, TaskOutlineInfo &TOI,
   LLVM_DEBUG(dbgs() << "Finished processOutlinedLoopCall: " << M);
 }
 
+#endif

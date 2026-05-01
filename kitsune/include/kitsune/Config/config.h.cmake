@@ -167,7 +167,4 @@
 
 // -----------------------------------------------------------------------------
 
-// Is the gpu target enabled 
-#cmakedefine01 KITSUNE_GPU_ENABLED
-
 #endif // KITSUNE_CONFIG_H

@@ -284,10 +284,6 @@ bool DeadArgumentEliminationPass::removeDeadArgumentsFromCallers(Function &F) {
   if (F.hasFnAttribute(Attribute::Naked))
     return false;
 
-  // Don't operate on optnone (we need this for kitsune reductions)
-  if (F.hasFnAttribute(Attribute::OptimizeNone))
-    return false;
-
   if (F.use_empty())
     return false;
 
@@ -732,10 +728,6 @@ void DeadArgumentEliminationPass::propagateLiveness(const RetOrArg &RA) {
 bool DeadArgumentEliminationPass::removeDeadStuffFromFunction(Function *F) {
   // Don't modify frozen functions
   if (FrozenFunctions.count(F))
-    return false;
-
-  // Don't operate on optnone (we need this for kitsune reductions)
-  if (F->hasFnAttribute(Attribute::OptimizeNone))
     return false;
 
   // Start by computing a new prototype for the function, which is the same as

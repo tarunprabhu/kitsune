@@ -87,9 +87,3 @@ def KitsuneMobile : TypeAttr {
                    C23<"kitsune", "mobile">];
   let Documentation = [KitsuneMobileDocs];
 }
-
-def KitsuneReduction : InheritableAttr {
-  let Spellings = [Clang<"kitsune_reduction">];
-  let Subjects = SubjectList<[FunctionLike]>;
-  let Documentation = [TapirRTDocs];
-}
