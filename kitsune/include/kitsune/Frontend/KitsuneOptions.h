@@ -19,9 +19,9 @@
 #include "kitsune/Config/Config.h"
 #include "kitsune/Core/Tapir.h"
 #include "kitsune/Support/MaybeBool.h"
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
-
-#include <vector>
 
 namespace llvm {
 
@@ -173,7 +173,7 @@ private:
   /// backend when the hip tapir target is enabled. The contents of the list are
   /// computed by the driver based on @ref hipArch and any other target-specific
   /// options that were provided.
-  std::vector<std::string> hipRuntimeBCFiles;
+  llvm::SmallVector<std::string, 4> hipRuntimeBCFiles;
 
   /// The value of the sramecc feature. The map of values to target features is
   /// as follows:
@@ -192,11 +192,6 @@ private:
   ///     MaybeBool::Any  Value of sramecc is unspecified.
   ///
   MaybeBool hipXnack = defaultHipXnack;
-
-  /// The hip bitcode files needed by the hip tapir target. This will be
-  /// computed by the driver from either the default value of @ref cudaArch, or
-  /// from the --tapir-hip-arch option if it was provided.
-  std::vector<std::string> hipBitcodeFiles;
 
   /// Path to the OpenCilk ABI bitcode file. This will only be non-empty if the
   /// OpenCilk tapir target is enabled.
@@ -334,7 +329,7 @@ public:
 
   llvm::StringRef getHipFeatures() const { return hipFeatures; }
 
-  const std::vector<std::string> &getHipRuntimeBCFiles() const {
+  ArrayRef<std::string> getHipRuntimeBCFiles() const {
     return hipRuntimeBCFiles;
   }
 

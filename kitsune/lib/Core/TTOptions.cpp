@@ -260,6 +260,11 @@ static Error validateSupportBCFiles(TTID tt, const TTOptions &tto) {
   return getSupportModule(tt, tto, ctx).takeError();
 }
 
+template <typename Container>
+static SmallVector<std::string, 4> makeSmallVector(const Container &c) {
+  return SmallVector<std::string, 4>(c.begin(), c.end());
+}
+
 TTOptions::TTOptions(TTID tt) : tt(tt) {}
 
 Error TTOptions::validateCudaOptions() const {
@@ -376,7 +381,7 @@ TTOptions::createFromCommandLine(OptznLevel optznLevel) {
   tto.hipSRAMECC = clHipSRAMECC;
   tto.hipXnack = clHipXnack;
   tto.hipTargetFeatures = clHipFeatures;
-  tto.hipRuntimeBCFiles = clHipRuntimeBCFiles;
+  tto.hipRuntimeBCFiles = makeSmallVector(clHipRuntimeBCFiles);
 
   // Set opencilk tapir target options
   tto.openCilkRuntimeBCFile = clOpenCilkRuntimeBCFile;
@@ -442,7 +447,7 @@ std::optional<TTOptions> TTOptions::create(const KitsuneOptions &kitOpts,
   tto.hipSRAMECC = kitOpts.getHipSRAMECC();
   tto.hipXnack = kitOpts.getHipXnack();
   tto.hipTargetFeatures = kitOpts.getHipFeatures();
-  tto.hipRuntimeBCFiles = kitOpts.getHipRuntimeBCFiles();
+  tto.hipRuntimeBCFiles = makeSmallVector(kitOpts.getHipRuntimeBCFiles());
 
   // Set opencilk tapir target options.
   tto.openCilkRuntimeBCFile = kitOpts.getOpenCilkRuntimeBCFile();
