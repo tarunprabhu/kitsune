@@ -8193,10 +8193,3 @@ void Parser::DiagnoseBitIntUse(const Token &Tok) {
       Diag(Loc, diag::ext_bit_int) << getLangOpts().CPlusPlus;
   }
 }
-
-void Parser::ParseKitsuneMemAccessQualifiers(ParsedAttributes &Attrs) {
-  IdentifierInfo *AttrName = Tok.getIdentifierInfo();
-  SourceLocation AttrNameLoc = Tok.getLocation();
-  Attrs.addNew(AttrName, AttrNameLoc, AttributeScopeInfo(), nullptr,
-               0, Tok.getKind());
-}
