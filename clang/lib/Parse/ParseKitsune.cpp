@@ -1,13 +1,12 @@
-//===--- ParseKitsune.cpp - Kitsune Parsing -------------------------------===//
+//===- ParseKitsune.cpp - Parse Kitsune-specific constructs ---------------===//
 //
-//                     The LLVM Compiler Infrastructure
-//
-// This file is distributed under the University of Illinois Open Source
-// License. See LICENSE.TXT for details.
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
-//  This file implements the Kitsune-centric Parser interface.
+//  This file implements the Parser interface for Kitsune-specific constructs
 //
 //===----------------------------------------------------------------------===//
 
@@ -413,4 +412,11 @@ StmtResult Parser::ParseForallStatement(SourceLocation *TrailingElseLoc) {
   return Actions.ActOnForallStmt(ForLoc, T.getOpenLocation(), FirstPart.get(),
                                  SecondPart, ThirdPart, T.getCloseLocation(),
                                  Body.get());
+}
+
+void Parser::ParseKitsuneMemAccessQualifiers(ParsedAttributes &Attrs) {
+  IdentifierInfo *AttrName = Tok.getIdentifierInfo();
+  SourceLocation AttrNameLoc = Tok.getLocation();
+  Attrs.addNew(AttrName, AttrNameLoc, AttributeScopeInfo(), nullptr, 0,
+               Tok.getKind());
 }
