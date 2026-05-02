@@ -17,6 +17,7 @@
 #include "clang/Sema/DelayedDiagnostic.h"
 #include "clang/Sema/ParsedAttr.h"
 #include "clang/Sema/ScopeInfo.h"
+#include "clang/Sema/SemaKitsune.h"
 #include <optional>
 
 using namespace clang;
@@ -673,120 +674,6 @@ static Attr *handleAtomicAttr(Sema &S, Stmt *St, const ParsedAttr &AL,
       AtomicAttr(S.Context, AL, Options.data(), Options.size());
 }
 
-static Attr *handleTapirTargetAttr(Sema &S, Stmt *St, const ParsedAttr &A,
-                                   SourceRange Range) {
-  StringRef targetStr;
-  SourceLocation argLoc;
-  if (!S.checkStringLiteralArgumentAttr(A, 0, targetStr, &argLoc)) {
-    S.Diag(A.getLoc(), diag::err_tapir_target_unknown);
-    return nullptr;
-  }
-
-  TapirTargetAttr::TapirTargetAttrTy tapirTK;
-  if (!TapirTargetAttr::ConvertStrToTapirTargetAttrTy(targetStr, tapirTK)) {
-    S.Diag(A.getLoc(), diag::err_tapir_target_unknown) << targetStr << argLoc;
-    return nullptr;
-  }
-
-  // We only support a limited range of statements.  Make sure we are dealing
-  // with one of them -- if not return an error.
-  //
-  // The attribute is not currently supported on spawn and sync statements.
-  //
-  if (St->getStmtClass() == Stmt::ForallStmtClass ||
-      St->getStmtClass() == Stmt::CXXForallRangeStmtClass) {
-    return ::new (S.Context) TapirTargetAttr(S.Context, A, tapirTK);
-
-  } else if (Expr *E = dyn_cast<Expr>(St)) {
-    if (S.getKitsuneOpts().getKokkos()) {
-      // See if this is an attributed Kokkos parallel statement (if
-      // so, there is a CallExpr lurking further down in the AST).
-      // To find this CallExpr we need to work past implicit details
-      // (including clean up). We need to "un-obfuscating" a bunch of
-      // C++ mechanisms to really find what sort of expression we have.
-      // The most important detail here is that the attribute is really
-      // not attached to the Kokkos statement (even though it might
-      // appear to be so from the program syntax and thus the programmer's
-      // perspective).  How lovely...
-      //
-      // TODO: If we do more of this we should probably pull this code
-      // block out into a function for easier use.
-      const Expr *ClarifiedE = E->IgnoreImplicit();
-      const Expr *Last = nullptr;
-      while (ClarifiedE != Last) {
-        Last = ClarifiedE;
-        if (const auto *CE = dyn_cast<ExprWithCleanups>(ClarifiedE))
-          ClarifiedE = CE->getSubExpr()->IgnoreImplicit();
-      }
-
-      // With all the extra "stuff" removed check to see if we have a
-      // CallExpr -- if so, see if we can recognize it as a Kokkos
-      // construct...
-      if (const CallExpr *CE = dyn_cast<CallExpr>(ClarifiedE)) {
-        const FunctionDecl *Fdecl = CE->getDirectCallee();
-        std::string QName = Fdecl->getQualifiedNameAsString();
-        if (QName == "Kokkos::parallel_for" ||
-            QName == "Kokkos::parallel_reduce")
-          return ::new (S.Context) TapirTargetAttr(S.Context, A, tapirTK);
-      }
-    }
-  }
-
-  S.Diag(A.getLoc(), diag::err_tapir_target_attr_unsupported_stmt);
-  return nullptr;
-}
-
-static Attr *handleTapirStrategyAttr(Sema &S, Stmt *St, const ParsedAttr &A,
-                                     SourceRange Range) {
-  bool errState = false;
-
-  StringRef strategyStr;
-  SourceLocation argLoc;
-  if (!S.checkStringLiteralArgumentAttr(A, 0, strategyStr, &argLoc)) {
-    S.Diag(A.getLoc(), diag::err_tapir_strategy_unknown);
-    errState = true;
-  }
-
-  TapirStrategyAttr::TapirStrategyTy strategyKind;
-  if (!TapirStrategyAttr::ConvertStrToTapirStrategyTy(strategyStr,
-                                                      strategyKind)) {
-    S.Diag(A.getLoc(), diag::err_tapir_strategy_unknown)
-           << strategyStr << argLoc;
-    errState = true;
-  }
-
-  if (errState)
-    return nullptr;
-
-  return ::new (S.Context) TapirStrategyAttr(S.Context, A, strategyKind);
-}
-
-// FIXME: Should we change this attribute name? If we don't expect anything
-// other than threads per block to be passed here, should we just call it that
-// instead.
-static Attr *handleKitsuneLaunchAttr(Sema &S, Stmt *St, const ParsedAttr &A,
-                                     SourceRange Range) {
-  // We don't need to check the number of arguments because that will already
-  // have been handled.
-  Expr *E = A.getArgAsExpr(0);
-  std::optional<llvm::APSInt> ArgVal = E->getIntegerConstantExpr(S.Context);
-
-  if (!ArgVal.has_value()) {
-    S.Diag(A.getLoc(), diag::err_kitsune_launch_non_integral_type);
-    return nullptr;
-  }
-
-  int Val = ArgVal->getSExtValue();
-  if (Val <= 0) {
-    S.Diag(A.getLoc(), diag::err_attribute_requires_positive_integer)
-        << A << /* positive (1 == non-negative) */ 0;
-    return nullptr;
-  }
-
-  unsigned ThreadsPerBlock = static_cast<unsigned>(Val);
-  return ::new (S.Context) KitsuneLaunchAttr(S.Context, A, ThreadsPerBlock);
-}
-
 static Attr *ProcessStmtAttribute(Sema &S, Stmt *St, const ParsedAttr &A,
                                   SourceRange Range) {
   if (A.isInvalid() || A.getKind() == ParsedAttr::IgnoredAttribute)
@@ -851,13 +738,10 @@ static Attr *ProcessStmtAttribute(Sema &S, Stmt *St, const ParsedAttr &A,
     return S.CreateAnnotationAttr(A);
   case ParsedAttr::AT_Atomic:
     return handleAtomicAttr(S, St, A, Range);
-  case ParsedAttr::AT_TapirStrategy:
-    return handleTapirStrategyAttr(S, St, A, Range);
-  case ParsedAttr::AT_TapirTarget:
-    return handleTapirTargetAttr(S, St, A, Range);
-  case ParsedAttr::AT_KitsuneLaunch:
-    return handleKitsuneLaunchAttr(S, St, A, Range);
   default:
+    if (Handled<Attr *> h = S.Kitsune().processStmtAttribute(St, A, Range)) {
+      return *h;
+    }
     if (Attr *AT = nullptr; A.getInfo().handleStmtAttribute(S, St, A, AT) !=
                             ParsedAttrInfo::NotHandled) {
       return AT;

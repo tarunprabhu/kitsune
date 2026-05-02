@@ -24,6 +24,7 @@
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Sema/Initialization.h"
 #include "clang/Sema/SemaHLSL.h"
+#include "clang/Sema/SemaKitsune.h"
 #include "clang/Sema/SemaObjC.h"
 #include "clang/Sema/SemaRISCV.h"
 #include "llvm/ADT/SmallVector.h"
@@ -219,31 +220,6 @@ namespace {
       if (SrcExpr.isInvalid())
         return;
       PlaceholderKind = (BuiltinType::Kind) 0;
-    }
-
-    /// Check if the cast is from/to a mobile pointer type. If it is an invalid
-    /// cast, return false, otherwise, return true.
-    /// \param castKind         The string representing the cast in the text.
-    ///                         Must be one of "const_cast", "static_cast",
-    ///                         "dynamic_cast", or "C-style cast"
-    /// \param allowStripMobile If true, casts that strip the mobile attribute
-    ///                         are allowed. If true, castKind must also be
-    ///                         provided
-    bool checkMobileCast(StringRef castKind, bool allowStripMobile) {
-      QualType fromType = SrcExpr.get()->getType();
-      QualType toType = DestType;
-      if (!fromType->isMobilePointerType() && toType->isMobilePointerType()) {
-        Self.Diag(OpRange.getBegin(), diag::err_kitsune_cast_to_mobile);
-        return false;
-      }
-      if (!allowStripMobile) {
-        if (fromType->isMobilePointerType() && !toType->isMobilePointerType()) {
-          Self.Diag(OpRange.getBegin(), diag::err_kitsune_cast_away_mobile)
-              << castKind;
-          return false;
-        }
-      }
-      return true;
     }
   };
 
@@ -863,7 +839,9 @@ static TryCastResult getCastAwayConstnessCastKind(CastAwayConstnessKind CACK,
 void CastOperation::CheckDynamicCast() {
   CheckNoDerefRAII NoderefCheck(*this);
 
-  if (!checkMobileCast("dynamic_cast", false)) {
+  if (!Self.Kitsune().checkMobileCast(SrcExpr.get(), DestType,
+                                      /*allowStripMobile=*/false,
+                                      OpRange.getBegin(), "dynamic_cast")) {
     SrcExpr = ExprError();
     return;
   }
@@ -1043,7 +1021,9 @@ void CastOperation::CheckDynamicCast() {
 void CastOperation::CheckConstCast() {
   CheckNoDerefRAII NoderefCheck(*this);
 
-  if (!checkMobileCast("const_cast", false)) {
+  if (!Self.Kitsune().checkMobileCast(SrcExpr.get(), DestType,
+                                      /*allowStripMobile=*/false,
+                                      OpRange.getBegin(), "const_cast")) {
     SrcExpr = ExprError();
     return;
   }
@@ -1299,7 +1279,9 @@ static unsigned int checkCastFunctionType(Sema &Self, const ExprResult &SrcExpr,
 /// like this:
 /// char *bytes = reinterpret_cast\<char*\>(int_ptr);
 void CastOperation::CheckReinterpretCast() {
-  if (!checkMobileCast("reinterpret_cast", false)) {
+  if (!Self.Kitsune().checkMobileCast(SrcExpr.get(), DestType,
+                                      /*allowStripMobile=*/false,
+                                      OpRange.getBegin(), "reinterpret_cast")) {
     SrcExpr = ExprError();
     return;
   }
@@ -1352,7 +1334,9 @@ void CastOperation::CheckReinterpretCast() {
 void CastOperation::CheckStaticCast() {
   CheckNoDerefRAII NoderefCheck(*this);
 
-  if (!checkMobileCast("static_cast", false)) {
+  if (!Self.Kitsune().checkMobileCast(SrcExpr.get(), DestType,
+                                      /*allowStripMobile=*/false,
+                                      OpRange.getBegin(), "static_cast")) {
     SrcExpr = ExprError();
     return;
   }
@@ -2796,7 +2780,9 @@ void CastOperation::CheckCXXCStyleCast(bool FunctionalStyle,
                                        bool ListInitialization) {
   assert(Self.getLangOpts().CPlusPlus);
 
-  if (!checkMobileCast("c-style cast", true)) {
+  if (!Self.Kitsune().checkMobileCast(SrcExpr.get(), DestType,
+                                      /*allowStripMobile=*/true,
+                                      OpRange.getBegin(), "c-style cast")) {
     SrcExpr = ExprError();
     return;
   }
@@ -3058,7 +3044,9 @@ static void DiagnoseBadFunctionCast(Sema &Self, const ExprResult &SrcExpr,
 void CastOperation::CheckCStyleCast() {
   assert(!Self.getLangOpts().CPlusPlus);
 
-  if (!checkMobileCast("c-style", true)) {
+  if (!Self.Kitsune().checkMobileCast(SrcExpr.get(), DestType,
+                                      /*allowStripMobile=*/true,
+                                      OpRange.getBegin(), "c-style")) {
     SrcExpr = ExprError();
     return;
   }
@@ -3414,7 +3402,9 @@ void CastOperation::CheckCStyleCast() {
 void CastOperation::CheckBuiltinBitCast() {
   // This checks std::bit_cast. I don't see how mobile attributes could ever be
   // used there, but we might as well check.
-  if (!checkMobileCast("std::bit_cast", false)) {
+  if (!Self.Kitsune().checkMobileCast(SrcExpr.get(), DestType,
+                                      /*allowStripMobile=*/false,
+                                      OpRange.getBegin(), "std::bit_cast")) {
     SrcExpr = ExprError();
     return;
   }

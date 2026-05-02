@@ -38,6 +38,7 @@
 #include "clang/Sema/ScopeInfo.h"
 #include "clang/Sema/SemaCUDA.h"
 #include "clang/Sema/SemaHLSL.h"
+#include "clang/Sema/SemaKitsune.h"
 #include "clang/Sema/SemaObjC.h"
 #include "clang/Sema/SemaOpenMP.h"
 #include "clang/Sema/Template.h"
@@ -8750,36 +8751,6 @@ static bool isMultiSubjectAttrAllowedOnType(const ParsedAttr &Attr) {
   return DeviceKernelAttr::isAMDGPUSpelling(Attr);
 }
 
-/// Handle Kitsune MemAccess Qualifier Attribute.
-static void HandleKitsuneMemAccessAttr(QualType &CurType,
-                                       const ParsedAttr &Attr, Sema &S) {
-
-  if (const TypedefType *TypedefTy = CurType->getAs<TypedefType>()) {
-    std::string PrevAccessQual;
-    if (TypedefTy->getDecl()->hasAttr<KitsuneMemAccessAttr>()) {
-      KitsuneMemAccessAttr *Attr =
-          TypedefTy->getDecl()->getAttr<KitsuneMemAccessAttr>();
-      PrevAccessQual = Attr->getSpelling();
-    } else {
-      PrevAccessQual = "readwrite";
-    }
-
-    StringRef AttrName = Attr.getAttrName()->getName();
-    if (PrevAccessQual == AttrName) {
-      // Duplicated qualifiers
-      S.Diag(Attr.getLoc(), diag::warn_duplicate_declspec)
-          << AttrName << Attr.getRange();
-    } else {
-      // Contradicting qualifiers
-      S.Diag(Attr.getLoc(), diag::err_kitsune_multiple_access_qualifiers);
-    }
-
-    S.Diag(TypedefTy->getDecl()->getBeginLoc(),
-           diag::note_kitsune_typedef_access_qualifier)
-        << PrevAccessQual;
-  }
-}
-
 static void processTypeAttrs(TypeProcessingState &state, QualType &type,
                              TypeAttrLocation TAL,
                              const ParsedAttributesView &attrs,
@@ -8837,6 +8808,15 @@ static void processTypeAttrs(TypeProcessingState &state, QualType &type,
     // otherwise, add it to the FnAttrs list for rechaining.
     switch (attr.getKind()) {
     default:
+      if (Handled<QualType> h =
+              state.getSema().Kitsune().processTypeAttribute(type, attr)) {
+        QualType newType = *h;
+        if (newType != type)
+          type = newType;
+        attr.setUsedAsTypeAttr();
+        break;
+      }
+
       // A [[]] attribute on a declarator chunk must appertain to a type.
       if ((attr.isStandardAttributeSyntax() ||
            attr.isRegularKeywordAttribute()) &&
@@ -9094,20 +9074,6 @@ static void processTypeAttrs(TypeProcessingState &state, QualType &type,
       if (TAL == TAL_DeclSpec &&
           state.getSema().HLSL().handleResourceTypeAttr(type, attr))
         attr.setUsedAsTypeAttr();
-      break;
-    }
-    case ParsedAttr::AT_KitsuneMemAccess:
-      HandleKitsuneMemAccessAttr(type, attr, state.getSema());
-      attr.setUsedAsTypeAttr();
-      break;
-    case ParsedAttr::AT_KitsuneMobile: {
-      Sema& sema = state.getSema();
-      if (not type->isPointerType()) {
-        sema.Diag(attr.getLoc(), diag::err_kitsune_mobile_on_non_pointer);
-        return;
-      }
-      type = sema.Context.getMobilePointerType(type->getPointeeType());
-      attr.setUsedAsTypeAttr();
       break;
     }
     }

@@ -65,6 +65,7 @@
 #include "clang/Sema/SemaDirectX.h"
 #include "clang/Sema/SemaHLSL.h"
 #include "clang/Sema/SemaHexagon.h"
+#include "clang/Sema/SemaKitsune.h"
 #include "clang/Sema/SemaLoongArch.h"
 #include "clang/Sema/SemaMIPS.h"
 #include "clang/Sema/SemaNVPTX.h"
@@ -3207,25 +3208,11 @@ Sema::CheckBuiltinFunctionCall(FunctionDecl *FDecl, unsigned BuiltinID,
     if (BuiltinCountedByRef(TheCall))
       return ExprError();
     break;
-
-  case Builtin::BIkitsune_mobile_free: {
-    QualType ArgType = TheCall->getArg(0)->getType();
-    if (!ArgType->isMobilePointerType()) {
-      Diag(TheCall->getBeginLoc(), diag::err_kitsune_mobile_free_arg);
-      return ExprError();
-    }
-    break;
   }
 
-  case Builtin::BI__kitsune_mobile_cast_unsafe: {
-    QualType ArgType = TheCall->getArg(0)->getType();
-    if (ArgType->isMobilePointerType() || !ArgType->isPointerType()) {
-      Diag(TheCall->getBeginLoc(), diag::err_kitsune_mobile_cast_arg);
+  if (Handled<bool> h = Kitsune().checkBuiltinFunctionCall(BuiltinID, TheCall))
+    if (!*h)
       return ExprError();
-    }
-    break;
-  }
-  }
 
   if (getLangOpts().HLSL && HLSL().CheckBuiltinFunctionCall(BuiltinID, TheCall))
     return ExprError();
