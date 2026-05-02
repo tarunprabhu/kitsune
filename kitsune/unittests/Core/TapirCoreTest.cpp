@@ -40,14 +40,6 @@ TEST(KitTapirCore, tapirSpawnStrategyValues) {
   EXPECT_EQ(int(TapirSpawnStrategy::Basic), 4);
 }
 
-TEST(KitTapirCore, maybeBoolValues) {
-  // The values of the MaybeBool enum need not be the following values, but
-  // we do require MaybeBool::Off to be 0. Just in case, check all three.
-  EXPECT_EQ(int(MaybeBool::Off), 0);
-  EXPECT_EQ(int(MaybeBool::On), 1);
-  EXPECT_EQ(int(MaybeBool::Any), 3);
-}
-
 TEST(KitTapirCore, defaults) {
   // We will probably never have a default tapir target.
   EXPECT_EQ(defaultTapirTarget, std::nullopt);

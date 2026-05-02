@@ -12,6 +12,7 @@
 
 #include "kitsune/Support/FromString.h"
 #include "kitsune/Core/Tapir.h"
+#include "kitsune/Support/MaybeBool.h"
 #include "llvm/ADT/StringSwitch.h"
 
 using namespace llvm;
