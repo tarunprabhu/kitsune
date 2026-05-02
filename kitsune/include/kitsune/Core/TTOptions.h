@@ -153,7 +153,7 @@ private:
   /// The hip bitcode files needed by the hip tapir target. This will be
   /// computed by the driver from either the default value of @ref cudaArch, or
   /// from the --tapir-hip-arch option if it was provided.
-  std::vector<std::string> hipRuntimeBCFiles;
+  SmallVector<std::string, 4> hipRuntimeBCFiles;
   /// @}
 
   /// Options for the opencilk tapir target
@@ -166,10 +166,6 @@ private:
 
   /// Create an options object with the given primary tapir target.
   TTOptions(TTID tt);
-
-  /// Create an options object with the given primary tapir target and the given
-  /// secondary tapir targets.
-  TTOptions(TTID tt, const std::vector<TTID> tts);
 
   Error validateCudaOptions() const;
   Error validateCustomOptions() const;
@@ -229,7 +225,7 @@ public:
   MaybeBool getHipSRAMECC() const { return hipSRAMECC; }
   MaybeBool getHipXnack() const { return hipXnack; }
   StringRef getHipTargetFeatures() const { return hipTargetFeatures; }
-  const std::vector<std::string> &getHipRuntimeBCFiles() const {
+  ArrayRef<std::string> getHipRuntimeBCFiles() const {
     return hipRuntimeBCFiles;
   }
   /// @}
