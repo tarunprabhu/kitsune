@@ -16,6 +16,7 @@
 
 #include "kitsune/Core/OptznLevel.h"
 #include "kitsune/Core/Tapir.h"
+#include "kitsune/Support/MaybeBool.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/MC/MCTargetOptions.h"
 #include "llvm/Support/CodeGen.h"

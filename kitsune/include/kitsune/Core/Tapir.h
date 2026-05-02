@@ -171,13 +171,6 @@ static constexpr TapirSpawnStrategy defaultTapirSpawnStrategy =
 /// zero also doubles up as the absence of an explicitly specified grain size.
 static constexpr unsigned defaultTapirGrainSize = 0;
 
-/// An enumeration that may be set to a boolean value or unset.
-enum class MaybeBool {
-  Off,    ///< The value is set to false
-  On,     ///< The value is set to true
-  Any = 3 ///< The value is unset
-};
-
 /// @}
 
 } // namespace llvm

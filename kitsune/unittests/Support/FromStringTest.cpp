@@ -8,6 +8,7 @@
 
 #include "kitsune/Support/FromString.h"
 #include "kitsune/Core/Tapir.h"
+#include "kitsune/Support/MaybeBool.h"
 
 #include "gtest/gtest.h"
 
