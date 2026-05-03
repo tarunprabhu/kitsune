@@ -47,6 +47,13 @@ protected:
   bool checkMobileFreeCall(CallExpr *theCall);
   bool checkMobileCastUnsafeCall(CallExpr *theCall);
 
+  // Ensure that the an attribute with kind \p kind occurs at most once in the
+  // list \p attrs. If it occurs more than once, emit the error \p err, and
+  // return false. Otherwise, return true.
+  bool checkMaxOneOccurrence(attr::Kind kind,
+                             const SmallVectorImpl<const Attr *> &attrs,
+                             int err);
+
 public:
   SemaKitsune(Sema &sema);
 
@@ -67,6 +74,10 @@ public:
   /// processing the attribute. If no errors occurred, return `type` or a new
   /// type with the attribute applied - depending on \p attr.
   Handled<QualType> processTypeAttribute(QualType type, const ParsedAttr &attr);
+
+  /// Check the semantic attributes for the statement.
+  void checkAttributes(const Stmt *stmt,
+                       const SmallVectorImpl<const Attr *> &attrs);
 
   /// If \p builtinID is not a Kitsune-specific builtin, return `notHandled`.
   /// Otherwise, check the call \p theCall and return false if any errors were

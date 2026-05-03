@@ -762,6 +762,7 @@ void Sema::ProcessStmtAttributes(Stmt *S, const ParsedAttributes &InAttrs,
       OutAttrs.push_back(A);
   }
 
+  Kitsune().checkAttributes(S, OutAttrs);
   CheckForIncompatibleAttributes(*this, OutAttrs);
   CheckForDuplicateLoopAttrs<CodeAlignAttr>(*this, OutAttrs);
 }

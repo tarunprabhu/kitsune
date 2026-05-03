@@ -13495,6 +13495,9 @@ def note_ovl_candidate_with_mobile: Note<
     "candidate %sub{select_ovl_candidate_kind}0,1,2 not viable: "
     "%ordinal4 argument (%3) requires mobile pointer">;
 
+def err_duplicate_attribute_stmt : Error<
+  "attribute %0 cannot appear more than once on a statement">;
+
 // target attribute
 def err_tapir_target_attr_unsupported_stmt: Error<
   "'tapir::target' attribute: unsupported statement">;
