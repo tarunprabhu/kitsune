@@ -167,7 +167,8 @@ Attr *SemaKitsune::handleLaunchAttr(Stmt *stmt, const ParsedAttr &attr,
   Expr *expr = attr.getArgAsExpr(0);
   std::optional<llvm::APSInt> argVal = expr->getIntegerConstantExpr(ctx);
   if (!argVal.has_value()) {
-    Diag(attr.getLoc(), diag::err_kitsune_launch_non_integral_type);
+    Diag(attr.getLoc(), diag::err_attribute_requires_positive_integer)
+        << attr << /* positive (1 == non-negative) */ 0;
     return nullptr;
   }
 
@@ -176,10 +177,12 @@ Attr *SemaKitsune::handleLaunchAttr(Stmt *stmt, const ParsedAttr &attr,
     Diag(attr.getLoc(), diag::err_attribute_requires_positive_integer)
         << attr << /* positive (1 == non-negative) */ 0;
     return nullptr;
+  } else if (val > 1024) {
+    Diag(attr.getLoc(), diag::err_kitsune_launch_range) << attr;
+    return nullptr;
   }
 
-  unsigned tpb = static_cast<unsigned>(val);
-  return ::new (ctx) KitsuneLaunchAttr(ctx, attr, tpb);
+  return ::new (ctx) KitsuneLaunchAttr(ctx, attr, val);
 }
 
 Handled<Attr *> SemaKitsune::processStmtAttribute(Stmt *stmt,
