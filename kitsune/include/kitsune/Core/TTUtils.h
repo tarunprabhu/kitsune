@@ -7,8 +7,7 @@
 //===----------------------------------------------------------------------===//
 //
 // Miscellaneous utilities that are closely related to tapir targets in some
-// way. These are intended to be for utilities that are primarily, if not
-// exclusively, used in code that lives in kitsune/.
+// way.
 //
 //===----------------------------------------------------------------------===//
 
@@ -60,6 +59,14 @@ Expected<OwnedModule> getSupportModule(TTID tt, const TTOptions &tto,
 /// See \ref getSupportModule for more information.
 Expected<OwnedModule> getLibDeviceModule(TTID tt, const TTOptions &tto,
                                          LLVMContext &ctx);
+
+/// Get the spawn strategy for the given tapir target. At the time of writing,
+/// the spawn strategy is still required in some places, though its actual
+/// utility is questionable. With the exception of 'opencilk', none of the other
+/// tapir targets could even, in principle, use this in any meaningful way. As
+/// a result, the spawn strategy can be inferred from the tapir target. This
+/// function provides that mapping.
+TapirSpawnStrategy getSpawnStrategyFor(TTID tt);
 
 /// @}
 

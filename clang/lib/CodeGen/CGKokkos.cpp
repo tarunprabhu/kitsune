@@ -52,10 +52,10 @@
 
 #include "CGKitsuneUtils.h"
 #include "CodeGenFunction.h"
+#include "kitsune/Core/TTUtils.h"
 #include "kitsune/Frontend/KitsuneOptions.h"
 #include "clang/CodeGen/CGFunctionInfo.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
-#include <cstdio>
 
 using namespace clang;
 using namespace CodeGen;
@@ -308,7 +308,7 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
   // LoopStack.
   if (TT != llvm::TTID::Nolo) {
     LoopStack.setTapirTarget(TT);
-    LoopStack.setTapirSpawnStrategy(getTapirSpawnStrategy(Attrs, TT));
+    LoopStack.setTapirSpawnStrategy(getSpawnStrategyFor(TT));
   }
   if (TT == llvm::TTID::Cuda || TT == llvm::TTID::Hip) {
     unsigned ThreadsPerBlock = getKitsuneLaunchAttr(Attrs);

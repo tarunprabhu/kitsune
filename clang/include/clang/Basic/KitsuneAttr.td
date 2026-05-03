@@ -41,21 +41,6 @@ def TapirTarget : StmtAttr {
   let Documentation = [TapirTargetDocs];
 }
 
-def TapirStrategy : StmtAttr {
-  // FIXME: Change the spelling of this attribute to use hte kitsune "namespace"
-  let Spellings = [CXX11<"tapir", "strategy">];
-  let Subjects = SubjectList<[ForallStmt, CXXForallRangeStmt],
-                             ErrorDiag, "'forall' statement">;
-  let Args = [
-      EnumArgument<"TapirStrategyType", "TapirStrategyTy",
-                   /*is_string=*/ true,
-                   ["seq", "dac", "gpu", "basic"],
-                   ["Sequential", "DivideAndConquer", "GPU", "Basic"],
-                   0>
-  ];
-  let Documentation = [TapirStrategyDocs];
-}
-
 def KitsuneMemAccess : TypeAttr {
   // FIXME: Would it be better to use a namespaced attribute name here instead
   // of a custom keyword?

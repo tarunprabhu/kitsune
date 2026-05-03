@@ -142,24 +142,6 @@ Attr *SemaKitsune::handleTapirTargetAttr(Stmt *stmt, const ParsedAttr &attr,
   return nullptr;
 }
 
-Attr *SemaKitsune::handleTapirStrategyAttr(Stmt *stmt, const ParsedAttr &attr,
-                                           SourceRange range) {
-  StringRef str;
-  SourceLocation argLoc;
-  if (!sema.checkStringLiteralArgumentAttr(attr, 0, str, &argLoc)) {
-    Diag(attr.getLoc(), diag::err_tapir_strategy_unknown);
-    return nullptr;
-  }
-
-  TapirStrategyAttr::TapirStrategyTy kind;
-  if (!TapirStrategyAttr::ConvertStrToTapirStrategyTy(str, kind)) {
-    Diag(attr.getLoc(), diag::err_tapir_strategy_unknown) << str << argLoc;
-    return nullptr;
-  }
-
-  return ::new (sema.Context) TapirStrategyAttr(sema.Context, attr, kind);
-}
-
 Attr *SemaKitsune::handleLaunchAttr(Stmt *stmt, const ParsedAttr &attr,
                                     SourceRange range) {
   ASTContext &ctx = getASTContext();
@@ -189,12 +171,10 @@ Handled<Attr *> SemaKitsune::processStmtAttribute(Stmt *stmt,
                                                   const ParsedAttr &attr,
                                                   SourceRange range) {
   switch (attr.getKind()) {
-  case ParsedAttr::AT_TapirStrategy:
-    return handleTapirStrategyAttr(stmt, attr, range);
-  case ParsedAttr::AT_TapirTarget:
-    return handleTapirTargetAttr(stmt, attr, range);
   case ParsedAttr::AT_KitsuneLaunch:
     return handleLaunchAttr(stmt, attr, range);
+  case ParsedAttr::AT_TapirTarget:
+    return handleTapirTargetAttr(stmt, attr, range);
   default:
     break;
   }

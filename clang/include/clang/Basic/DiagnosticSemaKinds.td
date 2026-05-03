@@ -13503,10 +13503,6 @@ def err_tapir_target_unknown: Error<
 def err_tapir_target_custom: Error<
   "'tapir::target' attribute: value cannot be 'custom'">;
 
-// execution strategy/policy
-def err_tapir_strategy_unknown: Error<
-  "'tapir::strategy' attribute: unknown value">;
-
 // cuda launch parameters
 def err_kitsune_launch_range: Error<
   "'kitsune::launch' attribute: value not in range [0,1024]">;

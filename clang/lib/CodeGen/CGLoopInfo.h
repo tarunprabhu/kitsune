@@ -57,17 +57,14 @@ struct TapirLoopAttributes {
   /// Value for the tapir.loop.spawn.strategy metadata. The value will be
   /// determined by the first condition that is true in the list below:
   ///
-  ///   1. If the loop contains a valid tapir::strategy attribute, the value of
-  ///      the attribute will be used.
-  ///
-  ///   2. If the loop contains a valid tapir::target attribute, the spawn
+  ///   1. If the loop contains a valid tapir::target attribute, the spawn
   ///      strategy will be inferred from it.
   ///
-  ///   3. If a primary tapir target has been set on the command line, the
+  ///   2. If a primary tapir target has been set on the command line, the
   ///      spawn strategy will be inferred from it. The rules for doing so are
   ///      the same as when using a loop-specific tapir::target attribute.
   ///
-  ///   4. If neither a primary tapir target, nor a loop-specific tapir::target
+  ///   3. If neither a primary tapir target, nor a loop-specific tapir::target
   ///      attribute have been set, some default value will be used.
   ///
   llvm::TapirSpawnStrategy TapirSpawnStrategy = llvm::defaultTapirSpawnStrategy;

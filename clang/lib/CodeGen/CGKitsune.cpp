@@ -53,6 +53,7 @@
 #include "CGCleanup.h"
 #include "CGKitsuneUtils.h"
 #include "CodeGenFunction.h"
+#include "kitsune/Core/TTUtils.h"
 #include "kitsune/Frontend/KitsuneOptions.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/StmtKitsune.h"
@@ -230,7 +231,7 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
   // LoopStack.
   if (TT != llvm::TTID::Nolo) {
     LoopStack.setTapirTarget(TT);
-    LoopStack.setTapirSpawnStrategy(getTapirSpawnStrategy(Attrs, TT));
+    LoopStack.setTapirSpawnStrategy(getSpawnStrategyFor(TT));
   }
 
   if (TT == llvm::TTID::Cuda || TT == llvm::TTID::Hip) {
@@ -404,7 +405,7 @@ void CodeGenFunction::EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
   // LoopStack.
   if (TT != llvm::TTID::Nolo) {
     LoopStack.setTapirTarget(TT);
-    LoopStack.setTapirSpawnStrategy(getTapirSpawnStrategy(Attrs, TT));
+    LoopStack.setTapirSpawnStrategy(getSpawnStrategyFor(TT));
   }
   if (TT == llvm::TTID::Cuda || TT == llvm::TTID::Hip) {
     unsigned ThreadsPerBlock = getKitsuneLaunchAttr(Attrs);
