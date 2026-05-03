@@ -842,7 +842,7 @@ void CodeGenFunction::EmitAttributedStmt(const AttributedStmt &S) {
     case attr::HLSLControlFlowHint: {
       flattenOrBranch = cast<HLSLControlFlowHintAttr>(A)->getSemanticSpelling();
     } break;
-    case attr::TapirTarget:
+    case attr::TT:
       // In the case of a Tapir target attribute, we need to save the attribute
       // set so we can use it when we reach code gen of the underlying
       // CallExpr for Kokkos parallel "statements".  This is necessary given

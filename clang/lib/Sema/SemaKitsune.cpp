@@ -90,8 +90,8 @@ Handled<bool> SemaKitsune::processDeclAttribute(Decl *decl,
   return notHandled<bool>;
 }
 
-Attr *SemaKitsune::handleTapirTargetAttr(Stmt *stmt, const ParsedAttr &attr,
-                                         SourceRange range) {
+Attr *SemaKitsune::handleTTAttr(Stmt *stmt, const ParsedAttr &attr,
+                                SourceRange range) {
   StringRef str;
   SourceLocation argLoc;
   if (!sema.checkStringLiteralArgumentAttr(attr, 0, str, &argLoc)) {
@@ -99,13 +99,13 @@ Attr *SemaKitsune::handleTapirTargetAttr(Stmt *stmt, const ParsedAttr &attr,
     return nullptr;
   }
 
-  TapirTargetAttr::TapirTargetAttrTy kind;
-  if (!TapirTargetAttr::ConvertStrToTapirTargetAttrTy(str, kind)) {
+  TTAttr::TTAttrKind kind;
+  if (!TTAttr::ConvertStrToTTAttrKind(str, kind)) {
     Diag(attr.getLoc(), diag::err_tapir_target_unknown);
     return nullptr;
   }
 
-  if (kind == TapirTargetAttr::Custom) {
+  if (kind == TTAttr::Custom) {
     Diag(attr.getLoc(), diag::err_tapir_target_custom);
     return nullptr;
   }
@@ -116,7 +116,7 @@ Attr *SemaKitsune::handleTapirTargetAttr(Stmt *stmt, const ParsedAttr &attr,
   // The attribute may only be added on certain statements. It is not
   // currently supported on spawn and sync statements.
   if (clss == Stmt::ForallStmtClass || clss == Stmt::CXXForallRangeStmtClass) {
-    return ::new (ctx) TapirTargetAttr(ctx, attr, kind);
+    return ::new (ctx) TTAttr(ctx, attr, kind);
   } else if (auto *expr = dyn_cast<Expr>(stmt)) {
     if (sema.getKitsuneOpts().getKokkos()) {
       // See if this is an attributed Kokkos statement (if so, there is a
@@ -133,7 +133,7 @@ Attr *SemaKitsune::handleTapirTargetAttr(Stmt *stmt, const ParsedAttr &attr,
         const FunctionDecl *decl = call->getDirectCallee();
         std::string name = decl->getQualifiedNameAsString();
         if (name == "Kokkos::parallel_for" || name == "Kokkos::parallel_reduce")
-          return ::new (ctx) TapirTargetAttr(ctx, attr, kind);
+          return ::new (ctx) TTAttr(ctx, attr, kind);
       }
     }
   }
@@ -173,8 +173,8 @@ Handled<Attr *> SemaKitsune::processStmtAttribute(Stmt *stmt,
   switch (attr.getKind()) {
   case ParsedAttr::AT_KitsuneLaunch:
     return handleLaunchAttr(stmt, attr, range);
-  case ParsedAttr::AT_TapirTarget:
-    return handleTapirTargetAttr(stmt, attr, range);
+  case ParsedAttr::AT_TT:
+    return handleTTAttr(stmt, attr, range);
   default:
     break;
   }

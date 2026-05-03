@@ -1,4 +1,4 @@
-//===- KitsuneAttr.td - Kitsune-specific attribute definitions ------------===//
+//===- KitsuneAttr.td - Kitsune-specific attributes --------*- tablegen -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -12,33 +12,39 @@
 //
 //===----------------------------------------------------------------------===//
 
-def TapirTarget : StmtAttr {
-  // FIXME: Change the spelling of this attribute to use hte kitsune "namespace"
-  let Spellings = [CXX11<"tapir","target">];
+def TT : StmtAttr {
+  let Spellings = [CXX11<"tapir", "target">];
 
-  // FIXME KITSUNE: The target attribute is currently set to be valid on all
-  // statements because of the need to add this to Kokkos. We should either:
+  // The target attribute is currently set to be valid on all statements because
+  // of the need to add this to Kokkos statements. Because of the way Kokkos is
+  // implemented, even if an attribute is added to something that looks like a
+  // call in the source, in the AST it ends up being attached to an entirely
+  // different expression. We have to check that the attribute is attached to a
+  // supported statement in the custom semantic check for the attribute.
   //
-  //   - Remove the Forall statement from the subject list and have it apply to
-  //     all statements and check when parsing that it is on a statement that
-  //     we actually care about.
-  //
-  //   - Or, and we should prefer this if possible, identify exactly what the
-  //     Kokkos construct is and add just that statement class to this subject
-  //     list.
-  //
-  let Subjects = SubjectList<[ForallStmt, CXXForallRangeStmt, Stmt],
-                             ErrorDiag, "'parallel' statements">;
-  let Args = [
-    EnumArgument<"TapirTargetAttrType", "TapirTargetAttrTy",
-                 /*is_string=*/ true,
-                 ["nolo", "serial", "cuda", "custom", "hip", "opencilk",
-                  "openmp", "pthreads", "qthreads"],
-                 ["Nolo", "Serial", "Cuda", "Custom", "Hip", "OpenCilk",
-                  "OpenMP", "Pthreads", "Qthreads"],
-                 0>
-  ];
-  let Documentation = [TapirTargetDocs];
+  // The enum arguments here are in alphabetical order, not in the same order
+  // as the corresponding TTID's. There is no reason for them to be in the same
+  // order, so keeping it alphabetical is a bit more organized.
+  let Subjects = SubjectList<[Stmt], ErrorDiag, "'parallel' statements">;
+  let Args = [EnumArgument<"TT", "TTAttrKind", /*is_string=*/ true,
+                           ["cuda", "custom", "hip", "nolo", "opencilk",
+                            "openmp", "pthreads", "qthreads", "serial"],
+                           ["Cuda", "Custom", "Hip", "Nolo", "OpenCilk",
+                            "OpenMP", "Pthreads", "Qthreads", "Serial"]>];
+  let Documentation = [TTDocs];
+}
+
+def KitsuneLaunch : StmtAttr {
+  let Spellings = [CXX11<"kitsune", "launch">];
+
+  // For now, we have no plans to support this on Kokkos constructs, so we can
+  // restrict it to be pertain only to forall statements. If that changes, we
+  // will have to adopt an approach similar to that used for the tapir target
+  // attribute.
+  let Subjects = SubjectList<[ForallStmt, CXXForallRangeStmt],
+                             ErrorDiag, "'forall' statement">;
+  let Args = [IntArgument<"ThreadsPerBlock">];
+  let Documentation = [KitsuneLaunchDocs];
 }
 
 def KitsuneMemAccess : TypeAttr {
@@ -57,14 +63,6 @@ def KitsuneMemAccess : TypeAttr {
   ];
 
   let Documentation = [KitsuneMemAccessDocs];
-}
-
-def KitsuneLaunch : StmtAttr {
-  let Spellings = [CXX11<"kitsune", "launch">];
-  let Subjects = SubjectList<[ForallStmt, CXXForallRangeStmt],
-                             ErrorDiag, "'forall' statement">;
-  let Args = [IntArgument<"ThreadsPerBlock">];
-  let Documentation = [KitsuneLaunchDocs];
 }
 
 def KitsuneMobile : TypeAttr {

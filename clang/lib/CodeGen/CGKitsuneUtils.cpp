@@ -16,36 +16,36 @@
 using namespace clang;
 
 llvm::TTID clang::CodeGen::getTapirTarget(llvm::ArrayRef<const Attr *> attrs,
-                                          llvm::TTID defawlt) {
+                                          llvm::TTID primaryTT) {
   // FIXME KITSUNE: This will check for the first occurrence of the tapir target
   // attribute and break immediately if it finds it. Is this what we actually
   // want?
   for (const Attr *attr : attrs) {
-    if (const auto *ttAttr = dyn_cast<TapirTargetAttr>(attr)) {
-      switch (ttAttr->getTapirTargetAttrType()) {
-      case TapirTargetAttr::Nolo:
+    if (const auto *ttAttr = dyn_cast<TTAttr>(attr)) {
+      switch (ttAttr->getTT()) {
+      case TTAttr::Nolo:
         return llvm::TTID::Nolo;
-      case TapirTargetAttr::Cuda:
+      case TTAttr::Cuda:
         return llvm::TTID::Cuda;
-      case TapirTargetAttr::Hip:
+      case TTAttr::Hip:
         return llvm::TTID::Hip;
-      case TapirTargetAttr::OpenCilk:
+      case TTAttr::OpenCilk:
         return llvm::TTID::OpenCilk;
-      case TapirTargetAttr::OpenMP:
+      case TTAttr::OpenMP:
         return llvm::TTID::OpenMP;
-      case TapirTargetAttr::Pthreads:
+      case TTAttr::Pthreads:
         return llvm::TTID::Pthreads;
-      case TapirTargetAttr::Qthreads:
+      case TTAttr::Qthreads:
         return llvm::TTID::Qthreads;
-      case TapirTargetAttr::Serial:
+      case TTAttr::Serial:
         return llvm::TTID::Serial;
-      case TapirTargetAttr::Custom:
+      case TTAttr::Custom:
         llvm_unreachable("Value of tapir target attribute cannot be 'custom'");
       }
-      llvm_unreachable("getTapirTargetAttr: TTID not handled");
+      llvm_unreachable("getTapirTarget: TTAttr not handled");
     }
   }
-  return defawlt;
+  return primaryTT;
 }
 
 unsigned
