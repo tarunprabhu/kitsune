@@ -88,6 +88,7 @@ add_clang_library(clangCodeGen
   CGHLSLRuntime.cpp
   CGHLSLBuiltins.cpp
   CGKitsune.cpp
+  CGKitsuneUtils.cpp
   CGKokkos.cpp
   CGLoopInfo.cpp
   CGNonTrivialStruct.cpp
