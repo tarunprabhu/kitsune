@@ -321,6 +321,7 @@ if (KITSUNE_ENABLE_SPHINX)
         RegisteringLibraryFunction.md
         ReleaseNotes.md
         StaticLinking.md
+        TapirPassesDoc.md
         TapirTargets.md
         Testing.md
         WritingEmbeddedBitcodePass.md
