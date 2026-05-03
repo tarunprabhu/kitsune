@@ -32,7 +32,7 @@ These are Kitsune-specific attributes that may be attached to LLVM functions.
 More general information about creating and using Kitsune's LLVM IR attributes
 can be found :doc:`here <LLVMIRAttributes>`.
 
-These intentionally do not use LLVM's stanard function attribute mechanism for
+These intentionally do not use LLVM's standard function attribute mechanism for
 two reasons:
 
 * The function attribute mechanism in LLVM only allows string-valued attributes.

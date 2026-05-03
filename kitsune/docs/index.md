@@ -69,6 +69,7 @@ depending on what is of interest to you.
     KitLoopAttrsDoc
     KitModuleAttrsDoc
     KitPassesDoc
+    TapirPassesDoc
     CommandGuide/index.md
     Glossary
 ```
