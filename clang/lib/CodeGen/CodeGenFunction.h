@@ -6098,47 +6098,46 @@ public:
   // those files in some cases. Making the public footprint smaller may make
   // maintenance a little easier.
 
-  void EmitDetachBlock(const DeclStmt *DS, llvm::ValueMap<llvm::Value*, llvm::AllocaInst *> &VM);
-  void ReplaceAllUsesInCurrentBlock(llvm::ValueMap<llvm::Value*, llvm::AllocaInst *> &VM);
-  void SetAllocaInsertPoint(llvm::Value* v, llvm::BasicBlock* bb);
+  void EmitDetachBlock(const DeclStmt *DS,
+                       llvm::ValueMap<llvm::Value *, llvm::AllocaInst *> &VM);
+  void ReplaceAllUsesInCurrentBlock(
+      llvm::ValueMap<llvm::Value *, llvm::AllocaInst *> &VM);
+  void SetAllocaInsertPoint(llvm::Value *v, llvm::BasicBlock *bb);
 
-  typedef llvm::DenseMap<const VarDecl *,
-                         std::pair<Address,llvm::SmallVector<llvm::Value*,4>>> DeclMapByValueTy;
-  void EmitIVLoad(const VarDecl* LoopVar,
-                          DeclMapByValueTy & IVDeclMap);
-  void EmitThreadSafeIV(const VarDecl* IV, const llvm::SmallVector<llvm::Value*,4>& Values);
-  void RestoreDeclMap(const VarDecl* IV, const Address);
+  /// Emit a load of the induction variable. This has a side effect of erasing
+  /// the mapping in the LocalDeclMap but keeping track of the original mapping
+  /// as well as the new RValue after the load. This is all a precursor to
+  /// capturing the IV by value in the body emission.
+  typedef llvm::DenseMap<
+      const VarDecl *, std::pair<Address, llvm::SmallVector<llvm::Value *, 4>>>
+      DeclMapByValueTy;
+  void EmitIVLoad(const VarDecl *LoopVar, DeclMapByValueTy &IVDeclMap);
 
+  /// Emit a thread safe copy of the induction variable and cleanups, and set
+  /// it value to the to the current value of the induction variable
+  void EmitThreadSafeIV(const VarDecl *IV,
+                        const llvm::SmallVectorImpl<llvm::Value *> &Values);
+
+  /// Restore the original mapping between the thread safe induction variable and
+  /// its address, then restore the original mapping.
+  void RestoreDeclMap(const VarDecl *IV, const Address);
 
   void EmitSpawnStmt(const SpawnStmt &S);
   void EmitSyncStmt(const SyncStmt &S);
-  void EmitForallStmt(const ForallStmt &S,
-                      ArrayRef<const Attr *> Attrs = {});
+  void EmitForallStmt(const ForallStmt &S, ArrayRef<const Attr *> Attrs);
   void EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
-                              ArrayRef<const Attr *> Attrs = {});
+                              ArrayRef<const Attr *> Attrs);
 
   // Kitsune support for Kokkos.
   bool InKokkosConstruct = false; // FIXME: Should/can we refactor this away?
-  bool
-  EmitKokkosConstruct(const CallExpr *CE,
-                      ArrayRef<const Attr *> Attrs = ArrayRef<const Attr *>());
+  bool EmitKokkosConstruct(const CallExpr *CE, ArrayRef<const Attr *> Attrs);
   bool EmitKokkosParallelFor(const CallExpr *CE, ArrayRef<const Attr *> Attrs);
   bool EmitKokkosParallelReduce(const CallExpr *CE,
                                 ArrayRef<const Attr *> Attrs);
-  bool ParseAndValidateParallelFor(
-      const CallExpr *CE, std::string &CN,
-      SmallVector<
-          std::pair<const ParmVarDecl *, std::pair<const Expr *, const Expr *>>,
-          6> &IVinfos,
-      const LambdaExpr *&LE, DiagnosticsEngine &Diags);
-  void EmitAndInitializeKokkosIV(
-      const std::pair<const ParmVarDecl *,
-                      std::pair<const Expr *, const Expr *>> &IVInfo);
-  llvm::Value *EmitKokkosParallelForCond(
-      const std::pair<const ParmVarDecl *,
-                      std::pair<const Expr *, const Expr *>> &IVInfo);
+  void EmitAndInitializeKokkosIV(const ParmVarDecl *IV, const Expr *IVBeg);
+  llvm::Value *EmitKokkosParallelForCond(const ParmVarDecl *IV,
+                                         const Expr *IVEnd);
   void EmitKokkosIncrement(const ParmVarDecl *IV);
-
 };
 
 inline DominatingLLVMValue::saved_type

@@ -59,45 +59,31 @@
 #include "CodeGenFunction.h"
 #include "kitsune/Core/TTUtils.h"
 #include "kitsune/Frontend/KitsuneOptions.h"
-#include "clang/CodeGen/CGFunctionInfo.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 
 using namespace clang;
 using namespace CodeGen;
 
-// Worth discussing why we want an anonymous namespace and what belongs here
-// as opposed to putting in CodeGenFunction.h
 namespace {
+
+// Encapsulate information about an induction variable for a Kokkos construct.
+// These will be
+struct IVInfo {
+  const ParmVarDecl *IVDecl;
+  const Expr *IVBeg;
+  const Expr *IVEnd;
+};
+
+} // namespace
 
 // Part of the challenge in unwinding all the Kokkos C++ details is getting
 // through a bunch of implicit goop in the AST. Fortunately Clang can help here
 // a lot as it has mechanisms to toss out implicit constructs and get us closer
 // to the underlying expression.  Pulled out of inline code to allow for more
-// agressive simplications/modifications if needed (and reuse across different
-// constructs).
+// aggressive simplifications/modifications if needed (and reuse across
+// different constructs).
 static const Expr *SimplifyExpr(const Expr *E) {
   return E->IgnoreImplicit()->IgnoreImpCasts();
-}
-} // namespace
-
-// Sort through what sort of Kokkos construct we're looking at
-// and work on transforming it into a Tapir-centric lowering.
-//
-bool CodeGenFunction::EmitKokkosConstruct(const CallExpr *CE,
-                                          ArrayRef<const Attr *> Attrs) {
-  assert(CE != 0 &&
-         "CodeGenFunction::EmitKokkosConstruct: null callexpr passed!");
-
-  const FunctionDecl *Func = CE->getDirectCallee();
-  assert(Func != 0 && "Kokkos construct doesn't have a function declaration!");
-
-  if (Func->getQualifiedNameAsString() == "Kokkos::parallel_for") {
-    return EmitKokkosParallelFor(CE, Attrs);
-  } else if (Func->getQualifiedNameAsString() == "Kokkos::parallel_reduce") {
-    return EmitKokkosParallelReduce(CE, Attrs);
-  } else {
-    return false;
-  }
 }
 
 // Break apart the various components of a Kokkos parallel_for. This boils down
@@ -119,20 +105,18 @@ bool CodeGenFunction::EmitKokkosConstruct(const CallExpr *CE,
 //     falls back to the standard C++ mechanisms. We will start ramp up testing
 //     as we get more exposure to use cases.
 //
-bool CodeGenFunction::ParseAndValidateParallelFor(
-    const CallExpr *CE, std::string &CN,
-    SmallVector<
-        std::pair<const ParmVarDecl *, std::pair<const Expr *, const Expr *>>,
-        6> &IVInfos,
-    const LambdaExpr *&LE, DiagnosticsEngine &Diags) {
-  // Recognized constructs:
-  //
-  //   1. parallel_for(["name"], N, lambda_expr...);
-  //
-  //   2. parallel_for(["name"],
-  //   Kokkos::MDRangePolicy<Kokkos::Rank<DIM>>({0,0,...},{N,K,...}),
-  //   lambda_expr...);
-
+// At this time, we support only a few execution policies:
+//
+//   parallel_for(["name"], N, lambda_expr...);
+//
+//   parallel_for(["name"],
+//                Kokkos::MDRangePolicy<Kokkos::Rank<DIM>>({0,...},{N1,...}),
+//                lambda_expr...);
+//
+static bool ParseAndValidateParallelFor(const CallExpr *CE, std::string &CN,
+                                        const LambdaExpr *&LE,
+                                        DiagnosticsEngine &Diags,
+                                        SmallVectorImpl<IVInfo> &IVInfos) {
   unsigned int curArgIndex = 0;
   const Expr *SE = SimplifyExpr(CE->getArg(curArgIndex));
 
@@ -140,11 +124,11 @@ bool CodeGenFunction::ParseAndValidateParallelFor(
   // to just check the number of arguments to the call instruction and decide
   // what to do that way?
   //
-  // Parse a 'named' construct. We will capture the name, but don't do
-  // anything with it. NOTE: we assume this only comes in the form of a string
-  // literal. This is ridiculously fragile. Only parses string literals as the
-  // first argument e.g. parallel_for("name",...). It will not parse variables
-  // e.g. parallel_for(name,...)
+  // Parse a 'named' construct. We will capture the name, but don't do anything
+  // with it. NOTE: we assume this only comes in the form of a string literal.
+  // This is ridiculously fragile. Only parses string literals as the first
+  // argument e.g. parallel_for("name",...). It will not parse variables e.g.
+  // parallel_for(name,...)
   if (auto *CXXCE = dyn_cast<CXXConstructExpr>(SE)) {
     if (auto *NameExpr =
             dyn_cast<StringLiteral>(CXXCE->getArg(0)->IgnoreImplicit())) {
@@ -153,9 +137,8 @@ bool CodeGenFunction::ParseAndValidateParallelFor(
     }
   }
 
-  // Parse a vector of IV bounds. We support RangePolicy, MDRangePolicy and
-  // a scalar.
-  SmallVector<std::pair<const Expr *, const Expr *>, 6> BoundsList;
+  // Parse a vector of IV bounds. We support RangePolicy, MDRangePolicy and a
+  // scalar.
   const CXXTemporaryObjectExpr *CXXTO = dyn_cast<CXXTemporaryObjectExpr>(SE);
   const CXXRecordDecl *CXXClass =
       CXXTO ? CXXTO->getBestDynamicClassType() : nullptr;
@@ -172,9 +155,11 @@ bool CodeGenFunction::ParseAndValidateParallelFor(
     const auto *UpperBounds =
         dyn_cast<InitListExpr>(CXXTO->getArg(1)->IgnoreImplicit());
     if (LowerBounds && UpperBounds) {
-      for (size_t i = 0; i < LowerBounds->getNumInits(); i++)
-        BoundsList.emplace_back(LowerBounds->getInit(i)->IgnoreImplicit(),
-                                UpperBounds->getInit(i)->IgnoreImplicit());
+      for (size_t i = 0; i < LowerBounds->getNumInits(); i++) {
+        const Expr *LowerBound = LowerBounds->getInit(i)->IgnoreImplicit();
+        const Expr *UpperBound = UpperBounds->getInit(i)->IgnoreImplicit();
+        IVInfos.push_back({nullptr, LowerBound, UpperBound});
+      }
     } else {
       Diags.Report(CE->getExprLoc(), diag::warn_kokkos_unknown_stmt_class);
       return false;
@@ -184,7 +169,7 @@ bool CodeGenFunction::ParseAndValidateParallelFor(
     // can be assumed to have a scalar type.
     const Expr *LowerBound = CXXTO->getArg(0)->IgnoreImplicit();
     const Expr *UpperBound = CXXTO->getArg(1)->IgnoreImplicit();
-    BoundsList.emplace_back(LowerBound, UpperBound);
+    IVInfos.push_back({nullptr, LowerBound, UpperBound});
   } else if (SE->getType()->isScalarType()) {
     // If neither a RangePolicy, nor an MDRangePolicy was found, this should be
     // an upper bound for a single induction variable. Per this documentation:
@@ -194,7 +179,7 @@ bool CodeGenFunction::ParseAndValidateParallelFor(
     // this should be equivalent to Kokkos::RangePolicy<>(0, N). This should
     // always be a scalar type. If that is a bad assumption, expect this code to
     // crash in some mysterious way.
-    BoundsList.emplace_back(nullptr, CE->getArg(curArgIndex));
+    IVInfos.push_back({nullptr, nullptr, CE->getArg(curArgIndex)});
   } else {
     Diags.Report(CE->getExprLoc(), diag::warn_kokkos_range_expr);
     return false;
@@ -209,9 +194,6 @@ bool CodeGenFunction::ParseAndValidateParallelFor(
     return false;
   }
 
-  // Extract the ParmVarDecl's from the lambda
-  ArrayRef<ParmVarDecl *> Params{LE->getCallOperator()->parameters()};
-
   // Make sure the lambda has at least one argument. If it gets all variables by
   // capture, the generated IR may not contain a recognizable tapir loop.
   // FIXME: Is this even possible? Won't Kokkos always require at least one
@@ -223,58 +205,63 @@ bool CodeGenFunction::ParseAndValidateParallelFor(
 
   // TODO: DO WAY MORE ERROR CHECKING...
 
-  // Pack everything up
+  // Extract the ParmVarDecl's from the lambda
+  ArrayRef<ParmVarDecl *> Params{LE->getCallOperator()->parameters()};
   for (unsigned i = 0; i < Params.size(); ++i)
-    IVInfos.push_back({Params[i], BoundsList[i]});
+    IVInfos[i].IVDecl = Params[i];
 
   // Everything was parsed correctly
   return true;
 }
 
-// Emit the ParmVarDecl defined in a Kokkos lambda and initialize
-// the resulting value
-void CodeGenFunction::EmitAndInitializeKokkosIV(
-    const std::pair<const ParmVarDecl *, std::pair<const Expr *, const Expr *>>
-        &IVInfo) {
-  // Convenience variable for the actual ParmVarDecl
-  const ParmVarDecl *IV = IVInfo.first;
+bool CodeGenFunction::EmitKokkosConstruct(const CallExpr *CE,
+                                          ArrayRef<const Attr *> Attrs) {
+  assert(CE && "Call expression is not null");
 
+  const FunctionDecl *Func = CE->getDirectCallee();
+  assert(Func && "Kokkos construct requires a function declaration!");
+
+  if (Func->getQualifiedNameAsString() == "Kokkos::parallel_for")
+    return EmitKokkosParallelFor(CE, Attrs);
+  else if (Func->getQualifiedNameAsString() == "Kokkos::parallel_reduce")
+    return EmitKokkosParallelReduce(CE, Attrs);
+  else
+    return false;
+}
+
+// Emit the ParmVarDecl defined in a Kokkos lambda and initialize the resulting
+// value.
+void CodeGenFunction::EmitAndInitializeKokkosIV(const ParmVarDecl *IV,
+                                                const Expr *IVBeg) {
   // Just emit the induction variable from the ParmVarDecl
   EmitVarDecl(*IV);
 
   // Determine the initial value (default is 0)
   llvm::Value *InitValue =
-      IVInfo.second.first
-          ? EmitScalarExpr(IVInfo.second.first)
-          : llvm::ConstantInt::get(ConvertType(IV->getType()), 0);
+      IVBeg ? EmitScalarExpr(IVBeg)
+            : llvm::ConstantInt::get(ConvertType(IV->getType()), 0);
 
   // Store the initial value into the address
   Builder.CreateStore(InitValue, GetAddrOfLocalVar(IV));
 }
 
 // Emit a Kokkos parallel for condition
-llvm::Value *CodeGenFunction::EmitKokkosParallelForCond(
-    const std::pair<const ParmVarDecl *, std::pair<const Expr *, const Expr *>>
-        &IVInfo) {
-
-  // Convenience variables for the actual ParmVarDecl and upper bound
-  const ParmVarDecl *IV = IVInfo.first;
-  const Expr *BoundsExpr = IVInfo.second.second;
-
+llvm::Value *CodeGenFunction::EmitKokkosParallelForCond(const ParmVarDecl *IV,
+                                                        const Expr *IVEnd) {
   llvm::Value *LoopEnd = nullptr;
-  if (BoundsExpr->getStmtClass() == Expr::BinaryOperatorClass) {
-    RValue RV = EmitAnyExpr(BoundsExpr);
+  if (IVEnd->getStmtClass() == Expr::BinaryOperatorClass) {
+    RValue RV = EmitAnyExpr(IVEnd);
     LoopEnd = RV.getScalarVal();
   } else {
-    LoopEnd = EmitScalarExpr(BoundsExpr);
+    LoopEnd = EmitScalarExpr(IVEnd);
   }
 
   llvm::Type *InductionVarTy = ConvertType(IV->getType());
   unsigned NBits = LoopEnd->getType()->getPrimitiveSizeInBits();
   unsigned LVBits = InductionVarTy->getPrimitiveSizeInBits();
 
-  // We may need to truncate/extend the range to get it to match
-  // the type of loop variable.
+  // We may need to truncate/extend the range to get it to match the type of the
+  // loop variable.
   if (NBits > LVBits) {
     LoopEnd = Builder.CreateTrunc(LoopEnd, InductionVarTy);
   } else if (NBits < LVBits) {
@@ -289,16 +276,10 @@ llvm::Value *CodeGenFunction::EmitKokkosParallelForCond(
 
 // Emit a Kokkos parallel for increment
 void CodeGenFunction::EmitKokkosIncrement(const ParmVarDecl *IV) {
-  // load the induction variable
   llvm::Value *IncVal = Builder.CreateLoad(GetAddrOfLocalVar(IV));
-
-  // create the number "1" with the correct type
   llvm::Value *One = llvm::ConstantInt::get(ConvertType(IV->getType()), 1);
 
-  // emit the add one
   IncVal = Builder.CreateAdd(IncVal, One);
-
-  // emit the store back into the induction variable
   Builder.CreateStore(IncVal, GetAddrOfLocalVar(IV));
 }
 
@@ -321,7 +302,7 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
       LoopStack.setLoopThreadsPerBlock(ThreadsPerBlock);
   }
 
-  // New basic blocks and jump destinations with Tapir terminators
+  // New basic blocks and jump destinations with Tapir terminators.
   // Note that we only need one of each of these regardless of the number of
   // nested loops.
   llvm::BasicBlock *Detach = createBasicBlock("kokkos.forall.detach");
@@ -341,22 +322,20 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
 
   // Parse and validate the parallel for
   std::string PFName; // construct name (for kokkos profiling)
-  SmallVector<
-      std::pair<const ParmVarDecl *, std::pair<const Expr *, const Expr *>>, 6>
-      IVInfos;
+  SmallVector<IVInfo, 6> IVInfos;
   const LambdaExpr *Lambda = nullptr; // the lambda (loop body)
   DiagnosticsEngine &Diags = CGM.getDiags();
-  if (!ParseAndValidateParallelFor(CE, PFName, IVInfos, Lambda, Diags))
+  if (!ParseAndValidateParallelFor(CE, PFName, Lambda, Diags, IVInfos))
     return false;
 
   const unsigned int numIVs = IVInfos.size();
 
   JumpDest LoopExit = getJumpDestInCurrentScope("kokkos.forall.end");
 
-  // In the case of nested loops, we need to have independent
-  // condition and increment basic blocks for each induction variable
-  // I don't think we need ForScope's unless we have structure type IVs,
-  // but hopefully we will one day, so leaving in for now
+  // In the case of nested loops, we need to have independent condition and
+  // increment basic blocks for each induction variable.
+  // I don't think we need ForScope's unless we have structure type IVs, but
+  // we might some day, so leaving in for now.
   SmallVector<JumpDest, 6> Condition;
   SmallVector<llvm::BasicBlock *, 6> CondBlock;
   SmallVector<JumpDest, 6> Increment;
@@ -373,7 +352,7 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
 
   // Emit and initialize the outermost IV initialization before the loop. This
   // is the analog of EmitStmt(S.getInit());
-  EmitAndInitializeKokkosIV(IVInfos[0]);
+  EmitAndInitializeKokkosIV(IVInfos[0].IVDecl, IVInfos[0].IVBeg);
 
   // Get the source range of the parallel_for once
   const SourceRange &R = CE->getSourceRange();
@@ -382,10 +361,10 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
   // increments
   for (unsigned int i = 0; i < numIVs; ++i) {
     // Create a lexical scope for each induction variable. Using new, allows us
-    // defer creation to here
+    // to defer creation to here.
     ForScope.push_back(new LexicalScope(*this, R));
 
-    // In a kokkos parallel for there will always be a condition block
+    // In a kokkos parallel for there will always be a condition block.
     EmitBlock(CondBlock[i]);
 
     // Emit and initialize nested IVs. This is the analog of
@@ -393,7 +372,7 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
     // The allocas all go to the top, but the variable reset of the next IV will
     // correctly happen in the nested condition blocks.
     if (i < numIVs - 1)
-      EmitAndInitializeKokkosIV(IVInfos[i + 1]);
+      EmitAndInitializeKokkosIV(IVInfos[i + 1].IVDecl, IVInfos[i + 1].IVBeg);
 
     LoopStack.push(CondBlock[i], CGM.getContext(), CGM.getCodeGenOpts(), Attrs,
                    SourceLocToDebugLoc(R.getBegin()),
@@ -409,12 +388,13 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
     BreakContinueStack.push_back(BreakContinue(LoopExit, Reattach));
 
     // Note: There is need for condition scopes since we create the conditions
-    // and they are simple inequalities
+    // and they are simple inequalities.
 
     // C99 6.8.5p2/p4: The first substatement is executed if the expression
     // compares unequal to 0.  The condition must be a scalar type.
     // Create the conditional.
-    llvm::Value *BoolCondVal = EmitKokkosParallelForCond(IVInfos[i]);
+    llvm::Value *BoolCondVal =
+        EmitKokkosParallelForCond(IVInfos[i].IVDecl, IVInfos[i].IVEnd);
     Builder.CreateCondBr(
         BoolCondVal, (i < numIVs - 1 ? CondBlock[i + 1] : Detach),
         (i == 0 ? Sync.getBlock() : Increment[i - 1].getBlock()));
@@ -429,8 +409,8 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
 
   // Create threadsafe induction variables before the detach and put them in
   // IVInfoDeclMap
-  for (const auto &IVInfo : IVInfos)
-    EmitIVLoad(dyn_cast<VarDecl>(IVInfo.first), IVDeclMap);
+  for (const IVInfo &IVInfo : IVInfos)
+    EmitIVLoad(dyn_cast<VarDecl>(IVInfo.IVDecl), IVDeclMap);
 
   // As long as the condition is true, iterate the loop.
   llvm::BasicBlock *ForBody = createBasicBlock("kokkos.body");
@@ -442,12 +422,12 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
   incrementProfileCounter(CE);
 
   {
-    // Need to explain this, because right now I have no idea, but
-    // is absolutely necessary not to segfault during codegen :-)
+    // Need to explain this, because right now I have no idea, but is absolutely
+    // necessary not to segfault during codegen :-)
     InKokkosConstruct = true;
 
-    // Create a separate cleanup scope for the body, in case it is not
-    // a compound statement.
+    // Create a separate cleanup scope for the body, in case it is not a
+    // compound statement.
     RunCleanupsScope BodyScope(*this);
 
     // Change the alloca insert point so that the alloca's happen after the
@@ -457,15 +437,13 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
     // EmitThreadSafeIV, we use AutoVarAlloca so any codegen in the body
     // automatically and correctly mapped to the local thread safe copy of the
     // induction variable.
-
-    // change the alloca insert point to the body block
     SetAllocaInsertPoint(Undef, ForBody);
 
-    // emit the thread safe induction variables and initialize them by value
+    // Emit the thread safe induction variables and initialize them by value.
     for (const auto &ivp : IVDeclMap)
       EmitThreadSafeIV(ivp.first, ivp.second.second);
 
-    // emit the body of the lambda expression
+    // Emit the body of the lambda expression.
     EmitStmt(Lambda->getBody());
     InKokkosConstruct = false;
   }
@@ -474,31 +452,33 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
   // safe copy back to the original induction variable. We also need to emit the
   // reattach block and reset the alloca insertion point.
 
-  // Restore induction variable mappings after emitting body, and before
-  // the increment
+  // Restore induction variable mappings after emitting body, and before the
+  // increment.
   for (const auto &ivp : IVDeclMap)
     RestoreDeclMap(ivp.first, ivp.second.first);
 
-  // emit the reattach block
+  // Emit the reattach block.
   EmitBlock(Reattach.getBlock());
   Builder.CreateReattach(Increment.back().getBlock(), SRStart);
 
-  // reset the alloca insertion point
+  // Reset the alloca insertion point.
   AllocaInsertPt->removeFromParent();
   AllocaInsertPt = OldAllocaInsertPt;
 
   for (int i = numIVs - 1; i >= 0; --i) {
-    // Emit the increment basic block
+    // Emit the increment basic block.
     EmitBlock(Increment[i].getBlock());
-    // Emit the actual increment code
-    EmitKokkosIncrement(IVInfos[i].first);
+
+    // Emit the actual increment code.
+    EmitKokkosIncrement(IVInfos[i].IVDecl);
     BreakContinueStack.pop_back();
     EmitStopPoint(CE);
     EmitBranch(CondBlock[i]);
     ForScope[i]->ForceCleanup();
     LoopStack.pop();
   }
-  // Emit the Sync block and terminator
+
+  // Emit the Sync block and terminator.
   EmitBlock(Sync.getBlock());
   Builder.CreateSync(LoopExit.getBlock(), SRStart);
   PopSyncRegion();
