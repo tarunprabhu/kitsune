@@ -15,44 +15,6 @@
 
 using namespace clang;
 
-llvm::TapirSpawnStrategy
-clang::CodeGen::getTapirSpawnStrategy(llvm::ArrayRef<const Attr *> attrs,
-                                      llvm::TTID primaryTT) {
-  for (const Attr *attr : attrs) {
-    if (const auto *strategyAttr = dyn_cast<TapirStrategyAttr>(attr)) {
-      switch (strategyAttr->getTapirStrategyType()) {
-      case TapirStrategyAttr::Basic:
-        return llvm::TapirSpawnStrategy::Basic;
-      case TapirStrategyAttr::DivideAndConquer:
-        return llvm::TapirSpawnStrategy::DivideAndConquer;
-      case TapirStrategyAttr::GPU:
-        return llvm::TapirSpawnStrategy::GPU;
-      case TapirStrategyAttr::Sequential:
-        return llvm::TapirSpawnStrategy::Sequential;
-      }
-      llvm_unreachable("getTapirStrategy: TapirStrategyAttr not handled");
-    }
-  }
-
-  switch (getTapirTarget(attrs, primaryTT)) {
-  case llvm::TTID::Nolo:
-  case llvm::TTID::Serial:
-    return llvm::TapirSpawnStrategy::Sequential;
-  case llvm::TTID::Cuda:
-  case llvm::TTID::Hip:
-    return llvm::TapirSpawnStrategy::GPU;
-  case llvm::TTID::OpenCilk:
-    return llvm::TapirSpawnStrategy::DivideAndConquer;
-  case llvm::TTID::Custom:
-  case llvm::TTID::OpenMP:
-  case llvm::TTID::Pthreads:
-  case llvm::TTID::Qthreads:
-    return llvm::TapirSpawnStrategy::Basic;
-  default:
-    llvm_unreachable("getTapirStrategy: TTID not handled");
-  }
-}
-
 llvm::TTID clang::CodeGen::getTapirTarget(llvm::ArrayRef<const Attr *> attrs,
                                           llvm::TTID defawlt) {
   // FIXME KITSUNE: This will check for the first occurrence of the tapir target

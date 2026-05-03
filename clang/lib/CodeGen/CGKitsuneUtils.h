@@ -22,12 +22,6 @@ class Attr;
 
 namespace CodeGen {
 
-/// Get the value of the tapir spawn strategy attribute if it was set. If the
-/// attribute was not set, return a spawn strategy depending on the primary
-/// tapir target \p tt.
-llvm::TapirSpawnStrategy
-getTapirSpawnStrategy(llvm::ArrayRef<const Attr *> attrs, llvm::TTID tt);
-
 /// Get the value of the tapir::target attribute if it was set. If the
 /// attribute was not set, return \p defawlt.
 llvm::TTID getTapirTarget(llvm::ArrayRef<const Attr *> attrs,

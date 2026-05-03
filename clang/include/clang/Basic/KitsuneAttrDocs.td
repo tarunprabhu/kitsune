@@ -68,40 +68,6 @@ The value of the attribute must be one of the
   }];
 }
 
-def TapirStrategyDocs : KitsuneDocumentation {
-  let Category = DocCatStmt;
-  let Content = [{
-
-**Experimental**
-
-.. warning::
-
-   The handling of this attribute may be very inconsistent/buggy.
-
-The kitsune strategy attribute ``strategy`` let's developers specify a
-spawn strategy for a specific construct. This will override the spawn
-strategy implied by the primary tapir target. The table below lists the valid
-values that may be provided to this attribute
-
-=====  ==============================================================
-Value  Description
-=====  ==============================================================
-basic  Similar to the sequential strategy, but allows for parallelism
-dac    Use a Divide-and-conquer strategy
-gpu    Use a strategy suitable for execution on a GPU
-seq    Force sequential execution
-=====  ==============================================================
-
-.. code-block:: c++
-
-  [[kitsune::strategy("dac")]]
-  forall(...) {
-    ...
-  }
-
-  }];
-}
-
 def KitsuneLaunchDocs : KitsuneDocumentation {
   let Category = DocCatStmt;
   let Content = [{

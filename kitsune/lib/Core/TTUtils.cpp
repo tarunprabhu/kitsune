@@ -7,8 +7,7 @@
 //===----------------------------------------------------------------------===//
 //
 // Miscellaneous utilities that are closely related to tapir targets in some
-// way. These are intended to be for utilities that are primarily, if not
-// exclusively, used in code that lives in kitsune/.
+// way.
 //
 //===----------------------------------------------------------------------===//
 
@@ -83,4 +82,25 @@ Expected<OwnedModule> llvm::getLibDeviceModule(TTID tt, const TTOptions &tto,
   default:
     llvm_unreachable("getLibDeviceModule: TTID not handled");
   }
+}
+
+TapirSpawnStrategy llvm::getSpawnStrategyFor(TTID tt) {
+  switch (tt) {
+  case llvm::TTID::Nolo:
+  case llvm::TTID::Serial:
+    return llvm::TapirSpawnStrategy::Sequential;
+  case llvm::TTID::Cuda:
+  case llvm::TTID::Hip:
+    return llvm::TapirSpawnStrategy::GPU;
+  case llvm::TTID::OpenCilk:
+    return llvm::TapirSpawnStrategy::DivideAndConquer;
+  case llvm::TTID::Custom:
+  case llvm::TTID::OpenMP:
+  case llvm::TTID::Pthreads:
+  case llvm::TTID::Qthreads:
+    return llvm::TapirSpawnStrategy::Basic;
+  default:
+    break;
+  }
+  llvm_unreachable("getSpawnStrategyFor: TTID not handled");
 }
