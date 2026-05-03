@@ -28,7 +28,7 @@ class KitsuneDocumentation : Documentation {
   string IsKitsune = "true";
 }
 
-def TapirTargetDocs : KitsuneDocumentation {
+def TTDocs : KitsuneDocumentation {
   let Category = DocCatStmt;
   let Content = [{
 

@@ -23,9 +23,10 @@ class Attr;
 namespace CodeGen {
 
 /// Get the value of the tapir::target attribute if it was set. If the
-/// attribute was not set, return \p defawlt.
+/// attribute was not set, return the primary tapir target \p primaryTT. This
+/// will typically be the value of the --tapir command-line option.
 llvm::TTID getTapirTarget(llvm::ArrayRef<const Attr *> attrs,
-                          llvm::TTID defawlt);
+                          llvm::TTID primaryTT);
 
 /// Get the value of the kitsune::launch attribute if it was set. If the
 /// attribute was not set, return 0.

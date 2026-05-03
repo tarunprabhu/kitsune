@@ -38,8 +38,7 @@ protected:
 protected:
   bool handleMemAccessAttr(Decl *decl, const ParsedAttr &attr);
 
-  Attr *handleTapirTargetAttr(Stmt *stmt, const ParsedAttr &attr,
-                              SourceRange range);
+  Attr *handleTTAttr(Stmt *stmt, const ParsedAttr &attr, SourceRange range);
   Attr *handleLaunchAttr(Stmt *stmt, const ParsedAttr &attr, SourceRange range);
 
   QualType handleMemAccessAttr(QualType type, const ParsedAttr &attr);
