@@ -61,8 +61,8 @@
 #include "kitsune/Frontend/KitsuneOptions.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/StmtKitsune.h"
-#include "clang/Basic/AttrKinds.h"
-#include "clang/Basic/Attributes.h"
+// #include "clang/Basic/AttrKinds.h"
+// #include "clang/Basic/Attributes.h"
 #include "clang/CodeGen/CGFunctionInfo.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "llvm/IR/ValueMap.h"
@@ -103,7 +103,7 @@ void CodeGenFunction::EmitSpawnStmt(const SpawnStmt &S) {
   llvm::BasicBlock *DetachedBlock = createBasicBlock("det.achd");
   llvm::BasicBlock *ContinueBlock = createBasicBlock("det.cont");
 
-  auto OldAllocaInsertPt = AllocaInsertPt;
+  llvm::AssertingVH<llvm::Instruction> OldAllocaInsertPt = AllocaInsertPt;
   llvm::Value *Undef = llvm::UndefValue::get(Int32Ty);
   AllocaInsertPt = new llvm::BitCastInst(Undef, Int32Ty, "", DetachedBlock);
 
@@ -123,14 +123,16 @@ void CodeGenFunction::EmitSpawnStmt(const SpawnStmt &S) {
 
 void CodeGenFunction::SetAllocaInsertPoint(llvm::Value *v,
                                            llvm::BasicBlock *bb) {
+  // This is a really hacky way of setting up an insertion point for
+  // instructions outside of the builder used in CodeGenFunction. It works by
+  // creating a dummy instructions in the given basic block, then using said
+  // instruction to get an iterator at which to insert subsequent instructions.
+  // This approach is used elsewhere in clang - which really ought not to be an
+  // excuse for doing something this distasteful. Given how stateful clang is,
+  // this is probably not even as bad as it gets.
   AllocaInsertPt = new llvm::BitCastInst(v, Int32Ty, "", bb);
 }
 
-// Emit a load of the induction variable
-// It has a side effect of erasing the mapping in the
-// LocalDeclMap but keeping track of the original mapping
-// as well as the new RValue after the load. This is all
-// a precursor to capturing the IV by value in the body emission.
 void CodeGenFunction::EmitIVLoad(const VarDecl *LoopVar,
                                  DeclMapByValueTy &IVDeclMap) {
   // The address corresponding to the IV
@@ -172,15 +174,12 @@ void CodeGenFunction::EmitIVLoad(const VarDecl *LoopVar,
   }
 
   // Capture the mapping from LoopVar to the old address and new vector of
-  // Value*'s
+  // Value*'s.
   IVDeclMap.insert({LoopVar, {IVAddress, ValueVec}});
 }
 
-// Emit a thread safe copy of the induction variable and set it's value
-// to the current value of the induction variable
 void CodeGenFunction::EmitThreadSafeIV(
-    const VarDecl *IV, const llvm::SmallVector<llvm::Value *, 4> &Values) {
-  // emit the thread safe induction variable and cleanups
+    const VarDecl *IV, const llvm::SmallVectorImpl<llvm::Value *> &Values) {
   AutoVarEmission LVEmission = EmitAutoVarAlloca(*IV);
   EmitAutoVarCleanups(LVEmission);
   QualType type = IV->getType();
@@ -216,8 +215,6 @@ void CodeGenFunction::EmitThreadSafeIV(
   }
 }
 
-// Restore the original mapping between the thread safe induction variable and
-// its address, then restore the original mapping.
 void CodeGenFunction::RestoreDeclMap(const VarDecl *IV,
                                      const Address IVAddress) {
   LocalDeclMap.erase(IV);
@@ -268,7 +265,7 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
   EmitStmt(S.getInit());
 
   // In a parallel loop there will always be a condition block so there is no
-  // no need to test
+  // no need to test.
   JumpDest Condition = getJumpDestInCurrentScope("forall.cond");
   llvm::BasicBlock *CondBlock = Condition.getBlock();
   EmitBlock(CondBlock);
@@ -278,7 +275,7 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
                  SourceLocToDebugLoc(R.getBegin()),
                  SourceLocToDebugLoc(R.getEnd()));
 
-  // In a parallel loop, there will always be an increment block
+  // In a parallel loop, there will always be an increment block.
   JumpDest Increment = getJumpDestInCurrentScope("forall.inc");
 
   // Store the blocks to use for break and continue.
@@ -361,8 +358,8 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
   // safe copy back to the original induction variable. We also need to emit the
   // reattach block and reset the alloca insertion point.
 
-  // Restore induction variable mappings after emitting body, and before
-  // the increment
+  // Restore induction variable mappings after emitting body, and before the
+  // increment
   for (const auto &ivp : IVDeclMap)
     RestoreDeclMap(ivp.first, ivp.second.first);
 
@@ -420,7 +417,7 @@ void CodeGenFunction::EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
   // Code modifications necessary for implementing parallel loops not required
   // by serial loops.
 
-  // new basic blocks and jump destinations with Tapir terminators
+  // New basic blocks and jump destinations with Tapir terminators.
   llvm::BasicBlock *Detach = createBasicBlock("forall.detach");
   JumpDest Reattach = getJumpDestInCurrentScope("forall.reattach");
   JumpDest LoopExit = getJumpDestInCurrentScope("forall.sync");
@@ -431,7 +428,7 @@ void CodeGenFunction::EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
   llvm::AssertingVH<llvm::Instruction> OldAllocaInsertPt = AllocaInsertPt;
   llvm::Value *Undef = llvm::UndefValue::get(Int32Ty);
 
-  // emit the sync region
+  // Emit the sync region.
   PushSyncRegion();
   llvm::Instruction *SRStart = EmitSyncRegionStart();
   CurSyncRegion->setSyncRegionStart(SRStart);
@@ -449,8 +446,8 @@ void CodeGenFunction::EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
   EmitStmt(S.getIndexStmt());
   EmitStmt(S.getIndexEndStmt());
 
-  // In a parallel loop there will always be a condition block
-  // so there is no need to test
+  // In a parallel loop there will always be a condition block, so there is no
+  // need to test
   llvm::BasicBlock *CondBlock = createBasicBlock("forall.cond");
   EmitBlock(CondBlock);
 
@@ -459,8 +456,8 @@ void CodeGenFunction::EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
                  SourceLocToDebugLoc(R.getBegin()),
                  SourceLocToDebugLoc(R.getEnd()));
 
-  // If there are any cleanups between here and the loop-exit scope,
-  // create a block to stage a loop exit along.
+  // If there are any cleanups between here and the loop-exit scope, create a
+  // block to stage a loop exit along.
   llvm::BasicBlock *ExitBlock = LoopExit.getBlock();
   if (ForScope.requiresCleanups())
     ExitBlock = createBasicBlock("forall.cond.cleanup");
@@ -468,8 +465,8 @@ void CodeGenFunction::EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
   // The loop body, consisting of the specified body and the loop variable.
   llvm::BasicBlock *ForBody = createBasicBlock("forall.body");
 
-  // The body is executed if the expression, contextually converted
-  // to bool, is true.
+  // The body is executed if the expression, contextually converted to bool, is
+  // true.
   llvm::Value *BoolCondVal = EvaluateExprAsBool(S.getCond());
   llvm::MDNode *Weights =
       createProfileWeightsForLoop(S.getCond(), getProfileCount(S.getBody()));
@@ -484,10 +481,10 @@ void CodeGenFunction::EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
   // terminator. This is where we capture the induction variable by value and
   // store it on the stack of the calling thread.
 
-  // Emit the (currently empty) detach block
+  // Emit the (currently empty) detach block.
   EmitBlock(Detach);
 
-  // Extract the DeclStmt from the statement init
+  // Extract the DeclStmt from the statement init.
   const DeclStmt *DS = cast<DeclStmt>(S.getIndexStmt());
 
   // Create threadsafe induction variables before the detach and put them in
@@ -498,7 +495,7 @@ void CodeGenFunction::EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
   // Create a block for the increment. In case of a 'continue', we jump there.
   llvm::BasicBlock *Increment = createBasicBlock("forall.inc");
 
-  // create the detach terminator
+  // Create the detach terminator
   Builder.CreateDetach(ForBody, Increment, SRStart);
 
   EmitBlock(ForBody);
@@ -518,11 +515,9 @@ void CodeGenFunction::EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
     // EmitThreadSafeIV, we use AutoVarAlloca so any codegen in the body
     // automatically and correctly mapped to the local thread safe copy of the
     // induction variable.
-
-    // change the alloca insert point to the body block
     SetAllocaInsertPoint(Undef, ForBody);
 
-    // emit the thread safe induction variables and initialize them by value
+    // Emit the thread safe induction variables and initialize them by value.
     for (const auto &ivp : IVDeclMap)
       EmitThreadSafeIV(ivp.first, ivp.second.second);
 
@@ -534,15 +529,15 @@ void CodeGenFunction::EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
   // safe copy back to the original induction variable. We also need to emit the
   // reattach block and reset the alloca insertion point.
 
-  // Restore induction variable mappings after emitting body, and before
-  // the increment
+  // Restore induction variable mappings after emitting body, and before the
+  // increment.
   for (const auto &ivp : IVDeclMap)
     RestoreDeclMap(ivp.first, ivp.second.first);
 
   EmitBlock(Reattach.getBlock());
   Builder.CreateReattach(Increment, SRStart);
 
-  // reset the alloca insertion point
+  // Reset the alloca insertion point.
   AllocaInsertPt->removeFromParent();
   AllocaInsertPt = OldAllocaInsertPt;
 
@@ -559,7 +554,7 @@ void CodeGenFunction::EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
 
   LoopStack.pop();
 
-  // Emit the Sync block and terminator
+  // Emit the Sync block and terminator.
   EmitBlock(LoopExit.getBlock());
   Builder.CreateSync(End, SRStart);
   PopSyncRegion();
