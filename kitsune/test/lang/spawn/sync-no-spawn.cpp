@@ -6,12 +6,13 @@
 #include <kitsune.h>
 
 void f1() {
+  // expected-error@+1 {{Undeclared label 's' in sync}}
   sync s;
-  // expected-error@10 {{Undeclared label 's' in sync}}
 }
 
 void f2() {
   spawn s1 {}
+
+  // expected-error@+1 {{Undeclared label 's2' in sync}}
   sync s2;
-  // expected-error@15 {{Undeclared label 's2' in sync}}
 }
