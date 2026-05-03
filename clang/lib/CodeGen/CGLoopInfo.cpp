@@ -23,8 +23,9 @@
 using namespace clang::CodeGen;
 using namespace llvm;
 
-MDNode *clang::CodeGen::LoopInfo::createFollowupMetadata(
-    const char *FollowupName, ArrayRef<llvm::Metadata *> LoopProperties) {
+MDNode *
+LoopInfo::createFollowupMetadata(const char *FollowupName,
+                                 ArrayRef<llvm::Metadata *> LoopProperties) {
   LLVMContext &Ctx = Header->getContext();
 
   SmallVector<Metadata *, 4> Args;
@@ -33,9 +34,10 @@ MDNode *clang::CodeGen::LoopInfo::createFollowupMetadata(
   return MDNode::get(Ctx, Args);
 }
 
-SmallVector<Metadata *, 4> clang::CodeGen::LoopInfo::createPipeliningMetadata(
-    const LoopAttributes &Attrs, ArrayRef<Metadata *> LoopProperties,
-    bool &HasUserTransforms) {
+SmallVector<Metadata *, 4>
+LoopInfo::createPipeliningMetadata(const LoopAttributes &Attrs,
+                                   ArrayRef<Metadata *> LoopProperties,
+                                   bool &HasUserTransforms) {
   LLVMContext &Ctx = Header->getContext();
 
   std::optional<bool> Enabled;
@@ -72,9 +74,9 @@ SmallVector<Metadata *, 4> clang::CodeGen::LoopInfo::createPipeliningMetadata(
 }
 
 SmallVector<Metadata *, 4>
-clang::CodeGen::LoopInfo::createPartialUnrollMetadata(
-    const LoopAttributes &Attrs, ArrayRef<Metadata *> LoopProperties,
-    bool &HasUserTransforms) {
+LoopInfo::createPartialUnrollMetadata(const LoopAttributes &Attrs,
+                                      ArrayRef<Metadata *> LoopProperties,
+                                      bool &HasUserTransforms) {
   LLVMContext &Ctx = Header->getContext();
 
   std::optional<bool> Enabled;
@@ -130,9 +132,10 @@ clang::CodeGen::LoopInfo::createPartialUnrollMetadata(
   return Args;
 }
 
-SmallVector<Metadata *, 4> clang::CodeGen::LoopInfo::createUnrollAndJamMetadata(
-    const LoopAttributes &Attrs, ArrayRef<Metadata *> LoopProperties,
-    bool &HasUserTransforms) {
+SmallVector<Metadata *, 4>
+LoopInfo::createUnrollAndJamMetadata(const LoopAttributes &Attrs,
+                                     ArrayRef<Metadata *> LoopProperties,
+                                     bool &HasUserTransforms) {
   LLVMContext &Ctx = Header->getContext();
 
   std::optional<bool> Enabled;
@@ -193,9 +196,9 @@ SmallVector<Metadata *, 4> clang::CodeGen::LoopInfo::createUnrollAndJamMetadata(
 }
 
 SmallVector<Metadata *, 4>
-clang::CodeGen::LoopInfo::createLoopVectorizeMetadata(
-    const LoopAttributes &Attrs, ArrayRef<Metadata *> LoopProperties,
-    bool &HasUserTransforms) {
+LoopInfo::createLoopVectorizeMetadata(const LoopAttributes &Attrs,
+                                      ArrayRef<Metadata *> LoopProperties,
+                                      bool &HasUserTransforms) {
   LLVMContext &Ctx = Header->getContext();
 
   std::optional<bool> Enabled;
@@ -307,9 +310,9 @@ clang::CodeGen::LoopInfo::createLoopVectorizeMetadata(
 }
 
 SmallVector<Metadata *, 4>
-clang::CodeGen::LoopInfo::createLoopDistributeMetadata(
-    const LoopAttributes &Attrs, ArrayRef<Metadata *> LoopProperties,
-    bool &HasUserTransforms) {
+LoopInfo::createLoopDistributeMetadata(const LoopAttributes &Attrs,
+                                       ArrayRef<Metadata *> LoopProperties,
+                                       bool &HasUserTransforms) {
   LLVMContext &Ctx = Header->getContext();
 
   std::optional<bool> Enabled;
@@ -353,9 +356,10 @@ clang::CodeGen::LoopInfo::createLoopDistributeMetadata(
   return Args;
 }
 
-SmallVector<Metadata *, 4> clang::CodeGen::LoopInfo::createFullUnrollMetadata(
-    const LoopAttributes &Attrs, ArrayRef<Metadata *> LoopProperties,
-    bool &HasUserTransforms) {
+SmallVector<Metadata *, 4>
+LoopInfo::createFullUnrollMetadata(const LoopAttributes &Attrs,
+                                   ArrayRef<Metadata *> LoopProperties,
+                                   bool &HasUserTransforms) {
   LLVMContext &Ctx = Header->getContext();
 
   std::optional<bool> Enabled;
@@ -387,7 +391,7 @@ SmallVector<Metadata *, 4> clang::CodeGen::LoopInfo::createFullUnrollMetadata(
   return Args;
 }
 
-SmallVector<Metadata *, 4> clang::CodeGen::LoopInfo::createMetadata(
+SmallVector<Metadata *, 4> LoopInfo::createMetadata(
     const LoopAttributes &Attrs,
     llvm::ArrayRef<llvm::Metadata *> AdditionalLoopProperties,
     bool &HasUserTransforms) {
@@ -456,11 +460,9 @@ void LoopAttributes::clear() {
   TapirLoopAttrs = std::nullopt;
 }
 
-clang::CodeGen::LoopInfo::LoopInfo(BasicBlock *Header,
-                                   const LoopAttributes &Attrs,
-                                   const llvm::DebugLoc &StartLoc,
-                                   const llvm::DebugLoc &EndLoc,
-                                   LoopInfo *Parent)
+LoopInfo::LoopInfo(BasicBlock *Header, const LoopAttributes &Attrs,
+                   const llvm::DebugLoc &StartLoc, const llvm::DebugLoc &EndLoc,
+                   LoopInfo *Parent)
     : Header(Header), Attrs(Attrs), StartLoc(StartLoc), EndLoc(EndLoc),
       Parent(Parent) {
 
@@ -481,8 +483,7 @@ clang::CodeGen::LoopInfo::LoopInfo(BasicBlock *Header,
       Attrs.UnrollAndJamEnable == LoopAttributes::Unspecified &&
       Attrs.DistributeEnable == LoopAttributes::Unspecified &&
       Attrs.CodeAlign == 0 && !StartLoc && !EndLoc && !Attrs.MustProgress &&
-      !Attrs.TapirLoopAttrs.has_value()
-      )
+      !Attrs.TapirLoopAttrs.has_value())
     return;
 
   TempLoopID = MDNode::getTemporary(Header->getContext(), {});
@@ -502,7 +503,7 @@ static MDNode *getMDNodeForAttr(LLVMContext &Ctx, LoopAttrKind Attr,
 }
 
 std::vector<Metadata *>
-clang::CodeGen::LoopInfo::getTapirLoopProperties(const LoopAttributes &Attrs) {
+LoopInfo::getTapirLoopProperties(const LoopAttributes &Attrs) {
   std::vector<Metadata *> LoopProperties;
 
   // If the --tapir option was not provided, we don't have a tapir target, nor
@@ -527,7 +528,7 @@ clang::CodeGen::LoopInfo::getTapirLoopProperties(const LoopAttributes &Attrs) {
   return LoopProperties;
 }
 
-void clang::CodeGen::LoopInfo::finish() {
+void LoopInfo::finish() {
   // We did not annotate the loop body instructions because there are no
   // attributes for this loop.
   if (!TempLoopID)
