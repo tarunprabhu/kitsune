@@ -17,9 +17,8 @@ using namespace clang;
 
 llvm::TTID clang::CodeGen::getTapirTarget(llvm::ArrayRef<const Attr *> attrs,
                                           llvm::TTID primaryTT) {
-  // FIXME KITSUNE: This will check for the first occurrence of the tapir target
-  // attribute and break immediately if it finds it. Is this what we actually
-  // want?
+  // The TTAttr attribute is guaranteed to appear at most once, so it is safe
+  // to return immediately when it is encountered.
   for (const Attr *attr : attrs) {
     if (const auto *ttAttr = dyn_cast<TTAttr>(attr)) {
       switch (ttAttr->getTT()) {
@@ -50,8 +49,10 @@ llvm::TTID clang::CodeGen::getTapirTarget(llvm::ArrayRef<const Attr *> attrs,
 
 unsigned
 clang::CodeGen::getKitsuneLaunchAttr(llvm::ArrayRef<const Attr *> attrs) {
-  for (const auto *attr : attrs)
-    if (attr->getKind() == attr::KitsuneLaunch)
-      return cast<const KitsuneLaunchAttr>(attr)->getThreadsPerBlock();
+  // The KitsuneLaunch attribute is guaranteed to appear at most once, so it is
+  // safe to return immediately when it is encountered.
+  for (const Attr *attr : attrs)
+    if (const auto *launchAttr = dyn_cast<KitsuneLaunchAttr>(attr))
+      return launchAttr->getThreadsPerBlock();
   return 0;
 }

@@ -50,11 +50,27 @@ StmtResult Sema::ActOnSpawnStmt(SourceLocation spawnLoc, StringRef sv,
   return result;
 }
 
-StmtResult Sema::ActOnSyncStmt(SourceLocation SyncLoc, StringRef sv) {
-  return new (Context) SyncStmt(SyncLoc, sv);
+StmtResult Sema::ActOnSyncStmt(SourceLocation syncLoc, StringRef sv) {
+  return new (Context) SyncStmt(syncLoc, sv);
 }
 
 SemaKitsune::SemaKitsune(Sema &s) : SemaBase(s), sema(SemaRef) {}
+
+bool SemaKitsune::checkMaxOneOccurrence(
+    attr::Kind kind, const SmallVectorImpl<const Attr *> &attrs, int err) {
+  const Attr *dup = nullptr;
+  for (const Attr *attr : attrs) {
+    if (attr->getKind() == kind) {
+      if (dup) {
+        Diag(attr->getLocation(), err) << attr;
+        Diag(dup->getLocation(), diag::note_conflicting_attribute);
+        return false;
+      }
+      dup = attr;
+    }
+  }
+  return true;
+}
 
 bool SemaKitsune::handleMemAccessAttr(Decl *decl, const ParsedAttr &attr) {
   if (decl->isInvalidDecl())
@@ -179,6 +195,14 @@ Handled<Attr *> SemaKitsune::processStmtAttribute(Stmt *stmt,
     break;
   }
   return notHandled<Attr *>;
+}
+
+void SemaKitsune::checkAttributes(const Stmt *stmt,
+                                  const SmallVectorImpl<const Attr *> &attrs) {
+  attr::Kind checkMaxOneAttrs[] = {attr::TT, attr::KitsuneLaunch};
+  for (attr::Kind kind : checkMaxOneAttrs)
+    if (!checkMaxOneOccurrence(kind, attrs, diag::err_duplicate_attribute_stmt))
+      return;
 }
 
 QualType SemaKitsune::handleMemAccessAttr(QualType type,
