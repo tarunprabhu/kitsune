@@ -13508,12 +13508,8 @@ def err_tapir_strategy_unknown: Error<
   "'tapir::strategy' attribute: unknown value">;
 
 // cuda launch parameters
-def err_kitsune_launch_non_integral_type: Error<
-  "launch attribute: threads-per-block must be a built-in integer type">;
-def err_kitsune_launch_tpb_too_large: Error<
-  "launch attribute: threads-per-block must be a 32-bit value">;
-def err_kitsune_launch_tpb_must_be_positive: Error<
-  "launch attribute: threads-per-block must be a positive integer value">;
+def err_kitsune_launch_range: Error<
+  "'kitsune::launch' attribute: value not in range [0,1024]">;
 
 // spawn + sync
 def warn_spawn_as_loop_body: Warning<
