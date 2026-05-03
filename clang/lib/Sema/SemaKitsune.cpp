@@ -101,16 +101,20 @@ Attr *SemaKitsune::handleTapirTargetAttr(Stmt *stmt, const ParsedAttr &attr,
 
   TapirTargetAttr::TapirTargetAttrTy kind;
   if (!TapirTargetAttr::ConvertStrToTapirTargetAttrTy(str, kind)) {
-    Diag(attr.getLoc(), diag::err_tapir_target_unknown) << str << argLoc;
+    Diag(attr.getLoc(), diag::err_tapir_target_unknown);
+    return nullptr;
+  }
+
+  if (kind == TapirTargetAttr::Custom) {
+    Diag(attr.getLoc(), diag::err_tapir_target_custom);
     return nullptr;
   }
 
   ASTContext &ctx = sema.Context;
   Stmt::StmtClass clss = stmt->getStmtClass();
-  // We only support a limited range of statements.  Make sure we are dealing
-  // with one of them -- if not return an error.
-  //
-  // The attribute is not currently supported on spawn and sync statements.
+
+  // The attribute may only be added on certain statements. It is not
+  // currently supported on spawn and sync statements.
   if (clss == Stmt::ForallStmtClass || clss == Stmt::CXXForallRangeStmtClass) {
     return ::new (ctx) TapirTargetAttr(ctx, attr, kind);
   } else if (auto *expr = dyn_cast<Expr>(stmt)) {
@@ -140,23 +144,19 @@ Attr *SemaKitsune::handleTapirTargetAttr(Stmt *stmt, const ParsedAttr &attr,
 
 Attr *SemaKitsune::handleTapirStrategyAttr(Stmt *stmt, const ParsedAttr &attr,
                                            SourceRange range) {
-  bool errState = false;
-
   StringRef str;
   SourceLocation argLoc;
   if (!sema.checkStringLiteralArgumentAttr(attr, 0, str, &argLoc)) {
     Diag(attr.getLoc(), diag::err_tapir_strategy_unknown);
-    errState = true;
+    return nullptr;
   }
 
   TapirStrategyAttr::TapirStrategyTy kind;
   if (!TapirStrategyAttr::ConvertStrToTapirStrategyTy(str, kind)) {
     Diag(attr.getLoc(), diag::err_tapir_strategy_unknown) << str << argLoc;
-    errState = true;
+    return nullptr;
   }
 
-  if (errState)
-    return nullptr;
   return ::new (sema.Context) TapirStrategyAttr(sema.Context, attr, kind);
 }
 

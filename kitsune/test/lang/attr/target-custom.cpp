@@ -4,7 +4,7 @@
 // RUN: not %kitxx -O1 --tapir=serial -S -emit-llvm -o - %s %sysroot 2>&1 \
 // RUN:     | FileCheck %s
 //
-// CHECK: value of tapir::target attribute cannot be 'custom'
+// CHECK: 'tapir::target' attribute: value cannot be 'custom'
 
 #include <kitsune.h>
 

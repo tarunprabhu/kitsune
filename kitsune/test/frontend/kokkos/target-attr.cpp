@@ -8,31 +8,38 @@
 
 void f(float *A, int N) {
   // clang-format off
-  [[tapir::target("i860")]] // expected-error {{unknown tapir target}}
+
+  // expected-error@+1 {{'tapir::target' attribute: unknown value}}
+  [[tapir::target("i860")]]
   Kokkos::parallel_for(1024, KOKKOS_LAMBDA(const int i) {
     A[i] = i;
   });
 
-  [[tapir::target(serial)]] // expected-error {{'tapir::target' attribute requires a string}}
+  // expected-error@+1 {{'tapir::target' attribute requires a string}}
+  [[tapir::target(serial)]]
   Kokkos::parallel_for(1024, KOKKOS_LAMBDA(const int i) {
     A[i] = i;
   });
 
-  [[tapir::target()]] // expected-error {{'tapir::target' attribute takes one argument}}
+  // expected-error@+1 {{'tapir::target' attribute takes one argument}}
+  [[tapir::target()]]
   Kokkos::parallel_for(1024, KOKKOS_LAMBDA(const int i) {
     A[i] = i;
   });
 
-  [[tapir::target("serial","-03")]] // expected-error {{'tapir::target' attribute takes one argument}}
+  // expected-error@+1 {{'tapir::target' attribute takes one argument}}
+  [[tapir::target("serial","-03")]]
   Kokkos::parallel_for(1024, KOKKOS_LAMBDA(const int i) {
     A[i] = i;
   });
 
-  [[tapir::target("serial")]] // expected-error {{tapir target attribute on unsupported statement}}
+  // expected-error@+1 {{'tapir::target' attribute: unsupported statement}}
+  [[tapir::target("serial")]]
   if (N == 1) {
     Kokkos::parallel_for(1024, KOKKOS_LAMBDA(const int i) {
       A[i] = i;
     });
   }
+
   // clang-format on
 }
