@@ -3,19 +3,24 @@
 #include <kitsune.h>
 
 int main(int argc, char *argv[]) {
-  [[tapir::target("i860")]] // expected-error {{unknown tapir target}}
+  // expected-error@+1 {{'tapir::target' attribute: unknown value}}
+  [[tapir::target("i860")]]
   forall(int i = 0; i < 1024; ++i) {}
 
-  [[tapir::target(cuda)]] // expected-error {{'tapir::target' attribute requires a string}}
+  // expected-error@+1 {{'tapir::target' attribute requires a string}}
+  [[tapir::target(cuda)]]
   forall(int i = 0; i < 1024; ++i) {}
 
-  [[tapir::target()]] // expected-error {{'tapir::target' attribute takes one argument}}
+  // expected-error@+1 {{'tapir::target' attribute takes one argument}}
+  [[tapir::target()]]
   forall(int i = 0; i < 1024; ++i) {}
 
-  [[tapir::target("serial","-03")]] // expected-error {{'tapir::target' attribute takes one argument}}
+  // expected-error@+1 {{'tapir::target' attribute takes one argument}}
+  [[tapir::target("serial","-03")]]
   forall(int i = 0; i < 1024; ++i) {}
 
-  [[tapir::target("serial")]] // expected-error {{tapir target attribute on unsupported statement}}
+  // expected-error@+1 {{'tapir::target' attribute: unsupported statement}}
+  [[tapir::target("serial")]]
   if (argc == 1) {
     forall(int i = 0; i < 1024; ++i) {}
   }

@@ -3,22 +3,28 @@
 #include <kitsune.h>
 
 int main(int argc, char *argv[]) {
-  [[tapir::strategy("greedy")]] // expected-error {{unknown strategy}}
+  // expected-error@+1 {{'tapir::strategy' attribute: unknown value}}
+  [[tapir::strategy("greedy")]]
   forall(int i = 0; i < 1024; ++i) {}
 
-  [[tapir::strategy(seq)]] // expected-error {{'tapir::strategy' attribute requires a string}}
+  // expected-error@+1 {{'tapir::strategy' attribute requires a string}}
+  [[tapir::strategy(seq)]]
   forall(int i = 0; i < 1024; ++i) {}
 
-  [[tapir::strategy()]] // expected-error {{'tapir::strategy' attribute takes one argument}}
+  // expected-error@+1 {{'tapir::strategy' attribute takes one argument}}
+  [[tapir::strategy()]]
   forall(int i = 0; i < 1024; ++i) {}
 
-  [[tapir::strategy("seq", "gpu")]] // expected-error {{'tapir::strategy' attribute takes one argument}}
+  // expected-error@+1 {{'tapir::strategy' attribute takes one argument}}
+  [[tapir::strategy("seq", "gpu")]]
   forall(int i = 0; i < 1024; ++i) {}
 
-  [[tapir::strategy("gpu")]] // expected-error {{'tapir::strategy' attribute only applies to 'forall' statement}}
+  // expected-error@+1 {{'tapir::strategy' attribute only applies to 'forall' statement}}
+  [[tapir::strategy("gpu")]]
   spawn s {}
 
-  [[tapir::strategy("dac")]] // expected-error {{'tapir::strategy' attribute only applies to 'forall' statement}}
+  // expected-error@+1 {{'tapir::strategy' attribute only applies to 'forall' statement}}
+  [[tapir::strategy("dac")]]
   if (argc == 1) {
     forall(int i = 0; i < 1024; ++i) {}
   }

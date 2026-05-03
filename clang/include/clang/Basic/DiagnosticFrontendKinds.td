@@ -405,9 +405,6 @@ def err_cir_verification_failed_pre_passes : Error<
 //                         Kitsune-specific diagnostics
 // -----------------------------------------------------------------------------
 
-def err_fe_kitsune_custom_attr : Error<
-    "value of tapir::target attribute cannot be 'custom'">;
-
 def warn_kokkos_range_expr : Warning<
     "kokkos - unsupported expression for range of parallel_for. "
     "Falling back to standard C++ mode">,
