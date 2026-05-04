@@ -5523,37 +5523,26 @@ void EmitKitsuneAttrDocs(const RecordKeeper &Records, raw_ostream &OS) {
   // documentation to appear in multiple places, so there is no need to merge
   // categories. We also do not deal with undocumented attributes since we
   // expect all Kitsune attributes to be properly documented.
+  //
+  // Kitsune-specific attributes are expected to have exactly one documentation
+  // entry since they can only belong to one category. In addition to this, the
+  // only way to identify a Kitsune-specific attribute is to look for one that
+  // has a single documentation entry where the entry is an instance of the
+  // KitDoc class.
+  const Record *KitDocClass = Records.getClass("KitDoc");
   std::map<const Record *, std::vector<DocumentationData>> GroupedDocs;
   for (const Record *Attr : Records.getAllDerivedDefinitions("Attr")) {
     std::vector<const Record *> Docs =
         Attr->getValueAsListOfDefs("Documentation");
 
-    for (const Record *Doc : Docs) {
-      const Record *Category = Doc->getValueAsDef("Category");
-
-      // All Kitsune attributes must have the IsKitsune field. This should be
-      // the case provided that the user has inherited from the
-      // KitsuneDocumentation class instead of the Documentation class in the
-      // .td file. We do not check the value of the string because it is a bit
-      // far-fetched to imagine that someone has gone to the trouble of setting
-      // IsKitsune to something other than "true".
-      if (!Doc->getValueAsOptionalString("IsKitsune").has_value())
-        continue;
-
-      // Unlike undocumented attributes, Kitsune may contain InternalOnly
-      // attributes. In this case, there cannot be any other documentation
-      // categories.
-      StringRef Cat = Category->getValueAsString("Name");
-      if (Cat == "InternalOnly") {
-        if (Docs.size() > 1)
-          PrintFatalError(Doc->getLoc(),
-                          "Attribute is \"InternalOnly\", but has multiple "
-                          "documentation categories");
-        continue;
+    if (Docs.size() == 1) {
+      const Record *Doc = Docs[0];
+      if (Doc->hasDirectSuperClass(KitDocClass)) {
+        const Record *Category = Doc->getValueAsDef("Category");
+        StringRef CatName = Category->getValueAsString("Name");
+        GroupedDocs[Category].emplace_back(
+            *Doc, *Attr, GetAttributeHeadingAndSpellings(*Doc, *Attr, CatName));
       }
-
-      GroupedDocs[Category].emplace_back(
-          *Doc, *Attr, GetAttributeHeadingAndSpellings(*Doc, *Attr, Cat));
     }
   }
 

@@ -12,23 +12,15 @@
 //
 //===----------------------------------------------------------------------===//
 
-// The subclass of the main documentation solely to provide the IsKitsune field.
-// This identifies the documentation as pertaining to a Kitsune-specific
-// attribute. This allows us to write a custom tablegen filter that will only
-// render documentation for these attributes.
-//
-// Documentation for all Kitsune-specific attributes *must* use this class, not
-// the base Documentation class.
-//
-// NOTE: The IsKitsune field does not have to be a string. But currently,
-// TableGen's utilities only provide a getValueAsOptionalString() and
-// getValueAsOptionalRecord() methods, so we just make it a string to keep
-// things simple.
-class KitsuneDocumentation : Documentation {
-  string IsKitsune = "true";
-}
+// The subclass of the main documentation exists solely to identify
+// Kitsune-specific attributes when generating HTML documentation.
+// Kitsune-specific attributes *must* use this class, not the base
+// Documentation class. While it is not incorrect to use the base Documentation
+// class, doing so will result in the attribute not appearing in the generated
+// HTML documentation.
+class KitDoc : Documentation {}
 
-def TTDocs : KitsuneDocumentation {
+def TTDocs : KitDoc {
   let Category = DocCatStmt;
   let Content = [{
 
@@ -68,7 +60,7 @@ The value of the attribute must be one of the
   }];
 }
 
-def KitsuneLaunchDocs : KitsuneDocumentation {
+def KitsuneLaunchDocs : KitDoc {
   let Category = DocCatStmt;
   let Content = [{
 
@@ -93,7 +85,7 @@ and testing vs. an end-user feature.
   }];
 }
 
-def KitsuneMemAccessDocs : KitsuneDocumentation {
+def KitsuneMemAccessDocs : KitDoc {
   let Category = DocCatType;
   let Heading = "_readonly, _readwrite, _writeonly";
   let Content = [{
@@ -168,7 +160,7 @@ code below will not compile.
   }];
 }
 
-def KitsuneMobileDocs : KitsuneDocumentation {
+def KitsuneMobileDocs : KitDoc {
   let Category = DocCatType;
   let Heading = "mobile";
   let Content = [{
