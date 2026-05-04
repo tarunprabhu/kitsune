@@ -16,7 +16,7 @@
 #include "AttrsImpl.h"
 #include "VerifierImpl.h"
 #include "kitsune/Core/ArgUtils.h"
-#include "kitsune/Support/Diagnostics.h"
+#include "kitsune/Core/Diagnostics.h"
 #include "kitsune/Support/ErrorHandling.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/IR/Argument.h"

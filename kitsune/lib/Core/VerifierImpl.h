@@ -13,7 +13,7 @@
 #ifndef KITSUNE_LIB_CORE_VERIFIER_IMPL_H
 #define KITSUNE_LIB_CORE_VERIFIER_IMPL_H
 
-#include "kitsune/Support/Diagnostics.h"
+#include "kitsune/Core/Diagnostics.h"
 
 namespace llvm {
 

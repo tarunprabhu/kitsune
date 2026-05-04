@@ -9,7 +9,6 @@ add_custom_target(kitsune_generated)
 
 add_subdirectory(Config)
 add_subdirectory(Core)
-add_subdirectory(Support)
 
 get_clang_resource_dir(CLANG_RESOURCE_INCDIR
   PREFIX ${LLVM_LIBRARY_OUTPUT_INTDIR}/..

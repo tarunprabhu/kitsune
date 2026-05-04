@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Support/Diagnostics.h"
+#include "kitsune/Core/Diagnostics.h"
 
 #include "gtest/gtest.h"
 
@@ -20,7 +20,7 @@ TEST(KitDiagnostics, isError) {
 #define DIAG_WARNING(NAME, MSG) EXPECT_FALSE(isError(DiagID::NAME));
 #define DIAG_REMARK(NAME, MSG) EXPECT_FALSE(isError(DiagID::NAME));
 #define DIAG_NOTE(NAME, MSG) EXPECT_FALSE(isError(DiagID::NAME));
-#include "kitsune/Support/Diagnostics.inc"
+#include "kitsune/Core/Diagnostics.inc"
 }
 
 TEST(KitDiagnostics, isWarning) {
@@ -29,7 +29,7 @@ TEST(KitDiagnostics, isWarning) {
 #define DIAG_WARNING(NAME, MSG) EXPECT_TRUE(isWarning(DiagID::NAME));
 #define DIAG_REMARK(NAME, MSG) EXPECT_FALSE(isWarning(DiagID::NAME));
 #define DIAG_NOTE(NAME, MSG) EXPECT_FALSE(isWarning(DiagID::NAME));
-#include "kitsune/Support/Diagnostics.inc"
+#include "kitsune/Core/Diagnostics.inc"
 }
 
 TEST(KitDiagnostics, isRemark) {
@@ -38,7 +38,7 @@ TEST(KitDiagnostics, isRemark) {
 #define DIAG_WARNING(NAME, MSG) EXPECT_FALSE(isRemark(DiagID::NAME));
 #define DIAG_REMARK(NAME, MSG) EXPECT_TRUE(isRemark(DiagID::NAME));
 #define DIAG_NOTE(NAME, MSG) EXPECT_FALSE(isRemark(DiagID::NAME));
-#include "kitsune/Support/Diagnostics.inc"
+#include "kitsune/Core/Diagnostics.inc"
 }
 
 TEST(KitDiagnostics, isNote) {
@@ -47,7 +47,7 @@ TEST(KitDiagnostics, isNote) {
 #define DIAG_WARNING(NAME, MSG) EXPECT_FALSE(isNote(DiagID::NAME));
 #define DIAG_REMARK(NAME, MSG) EXPECT_FALSE(isNote(DiagID::NAME));
 #define DIAG_NOTE(NAME, MSG) EXPECT_TRUE(isNote(DiagID::NAME));
-#include "kitsune/Support/Diagnostics.inc"
+#include "kitsune/Core/Diagnostics.inc"
 }
 
 } // namespace

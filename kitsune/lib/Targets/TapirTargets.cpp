@@ -12,8 +12,8 @@
 
 #include "kitsune/Targets/TapirTargets.h"
 #include "kitsune/Config/Config.h"
+#include "kitsune/Core/Diagnostics.h"
 #include "kitsune/Core/TTOptions.h"
-#include "kitsune/Support/Diagnostics.h"
 #include "kitsune/Support/ErrorHandling.h"
 #include "kitsune/Targets/OpenMPTT.h"
 #include "kitsune/Targets/PthreadsTT.h"

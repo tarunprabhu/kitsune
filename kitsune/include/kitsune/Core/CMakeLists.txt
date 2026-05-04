@@ -4,6 +4,10 @@ kitsune_tablegen(ArgAttrs.td ArgAttrs.inc
   -gen-kit-arg-attr-header
   TARGET kitsune_generated_arg_attrs)
 
+kitsune_tablegen(Diagnostics.td Diagnostics.inc
+  -gen-kit-diag-header
+  TARGET kitsune_generated_diags)
+
 kitsune_tablegen(FuncAttrs.td FuncAttrs.inc
   -gen-kit-func-attr-header
   TARGET kitsune_generated_func_attrs)
@@ -26,6 +30,7 @@ kitsune_tablegen(ModuleAttrs.td ModuleAttrs.inc
 
 add_dependencies(kitsune_generated
   kitsune_generated_arg_attrs
+  kitsune_generated_diags
   kitsune_generated_func_attrs
   kitsune_generated_gv_attrs
   kitsune_generated_inst_attrs

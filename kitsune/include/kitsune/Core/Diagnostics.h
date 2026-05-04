@@ -10,10 +10,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef KITSUNE_SUPPORT_DIAGNOSTICS_H
-#define KITSUNE_SUPPORT_DIAGNOSTICS_H
+#ifndef KITSUNE_CORE_DIAGNOSTICS_H
+#define KITSUNE_CORE_DIAGNOSTICS_H
 
-#include "kitsune/Support/DiagnosticsInternal.h"
+#include "kitsune/Core/DiagnosticsInternal.h"
 #include "kitsune/Support/OstreamUtils.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/DebugLoc.h"
@@ -49,7 +49,7 @@ public:
 /// \ingroup kitsune
 enum class DiagID : unsigned {
 #define GET_DIAG_ENUMS
-#include "kitsune/Support/Diagnostics.inc"
+#include "kitsune/Core/Diagnostics.inc"
 };
 
 /// Is the diagnostic an error.
@@ -121,4 +121,4 @@ template <typename... Args> Error createDiagError(DiagID id, Args &&...args) {
 
 } // namespace llvm
 
-#endif // KITSUNE_SUPPORT_DIAGNOSTICS_H
+#endif // KITSUNE_CORE_DIAGNOSTICS_H
