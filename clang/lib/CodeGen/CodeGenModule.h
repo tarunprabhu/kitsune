@@ -2212,14 +2212,6 @@ private:
   /// Emit deactivation symbols for any PFP fields whose offset is taken with
   /// offsetof.
   void emitPFPFieldsWithEvaluatedOffset();
-
-  /// Set kitsune-specific attributes on an LLVM global variable. This applies
-  /// to both declarations and definitions.
-  void SetKitsuneAttributes(const VarDecl &VD, llvm::GlobalVariable &GV);
-
-  /// Set kitsune-specific attributes on an LLVM function and/or its arguments.
-  /// This applies to both declarations and definitions.
-  void SetKitsuneAttributes(const FunctionDecl &FD, llvm::Function &FN);
 };
 
 }  // end namespace CodeGen

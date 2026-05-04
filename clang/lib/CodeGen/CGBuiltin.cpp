@@ -15,6 +15,7 @@
 #include "CGCUDARuntime.h"
 #include "CGCXXABI.h"
 #include "CGDebugInfo.h"
+#include "CGKitsune.h"
 #include "CGObjCRuntime.h"
 #include "CGOpenCLRuntime.h"
 #include "CGRecordLayout.h"
@@ -24,7 +25,6 @@
 #include "ConstantEmitter.h"
 #include "PatternInit.h"
 #include "TargetInfo.h"
-#include "kitsune/Support/AddrSpace.h"
 #include "clang/AST/OSLog.h"
 #include "clang/AST/StmtVisitor.h"
 #include "clang/Basic/TargetInfo.h"
@@ -3194,7 +3194,11 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   };
 
   switch (BuiltinIDIfNoAsmLabel) {
-  default: break;
+  default:
+    if (IsKitBuiltin(BuiltinIDIfNoAsmLabel))
+      return EmitKitBuiltinCall(*this, FD, BuiltinIDIfNoAsmLabel, E,
+                                ReturnValue);
+    break;
   case Builtin::BI__builtin___CFStringMakeConstantString:
   case Builtin::BI__builtin___NSStringMakeConstantString:
     return RValue::get(ConstantEmitter(*this).emitAbstract(E, E->getType()));
@@ -6307,29 +6311,6 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
         cast<DeclRefExpr>(E->getArg(0)->IgnoreImpCasts())->getDecl());
     auto Str = CGM.GetAddrOfConstantCString(Name, "");
     return RValue::get(Str.getPointer());
-  }
-
-  // Kitsune builtins
-  case Builtin::BIkitsune_mobile_alloc: {
-    Function *F = CGM.getIntrinsic(Intrinsic::kit_mobile_alloc);
-    llvm::FunctionType *FTy = F->getFunctionType();
-    Value *Size = EmitScalarExpr(E->getArg(0));
-    if (Size->getType() != FTy->getParamType(0))
-      Size = Builder.CreateTruncOrBitCast(Size, FTy->getParamType(0));
-    return RValue::get(Builder.CreateCall(F, {Size}));
-  }
-
-  case Builtin::BIkitsune_mobile_free: {
-    Function *F = CGM.getIntrinsic(Intrinsic::kit_mobile_free);
-    Value *Ptr = EmitScalarExpr(E->getArg(0));
-    return RValue::get(Builder.CreateCall(F, {Ptr}));
-  }
-
-  case Builtin::BI__kitsune_mobile_cast_unsafe: {
-    Value *Ptr = EmitScalarExpr(E->getArg(0));
-    LLVMContext &Ctxt = getLLVMContext();
-    llvm::Type *DestTy = llvm::PointerType::get(Ctxt, KitAS::Mobile);
-    return RValue::get(Builder.CreateAddrSpaceCast(Ptr, DestTy));
   }
   }
 

@@ -18,6 +18,7 @@
 #include "CGCall.h"
 #include "CGDebugInfo.h"
 #include "CGHLSLRuntime.h"
+#include "CGKitsune.h"
 #include "CGObjCRuntime.h"
 #include "CGOpenCLRuntime.h"
 #include "CGOpenMPRuntime.h"
@@ -28,7 +29,6 @@
 #include "CoverageMappingGen.h"
 #include "QualTypeMapper.h"
 #include "TargetInfo.h"
-#include "kitsune/Frontend/KitsuneOptions.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/ASTLambda.h"
 #include "clang/AST/CharUnits.h"
@@ -3701,14 +3701,7 @@ void CodeGenModule::SetFunctionAttributes(GlobalDecl GD, llvm::Function *F,
                                                /* VarArgsArePassed */ false)}));
   }
 
-  // Only set the kitsune-specific attributes if a tapir target has been set.
-  // In general, we try to keep the Kitsune-specific additions to clang strictly
-  // opt-in features. Since the attributes will have no effect unless lowering
-  // using tapir is enabled, we might as well only add the attributes only if a
-  // tapir target has been set.
-  if (getKitsuneOpts().hasTTID()) {
-    SetKitsuneAttributes(*FD, *F);
-  }
+  AddKitAttributes(*this, *FD, *F);
 }
 
 void CodeGenModule::addUsedGlobal(llvm::GlobalValue *GV) {
@@ -6080,13 +6073,8 @@ CodeGenModule::GetOrCreateLLVMGlobal(StringRef MangledName, llvm::Type *Ty,
   if (D)
     SanitizerMD->reportGlobal(GV, *D);
 
-  // Only set the kitsune-specific attributes if a tapir target has been set.
-  // In general, we try to keep the Kitsune-specific additions to clang strictly
-  // opt-in features. Since the attributes will have no effect unless lowering
-  // using tapir is enabled, we might as well only add the attributes only if a
-  // tapir target has been set.
-  if (D && getKitsuneOpts().hasTTID())
-    SetKitsuneAttributes(*D, *GV);
+  if (D)
+    AddKitAttributes(*this, *D, *GV);
 
   LangAS ExpectedAS =
       D ? D->getType().getAddressSpace()
@@ -9123,49 +9111,5 @@ void CodeGenModule::emitGlobalDeleteForwardingBodies() {
     SetLLVMFunctionAttributesForDefinition(OperatorDeleteFD, GlobDelFn);
     getTargetCodeGenInfo().setTargetAttributes(OperatorDeleteFD, GlobDelFn,
                                                *this);
-  }
-}
-
-static StringRef GetLLVMAttrNameFor(const KitsuneMemAccessAttr &Attr) {
-  if (Attr.isWriteOnly())
-    return "kitsune.writeonly";
-  else if (Attr.isReadWrite())
-    return "kitsune.readwrite";
-  else if (Attr.isReadOnly())
-    return "kitsune.readonly";
-
-  llvm_unreachable("Unknown kitsune memory access attribute");
-}
-
-void CodeGenModule::SetKitsuneAttributes(const VarDecl &VD,
-                                         llvm::GlobalVariable &GV) {
-  if (const auto *A = VD.getAttr<KitsuneMemAccessAttr>())
-    GV.addAttribute(GetLLVMAttrNameFor(*A));
-}
-
-void CodeGenModule::SetKitsuneAttributes(const FunctionDecl &FD,
-                                         llvm::Function &Fn) {
-  if (const auto *A = FD.getAttr<KitsuneMemAccessAttr>())
-    Fn.addFnAttr(GetLLVMAttrNameFor(*A));
-
-  for (unsigned ArgNo = 0, Args = FD.getNumParams(); ArgNo != Args; ++ArgNo) {
-    const ParmVarDecl *Param = FD.getParamDecl(ArgNo);
-    QualType ParamTy = Param->getType();
-    const Decl *PDecl = Param;
-    if (const auto *TD = dyn_cast<TypedefType>(ParamTy))
-      PDecl = TD->getDecl();
-
-    if (const auto *A = PDecl->getAttr<KitsuneMemAccessAttr>()) {
-      if (ParamTy.getTypePtr()->isStructureOrClassType()) {
-        ErrorUnsupported(
-            Param,
-            "cannot handle kitsune memaccess attribute on a struct or class");
-        break;
-      }
-
-      llvm::Argument *Arg = Fn.getArg(ArgNo);
-      Arg->addAttr(
-          llvm::Attribute::get(getLLVMContext(), GetLLVMAttrNameFor(*A)));
-    }
   }
 }
