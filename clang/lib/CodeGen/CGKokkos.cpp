@@ -313,7 +313,6 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
   // well as the alloca insertion point which we need to change and change back
   DeclMapByValueTy IVDeclMap; // map from Vardecl to {IV, thread safe IV vector}
   llvm::AssertingVH<llvm::Instruction> OldAllocaInsertPt = AllocaInsertPt;
-  llvm::Value *Undef = llvm::UndefValue::get(Int32Ty);
 
   // emit the sync region
   PushSyncRegion();
@@ -437,7 +436,7 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
     // EmitThreadSafeIV, we use AutoVarAlloca so any codegen in the body
     // automatically and correctly mapped to the local thread safe copy of the
     // induction variable.
-    SetAllocaInsertPoint(Undef, ForBody);
+    SetAllocaInsertPoint(ForBody);
 
     // Emit the thread safe induction variables and initialize them by value.
     for (const auto &ivp : IVDeclMap)
@@ -462,15 +461,12 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
   Builder.CreateReattach(Increment.back().getBlock(), SRStart);
 
   // Reset the alloca insertion point.
-  AllocaInsertPt->removeFromParent();
-  AllocaInsertPt = OldAllocaInsertPt;
+  RestoreAllocaInsertPoint(OldAllocaInsertPt);
 
   for (int i = numIVs - 1; i >= 0; --i) {
-    // Emit the increment basic block.
     EmitBlock(Increment[i].getBlock());
-
-    // Emit the actual increment code.
     EmitKokkosIncrement(IVInfos[i].IVDecl);
+
     BreakContinueStack.pop_back();
     EmitStopPoint(CE);
     EmitBranch(CondBlock[i]);
