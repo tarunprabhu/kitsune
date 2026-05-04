@@ -37,9 +37,10 @@ endfunction ()
 #             created before this function is called.
 function (gen_attrs_rst rst td target_rst target_dir)
   get_filename_component(TABLEGEN_INCLUDE_DIR ${td} DIRECTORY)
-  list(APPEND LLVM_TABLEGEN_FLAGS "-I${TABLEGEN_INCLUDE_DIR}")
   list(APPEND LLVM_TABLEGEN_FLAGS
-    "-I${CMAKE_CURRENT_SOURCE_DIR}/../../clang/include/")
+    "-I${TABLEGEN_INCLUDE_DIR}"
+    "-I${LLVM_MONOREPO_SOURCE_DIR}/clang/include"
+    "-I${LLVM_MONOREPO_SOURCE_DIR}/kitsune/include")
   clang_tablegen(${rst} -gen-kitsune-attr-docs
     SOURCE ${td}
     TARGET ${target_rst})

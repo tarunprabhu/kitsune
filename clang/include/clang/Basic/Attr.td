@@ -5229,5 +5229,5 @@ def NonString : InheritableAttr {
   let Documentation = [NonStringDocs];
 }
 
-include "clang/Basic/KitsuneAttrDocs.td"
-include "clang/Basic/KitsuneAttr.td"
+include "kitsune/Frontend/CAttrDocs.td"
+include "kitsune/Frontend/CAttrs.td"
