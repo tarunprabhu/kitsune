@@ -5,6 +5,7 @@ add_llvm_component_library(LLVMKitCore
   AttrsImpl.cpp
   BasicBlockUtils.cpp
   ConstantUtils.cpp
+  Diagnostics.cpp
   DIUtils.cpp
   EmbUtils.cpp
   FuncAttrs.cpp

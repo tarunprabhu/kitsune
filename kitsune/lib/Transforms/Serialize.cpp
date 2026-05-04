@@ -21,11 +21,11 @@
 
 #include "kitsune/Transforms/Serialize.h"
 #include "kitsune/Analysis/TapirLoopNestAnalysis.h"
+#include "kitsune/Core/Diagnostics.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
 #include "kitsune/Core/ModuleAttrs.h"
 #include "kitsune/Frontend/CommandLineOptions.h"
-#include "kitsune/Support/Diagnostics.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/TapirTaskInfo.h"

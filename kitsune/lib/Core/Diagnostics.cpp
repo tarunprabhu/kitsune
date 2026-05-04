@@ -11,9 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Support/Diagnostics.h"
+#include "kitsune/Core/Diagnostics.h"
 #include "kitsune/Core/DIUtils.h"
-#include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
 #include "kitsune/Core/ValueUtils.h"
 #include "kitsune/Support/ErrorHandling.h"
@@ -162,7 +161,7 @@ DiagnosticSeverity llvm::detail::getSeverity(DiagID id) {
 #define DIAG(NAME, SEVERITY, MSG)                                              \
   case DiagID::NAME:                                                           \
     return SEVERITY;
-#include "kitsune/Support/Diagnostics.inc"
+#include "kitsune/Core/Diagnostics.inc"
   }
   llvm_unreachable("getSeverity: DiagID not handled");
 }
@@ -173,7 +172,7 @@ StringRef llvm::detail::getMsg(DiagID id) {
 #define DIAG(NAME, SEVERITY, MSG)                                              \
   case DiagID::NAME:                                                           \
     return MSG;
-#include "kitsune/Support/Diagnostics.inc"
+#include "kitsune/Core/Diagnostics.inc"
   }
   llvm_unreachable("getMsg: DiagID not handled");
 }

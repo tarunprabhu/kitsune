@@ -7,12 +7,12 @@
 //===----------------------------------------------------------------------===//
 //
 // Internal implementation header of Kitsune's diagnostics. This is not intended
-// to be used directly, expect in certain circumstances.
+// to be used directly.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef KITSUNE_SUPPORT_DIAGNOSTICS_INTERNAL_H
-#define KITSUNE_SUPPORT_DIAGNOSTICS_INTERNAL_H
+#ifndef KITSUNE_CORE_DIAGNOSTICS_INTERNAL_H
+#define KITSUNE_CORE_DIAGNOSTICS_INTERNAL_H
 
 #include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/Support/raw_ostream.h"
@@ -68,4 +68,4 @@ raw_ostream &emitDiagnostic(raw_ostream &os, const Loop &loop,
 
 } // namespace llvm
 
-#endif // KITSUNE_SUPPORT_DIAGNOSTICS_INTERNAL_H
+#endif // KITSUNE_CORE_DIAGNOSTICS_INTERNAL_H

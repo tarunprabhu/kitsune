@@ -12,10 +12,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/TTOptions.h"
+#include "kitsune/Core/Diagnostics.h"
 #include "kitsune/Core/TTUtils.h"
 #include "kitsune/Frontend/CommandLineOptions.h"
 #include "kitsune/Frontend/KitsuneOptions.h"
-#include "kitsune/Support/Diagnostics.h"
 #include "kitsune/Support/OptznLevelUtils.h"
 #include "kitsune/Support/OstreamUtils.h"
 #include "kitsune/Support/ToString.h"

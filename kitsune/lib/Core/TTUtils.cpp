@@ -13,8 +13,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/TTUtils.h"
+#include "kitsune/Core/Diagnostics.h"
 #include "kitsune/Core/TTOptions.h"
-#include "kitsune/Support/Diagnostics.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/Linker/Linker.h"

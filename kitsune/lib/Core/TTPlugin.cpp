@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/TTPlugin.h"
-#include "kitsune/Support/Diagnostics.h"
+#include "kitsune/Core/Diagnostics.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/raw_ostream.h"
 

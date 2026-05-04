@@ -12,10 +12,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/EmbUtils.h"
+#include "kitsune/Core/Diagnostics.h"
 #include "kitsune/Core/GVAttrs.h"
 #include "kitsune/Core/ModuleAttrs.h"
 #include "kitsune/Core/TypeUtils.h"
-#include "kitsune/Support/Diagnostics.h"
 #include "kitsune/Support/TTIDUtils.h"
 #include "llvm/Bitcode/BitcodeReader.h"
 #include "llvm/Bitcode/BitcodeWriter.h"

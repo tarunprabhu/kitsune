@@ -4,7 +4,6 @@
 
 add_llvm_component_library(LLVMKitSupport
   CommandLineUtils.cpp
-  Diagnostics.cpp
   ErrorHandling.cpp
   ErrorUtils.cpp
   FromInt.cpp
