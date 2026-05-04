@@ -805,7 +805,7 @@ void CodeGenFunction::EmitAttributedStmt(const AttributedStmt &S) {
       HLSLControlFlowHintAttr::SpellingNotCalculated;
   const CallExpr *musttail = nullptr;
   const AtomicAttr *AA = nullptr;
-  ArrayRef<const Attr *> tapir_attr_set;
+  SmallVector<const Attr *, 2> kitAttrs;
 
   for (const auto *A : S.getAttrs()) {
     switch (A->getKind()) {
@@ -843,12 +843,13 @@ void CodeGenFunction::EmitAttributedStmt(const AttributedStmt &S) {
       flattenOrBranch = cast<HLSLControlFlowHintAttr>(A)->getSemanticSpelling();
     } break;
     case attr::TT:
-      // In the case of a Tapir target attribute, we need to save the attribute
-      // set so we can use it when we reach code gen of the underlying
-      // CallExpr for Kokkos parallel "statements".  This is necessary given
-      // the additional layers of details in the AST for C++ mechanisms Kokkos
-      // uses to implement their feature set (e.g., implicit and cleanup goop).
-      tapir_attr_set = S.getAttrs();
+      // We need to save the Kitsune-specific attributes when we first encounter
+      // them specifically to be able to attach them to Kokkos parallel
+      // constructs that will appear later in the process. We have to do this
+      // when the attributes are first seen because the actual construct -
+      // which is typically a CallExpr - will usually be wrapped in several
+      // layers of implicit and cleanup expressions.
+      kitAttrs.push_back(A);
       break;
     }
   }
@@ -858,7 +859,7 @@ void CodeGenFunction::EmitAttributedStmt(const AttributedStmt &S) {
   SaveAndRestore save_noconvergent(InNoConvergentAttributedStmt, noconvergent);
   SaveAndRestore save_musttail(MustTailCall, musttail);
   SaveAndRestore save_flattenOrBranch(HLSLControlFlowAttr, flattenOrBranch);
-  SaveAndRestore save_tapir_addrs(TapirAttrs, tapir_attr_set);
+  SaveAndRestore save_kitAttrs(KitAttrs, kitAttrs);
   CGAtomicOptionsRAII AORAII(CGM, AA);
   EmitStmt(S.getSubStmt(), S.getAttrs());
 }

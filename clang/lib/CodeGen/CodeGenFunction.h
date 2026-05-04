@@ -617,8 +617,9 @@ public:
   // applies to.  nullptr if there is no 'musttail' on the current statement.
   const CallExpr *MustTailCall = nullptr;
 
-  // The set of attributes associated with a tapir-based statement attribute.
-  ArrayRef<const Attr *> TapirAttrs;
+  // The Kitsune-specific attributes associated with a statement.
+  SmallVector<const Attr *, 2> KitAttrs;
+
   /// Returns true if a function must make progress, which means the
   /// mustprogress attribute can be added.
   bool checkIfFunctionMustProgress() {

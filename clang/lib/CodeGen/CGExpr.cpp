@@ -5843,23 +5843,22 @@ RValue CodeGenFunction::EmitRValueForField(LValue LV,
 RValue CodeGenFunction::EmitCallExpr(const CallExpr *E,
                                      ReturnValueSlot ReturnValue,
                                      llvm::CallBase **CallOrInvoke) {
-  // kitsune: handle kokkos-centric details -- specifically we are dealing with
-  // a case where we transform a lambda construct into a traditional loop
-  // construct; thus our parallel_for and parallel_reduce calls result in the
-  // removal of a lambda/call.
   const llvm::driver::KitsuneOptions &kitOpts = CGM.getKitsuneOpts();
   if (kitOpts.getKokkos() || kitOpts.getKokkosNoInit()) {
+    // If this is a Kokkos construct that is handled specially by Kitsune, we
+    // may replace it with a traditional loop construct (in the case of
+    // Kokkos::parallel_for, or Kokkos::parallel_reduce), or not emit anything
+    // at all - such as when Kokkos::initialize or Kokkos::finalize are seen
+    // and `-fkokkos-no-init` was passed on the command-line. In either case,
+    // there is nothing to be "returned", and the call is effectively "removed".
     if (const FunctionDecl *fdecl = E->getDirectCallee()) {
       std::string qname = fdecl->getQualifiedNameAsString();
       if (qname == "Kokkos::parallel_for" ||
           qname == "Kokkos::parallel_reduce") {
-        // We handle the special case of Tapir target attributes on a Kokkos
-        // "statement" elsewhere (as the attribute is not really attached to the
-        // CallExpr but instead the C++ goop around the call -- implicit and
-        // clean up stuff).  If we have seen such an attribute it was saved and
-        // we can simply pass TapirAttrs on from here for the Kokkos code
-        // transformation/generation.
-        if (EmitKokkosConstruct(E, TapirAttrs))
+        // The Kitsune-specific attributes will have been seen - and saved in
+        // KitAttrs - earlier, since the actual call to a Kokkos function is
+        // wrapped in many layers of implicit and cleanup expressions.
+        if (EmitKokkosConstruct(E, KitAttrs))
           return RValue::get(nullptr);
       } else if (kitOpts.getKokkosNoInit() && (qname == "Kokkos::initialize" ||
                                                qname == "Kokkos::finalize")) {
