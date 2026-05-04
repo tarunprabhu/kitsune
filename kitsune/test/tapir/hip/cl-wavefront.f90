@@ -1,5 +1,11 @@
 ! REQUIRES: kitfc
 !
+! -mwavefrontsize64 has not yet been enabled for the Fortran frontend upstream.
+! Since this is not something that we are likely to use very often, we have not
+! enabled it in Kitsune either. If it is enabled upstream, we can remove the
+! xfail.
+! XFAIL: *
+!
 ! Check that the -mwavefrontsize64 and -mno-wavefrontsize64 options are handled
 ! correctly.
 !

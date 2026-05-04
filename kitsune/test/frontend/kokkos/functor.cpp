@@ -14,7 +14,7 @@ struct Hello {
 };
 
 extern "C" void f(size_t n) {
-  // expected-warning-re@+1 {{kokkos - functors not supported in parallel_for{{.*}}}}
+  // expected-warning@+1 {{kokkos: functors not supported in parallel_for}}
   Kokkos::parallel_for(n, Hello());
 }
 
