@@ -6087,39 +6087,35 @@ private:
   llvm::Value *EmitAArch64CpuSupports(const CallExpr *E);
   llvm::Value *EmitAArch64CpuSupports(ArrayRef<StringRef> FeatureStrs);
 
-public:
+private:
   //===--------------------------------------------------------------------===//
   //                       Kitsune extensions Emission
   //===--------------------------------------------------------------------===//
 
-  // KITSUNE FIXME: Go through these and see how many strictly need to be
-  // public and privatize accordingly. These methods are likely only used in
-  // CGKitsune.cpp and CGKokkos.cpp, so they could probably be made private to
-  // those files in some cases. Making the public footprint smaller may make
-  // maintenance a little easier.
+  using DeclMapByValueTy =
+      llvm::DenseMap<const VarDecl *,
+                     std::pair<Address, llvm::SmallVector<llvm::Value *, 4>>>;
 
-  void EmitDetachBlock(const DeclStmt *DS,
-                       llvm::ValueMap<llvm::Value *, llvm::AllocaInst *> &VM);
-  void ReplaceAllUsesInCurrentBlock(
-      llvm::ValueMap<llvm::Value *, llvm::AllocaInst *> &VM);
-  void SetAllocaInsertPoint(llvm::Value *v, llvm::BasicBlock *bb);
+  /// Set the AllocaInsertPt to the end of the basic block \p BB.
+  void SetAllocaInsertPoint(llvm::BasicBlock *BB);
+
+  /// Reset AllocaInsertPt to \p Saved, which was an earlier value of
+  /// AllocaInsertPt.
+  void RestoreAllocaInsertPoint(llvm::Instruction *Saved);
 
   /// Emit a load of the induction variable. This has a side effect of erasing
   /// the mapping in the LocalDeclMap but keeping track of the original mapping
   /// as well as the new RValue after the load. This is all a precursor to
   /// capturing the IV by value in the body emission.
-  typedef llvm::DenseMap<
-      const VarDecl *, std::pair<Address, llvm::SmallVector<llvm::Value *, 4>>>
-      DeclMapByValueTy;
   void EmitIVLoad(const VarDecl *LoopVar, DeclMapByValueTy &IVDeclMap);
 
   /// Emit a thread safe copy of the induction variable and cleanups, and set
-  /// it value to the to the current value of the induction variable
+  /// it value to the to the current value of the induction variable.
   void EmitThreadSafeIV(const VarDecl *IV,
                         const llvm::SmallVectorImpl<llvm::Value *> &Values);
 
-  /// Restore the original mapping between the thread safe induction variable and
-  /// its address, then restore the original mapping.
+  /// Restore the original mapping between the thread safe induction variable
+  /// and its address.
   void RestoreDeclMap(const VarDecl *IV, const Address);
 
   void EmitSpawnStmt(const SpawnStmt &S);
