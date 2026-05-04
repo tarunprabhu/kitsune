@@ -55,7 +55,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "CGKitsuneUtils.h"
+#include "CGKitsune.h"
 #include "CodeGenFunction.h"
 #include "kitsune/Core/TTUtils.h"
 #include "kitsune/Frontend/KitsuneOptions.h"
@@ -288,7 +288,7 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
   assert(CGM.getKitsuneOpts().getTTID().has_value() &&
          "TTID not set in Kitsune options");
 
-  llvm::TTID TT = getTapirTarget(Attrs, *CGM.getKitsuneOpts().getTTID());
+  llvm::TTID TT = getTTID(Attrs, *CGM.getKitsuneOpts().getTTID());
 
   // The tapir target *must* be set before any other attributes are set in
   // LoopStack.
@@ -297,7 +297,7 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
     LoopStack.setTapirSpawnStrategy(getSpawnStrategyFor(TT));
   }
   if (TT == llvm::TTID::Cuda || TT == llvm::TTID::Hip) {
-    unsigned ThreadsPerBlock = getKitsuneLaunchAttr(Attrs);
+    unsigned ThreadsPerBlock = getLaunchTPB(Attrs);
     if (ThreadsPerBlock > 0)
       LoopStack.setLoopThreadsPerBlock(ThreadsPerBlock);
   }

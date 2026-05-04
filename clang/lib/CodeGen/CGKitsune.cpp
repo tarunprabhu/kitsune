@@ -54,15 +54,177 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "CGKitsuneUtils.h"
+#include "CGKitsune.h"
 #include "CodeGenFunction.h"
 #include "kitsune/Core/TTUtils.h"
 #include "kitsune/Frontend/KitsuneOptions.h"
+#include "kitsune/Support/AddrSpace.h"
 #include "clang/AST/StmtKitsune.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 
 using namespace clang;
 using namespace CodeGen;
+
+/// Get the value of the tapir::target attribute if it was set. If the attribute
+/// was not set, return the primary tapir target \p primaryTT. This will
+/// will typically be the value of the --tapir command-line option.
+llvm::TTID clang::CodeGen::getTTID(llvm::ArrayRef<const Attr *> attrs,
+                                   llvm::TTID primaryTT) {
+  // The TTAttr attribute is guaranteed to appear at most once, so it is safe
+  // to return immediately when it is encountered.
+  for (const Attr *attr : attrs) {
+    if (const auto *ttAttr = dyn_cast<TTAttr>(attr)) {
+      switch (ttAttr->getTT()) {
+      case TTAttr::Nolo:
+        return llvm::TTID::Nolo;
+      case TTAttr::Cuda:
+        return llvm::TTID::Cuda;
+      case TTAttr::Hip:
+        return llvm::TTID::Hip;
+      case TTAttr::OpenCilk:
+        return llvm::TTID::OpenCilk;
+      case TTAttr::OpenMP:
+        return llvm::TTID::OpenMP;
+      case TTAttr::Pthreads:
+        return llvm::TTID::Pthreads;
+      case TTAttr::Qthreads:
+        return llvm::TTID::Qthreads;
+      case TTAttr::Serial:
+        return llvm::TTID::Serial;
+      case TTAttr::Custom:
+        llvm_unreachable("Value of tapir target attribute cannot be 'custom'");
+      }
+      llvm_unreachable("getTTID: TTAttr not handled");
+    }
+  }
+  return primaryTT;
+}
+
+/// Get the value of the kitsune::launch attribute if it was set. If the
+/// attribute was not set, return 0.
+unsigned clang::CodeGen::getLaunchTPB(llvm::ArrayRef<const Attr *> attrs) {
+  // The KitsuneLaunch attribute is guaranteed to appear at most once, so it is
+  // safe to return immediately when it is encountered.
+  for (const Attr *attr : attrs)
+    if (const auto *launchAttr = dyn_cast<KitsuneLaunchAttr>(attr))
+      return launchAttr->getThreadsPerBlock();
+  return 0;
+}
+
+bool clang::CodeGen::IsKitBuiltin(unsigned builtinID) {
+  switch (builtinID) {
+  case Builtin::BIkitsune_mobile_alloc:
+  case Builtin::BIkitsune_mobile_free:
+  case Builtin::BI__kitsune_mobile_cast_unsafe:
+    return true;
+  default:
+    break;
+  }
+  return false;
+}
+
+RValue clang::CodeGen::EmitKitBuiltinCall(CodeGenFunction &cgf,
+                                          const FunctionDecl *funcDecl,
+                                          unsigned builtinID,
+                                          const CallExpr *theCall,
+                                          ReturnValueSlot rv) {
+  CGBuilderTy &builder = cgf.Builder;
+  CodeGenModule &cgm = cgf.CGM;
+  llvm::LLVMContext &ctxt = cgm.getLLVMContext();
+
+  switch (builtinID) {
+  case Builtin::BIkitsune_mobile_alloc: {
+    llvm::Function *f = cgm.getIntrinsic(llvm::Intrinsic::kit_mobile_alloc);
+    llvm::FunctionType *fty = f->getFunctionType();
+    llvm::Value *size = cgf.EmitScalarExpr(theCall->getArg(0));
+    if (size->getType() != fty->getParamType(0))
+      size = builder.CreateTruncOrBitCast(size, fty->getParamType(0));
+    return RValue::get(builder.CreateCall(f, {size}));
+  }
+
+  case Builtin::BIkitsune_mobile_free: {
+    llvm::Function *f = cgm.getIntrinsic(llvm::Intrinsic::kit_mobile_free);
+    llvm::Value *ptr = cgf.EmitScalarExpr(theCall->getArg(0));
+    return RValue::get(builder.CreateCall(f, {ptr}));
+  }
+
+  case Builtin::BI__kitsune_mobile_cast_unsafe: {
+    llvm::Value *ptr = cgf.EmitScalarExpr(theCall->getArg(0));
+    llvm::Type *destTy = llvm::PointerType::get(ctxt, llvm::KitAS::Mobile);
+    return RValue::get(builder.CreateAddrSpaceCast(ptr, destTy));
+  }
+
+  default:
+    break;
+  }
+  llvm_unreachable("EmitKitBuiltinExpr: BuiltinID not handled");
+}
+
+static StringRef getLLVMAttrNameFor(const KitsuneMemAccessAttr &Attr) {
+  if (Attr.isWriteOnly())
+    return "kitsune.writeonly";
+  else if (Attr.isReadWrite())
+    return "kitsune.readwrite";
+  else if (Attr.isReadOnly())
+    return "kitsune.readonly";
+  llvm_unreachable("Unknown kitsune memory access attribute");
+}
+
+static void addKitMemAccessAttr(CodeGenModule &cgm, const FunctionDecl &fd,
+                                llvm::Function &f) {
+  llvm::LLVMContext &ctx = f.getContext();
+
+  if (const auto *attr = fd.getAttr<KitsuneMemAccessAttr>())
+    f.addFnAttr(getLLVMAttrNameFor(*attr));
+
+  for (unsigned i = 0, n = fd.getNumParams(); i < n; ++i) {
+    const ParmVarDecl *param = fd.getParamDecl(i);
+    QualType paramTy = param->getType();
+    const Decl *pDecl = param;
+    if (const auto *typdef = dyn_cast<TypedefType>(paramTy))
+      pDecl = typdef->getDecl();
+
+    if (const auto *attr = pDecl->getAttr<KitsuneMemAccessAttr>()) {
+      if (paramTy.getTypePtr()->isStructureOrClassType()) {
+        cgm.ErrorUnsupported(
+            param,
+            "cannot handle kitsune memaccess attribute on a struct or class");
+        break;
+      }
+
+      llvm::Argument *arg = f.getArg(i);
+      arg->addAttr(llvm::Attribute::get(ctx, getLLVMAttrNameFor(*attr)));
+    }
+  }
+}
+
+void clang::CodeGen::AddKitAttributes(CodeGenModule &cgm, const VarDecl &vd,
+                                      llvm::GlobalVariable &g) {
+  // Only set the kitsune-specific attributes if a tapir target has been set.
+  // In general, we try to keep the Kitsune-specific additions to clang strictly
+  // opt-in features. Since the attributes will have no effect unless lowering
+  // using tapir is enabled, we might as well only add the attributes only if a
+  // tapir target has been set.
+  if (!cgm.getKitsuneOpts().hasTTID())
+    return;
+
+  if (const auto *attr = vd.getAttr<KitsuneMemAccessAttr>())
+    g.addAttribute(getLLVMAttrNameFor(*attr));
+}
+
+void clang::CodeGen::AddKitAttributes(CodeGenModule &cgm,
+                                      const FunctionDecl &fd,
+                                      llvm::Function &f) {
+  // Only set the kitsune-specific attributes if a tapir target has been set.
+  // In general, we try to keep the Kitsune-specific additions to clang strictly
+  // opt-in features. Since the attributes will have no effect unless lowering
+  // using tapir is enabled, we might as well only add the attributes only if a
+  // tapir target has been set.
+  if (!cgm.getKitsuneOpts().hasTTID())
+    return;
+
+  addKitMemAccessAttr(cgm, fd, f);
+}
 
 llvm::Instruction *CodeGenFunction::EmitLabeledSyncRegionStart(StringRef SV) {
   // Start the sync region.  To ensure the syncregion.start call dominates all
@@ -226,7 +388,7 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
   assert(CGM.getKitsuneOpts().getTTID().has_value() &&
          "TTID not set in Kitsune options");
 
-  llvm::TTID TT = getTapirTarget(Attrs, *CGM.getKitsuneOpts().getTTID());
+  llvm::TTID TT = getTTID(Attrs, *CGM.getKitsuneOpts().getTTID());
 
   // The tapir target *must* be set before any other attributes are set in
   // LoopStack.
@@ -236,7 +398,7 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
   }
 
   if (TT == llvm::TTID::Cuda || TT == llvm::TTID::Hip) {
-    unsigned ThreadsPerBlock = getKitsuneLaunchAttr(Attrs);
+    unsigned ThreadsPerBlock = getLaunchTPB(Attrs);
     if (ThreadsPerBlock > 0)
       LoopStack.setLoopThreadsPerBlock(ThreadsPerBlock);
   }
@@ -396,7 +558,7 @@ void CodeGenFunction::EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
   assert(CGM.getKitsuneOpts().getTTID().has_value() &&
          "TTID not set in Kitsune options");
 
-  llvm::TTID TT = getTapirTarget(Attrs, *CGM.getKitsuneOpts().getTTID());
+  llvm::TTID TT = getTTID(Attrs, *CGM.getKitsuneOpts().getTTID());
 
   // The tapir target *must* be set before any other attributes are set in
   // LoopStack.
@@ -405,7 +567,7 @@ void CodeGenFunction::EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
     LoopStack.setTapirSpawnStrategy(getSpawnStrategyFor(TT));
   }
   if (TT == llvm::TTID::Cuda || TT == llvm::TTID::Hip) {
-    unsigned ThreadsPerBlock = getKitsuneLaunchAttr(Attrs);
+    unsigned ThreadsPerBlock = getLaunchTPB(Attrs);
     if (ThreadsPerBlock > 0)
       LoopStack.setLoopThreadsPerBlock(ThreadsPerBlock);
   }

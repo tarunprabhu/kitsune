@@ -2026,14 +2026,6 @@ private:
 
   llvm::Metadata *CreateMetadataIdentifierImpl(QualType T, MetadataTypeMap &Map,
                                                StringRef Suffix);
-
-  /// Set kitsune-specific attributes on an LLVM global variable. This applies
-  /// to both declarations and definitions.
-  void SetKitsuneAttributes(const VarDecl &VD, llvm::GlobalVariable &GV);
-
-  /// Set kitsune-specific attributes on an LLVM function and/or its arguments.
-  /// This applies to both declarations and definitions.
-  void SetKitsuneAttributes(const FunctionDecl &FD, llvm::Function &FN);
 };
 
 }  // end namespace CodeGen
