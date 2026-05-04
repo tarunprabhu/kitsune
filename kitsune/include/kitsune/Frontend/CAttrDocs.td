@@ -1,4 +1,4 @@
-//===- KitsuneAttrDocs.td - Documentation for Kitsune-specific attributes -===//
+//==- CAttrDocs.td - Documentation for Kitsune's attributes -*- tablgen -*--==//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -14,9 +14,8 @@
 
 // The subclass of the main documentation exists solely to identify
 // Kitsune-specific attributes when generating HTML documentation.
-// Kitsune-specific attributes *must* use this class, not the base
-// Documentation class. While it is not incorrect to use the base Documentation
-// class, doing so will result in the attribute not appearing in the generated
+// Kitsune-specific attributes *must* use this class. Failure to do so, while
+// not incorrect, will result in the attribute not appearing in the generated
 // HTML documentation.
 class KitDoc : Documentation {}
 
@@ -28,7 +27,7 @@ def TTDocs : KitDoc {
 
 .. warning::
 
-   Although this attribute is allowed in the frontend, suppport for overriding
+   Although this attribute is allowed in the frontend, support for overriding
    the primary tapir target has not been implemented in Kitsune's optimization
    pipeline and will almost certainly result in an error.
 
