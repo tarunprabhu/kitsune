@@ -715,7 +715,6 @@ void LoopInfoStack::push(BasicBlock *Header, clang::ASTContext &Ctx,
       case LoopHintAttr::VectorizeWidth:
       case LoopHintAttr::InterleaveCount:
       case LoopHintAttr::PipelineInitiationInterval:
-      case LoopHintAttr::TapirGrainSize:
         llvm_unreachable("Options cannot be disabled.");
         break;
       }
@@ -744,7 +743,6 @@ void LoopInfoStack::push(BasicBlock *Header, clang::ASTContext &Ctx,
       case LoopHintAttr::InterleaveCount:
       case LoopHintAttr::PipelineDisabled:
       case LoopHintAttr::PipelineInitiationInterval:
-      case LoopHintAttr::TapirGrainSize:
         llvm_unreachable("Options cannot enabled.");
         break;
       }
@@ -767,7 +765,6 @@ void LoopInfoStack::push(BasicBlock *Header, clang::ASTContext &Ctx,
       case LoopHintAttr::Distribute:
       case LoopHintAttr::PipelineDisabled:
       case LoopHintAttr::PipelineInitiationInterval:
-      case LoopHintAttr::TapirGrainSize:
         llvm_unreachable("Options cannot be used to assume mem safety.");
         break;
       }
@@ -790,7 +787,6 @@ void LoopInfoStack::push(BasicBlock *Header, clang::ASTContext &Ctx,
       case LoopHintAttr::PipelineDisabled:
       case LoopHintAttr::PipelineInitiationInterval:
       case LoopHintAttr::VectorizePredicate:
-      case LoopHintAttr::TapirGrainSize:
         llvm_unreachable("Options cannot be used with 'full' hint.");
         break;
       }
@@ -823,9 +819,6 @@ void LoopInfoStack::push(BasicBlock *Header, clang::ASTContext &Ctx,
         break;
       case LoopHintAttr::PipelineInitiationInterval:
         setPipelineInitiationInterval(ValueInt);
-        break;
-      case LoopHintAttr::TapirGrainSize:
-        setTapirGrainSize(ValueInt);
         break;
       case LoopHintAttr::Unroll:
       case LoopHintAttr::UnrollAndJam:
