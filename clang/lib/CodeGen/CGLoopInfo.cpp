@@ -9,6 +9,7 @@
 #include "CGLoopInfo.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/MetadataUtils.h"
+#include "kitsune/Support/TTIDUtils.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/Expr.h"
@@ -496,6 +497,7 @@ namespace detail {
 MDNode *makeRawAttr(LLVMContext &, StringRef, ArrayRef<Metadata *>);
 } // namespace detail
 } // namespace llvm
+
 template <typename T>
 static MDNode *getMDNodeForAttr(LLVMContext &Ctx, LoopAttrKind Attr,
                                 const T &Val) {
@@ -504,28 +506,33 @@ static MDNode *getMDNodeForAttr(LLVMContext &Ctx, LoopAttrKind Attr,
 
 std::vector<Metadata *>
 LoopInfo::getTapirLoopProperties(const LoopAttributes &Attrs) {
-  std::vector<Metadata *> LoopProperties;
-
   // If the --tapir option was not provided, we don't have a tapir target, nor
   // do we (currently) have a reasonable default. In this case, don't add any
   // tapir loop metadata.
-  if (std::optional<TapirLoopAttributes> TapirAttrs = Attrs.TapirLoopAttrs) {
-    LLVMContext &Ctx = Header->getContext();
+  if (!Attrs.TapirLoopAttrs.has_value())
+    return {};
 
-    // Even if the --tapir option was provided, the tapir target may be
-    // std::nullopt if --tapir=nolo was specified.
-    if (std::optional<TTID> TT = TapirAttrs->TapirTarget)
-      LoopProperties.push_back(
-          getMDNodeForAttr(Ctx, LoopAttrKind::Target, *TT));
-    LoopProperties.push_back(getMDNodeForAttr(Ctx, LoopAttrKind::SpawnStrategy,
-                                              TapirAttrs->TapirSpawnStrategy));
-    LoopProperties.push_back(getMDNodeForAttr(Ctx, LoopAttrKind::Grainsize,
-                                              TapirAttrs->TapirGrainSize));
-    LoopProperties.push_back(getMDNodeForAttr(
-        Ctx, LoopAttrKind::ThreadsPerBlock, TapirAttrs->ThreadsPerBlock));
-  }
+  LLVMContext &Ctx = Header->getContext();
+  const TapirLoopAttributes &TapirLoopAttrs = *Attrs.TapirLoopAttrs;
+  std::vector<Metadata *> Props;
 
-  return LoopProperties;
+  // Even if the --tapir option was provided, the tapir target may be
+  // std::nullopt if --tapir=nolo was specified.
+  std::optional<TTID> TT = TapirLoopAttrs.TapirTarget;
+  if (TT.has_value())
+    Props.push_back(getMDNodeForAttr(Ctx, LoopAttrKind::Target, *TT));
+
+  Props.push_back(getMDNodeForAttr(Ctx, LoopAttrKind::SpawnStrategy,
+                                   TapirLoopAttrs.TapirSpawnStrategy));
+
+  Props.push_back(getMDNodeForAttr(Ctx, LoopAttrKind::Grainsize,
+                                   TapirLoopAttrs.TapirGrainSize));
+
+  if (TT.has_value() && isGPUTT(*TT))
+    Props.push_back(getMDNodeForAttr(Ctx, LoopAttrKind::ThreadsPerBlock,
+                                     TapirLoopAttrs.ThreadsPerBlock));
+
+  return Props;
 }
 
 void LoopInfo::finish() {

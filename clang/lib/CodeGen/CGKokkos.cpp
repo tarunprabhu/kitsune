@@ -58,6 +58,7 @@
 #include "CGKitsune.h"
 #include "CodeGenFunction.h"
 #include "kitsune/Core/TTUtils.h"
+#include "kitsune/Support/TTIDUtils.h"
 #include "kitsune/Frontend/KitsuneOptions.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 
@@ -285,10 +286,10 @@ void CodeGenFunction::EmitKokkosIncrement(const ParmVarDecl *IV) {
 
 bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
                                             ArrayRef<const Attr *> Attrs) {
-  assert(CGM.getKitsuneOpts().getTTID().has_value() &&
-         "TTID not set in Kitsune options");
+  const llvm::driver::KitsuneOptions &KitOpts = CGM.getKitsuneOpts();
+  assert(KitOpts.getTTID().has_value() && "TTID not set in Kitsune options");
 
-  llvm::TTID TT = getTTID(Attrs, *CGM.getKitsuneOpts().getTTID());
+  llvm::TTID TT = getTTID(Attrs, *KitOpts.getTTID());
 
   // The tapir target *must* be set before any other attributes are set in
   // LoopStack.
@@ -296,11 +297,10 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
     LoopStack.setTapirTarget(TT);
     LoopStack.setTapirSpawnStrategy(getSpawnStrategyFor(TT));
   }
-  if (TT == llvm::TTID::Cuda || TT == llvm::TTID::Hip) {
-    unsigned ThreadsPerBlock = getLaunchTPB(Attrs);
-    if (ThreadsPerBlock > 0)
-      LoopStack.setLoopThreadsPerBlock(ThreadsPerBlock);
-  }
+
+  if (isGPUTT(TT))
+    if (unsigned TPB = getLaunchTPB(Attrs, KitOpts.getFixedThreadsPerBlock()))
+      LoopStack.setLoopThreadsPerBlock(TPB);
 
   // New basic blocks and jump destinations with Tapir terminators.
   // Note that we only need one of each of these regardless of the number of
