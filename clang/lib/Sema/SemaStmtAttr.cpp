@@ -504,21 +504,11 @@ CheckForIncompatibleAttributes(Sema &S,
     // The LICM transformation only has a disable state form that is
     // exposed by #pragma clang loop licm(disable).
     LICM,
-    // The Tapir grainsize only has a numeric form that describes the
-    // amount to coarsen the parallel loop.
-    TapirGrainSize,
     // This serves as a indicator to how many category are listed in this enum.
     NumberOfCategories
   };
-  // There are 8 categories of loop hints attributes: vectorize, interleave,
-  // unroll, unroll_and_jam, pipeline, distribute, vectorize_predicate, and
-  // (Tapir) grainsize. Except for distribute they come in two variants: a state
-  // form and a numeric form. The state form selectively
-  // defaults/enables/disables the transformation for the loop (for unroll,
-  // default indicates full unrolling rather than enabling the transformation).
-  // The numeric form form provides an integer hint (for example, unroll count)
-  // to the transformer. The following array accumulates the hints encountered
-  // while iterating through the attributes to check for compatibility.
+  // The following array accumulates the hints encountered while iterating
+  // through the attributes to check for compatibility.
   struct {
     const LoopHintAttr *StateAttr;
     const LoopHintAttr *NumericAttr;
@@ -563,9 +553,6 @@ CheckForIncompatibleAttributes(Sema &S,
       break;
     case LoopHintAttr::LICMDisabled:
       Category = LICM;
-      break;
-    case LoopHintAttr::TapirGrainSize:
-      Category = TapirGrainSize;
       break;
     };
 
@@ -772,9 +759,8 @@ static Attr *ProcessStmtAttribute(Sema &S, Stmt *St, const ParsedAttr &A,
   case ParsedAttr::AT_Atomic:
     return handleAtomicAttr(S, St, A, Range);
   default:
-    if (Handled<Attr *> h = S.Kitsune().processStmtAttribute(St, A, Range)) {
+    if (Handled<Attr *> h = S.Kitsune().processStmtAttribute(St, A, Range))
       return *h;
-    }
     if (Attr *AT = nullptr; A.getInfo().handleStmtAttribute(S, St, A, AT) !=
                             ParsedAttrInfo::NotHandled) {
       return AT;
