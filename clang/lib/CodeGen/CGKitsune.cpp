@@ -59,6 +59,7 @@
 #include "kitsune/Core/TTUtils.h"
 #include "kitsune/Frontend/KitsuneOptions.h"
 #include "kitsune/Support/AddrSpace.h"
+#include "kitsune/Support/TTIDUtils.h"
 #include "clang/AST/StmtKitsune.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 
@@ -102,13 +103,14 @@ llvm::TTID clang::CodeGen::getTTID(llvm::ArrayRef<const Attr *> attrs,
 
 /// Get the value of the kitsune::launch attribute if it was set. If the
 /// attribute was not set, return 0.
-unsigned clang::CodeGen::getLaunchTPB(llvm::ArrayRef<const Attr *> attrs) {
+unsigned clang::CodeGen::getLaunchTPB(llvm::ArrayRef<const Attr *> attrs,
+                                      unsigned tpb) {
   // The KitsuneLaunch attribute is guaranteed to appear at most once, so it is
   // safe to return immediately when it is encountered.
   for (const Attr *attr : attrs)
     if (const auto *launchAttr = dyn_cast<KitsuneLaunchAttr>(attr))
       return launchAttr->getThreadsPerBlock();
-  return 0;
+  return tpb;
 }
 
 bool clang::CodeGen::IsKitBuiltin(unsigned builtinID) {
@@ -385,10 +387,10 @@ void CodeGenFunction::RestoreDeclMap(const VarDecl *IV, const Address IVAddr) {
 
 void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
                                      ArrayRef<const Attr *> Attrs) {
-  assert(CGM.getKitsuneOpts().getTTID().has_value() &&
-         "TTID not set in Kitsune options");
+  const llvm::driver::KitsuneOptions &KitOpts = CGM.getKitsuneOpts();
+  assert(KitOpts.getTTID().has_value() && "TTID not set in Kitsune options");
 
-  llvm::TTID TT = getTTID(Attrs, *CGM.getKitsuneOpts().getTTID());
+  llvm::TTID TT = getTTID(Attrs, *KitOpts.getTTID());
 
   // The tapir target *must* be set before any other attributes are set in
   // LoopStack.
@@ -397,11 +399,9 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
     LoopStack.setTapirSpawnStrategy(getSpawnStrategyFor(TT));
   }
 
-  if (TT == llvm::TTID::Cuda || TT == llvm::TTID::Hip) {
-    unsigned ThreadsPerBlock = getLaunchTPB(Attrs);
-    if (ThreadsPerBlock > 0)
-      LoopStack.setLoopThreadsPerBlock(ThreadsPerBlock);
-  }
+  if (isGPUTT(TT))
+    if (unsigned TPB = getLaunchTPB(Attrs, KitOpts.getFixedThreadsPerBlock()))
+      LoopStack.setLoopThreadsPerBlock(TPB);
 
   // New basic blocks and jump destinations with Tapir terminators
   llvm::BasicBlock *Detach = createBasicBlock("forall.detach");
@@ -555,10 +555,10 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
 
 void CodeGenFunction::EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
                                              ArrayRef<const Attr *> Attrs) {
-  assert(CGM.getKitsuneOpts().getTTID().has_value() &&
-         "TTID not set in Kitsune options");
+  const llvm::driver::KitsuneOptions &KitOpts = CGM.getKitsuneOpts();
+  assert(KitOpts.getTTID().has_value() && "TTID not set in Kitsune options");
 
-  llvm::TTID TT = getTTID(Attrs, *CGM.getKitsuneOpts().getTTID());
+  llvm::TTID TT = getTTID(Attrs, *KitOpts.getTTID());
 
   // The tapir target *must* be set before any other attributes are set in
   // LoopStack.
@@ -566,14 +566,10 @@ void CodeGenFunction::EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
     LoopStack.setTapirTarget(TT);
     LoopStack.setTapirSpawnStrategy(getSpawnStrategyFor(TT));
   }
-  if (TT == llvm::TTID::Cuda || TT == llvm::TTID::Hip) {
-    unsigned ThreadsPerBlock = getLaunchTPB(Attrs);
-    if (ThreadsPerBlock > 0)
-      LoopStack.setLoopThreadsPerBlock(ThreadsPerBlock);
-  }
 
-  // Code modifications necessary for implementing parallel loops not required
-  // by serial loops.
+  if (isGPUTT(TT))
+    if (unsigned TPB = getLaunchTPB(Attrs, KitOpts.getFixedThreadsPerBlock()))
+      LoopStack.setLoopThreadsPerBlock(TPB);
 
   // New basic blocks and jump destinations with Tapir terminators.
   llvm::BasicBlock *Detach = createBasicBlock("forall.detach");

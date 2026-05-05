@@ -4,8 +4,10 @@
 // RUN:     -Xclang -disable-llvm-passes -S -emit-llvm -o - \
 // RUN:     | FileCheck %s
 //
+// CHECK-DAG: !{!"tapir.loop.grainsize", i32 0}
 // CHECK-DAG: !{!"tapir.loop.spawn.strategy", i32 3}
 // CHECK-DAG: !{!"tapir.loop.target", i32 2}
+// CHECK-DAG: !{!"tapir.loop.threads.per.block", i32 0}
 
 #include <kitsune.h>
 
