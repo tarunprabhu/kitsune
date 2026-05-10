@@ -8,9 +8,8 @@
 //
 // Annotator that run early in the pipeline.
 //
-// This is intended to run early in the pipeline to add annotations before most
-// optimization passes have run. These annotations are intended to control the
-// behavior of passes that run later in the pipeline.
+// This is intended to run early in the pipeline, typically after mem2reg (or
+// the equivalent).
 //
 //===----------------------------------------------------------------------===//
 
@@ -20,30 +19,18 @@
 
 using namespace llvm;
 
-static void disableUnrollingForTapirLoops(LoopInfo &li) {
-  // Unconditionally disables unrolling on all tapir loops may degrade
-  // performance in certain cases. In those cases, it may be more better to
-  // serialize a tapir loop and allow the optimizer to unroll it. A pass that
-  // performs an appropriate cost analysis and conditionally disables unrolling
-  // should eventually be developed. At that time, this can be removed.
-  for (Loop *loop : li.getLoopsInPreorder())
-    if (isTapirLoop(*loop))
-      loop->setLoopAlreadyUnrolled();
-}
-
 PreservedAnalyses EarlyAnnotatePass::run(Function &f,
                                          FunctionAnalysisManager &am) {
   LoopInfo &li = am.getResult<LoopAnalysis>(f);
 
-  // Disable unrolling on all tapir loops. The OpenCilk compiler relies on the
-  // tapir-to-target pass to handle the multiple detach instructions that result
-  // from unrolling a tapir loop. However, Kitsune's tapir targets operate
-  // primarily on loop nests and require these to have a single detach
-  // instruction. Disabling unrolling is the only way to ensure that, especially
-  // at higher optimization levels, we do not end up with a tapir loop nest
-  // that Kitsune's tapir targets are unable to process.
-  disableUnrollingForTapirLoops(li);
+  for (Loop *loop : li.getLoopsInPreorder()) {
+    if (isTapirLoop(*loop)) {
+      addMandatoryLLVMLoopAttrs(*loop);
+    }
+  }
 
-  // This only adds metadata that should not invalidate any analyses.
+  // At this time, the added annotations do not invalidate other analyses.
+  // However, if we ever add any that do such as !tbaa (which affects alias
+  // analysis), this must be changed.
   return PreservedAnalyses::all();
 }

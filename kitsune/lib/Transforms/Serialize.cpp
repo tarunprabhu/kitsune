@@ -109,13 +109,12 @@ static bool serializeLoop(Loop &loop, Task &task) {
   }
 
   unsigned perfectLevel = getPerfectLevelAttr(loop).value_or(0);
-  DetachInst *detach = task.getDetach();
-  Value *syncRegion = detach->getSyncRegion();
+  Value *syncRegion = task.getDetach()->getSyncRegion();
 
   // TODO: Once there is better multi-target support, rather than serializing
   // the loop here, we could just set the tapir loop target to `serial` on loops
   // that are to be serialized and let the loop-spawning pass deal with it.
-  SerializeDetach(task.getDetach(), &task);
+  serializeTapirLoop(loop, task);
   removeSyncRegionAndSync(syncRegion);
   clearTapirLoopAttrs(loop);
   addSerializedAttr(loop);

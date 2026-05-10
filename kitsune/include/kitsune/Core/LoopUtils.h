@@ -19,10 +19,12 @@
 namespace llvm {
 
 class BasicBlock;
+class DominatorTree;
 class Function;
 class LLVMContext;
 class Loop;
 class LoopInfo;
+class Task;
 class TaskInfo;
 
 /// \addtogroup kitsune
@@ -117,6 +119,28 @@ SmallVector<Loop *, 4> getTopLevelTapirLoops(LoopInfo &li);
 
 /// Get all the tapir loops in a function.
 SmallVector<Loop *, 4> getTapirLoops(LoopInfo &li);
+
+/// Tapir loops may require mandatory LLVM loop attributes. Those can be added
+/// using this function.
+void addMandatoryLLVMLoopAttrs(Loop &loop);
+
+/// Clear the mandatory LLVM loop attributes from the given tapir loop. \p loop
+/// must be identifiable as a tapir loop.
+void clearMandatoryLLVMLoopAttrs(Loop &loop);
+
+/// Serialize the tapir loop \p loop. This will remove any tapir-specific
+/// annotations from the loop in addition to serializing it, as well as any LLVM
+/// loop annotations that were added due to it being a tapir loop. For instance,
+/// `llvm.loop.unroll.disable` is added to all tapir loops. This will be
+/// removed.
+///
+/// \param loop The tapir loop to be serialized
+/// \param task The tapir task for \p loop
+/// \param dt An optional dominator tree that will be updated if provided
+/// \param ti An optional TaskInfo object that will be updated if provided
+/// \return Always returns true
+bool serializeTapirLoop(Loop &loop, Task &task, DominatorTree *dt = nullptr,
+                        TaskInfo *ti = nullptr);
 
 /// @}
 
