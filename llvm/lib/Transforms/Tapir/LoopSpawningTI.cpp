@@ -1482,7 +1482,7 @@ Function *LoopSpawningImpl::createHelperForTapirLoop(
   ClonedCond->setOperand(TripCountIdx, VMap[Args[LimitArgIndex]]);
 
   // If the trip count is variable and we're not passing the trip count as an
-  // argument, undo the eariler temporarily mapping.
+  // argument, undo the earlier temporarily mapping.
   if (!isa<Constant>(TL->getTripCount()) && !Args.count(TL->getTripCount())) {
     VMap.erase(TL->getTripCount());
   }
@@ -1590,11 +1590,13 @@ TaskOutlineMapTy LoopSpawningImpl::outlineAllTapirLoops() {
   // Prepare Tapir loops for outlining.
   for (Task *T : post_order(TI.getRootTask())) {
     if (TapirLoopInfo *TL = getTapirLoop(T)) {
-      PredicatedScalarEvolution PSE(SE, *TL->getLoop());
+      Loop *L = TL->getLoop();
+      PredicatedScalarEvolution PSE(SE, *L);
       bool CanOutline = TL->prepareForOutlining(DT, LI, TI, PSE, AC, LS_NAME,
                                                 ORE, TTI);
-      if (!CanOutline || !shouldOutlineTapirLoop(*TL->getLoop())) {
-        emitMissedWarning(TL->getLoop(), &ORE);
+      bool ShouldOutline = shouldOutlineTapirLoop(*L);
+      if (!CanOutline || !ShouldOutline) {
+        emitMissedWarning(L, &ORE);
         forgetTapirLoop(TL);
         continue;
       }
@@ -1765,9 +1767,22 @@ bool LoopSpawningImpl::run() {
   if (TapirLoops.empty())
     return false;
 
-  // FIXME: This code is a remnant from an initial attempt at multi-target
-  // support. It is badly broken and is unlikely to work properly. It may not be
-  // a bad idea to get rid of this and switch back to single-target execution.
+  // FIXME: The loop over the required TTID's is a remnant from an early attempt
+  // at enabling multi-target execution. Multi-target execution is not currently
+  // allowed - an error will be raised elsewhere in the code if the tapir target
+  // on a loop is not the same as the primary tapir target.
+  //
+  // Iterating over all required tapir targets and calling preProcessFunction
+  // on each in turn is not a good idea. The way a given target pre-processes a
+  // function may conflict with another leading to failures during the actual
+  // lowering, or, worse, silent miscompilation. A better approach may be to
+  // compute an order in which the targets ought to be processed, though there
+  // is no guarantee that any such order exists. Realistically, we are likely to
+  // have a situation where certain tapir targets are known to be "safe" to
+  // interoperate with a different set of tapir targets. This analysis should
+  // have been done well before this pass is run. An alternative may be to use
+  // a custom callback for the _combination_ of tapir targets being used.
+  //
   // Perform any Target-dependent preprocessing of F.
   for (TTID ID : TTObjs.getRequiredTTs(F))
     TTObjs.getTT(ID)->preProcessFunction(F, TI, true);
@@ -1787,9 +1802,15 @@ bool LoopSpawningImpl::run() {
                                                      DT);
   } // end timed region
 
-  // FIXME: This code is a remnant from an initial attempt at multi-target
-  // support. It is badly broken and is unlikely to work properly. It may not be
-  // a bad idea to get rid of this and switch back to single-target execution.
+  // FIXME: The loop over the required TTID's is a remnant from an early attempt
+  // at enabling multi-target execution. Multi-target execution is not currently
+  // allowed - an error will be raised elsewhere in the code if the tapir target
+  // on a loop is not the same as the primary tapir target.
+  //
+  // See the comment associated with the call to preProcessFunction earlier in
+  // this code for more detailed discussion. Some of the alternatives described
+  // there may be used for this post-processing as well.
+  //
   // Perform any Target-dependent postprocessing of F.
   for (TTID ID : TTObjs.getRequiredTTs(F))
     TTObjs.getTT(ID)->postProcessFunction(F, true);
