@@ -19,6 +19,45 @@
 
 using namespace llvm;
 
+static constexpr StringRef attrLoopUnrollDisable = "llvm.loop.unroll.disable";
+
+/// Certain LLVM loop attributes are required on all tapir loops. This is that
+/// list.
+static constexpr StringRef mandatoryLLVMLoopAttrs[] = {
+    // Disable unrolling on all tapir loops. The OpenCilk compiler relies on the
+    // tapir-to-target pass to handle the multiple detach instructions that
+    // result from unrolling a tapir loop. However, Kitsune's tapir targets
+    // operate primarily on loop nests and require these to have a single detach
+    // instruction. Disabling unrolling is the only way to ensure that,
+    // especially at higher optimization levels, we do not end up with a tapir
+    // loop nest that Kitsune's tapir targets are unable to process.
+    attrLoopUnrollDisable,
+};
+
+// Add metadata spelled \p attr to the loop metadata of \p loop.
+static void addLoopAttr(Loop &loop, StringRef attr) {
+  LLVMContext &ctx = loop.getHeader()->getContext();
+  MDNode *loopMD = loop.getLoopID();
+  MDNode *attrMD = MDNode::get(ctx, MDString::get(ctx, attr));
+
+  // Remove the existing attribute before adding it back in. I think this
+  // ensures that the attribute does not get duplicated.
+  MDNode *newLoopMD =
+      makePostTransformationMetadata(ctx, loopMD, {attr}, {attrMD});
+
+  loop.setLoopID(newLoopMD);
+}
+
+// Remove the metadata spelled \p attr from the loop metadata of \p loop. If
+// \p attr does not exist in the loop metadata, this has no effect.
+static void clearLoopAttr(Loop &loop, StringRef attr) {
+  LLVMContext &ctx = loop.getHeader()->getContext();
+  MDNode *loopMD = loop.getLoopID();
+  MDNode *newLoopMD = makePostTransformationMetadata(ctx, loopMD, {attr}, {});
+
+  loop.setLoopID(newLoopMD);
+}
+
 LLVMContext &llvm::getContext(const Loop &loop) {
   assert(loop.getHeader() && "Loop does not have a header");
   return loop.getHeader()->getContext();
@@ -149,4 +188,54 @@ SmallVector<Loop *, 4> llvm::getTapirLoops(LoopInfo &li) {
     if (isTapirLoop(*loop))
       loops.push_back(loop);
   return loops;
+}
+
+void llvm::addMandatoryLLVMLoopAttrs(Loop &loop) {
+  assert(isTapirLoop(loop));
+
+  for (StringRef attr : mandatoryLLVMLoopAttrs) {
+    // If any attributes require special handling, deal with them here. These
+    // will typically be those that have related attributes that must also be
+    // handled. For instance, when disabling unrolling, we must also remove
+    // other unrolling-related attributes such as "llvm.loop.unroll.count", and
+    // "llvm.loop.unroll.enable". If LLVM already provides API's that do this,
+    // they should be used.
+    //
+    // If not special handling is required, addLoopAttr() will work just fine.
+    if (attr == attrLoopUnrollDisable)
+      loop.setLoopAlreadyUnrolled();
+    else
+      addLoopAttr(loop, attr);
+  }
+}
+
+void llvm::clearMandatoryLLVMLoopAttrs(Loop &loop) {
+  assert(isTapirLoop(loop));
+
+  for (StringRef attr : mandatoryLLVMLoopAttrs)
+    // If any attributes require special handling, do so here. Otherwise, using
+    // clearLoopAttr() will work just fine.
+    clearLoopAttr(loop, attr);
+}
+
+bool llvm::serializeTapirLoop(Loop &loop, Task &task, DominatorTree *dt,
+                              TaskInfo *ti) {
+  assert(isTapirLoop(loop));
+
+  // This must be called early in case `SerializeDetach` removes something that
+  // identifies `loop` as being a tapir loop. `SerializeDetach` should not need
+  // any non-tapir loop attributes.
+  clearMandatoryLLVMLoopAttrs(loop);
+
+  // This performs the actual serialization of the loop.
+  SerializeDetach(task.getDetach(), &task, /*ReplaceWithTaskFrame=*/false, dt,
+                  ti);
+
+  // Clear the tapir loop attributes *AFTER* calling clearMandatoryLLVMLoopAttrs
+  // since that function requires the tapir loop attributes to be present. This
+  // is called after Serializedetach in case that function examines the tapir
+  // loop attributes.
+  clearTapirLoopAttrs(loop);
+
+  return true;
 }

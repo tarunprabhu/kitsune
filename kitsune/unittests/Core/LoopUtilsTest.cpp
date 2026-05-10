@@ -629,4 +629,81 @@ TEST_F(KitLoopUtils, getTapirLoops) {
   EXPECT_EQ(getTapirLoops(*li).size(), 3U);
 }
 
+static constexpr StringRef simpleTapirLoop = R"(
+define void @f(i64 %n) {
+entry:
+  %syncreg = tail call token @llvm.syncregion.start()
+  br label %for.i.header
+
+for.i.header:
+  %i = phi i64 [ 0, %entry ], [ %inc.i, %for.i.latch ]
+  detach within %syncreg, label %for.i.body, label %for.i.latch
+
+for.i.body:
+  reattach within %syncreg, label %for.i.latch
+
+for.i.latch:
+  %inc.i = add i64 %i, 1
+  %cmp.i = icmp eq i64 %inc.i, %n
+  br i1 %cmp.i, label %for.i.exit, label %for.i.header, !llvm.loop !0
+
+for.i.exit:
+  sync within %syncreg, label %for.i.end
+
+for.i.end:
+  ret void
+}
+
+!0 = distinct !{!0, !1}
+!1 = !{!"tapir.loop.target", i32 1}
+)";
+
+TEST_F(KitLoopUtils, addMandatoryLLVMLoopAttrs) {
+  setup(simpleTapirLoop, "f");
+  Loop *loop = *li->begin();
+
+  // The loop does not contain any attributes. The loop metadata should contain
+  // two single operands - a reference to itself, and the tapir loop target.
+  EXPECT_EQ(loop->getLoopID()->getNumOperands(), 2U);
+  EXPECT_TRUE(hasTargetAttr(*loop));
+
+  addMandatoryLLVMLoopAttrs(*loop);
+
+  // Check for each operand that is expected to be present after the mandatory
+  // attributes have been added.
+  EXPECT_EQ(loop->getLoopID()->getNumOperands(), 3U);
+  EXPECT_TRUE(hasTargetAttr(*loop));
+  EXPECT_TRUE(hasLoopAttr(*loop, "llvm.loop.unroll.disable"));
+
+  // This should not change the number of loop operands since the mandatory
+  // attributes have already been added.
+  addMandatoryLLVMLoopAttrs(*loop);
+  EXPECT_EQ(loop->getLoopID()->getNumOperands(), 3U);
+}
+
+TEST_F(KitLoopUtils, clearMandatoryLLVMLoopAttrs) {
+  setup(simpleTapirLoop, "f");
+  Loop *loop = *li->begin();
+
+  // The loop does not contain any attributes. The loop metadata should contain
+  // two single operands - a reference to itself, and the tapir loop target.
+  EXPECT_EQ(loop->getLoopID()->getNumOperands(), 2U);
+  EXPECT_TRUE(hasTargetAttr(*loop));
+
+  // Sanity check that the number of attributes is as expected after they have
+  // been added.
+  addMandatoryLLVMLoopAttrs(*loop);
+  EXPECT_EQ(loop->getLoopID()->getNumOperands(), 3U);
+
+  // Now remove them and we should get what we originally had.
+  clearMandatoryLLVMLoopAttrs(*loop);
+  EXPECT_EQ(loop->getLoopID()->getNumOperands(), 2U);
+  EXPECT_TRUE(hasTargetAttr(*loop));
+
+  // This should not change the number of loop operands since the mandatory
+  // attributes have already been removed.
+  clearMandatoryLLVMLoopAttrs(*loop);
+  EXPECT_EQ(loop->getLoopID()->getNumOperands(), 2U);
+}
+
 } // namespace

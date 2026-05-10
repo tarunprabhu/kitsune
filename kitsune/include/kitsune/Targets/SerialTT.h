@@ -40,22 +40,16 @@ public:
   void lowerSync(SyncInst &si) override final;
 
   /// This will serialize all tapir loops with the serial tapir target in the
-  /// function. Obviously, all the functionality of this tapir target is in this
-  /// callback. The loop spawning pass will not invoke any other callbacks on
-  /// tapir loops that are not outlined. As a result, if the loops are not
-  /// serialized in this callback, detach and reattach instructions will remain
-  /// in the loop after this tapir target has run. In the grand scheme of
-  /// things, leaving the detaches and reattaches in will not cause any issues
-  /// because the tapir-to-target pass will eventually remove them - effectively
-  /// serializing the loop at that point. But we would like for this tapir
-  /// target to actually serialize the loops. Besides, leaving them in breaks
-  /// some tests that expect this target to have removed those instructions.
-  bool preProcessFunction(Function &f, TaskInfo &ti,
-                          bool processingTapirLoops) override final;
-
+  /// function, implying that all the functionality of this tapir target is in
+  /// this callback.
   void postProcessFunction(Function &f,
-                           bool processingTapirLoops) override final {
-    // Nothing to be done here
+                           bool processingTapirLoops) override final;
+
+  bool preProcessFunction(Function &f, TaskInfo &ti,
+                          bool processingTapirLoops) override final {
+    // This callback does nothing, so always return false indicating that the
+    // CFG was not modified.
+    return false;
   }
 
   void postProcessHelper(Function &f) override final {

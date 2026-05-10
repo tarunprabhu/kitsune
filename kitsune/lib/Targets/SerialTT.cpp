@@ -8,10 +8,38 @@
 //
 // Tapir target that serializes tapir loops.
 //
+// Since the serial tapir target explicitly disables loop outlining, the tapir
+// loops are simply ignored by the loop spawning pass that drives the tapir
+// targets. That leaves us with only two reasonable options: the
+// preProcessFunction and postProcessFunction callbacks.
+//
+// If the tapir loops were in preProcessFunction, the loop spawning pass would
+// have to be modified to drop the serialized loops from its internal data
+// structures. It's not bad, but given that we are being forced to compromise
+// anyway, it is, arguably, a bit too much.
+//
+// Since the tapir loops will have been ignored by loop-spawning, they will
+// still be around when postProcessFunction is called. However, serializing them
+// here has other drawbacks. For one, to do so, we need the results of
+// TaskAnalysis. Unlike with preProcessFunction, this analysis is *NOT* passed
+// to postProcessFunction (this is not unreasonable since this analysis may have
+// been invalidated during lowering). This requires us to recompute TaskInfo in
+// postProcessFunction before serializing the tapir loops.
+//
+// Since serializing the loops in postProcessFunction can be done without
+// breaking loop-spawning, this is what we have done.
+//
+// Unlike earlier implementations of this tapir target that nearly always caused
+// conflicts with loop spawning when something about the serialization process
+// was changed, this may actually be more stable. The major question that
+// remains unanswered is what happens when multi-target execution is enabled.
+// This decision may well have to be revisited in that case.
+//
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Targets/SerialTT.h"
 #include "kitsune/Core/LoopAttrs.h"
+#include "kitsune/Core/LoopUtils.h"
 #include "kitsune/Core/Tapir.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/IR/Constants.h"
@@ -30,41 +58,40 @@ SerialTT::SerialTT(Module &m, const TTOptions &tto) : TapirTarget(m, tto) {}
 bool SerialTT::shouldDoOutlining(const Function &f) const { return false; }
 
 Value *SerialTT::lowerGrainsizeCall(CallInst *call) {
-  // In this tapir target, we do not use a grain size, so always return 0.
-  Value *gs = ConstantInt::get(call->getType(), 0);
-  call->replaceAllUsesWith(gs);
-  return gs;
+  // This callback is not called by the loop-spawning pass - it is only called
+  // by tapir-to-target. Since this pass serializes all tapir loops, there
+  // should be nothing for tapir-to-target to find, so this should never be
+  // called.
+  //
+  // Fail catastrophically if it is called since it likely means that something
+  // significant has changed elsewhere in the pipeline.
+  llvm_unreachable(
+      "Did not expect SerialTT::lowerGrainsizeCall() to be called");
 }
 
 void SerialTT::lowerSync(SyncInst &si) {
-  // This is only called from the TapirToTarget pass. If the sync instruction
-  // has not already been removed (for instance, by the SimplifyCFG pass), we
-  // can simply replace the instruction with an unconditional branch since there
-  // is no parallel work here to sync.
-  ReplaceInstWithInst(&si, BranchInst::Create(si.getSuccessor(0)));
+  // This callback is not called by the loop-spawning pass - it is only called
+  // by tapir-to-target. Since this pass serializes all tapir loops, there
+  // should be nothing for tapir-to-target to find, so this should never be
+  // called.
+  //
+  // Fail catastrophically if it is called since it likely means that something
+  // significant has changed elsewhere in the pipeline.
+  llvm_unreachable("Did not expect SerialTT::lowerSync() to be called");
 }
 
-bool SerialTT::preProcessFunction(Function &f, TaskInfo &ti,
-                                  bool processingTapirLoops) {
-  if (!processingTapirLoops)
-    return false;
-
-  // FIXME: Pass these analyses to the tapir target instead of doing this.
-  bool changed = false;
+void SerialTT::postProcessFunction(Function &f, bool processingTapirLoops) {
+  // FIXME: It would be good to pass these analyses into this callback - or use
+  // some other mechanism to retrieve these analyses from the loop spawning
+  // pass that drives the tapir targets - rather than computing them here.
+  TaskInfo ti;
   DominatorTree dt(f);
   LoopInfo li(dt);
-  for (Loop *loop : li.getLoopsInPreorder())
-    if (Task *task = getTaskIfTapirLoop(loop, &ti))
-      if (getTargetAttr(*loop) == TTID::Serial) {
-        SerializeDetach(task->getDetach(), task);
-        changed |= true;
-      }
 
-  // Recompute the taskinfo analysis because it will be used by loop-spawning
-  // after this returns. We need to recalculate the dominator tree because the
-  // CFG will have changed when the loops are serialized.
-  dt.recalculate(f);
   ti.recalculate(f, dt);
 
-  return changed;
+  for (Loop *loop : li.getLoopsInPreorder())
+    if (Task *task = getTaskIfTapirLoop(loop, &ti))
+      if (getTargetAttr(*loop) == TTID::Serial)
+        serializeTapirLoop(*loop, *task);
 }
