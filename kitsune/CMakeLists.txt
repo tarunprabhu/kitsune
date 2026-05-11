@@ -225,6 +225,14 @@ find_library(LIB_PTHREAD pthread REQUIRED)
 list(APPEND KITSUNE_COMMON_LIB_NAMES pthread)
 list(APPEND KITSUNE_COMMON_LIB_LIBS ${LIB_PTHREAD})
 
+# The librt functions are part of glibc as of v2.34. There is no need to link
+# this in explicitly unless we have older versions of libc around. We do have to
+# suppport HPC clusters with old libc installations, so this might have to be
+# around for some time yet.
+find_library(LIB_RT rt REQUIRED)
+list(APPEND KITSUNE_COMMON_LIB_NAMES rt)
+list(APPEND KITSUNE_COMMON_LIB_LIBS ${LIB_RT})
+
 # On FreeBSD, the backtrace-related functions are defined in libexecinfo. On
 # other systems, they are part of libc, so there is nothing to be done
 # elsewhere.
