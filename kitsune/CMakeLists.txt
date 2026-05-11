@@ -512,7 +512,7 @@ if (KITSUNE_OPENCILK_ENABLED)
   ExternalProject_Add(cheetah
     DEPENDS                 clang lld llvm-config llvm-link
     GIT_REPOSITORY          https://github.com/OpenCilk/cheetah.git
-    GIT_TAG                 dev
+    GIT_TAG                 opencilk/v4.0-rc1
     SOURCE_DIR              ${KITSUNE_CHEETAH_SOURCE_DIR}
     BINARY_DIR              ${KITSUNE_CHEETAH_BINARY_DIR}
     CMAKE_ARGS              ${KITSUNE_CHEETAH_BUILD_CMAKE_FLAGS}
