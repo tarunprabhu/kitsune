@@ -510,6 +510,6 @@ attributes #12 = { noreturn nounwind }
 !39 = !{!34, !19, i64 16}
 !40 = distinct !{!40, !30}
 !41 = distinct !{!41, !42}
-!42 = !{!"tapir.loop.spawn.strategy", i32 0}
+!42 = !{!"tapir.loop.spawn.strategy", i32 2}
 !43 = !{!38, !19, i64 0}
 !44 = !{!21, !19, i64 16}
