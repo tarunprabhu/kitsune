@@ -24,6 +24,7 @@ class Function;
 class LLVMContext;
 class Loop;
 class LoopInfo;
+class Module;
 class Task;
 class TaskInfo;
 
@@ -40,6 +41,11 @@ LLVMContext &getContext(const Loop &loop);
 /// not be found. In this case, nullptr will be returned.
 Function *getFunction(Loop &loop);
 const Function *getFunction(const Loop &loop);
+
+/// Get the module containing the loop, or nullptr if the function containing
+/// the loop is not in a module.
+Module *getModule(Loop &loop);
+const Module *getModule(const Loop &loop);
 
 /// Get the "name" of a loop. This will first check if a "loop.name" attribute
 /// is present on for the loop and return the value of that attribute.

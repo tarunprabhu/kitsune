@@ -71,6 +71,18 @@ const Function *llvm::getFunction(const Loop &loop) {
   return loop.getHeader()->getParent();
 }
 
+Module *llvm::getModule(Loop &loop) {
+  if (Function *f = getFunction(loop))
+    return f->getParent();
+  return nullptr;
+}
+
+const Module *llvm::getModule(const Loop &loop) {
+  if (const Function *f = getFunction(loop))
+    return f->getParent();
+  return nullptr;
+}
+
 std::string llvm::getName(const Loop &loop, StringRef defawlt) {
   if (std::optional<StringRef> name = getNameAttr(loop))
     return name->str();
