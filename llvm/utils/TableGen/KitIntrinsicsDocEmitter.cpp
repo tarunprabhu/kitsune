@@ -62,6 +62,7 @@ protected:
         .Case("llvm_ptr_ty", "ptr")
         .Case("llvm_metadata_ty", "metadata")
         .Case("llvm_token_ty", "token")
+        .Case("llvm_any_ty", "*")
         .Case("llvm_vararg_ty", "...")
         .Case("llvm_mobile_ptr_ty", "ptr addrspace(67)");
   }
