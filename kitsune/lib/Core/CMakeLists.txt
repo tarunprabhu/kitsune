@@ -21,6 +21,7 @@ add_llvm_component_library(LLVMKitCore
   MetadataUtils.cpp
   ModuleAttrs.cpp
   ModuleUtils.cpp
+  TapirLoopUtils.cpp
   TTOptions.cpp
   TTPlugin.cpp
   TTUtils.cpp
