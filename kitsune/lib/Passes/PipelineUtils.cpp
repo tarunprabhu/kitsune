@@ -26,9 +26,19 @@
 #include "kitsune/Transforms/GenerateCtors.h"
 #include "kitsune/Transforms/PreLowerAnnotate.h"
 #include "kitsune/Transforms/PrefetchForDevice.h"
+#include "kitsune/Transforms/PrepareReductionLoops.h"
 #include "kitsune/Transforms/RecomputeKernelProperties.h"
 #include "kitsune/Transforms/Serialize.h"
+#include "llvm/Transforms/InstCombine/InstCombine.h"
+#include "llvm/Transforms/Scalar/ADCE.h"
+#include "llvm/Transforms/Scalar/BDCE.h"
+#include "llvm/Transforms/Scalar/DeadStoreElimination.h"
+#include "llvm/Transforms/Scalar/EarlyCSE.h"
+#include "llvm/Transforms/Scalar/IndVarSimplify.h"
+#include "llvm/Transforms/Scalar/LoopRotation.h"
+#include "llvm/Transforms/Scalar/SCCP.h"
 #include "llvm/Transforms/Scalar/SimplifyCFG.h"
+#include "llvm/Transforms/Utils/LCSSA.h"
 #include "llvm/Transforms/Utils/LoopSimplify.h"
 
 using namespace llvm;
@@ -91,22 +101,58 @@ llvm::populateKitPreTapirPasses(PassBuilder &pb, OptimizationLevel optLevel,
   return mpm;
 }
 
+static FunctionPassManager populatePostPrepareReductionLoopsCleanupPasses() {
+  FunctionPassManager fpm;
+  LoopPassManager lpm;
+
+  // the kit-reductions pass may not leave the IR in as clean a state as we
+  // would like. All these passes are probably overkill, but we definitely
+  // need at least indvars and simplifycfg.
+  //
+  // FIXME: Some of these passes were added because an initial cut of the
+  // implementation used Tapir's loop stripmining pass, and comments in the code
+  // suggested that these would be useful. We have since used a totally new
+  // approach, so it is not clear how many of these are actually needed.
+  fpm.addPass(EarlyCSEPass(/*UseMemorySSA=*/true));
+  lpm.addPass(IndVarSimplifyPass());
+  fpm.addPass(createFunctionToLoopPassAdaptor(std::move(lpm)));
+  fpm.addPass(SimplifyCFGPass());
+  fpm.addPass(InstCombinePass());
+  fpm.addPass(SCCPPass());
+  fpm.addPass(BDCEPass());
+  fpm.addPass(InstCombinePass());
+  fpm.addPass(DSEPass());
+  fpm.addPass(ADCEPass());
+
+  return fpm;
+}
+
 ModulePassManager llvm::populateKitPreLoopSpawningPasses(
     PassBuilder &pb, OptimizationLevel optLevel, ThinOrFullLTOPhase ltoPhase,
     const PipelineTuningOptions &pto) {
   ModulePassManager mpm;
 
-  // Run simplifycfg and loop-simplify after the DeLICM pass since it may leave
-  // empty basic blocks around.
-  FunctionPassManager fpm;
-  fpm.addPass(DeLICMPass());
-  fpm.addPass(SimplifyCFGPass());
-  fpm.addPass(LoopSimplifyPass());
-  mpm.addPass(createModuleToFunctionPassAdaptor(std::move(fpm)));
-
-  // At optimization level O0,, loop spawning will not be run, so there is no
+  // At optimization level O0, loop spawning will not be run, so there is no
   // point in running the other Kitsune-specific passes.
   if (optLevel.getSpeedupLevel() > 0) {
+    FunctionPassManager fpm;
+    LoopPassManager lpm;
+
+    fpm.addPass(LoopSimplifyPass());
+    lpm.addPass(LoopRotatePass());
+    fpm.addPass(createFunctionToLoopPassAdaptor(std::move(lpm)));
+    fpm.addPass(LCSSAPass());
+    fpm.addPass(PrepareReductionLoopsPass());
+    mpm.addPass(createModuleToFunctionPassAdaptor(std::move(fpm)));
+    fpm.addPass(populatePostPrepareReductionLoopsCleanupPasses());
+
+    // Run simplifycfg and loop-simplify after the DeLICM pass since it may
+    // leave empty basic blocks around.
+    fpm.addPass(DeLICMPass());
+    fpm.addPass(SimplifyCFGPass());
+    fpm.addPass(LoopSimplifyPass());
+    mpm.addPass(createModuleToFunctionPassAdaptor(std::move(fpm)));
+
     mpm.addPass(PreLowerVerificationPass());
 
     // annotate-tapir-loops requires the loops to be in simplified and rotated

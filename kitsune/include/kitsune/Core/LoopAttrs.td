@@ -52,18 +52,6 @@ class LoopAttr<Type ValueType = VoidTy> : AttrBase<ValueType>{}
 
 //------------------------------------------------------------------------------
 
-// The name of a loop - usually a tapir loop. This can be useful for debugging
-// or when one is compelled to read LLVM-IR.
-def Name : LoopAttr<StrTy> {
-  let HasCustomVerifier = true;
-  let Documentation = KitLoopNameDoc;
-}
-
-// Flag indicating that the loop is a serialized tapir loop.
-def Serialized : LoopAttr<> {
-   let Documentation = KitLoopSerializedDoc;
-}
-
 // Flag indicating that the tapir loop is lowered to a GPU kernel, and Kitsune's
 // runtime will perform autotuning on the launch parameters when launching the
 // GPU kernel generated from this tapir loop.
@@ -90,6 +78,13 @@ def LoweringEnabled : LoopAttr<> {
   let Documentation = KitLoopLoweringEnabledDoc;
 }
 
+// The name of a loop - usually a tapir loop. This can be useful for debugging
+// or when one is compelled to read LLVM-IR.
+def Name : LoopAttr<StrTy> {
+  let HasCustomVerifier = true;
+  let Documentation = KitLoopNameDoc;
+}
+
 // The number of perfectly nested tapir loops rooted at the given loop.
 def PerfectDepth : LoopAttr<U32Ty> {
   let Documentation = KitLoopPerfectDepthDoc;
@@ -98,6 +93,22 @@ def PerfectDepth : LoopAttr<U32Ty> {
 // The nesting level of a loop that is perfectly nested within a loop nest.
 def PerfectLevel : LoopAttr<U32Ty> {
   let Documentation = KitLoopPerfectLevelDoc;
+}
+
+// Flag indicating that the loop performs one or more reductions.
+def Reduction : LoopAttr<> {
+  let Documentation = KitLoopReductionDoc;
+}
+
+// Flag indicating that a tapir reduction loop has already been transformed
+// for parallel execution.
+def ReductionPrepared : LoopAttr<> {
+  let Documentation = KitLoopReductionPreparedDoc;
+}
+
+// Flag indicating that the loop is a serialized tapir loop.
+def Serialized : LoopAttr<> {
+   let Documentation = KitLoopSerializedDoc;
 }
 
 // The spawn strategy for the tapir loop.

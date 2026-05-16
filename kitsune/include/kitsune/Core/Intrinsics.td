@@ -360,3 +360,46 @@ def int_kit_thread_stream
                    [ImmArg<ArgIndex<0>>]> {
   let Doc = KitGPUGetStreamDoc;
 }
+
+// Reduce a single value using a given reduction function.
+def int_kit_reduce_0
+    : KitIntrinsic<[],
+                   [llvm_i32_ty,     // TTID
+                    llvm_ptr_ty,     // Pointer to result
+                    llvm_i32_ty,     // sizeof(result)
+                    llvm_any_ty,     // The value to reduce
+                    llvm_any_ty,     // The unit value for the reducer
+                    llvm_ptr_ty,     // The reducer function
+                    llvm_vararg_ty], // Additional reducer arguments
+                   [ImmArg<ArgIndex<0>>, NonNull<ArgIndex<1>>,
+                    ImmArg<ArgIndex<2>>, NonNull<ArgIndex<5>>,
+                    ReadOnly<ArgIndex<5>>]> {
+  let Doc = KitReduce0Doc;
+}
+
+// Reduce the values in a contiguous 1D array using a given reduction function.
+def int_kit_reduce_1
+    : KitIntrinsic<[],
+                   [llvm_i32_ty,        // TTID
+                    llvm_ptr_ty,        // Pointer to result
+                    llvm_i32_ty,        // sizeof(result)
+                    llvm_mobile_ptr_ty, // Pointer to 1D array to reduce
+                    llvm_i64_ty,        // The number of elements in the array
+                    llvm_any_ty,        // The unit value for the reducer
+                    llvm_ptr_ty,        // The reducer function
+                    llvm_vararg_ty],    // Additional reducer arguments
+                   [ImmArg<ArgIndex<0>>, NonNull<ArgIndex<1>>,
+                    ImmArg<ArgIndex<2>>, ReadOnly<ArgIndex<3>>,
+                    NonNull<ArgIndex<6>>, ReadOnly<ArgIndex<6>>]> {
+  let Doc = KitReduce1DDoc;
+}
+
+// Get the number of partial reductions to perform when lowering a parallel
+// reduction.
+def int_kit_reduce_partials_count
+    : KitIntrinsic<[llvm_i64_ty],
+                   [llvm_i32_ty,  // TTID
+                    llvm_i64_ty], // Reduction loop trip count
+                   [ImmArg<ArgIndex<0>>]> {
+  let Doc = KitReducePartialsCountDoc;
+}

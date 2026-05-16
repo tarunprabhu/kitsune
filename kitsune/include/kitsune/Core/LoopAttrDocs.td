@@ -11,20 +11,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-def KitLoopNameDoc : KitDocAttr {
-  let Documentation = [{
-A human-readable name for the loop. This is useful in debugging and diagnostics
-when debug information is not available.
-}];
-}
-
-def KitLoopSerializedDoc : KitDocAttr {
-   let Documentation = [{
-The presence of this attribute indicates that the loop on which it is present
-is a tapir loop that was serialized.
-}];
-}
-
 def KitLoopAutotuneLaunchDoc : KitDocAttr {
   let Documentation = [{
 If present, this attribute indicates that the runtime should use autotuning to
@@ -68,6 +54,13 @@ this attribute will not be lowered directly in the loop spawning pass. This does
 not mean that such tapir loops will not be lowered, just that they will not be
 passed directly to a tapir target. They will almost certainly be handled when
 lowering a parent tapir loop that is passed to a tapir target.
+}];
+}
+
+def KitLoopNameDoc : KitDocAttr {
+  let Documentation = [{
+A human-readable name for the loop. This is useful in debugging and diagnostics
+when debug information is not available.
 }];
 }
 
@@ -163,6 +156,30 @@ tapir loop.
 From the examples shown here, it is evident that the perfect level of a tapir
 loop must be less than or equal to the perfect depth of the tapir loop nest of
 which the tapir loop is a part.
+}];
+}
+
+def KitLoopReductionDoc : KitDocAttr {
+  let Documentation = [{
+The presence of this attribute indicates that the loop performs one or more
+reductions. Although not strictly required, this attribute is only really useful
+(and used) when the loop is a tapir loop.
+}];
+}
+
+def KitLoopReductionPreparedDoc : KitDocAttr {
+  let Documentation = [{
+The presence of this attribute indicates that the tapir reduction loop has been
+transformed for parallel execution. This is used to ensure that a tapir loop is
+not processed twice when doing so may result in severely degraded performance,
+or even incorrect execution.
+}];
+}
+
+def KitLoopSerializedDoc : KitDocAttr {
+   let Documentation = [{
+The presence of this attribute indicates that the loop on which it is present
+is a tapir loop that was serialized.
 }];
 }
 

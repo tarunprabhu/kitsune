@@ -14,10 +14,21 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Transforms/EarlyAnnotate.h"
+#include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
 #include "llvm/Analysis/LoopInfo.h"
+#include "llvm/IR/Intrinsics.h"
 
 using namespace llvm;
+
+static bool isReductionLoop(const Loop &loop) {
+  for (const BasicBlock *bb : getBlocksNotInSubLoops(loop))
+    for (const Instruction &inst : *bb)
+      if (const auto *call = dyn_cast<CallBase>(&inst))
+        if (call->getIntrinsicID() == Intrinsic::kit_reduce_0)
+          return true;
+  return false;
+}
 
 PreservedAnalyses EarlyAnnotatePass::run(Function &f,
                                          FunctionAnalysisManager &am) {
@@ -26,6 +37,8 @@ PreservedAnalyses EarlyAnnotatePass::run(Function &f,
   for (Loop *loop : li.getLoopsInPreorder()) {
     if (isTapirLoop(*loop)) {
       addMandatoryLLVMLoopAttrs(*loop);
+      if (isReductionLoop(*loop))
+        addReductionAttr(*loop);
     }
   }
 

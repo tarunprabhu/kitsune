@@ -33,7 +33,7 @@
 #include "kitsune/Transforms/GenerateCtors.h"
 #include "kitsune/Transforms/PreLowerAnnotate.h"
 #include "kitsune/Transforms/PrefetchForDevice.h"
-#include "kitsune/Transforms/PrepareReductionLoopsGPU.h"
+#include "kitsune/Transforms/PrepareReductionLoops.h"
 #include "kitsune/Transforms/RecomputeKernelProperties.h"
 #include "kitsune/Transforms/Serialize.h"
 #include "llvm/ADT/StringSwitch.h"

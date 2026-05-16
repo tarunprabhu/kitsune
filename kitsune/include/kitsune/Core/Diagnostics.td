@@ -198,11 +198,44 @@ def ErrTapirLoopNotCanonicalGPU
 def ErrTapirNestBoundsVariantGPU
   : Error<"bounds of GPU loop must be invariant in the nest">;
 
+def ErrLoopNotSimplifyForm
+  : Error<"loop is not in loop-simplify form">;
+
+def ErrLoopNotLCSSAForm
+  : Error<"loop is not in LCSSA form">;
+
+def ErrLoopNotInRotateForm
+  : Error<"loop is not in loop-rotate form">;
+
+def ErrTapirLoopNoTask
+  : Error<"cannot get task for tapir loop">;
+
+def ErrTapirLoopNotSafeToClone
+  : Error<"tapir loop is not safe to clone">;
+
+def ErrTapirLoopConvergent
+  : Error<"tapir loop contains convergent operation: '{}'">;
+
+def ErrTapirLoopNoPrimaryIV
+  : Error<"primary induction variable not found in tapir loop">;
+
+def ErrTapirLoopNoFiniteTripCount
+  : Error<"could not compute finite trip count for tapir loop">;
+
+def ErrTapirLoopThrowsException
+  : Error<"tapir loop may not throw an exception">;
+
+def ErrTapirLoopIVUsedOutsideLoop
+  : Error<"tapir loop induction variable used outside tapir loop: '{}'">;
+
 
 // ------------------------- Kitsune-specific warnings -------------------------
 //
 // Although not strictly required, the names of all warnings should be prefixed
 // with Warn.
+
+def WarnGeneric
+  : Warning<"{}">;
 
 def WarnSerialInParallelLoopNest
   : Warning<"serial loop between parallel loops in loop nest">;
