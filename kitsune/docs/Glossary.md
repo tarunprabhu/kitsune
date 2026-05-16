@@ -603,6 +603,11 @@ Kitsune-specific, but is used, perhaps exclusively, in Kitsune's documentation.
 : The transformation of a [tapir loop](glossary-tapir-loop) to use a runtime
   system, or to a form suitable for execution on a [device](glossary-device).
 
+(glossary-tapir-reduction-loop)=
+**tapir reduction loop**
+: A [tapir loop](glossary-tapir-loop) that contains at least one call to
+  [llvm.kit.reduce.0](llvm.kit.reduce.0).
+
 (glossary-tapir-target)=
 **tapir target**
 : The object that transforms a [tapir loop](glossary-tapir-loop). The
