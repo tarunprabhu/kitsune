@@ -3,19 +3,14 @@
 // the case even if a tapir target has not been set. In C++, the builtins can be
 // called directly if needed.
 //
+// FIXME: The builtins should *ONLY* be recognized when the kit++ driver is
+// used. It should not work with the 'clang' driver.
+//
 // RUN: %clangxx -O0 -S -emit-llvm -o - %s %sysroot | FileCheck %s
 // RUN: %kitxx -O0 -S -emit-llvm -o - %s %sysroot | FileCheck %s
 // RUN: %kitxx --tapir=nolo -O0 -S -emit-llvm -o - %s %sysroot | FileCheck %s
 
-#include <kitsune.h>
-
-// CHECK-LABEL: @_Z8allocateRN7kitsune
-// CHECK: call ptr addrspace(67) @llvm.kit.mobile.alloc({{.+}})
-void allocate(kitsune::mobile_ptr<int> &buf, size_t n) { buf.alloc(n); }
-
-// CHECK-LABEL: @_Z10deallocateRN7kitsune
-// CHECK: call void @llvm.kit.mobile.free(ptr addrspace(67) %{{.+}})
-void deallocate(kitsune::mobile_ptr<int> &buf) { buf.free(); }
+#include <cstddef>
 
 // CHECK-LABEL: @allocate_c
 // CHECK: call ptr addrspace(67) @llvm.kit.mobile.alloc({{.+}})

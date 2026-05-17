@@ -2,11 +2,14 @@
 // to the correct Kitsune memory (de)allocation intrinsics. This should be done
 // even if a tapir target has not been set.
 //
+// FIXME: The intrinsics should *ONLY* be recognized when the kitcc driver is
+// used. It should not work with the 'clang' driver.
+//
 // RUN: %clang -O0 -S -emit-llvm -o - %s %sysroot | FileCheck %s
 // RUN: %kitcc -O0 -S -emit-llvm -o - %s %sysroot | FileCheck %s
 // RUN: %kitcc --tapir=nolo -O0 -S -emit-llvm -o - %s %sysroot | FileCheck %s
 
-#include "kitsune.h"
+#include <stddef.h>
 
 // CHECK-LABEL: allocate_c
 // CHECK: call ptr addrspace(67) @llvm.kit.mobile.alloc(i64 %{{.+}})

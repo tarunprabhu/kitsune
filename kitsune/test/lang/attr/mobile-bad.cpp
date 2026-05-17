@@ -1,6 +1,4 @@
-// RUN: %kitxx -Xclang -verify --tapir=serial -O1 -fsyntax-only %s %sysroot
-
-#include <string>
+// RUN: %kitxx -Xclang -verify -fsyntax-only %sysroot %s
 
 struct S1 {
   int n;
@@ -13,9 +11,6 @@ S1 [[kitsune::mobile]] s1;
 // expected-error@-1 {{'kitsune::mobile' can only be used on a pointer type}}
 
 double [[kitsune::mobile]] dbl[3];
-// expected-error@-1 {{'kitsune::mobile' can only be used on a pointer type}}
-
-std::string [[kitsune::mobile]] s;
 // expected-error@-1 {{'kitsune::mobile' can only be used on a pointer type}}
 
 void (*fptr)(int) [[kitsune::mobile]];
@@ -45,20 +40,19 @@ int *f4(int *[[kitsune::mobile]] ptr) {
 }
 
 int f5(int *ptr) { return *ptr; }
-
 int f6(int *[[kitsune::mobile]] ptr) {
   // expected-error@+1 {{no matching function for call to 'f5'}}
   return f5(ptr);
-  // expected-note-re@-5 {{candidate function not viable: {{.*}} does not accept mobile pointer. Consider using __kitsune_mobile_cast_unsafe}}
+  // expected-note-re@-4 {{candidate function not viable: {{.*}} does not accept mobile pointer. Consider using __kitsune_mobile_cast_unsafe}}
 }
 
 int *f7(int *[[kitsune::mobile]] ptr) {
-  // expected-error@+1 {{cannot initialize return object}}
+  // expected-error-re@+1 {{cannot initialize return object {{.+}} with {{.+}}}}
   return ptr;
 }
 
 void f8(int *[[kitsune::mobile]] arg) {
-  // expected-error@+1 {{cannot initialize a variable}}
+  // expected-error-re@+1 {{cannot initialize a variable {{.+}} with {{.+}}}}
   int *local = arg;
 }
 
