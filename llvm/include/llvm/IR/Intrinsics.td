@@ -2913,11 +2913,10 @@ def int_experimental_convergence_loop
 // Kitsune-specific intrinsics
 //===----------------------------------------------------------------------===//
 
-// The includes are this way because some tests in llvm/test/Tablegen add
-// ${CMAKE_SOURCE_DIR}/llvm/include as an include directory (here,
-// ${CMAKE_SOURCE_DIR} is the top-level of the source monorepo). This is an
-// easier fix than changing all the tests there. This also works with all other
-// uses of this file.
+// The includes are this way because some tests in llvm/test/Tablegen include
+// this file, but without adding Kitsune's include directory to the search path.
+// We use this workaround to avoid modifying too much in upstream llvm-project.
+// It's not pretty, but it works with all uses of this file.
 include "../../kitsune/include/kitsune/Core/Intrinsics.td"
 
 //===----------------------------------------------------------------------===//
