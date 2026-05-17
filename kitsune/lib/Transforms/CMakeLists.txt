@@ -16,6 +16,7 @@ add_llvm_component_library(LLVMKitTransforms
   GenerateCtorOpenMP.cpp
   GenerateCtorPthreads.cpp
   GenerateCtorQthreads.cpp
+  LowerKitReduceIntrinsics.cpp
   PreLowerAnnotate.cpp
   PrefetchForDevice.cpp
   PrepareReductionLoops.cpp

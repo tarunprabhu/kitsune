@@ -24,6 +24,7 @@
 #include "kitsune/Transforms/EmbPrepare.h"
 #include "kitsune/Transforms/EmbResolveLibDeviceCalls.h"
 #include "kitsune/Transforms/GenerateCtors.h"
+#include "kitsune/Transforms/LowerKitReduceIntrinsics.h"
 #include "kitsune/Transforms/PreLowerAnnotate.h"
 #include "kitsune/Transforms/PrefetchForDevice.h"
 #include "kitsune/Transforms/PrepareReductionLoops.h"
@@ -101,7 +102,7 @@ llvm::populateKitPreTapirPasses(PassBuilder &pb, OptimizationLevel optLevel,
   return mpm;
 }
 
-static FunctionPassManager populatePostPrepareReductionLoopsCleanupPasses() {
+static FunctionPassManager populateSimplifyPasses() {
   FunctionPassManager fpm;
   LoopPassManager lpm;
 
@@ -143,8 +144,11 @@ ModulePassManager llvm::populateKitPreLoopSpawningPasses(
     fpm.addPass(createFunctionToLoopPassAdaptor(std::move(lpm)));
     fpm.addPass(LCSSAPass());
     fpm.addPass(PrepareReductionLoopsPass());
+    fpm.addPass(LowerKitReduceIntrinsicsPass());
     mpm.addPass(createModuleToFunctionPassAdaptor(std::move(fpm)));
-    fpm.addPass(populatePostPrepareReductionLoopsCleanupPasses());
+    mpm.addPass(ModuleInlinerPass());
+    fpm.addPass(populateSimplifyPasses());
+    mpm.addPass(createModuleToFunctionPassAdaptor(std::move(fpm)));
 
     // Run simplifycfg and loop-simplify after the DeLICM pass since it may
     // leave empty basic blocks around.
