@@ -1,20 +1,28 @@
 // RUN: %kitxx -Xclang -verify -fsyntax-only %s
 
+// This is simply checking that the return type of kitsune_mobile_alloc is
+// not compatible with an unattributed pointer.
+void mobile_alloc(int n) {
+  // expected-error-re@+1 {{cannot initialize a variable {{.+}} with {{.+}}}}
+  void *ptr = kitsune_mobile_alloc(n);
+}
+
 void mobile_free() {
   int *ptr = nullptr;
 
+  // expected-error-re@+1 {{argument {{.+}} must have mobile qualifier}}
   kitsune_mobile_free(ptr);
-  // expected-error@-1 {{argument of kitsune_mobile_free must have mobile qualifier}}
+
+  // expected-error-re@+1 {{argument {{.+}} must have mobile qualifier}}
   kitsune_mobile_free(*ptr);
-  // expected-error@-1 {{argument of kitsune_mobile_free must have mobile qualifier}}
 }
 
 void cast_unsafe() {
-  int n = 12;
-  void *[[kitsune::mobile]] ptr = nullptr;
+  int *[[kitsune::mobile]] ptr = nullptr;
 
+  // expected-error-re@+1 {{argument {{.+}} must be a non-mobile pointer}}
   __kitsune_mobile_cast_unsafe(ptr);
-  // expected-error@-1 {{argument of __kitsune_mobile_cast_arg must be a non-mobile pointer}}
-  __kitsune_mobile_cast_unsafe(n);
-  // expected-error@-1 {{argument of __kitsune_mobile_cast_arg must be a non-mobile pointer}}
+
+  // expected-error-re@+1 {{argument {{.+}} must be a non-mobile pointer}}
+  __kitsune_mobile_cast_unsafe(*ptr);
 }

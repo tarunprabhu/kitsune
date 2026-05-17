@@ -14,7 +14,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-// NOTE: In the inrinsic definitions used below, when a mobile pointer must be
+// NOTE: In the intrinsic definitions used below, when a mobile pointer must be
 // specified, use '*__mobile__'. Note that there is no space between '*' and
 // 'mobile'. '*__mobile__' is equivalent to `* [[kitsune::mobile]]`.
 
@@ -27,7 +27,7 @@ class KitCBuiltin : Builtin {
 // Allocate a mobile buffer.
 def KitMobileAlloc : KitCBuiltin {
   let Spellings = ["kitsune_mobile_alloc"];
-  let Attributes = [CustomTypeChecking];
+  let Attributes = [];
   let Prototype = "void*__mobile__(size_t)";
   let Doc = KitMobileAllocDoc;
 }

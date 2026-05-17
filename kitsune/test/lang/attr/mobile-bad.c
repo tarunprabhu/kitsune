@@ -1,5 +1,4 @@
-// RUN: %kitcc -Xclang -verify --tapir=nolo -O1 -fsyntax-only %s \
-// RUN:     -std=c23 %sysroot
+// RUN: %kitcc -Xclang -verify -fsyntax-only -std=c23 %sysroot %s
 
 #include <stddef.h>
 
@@ -38,7 +37,7 @@ int* f3(int* [[kitsune::mobile]] ptr) {
 }
 
 void f4(int* [[kitsune::mobile]] arg) {
-  // expected-error-re@+1 {{initializing {{.+}} with an expression {{.+}} discards qualifiers}}
+  // expected-error-re@+1 {{initializing {{.+}} with {{.+}} discards qualifiers}}
   int* local = arg;
 }
 
