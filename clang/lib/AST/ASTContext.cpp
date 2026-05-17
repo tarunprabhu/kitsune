@@ -12631,6 +12631,25 @@ static QualType DecodeTypeFromStr(const char *&Str, const ASTContext &Context,
     switch (char c = *Str++) {
     default: Done = true; --Str; break;
     case '*':
+      // The pointer may be qualified with the mobile attribute. In this case,
+      // an address space is not allowed, so check for that early and break if
+      // needed.
+      if (strncmp(Str, "__mobile__", 10) == 0) {
+        Str += 10;
+
+        // The pointee is the truly "mobile" type here since it is the contents
+        // of that memory that may move around. The pointer itself is merely
+        // pointing to such "mobile" data. While we may use the term "mobile
+        // pointer", it is really a "mobile buffer".
+        Qualifiers Quals = Qualifiers().withMobile();
+        QualType Pointee = Context.getQualifiedType(Type, Quals);
+        Type = Context.getPointerType(Pointee);
+
+        break;
+      }
+      // If the pointer is not "mobile", it can be treated in a similar way to
+      // reference types, so fall through to share that code.
+      LLVM_FALLTHROUGH;
     case '&': {
       // Both pointers and references can have their pointee types
       // qualified with an address space.
@@ -12647,12 +12666,6 @@ static QualType DecodeTypeFromStr(const char *&Str, const ASTContext &Context,
         Type = Context.getPointerType(Type);
       else
         Type = Context.getLValueReferenceType(Type);
-      break;
-    }
-    case '!': {
-      Qualifiers Quals;
-      Quals.addMobile();
-      Type = Context.getPointerType(Context.getQualifiedType(Type, Quals));
       break;
     }
     // FIXME: There's no way to have a built-in with an rvalue ref arg.
