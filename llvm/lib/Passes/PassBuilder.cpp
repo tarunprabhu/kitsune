@@ -31,6 +31,7 @@
 #include "kitsune/Transforms/EmbPrepare.h"
 #include "kitsune/Transforms/EmbResolveLibDeviceCalls.h"
 #include "kitsune/Transforms/GenerateCtors.h"
+#include "kitsune/Transforms/LowerKitReduceIntrinsics.h"
 #include "kitsune/Transforms/PreLowerAnnotate.h"
 #include "kitsune/Transforms/PrefetchForDevice.h"
 #include "kitsune/Transforms/PrepareReductionLoops.h"

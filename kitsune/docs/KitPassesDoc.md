@@ -187,6 +187,16 @@ Some Kitsune-specific intrinsics can be replaced with a call to a function in
 Kitsune's runtime. This pass performs that replacement.
 
 
+(passes-kit-lower-reduce-intrinsics)=
+### kit-lower-reduce-intrinsics
+
+Replaces calls to Kitsune's reduce intrinsics,
+[llvm.kit.reduce.0](llvm.kit.reduce.0),
+and [llvm.kit.reduce.1](llvm.kit.reduce.1) with an appropriate implementation.
+Unlike the other intrinsic lowering passes, this is run as part of the
+middle-end in the pre-tapir lowering pipeline.
+
+
 (passes-kit-reductions)=
 ### kit-reductions
 

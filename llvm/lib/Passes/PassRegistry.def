@@ -624,6 +624,7 @@ FUNCTION_PASS("wasm-eh-prepare", WasmEHPreparePass())
 // it makes merges a bit easier at times.
 FUNCTION_PASS("kit-annotate-early", EarlyAnnotatePass())
 FUNCTION_PASS("kit-delicm", DeLICMPass())
+FUNCTION_PASS("kit-lower-reduce-intrinsics", LowerKitReduceIntrinsicsPass())
 FUNCTION_PASS("kit-reductions", PrepareReductionLoopsPass())
 
 #undef FUNCTION_PASS
