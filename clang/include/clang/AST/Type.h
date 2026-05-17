@@ -457,6 +457,15 @@ public:
   // Serialize these qualifiers into an opaque representation.
   uint64_t getAsOpaqueValue() const { return Mask; }
 
+  bool hasMobile() const { return Mask & MMask; }
+  void removeMobile() { Mask &= ~MMask; }
+  void addMobile() { Mask |= MMask; }
+  Qualifiers withMobile() const {
+    Qualifiers Qs = *this;
+    Qs.addMobile();
+    return Qs;
+  }
+
   bool hasConst() const { return Mask & Const; }
   bool hasOnlyConst() const { return Mask == Const; }
   void removeConst() { Mask &= ~Const; }
@@ -569,11 +578,6 @@ public:
     ObjCLifetime lifetime = getObjCLifetime();
     return (lifetime == OCL_Strong || lifetime == OCL_Weak);
   }
-
-  bool hasMobile() const { return Mask & MMask; }
-  void setMobile(bool flag) { Mask = (Mask & ~MMask) | (flag ? MMask : 0); }
-  void removeMobile() { Mask &= ~MMask; }
-  void addMobile() { Mask |= MMask; }
 
   bool hasAddressSpace() const { return Mask & AddressSpaceMask; }
   LangAS getAddressSpace() const {

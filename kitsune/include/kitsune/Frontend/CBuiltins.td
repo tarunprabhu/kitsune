@@ -8,11 +8,15 @@
 //
 // Kitsune-specific builtins for C-like languages.
 //
+// This file is expected to be included in clang/Basic/Builtins.td. To process
+// the contents of this file, for instance with tablgen, the including file must
+// be passed to tablgen. This *MUST NOT* be used directly.
+//
 //===----------------------------------------------------------------------===//
 
-// NOTE: This file is expected to be included in clang/Basic/Builtins.td.
-// It cannot be used on its own. When passing it to tablegen, for instance, the
-// including file must be used instead.
+// NOTE: In the inrinsic definitions used below, when a mobile pointer must be
+// specified, use '*__mobile__'. Note that there is no space between '*' and
+// 'mobile'. '*__mobile__' is equivalent to `* [[kitsune::mobile]]`.
 
 include "kitsune/Frontend/CBuiltinDocs.td"
 
@@ -24,7 +28,7 @@ class KitCBuiltin : Builtin {
 def KitMobileAlloc : KitCBuiltin {
   let Spellings = ["kitsune_mobile_alloc"];
   let Attributes = [CustomTypeChecking];
-  let Prototype = "void!(size_t)"; // Here, `!` means `*[[kitsune::mobile]]`
+  let Prototype = "void*__mobile__(size_t)";
   let Doc = KitMobileAllocDoc;
 }
 
@@ -32,7 +36,7 @@ def KitMobileAlloc : KitCBuiltin {
 def KitMobileFree : KitCBuiltin {
   let Spellings = ["kitsune_mobile_free"];
   let Attributes = [CustomTypeChecking];
-  let Prototype = "void(void!)"; // Here, `!` means `*[[kitsune::mobile]]`
+  let Prototype = "void(void*__mobile__)";
   let Doc = KitMobileFreeDoc;
 }
 
@@ -40,6 +44,6 @@ def KitMobileFree : KitCBuiltin {
 def KitMobileCastUnsafe : KitCBuiltin {
   let Spellings = ["__kitsune_mobile_cast_unsafe"];
   let Attributes = [CustomTypeChecking];
-  let Prototype = "void!(void*)"; // Here, `!` means `[[kitsune::mobile]]`
+  let Prototype = "void*__mobile__(void*)";
   let Doc = KitMobileCastUnsafeDoc;
 }
