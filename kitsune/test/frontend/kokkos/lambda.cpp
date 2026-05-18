@@ -1,4 +1,3 @@
-// -----------------------------------------------------------------------------
 // Check that both "anonymous" and "named" parallel_for constructs, given a
 // lambda, are lowered correctly
 //
@@ -7,25 +6,20 @@
 // RUN:     | FileCheck %s
 
 #include <Kokkos_Core.hpp>
-#include <cstdio>
 
-extern "C" void anon(int n) {
-  // clang-format off
-  Kokkos::parallel_for(n, KOKKOS_LAMBDA(int i) {
-    printf("hello from %i\n", i);
-  });
-  // clang-format on
-}
+extern "C" void ext(int);
 
 // CHECK-LABEL: void @anon
 // CHECK-SAME: i32{{.*}} %[[N:[^)]+]]
 // CHECK-NEXT: [[ENTRY:.+]]:
 // CHECK-NEXT: %[[SYNCREG:.+]] = {{.+}}call token @llvm.syncregion.start
 // CHECK: [[DETACH:^.+]]:
-// CHECK-NEXT: %[[IV:.+]] = phi i32 [ %[[NEXT:.+]], %[[LATCH:.+]] ], [ 0, %[[ENTRY]] ]
+// CHECK-NEXT: %[[IV:.+]] = phi i32
+// CHECK-SAME: [ %[[NEXT:[^,]+]], %[[LATCH:[^ ]+]] ]
+// CHECK-SAME: [ 0, %[[ENTRY]] ]
 // CHECK-NEXT: detach within %[[SYNCREG]], label %[[BODY:.+]], label %[[LATCH]]
 // CHECK: [[BODY]]:
-// CHECK-NEXT: call{{.+}} @printf
+// CHECK-NEXT: call{{.+}} @ext
 // CHECK-NEXT: reattach within %[[SYNCREG]], label %[[LATCH]]
 // CHECK: [[LATCH]]:
 // CHECK-NEXT: %[[NEXT]] = add {{.+}} %[[IV]], 1
@@ -33,11 +27,10 @@ extern "C" void anon(int n) {
 // CHECK-NEXT: br i1 %[[COND]], label %[[SYNC:.+]], label %[[DETACH]]
 // CHECK: [[SYNC]]:
 // CHECK-NEXT: sync within %[[SYNCREG]]
-
-extern "C" void named(int n) {
+extern "C" void anon(int n) {
   // clang-format off
-  Kokkos::parallel_for("name", n, KOKKOS_LAMBDA(int i) {
-    printf("hello from %i\n", i);
+  Kokkos::parallel_for(n, KOKKOS_LAMBDA(int i) {
+    ext(i);
   });
   // clang-format on
 }
@@ -47,10 +40,12 @@ extern "C" void named(int n) {
 // CHECK-NEXT: [[ENTRY:.+]]:
 // CHECK-NEXT: %[[SYNCREG:.+]] = {{.+}}call token @llvm.syncregion.start
 // CHECK: [[DETACH:^.+]]:
-// CHECK-NEXT: %[[IV:.+]] = phi i32 [ %[[NEXT:.+]], %[[LATCH:.+]] ], [ 0, %[[ENTRY]] ]
+// CHECK-NEXT: %[[IV:.+]] = phi i32
+// CHECK-SAME: [ %[[NEXT:[^,]+]], %[[LATCH:[^ ]+]] ]
+// CHECK-SAME: [ 0, %[[ENTRY]] ]
 // CHECK-NEXT: detach within %[[SYNCREG]], label %[[BODY:.+]], label %[[LATCH]]
 // CHECK: [[BODY]]:
-// CHECK-NEXT: call{{.+}} @printf
+// CHECK-NEXT: call{{.+}} @ext
 // CHECK-NEXT: reattach within %[[SYNCREG]], label %[[LATCH]]
 // CHECK: [[LATCH]]:
 // CHECK-NEXT: %[[NEXT]] = add {{.+}} %[[IV]], 1
@@ -58,3 +53,10 @@ extern "C" void named(int n) {
 // CHECK-NEXT: br i1 %[[COND]], label %[[SYNC:.+]], label %[[DETACH]]
 // CHECK: [[SYNC]]:
 // CHECK-NEXT: sync within %[[SYNCREG]]
+extern "C" void named(int n) {
+  // clang-format off
+  Kokkos::parallel_for("name", n, KOKKOS_LAMBDA(int i) {
+    ext(i);
+  });
+  // clang-format on
+}

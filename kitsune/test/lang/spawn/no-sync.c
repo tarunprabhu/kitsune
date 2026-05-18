@@ -2,10 +2,6 @@
 
 #include <kitsune.h>
 
-void f() {
-  spawn s{}
-}
-
 // A spawn without a sync is perfectly legal. Probably not wise, but it is
 // legal.
 // Should this actually be an error?
@@ -18,3 +14,6 @@ void f() {
 // CHECK-EMPTY:
 // CHECK-NEXT: [[CONT]]:
 // CHECK-NEXT: ret void
+void f() {
+  spawn s{}
+}

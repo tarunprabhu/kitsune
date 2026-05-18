@@ -9,13 +9,6 @@
 
 #include <Kokkos_Core.hpp>
 
-extern "C" void f(float *a, int D1, int D2, int D3) {
-  Kokkos::parallel_for(
-      "initialize_array",
-      Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {D1, D2, D3}),
-      KOKKOS_LAMBDA(int i, int j, int k) { a[i + j + k] = 0.0; });
-}
-
 // CHECK-LABEL: void @f
 // CHECK-SAME: %[[D1:[^ ]+]],
 // CHECK-SAME: %[[D2:[^ ]+]],
@@ -45,3 +38,9 @@ extern "C" void f(float *a, int D1, int D2, int D3) {
 // CHECK: br i1 %{{.+}}, label %[[SYNC:[^ ]+]], label %[[LOOP_I]]
 // CHECK: [[SYNC]]:
 // CHECK: sync within %[[SYNCREG]]
+extern "C" void f(float *a, int D1, int D2, int D3) {
+  Kokkos::parallel_for(
+      "initialize_array",
+      Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {D1, D2, D3}),
+      KOKKOS_LAMBDA(int i, int j, int k) { a[i + j + k] = 0.0; });
+}

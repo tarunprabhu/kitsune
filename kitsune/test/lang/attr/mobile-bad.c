@@ -1,34 +1,34 @@
 // RUN: %kitcc -Xclang -verify -fsyntax-only -std=c23 %sysroot %s
 
-#include <stddef.h>
+#define NULL ((void*)0)
 
 typedef struct {
   int n;
 } S1;
 
+// expected-error@+1 {{'kitsune::mobile' can only be used on a pointer type}}
 int [[kitsune::mobile]] i;
-// expected-error@-1 {{'kitsune::mobile' can only be used on a pointer type}}
 
+// expected-error@+1 {{'kitsune::mobile' can only be used on a pointer type}}
 S1 [[kitsune::mobile]] s1;
-// expected-error@-1 {{'kitsune::mobile' can only be used on a pointer type}}
 
+// expected-error@+1 {{'kitsune::mobile' can only be used on a pointer type}}
 double [[kitsune::mobile]] dbl[3];
-// expected-error@-1 {{'kitsune::mobile' can only be used on a pointer type}}
 
+// expected-error@+1 {{'kitsune::mobile' can only be used on a pointer type}}
 void (*fptr)(int) [[kitsune::mobile]];
-// expected-error@-1 {{'kitsune::mobile' can only be used on a pointer type}}
 
+// expected-error@+1 {{'kitsune::mobile' can only be used on a pointer type}}
 int fn(int) [[kitsune::mobile]];
-// expected-error@-1 {{'kitsune::mobile' can only be used on a pointer type}}
 
 int f1(int* ptr) {
   return *ptr;
 }
 
 int f2(int* [[kitsune::mobile]] ptr) {
-  // expected-error-re@+1 {{passing {{.+}} to parameter {{.+}} discards qualifiers}}
+  // expected-error-re@+2 {{passing {{.+}} to parameter {{.+}} discards qualifiers}}
+  // expected-note@-6 {{passing argument to parameter}}
   return f1(ptr);
-  // expected-note@-7 {{passing argument to parameter}}
 }
 
 int* f3(int* [[kitsune::mobile]] ptr) {

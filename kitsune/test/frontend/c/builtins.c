@@ -9,11 +9,9 @@
 // RUN: %kitcc -O0 -S -emit-llvm -o - %s %sysroot | FileCheck %s
 // RUN: %kitcc --tapir=nolo -O0 -S -emit-llvm -o - %s %sysroot | FileCheck %s
 
-#include <stddef.h>
-
 // CHECK-LABEL: allocate_c
 // CHECK: call ptr addrspace(67) @llvm.kit.mobile.alloc(i64 %{{.+}})
-void *__attribute__((kitsune_mobile)) allocate_c(size_t n) {
+void *__attribute__((kitsune_mobile)) allocate_c(unsigned long n) {
   return kitsune_mobile_alloc(n);
 }
 

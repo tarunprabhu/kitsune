@@ -1,8 +1,8 @@
 // Check that the tapir::target attribute on Kokkos::parallel_for statements is
 // handled correctly.
 //
-// RUN: %kitxx -Xclang -verify -fsyntax-only -fkokkos -fkokkos-no-init  \
-// RUN:   --tapir=serial -O1 %sysroot %s
+// RUN: %kitxx -fkokkos -fkokkos-no-init --tapir=nolo \
+// RUN:    -Xclang -verify -fsyntax-only %sysroot %s
 
 #include <Kokkos_Core.hpp>
 

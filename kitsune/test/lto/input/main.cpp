@@ -1,6 +1,5 @@
 // Multi-file vector addition benchmark. This is purely to test LTO.
 
-#include <iostream>
 #include <kitsune.h>
 
 void vecadd(kitsune::mobile_ptr<double> c, const kitsune::mobile_ptr<double> a,

@@ -6,41 +6,36 @@ void bar(int);
 void foo(int);
 
 void interleaved() {
+  // CHECK:   %[[x:.+]] = call token @llvm.syncregion.start()
+  // CHECK:   %[[y:.+]] = call token @llvm.syncregion.start()
+  // CHECK:   detach within %[[x]], label %[[DETACH1:.+]], label %[[CONT1:.+]]
+  //
+  // CHECK: [[DETACH1]]:
+  // CHECK:   call void @bar({{.+}} 1)
+  // CHECK:   reattach within %[[x]], label %[[CONT1]]
   spawn x { bar(1); }
 
+  // CHECK: [[CONT1]]:
+  // CHECK:   call void @foo({{.+}} 2)
+  // CHECK:   detach within %[[y]], label %[[DETACH2:.+]], label %[[CONT2:.+]]
   foo(2);
 
+  // CHECK: [[DETACH2]]:
+  // CHECK:   call void @bar({{.+}} 3)
+  // CHECK:   reattach within %[[y]], label %[[CONT2]]
   spawn y { bar(3); }
 
+  // CHECK: [[CONT2]]:
+  // CHECK:   call void @foo({{.+}} 4)
   foo(4);
 
+  // CHECK:   sync within %[[x]], label %[[SYNC2:.+]]
   sync x;
 
+  // CHECK: [[SYNC2]]:
+  // CHECK:   call void @foo({{.+}} 5)
   foo(5);
 
+  // CHECK:   sync within %[[y]]
   sync y;
 }
-
-// CHECK:   %[[x:.+]] = call token @llvm.syncregion.start()
-// CHECK:   %[[y:.+]] = call token @llvm.syncregion.start()
-// CHECK:   detach within %[[x]], label %[[DETACH1:.+]], label %[[CONT1:.+]]
-//
-// CHECK: [[DETACH1]]:
-// CHECK:   call void @bar({{.+}} 1)
-// CHECK:   reattach within %[[x]], label %[[CONT1]]
-//
-// CHECK: [[CONT1]]:
-// CHECK:   call void @foo({{.+}} 2)
-// CHECK:   detach within %[[y]], label %[[DETACH2:.+]], label %[[CONT2:.+]]
-//
-// CHECK: [[DETACH2]]:
-// CHECK:   call void @bar({{.+}} 3)
-// CHECK:   reattach within %[[y]], label %[[CONT2]]
-//
-// CHECK: [[CONT2]]:
-// CHECK:   call void @foo({{.+}} 4)
-// CHECK:   sync within %[[x]], label %[[SYNC2:.+]]
-//
-// CHECK: [[SYNC2]]:
-// CHECK:   call void @foo({{.+}} 5)
-// CHECK:   sync within %[[y]]

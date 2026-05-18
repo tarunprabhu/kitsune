@@ -1,16 +1,8 @@
+// `continue` statements are allowed in a forall loop.
+//
 // RUN: %kitxx --tapir=nolo -S -emit-llvm -o - %s %sysroot | FileCheck %s
 
 #include <kitsune.h>
-
-void loop(int *a) {
-  // continue statements are allowed in a forall.
-  forall(int i = 0; i < 10; i++) {
-    if (i == 4) {
-      continue;
-    }
-    a[i] = i;
-  }
-}
 
 // CHECK: detach within %[[SYNCREG:.+]], label {{.+}}, label {{.+}}
 // CHECK: %[[CMP:.+]] = icmp eq {{.+}}, 4
@@ -22,3 +14,10 @@ void loop(int *a) {
 // CHECK-NEXT: br label %[[REATTACH]]
 // CHECK: [[REATTACH]]:
 // CHECK-NEXT: reattach within %[[SYNCREG]]
+void loop(int *a, int n) {
+  forall(int i = 0; i < n; i++) {
+    if (i == 4)
+      continue;
+    a[i] = i;
+  }
+}

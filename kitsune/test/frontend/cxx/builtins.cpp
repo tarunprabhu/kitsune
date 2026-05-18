@@ -10,11 +10,9 @@
 // RUN: %kitxx -O0 -S -emit-llvm -o - %s %sysroot | FileCheck %s
 // RUN: %kitxx --tapir=nolo -O0 -S -emit-llvm -o - %s %sysroot | FileCheck %s
 
-#include <cstddef>
-
 // CHECK-LABEL: @allocate_c
 // CHECK: call ptr addrspace(67) @llvm.kit.mobile.alloc({{.+}})
-extern "C" void *[[kitsune::mobile]] allocate_c(size_t n) {
+extern "C" void *[[kitsune::mobile]] allocate_c(unsigned long n) {
   return kitsune_mobile_alloc(n * sizeof(int));
 }
 
