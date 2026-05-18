@@ -1,6 +1,6 @@
 // RUN: %kitcc -Xclang -verify -fsyntax-only -std=c23 %s %sysroot
 
-#include <stddef.h>
+#define NULL ((void*)0)
 
 // This is simply checking that the return type of kitsune_mobile_alloc is
 // not compatible with an unattributed pointer.

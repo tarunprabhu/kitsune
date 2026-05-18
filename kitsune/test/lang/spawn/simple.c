@@ -1,24 +1,8 @@
 // RUN: %kitcc --tapir=nolo -S -emit-llvm -o - %s %sysroot | FileCheck %s
 
 #include <kitsune.h>
-#include <stdio.h>
 
 void foo(int);
-
-int main() {
-
-  spawn p1 {
-    foo(1);
-  }
-
-  spawn p2 {
-    foo(2);
-  }
-
-  sync p1;
-  sync p2;
-  return 0;
-}
 
 // CHECK: %[[P1:.+]] = call token @llvm.syncregion.start()
 // CHECK: %[[P2:.+]] = call token @llvm.syncregion.start()
@@ -34,3 +18,16 @@ int main() {
 // CHECK: [[CONT2]]:
 // CHECK: sync within %[[P1]]
 // CHECK: sync within %[[P2]]
+int main() {
+  spawn p1 {
+    foo(1);
+  }
+
+  spawn p2 {
+    foo(2);
+  }
+
+  sync p1;
+  sync p2;
+  return 0;
+}

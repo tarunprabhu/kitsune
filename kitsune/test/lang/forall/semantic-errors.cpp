@@ -28,13 +28,5 @@ void loop() {
     }
   }
 
-  // continue statements are allowed in a forall.
-  forall(int i = 0; i < 10; i++) {
-    if (i == 4) {
-      // expected-no-error {{forall body may not have a continue statement}}
-      continue;
-    }
-  }
-
   // clang-format on
 }

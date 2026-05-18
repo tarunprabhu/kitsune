@@ -1,23 +1,25 @@
 // RUN: %kitxx -Xclang -verify -fsyntax-only %sysroot %s
 
+#define NULL ((void*)0)
+
 struct S1 {
   int n;
 };
 
+// expected-error@+1 {{'kitsune::mobile' can only be used on a pointer type}}
 int [[kitsune::mobile]] i;
-// expected-error@-1 {{'kitsune::mobile' can only be used on a pointer type}}
 
+// expected-error@+1 {{'kitsune::mobile' can only be used on a pointer type}}
 S1 [[kitsune::mobile]] s1;
-// expected-error@-1 {{'kitsune::mobile' can only be used on a pointer type}}
 
+// expected-error@+1 {{'kitsune::mobile' can only be used on a pointer type}}
 double [[kitsune::mobile]] dbl[3];
-// expected-error@-1 {{'kitsune::mobile' can only be used on a pointer type}}
 
+// expected-error@+1 {{'kitsune::mobile' can only be used on a pointer type}}
 void (*fptr)(int) [[kitsune::mobile]];
-// expected-error@-1 {{'kitsune::mobile' can only be used on a pointer type}}
 
+// expected-error@+1 {{'kitsune::mobile' can only be used on a pointer type}}
 int fn(int) [[kitsune::mobile]];
-// expected-error@-1 {{'kitsune::mobile' can only be used on a pointer type}}
 
 int *f1(int *[[kitsune::mobile]] ptr) {
   // expected-error@+1 {{static_cast cannot be used to cast away mobile}}
@@ -41,9 +43,9 @@ int *f4(int *[[kitsune::mobile]] ptr) {
 
 int f5(int *ptr) { return *ptr; }
 int f6(int *[[kitsune::mobile]] ptr) {
-  // expected-error@+1 {{no matching function for call to 'f5'}}
+  // expected-error@+2 {{no matching function for call to 'f5'}}
+  // expected-note-re@-3 {{candidate function not viable: {{.*}} does not accept mobile pointer. Consider using __kitsune_mobile_cast_unsafe}}
   return f5(ptr);
-  // expected-note-re@-4 {{candidate function not viable: {{.*}} does not accept mobile pointer. Consider using __kitsune_mobile_cast_unsafe}}
 }
 
 int *f7(int *[[kitsune::mobile]] ptr) {

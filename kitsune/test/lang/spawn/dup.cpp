@@ -7,6 +7,7 @@
 
 void f() {
   spawn s {}
+
+  // expected-error@+1 {{Duplicate spawn label. First declared on {{.*}}:7}}
   spawn s {}
-  // expected-error@-1 {{Duplicate spawn label. First declared on {{.*}}:7}}
 }

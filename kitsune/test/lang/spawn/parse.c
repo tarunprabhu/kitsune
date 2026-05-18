@@ -3,9 +3,9 @@
 #include <kitsune.h>
 
 void f() {
+  // expected-error@+1 {{expected identifier}}
   spawn {}
-  // expected-error@-1 {{expected identifier}}
 
+  // expected-error@+1 {{expected identifier}}
   sync;
-  // expected-error@-1 {{expected identifier}}
 }
