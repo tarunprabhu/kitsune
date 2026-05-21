@@ -218,6 +218,7 @@ KitBuiltinsDocEmitter::KitBuiltinsDocEmitter(const RecordKeeper &records)
     : records(records) {
   catNames.insert("KitDocCatMemAlloc");
   catNames.insert("KitDocCatUnsafe");
+  catNames.insert("KitDocCatExperimental");
 
   for (const Record *r : records.getAllDerivedDefinitions("KitCBuiltin")) {
     const Record *doc = r->getValueAsDef("Doc");

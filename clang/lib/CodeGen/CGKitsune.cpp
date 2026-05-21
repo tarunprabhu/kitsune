@@ -58,7 +58,6 @@
 #include "CodeGenFunction.h"
 #include "kitsune/Core/TTUtils.h"
 #include "kitsune/Frontend/KitsuneOptions.h"
-#include "kitsune/Support/AddrSpace.h"
 #include "kitsune/Support/TTIDUtils.h"
 #include "clang/AST/StmtKitsune.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
@@ -111,121 +110,6 @@ unsigned clang::CodeGen::getLaunchTPB(llvm::ArrayRef<const Attr *> attrs,
     if (const auto *launchAttr = dyn_cast<KitsuneLaunchAttr>(attr))
       return launchAttr->getThreadsPerBlock();
   return tpb;
-}
-
-bool clang::CodeGen::IsKitBuiltin(unsigned builtinID) {
-  switch (builtinID) {
-  case Builtin::BIkitsune_mobile_alloc:
-  case Builtin::BIkitsune_mobile_free:
-  case Builtin::BI__kitsune_mobile_cast_unsafe:
-    return true;
-  default:
-    break;
-  }
-  return false;
-}
-
-RValue clang::CodeGen::EmitKitBuiltinCall(CodeGenFunction &cgf,
-                                          const FunctionDecl *funcDecl,
-                                          unsigned builtinID,
-                                          const CallExpr *theCall,
-                                          ReturnValueSlot rv) {
-  CGBuilderTy &builder = cgf.Builder;
-  CodeGenModule &cgm = cgf.CGM;
-  llvm::LLVMContext &ctxt = cgm.getLLVMContext();
-
-  switch (builtinID) {
-  case Builtin::BIkitsune_mobile_alloc: {
-    llvm::Function *f = cgm.getIntrinsic(llvm::Intrinsic::kit_mobile_alloc);
-    llvm::FunctionType *fty = f->getFunctionType();
-    llvm::Value *size = cgf.EmitScalarExpr(theCall->getArg(0));
-    if (size->getType() != fty->getParamType(0))
-      size = builder.CreateTruncOrBitCast(size, fty->getParamType(0));
-    return RValue::get(builder.CreateCall(f, {size}));
-  }
-
-  case Builtin::BIkitsune_mobile_free: {
-    llvm::Function *f = cgm.getIntrinsic(llvm::Intrinsic::kit_mobile_free);
-    llvm::Value *ptr = cgf.EmitScalarExpr(theCall->getArg(0));
-    return RValue::get(builder.CreateCall(f, {ptr}));
-  }
-
-  case Builtin::BI__kitsune_mobile_cast_unsafe: {
-    llvm::Value *ptr = cgf.EmitScalarExpr(theCall->getArg(0));
-    llvm::Type *destTy = llvm::PointerType::get(ctxt, llvm::KitAS::Mobile);
-    return RValue::get(builder.CreateAddrSpaceCast(ptr, destTy));
-  }
-
-  default:
-    break;
-  }
-  llvm_unreachable("EmitKitBuiltinExpr: BuiltinID not handled");
-}
-
-static StringRef getLLVMAttrNameFor(const KitsuneMemAccessAttr &Attr) {
-  if (Attr.isWriteOnly())
-    return "kitsune.writeonly";
-  else if (Attr.isReadWrite())
-    return "kitsune.readwrite";
-  else if (Attr.isReadOnly())
-    return "kitsune.readonly";
-  llvm_unreachable("Unknown kitsune memory access attribute");
-}
-
-static void addKitMemAccessAttr(CodeGenModule &cgm, const FunctionDecl &fd,
-                                llvm::Function &f) {
-  llvm::LLVMContext &ctx = f.getContext();
-
-  if (const auto *attr = fd.getAttr<KitsuneMemAccessAttr>())
-    f.addFnAttr(getLLVMAttrNameFor(*attr));
-
-  for (unsigned i = 0, n = fd.getNumParams(); i < n; ++i) {
-    const ParmVarDecl *param = fd.getParamDecl(i);
-    QualType paramTy = param->getType();
-    const Decl *pDecl = param;
-    if (const auto *typdef = dyn_cast<TypedefType>(paramTy))
-      pDecl = typdef->getDecl();
-
-    if (const auto *attr = pDecl->getAttr<KitsuneMemAccessAttr>()) {
-      if (paramTy.getTypePtr()->isStructureOrClassType()) {
-        cgm.ErrorUnsupported(
-            param,
-            "cannot handle kitsune memaccess attribute on a struct or class");
-        break;
-      }
-
-      llvm::Argument *arg = f.getArg(i);
-      arg->addAttr(llvm::Attribute::get(ctx, getLLVMAttrNameFor(*attr)));
-    }
-  }
-}
-
-void clang::CodeGen::AddKitAttributes(CodeGenModule &cgm, const VarDecl &vd,
-                                      llvm::GlobalVariable &g) {
-  // Only set the kitsune-specific attributes if a tapir target has been set.
-  // In general, we try to keep the Kitsune-specific additions to clang strictly
-  // opt-in features. Since the attributes will have no effect unless lowering
-  // using tapir is enabled, we might as well only add the attributes only if a
-  // tapir target has been set.
-  if (!cgm.getKitsuneOpts().hasTTID())
-    return;
-
-  if (const auto *attr = vd.getAttr<KitsuneMemAccessAttr>())
-    g.addAttribute(getLLVMAttrNameFor(*attr));
-}
-
-void clang::CodeGen::AddKitAttributes(CodeGenModule &cgm,
-                                      const FunctionDecl &fd,
-                                      llvm::Function &f) {
-  // Only set the kitsune-specific attributes if a tapir target has been set.
-  // In general, we try to keep the Kitsune-specific additions to clang strictly
-  // opt-in features. Since the attributes will have no effect unless lowering
-  // using tapir is enabled, we might as well only add the attributes only if a
-  // tapir target has been set.
-  if (!cgm.getKitsuneOpts().hasTTID())
-    return;
-
-  addKitMemAccessAttr(cgm, fd, f);
 }
 
 llvm::Instruction *CodeGenFunction::EmitLabeledSyncRegionStart(StringRef SV) {

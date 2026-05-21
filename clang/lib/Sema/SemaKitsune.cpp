@@ -13,7 +13,9 @@
 
 #include "clang/Sema/SemaKitsune.h"
 #include "kitsune/Frontend/KitsuneOptions.h"
+#include "kitsune/Frontend/ReductionUtils.h"
 #include "clang/AST/StmtKitsune.h"
+// #include "clang/AST/Type.h"
 #include "clang/Sema/Sema.h"
 
 using namespace clang;
@@ -270,6 +272,89 @@ bool SemaKitsune::checkMobileCastUnsafeCall(CallExpr *theCall) {
   return false;
 }
 
+static bool checkReduceValueType(llvm::ReduceOp op, QualType argType) {
+  const Type *type = argType->getUnqualifiedDesugaredType();
+  switch (op) {
+  case llvm::ReduceOp::Custom:
+    llvm_unreachable("NOT YET IMPLEMENTED: checkReduceValue(ReduceOp::Custom)");
+  case llvm::ReduceOp::Sum:
+  case llvm::ReduceOp::Prod:
+  case llvm::ReduceOp::Max:
+  case llvm::ReduceOp::MaxLoc:
+  case llvm::ReduceOp::Min:
+  case llvm::ReduceOp::MinLoc:
+    return !type->isBooleanType() && !type->isEnumeralType();
+  case llvm::ReduceOp::LAnd:
+  case llvm::ReduceOp::LOr:
+  case llvm::ReduceOp::LXor:
+    return type->isBooleanType();
+  case llvm::ReduceOp::BAnd:
+  case llvm::ReduceOp::BOr:
+  case llvm::ReduceOp::BXor:
+    return type->isIntegerType() && !type->isEnumeralType();
+  }
+  llvm_unreachable("checkReduceValueType: Reduction operator not handled");
+}
+
+bool SemaKitsune::checkReduceCall(CallExpr *theCall) {
+  SourceLocation loc = theCall->getBeginLoc();
+  IntegerLiteral *iLit =
+      dyn_cast<IntegerLiteral>(getUnderlyingExpr(theCall->getArg(1)));
+  if (!iLit) {
+    Diag(loc, diag::err_kit_reduce_op_not_literal);
+    return false;
+  }
+
+  unsigned iOp = iLit->getValue().getLimitedValue();
+  std::optional<llvm::ReduceOp> op = llvm::fromInt<llvm::ReduceOp>(iOp);
+  if (!op.has_value()) {
+    Diag(loc, diag::err_kit_reduce_op_unknown);
+    return false;
+  }
+
+  if (*op == llvm::ReduceOp::Custom || *op == llvm::ReduceOp::MaxLoc ||
+      *op == llvm::ReduceOp::MinLoc) {
+    Diag(loc, diag::err_kit_reduce_op_nyi) << toString(*op);
+    return false;
+  }
+
+  // Custom reducers might require additional arguments. We don't currently
+  // support them, so require exactly three arguments.
+  if (theCall->getNumArgs() != 3) {
+    Diag(loc, diag::err_kit_reduce_num_args);
+    return false;
+  }
+
+  const Expr *valueExpr = getUnderlyingExpr(theCall->getArg(2));
+  const Type *valueType = valueExpr->getType()->getUnqualifiedDesugaredType();
+  QualType valueTy(valueType, 0);
+  const BuiltinType *builtinType = dyn_cast<BuiltinType>(valueType);
+  if (!builtinType) {
+    Diag(loc, diag::err_kit_reduce_type_unsupported) << valueTy;
+    return false;
+  }
+
+  if (!builtinType->isInteger() && !builtinType->isFloatingPoint()) {
+    Diag(loc, diag::err_kit_reduce_type_unsupported) << valueTy;
+    return false;
+  }
+
+  const Expr *destExpr = getUnderlyingExpr(theCall->getArg(0));
+  const Type *destType = destExpr->getType()->getUnqualifiedDesugaredType();
+  const PointerType *ptrType = cast<PointerType>(destType);
+  if (ptrType->getPointeeType()->getUnqualifiedDesugaredType() != valueType) {
+    Diag(loc, diag::err_kit_reduce_type_mismatch) << valueTy;
+    return false;
+  }
+
+  if (!checkReduceValueType(*op, valueTy)) {
+    Diag(loc, diag::err_kit_reduce_op_type) << toString(*op) << valueTy;
+    return false;
+  }
+
+  return true;
+}
+
 Handled<bool> SemaKitsune::checkBuiltinFunctionCall(unsigned builtin,
                                                     CallExpr *theCall) {
   switch (builtin) {
@@ -277,6 +362,8 @@ Handled<bool> SemaKitsune::checkBuiltinFunctionCall(unsigned builtin,
     return checkMobileFreeCall(theCall);
   case Builtin::BI__kitsune_mobile_cast_unsafe:
     return checkMobileCastUnsafeCall(theCall);
+  case Builtin::BI__kitsune_reduce:
+    return checkReduceCall(theCall);
   default:
     break;
   }

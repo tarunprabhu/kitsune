@@ -47,3 +47,11 @@ def KitMobileCastUnsafe : KitCBuiltin {
   let Prototype = "void*__mobile__(void*)";
   let Doc = KitMobileCastUnsafeDoc;
 }
+
+// Accumulate a single value using a builtin, i.e. not user-provided, reducer.
+def KitReduce : KitCBuiltin {
+  let Spellings = ["__kitsune_reduce"];
+  let Attributes = [];
+  let Prototype = "void(void*, unsigned int, ...)";
+  let Doc = KitReduceDoc;
+}

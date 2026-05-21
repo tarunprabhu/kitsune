@@ -1,5 +1,6 @@
 add_llvm_component_library(LLVMKitFrontend
   CommandLineOptions.cpp
+  ReductionUtils.cpp
 
   DEPENDS
   intrinsics_gen
@@ -8,6 +9,7 @@ add_llvm_component_library(LLVMKitFrontend
   LINK_COMPONENTS
   Analysis
   Core
+  KitCore
   KitSupport
   Support
 )
