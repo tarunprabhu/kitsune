@@ -9,14 +9,21 @@
 // RUN: %kitcc -O0 -S -emit-llvm -o - %s %sysroot | FileCheck %s
 // RUN: %kitcc --tapir=nolo -O0 -S -emit-llvm -o - %s %sysroot | FileCheck %s
 
-// CHECK-LABEL: allocate_c
-// CHECK: call ptr addrspace(67) @llvm.kit.mobile.alloc(i64 %{{.+}})
-void *__attribute__((kitsune_mobile)) allocate_c(unsigned long n) {
+// CHECK-LABEL: allocate
+// CHECK: call ptr addrspace(67) @llvm.kit.mobile.alloc(i64 {{.*}}%{{.+}})
+void *__attribute__((kitsune_mobile)) allocate(unsigned long n) {
   return kitsune_mobile_alloc(n);
 }
 
-// CHECK-LABEL: deallocate_c
+// CHECK-LABEL: deallocate
 // CHECK: call void @llvm.kit.mobile.free(ptr addrspace(67) {{.*}}%{{.+}})
-void deallocate_c(void *[[kitsune::mobile]] ptr) {
+void deallocate(void *[[kitsune::mobile]] ptr) {
   kitsune_mobile_free(ptr);
+}
+
+// CHECK-LABEL: @cast_unsafe
+// CHECK: %[[CST:.+]] = addrspacecast ptr %{{.+}} to ptr addrspace(67)
+// CHECK-NEXT: ret ptr addrspace(67) %[[CST]]
+void *[[kitsune::mobile]] cast_unsafe(void *ptr) {
+  return __kitsune_mobile_cast_unsafe(ptr);
 }

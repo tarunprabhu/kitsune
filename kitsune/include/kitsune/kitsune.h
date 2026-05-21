@@ -36,8 +36,11 @@
 #endif // __cplusplus
 
 #include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 
+// ------------------------- COMPATIBILITY DEFINITIONS -------------------------
+//
 // The definitions allow code containing kitsune builtins and library functions
 // to be compiled with another compiler and maintain "reasonable" behavior.
 #ifndef __kitsune__
@@ -73,6 +76,25 @@ kitsune_mobile_alloc(size_t bytes) {
 EXTERN_C inline void kitsune_mobile_free(void *ptr) { free(ptr); }
 
 #endif // !__kitsune__
+//
+// ----------------------- END COMPATIBILITY DEFINITIONS -----------------------
+
+// Everything here is available both when using Kitsune compiler drivers and
+// other compilers.
+
+#define KIT_CUSTOM 0
+#define KIT_BAND 1U
+#define KIT_BOR 2U
+#define KIT_BXOR 3U
+#define KIT_LAND 4U
+#define KIT_LOR 5U
+#define KIT_LXOR 6U
+#define KIT_MAX 7U
+#define KIT_MAXLOC 8U
+#define KIT_MIN 9U
+#define KIT_MINLOC 10U
+#define KIT_PROD 11U
+#define KIT_SUM 12U
 
 #ifdef __cplusplus
 
@@ -171,11 +193,14 @@ private:
 
 #endif // ! __cplusplus
 
+// ---------------------- EXPERIMENTAL KITSUNE UTILITIES ----------------------
+//
+#ifdef __kitsune__
+
 /// @{
 /// WARNING: The functions here are temporary workarounds that are intended to
 /// make it "easier" to port existing code to use Kitsune. These may be removed
 /// without notice. These are intentionally not available on other compilers.
-#ifdef __kitsune__
 
 /// Allocate a mobile buffer.
 ///
@@ -195,8 +220,11 @@ kitsune_mobile_free__(void *ptr) {
   kitsune_mobile_free(__kitsune_mobile_cast_unsafe(ptr));
 }
 
-#endif // __kitsune__
 /// @}
+
+#endif // __kitsune__
+//
+// -----------------------------------------------------------------------------
 
 #undef EXTERN_C
 

@@ -42,6 +42,19 @@ or, at worst, miscompilation.
 }];
 }
 
+// Experimental builtins
+def KitDocCatExperimental : KitDocCategory {
+  let Header = "Experimental Builtins";
+  let Intro = [{
+These builtins may be used as testbeds for what future language constructs,
+controls for Kitsune's compiler passes that cannot be tweaked in any other way,
+or controls for Kitsune's runtime.
+
+**WARNING**: The signatures for these builtins may change dramatically at short
+notice, and they may even be removed at any time.
+}];
+}
+
 // Documentation for the parameter of a builtin.
 class KitDocParam<string NameParam, string DescrParam> {
 // The name of the parameter.
@@ -101,7 +114,7 @@ def KitMobileCastUnsafeDoc : KitDocCBuiltin {
 Cast a pointer to be a mobile pointer. Essentially, this is equivalent to the
 code below (which is explicitly disallowed in Kitsune):
 
-.. code::c++
+.. code-block :: c++
 
   result = (void* [[kitsune::mobile]]) ptr;
 
@@ -114,5 +127,80 @@ This is only intended to be used by Kitsune's runtime.
   in compiler crashes, or, at worst, miscompilation.
 
   DO NOT use this unless you know what you are doing.
+}];
+}
+
+def KitReduceDoc : KitDocCBuiltin {
+  let Category = KitDocCatExperimental;
+  let ParamDocs = [
+      KitDocParam<"dest", "Destination of the reduction">,
+      KitDocParam<"op", "The reduction operator">,
+      KitDocParam<"v", "The value to be reduced using `op`">
+  ];
+  let Descr = [{
+Reduce the value `v` into `dest` using the operator `op`. Currently, the
+following operators are supported. Note that each operator only works on a
+limited subset of types.
+
+================ ===================== =================
+Operator         Description           Supported Types
+================ ===================== =================
+:code:`KIT_BAND` Bitwise AND           Boolean, Integers
+:code:`KIT_BOR`  Bitwise OR            Boolean, Integers
+:code:`KIT_BXOR` Bitwise XOR           Boolean, Integers
+:code:`KIT_LAND` Logical AND           Boolean
+:code:`KIT_LOR`  Logical OR            Boolean
+:code:`KIT_LXOR` Logical XOR           Boolean
+:code:`KIT_MAX`  Maximum of two values Floats, Integers
+:code:`KIT_MIN`  Minimum of two values Floats, Integers
+:code:`KIT_PROD` Product               Floats, Integers
+:code:`KIT_SUM`  Sum                   Floats, Integers
+================ ===================== =================
+
+Each entry in the 'Supported Types' column above is a set. The table below
+lists the types in each of these sets.
+
+======== =======================================================================
+Set      Types
+======== =======================================================================
+Boolean  :code:`bool`
+Floats   :code:`float double`
+Integers :code:`int8_t uint8_t int16_t uint16_t int32_t uint32_t int64_t uint64_t`
+======== =======================================================================
+
+In addition, some operators are declared, but are not yet supported.
+
+================== ===================================
+Operator           Description
+================== ===================================
+:code:`KIT_CUSTOM` Reduce with a custom reducer
+:code:`KIT_MAXLOC` Index in container with the maximum
+:code:`KIT_MINLOC` Index in container with the minimum
+================== ===================================
+
+This builtin *must* be used when a reduction occurs in a parallel for loop.
+Consider the loop below
+
+.. code-block :: c++
+
+  forall (int i = 0; i < n; ++i) {
+      a += i;
+  }
+
+Here, a reduction into `a` is being performed in a parallel loop. Clearly, this
+is a race. To ensure that this reduction is performed in parallel, the statement
+performing the reduction must be replaced with a call to this builtin as shown
+below.
+
+.. code-block :: c++
+
+  forall (int i = 0; i < n; ++i) {
+      __kitsune_reduce(&a, KIT_SUM, i);
+  }
+
+Although the intrinsic is declared vararg, currently exactly one argument must
+be provided after `op`. In the future, when custom reducer functions are
+supported, additional parameters required by the reducer may be provided in
+addition to `v`, the value to be reduced.
 }];
 }

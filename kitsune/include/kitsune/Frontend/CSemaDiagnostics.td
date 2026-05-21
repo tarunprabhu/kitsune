@@ -80,3 +80,19 @@ def err_kitsune_mobile_free_arg : Error<
     "argument of kitsune_mobile_free must have mobile qualifier">;
 def err_kitsune_mobile_cast_arg: Error<
     "argument of __kitsune_mobile_cast_arg must be a non-mobile pointer">;
+
+// reduce builtins
+def err_kit_reduce_num_args : Error<
+    "incorrect number of arguments in call to __kitsune_reduce. Expect 3">;
+def err_kit_reduce_type_unsupported : Error<
+    "value being reduced must have builtin scalar type">;
+def err_kit_reduce_type_mismatch : Error<
+    "reduction destination must be pointer to %0">;
+def err_kit_reduce_op_not_literal : Error<
+    "reduction operator must be an integer literal">;
+def err_kit_reduce_op_type : Error<
+    "reduction operator '%0' not valid for values of type %1">;
+def err_kit_reduce_op_unknown : Error<
+    "unknown reduction operator">;
+def err_kit_reduce_op_nyi : Error<
+    "reduction operator '%0' is not yet supported">;

@@ -24,6 +24,7 @@ set(LLVM_LINK_COMPONENTS
   KitAnalysis
   KitCodeGen
   KitCore
+  KitFrontend
   KitSupport
   LTO
   Linker
@@ -91,6 +92,8 @@ add_clang_library(clangCodeGen
   CGHLSLRuntime.cpp
   CGHLSLBuiltins.cpp
   CGKitsune.cpp
+  CGKitAttrs.cpp
+  CGKitBuiltins.cpp
   CGKokkos.cpp
   CGLoopInfo.cpp
   CGNonTrivialStruct.cpp
