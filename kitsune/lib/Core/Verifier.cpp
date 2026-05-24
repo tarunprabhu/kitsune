@@ -11,8 +11,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/Verifier.h"
-#include "AttrsImpl.h"
 #include "ArgAttrsImpl.h"
+#include "AttrsImpl.h"
 #include "FuncAttrsImpl.h"
 #include "GVAttrsImpl.h"
 #include "InstAttrsImpl.h"
@@ -20,6 +20,7 @@
 #include "ModuleAttrsImpl.h"
 #include "VerifierImpl.h"
 #include "kitsune/Core/Attrs.h"
+#include "kitsune/Core/ValueUtils.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/IR/Dominators.h"
@@ -50,7 +51,7 @@ KitVerifier &KitVerifier::verify(const Function &f) {
   for (const_inst_iterator i = inst_begin(f), e = inst_end(f); i != e; ++i)
     verify(*i);
 
-  DominatorTree dt(const_cast<Function&>(f));
+  DominatorTree dt(const_cast<Function &>(f));
   LoopInfo li(dt);
   for (const Loop *loop : li)
     for (const MDNode &attr : detail::attrs(*loop))
@@ -75,9 +76,101 @@ KitVerifier &KitVerifier::verify(const GlobalVariable &g) {
   return *this;
 }
 
+KitVerifier &KitVerifier::verifyIntrReduce(const CallBase &call, Value *unitVal,
+                                           Value *reducerVal,
+                                           unsigned extraArgNum) {
+  // This is a best effort attempt at verifying the call. In most cases, the
+  // reducer argument to the call will be a function. It is possible, though
+  // unlikely that this will be some other value.
+  Function *reducer = dyn_cast<Function>(reducerVal);
+  if (!reducer)
+    return *this;
+
+  LLVMContext &ctx = call.getContext();
+  Type *ptr = PointerType::getUnqual(ctx);
+
+  FunctionType *reducerTy = reducer->getFunctionType();
+  unsigned numParams = reducerTy->getNumParams();
+  StringRef reducerName = reducer->getName();
+
+  check(reducerTy->getReturnType()->isVoidTy(), DiagID::ErrReducerReturnType,
+        reducerName);
+  if (numParams < 2) {
+    check(false, DiagID::ErrReducerMinArgs, reducerName);
+    return *this;
+  }
+
+  Argument *destArg = reducer->getArg(0);
+  check(destArg->getType()->isPointerTy(), DiagID::ErrReducerTypeMismatch,
+        reducerName, 1, *ptr);
+
+  Type *unitTy = unitVal->getType();
+  Argument *valArg = reducer->getArg(1);
+  check(valArg->getType() == unitVal->getType(), DiagID::ErrReducerTypeMismatch,
+        reducerName, 2, *unitTy);
+
+  unsigned numArgs = call.arg_size();
+  bool hasExtraArgs = numArgs > extraArgNum;
+  if (hasExtraArgs) {
+    unsigned numExtraFunc = numParams - 2;
+    unsigned numExtraCall = numArgs - extraArgNum;
+    llvm::outs() << numExtraFunc << " " << numExtraCall << "\n";
+    if (numExtraCall != numExtraFunc) {
+      check(false, DiagID::ErrReducerNumParams, reducerName, numExtraCall + 2,
+            numParams);
+    } else {
+      for (unsigned i = 2, j = extraArgNum; i < numParams; ++i, ++j) {
+        Type *paramTy = reducerTy->getParamType(i);
+        Type *argTy = call.getArgOperand(j)->getType();
+        check(paramTy == argTy, DiagID::ErrReducerTypeMismatch, reducerName,
+              i + 1, *argTy);
+      }
+    }
+  } else {
+    check(numParams == 2, DiagID::ErrReducerNumParams, reducerName, 2,
+          numParams);
+  }
+
+  return *this;
+}
+
+KitVerifier &KitVerifier::verifyIntrReduce0(const CallBase &call) {
+  Value *val = call.getArgOperand(3);
+  Value *unit = call.getArgOperand(4);
+  Value *reducer = call.getArgOperand(5);
+
+  Type *valTy = val->getType();
+  Type *unitTy = unit->getType();
+
+  check(valTy == unitTy, DiagID::ErrReduceUnitValMismatch);
+
+  return verifyIntrReduce(call, unit, reducer, 6);
+}
+
+KitVerifier &KitVerifier::verifyIntrReduce1(const CallBase &call) {
+  Value *unit = call.getArgOperand(5);
+  Value *reducer = call.getArgOperand(6);
+
+  return verifyIntrReduce(call, unit, reducer, 7);
+}
+
+KitVerifier &KitVerifier::verify(const CallBase &call) {
+  switch (call.getIntrinsicID()) {
+  case Intrinsic::kit_reduce_0:
+    return verifyIntrReduce0(call);
+  case Intrinsic::kit_reduce_1:
+    return verifyIntrReduce1(call);
+  default:
+    return *this;
+  }
+}
+
 KitVerifier &KitVerifier::verify(const Instruction &inst) {
   for (const MDNode &attr : detail::attrs(inst))
     detail::verifyAttr(*this, inst, detail::getRawAttrName(attr));
+
+  if (const auto *call = dyn_cast<CallBase>(&inst))
+    return verify(*call);
   return *this;
 }
 
