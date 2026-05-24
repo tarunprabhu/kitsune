@@ -40,6 +40,12 @@ const Module *getModule(const Value &v);
 /// error to pass any other value, such a Constant to this function.
 std::string getName(const Value &v);
 
+/// Check that the given value is a constant `false`.
+bool isFalse(const Value *v);
+
+/// Check that the given value is a constant `true`.
+bool isTrue(const Value *v);
+
 /// Check that the given value is a constant 0 of integer or floating point
 /// type.
 bool isZero(const Value *v);

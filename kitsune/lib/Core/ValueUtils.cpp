@@ -27,6 +27,20 @@ static const Constant *asConst(const Value *v) {
   return nullptr;
 }
 
+bool llvm::isFalse(const Value *v) {
+  if (const Constant *c = asConst(v))
+    if (auto *cint = dyn_cast<ConstantInt>(c))
+      return cint->getType()->isIntegerTy(1) && cint->isZero();
+  return false;
+}
+
+bool llvm::isTrue(const Value *v) {
+  if (const Constant *c = asConst(v))
+    if (auto *cint = dyn_cast<ConstantInt>(c))
+      return cint->getType()->isIntegerTy(1) && !cint->isZero();
+  return false;
+}
+
 bool llvm::isZero(const Value *v) {
   if (const Constant *c = asConst(v)) {
     if (const auto *cint = dyn_cast<ConstantInt>(c))
