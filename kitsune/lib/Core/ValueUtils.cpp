@@ -11,7 +11,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/ValueUtils.h"
+#include "kitsune/Core/ArgUtils.h"
+#include "kitsune/Core/BasicBlockUtils.h"
 #include "kitsune/Core/ConstantUtils.h"
+#include "kitsune/Core/FuncUtils.h"
+#include "kitsune/Core/GVUtils.h"
+#include "kitsune/Core/InstUtils.h"
 #include "llvm/IR/Constants.h"
 
 using namespace llvm;
@@ -47,56 +52,42 @@ bool llvm::isIntOne(const Value *v, Type *ty) {
   return v->getType() == ty && isIntOne(v);
 }
 
-template <
-    typename M, typename T,
-    std::enable_if_t<std::is_same_v<std::remove_cv_t<T>, Argument>, int> = 0>
-static M *getModule(T &a) {
-  if (auto *f = a.getParent())
-    return f->getParent();
-  return nullptr;
-}
-
-template <
-    typename M, typename T,
-    std::enable_if_t<std::is_same_v<std::remove_cv_t<T>, BasicBlock>, int> = 0>
-static M *getModule(T &bb) {
-  if (auto *f = bb.getParent())
-    return f->getParent();
-  return nullptr;
-}
-
-template <
-    typename M, typename T,
-    std::enable_if_t<std::is_same_v<std::remove_cv_t<T>, Instruction>, int> = 0>
-static M *getModule(T &inst) {
-  if (auto *bb = inst.getParent())
-    return getModule(*bb);
-  return nullptr;
-}
-
 template <typename M, typename T,
           std::enable_if_t<std::is_same_v<std::remove_cv_t<T>, Value>, int> = 0>
-static M *getModule(T &v) {
+static M *getModuleImpl(T &v) {
   if (auto *a = dyn_cast<Argument>(&v))
     return getModule(*a);
   else if (auto *bb = dyn_cast<BasicBlock>(&v))
     return getModule(*bb);
-  else if (auto *g = dyn_cast<GlobalValue>(&v))
-    return g->getParent();
+  else if (auto *f = dyn_cast<Function>(&v))
+    return getModule(*f);
+  else if (auto *g = dyn_cast<GlobalVariable>(&v))
+    return getModule(*g);
   else if (auto *inst = dyn_cast<Instruction>(&v))
     return getModule(*inst);
   return nullptr;
 }
 
-Module *llvm::getModule(Value &v) { return ::getModule<Module>(v); }
+Module *llvm::getModule(Value &v) { return getModuleImpl<Module>(v); }
 
 const Module *llvm::getModule(const Value &v) {
-  return ::getModule<const Module>(v);
+  return getModuleImpl<const Module>(v);
 }
 
 std::string llvm::getName(const Value &v) {
   if (v.hasName())
     return v.getName().str();
+
+  if (auto *a = dyn_cast<Argument>(&v))
+    return getName(*a);
+  else if (auto *bb = dyn_cast<BasicBlock>(&v))
+    return getName(*bb);
+  else if (auto *f = dyn_cast<Function>(&v))
+    return getName(*f);
+  else if (auto *g = dyn_cast<GlobalVariable>(&v))
+    return getName(*g);
+  else if (auto *inst = dyn_cast<Instruction>(&v))
+    return getName(*inst);
 
   std::string buf;
   raw_string_ostream os(buf);

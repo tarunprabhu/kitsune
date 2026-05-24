@@ -11,11 +11,35 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/BasicBlockUtils.h"
+#include "kitsune/Core/ValueUtils.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/CFG.h"
 #include "llvm/IR/Instructions.h"
 
 using namespace llvm;
+
+Module *llvm::getModule(BasicBlock &bb) {
+  if (Function *f = bb.getParent())
+    return f->getParent();
+  return nullptr;
+}
+
+const Module *llvm::getModule(const BasicBlock &bb) {
+  if (const Function *f = bb.getParent())
+    return f->getParent();
+  return nullptr;
+}
+
+std::string llvm::getName(const BasicBlock &bb) {
+  if (bb.hasName())
+    return bb.getName().str();
+
+  std::string buf;
+  raw_string_ostream os(buf);
+
+  bb.printAsOperand(os, /*PrintType=*/false, getModule(bb));
+  return buf;
+}
 
 bool llvm::isDisconnected(const BasicBlock &bb) {
   return pred_size(&bb) == 0 && succ_size(&bb) == 0;

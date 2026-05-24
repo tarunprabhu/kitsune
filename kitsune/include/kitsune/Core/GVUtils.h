@@ -19,9 +19,15 @@ namespace llvm {
 
 class GlobalVariable;
 class LLVMContext;
+class Module;
 
 /// \addtogroup kitsune
 /// @{
+
+/// Get the module containing a global variable, or nullptr, if the global is
+/// not in a module.
+Module *getModule(GlobalVariable &g);
+const Module *getModule(const GlobalVariable &g);
 
 /// Get the LLVM context from a global variable. This is useful when generating
 /// code from tablegen macros.

@@ -11,6 +11,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/InstUtils.h"
+#include "kitsune/Core/ValueUtils.h"
+#include "llvm/ADT/SmallString.h"
 #include "llvm/IR/Instructions.h"
 
 using namespace llvm;
@@ -19,13 +21,43 @@ LLVMContext &llvm::getContext(const Instruction &inst) {
   return inst.getContext();
 }
 
+Module *llvm::getModule(Instruction &inst) {
+  if (BasicBlock *bb = inst.getParent())
+    if (Function *f = bb->getParent())
+      return f->getParent();
+  return nullptr;
+}
+
+const Module *llvm::getModule(const Instruction &inst) {
+  if (const BasicBlock *bb = inst.getParent())
+    if (const Function *f = bb->getParent())
+      return f->getParent();
+  return nullptr;
+}
+
 std::string llvm::getName(const Instruction &inst) {
+  auto toString = [](const Instruction &inst) -> std::string {
+    SmallString<32> buf;
+    raw_svector_ostream os(buf);
+
+    os << inst;
+    return buf.str().ltrim().str();
+  };
+
   if (inst.hasName())
     return inst.getName().str();
 
   std::string buf;
   raw_string_ostream os(buf);
-  inst.printAsOperand(os, /*PrintType=*/false, inst.getModule());
+
+  if (inst.getType()->isVoidTy()) {
+    if (const auto *call = dyn_cast<CallBase>(&inst))
+      os << "<call " << getName(*call->getCalledOperand()) << ">";
+    else
+      os << "<" << toString(inst) << ">";
+  } else {
+    inst.printAsOperand(os, /*PrintType=*/false, inst.getModule());
+  }
 
   return buf;
 }

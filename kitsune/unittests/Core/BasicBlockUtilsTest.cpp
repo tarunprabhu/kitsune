@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/BasicBlockUtils.h"
+#include "TestUtils.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/IRBuilder.h"
@@ -17,7 +18,49 @@
 
 using namespace llvm;
 
+static constexpr StringRef ll = R"(
+define i64 @f(i64 %0) {
+  br label %end
+
+end:
+  ret i64 %0
+}
+)";
+
 namespace {
+
+TEST(KitBasicBlockUtils, getModule) {
+  LLVMContext ctx;
+  Type *voidTy = Type::getVoidTy(ctx);
+  FunctionType *funcTy = FunctionType::get(voidTy, {}, /*IsVarArg=*/false);
+  GlobalValue::LinkageTypes linkage = GlobalValue::ExternalLinkage;
+
+  Module m("", ctx);
+  Function *fO = Function::Create(funcTy, linkage, "fO");
+  Function *fM = Function::Create(funcTy, linkage, "fM", &m);
+
+  BasicBlock *bbO = BasicBlock::Create(ctx);
+  BasicBlock *bbFO = BasicBlock::Create(ctx, "", fO);
+  BasicBlock *bbFM = BasicBlock::Create(ctx, "", fM);
+
+  EXPECT_FALSE(getModule(*bbO));
+  EXPECT_FALSE(getModule(*bbFO));
+  EXPECT_EQ(getModule(*bbFM), &m);
+}
+
+TEST(KitBasicBlockUtils, getName) {
+  LLVMContext ctx;
+  std::unique_ptr<Module> m = parseIR(ctx, ll);
+
+  Function *f = m->getFunction("f");
+  SmallVector<std::string> names;
+  for (BasicBlock &bb : *f)
+    names.push_back(getName(bb));
+
+  unsigned i = 0;
+  EXPECT_EQ(names[i++], "%1");  // The entry basic block is unnamed
+  EXPECT_EQ(names[i++], "end"); // The basic block is named
+}
 
 TEST(KitBasicBlockUtils, isDisconnected) {
   LLVMContext ctx;

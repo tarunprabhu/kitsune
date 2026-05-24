@@ -7,8 +7,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/InstUtils.h"
+#include "TestUtils.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
 
@@ -16,9 +18,66 @@
 
 using namespace llvm;
 
+static constexpr StringRef ll = R"(
+declare void @ext()
+declare ptr @get()
+
+define i64 @f(i64 %0) {
+  call void @ext()
+  %2 = call ptr @get()
+  call void %2()
+  br label %end
+
+end:
+  ret i64 %0
+}
+)";
+
 namespace {
 
-TEST(KitInstructionUtils, getInstClassName) {
+TEST(KitInstUtils, getModule) {
+  LLVMContext ctx;
+  Type *voidTy = Type::getVoidTy(ctx);
+  FunctionType *funcTy = FunctionType::get(voidTy, {}, /*IsVarArg=*/false);
+  GlobalValue::LinkageTypes linkage = GlobalValue::ExternalLinkage;
+
+  Module m("", ctx);
+  Function *fO = Function::Create(funcTy, linkage, "fO");
+  Function *fM = Function::Create(funcTy, linkage, "fM", &m);
+
+  BasicBlock *bbO = BasicBlock::Create(ctx);
+  BasicBlock *bbFO = BasicBlock::Create(ctx, "", fO);
+  BasicBlock *bbFM = BasicBlock::Create(ctx, "", fM);
+
+  ReturnInst *retO = ReturnInst::Create(ctx);
+  ReturnInst *retBBO = ReturnInst::Create(ctx, bbO);
+  ReturnInst *retFO = ReturnInst::Create(ctx, bbFO);
+  ReturnInst *retFM = ReturnInst::Create(ctx, bbFM);
+
+  EXPECT_FALSE(getModule(*retO));
+  EXPECT_FALSE(getModule(*retBBO));
+  EXPECT_FALSE(getModule(*retFO));
+  EXPECT_EQ(getModule(*retFM), &m);
+}
+
+TEST(KitInstUtils, getName) {
+  LLVMContext ctx;
+  std::unique_ptr<Module> m = parseIR(ctx, ll);
+
+  SmallVector<std::string, 4> names;
+  Function *f = m->getFunction("f");
+  for (inst_iterator i = inst_begin(f), e = inst_end(f); i != e; ++i)
+    names.push_back(getName(*i));
+
+  unsigned i = 0;
+  EXPECT_EQ(names[i++], "<call ext>");      // Call does not return a value
+  EXPECT_EQ(names[i++], "%2");              // The call returns a value
+  EXPECT_EQ(names[i++], "<call %2>");       // The instruction is named
+  EXPECT_EQ(names[i++], "<br label %end>"); // Branches have no name
+  EXPECT_EQ(names[i++], "<ret i64 %0>");    // Returns have no name
+}
+
+TEST(KitInstUtils, getInstClassName) {
   LLVMContext ctx;
   Type *i32 = Type::getInt32Ty(ctx);
   Type *i64 = Type::getInt64Ty(ctx);
