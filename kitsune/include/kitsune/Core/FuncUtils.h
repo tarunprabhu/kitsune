@@ -20,6 +20,7 @@ namespace llvm {
 class Argument;
 class Function;
 class LLVMContext;
+class Module;
 
 /// \addtogroup kitsune
 /// @{
@@ -27,6 +28,11 @@ class LLVMContext;
 /// Get the LLVM context from a function. This is useful when generating code
 /// from tablegen macros.
 LLVMContext &getContext(const Function &f);
+
+/// Get the module containing a function, or nullptr, if the function is not in
+/// a module.
+Module *getModule(Function &f);
+const Module *getModule(const Function &f);
 
 /// Get the name of a function. If the function is unnamed, a string of the form
 /// `@<N>` will be returned. This is how the function name would appear in

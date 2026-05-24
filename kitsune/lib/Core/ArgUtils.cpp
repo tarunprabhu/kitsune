@@ -15,8 +15,14 @@
 
 using namespace llvm;
 
-static const Module* getModule(const Argument &a) {
-  if (const Function* f = a.getParent())
+Module *llvm::getModule(Argument &a) {
+  if (Function *f = a.getParent())
+    return f->getParent();
+  return nullptr;
+}
+
+const Module *llvm::getModule(const Argument &a) {
+  if (const Function *f = a.getParent())
     return f->getParent();
   return nullptr;
 }

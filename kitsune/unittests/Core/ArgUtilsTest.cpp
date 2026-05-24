@@ -16,6 +16,26 @@ using namespace llvm;
 
 namespace {
 
+TEST(KitArgUtils, getModule) {
+  LLVMContext ctx;
+  Type *voidTy = Type::getVoidTy(ctx);
+  Type *i32 = Type::getInt32Ty(ctx);
+  FunctionType *funcTy = FunctionType::get(voidTy, {i32}, /*IsVarArg=*/false);
+  GlobalValue::LinkageTypes linkage = GlobalValue::ExternalLinkage;
+
+  Module m("", ctx);
+  Function *fO = Function::Create(funcTy, linkage, "fO");
+  Function *fM = Function::Create(funcTy, linkage, "fM", &m);
+
+  Argument aO(i32);
+  Argument aFO(i32, "", fO);
+  Argument aFM(i32, "", fM);
+
+  EXPECT_FALSE(getModule(aO));
+  EXPECT_FALSE(getModule(aFO));
+  EXPECT_EQ(getModule(aFM), &m);
+}
+
 TEST(KitArgUtils, getName) {
   LLVMContext ctx;
   Type *voidTy = Type::getVoidTy(ctx);

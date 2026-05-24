@@ -16,6 +16,7 @@ add_kitsune_unittest_with_input_files(KitCoreTests
   FuncAttrsTest.cpp
   FuncUtilsTest.cpp
   GVAttrsTest.cpp
+  GVUtilsTest.cpp
   InstAttrsTest.cpp
   InstUtilsTest.cpp
   IntrinsicUtilsTest.cpp

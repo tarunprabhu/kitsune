@@ -15,6 +15,9 @@
 
 using namespace llvm;
 
+Module *llvm::getModule(GlobalVariable &g) { return g.getParent(); }
+const Module *llvm::getModule(const GlobalVariable &g) { return g.getParent(); }
+
 LLVMContext &llvm::getContext(const GlobalVariable &g) {
   return g.getContext();
 }

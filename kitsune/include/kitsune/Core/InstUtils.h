@@ -19,6 +19,7 @@ namespace llvm {
 
 class Instruction;
 class LLVMContext;
+class Module;
 
 /// \addtogroup kitsune
 /// @{
@@ -26,6 +27,11 @@ class LLVMContext;
 /// Get the LLVM context from an instruction. This is useful when generating
 /// code from tablegen macros.
 LLVMContext &getContext(const Instruction &inst);
+
+/// Get the module containing the instruction, or nullptr if the instruction is
+/// not contained in a function, or the containing function is not in a module.
+Module *getModule(Instruction &inst);
+const Module *getModule(const Instruction &inst);
 
 /// Get the name of an instruction. If the global is unnamed, a string of the
 /// form `%<N>` will be returned. This is how the instruction would appear in

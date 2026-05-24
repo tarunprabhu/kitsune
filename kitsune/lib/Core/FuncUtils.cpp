@@ -15,6 +15,9 @@
 
 using namespace llvm;
 
+Module *llvm::getModule(Function &f) { return f.getParent(); }
+const Module *llvm::getModule(const Function &f) { return f.getParent(); }
+
 LLVMContext &llvm::getContext(const Function &f) { return f.getContext(); }
 
 std::string llvm::getName(const Function &f) {

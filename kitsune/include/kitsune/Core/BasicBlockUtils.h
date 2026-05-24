@@ -13,12 +13,26 @@
 #ifndef KITSUNE_CORE_BASIC_BLOCK_UTILS_H
 #define KITSUNE_CORE_BASIC_BLOCK_UTILS_H
 
+#include "llvm/ADT/StringRef.h"
+
 namespace llvm {
 
 class BasicBlock;
+class Module;
 
 /// \@addtogroup kitsune
 /// @{
+
+/// Get the module containing the function that contains a basic block, or
+/// nullptr, if the basic block is not in a function, or if the function
+/// containing it is not in a module.
+Module *getModule(BasicBlock &bb);
+const Module *getModule(const BasicBlock &bb);
+
+/// Get the name of a basic block. If the basic block is unnamed, a string of
+/// the form `%<N>` will be returned. This is how the basic block might appear
+/// in human-readable LLVM-IR.
+std::string getName(const BasicBlock &bb);
 
 /// Return true if BOTH the following conditions hold:
 ///
