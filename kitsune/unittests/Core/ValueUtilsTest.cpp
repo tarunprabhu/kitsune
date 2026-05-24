@@ -61,6 +61,26 @@ TEST(KitValueUtils, getName) {
   EXPECT_EQ(names[i++], "<ret i64 %0>");    // Returns have no name
 }
 
+TEST(KitValueUtils, isFalse) {
+  LLVMContext ctx;
+  Type *i8 = Type::getInt8Ty(ctx);
+
+  EXPECT_TRUE(isFalse(ConstantInt::getFalse(ctx)));
+  EXPECT_FALSE(isFalse(ConstantInt::getTrue(ctx)));
+  EXPECT_FALSE(isFalse(ConstantInt::get(i8, 0)));
+  EXPECT_FALSE(isFalse(ConstantInt::get(i8, 1)));
+}
+
+TEST(KitValueUtils, isTrue) {
+  LLVMContext ctx;
+  Type *i8 = Type::getInt8Ty(ctx);
+
+  EXPECT_TRUE(isTrue(ConstantInt::getTrue(ctx)));
+  EXPECT_FALSE(isTrue(ConstantInt::getFalse(ctx)));
+  EXPECT_FALSE(isTrue(ConstantInt::get(i8, 0)));
+  EXPECT_FALSE(isTrue(ConstantInt::get(i8, 1)));
+}
+
 TEST(KitValueUtils, isZero) {
   LLVMContext ctx;
   Type *i32 = Type::getInt32Ty(ctx);
