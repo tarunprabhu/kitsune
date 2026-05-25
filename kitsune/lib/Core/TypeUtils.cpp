@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/TypeUtils.h"
+#include "kitsune/Support/TypeTraits.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Type.h"
 
@@ -22,32 +23,27 @@ bool llvm::isByteArrayTy(Type *Ty) {
   return false;
 }
 
-template <typename T,
-          std::enable_if_t<std::is_same_v<std::remove_cv_t<T>, bool>, int> = 0>
+template <typename T, std::enable_if_t<std::is_bool_v<T>, int> = 0>
 static Type *getLLVMTypeImpl(LLVMContext &ctx) {
-  llvm_unreachable("NOT IMPLEMENTED: getTypeFor<bool>()");
+  return Type::getInt1Ty(ctx);
 }
 
-template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
+template <typename T, std::enable_if_t<std::is_integer_v<T>, int> = 0>
 static Type *getLLVMTypeImpl(LLVMContext &ctx) {
   return IntegerType::get(ctx, sizeof(T) * 8);
 }
 
-template <typename T,
-          std::enable_if_t<std::is_same_v<std::remove_cv_t<T>, float>, int> = 0>
+template <typename T, std::enable_if_t<std::is_float_v<T>, int> = 0>
 static Type *getLLVMTypeImpl(LLVMContext &ctx) {
   return Type::getFloatTy(ctx);
 }
 
-template <typename T, std::enable_if_t<
-                          std::is_same_v<std::remove_cv_t<T>, double>, int> = 0>
+template <typename T, std::enable_if_t<std::is_double_v<T>, int> = 0>
 static Type *getLLVMTypeImpl(LLVMContext &ctx) {
   return Type::getDoubleTy(ctx);
 }
 
-template <
-    typename T,
-    std::enable_if_t<std::is_same_v<std::remove_cv_t<T>, long double>, int> = 0>
+template <typename T, std::enable_if_t<std::is_long_double_v<T>, int> = 0>
 static Type *getLLVMTypeImpl(LLVMContext &ctx) {
   llvm_unreachable("NOT IMPLEMENTED: getTypeFor<long double>()");
 }
@@ -57,6 +53,7 @@ Type *llvm::getLLVMTypeFor(LLVMContext &ctx) {
   return getLLVMTypeImpl<T>(ctx);
 }
 
+template Type *llvm::getLLVMTypeFor<bool>(LLVMContext &);
 template Type *llvm::getLLVMTypeFor<int8_t>(LLVMContext &);
 template Type *llvm::getLLVMTypeFor<uint8_t>(LLVMContext &);
 template Type *llvm::getLLVMTypeFor<int16_t>(LLVMContext &);
@@ -66,6 +63,7 @@ template Type *llvm::getLLVMTypeFor<uint32_t>(LLVMContext &);
 template Type *llvm::getLLVMTypeFor<int64_t>(LLVMContext &);
 template Type *llvm::getLLVMTypeFor<uint64_t>(LLVMContext &);
 
+template Type *llvm::getLLVMTypeFor<const bool>(LLVMContext &);
 template Type *llvm::getLLVMTypeFor<const int8_t>(LLVMContext &);
 template Type *llvm::getLLVMTypeFor<const uint8_t>(LLVMContext &);
 template Type *llvm::getLLVMTypeFor<const int16_t>(LLVMContext &);

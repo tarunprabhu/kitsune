@@ -117,11 +117,14 @@ TEST(KitConstantUtils, toConstant) {
   StringLiteral lit = "lse";
 
   LLVMContext ctx;
+  Type *i1 = Type::getInt1Ty(ctx);
   Type *i32 = Type::getInt32Ty(ctx);
   Type *i64 = Type::getInt64Ty(ctx);
   Type *f32 = Type::getFloatTy(ctx);
   Type *f64 = Type::getDoubleTy(ctx);
 
+  Constant *cTrue = toConstant(true, ctx);
+  Constant *cFalse = toConstant(false, ctx);
   Constant *ci32 = toConstant(1, ctx);
   Constant *ci64 = toConstant(1L, ctx);
   Constant *cf32 = toConstant(1.0F, ctx);
@@ -132,6 +135,8 @@ TEST(KitConstantUtils, toConstant) {
   Constant *cstring = toConstant(s, ctx);
   Constant *clit = toConstant(lit, ctx);
 
+  EXPECT_EQ(cTrue->getType(), i1);
+  EXPECT_EQ(cFalse->getType(), i1);
   EXPECT_EQ(ci32->getType(), i32);
   EXPECT_EQ(ci64->getType(), i64);
   EXPECT_EQ(cf32->getType(), f32);
@@ -140,6 +145,8 @@ TEST(KitConstantUtils, toConstant) {
   EXPECT_EQ(cTTID->getType(), i32);
   EXPECT_EQ(cStrat->getType(), i32);
 
+  EXPECT_EQ(fromConstant<bool>(*cTrue), true);
+  EXPECT_EQ(fromConstant<bool>(*cFalse), false);
   EXPECT_EQ(fromConstant<int32_t>(*ci32), 1);
   EXPECT_EQ(fromConstant<int64_t>(*ci64), 1L);
   EXPECT_EQ(fromConstant<float>(*cf32), 1.0F);

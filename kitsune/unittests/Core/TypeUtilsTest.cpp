@@ -19,6 +19,9 @@ namespace {
 TEST(KitTypeUtils, getLLVMTypeFor) {
   LLVMContext ctx;
 
+  EXPECT_TRUE(getLLVMTypeFor<bool>(ctx)->isIntegerTy(1));
+  EXPECT_TRUE(getLLVMTypeFor<const bool>(ctx)->isIntegerTy(1));
+
   EXPECT_TRUE(getLLVMTypeFor<int8_t>(ctx)->isIntegerTy(8));
   EXPECT_TRUE(getLLVMTypeFor<uint8_t>(ctx)->isIntegerTy(8));
   EXPECT_TRUE(getLLVMTypeFor<char>(ctx)->isIntegerTy(8));
