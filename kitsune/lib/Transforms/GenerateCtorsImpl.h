@@ -52,6 +52,10 @@ void genCtorCuda(Module &m, GetTLI getTLI, const TTOptions &ttOpts,
 void genCtorHip(Module &m, GetTLI getTLI, const TTOptions &ttOpts,
                 const GenerateCtorOptions &ctorOpts);
 
+/// Generate a global constructor and destructor for Kitsune's opencilk runtime.
+void genCtorOpenCilk(Module &m, GetTLI getTLI, const TTOptions &ttOpts,
+                     const GenerateCtorOptions &ctorOpts);
+
 /// Generate a global constructor and destructor for Kitsune's openmp runtime.
 void genCtorOpenMP(Module &m, GetTLI getTLI, const TTOptions &ttOpts,
                    const GenerateCtorOptions &ctorOpts);

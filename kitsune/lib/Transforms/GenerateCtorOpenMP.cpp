@@ -14,7 +14,6 @@
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/Tapir.h"
-// #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Instructions.h"
