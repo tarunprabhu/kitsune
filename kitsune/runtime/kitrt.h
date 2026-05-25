@@ -168,28 +168,17 @@ typedef struct _kitrt_inst_mix_info {
 
 /**
  * Get the number of threads to use for parallel work from the environment
- * variable, \p envVar. Returns 0 if any of the following is true:
+ * variable named KIT_NUM_THREADS. Returns 0 if any of the following is true:
  *
- *  - \p envVar is not set
- *  - \p envVar is set, but the value is not a positive, decimal integer
- *  - The value of \p envVar is a positive, decimal integer, but its value is
- *    greater than 2^31 - 1
+ *  - `KIT_NUM_THREADS` is not set in the environment
+ *  - `KIT_NUM_THREADS` is set, but the value is not a positive, decimal integer
+ *  - The value of `KIT_NUM_THREADS` is a positive, decimal integer, but its
+ *    value is greater than 2^31 - 1
  *
  * Otherwise, returns the value of the environment variable parsed into a 32-bit
  * unsigned integer.
  */
-unsigned __kitrt_num_threads_from_env(const char *envVar);
-
-/**
- * Get the number of threads to use for parallel work. Several CPU-specific
- * Kitsune runtimes allow using an environment variable to control the degree
- * of parallelism. If \p envVar is provided and is non-null, it will be looked
- * up in the environment. If the value is a positive, decimal integer whose
- * value is less than 2^31 - 1, that value will be returned. Otherwise, the
- * number of CPU's detected on the system. will be returned. If the number of
- * CPU's could not be determined, returns 1.
- */
-unsigned __kitrt_num_threads_or_cpus(const char *envVar);
+unsigned __kitrt_num_threads_from_env();
 
 /**
  * Get the number of CPU cores on the system. If the number could not be
@@ -200,6 +189,15 @@ unsigned __kitrt_num_cpus();
 #ifdef __cplusplus
 } // extern "C"
 #endif
+
+/**
+ * The environment variable that can be used to control the degree of CPU
+ * parallelism. This must be set to a positive, decimal integer that specifies
+ * the number of threads/workers to use. In most cases, this environment
+ * variable will be queried in a global constructor and an appropriate mechanism
+ * will be used to control the behavior of the underlying runtime.
+ */
+static constexpr const char *__kitrt_envname_num_threads = "KIT_NUM_THREADS";
 
 /**
  * Read the value of an environment variable. If the variable does not exist in

@@ -55,6 +55,7 @@
 #include <qthread/qloop.h>
 
 #include <cstdint>
+#include <cstdlib>
 
 #define LABEL "kitqthr"
 
@@ -64,6 +65,11 @@
 /// iteration space that must be split across the threads.
 using KitQthrThrdFn = void (*)(const unsigned long start,
                                const unsigned long end, void *args);
+
+/// Get the number of parallel workers that are available. Generally, this
+/// function should be used when this must be queried instead of calling
+/// `qthread_num_workers()`.
+static unsigned __kitqthr_num_threads() { return qthread_num_workers(); }
 
 /// Launch some number of threads each of which will execute some number of
 /// iterations in the space [\ref start, \ref end). Terminates the program with
@@ -97,9 +103,9 @@ extern "C" int64_t __kitqthr_reduce_num_partials(int64_t n) {
   // There might be something smarter that can be done once we support a proper
   // reduction tree, but since we only support a reduction tree of depth 1, this
   // will do.
-  int64_t numPartials = qthread_num_workers();
+  unsigned numPartials = __kitqthr_num_threads();
 
-  __kitrt_message(LABEL, "Number of partial reductions: %ld", numPartials);
+  __kitrt_message(LABEL, "Number of partial reductions: %d", numPartials);
 
   return numPartials;
 }
@@ -111,6 +117,16 @@ extern "C" void __kitqthr_initialize(void) {
   // tapir-target-specific components.
   __kitrt_initialize();
   __kitrt_message(LABEL, "Initializing Kitsune qthreads runtime");
+
+  if (__kitrt_num_threads_from_env()) {
+    // It seems that, by default, one shepherd is used, so if we are setting
+    // the number of workers, force the number of shepherds as well.
+    const char *s = getenv(__kitrt_envname_num_threads);
+    __kitrt_message(LABEL, "Setting QT_NUM_SHEPHERDS=1");
+    __kitrt_message(LABEL, "Setting QT_NUM_WORKERS_PER_SHEPHERD=%s", s);
+    __kitrt_set_env("QT_NUM_SHEPHERDS", "1");
+    __kitrt_set_env("QT_NUM_WORKERS_PER_SHEPHERD", s);
+  }
 
   __kitrt_message(LABEL, "Initializing Qthreads runtime");
   qthread_initialize();

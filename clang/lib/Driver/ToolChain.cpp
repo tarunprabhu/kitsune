@@ -2357,27 +2357,6 @@ void ToolChain::AddKitsuneCompilerArgs(const ArgList &Args,
   }
 }
 
-static void addOpenCilkRuntimeRunPath(const ToolChain &TC, const ArgList &Args,
-                                      ArgStringList &CmdArgs,
-                                      const llvm::Triple &Triple) {
-  // Allow the -fno-rtlib-add-rpath flag to prevent adding this default
-  // directory to the runpath.
-  if (!Args.hasFlag(options::OPT_frtlib_add_rpath,
-                    options::OPT_fno_rtlib_add_rpath, true))
-    return;
-
-  if (std::optional<std::string> RPath = TC.getOpenCilkRuntimePath(Args)) {
-    if (TC.getVFS().exists(*RPath)) {
-      CmdArgs.push_back("-L");
-      CmdArgs.push_back(Args.MakeArgString(RPath->c_str()));
-      CmdArgs.push_back("-rpath");
-      CmdArgs.push_back(Args.MakeArgString(RPath->c_str()));
-      if (Triple.isOSBinFormatELF())
-        CmdArgs.push_back("--enable-new-dtags");
-    }
-  }
-}
-
 static StringRef getArchNameForOpenCilkRTLib(const ToolChain &TC,
                                              const ArgList &Args) {
   // Cheetah's installs the bitcode file with the arm64 suffix on MacOSX with
@@ -2458,19 +2437,13 @@ void ToolChain::AddKitsuneOpenCilkLinkerArgs(const ArgList &Args,
   bool IsStatic = Args.hasArg(options::OPT_static);
   FileType FT = IsStatic ? ToolChain::FT_Static : ToolChain::FT_Shared;
 
-  // Link the correct Cilk personality fn
+  // Link the correct OpenCilk personality function.
   std::string Personality = getOpenCilkPersonalityName(Args, FT);
   CmdArgs.push_back(Args.MakeArgString(getOpenCilkRT(Args, Personality, FT)));
 
-  // Link the opencilk runtime.  We do this after linking the personality
-  // function, to ensure that symbols are resolved correctly when using
-  // static linking.
-  std::string Runtime = getOpenCilkRuntimeName(Args, FT);
-  CmdArgs.push_back(Args.MakeArgString(getOpenCilkRT(Args, Runtime, FT)));
-
-  // Add to the executable's runpath the default directory containing the
-  // OpenCilk runtime.
-  addOpenCilkRuntimeRunPath(*this, Args, CmdArgs, Triple);
+  // Since the OpenCilk runtime is required by Kitsune's runtime, the former
+  // must be linked after the latter. Therefore, we do not add those linker
+  // arguments here.
 }
 
 void ToolChain::AddKitsuneOpenMPLinkerArgs(const ArgList &Args,
@@ -2565,28 +2538,6 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
   // We always link in libkitrt if a tapir target or special Kokkos handling has
   // been specified.
   if (IsKokkos || (TT && *TT != TTID::Nolo)) {
-    // These should be linked before libkitrt. At some point, we may have a
-    // static archives for libomp and libqthreads. In that case, they would have
-    // to be linked before uses of the methods in the library in libkitrt.
-    if constexpr (kitOpenMPEnabled()) {
-      const char *LibDir = Args.MakeArgString(concat(D.ResourceDir, "lib"));
-      CmdArgs.push_back("-L");
-      CmdArgs.push_back(LibDir);
-      CmdArgs.push_back("-rpath");
-      CmdArgs.push_back(LibDir);
-      CmdArgs.push_back("-lomp");
-    }
-
-    if constexpr (kitQthreadsEnabled()) {
-      const char *LibDir =
-          Args.MakeArgString(concat(D.ResourceDir, kitQthreadsLibDir()));
-      CmdArgs.push_back("-L");
-      CmdArgs.push_back(LibDir);
-      CmdArgs.push_back("-rpath");
-      CmdArgs.push_back(LibDir);
-      CmdArgs.push_back("-lqthread");
-    }
-
     const char *LibDir = Args.MakeArgString(concat(D.ResourceDir, "lib"));
     CmdArgs.push_back("-L");
     CmdArgs.push_back(LibDir);
@@ -2627,6 +2578,38 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
     if constexpr (kitCudaEnabled()) {
       addDirsFromString(kitCudaLibDirs(), Args, CmdArgs);
       addLibsFromString(kitCudaLibNames(), Args, CmdArgs);
+    }
+
+    // These should be linked after libkitrt. At some point, we may have a
+    // static archives for some of these libraries. In that case, they would
+    // have to be linked before uses of the methods in the library in libkitrt.
+    if constexpr (kitOpenCilkEnabled()) {
+      std::string Path = *getRuntimePath();
+      const char *RuntimeDir = Args.MakeArgString(Path);
+      CmdArgs.push_back("-L");
+      CmdArgs.push_back(RuntimeDir);
+      CmdArgs.push_back("-rpath");
+      CmdArgs.push_back(RuntimeDir);
+      CmdArgs.push_back("-lopencilk");
+    }
+
+    if constexpr (kitOpenMPEnabled()) {
+      const char *LibDir = Args.MakeArgString(concat(D.ResourceDir, "lib"));
+      CmdArgs.push_back("-L");
+      CmdArgs.push_back(LibDir);
+      CmdArgs.push_back("-rpath");
+      CmdArgs.push_back(LibDir);
+      CmdArgs.push_back("-lomp");
+    }
+
+    if constexpr (kitQthreadsEnabled()) {
+      const char *LibDir =
+          Args.MakeArgString(concat(D.ResourceDir, kitQthreadsLibDir()));
+      CmdArgs.push_back("-L");
+      CmdArgs.push_back(LibDir);
+      CmdArgs.push_back("-rpath");
+      CmdArgs.push_back(LibDir);
+      CmdArgs.push_back("-lqthread");
     }
   }
 }

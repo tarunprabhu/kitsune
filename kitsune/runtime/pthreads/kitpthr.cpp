@@ -58,7 +58,7 @@
 #include <cstdlib>
 #include <limits.h>
 #include <pthread.h>
-#include <thread>
+#include <errno.h>
 
 #define LABEL "kitpthr"
 
@@ -140,16 +140,21 @@ public:
   KitPthrContext &operator=(const KitPthrContext &) = delete;
 };
 
-/// Determine the number of threads to launch. If an environment variable named
-/// KIT_NUM_THREADS is set to a positive decimal (base 10) integer, that value
-/// will be returned. If the value of the environment variable is negative, or
-/// if it cannot be interpreted as an integer, the number of CPU's detected on
-/// the system is returned instead. If the number of CPU's could not be
-/// determined, return 1.
-static int64_t getNumThreads() {
-  if (unsigned numThreads = __kitrt_num_threads_from_env("KIT_NUM_THREADS"))
-    return numThreads;
-  return __kitrt_num_cpus();
+/// The number of threads to use. Ideally, this should be part of a global
+/// object that contains all the state needed by the runtime. But that would
+/// require reorganization of the runtime. A separate effort is underway that
+/// does this, so do this temporarily for now.
+///
+/// This will be set in the global ctor for this runtime. This should not be
+/// used directly in the rest of the runtime. Use `__kitpthr_num_threads()` to
+/// get this value.
+static unsigned __kitpthr_num_threads_v = 1;
+
+/// Get the number of parallel workers that are available. Generally, this
+/// function should be used when this must be queried instead of calling
+/// `qthread_num_workers()`.
+static unsigned __kitpthr_num_threads() {
+  return __kitpthr_num_threads_v;
 }
 
 /// Run \p f on the main thread. Block until f completes. Always return nullptr.
@@ -209,7 +214,7 @@ extern "C" KitPthrContext *__kitpthr_launch(KitPthrThrdFn f, int64_t start,
   // This is the number of threads that *may* be launched. However, there may
   // not be enough for work for all threads, so the actual number of threads
   // that are launched may be smaller than this.
-  const int64_t availThrds = getNumThreads();
+  const unsigned availThrds = __kitpthr_num_threads();
 
   // If only a single thread is to be used, don't launch any threads. Run f on
   // the main thread and block until it finishes. Return nullptr as the thread
@@ -280,9 +285,9 @@ extern "C" int64_t __kitpthr_reduce_num_partials(int64_t n) {
   // There might be something smarter that can be done once we support a proper
   // reduction tree, but since we only support a reduction tree of depth 1, we
   // just use as many partials as there are CPU's on the system.
-  int numPartials = getNumThreads();
+  unsigned numPartials = __kitpthr_num_threads();
 
-  __kitrt_message(LABEL, "Number of partial reductions: %ld", numPartials);
+  __kitrt_message(LABEL, "Number of partial reductions: %d", numPartials);
 
   return numPartials;
 }
@@ -295,6 +300,16 @@ extern "C" void __kitpthr_initialize(void) {
   // tapir-target-specific components.
   __kitrt_initialize();
   __kitrt_message(LABEL, "Initializing Kitsune pthreads runtime");
+
+  // pthreads does not need to be initialized.
+  if (unsigned numThreads = __kitrt_num_threads_from_env())
+    __kitpthr_num_threads_v = numThreads;
+  else
+    __kitpthr_num_threads_v = __kitrt_num_cpus();
+
+  // pthreads does not have to be initialized.
+
+  __kitrt_message(LABEL, "Number of threads = %d", __kitpthr_num_threads());
   __kitrt_message(LABEL, "Initialized Kitsune pthreads runtime");
 }
 
@@ -303,5 +318,8 @@ extern "C" void __kitpthr_initialize(void) {
 /// state of its own, this does nothing.
 extern "C" void __kitpthr_finalize(void) {
   __kitrt_message(LABEL, "Finalizing Kitsune pthreads runtime");
+
+  // pthreads does not need to be finalized.
+
   __kitrt_message(LABEL, "Finalized Kitsune pthreads runtime");
 }
