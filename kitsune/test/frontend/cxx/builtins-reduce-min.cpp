@@ -13,8 +13,7 @@
 // CHECK-SAME: ptr %[[PTR:[^,]+]]
 // CHECK-SAME: i8 {{.*}}%[[V:[^)]+]]
 // CHECK-NEXT: %[[CURR:.+]] = load i8, ptr %[[PTR]]
-// CHECK-NEXT: %[[CMP:.+]] = icmp sle i8 %[[CURR]], %[[V]]
-// CHECK-NEXT: %[[UPD:.+]] = select i1 %[[CMP]], i8 %[[CURR]], i8 %[[V]]
+// CHECK-NEXT: %[[UPD:.+]] = call i8 @llvm.smin.i8(i8 %[[CURR]], i8 %[[V]])
 // CHECK-NEXT: store i8 %[[UPD]], ptr %[[PTR]]
 // CHECK-NEXT: ret void
 extern "C" void reduce_i8() {
@@ -33,8 +32,7 @@ extern "C" void reduce_i8() {
 // CHECK-SAME: ptr %[[PTR:[^,]+]]
 // CHECK-SAME: i8 {{.*}}%[[V:[^)]+]]
 // CHECK-NEXT: %[[CURR:.+]] = load i8, ptr %[[PTR]]
-// CHECK-NEXT: %[[CMP:.+]] = icmp ule i8 %[[CURR]], %[[V]]
-// CHECK-NEXT: %[[UPD:.+]] = select i1 %[[CMP]], i8 %[[CURR]], i8 %[[V]]
+// CHECK-NEXT: %[[UPD:.+]] = call i8 @llvm.umin.i8(i8 %[[CURR]], i8 %[[V]])
 // CHECK-NEXT: store i8 %[[UPD]], ptr %[[PTR]]
 // CHECK-NEXT: ret void
 extern "C" void reduce_u8() {
@@ -53,8 +51,7 @@ extern "C" void reduce_u8() {
 // CHECK-SAME: ptr %[[PTR:[^,]+]]
 // CHECK-SAME: i16 {{.*}}%[[V:[^)]+]]
 // CHECK-NEXT: %[[CURR:.+]] = load i16, ptr %[[PTR]]
-// CHECK-NEXT: %[[CMP:.+]] = icmp sle i16 %[[CURR]], %[[V]]
-// CHECK-NEXT: %[[UPD:.+]] = select i1 %[[CMP]], i16 %[[CURR]], i16 %[[V]]
+// CHECK-NEXT: %[[UPD:.+]] = call i16 @llvm.smin.i16(i16 %[[CURR]], i16 %[[V]])
 // CHECK-NEXT: store i16 %[[UPD]], ptr %[[PTR]]
 // CHECK-NEXT: ret void
 extern "C" void reduce_i16() {
@@ -73,8 +70,7 @@ extern "C" void reduce_i16() {
 // CHECK-SAME: ptr %[[PTR:[^,]+]]
 // CHECK-SAME: i16 {{.*}}%[[V:[^)]+]]
 // CHECK-NEXT: %[[CURR:.+]] = load i16, ptr %[[PTR]]
-// CHECK-NEXT: %[[CMP:.+]] = icmp ule i16 %[[CURR]], %[[V]]
-// CHECK-NEXT: %[[UPD:.+]] = select i1 %[[CMP]], i16 %[[CURR]], i16 %[[V]]
+// CHECK-NEXT: %[[UPD:.+]] = call i16 @llvm.umin.i16(i16 %[[CURR]], i16 %[[V]])
 // CHECK-NEXT: store i16 %[[UPD]], ptr %[[PTR]]
 // CHECK-NEXT: ret void
 extern "C" void reduce_u16() {
@@ -93,8 +89,7 @@ extern "C" void reduce_u16() {
 // CHECK-SAME: ptr %[[PTR:[^,]+]]
 // CHECK-SAME: i32 {{.*}}%[[V:[^)]+]]
 // CHECK-NEXT: %[[CURR:.+]] = load i32, ptr %[[PTR]]
-// CHECK-NEXT: %[[CMP:.+]] = icmp sle i32 %[[CURR]], %[[V]]
-// CHECK-NEXT: %[[UPD:.+]] = select i1 %[[CMP]], i32 %[[CURR]], i32 %[[V]]
+// CHECK-NEXT: %[[UPD:.+]] = call i32 @llvm.smin.i32(i32 %[[CURR]], i32 %[[V]])
 // CHECK-NEXT: store i32 %[[UPD]], ptr %[[PTR]]
 // CHECK-NEXT: ret void
 extern "C" void reduce_i32() {
@@ -113,8 +108,7 @@ extern "C" void reduce_i32() {
 // CHECK-SAME: ptr %[[PTR:[^,]+]]
 // CHECK-SAME: i32 {{.*}}%[[V:[^)]+]]
 // CHECK-NEXT: %[[CURR:.+]] = load i32, ptr %[[PTR]]
-// CHECK-NEXT: %[[CMP:.+]] = icmp ule i32 %[[CURR]], %[[V]]
-// CHECK-NEXT: %[[UPD:.+]] = select i1 %[[CMP]], i32 %[[CURR]], i32 %[[V]]
+// CHECK-NEXT: %[[UPD:.+]] = call i32 @llvm.umin.i32(i32 %[[CURR]], i32 %[[V]])
 // CHECK-NEXT: store i32 %[[UPD]], ptr %[[PTR]]
 // CHECK-NEXT: ret void
 extern "C" void reduce_u32() {
@@ -133,8 +127,7 @@ extern "C" void reduce_u32() {
 // CHECK-SAME: ptr %[[PTR:[^,]+]]
 // CHECK-SAME: i64 {{.*}}%[[V:[^)]+]]
 // CHECK-NEXT: %[[CURR:.+]] = load i64, ptr %[[PTR]]
-// CHECK-NEXT: %[[CMP:.+]] = icmp sle i64 %[[CURR]], %[[V]]
-// CHECK-NEXT: %[[UPD:.+]] = select i1 %[[CMP]], i64 %[[CURR]], i64 %[[V]]
+// CHECK-NEXT: %[[UPD:.+]] = call i64 @llvm.smin.i64(i64 %[[CURR]], i64 %[[V]])
 // CHECK-NEXT: store i64 %[[UPD]], ptr %[[PTR]]
 // CHECK-NEXT: ret void
 extern "C" void reduce_i64() {
@@ -153,8 +146,7 @@ extern "C" void reduce_i64() {
 // CHECK-SAME: ptr %[[PTR:[^,]+]]
 // CHECK-SAME: i64 {{.*}}%[[V:[^)]+]]
 // CHECK-NEXT: %[[CURR:.+]] = load i64, ptr %[[PTR]]
-// CHECK-NEXT: %[[CMP:.+]] = icmp ule i64 %[[CURR]], %[[V]]
-// CHECK-NEXT: %[[UPD:.+]] = select i1 %[[CMP]], i64 %[[CURR]], i64 %[[V]]
+// CHECK-NEXT: %[[UPD:.+]] = call i64 @llvm.umin.i64(i64 %[[CURR]], i64 %[[V]])
 // CHECK-NEXT: store i64 %[[UPD]], ptr %[[PTR]]
 // CHECK-NEXT: ret void
 extern "C" void reduce_u64() {
