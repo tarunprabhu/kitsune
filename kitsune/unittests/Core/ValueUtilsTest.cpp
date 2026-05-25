@@ -119,4 +119,62 @@ TEST(KitValueUtils, isOne) {
   EXPECT_FALSE(isIntOne(i1, f64));
 }
 
+TEST(KitValueUtils, isType) {
+  LLVMContext ctx;
+  Type *i1 = Type::getInt1Ty(ctx);
+  Type *i8 = Type::getInt8Ty(ctx);
+  Type *i16 = Type::getInt16Ty(ctx);
+  Type *i32 = Type::getInt32Ty(ctx);
+  Type *i64 = Type::getInt64Ty(ctx);
+  Type *f32 = Type::getFloatTy(ctx);
+  Type *f64 = Type::getDoubleTy(ctx);
+
+  Constant *ci1 = ConstantInt::get(i1, 0);
+  Constant *ci8 = ConstantInt::get(i8, 0);
+  Constant *ci16 = ConstantInt::get(i16, 0);
+  Constant *ci32 = ConstantInt::get(i32, 0);
+  Constant *ci64 = ConstantInt::get(i64, 0);
+  Constant *cf32 = ConstantFP::get(f32, 0);
+  Constant *cf64 = ConstantFP::get(f64, 0);
+
+  EXPECT_TRUE(isBool(ci1));
+  EXPECT_TRUE(isInt8(ci8));
+  EXPECT_TRUE(isInt16(ci16));
+  EXPECT_TRUE(isInt32(ci32));
+  EXPECT_TRUE(isInt64(ci64));
+  EXPECT_TRUE(isFloat(cf32));
+  EXPECT_TRUE(isDouble(cf64));
+
+  EXPECT_FALSE(isBool(ci8));
+  EXPECT_FALSE(isInt8(ci16));
+  EXPECT_FALSE(isInt16(ci32));
+  EXPECT_FALSE(isInt32(ci64));
+  EXPECT_FALSE(isInt64(ci1));
+  EXPECT_FALSE(isFloat(cf64));
+  EXPECT_FALSE(isDouble(cf32));
+}
+
+TEST(KitValueUtils, isPointerType) {
+  LLVMContext ctx;
+  Type *i64 = Type::getInt64Ty(ctx);
+  PointerType *pty0 = PointerType::getUnqual(ctx);
+  PointerType *pty67 = PointerType::get(ctx, 67);
+
+  Constant *c64 = ConstantInt::get(i64, 0);
+  Constant *c0 = ConstantPointerNull::get(pty0);
+  Constant *c67 = ConstantPointerNull::get(pty67);
+
+  EXPECT_TRUE(isPointer(c0));
+  EXPECT_TRUE(isPointer(c67));
+  EXPECT_TRUE(isPointer(c0, 0));
+  EXPECT_TRUE(isPointer(c67, 67));
+
+  EXPECT_FALSE(isPointer(c0, 67));
+  EXPECT_FALSE(isPointer(c67, 0));
+
+  EXPECT_FALSE(isPointer(c64));
+  EXPECT_FALSE(isPointer(c64, 0));
+  EXPECT_FALSE(isPointer(c64, 64));
+}
+
 } // namespace

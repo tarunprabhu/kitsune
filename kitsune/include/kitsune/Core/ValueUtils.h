@@ -30,6 +30,43 @@ class Value;
 Module *getModule(Value &v);
 const Module *getModule(const Value &v);
 
+/// Return true if the given value has type `i1`
+bool isBool(const Value *v);
+bool isBool(const Value &v);
+
+/// Return true if the given value has type `i8`
+bool isInt8(const Value *v);
+bool isInt8(const Value &v);
+
+/// Return true if the given value has type `i16`
+bool isInt16(const Value *v);
+bool isInt16(const Value &v);
+
+/// Return true if the given value has type `i32`
+bool isInt32(const Value *v);
+bool isInt32(const Value &v);
+
+/// Return true if the given value has type `i64`
+bool isInt64(const Value *v);
+bool isInt64(const Value &v);
+
+/// Return true if the given value has type `float`
+bool isFloat(const Value *v);
+bool isFloat(const Value &v);
+
+/// Return true if the given value has type `double`
+bool isDouble(const Value *v);
+bool isDouble(const Value &v);
+
+/// Return true if the \p v has type `ptr`. This will return true regardless of
+/// the address space of the pointer.
+bool isPointer(const Value *v);
+bool isPointer(const Value &v);
+
+/// Return true if the \p v has type `ptr` in the given address space.
+bool isPointer(const Value *v, unsigned addrSpace);
+bool isPointer(const Value &v, unsigned addrSpace);
+
 /// Get the name of an LLVM Value. If the value does not have a name, a string
 /// that matches how the value would be rendered in LLVM-IR is returned. If the
 /// value is a function or global variable, this will be of the form `@<N>`

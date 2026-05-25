@@ -27,17 +27,51 @@ static const Constant *asConst(const Value *v) {
   return nullptr;
 }
 
+bool llvm::isBool(const Value *v) { return v->getType()->isIntegerTy(1); }
+bool llvm::isBool(const Value &v) { return isBool(&v); }
+
+bool llvm::isInt8(const Value *v) { return v->getType()->isIntegerTy(8); }
+bool llvm::isInt8(const Value &v) { return isInt8(&v); }
+
+bool llvm::isInt16(const Value *v) { return v->getType()->isIntegerTy(16); }
+bool llvm::isInt16(const Value &v) { return isInt16(&v); }
+
+bool llvm::isInt32(const Value *v) { return v->getType()->isIntegerTy(32); }
+bool llvm::isInt32(const Value &v) { return isInt32(&v); }
+
+bool llvm::isInt64(const Value *v) { return v->getType()->isIntegerTy(64); }
+bool llvm::isInt64(const Value &v) { return isInt64(&v); }
+
+bool llvm::isFloat(const Value *v) { return v->getType()->isFloatTy(); }
+bool llvm::isFloat(const Value &v) { return isFloat(&v); }
+
+bool llvm::isDouble(const Value *v) { return v->getType()->isDoubleTy(); }
+bool llvm::isDouble(const Value &v) { return isDouble(&v); }
+
+bool llvm::isPointer(const Value *v) { return v->getType()->isPointerTy(); }
+bool llvm::isPointer(const Value &v) { return isPointer(&v); }
+
+bool llvm::isPointer(const Value *v, unsigned addrSpace) {
+  if (auto *pty = dyn_cast<PointerType>(v->getType()))
+    return pty->getAddressSpace() == addrSpace;
+  return false;
+}
+
+bool llvm::isPointer(const Value &v, unsigned addrSpace) {
+  return isPointer(&v, addrSpace);
+}
+
 bool llvm::isFalse(const Value *v) {
   if (const Constant *c = asConst(v))
     if (auto *cint = dyn_cast<ConstantInt>(c))
-      return cint->getType()->isIntegerTy(1) && cint->isZero();
+      return isBool(cint) && cint->isZero();
   return false;
 }
 
 bool llvm::isTrue(const Value *v) {
   if (const Constant *c = asConst(v))
     if (auto *cint = dyn_cast<ConstantInt>(c))
-      return cint->getType()->isIntegerTy(1) && !cint->isZero();
+      return isBool(cint) && !cint->isZero();
   return false;
 }
 
