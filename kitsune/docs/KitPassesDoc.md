@@ -201,94 +201,12 @@ middle-end in the pre-tapir lowering pipeline.
 ### kit-reductions
 
 Transform a [tapir reduction loop](glossary-tapir-reduction-loop) to a form
-suitable for parallel execution on CPU's and GPU's.
-
-Consider the loop shown below
-
-```c++
-    int32_t r_sum = 0;
-    int64_t r_mul = 1;
-    forall (int i = 0; i < n; ++i) {
-        r_sum += i;
-        r_mul *= 1;
-    }
-```
-
-Frontends are expected to use the [kit.reduce.0](llvm.kit.reduce.0) intrinsic to
-represent the loop above
-
-```c++
-    void sum(int32_t* res, int32_t v) {
-        *res += v;
-    }
-
-    void mul(int64_t* res, int64_t v) {
-        *res += v;
-    }
-
-    forall (int i = 0; i < n; ++i) {
-        kit.reduce.0(&r_sum, sizeof(r_sum), i, 0, &sum);
-        kit.reduce.0(&r_mul, sizeof(r_mul), i, 1, &mul);
-    }
-```
-
-This pass will transform this into the following for parallel execution on a
-CPU.
-
-```c++
-    int64_t nreds = kit.reduce.partials.count(n);
-    int32_t* buf32 = kit.mobile.alloc(nreds * sizeof(int32_t));
-    int64_t* buf64 = kit.mobile.alloc(nreds * sizeof(int64_t));
-    forall (int j = 0; j < nreds; ++j) {
-        int start = 0;
-        int end = (start + nreds < n) ? start + nreds : n;
-        buf32[j] = 0;
-        buf64[j] = 0;
-        for (int i = start; i < end; ++i) {
-            kit.reduce.0(&buf32[j], sizeof(r_sum), i, 0, &sum);
-            kit.reduce.0(&buf64[j], sizeof(r_mul), i, 1, &mul);
-        }
-    }
-    kit.reduce.1(&r_sum, buf32, nreds, 0, &sum);
-    kit.reduce.1(&r_mul, buf64, nreds, 1, &mul);
-    kit.mobile.free(buf32);
-    kit.mobile.free(buf64);
-```
-
-Here, [kit.reduce.partials.count](llvm.kit.reduce.partials.count) is used to
-determine the number of partial reductions that are to be performed in parallel.
-An outer parallel loop is added to carry these out. Each iteration of the
-parallel loop will perform a sequential reduction. This is followed by calls to
-[kit.reduce.1](llvm.kit.reduce.1) which computes the final result from the
-partial reductions.
-
-The code below is the transformation that is carried out for GPU's.
-
-```c++
-    int64_t nreds = kit.reduce.partials.count(n);
-    int32_t* buf32 = kit.mobile.alloc(nreds * sizeof(int32_t));
-    int64_t* buf64 = kit.mobile.alloc(nreds * sizeof(int64_t));
-    forall (int j = 0; j < nreds; ++j) {
-        buf32[j] = 0;
-        buf64[j] = 0;
-        for (int i = j; i < n; i += nreds) {
-            kit.reduce.0(&buf32[j], sizeof(r_sum), i, 0, &sum);
-            kit.reduce.0(&buf64[j], sizeof(r_mul), i, 1, &mul);
-        }
-    }
-    kit.reduce.1(&r_sum, buf32, nreds, 0, &sum);
-    kit.reduce.1(&r_mul, buf64, nreds, 1, &mul);
-    kit.mobile.free(buf32);
-    kit.mobile.free(buf64);
-```
-
-Note that this pass will not lower any existing reduce intrinsics - in fact,
-it introduces additional calls to Kitsune's reduce intrinsics. These calls
-will be lowered in a different pass.
-
-The transformations shown above are "generic" approaches that this pass will
-use when lowering for CPU and GPU respectively. Depending on the tapir target
-set on the loop, a different transformation may be used.
+suitable for parallel execution on CPU's and GPU's. This only carries out the
+transformation on a loop and adds some supporting code - typically calls to
+other Kitsune-specific intrinsics. For a complete transformation, these
+intrinsics must be lowered. This is done in several different passes such as
+[kit-lower-reduce-intrinsics](passes-kit-lower-reduce-intrinsics) and 
+[kit-lower-intrinsics](passes-kit-lower-intrinsics).
 
 
 (passes-kit-serialize)=
