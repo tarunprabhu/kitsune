@@ -158,28 +158,36 @@ static Value *emitProd(Value *op1, Value *op2, IRBuilder<> &builder) {
 
 static Value *emitMin(Value *op1, Value *op2, bool isUnsigned,
                       IRBuilder<> &builder) {
+  auto getIntrinsic = [](llvm::Type *type, bool isUnsigned) -> Intrinsic::ID {
+    if (type->isIntegerTy() && isUnsigned)
+      return Intrinsic::umin;
+    else if (type->isIntegerTy())
+      return Intrinsic::smin;
+    else if (type->isFloatingPointTy())
+      return Intrinsic::minimum;
+    llvm_unreachable("emitMin: Type not handled");
+  };
+
   llvm::Type *type = op1->getType();
-  if (type->isIntegerTy()) {
-    CmpInst::Predicate p = isUnsigned ? CmpInst::ICMP_ULE : CmpInst::ICMP_SLE;
-    Value *cmp = builder.CreateICmp(p, op1, op2);
-    return builder.CreateSelect(cmp, op1, op2);
-  } else if (type->isFloatingPointTy()) {
-    return builder.CreateIntrinsic(Intrinsic::minimum, {type}, {op1, op2});
-  }
-  llvm_unreachable("emitMin: Type not handled");
+  Intrinsic::ID id = getIntrinsic(type, isUnsigned);
+  return builder.CreateIntrinsic(id, {type}, {op1, op2});
 }
 
 static Value *emitMax(Value *op1, Value *op2, bool isUnsigned,
                       IRBuilder<> &builder) {
+  auto getIntrinsic = [](llvm::Type *type, bool isUnsigned) -> Intrinsic::ID {
+    if (type->isIntegerTy() && isUnsigned)
+      return Intrinsic::umax;
+    else if (type->isIntegerTy())
+      return Intrinsic::smax;
+    else if (type->isFloatingPointTy())
+      return Intrinsic::maximum;
+    llvm_unreachable("emitMin: Type not handled");
+  };
+
   llvm::Type *type = op1->getType();
-  if (type->isIntegerTy()) {
-    CmpInst::Predicate p = isUnsigned ? CmpInst::ICMP_UGE : CmpInst::ICMP_SGE;
-    Value *cmp = builder.CreateICmp(p, op1, op2);
-    return builder.CreateSelect(cmp, op1, op2);
-  } else if (type->isFloatingPointTy()) {
-    return builder.CreateIntrinsic(Intrinsic::maximum, {type}, {op1, op2});
-  }
-  llvm_unreachable("emitMax: Type not handled");
+  Intrinsic::ID id = getIntrinsic(type, isUnsigned);
+  return builder.CreateIntrinsic(id, {type}, {op1, op2});
 }
 
 static Value *emitRhs(ReduceOp op, Value *op1, Value *op2, bool isUnsigned,
