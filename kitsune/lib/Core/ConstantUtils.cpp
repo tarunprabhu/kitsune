@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/ConstantUtils.h"
+#include "kitsune/Support/TypeTraits.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Module.h"
@@ -50,7 +51,15 @@ const Constant *llvm::stripCasts(const Constant *c) {
   return c;
 }
 
-template <typename T, std::enable_if_t<std::is_integral_v<T>, int>>
+template <typename T, std::enable_if_t<std::is_bool_v<T>, int>>
+Constant *llvm::toConstant(const T &val, LLVMContext &ctx) {
+  if (val)
+    return ConstantInt::getTrue(ctx);
+  return ConstantInt::getFalse(ctx);
+}
+template Constant *llvm::toConstant(const bool &val, LLVMContext &ctx);
+
+template <typename T, std::enable_if_t<std::is_integer_v<T>, int>>
 Constant *llvm::toConstant(const T &val, LLVMContext &ctx) {
   return ConstantInt::get(getLLVMTypeFor<T>(ctx), val);
 }
@@ -81,7 +90,14 @@ template Constant *llvm::toConstant(const StringLiteral &val, LLVMContext &ctx);
 template Constant *llvm::toConstant(const StringRef &val, LLVMContext &ctx);
 template Constant *llvm::toConstant(const std::string &val, LLVMContext &ctx);
 
-template <typename T, std::enable_if_t<std::is_integral_v<T>, int>>
+template <> std::optional<bool> llvm::fromConstant(const Constant &c) {
+  if (const auto *cint = dyn_cast<ConstantInt>(&c))
+    if (cint->getBitWidth() == 1)
+      return cint->getLimitedValue();
+  return std::nullopt;
+}
+
+template <typename T, std::enable_if_t<std::is_integer_v<T>, int>>
 std::optional<T> llvm::fromConstant(const Constant &c) {
   if (const auto *cint = dyn_cast<ConstantInt>(&c))
     if (cint->getBitWidth() == sizeof(T) * 8)
@@ -97,8 +113,7 @@ template std::optional<uint32_t> llvm::fromConstant(const Constant &c);
 template std::optional<int64_t> llvm::fromConstant(const Constant &c);
 template std::optional<uint64_t> llvm::fromConstant(const Constant &c);
 
-template <typename T,
-          std::enable_if_t<std::is_same_v<std::remove_cv_t<T>, float>, int>>
+template <typename T, std::enable_if_t<std::is_float_v<T>, int>>
 std::optional<T> llvm::fromConstant(const Constant &c) {
   if (const auto *cfp = dyn_cast<ConstantFP>(&c)) {
     const APFloat &apf = cfp->getValue();
@@ -110,8 +125,7 @@ std::optional<T> llvm::fromConstant(const Constant &c) {
 }
 template std::optional<float> llvm::fromConstant(const Constant &c);
 
-template <typename T,
-          std::enable_if_t<std::is_same_v<std::remove_cv_t<T>, double>, int>>
+template <typename T, std::enable_if_t<std::is_double_v<T>, int>>
 std::optional<T> llvm::fromConstant(const Constant &c) {
   if (const auto *cfp = dyn_cast<ConstantFP>(&c)) {
     const APFloat &apf = cfp->getValue();

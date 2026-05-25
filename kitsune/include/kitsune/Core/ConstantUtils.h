@@ -16,6 +16,7 @@
 #include "kitsune/Core/Tapir.h"
 #include "kitsune/Core/TypeUtils.h"
 #include "kitsune/Support/FromInt.h"
+#include "kitsune/Support/TypeTraits.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/Constants.h"
@@ -47,7 +48,10 @@ GlobalVariable *createConstString(StringRef s, Module &m, StringRef name = "");
 /// Utilities to convert C++ values to LLVM constants
 /// @{
 
-template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
+template <typename T, std::enable_if_t<std::is_bool_v<T>, int> = 0>
+Constant *toConstant(const T &val, LLVMContext &ctx);
+
+template <typename T, std::enable_if_t<std::is_integer_v<T>, int> = 0>
 Constant *toConstant(const T &val, LLVMContext &ctx);
 
 template <typename T, std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
@@ -73,15 +77,16 @@ Constant *toConstant(const T &val, LLVMContext &ctx) {
 /// Utilities to convert LLVM Constant's to C++ values.
 /// @{
 
-template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
+template <typename T, std::enable_if_t<std::is_bool_v<T>, int> = 0>
 std::optional<T> fromConstant(const Constant &c);
 
-template <typename T,
-          std::enable_if_t<std::is_same_v<std::remove_cv_t<T>, float>, int> = 0>
+template <typename T, std::enable_if_t<std::is_integer_v<T>, int> = 0>
 std::optional<T> fromConstant(const Constant &c);
 
-template <typename T, std::enable_if_t<
-                          std::is_same_v<std::remove_cv_t<T>, double>, int> = 0>
+template <typename T, std::enable_if_t<std::is_float_v<T>, int> = 0>
+std::optional<T> fromConstant(const Constant &c);
+
+template <typename T, std::enable_if_t<std::is_double_v<T>, int> = 0>
 std::optional<T> fromConstant(const Constant &c);
 
 template <typename T, std::enable_if_t<std::is_same_v<T, StringRef>, int> = 0>
