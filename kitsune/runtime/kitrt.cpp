@@ -294,15 +294,16 @@ template bool __kitrt_get_env_value(const char *var, unsigned long long &);
 template bool __kitrt_get_env_value(const char *var, float &);
 template bool __kitrt_get_env_value(const char *var, double &);
 
-extern "C" unsigned __kitrt_num_threads_from_env(const char *envVar) {
-  const char *envNumThreads = getenv(envVar);
+extern "C" unsigned __kitrt_num_threads_from_env() {
+  const char *envNumThreads = getenv(__kitrt_envname_num_threads);
   if (!envNumThreads) {
-    __kitrt_message(LABEL, "Environment variable %s not set", envVar);
-    return -1;
+    __kitrt_message(LABEL, "Environment variable '%s' not set",
+                    __kitrt_envname_num_threads);
+    return 0;
   }
 
-  __kitrt_message(LABEL, "Environment variable %s=%s", envVar, envNumThreads);
-
+  __kitrt_message(LABEL, "Environment variable %s=%s",
+                  __kitrt_envname_num_threads, envNumThreads);
   char *end = nullptr;
   long numThreads = strtol(envNumThreads, &end, 10);
 
@@ -314,8 +315,9 @@ extern "C" unsigned __kitrt_num_threads_from_env(const char *envVar) {
   bool error = *end != '\0' || errno == ERANGE || numThreads < 0 ||
                numThreads > std::numeric_limits<int>::max();
   if (error) {
-    __kitrt_warn(LABEL, "Invalid number of threads in %s", envVar);
-    return -1;
+    __kitrt_warn(LABEL, "Invalid number of threads in %s",
+                 __kitrt_envname_num_threads);
+    return 0;
   }
 
   __kitrt_message(LABEL, "Number of threads = %d", numThreads);
@@ -325,22 +327,15 @@ extern "C" unsigned __kitrt_num_threads_from_env(const char *envVar) {
 extern "C" unsigned __kitrt_num_cpus() {
   __kitrt_message(LABEL, "Determining number of CPUs");
 
+  // TODO: Does this work as expected on all platforms? It seems to for the
+  // platforms that we care about, but it may be better to use something more
+  // reliable instead.
   unsigned cpus = std::thread::hardware_concurrency();
-  if (cpus <= 0) {
+  if (cpus == 0) {
     __kitrt_warn(LABEL, "Could not determine number of CPUs");
-    return 1;
-  } else if (cpus > std::numeric_limits<uint32_t>::max()) {
-    __kitrt_warn(LABEL, "Too many CPUs found: %ld", cpus);
     return 1;
   }
 
   __kitrt_message(LABEL, "Found %d CPUs", cpus);
   return cpus;
-}
-
-extern "C" unsigned __kitrt_num_threads_or_cpus(const char *envVar) {
-  long numThreads = __kitrt_num_threads_from_env(envVar);
-  if (numThreads != -1)
-    return numThreads;
-  return __kitrt_num_cpus();
 }

@@ -23,9 +23,8 @@
 // DARWIN-SAME: "-lopencilk_osx_dynamic"
 //
 // X86-NEXT: "-lopencilk-personality-cpp"
-// X86-SAME: "-lopencilk"
-//
 // ALL-SAME: "-lkitrt"
+// X86-SAME: "-lopencilk"
 //
 // -----------------------------------------------------------------------------
 // Check that the stripmine pass is enabled by default. This checks that the

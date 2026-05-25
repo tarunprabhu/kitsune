@@ -57,7 +57,21 @@
 
 #include "kitrt.h"
 
+#include <cstdlib>
+
 #define LABEL "kitocilk"
+
+/// Declare functions from the opencilk runtime that are used here.
+extern unsigned __cilkrts_nproc;
+extern "C" unsigned __cilkrts_get_nworkers();
+extern "C" void __cilkrts_internal_set_nworkers(unsigned nworkers);
+
+/// Get the number of parallel workers that are available. Generally, this
+/// function should be used when this must be queried instead of calling
+/// `qthread_num_workers()`.
+static unsigned __kitocilk_num_threads() {
+  return __cilkrts_get_nworkers();
+}
 
 /// The number of partial reductions to perform in parallel.
 ///
@@ -68,11 +82,9 @@ extern "C" int64_t __kitocilk_reduce_num_partials(int64_t n) {
   // There might be something smarter that can be done once we support a proper
   // reduction tree, but since we only support a reduction tree of depth 1, we
   // just return the number of CPU's on the system.
-  //
-  // FIXME: Use __cilkrts_get_n_workers here instead.
-  int64_t numPartials = __kitrt_num_cpus();
+  unsigned numPartials = __kitocilk_num_threads();
 
-  __kitrt_message(LABEL, "Number of partial reductions: %ld", numPartials);
+  __kitrt_message(LABEL, "Number of partial reductions: %d", numPartials);
 
   return numPartials;
 }
@@ -84,9 +96,25 @@ extern "C" void __kitocilk_initialize(void) {
   __kitrt_initialize();
   __kitrt_message(LABEL, "Initializing Kitsune opencilk runtime");
 
-  // We don't need to initialize Cheetah here.
-  // FIXME: Set environment variables from KIT_NUM_THREADS
+  if (unsigned numThreads = __kitrt_num_threads_from_env()) {
+    // Both of the lines below are required. __cilkrts_nproc is returned by
+    // __cilkrts_nworkers, but does not get set by
+    // __cilkrts_internal_set_nworkers. If we only call set_nworkers, parallel
+    // for loops will use the correct number of threads, but reductions will
+    // not. If we only set __cilkrts_nproc, reductions will perform the correct
+    // number of parallel reductions, but parallel for loops will not use the
+    // correct number of threads.
+    __cilkrts_internal_set_nworkers(numThreads);
+    __cilkrts_nproc = numThreads;
 
+    const char *s = getenv(__kitrt_envname_num_threads);
+    __kitrt_message(LABEL, "Setting CILK_NWORKERS=%s", s);
+    __kitrt_set_env("CILK_NWORKERS", s);
+  }
+
+  // The OpenCilk runtime does not have to be initialized.
+
+  __kitrt_message(LABEL, "Number of workers = %d", __kitocilk_num_threads());
   __kitrt_message(LABEL, "Initialized Kitsune opencilk runtime");
 }
 
@@ -94,7 +122,7 @@ extern "C" void __kitocilk_initialize(void) {
 extern "C" void __kitocilk_finalize(void) {
   __kitrt_message(LABEL, "Finalizing Kitsune opencilk runtime");
 
-  // Nothing to be done here
+  // The OpenCilk runtime does not have to be finalized.
 
   __kitrt_message(LABEL, "Finalized Kitsune opencilk runtime");
 }

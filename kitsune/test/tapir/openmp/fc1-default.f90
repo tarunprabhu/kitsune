@@ -15,8 +15,8 @@
 ! to reliably check the name of the linker executable, just check for the
 ! expected linker flags.
 !
-! CHECK-NEXT: -lomp
-! CHECK-SAME: -lkitrt
+! CHECK-NEXT: -lkitrt
+! CHECK-SAME: -lomp
 !
 ! ------------------------------------------------------------------------------
 ! Check that the stripmine pass is disabled by default. This checks that the
