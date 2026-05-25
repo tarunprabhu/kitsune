@@ -57,6 +57,7 @@
 
 #include <cstdint>
 #include <string_view>
+#include <thread>
 
 #define LABEL "kitomp"
 
@@ -123,6 +124,26 @@ static ident_t staticLoopLoc = {
 using KitOpenMPThrdFn = void (*)(const int64_t start, const int64_t end,
                                  const int64_t gs, void *args);
 
+/// Determine the number of threads to launch.
+///
+/// This first checks the following environment variables in the given order.
+/// If either is set to a positive decimal integer, whose value is less than
+/// 2^31 - 1, that value will returned.
+///
+///   1. KIT_NUM_THREADS
+///   2. OMP_NUM_THREADS
+///
+/// If a valid integer could not be obtained from either environment variable,
+/// detect the number of CPU's present on the system, and return that. If the
+/// number of CPU's could not be determined for any reason, return 1.
+static int64_t getNumThreads() {
+  if (unsigned n = __kitrt_num_threads_from_env("KIT_NUM_THREADS"))
+    return n;
+  else if (unsigned n = __kitrt_num_threads_from_env("OMP_NUM_THREADS"))
+    return n;
+  return __kitrt_num_cpus();
+}
+
 /// This wraps the function \p f that will be launched on each thread. It
 /// calculates the range of iterations that should be executed by \p f, then,
 /// invokes it with that range. This uses static scheduling - so every thread
@@ -183,6 +204,26 @@ extern "C" void __kitomp_launch(KitOpenMPThrdFn f, int64_t start, int64_t end,
   __kmpc_fork_call(&staticLoopLoc, 5, (kmpc_micro)&staticLoopWrapper, f, start,
                    end, grainSize, args);
   __kitrt_message(LABEL, "Finished multithreaded loop");
+}
+
+/// The number of partial reductions to perform in parallel.
+///
+/// \param n The trip count of the parallel loop in containing a reduction
+extern "C" int64_t __kitomp_reduce_num_partials(int64_t n) {
+  __kitrt_message(LABEL, "Calculating number of partial reductions");
+
+  // There might be something smarter that can be done once we support a proper
+  // reduction tree, but since we only support a reduction tree of depth 1, we
+  // just return the number of CPU's on the system.
+  //
+  // There doesn't seem to be any libomp-specific (or even OpenMP) function that
+  // we can use for this. Those that only work inside a parallel region, but
+  // we are not in one here.
+  int64_t numPartials = __kitrt_num_cpus();
+
+  __kitrt_message(LABEL, "Number of partial reductions: %ld", numPartials);
+
+  return numPartials;
 }
 
 /// Initialize kitsune's OpenMP runtime as well as the actual OpenMP runtime.

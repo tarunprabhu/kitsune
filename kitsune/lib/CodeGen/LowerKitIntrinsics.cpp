@@ -18,6 +18,7 @@
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/IntrinsicUtils.h"
 #include "kitsune/Core/Tapir.h"
+#include "kitsune/Core/ValueUtils.h"
 #include "llvm/Analysis/CGSCCPassManager.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/IR/IRBuilder.h"
@@ -55,6 +56,7 @@ static const KitsuneRuntimeFuncMap kitCudaFuncs = {
     {Intrinsic::kit_initialize, LibFunc_kitcuda_initialize},
     {Intrinsic::kit_mobile_alloc, LibFunc_kitcuda_managed_malloc},
     {Intrinsic::kit_mobile_free, LibFunc_kitcuda_managed_free},
+    {Intrinsic::kit_reduce_num_partials, LibFunc_kitcuda_reduce_num_partials},
     {Intrinsic::kit_set_fixed_tpb, LibFunc_kitcuda_set_fixed_tpb},
     {Intrinsic::kit_set_max_tpb, LibFunc_kitcuda_set_max_tpb},
     {Intrinsic::kit_symbol_device_ptr, LibFunc_kitcuda_symbol_device_ptr},
@@ -76,6 +78,7 @@ static const KitsuneRuntimeFuncMap kitHipFuncs = {
     {Intrinsic::kit_initialize, LibFunc_kithip_initialize},
     {Intrinsic::kit_mobile_alloc, LibFunc_kithip_managed_malloc},
     {Intrinsic::kit_mobile_free, LibFunc_kithip_managed_free},
+    {Intrinsic::kit_reduce_num_partials, LibFunc_kithip_reduce_num_partials},
     {Intrinsic::kit_set_fixed_tpb, LibFunc_kithip_set_fixed_tpb},
     {Intrinsic::kit_set_max_tpb, LibFunc_kithip_set_max_tpb},
     {Intrinsic::kit_symbol_device_ptr, LibFunc_kithip_symbol_device_ptr},
@@ -85,11 +88,19 @@ static const KitsuneRuntimeFuncMap kitHipFuncs = {
     {Intrinsic::kit_thread_stream, LibFunc_kithip_get_thread_stream},
 };
 
+/// Kitsune runtime functions for the opencilk tapir target.
+static const KitsuneRuntimeFuncMap kitOpenCilkFuncs = {
+    {Intrinsic::kit_finalize, LibFunc_kitocilk_finalize},
+    {Intrinsic::kit_initialize, LibFunc_kitocilk_initialize},
+    {Intrinsic::kit_reduce_num_partials, LibFunc_kitocilk_reduce_num_partials},
+};
+
 /// Kitsune runtime functions for the openmp tapir target.
 static const KitsuneRuntimeFuncMap kitOpenMPFuncs = {
     {Intrinsic::kit_finalize, LibFunc_kitomp_finalize},
     {Intrinsic::kit_initialize, LibFunc_kitomp_initialize},
     {Intrinsic::kit_launch_threads, LibFunc_kitomp_launch},
+    {Intrinsic::kit_reduce_num_partials, LibFunc_kitomp_reduce_num_partials},
 };
 
 /// Kitsune runtime functions for the pthreads tapir target.
@@ -98,6 +109,7 @@ static const KitsuneRuntimeFuncMap kitPthreadsFuncs = {
     {Intrinsic::kit_initialize, LibFunc_kitpthr_initialize},
     {Intrinsic::kit_sync_threads, LibFunc_kitpthr_sync},
     {Intrinsic::kit_async_launch_threads, LibFunc_kitpthr_launch},
+    {Intrinsic::kit_reduce_num_partials, LibFunc_kitpthr_reduce_num_partials},
 };
 
 /// Kitsune runtime functions for the qthreads tapir target.
@@ -105,16 +117,15 @@ static const KitsuneRuntimeFuncMap kitQthreadsFuncs = {
     {Intrinsic::kit_finalize, LibFunc_kitqthr_finalize},
     {Intrinsic::kit_initialize, LibFunc_kitqthr_initialize},
     {Intrinsic::kit_launch_threads, LibFunc_kitqthr_launch},
+    {Intrinsic::kit_reduce_num_partials, LibFunc_kitqthr_reduce_num_partials},
 };
 
 /// Runtime library function maps for tapir targets that have a corresponding
 /// kitsune runtime.
 static const std::map<TTID, KitsuneRuntimeFuncMap> kitTTFuncs = {
-    {TTID::Cuda, kitCudaFuncs},
-    {TTID::Hip, kitHipFuncs},
-    {TTID::OpenMP, kitOpenMPFuncs},
-    {TTID::Pthreads, kitPthreadsFuncs},
-    {TTID::Qthreads, kitQthreadsFuncs},
+    {TTID::Cuda, kitCudaFuncs},         {TTID::Hip, kitHipFuncs},
+    {TTID::OpenCilk, kitOpenCilkFuncs}, {TTID::OpenMP, kitOpenMPFuncs},
+    {TTID::Pthreads, kitPthreadsFuncs}, {TTID::Qthreads, kitQthreadsFuncs},
 };
 
 /// When lowering the kitsune intrinsics, some arguments may need to be dropped
@@ -162,6 +173,7 @@ static const std::map<Intrinsic::ID, std::vector<unsigned>> kitRTArgMap = {
     {Intrinsic::kit_launch_threads, {1, 2, 3, 4, 5}},
     {Intrinsic::kit_memcpy_dtoh, {1, 2, 3}},
     {Intrinsic::kit_memcpy_htod, {1, 2, 3}},
+    {Intrinsic::kit_reduce_num_partials, {1}},
     {Intrinsic::kit_set_fixed_tpb, {1}},
     {Intrinsic::kit_set_max_tpb, {1}},
     {Intrinsic::kit_symbol_device_ptr, {1, 2}},
@@ -213,7 +225,7 @@ private:
     return getOrInsertLibFunc(m, funcs.at(id));
   }
 
-  FunctionCallee getMemAllocFunc(Module &m, Intrinsic::ID id) {
+  FunctionCallee getMobileAllocFunc(Module &m, Intrinsic::ID id) {
     /// TODO: Currently, this is very naive and simply looks at the primary
     /// target. This will not work correctly in multi-target mode. But that
     /// requires a more sophisticated analysis which should be implemented
@@ -258,7 +270,7 @@ private:
     llvm_unreachable("getMemAllocFunc: TTID not handled");
   }
 
-  FunctionCallee getMemFreeFunc(Module &m, Intrinsic::ID id) {
+  FunctionCallee getMobileFreeFunc(Module &m, Intrinsic::ID id) {
     /// TODO: Currently, this is very naive and simply looks at the primary
     /// target. This will not work correctly in multi-target mode. But that
     /// requires a more sophisticated analysis which should be implemented
@@ -300,6 +312,33 @@ private:
     llvm_unreachable("getMemFreeFunc: TTID not handled");
   }
 
+  FunctionCallee getMobileInitFunc(Module &m, CallInst &call) {
+    // Currently, we always lower to a runtime function provided by Kitsune that
+    // runs on the host.
+    // FIXME: We should probably lower this differently depending on how the
+    // buffer is being used. In some cases, it may be better to do the
+    // initialization on the device.
+    Value *init = call.getArgOperand(3);
+    if (isBool(init))
+      return getOrInsertLibFunc(m, LibFunc_kitrt_mobile_init_bool);
+    else if (isInt8(init))
+      return getOrInsertLibFunc(m, LibFunc_kitrt_mobile_init_i8);
+    else if (isInt16(init))
+      return getOrInsertLibFunc(m, LibFunc_kitrt_mobile_init_i16);
+    else if (isInt32(init))
+      return getOrInsertLibFunc(m, LibFunc_kitrt_mobile_init_i32);
+    else if (isInt64(init))
+      return getOrInsertLibFunc(m, LibFunc_kitrt_mobile_init_i64);
+    else if (isFloat(init))
+      return getOrInsertLibFunc(m, LibFunc_kitrt_mobile_init_float);
+    else if (isDouble(init))
+      return getOrInsertLibFunc(m, LibFunc_kitrt_mobile_init_double);
+    else if (isPointer(init))
+      return getOrInsertLibFunc(m, LibFunc_kitrt_mobile_init_from);
+    else
+      llvm_unreachable("Unsupported initializer type");
+  }
+
   /// Get the kitsune runtime function that will replace the intrinsic called in
   /// the given call instruction.
   FunctionCallee getRuntimeFunc(CallInst &call) {
@@ -308,10 +347,13 @@ private:
 
     switch (id) {
     case Intrinsic::kit_mobile_alloc:
-      return getMemAllocFunc(m, id);
+      return getMobileAllocFunc(m, id);
 
     case Intrinsic::kit_mobile_free:
-      return getMemFreeFunc(m, id);
+      return getMobileFreeFunc(m, id);
+
+    case Intrinsic::kit_mobile_init:
+      return getMobileInitFunc(m, call);
 
     case Intrinsic::kit_enable_verbose:
       // Intrinsics with runtime functions that are independent of a tapir
@@ -449,6 +491,49 @@ private:
     return true;
   }
 
+  bool lowerMobileInit(CallInst &call) {
+    auto getBuffer = [](CallInst &call) -> Value * {
+      // The call expects the pointer to the buffer to be in the default address
+      // space, but the argument to Kitsune's intrinsic will be in the mobile
+      // address space.
+      LLVMContext &ctx = call.getContext();
+      Type *ptr = PointerType::getUnqual(ctx);
+      BasicBlock::iterator pos = call.getIterator();
+      Value *buf = call.getArgOperand(1);
+      return CastInst::Create(Instruction::AddrSpaceCast, buf, ptr, "", pos);
+    };
+
+    auto getInit = [](CallInst &call) -> Value * {
+      Value *init = call.getArgOperand(3);
+      if (!isBool(init))
+        return init;
+
+      LLVMContext &ctx = call.getContext();
+      Type *i8 = Type::getInt8Ty(ctx);
+      BasicBlock::iterator pos = call.getIterator();
+      return CastInst::Create(Instruction::ZExt, init, i8, "", pos);
+    };
+
+    FunctionCallee f = getRuntimeFunc(call);
+    if (not f.getCallee())
+      return false;
+
+    Value *buf = getBuffer(call);
+    Value *n = call.getArgOperand(2);
+    Value *init = getInit(call);
+    SmallVector<Value *, 4> args = {buf, n, init};
+    if (call.arg_size() > 4)
+      args.push_back(call.getArgOperand(4));
+
+    CallInst *newCall = createNewCallFor(call, f, args);
+    newCall->setAttributes(createNewAttrList(call, {1, 2, 3}));
+
+    call.replaceAllUsesWith(newCall);
+    call.eraseFromParent();
+
+    return true;
+  }
+
   /// Lower the kernel launch intrinsic. This is a vararg intrinsic, but the
   /// corresponding runtime functions need the arguments to be passed an array
   /// of pointers to the arguments. We implement this by creating a stack slot
@@ -554,6 +639,10 @@ private:
 
     case Intrinsic::kit_mobile_free:
       changed |= lowerMobileFree(call);
+      break;
+
+    case Intrinsic::kit_mobile_init:
+      changed |= lowerMobileInit(call);
       break;
 
     case Intrinsic::kit_async_launch_kernel:

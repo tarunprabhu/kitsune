@@ -36,6 +36,7 @@ private:
   bool res = true;
 
 protected:
+  KitVerifier &verifyIntrMobileInit(const CallBase &call);
   KitVerifier &verifyIntrReduce(const CallBase &call, Value *unit,
                                 Value *reducer, unsigned extraArgNum);
   KitVerifier &verifyIntrReduce0(const CallBase &call);

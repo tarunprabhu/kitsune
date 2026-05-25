@@ -98,13 +98,6 @@ def ErrTooManyDeviceCodeGlobals
 def ErrMissingDeviceCodeGlobal
   : Error<"missing device code global for tapir target '{}'">;
 
-// Generic errors that can be used to emit any error message.
-def ErrGeneric
-  : Error<"{}">;
-
-def ErrAttrGeneric
-  : Error<"attribute '{}': {}">;
-
 def ErrEmbModuleGeneric
   : Error<"embedded module: {}">;
 
@@ -228,14 +221,50 @@ def ErrTapirLoopThrowsException
 def ErrTapirLoopIVUsedOutsideLoop
   : Error<"tapir loop induction variable used outside tapir loop: '{}'">;
 
+def ErrReduceUnitValMismatch
+  : Error<"type mismatch between value being reduced and unit">;
+
+def ErrVarArgCallRequiredType
+  : Error<"invalid argument in call '{}' at '{}'. Expected value of type '{}'">;
+
+def ErrNumCallArgs
+  : Error<"incorrect number of arguments to call '{}'. Expected {}. Got {}">;
+
+def ErrMobileInitExpectSize
+  : Error<"call '{}' requires an additional size argument of type '{}'">;
+
+def ErrMobileInitExpectPointer
+  : Error<"initializer argument in call '{}' must be a pointer">;
+
+def ErrMobileInitExpectExtra
+  : Error<"call '{}' requires additional size argument">;
+
+def ErrMobileInitUnsupportedType
+  : Error<"unsupported initializer type '{}' in call '{}'">;
+
+def ErrReducerMinArgs
+  : Error<"incorrect number of params in reducer '{}'. Expected 2">;
+
+def ErrReducerReturnType
+  : Error<"reducer '{}' must return void">;
+
+def ErrReducerTypeMismatch
+  : Error<"type mismatch in reducer '{}' at param '{}'. Expected '{}'">;
+
+def ErrReducerNumParams
+  : Error<"incorrect number of params in reducer '{}'. Expected {}. Got {}">;
+
+// Generic errors that can be used to emit any error message.
+def ErrGeneric
+  : Error<"{}">;
+
+def ErrAttrGeneric
+  : Error<"attribute '{}': {}">;
 
 // ------------------------- Kitsune-specific warnings -------------------------
 //
 // Although not strictly required, the names of all warnings should be prefixed
 // with Warn.
-
-def WarnGeneric
-  : Warning<"{}">;
 
 def WarnSerialInParallelLoopNest
   : Warning<"serial loop between parallel loops in loop nest">;
@@ -243,6 +272,9 @@ def WarnSerialInParallelLoopNest
 def WarnParallelLoopImperfectlyNested
   : Warning<"parallel loop not perfectly nested">;
 
+// Generic warning that can be used to emit any warning message.
+def WarnGeneric
+  : Warning<"{}">;
 
 // ------------------------- Kitsune-specific remarks -------------------------
 //

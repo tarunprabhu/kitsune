@@ -72,7 +72,7 @@
 bool _kitcuda_initialized = false;
 int _kitcuda_device_id = -1;
 CUdevice _kitcuda_device = -1;
-CUmemLocation _kitcuda_mem_location; 
+CUmemLocation _kitcuda_mem_location;
 CUcontext _kitcuda_context;
 
 // TODO: We currently don't use these values within the runtime but
@@ -143,7 +143,7 @@ bool __kitcuda_initialize() {
     _kitcuda_device_id = 0;
 
   _kitcuda_mem_location.type = CU_MEM_LOCATION_TYPE_DEVICE;
-  _kitcuda_mem_location.id = _kitcuda_device_id; 
+  _kitcuda_mem_location.id = _kitcuda_device_id;
 
   assert(_kitcuda_device_id < device_count &&
          "kitcuda: KITCUDA_DEVICE_ID value exceeds available number"
@@ -188,7 +188,7 @@ bool __kitcuda_initialize() {
             _kitcuda_major_compute_capability,
             _kitcuda_minor_compute_capability,
             _kitcuda_major_compute_capability * 10 +
-            _kitcuda_minor_compute_capability);
+                _kitcuda_minor_compute_capability);
     fprintf(stderr, "             warp size:        %d\n", _kitcuda_warp_size);
     fprintf(stderr, "             max threads/blk:  %d\n",
             _kitcuda_max_threads_per_blk);
@@ -216,7 +216,7 @@ bool __kitcuda_initialize() {
                         disable_refined_launches);
   if (disable_refined_launches)
     __kitcuda_enable_launch_refinement(false);
-  
+
   KIT_NVTX_POP();
   return _kitcuda_initialized;
 }
@@ -232,6 +232,23 @@ void __kitcuda_destroy() {
   CU_SAFE_CALL(cuDevicePrimaryCtxReset_v2_p(_kitcuda_device));
   _kitcuda_initialized = false;
   KIT_NVTX_POP();
+}
+
+/// The number of partial reductions to perform in parallel.
+///
+/// \param n The trip count of the parallel loop in containing a reduction
+extern "C" int64_t __kitcuda_reduce_num_partials(int64_t n) {
+  __kitrt_message("kitcuda", "Calculating number of partial reductions\n");
+
+  // FIXME: This is simply a placeholder to check that the rest of the
+  // transformations work as expected. It is beyond terrible for performance, so
+  // fix this is ASAP.
+  int numPartials = 8;
+
+  __kitrt_message("kitcuda", "Number of partial reductions: %ld\n",
+                  numPartials);
+
+  return numPartials;
 }
 
 } // extern "C"

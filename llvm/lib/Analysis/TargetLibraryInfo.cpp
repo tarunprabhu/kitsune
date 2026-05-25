@@ -60,6 +60,7 @@ std::string VecDesc::getVectorFunctionABIVariantString() const {
 enum FuncArgTypeID : char {
   Void = 0, // Must be zero.
   Bool,     // 8 bits on all targets
+  Int8,
   Int16,
   Int32,
   Int,
@@ -921,6 +922,14 @@ static void initializeLibCalls(TargetLibraryInfoImpl &TLI, const Triple &T,
   // settings these as unavailable, we get some test failures in tli-checker.
   if (!T.isOSLinux() && !T.isOSFreeBSD() && !T.isOSDarwin()) {
     TLI.setUnavailable(LibFunc_kitrt_enable_verbose);
+    TLI.setUnavailable(LibFunc_kitrt_mobile_init_bool);
+    TLI.setUnavailable(LibFunc_kitrt_mobile_init_i8);
+    TLI.setUnavailable(LibFunc_kitrt_mobile_init_i16);
+    TLI.setUnavailable(LibFunc_kitrt_mobile_init_i32);
+    TLI.setUnavailable(LibFunc_kitrt_mobile_init_i64);
+    TLI.setUnavailable(LibFunc_kitrt_mobile_init_float);
+    TLI.setUnavailable(LibFunc_kitrt_mobile_init_double);
+    TLI.setUnavailable(LibFunc_kitrt_mobile_init_from);
     TLI.setUnavailable(LibFunc_kitcuda_enable_refine_launches);
     TLI.setUnavailable(LibFunc_kitcuda_finalize);
     TLI.setUnavailable(LibFunc_kitcuda_get_thread_stream);
@@ -930,6 +939,7 @@ static void initializeLibCalls(TargetLibraryInfoImpl &TLI, const Triple &T,
     TLI.setUnavailable(LibFunc_kitcuda_managed_malloc);
     TLI.setUnavailable(LibFunc_kitcuda_prefetch_dtoh);
     TLI.setUnavailable(LibFunc_kitcuda_prefetch_htod);
+    TLI.setUnavailable(LibFunc_kitcuda_reduce_num_partials);
     TLI.setUnavailable(LibFunc_kitcuda_set_fixed_tpb);
     TLI.setUnavailable(LibFunc_kitcuda_set_max_tpb);
     TLI.setUnavailable(LibFunc_kitcuda_symbol_device_ptr);
@@ -946,22 +956,29 @@ static void initializeLibCalls(TargetLibraryInfoImpl &TLI, const Triple &T,
     TLI.setUnavailable(LibFunc_kithip_managed_malloc);
     TLI.setUnavailable(LibFunc_kithip_prefetch_dtoh);
     TLI.setUnavailable(LibFunc_kithip_prefetch_htod);
+    TLI.setUnavailable(LibFunc_kithip_reduce_num_partials);
     TLI.setUnavailable(LibFunc_kithip_set_fixed_tpb);
     TLI.setUnavailable(LibFunc_kithip_set_max_tpb);
     TLI.setUnavailable(LibFunc_kithip_symbol_device_ptr);
     TLI.setUnavailable(LibFunc_kithip_symbol_memcpy_dtoh);
     TLI.setUnavailable(LibFunc_kithip_symbol_memcpy_htod);
     TLI.setUnavailable(LibFunc_kithip_sync_stream);
+    TLI.setUnavailable(LibFunc_kitocilk_finalize);
+    TLI.setUnavailable(LibFunc_kitocilk_initialize);
+    TLI.setUnavailable(LibFunc_kitocilk_reduce_num_partials);
     TLI.setUnavailable(LibFunc_kitomp_finalize);
     TLI.setUnavailable(LibFunc_kitomp_initialize);
     TLI.setUnavailable(LibFunc_kitomp_launch);
+    TLI.setUnavailable(LibFunc_kitomp_reduce_num_partials);
     TLI.setUnavailable(LibFunc_kitpthr_finalize);
     TLI.setUnavailable(LibFunc_kitpthr_initialize);
     TLI.setUnavailable(LibFunc_kitpthr_launch);
+    TLI.setUnavailable(LibFunc_kitpthr_reduce_num_partials);
     TLI.setUnavailable(LibFunc_kitpthr_sync);
     TLI.setUnavailable(LibFunc_kitqthr_finalize);
     TLI.setUnavailable(LibFunc_kitqthr_initialize);
     TLI.setUnavailable(LibFunc_kitqthr_launch);
+    TLI.setUnavailable(LibFunc_kitqthr_reduce_num_partials);
 
     TLI.setUnavailable(LibFunc_cuda_register_fat_binary);
     TLI.setUnavailable(LibFunc_cuda_register_fat_binary_end);
@@ -1085,6 +1102,7 @@ static bool matchType(FuncArgTypeID ArgTy, const Type *Ty, unsigned IntBits,
   case Void:
     return Ty->isVoidTy();
   case Bool:
+  case Int8:
     return Ty->isIntegerTy(8);
   case Int16:
     return Ty->isIntegerTy(16);
@@ -1286,6 +1304,7 @@ static Type *getType(FuncArgTypeID ArgTy, const Module &M,
   case Void:
     return Type::getVoidTy(Ctx);
   case Bool:
+  case Int8:
     return Type::getInt8Ty(Ctx);
   case Int16:
     return Type::getInt16Ty(Ctx);

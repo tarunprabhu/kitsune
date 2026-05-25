@@ -132,6 +132,11 @@ if (KITSUNE_HIP_ENABLED)
     ${KITSUNE_HIP_LIB_LIBS})
 endif()
 
+if (KITSUNE_OPENCILK_ENABLED)
+  target_sources(${KITSUNE_OBJLIB} PUBLIC
+    opencilk/kitocilk.cpp)
+endif ()
+
 if (KITSUNE_QTHREADS_ENABLED)
   target_sources(${KITSUNE_OBJLIB} PUBLIC
     qthreads/kitqthr.cpp)

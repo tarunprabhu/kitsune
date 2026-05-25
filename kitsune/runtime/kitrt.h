@@ -166,6 +166,37 @@ typedef struct _kitrt_inst_mix_info {
   uint64_t numOtherOps;  // Other operations.
 } KitRTInstMix;
 
+/**
+ * Get the number of threads to use for parallel work from the environment
+ * variable, \p envVar. Returns 0 if any of the following is true:
+ *
+ *  - \p envVar is not set
+ *  - \p envVar is set, but the value is not a positive, decimal integer
+ *  - The value of \p envVar is a positive, decimal integer, but its value is
+ *    greater than 2^31 - 1
+ *
+ * Otherwise, returns the value of the environment variable parsed into a 32-bit
+ * unsigned integer.
+ */
+unsigned __kitrt_num_threads_from_env(const char *envVar);
+
+/**
+ * Get the number of threads to use for parallel work. Several CPU-specific
+ * Kitsune runtimes allow using an environment variable to control the degree
+ * of parallelism. If \p envVar is provided and is non-null, it will be looked
+ * up in the environment. If the value is a positive, decimal integer whose
+ * value is less than 2^31 - 1, that value will be returned. Otherwise, the
+ * number of CPU's detected on the system. will be returned. If the number of
+ * CPU's could not be determined, returns 1.
+ */
+unsigned __kitrt_num_threads_or_cpus(const char *envVar);
+
+/**
+ * Get the number of CPU cores on the system. If the number could not be
+ * determined for any reason, returns 1.
+ */
+unsigned __kitrt_num_cpus();
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

@@ -7,9 +7,14 @@
 ; CHECK-SAME: i64 %[[N:[^)]+]]
 ; CHECK: %[[RESULT:.+]] = alloca i32
 ; CHECK: %[[SYNCREG:.+]] = tail call token @llvm.syncregion.start()
-; CHECK: %[[NREDS:.+]] = call i64 @llvm.kit.reduce.partials.count(i32 32, i64 %[[N]])
+; CHECK: %[[NREDS:.+]] = call i64 @llvm.kit.reduce.num.partials(i32 32, i64 %[[N]])
 ; CHECK-NEXT: %[[BYTES:.+]] = mul {{.+}} 4, %[[NREDS]]
 ; CHECK-NEXT: %[[REDS:.+]] = call {{.+}} @llvm.kit.mobile.alloc(i64 %[[BYTES]])
+; CHECK-NEXT: call void {{.+}} @llvm.kit.mobile.init
+; CHECK-SAME: i32 32
+; CHECK-SAME: ptr {{[^%]+}} %[[REDS]]
+; CHECK-SAME: i64 %[[NREDS]]
+; CHECK-SAME: i32 [[UNIT:[^)]+]]
 ; CHECK-NEXT: br label %[[PH_O:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[PH_O]]:
@@ -19,15 +24,19 @@
 ; CHECK-NEXT: %[[IV_O:.+]] = phi i64
 ; CHECK-SAME: [ 0, %[[PH_O]] ],
 ; CHECK-SAME: [ %[[INC_O:.+]], %[[LATCH_O:.+]] ]
-; CHECK-NEXT: detach within %[[SYNCREG]], label %[[PH_I:.+]], label %[[LATCH_I:.+]]
+; CHECK-NEXT: detach within %[[SYNCREG]], label %[[GUARD_I:.+]], label %[[LATCH_O:.+]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[GUARD_I]]:
+; CHECK-NEXT: %[[NPP:.+]] = add {{.+}} %[[N]], %[[NREDS]]
+; CHECK-NEXT: %[[NPP_1:.+]] = sub {{.+}} %[[NPP]], 1
+; CHECK-NEXT: %[[SZREDS:.+]] = udiv {{.+}} %[[NPP_1]], %[[NREDS]]
+; CHECK-NEXT: %[[START:.+]] = mul {{.+}} %[[IV_O]], %[[SZREDS]]
+; CHECK-NEXT: %[[PLUS:.+]] = add {{.+}} %[[START]], %[[SZREDS]]
+; CHECK-NEXT: %[[END:.+]] = call i64 @llvm.umin.i64(i64 %[[PLUS]], i64 %[[N]])
+; CHECK-NEXT: %[[CMP_GUARD:.+]] = icmp uge {{.+}} %[[START]], %[[END]]
+; CHECK-NEXT: br i1 %[[CMP_GUARD]], label %[[END_I:.+]], label %[[PH_I:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[PH_I]]:
-; CHECK-NEXT: %[[START:.+]] = mul {{.+}} %[[IV_O]], %[[NREDS]]
-; CHECK-NEXT: %[[PLUS:.+]] = add {{.+}} %[[START]], %[[NREDS]]
-; CHECK-NEXT: %[[END_CMP:.+]] = icmp ult {{.+}} %[[PLUS]], %[[N]]
-; CHECK-NEXT: %[[END:.+]] = select i1 %[[END_CMP]], i64 %[[PLUS]], i64 %[[N]]
-; CHECK-NEXT: %[[ADDR_INIT:.+]] = getelementptr {{.+}} %[[REDS]], i64 %[[IV_O]]
-; CHECK-NEXT: store i32 [[UNIT:.+]], {{.+}} %[[ADDR_INIT]]
 ; CHECK-NEXT: br label %[[HEADER_I:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[HEADER_I]]:
@@ -56,6 +65,9 @@
 ; CHECK-SAME: !llvm.loop ![[LOOP_I:[0-9]+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[EXIT_I]]:
+; CHECK-NEXT: br label %[[END_I:.+]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[END_I]]:
 ; CHECK-NEXT: br label %[[REATTACH:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[REATTACH]]:

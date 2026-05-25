@@ -2705,6 +2705,46 @@ TLI_DEFINE_ENUM_INTERNAL(kitrt_enable_verbose)
 TLI_DEFINE_STRING_INTERNAL("__kitrt_enable_verbose_mode")
 TLI_DEFINE_SIG_INTERNAL(Void)
 
+/// void __kitrt_mobile_init_bool(void *, size_t n, bool v)
+TLI_DEFINE_ENUM_INTERNAL(kitrt_mobile_init_bool)
+TLI_DEFINE_STRING_INTERNAL("__kitrt_mobile_init_bool")
+TLI_DEFINE_SIG_INTERNAL(Void, Ptr, SizeT, Bool)
+
+/// void __kitrt_mobile_init_i8(void *, size_t n, int8_t v)
+TLI_DEFINE_ENUM_INTERNAL(kitrt_mobile_init_i8)
+TLI_DEFINE_STRING_INTERNAL("__kitrt_mobile_init_i8")
+TLI_DEFINE_SIG_INTERNAL(Void, Ptr, SizeT, Int8)
+
+/// void __kitrt_mobile_init_i16(void *, size_t n, int8_t v)
+TLI_DEFINE_ENUM_INTERNAL(kitrt_mobile_init_i16)
+TLI_DEFINE_STRING_INTERNAL("__kitrt_mobile_init_i16")
+TLI_DEFINE_SIG_INTERNAL(Void, Ptr, SizeT, Int16)
+
+/// void __kitrt_mobile_init_i32(void *, size_t n, int32_t v)
+TLI_DEFINE_ENUM_INTERNAL(kitrt_mobile_init_i32)
+TLI_DEFINE_STRING_INTERNAL("__kitrt_mobile_init_i32")
+TLI_DEFINE_SIG_INTERNAL(Void, Ptr, SizeT, Int32)
+
+/// void __kitrt_mobile_init_i64(void *, size_t n, int64_t v)
+TLI_DEFINE_ENUM_INTERNAL(kitrt_mobile_init_i64)
+TLI_DEFINE_STRING_INTERNAL("__kitrt_mobile_init_i64")
+TLI_DEFINE_SIG_INTERNAL(Void, Ptr, SizeT, Int64)
+
+/// void __kitrt_mobile_init_float(void *, size_t n, float v)
+TLI_DEFINE_ENUM_INTERNAL(kitrt_mobile_init_float)
+TLI_DEFINE_STRING_INTERNAL("__kitrt_mobile_init_float")
+TLI_DEFINE_SIG_INTERNAL(Void, Ptr, SizeT, Flt)
+
+/// void __kitrt_mobile_init_double(void *, size_t n, double v)
+TLI_DEFINE_ENUM_INTERNAL(kitrt_mobile_init_double)
+TLI_DEFINE_STRING_INTERNAL("__kitrt_mobile_init_double")
+TLI_DEFINE_SIG_INTERNAL(Void, Ptr, SizeT, Dbl)
+
+/// void __kitrt_mobile_init_any(void *, size_t n, unsigned size, void *v)
+TLI_DEFINE_ENUM_INTERNAL(kitrt_mobile_init_from)
+TLI_DEFINE_STRING_INTERNAL("__kitrt_mobile_init_from")
+TLI_DEFINE_SIG_INTERNAL(Void, Ptr, SizeT, Ptr, Int)
+
 /// @}
 
 /// @{
@@ -2797,6 +2837,11 @@ TLI_DEFINE_SIG_INTERNAL(Void, Ptr, Ptr, Int64)
 TLI_DEFINE_ENUM_INTERNAL(kitcuda_sync_stream)
 TLI_DEFINE_STRING_INTERNAL("__kitcuda_sync_thread_stream")
 TLI_DEFINE_SIG_INTERNAL(Void, Ptr)
+
+/// int64_t __kitcuda_reduce_num_partials(int64_t tripCount)
+TLI_DEFINE_ENUM_INTERNAL(kitcuda_reduce_num_partials)
+TLI_DEFINE_STRING_INTERNAL("__kitcuda_reduce_num_partials")
+TLI_DEFINE_SIG_INTERNAL(Int64, Int64)
 
 /// @}
 
@@ -2896,6 +2941,31 @@ TLI_DEFINE_ENUM_INTERNAL(kithip_sync_stream)
 TLI_DEFINE_STRING_INTERNAL("__kithip_sync_thread_stream")
 TLI_DEFINE_SIG_INTERNAL(Void, Ptr)
 
+/// int64_t __kithip_reduce_num_partials(int64_t tripCount)
+TLI_DEFINE_ENUM_INTERNAL(kithip_reduce_num_partials)
+TLI_DEFINE_STRING_INTERNAL("__kithip_reduce_num_partials")
+TLI_DEFINE_SIG_INTERNAL(Int64, Int64)
+
+/// @}
+
+/// @{
+/// Kitsune runtime library functions for the opencilk tapir target
+
+/// void __kitocilk_finalize(void);
+TLI_DEFINE_ENUM_INTERNAL(kitocilk_finalize)
+TLI_DEFINE_STRING_INTERNAL("__kitocilk_finalize")
+TLI_DEFINE_SIG_INTERNAL(Void)
+
+/// void __kitocilk_initialize(void);
+TLI_DEFINE_ENUM_INTERNAL(kitocilk_initialize)
+TLI_DEFINE_STRING_INTERNAL("__kitocilk_initialize")
+TLI_DEFINE_SIG_INTERNAL(Void)
+
+/// int64_t __kitocilk_reduce_num_partials(int64_t tripCount)
+TLI_DEFINE_ENUM_INTERNAL(kitocilk_reduce_num_partials)
+TLI_DEFINE_STRING_INTERNAL("__kitocilk_reduce_num_partials")
+TLI_DEFINE_SIG_INTERNAL(Int64, Int64)
+
 /// @}
 
 /// @{
@@ -2919,6 +2989,11 @@ TLI_DEFINE_SIG_INTERNAL(Void)
 TLI_DEFINE_ENUM_INTERNAL(kitomp_launch)
 TLI_DEFINE_STRING_INTERNAL("__kitomp_launch")
 TLI_DEFINE_SIG_INTERNAL(Void, Ptr, Int64, Int64, Int64, Ptr)
+
+/// int64_t __kitomp_reduce_num_partials(int64_t tripCount)
+TLI_DEFINE_ENUM_INTERNAL(kitomp_reduce_num_partials)
+TLI_DEFINE_STRING_INTERNAL("__kitomp_reduce_num_partials")
+TLI_DEFINE_SIG_INTERNAL(Int64, Int64)
 
 /// @}
 
@@ -2949,6 +3024,11 @@ TLI_DEFINE_ENUM_INTERNAL(kitpthr_sync)
 TLI_DEFINE_STRING_INTERNAL("__kitpthr_sync")
 TLI_DEFINE_SIG_INTERNAL(Void, Ptr)
 
+/// int64_t __kitpthr_reduce_num_partials(int64_t tripCount)
+TLI_DEFINE_ENUM_INTERNAL(kitpthr_reduce_num_partials)
+TLI_DEFINE_STRING_INTERNAL("__kitpthr_reduce_num_partials")
+TLI_DEFINE_SIG_INTERNAL(Int64, Int64)
+
 /// @}
 
 /// @{
@@ -2972,6 +3052,11 @@ TLI_DEFINE_SIG_INTERNAL(Void)
 TLI_DEFINE_ENUM_INTERNAL(kitqthr_launch)
 TLI_DEFINE_STRING_INTERNAL("__kitqthr_launch")
 TLI_DEFINE_SIG_INTERNAL(Void, Ptr, Int64, Int64, Int64, Ptr)
+
+/// int64_t __kitqthr_reduce_num_partials(int64_t tripCount)
+TLI_DEFINE_ENUM_INTERNAL(kitqthr_reduce_num_partials)
+TLI_DEFINE_STRING_INTERNAL("__kitqthr_reduce_num_partials")
+TLI_DEFINE_SIG_INTERNAL(Int64, Int64)
 
 /// @}
 
