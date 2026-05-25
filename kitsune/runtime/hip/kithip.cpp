@@ -190,4 +190,20 @@ void __kithip_destroy() {
   setInitialized(false);
 }
 
+/// The number of partial reductions to perform in parallel.
+///
+/// \param n The trip count of the parallel loop in containing a reduction
+extern "C" int64_t __kithip_reduce_num_partials(int64_t n) {
+  __kitrt_message("kithip", "Calculating number of partial reductions\n");
+
+  // FIXME: This is simply a placeholder to check that the rest of the
+  // transformations work as expected. It is beyond terrible for performance, so
+  // fix this is ASAP.
+  int numPartials = 8;
+
+  __kitrt_message("kithip", "Number of partial reductions: %ld\n", numPartials);
+
+  return numPartials;
+}
+
 } // extern "C"

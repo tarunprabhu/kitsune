@@ -116,6 +116,33 @@ Free a mobile buffer that was previously allocated using
 }];
 }
 
+def KitMobileInitDoc : KitDocIntrinsic {
+  let Category = KitDocCatMemAlloc;
+  let ParamDocs = [
+      KitDocParam<"tt", "The ID of the tapir target calling the intrinsic">,
+      KitDocParam<"buf", "The mobile buffer to initialize">,
+      KitDocParam<"n", "The number of elements in the array">,
+      KitDocParam<"v", "The initializer">,
+      KitDocParam<"", "If :code:`v` is a pointer, the size of the pointee">,
+  ];
+  let Descr = [{
+Initialize a mobile buffer. This is most useful when the buffer is a
+contiguous array and each element of the array needs to be initialized with a
+certain value.
+
+The exactly lowering of this intrinsic is not specified. It may be lowered to a
+loop in LLVM IR, or may call an external function. If :code:`tt` is a
+GPU-centric tapir target, the initialization may be performed on the GPU, but
+this is not guaranteed.
+
+.. note::
+  Currently, only the following types are supported for the initializer
+  :code:`v`: :code:`i8 i16 i32 i64 float double`. In the future, we may also
+  support passing a pointer to the value in cases where the initializer has
+  a non-scalar type - such as a struct.
+}];
+}
+
 def KitInitializeDoc : KitDocIntrinsic {
   let Category = KitDocCatCommon;
   let ParamDocs = [
@@ -863,7 +890,7 @@ parallel execution.
 }];
 }
 
-def KitReducePartialsCountDoc : KitDocIntrinsic {
+def KitReduceNumPartialsDoc : KitDocIntrinsic {
   let Category = KitDocCatCommon;
   let ParamDocs = [
       KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,

@@ -231,6 +231,18 @@ def int_kit_mobile_free
   let Doc = KitMobileFreeDoc;
 }
 
+// Initialize the elements of a contiguous, mobile buffer with the given value.
+def int_kit_mobile_init
+    : KitIntrinsic<[],
+                   [llvm_i32_ty,        // TTID
+                    llvm_mobile_ptr_ty, // pointer to memory to initialize
+                    llvm_i64_ty,        // number of elements in the buffer
+                    llvm_any_ty,        // the initializer
+                    llvm_vararg_ty],
+                   [ImmArg<ArgIndex<0>>]> {
+  let Doc = KitMobileInitDoc;
+}
+
 // Enable/disable kernel launch refinement.
 // TODO: Rename this to int_kit_gpu_enable_kernel_launch_refinement.
 def int_kit_enable_refine_launches
@@ -367,7 +379,7 @@ def int_kit_reduce_0
                    [llvm_i32_ty,     // TTID
                     llvm_ptr_ty,     // Pointer to result
                     llvm_i32_ty,     // sizeof(result)
-                    llvm_any_ty,     // The value to reduce
+                    llvm_any_ty,     // The value to pass to the reducer
                     llvm_any_ty,     // The unit value for the reducer
                     llvm_ptr_ty,     // The reducer function
                     llvm_vararg_ty], // Additional reducer arguments
@@ -396,10 +408,10 @@ def int_kit_reduce_1
 
 // Get the number of partial reductions to perform when lowering a parallel
 // reduction.
-def int_kit_reduce_partials_count
+def int_kit_reduce_num_partials
     : KitIntrinsic<[llvm_i64_ty],
                    [llvm_i32_ty,  // TTID
                     llvm_i64_ty], // Reduction loop trip count
                    [ImmArg<ArgIndex<0>>]> {
-  let Doc = KitReducePartialsCountDoc;
+  let Doc = KitReduceNumPartialsDoc;
 }

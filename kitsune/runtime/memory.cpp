@@ -51,24 +51,123 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "kitrt.h"
 #include "memory_map.h"
 
 #include <cstdlib>
+#include <cstring>
+#include <type_traits>
 
-extern "C" {
+#define LABEL "kitrt"
 
-[[gnu::malloc]] void *[[kitsune::mobile]]
+extern "C" [[gnu::malloc]] void *[[kitsune::mobile]]
 __kitrt_default_mem_alloc(size_t bytes) {
-  void *[[kitsune::mobile]]ptr = __kitsune_mobile_cast_unsafe(malloc(bytes));
+  void *[[kitsune::mobile]] ptr = __kitsune_mobile_cast_unsafe(malloc(bytes));
   __kitrt_register_mem_alloc(ptr, bytes);
   return ptr;
 }
 
-void __kitrt_default_mem_free(void *[[kitsune::mobile]] ptr) {
+extern "C" void __kitrt_default_mem_free(void *[[kitsune::mobile]] ptr) {
   bool ro, wo;
-  if (__kitrt_get_mem_alloc_size((void*)ptr, &ro, &wo) > 0)
+  if (__kitrt_get_mem_alloc_size((void *)ptr, &ro, &wo) > 0)
     __kitrt_unregister_mem_alloc(ptr);
-  free((void*)ptr);
+  free((void *)ptr);
 }
 
-} // extern "C"
+template <typename T,
+          std::enable_if_t<std::is_integral_v<T> || std::is_floating_point_v<T>,
+                           int> = 0>
+static void mobileInitScalar(T *[[kitsune::mobile]] buf, size_t n, T v) {
+  for (size_t i = 0; i < n; ++i)
+    buf[i] = v;
+}
+
+/**
+ * Initialize a mobile buffer from a pointer to a value. This is most useful
+ * when the buffer \p buf is a contiguous array of \p n \p size-byte objects.
+ * This function will copy the object pointed to by \p v into each element of
+ \p buf.
+ *
+ * WARNING: This is a _shallow_ copy. For non-scalar types, this should only be
+ * used with POD (Plain Old Data) types.
+ *
+ * NOTE: If the value to be copied is an integral or floating point type, it
+ * may be more efficient to use one of the __kitrt_mobile_init_* functions
+ * instead of this.
+ */
+extern "C" void __kitrt_mobile_init_from(void *[[kitsune::mobile]] buf,
+                                         size_t n, void *v, unsigned size) {
+  for (size_t i = 0; i < n; ++i) {
+    memcpy(&((char *)buf)[i * size], v, size);
+  }
+}
+
+/**
+ * Initialize a mobile buffer \p buf. This is most useful when \p buf is a
+ * contiguous array of \p n boolean values. This will initialize each element of
+ * \p buf with \p v.
+ */
+extern "C" void __kitrt_mobile_init_bool(bool *[[kitsune::mobile]] buf,
+                                         size_t n, bool v) {
+  return mobileInitScalar<bool>(buf, n, v);
+}
+
+/**
+ * Initialize a mobile buffer \p buf. This is most useful when \p buf is a
+ * contiguous array of \p n 1-byte values. This will initialize each element of
+ * \p buf with \p v.
+ */
+extern "C" void __kitrt_mobile_init_i8(int8_t *[[kitsune::mobile]] buf,
+                                       size_t n, int8_t v) {
+  return mobileInitScalar<int8_t>(buf, n, v);
+}
+
+/**
+ * Initialize a mobile buffer \p buf. This is most useful when \p buf is a
+ * contiguous array of \p n 2-byte values. This will initialize each element of
+ * \p buf with \p v.
+ */
+extern "C" void __kitrt_mobile_init_i16(int16_t *[[kitsune::mobile]] buf,
+                                        size_t n, int16_t v) {
+  return mobileInitScalar<int16_t>(buf, n, v);
+}
+
+/**
+ * Initialize a mobile buffer \p buf. This is most useful when \p buf is a
+ * contiguous array of \p n 4-byte values. This will initialize each element of
+ * \p buf with \p v.
+ */
+extern "C" void __kitrt_mobile_init_i32(int32_t *[[kitsune::mobile]] buf,
+                                        size_t n, int32_t v) {
+  return mobileInitScalar<int32_t>(buf, n, v);
+}
+
+/**
+ * Initialize a mobile buffer \p buf. This is most useful when \p buf is a
+ * contiguous array of \p n 8-byte values. This will initialize each element of
+ * \p buf with \p v.
+ */
+extern "C" void __kitrt_mobile_init_i64(int64_t *[[kitsune::mobile]] buf,
+                                        size_t n, int64_t v) {
+  return mobileInitScalar<int64_t>(buf, n, v);
+}
+
+/**
+ * Initialize a mobile buffer \p buf. This is most useful when \p buf is a
+ * contiguous array of \p n 4-byte floats. This will initialize each element of
+ * \p buf with \p v.
+ */
+extern "C" void __kitrt_mobile_init_float(float *[[kitsune::mobile]] buf,
+                                          size_t n, float v) {
+  return mobileInitScalar<float>(buf, n, v);
+}
+
+/**
+ * Initialize a mobile buffer \p buf. This is most useful when \p buf is a
+ * contiguous array of \p n 8-byte doubles. This will initialize each element of
+ * \p buf with \p v.
+ */
+extern "C" void __kitrt_mobile_init_double(double *[[kitsune::mobile]] buf,
+                                           size_t n, double v) {
+  return mobileInitScalar<double>(buf, n, v);
+}

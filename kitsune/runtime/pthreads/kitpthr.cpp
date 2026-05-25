@@ -138,52 +138,18 @@ public:
   KitPthrContext(const KitPthrContext &) = delete;
   KitPthrContext(KitPthrContext &&) = delete;
   KitPthrContext &operator=(const KitPthrContext &) = delete;
-
-public:
-  /// The maximum number of threads supported by this runtime.
-  static constexpr int64_t maxThreads = std::numeric_limits<uint32_t>::max();
 };
 
 /// Determine the number of threads to launch. If an environment variable named
 /// KIT_NUM_THREADS is set to a positive decimal (base 10) integer, that value
 /// will be returned. If the value of the environment variable is negative, or
-/// if it cannot be interpreted as an integer, a warning is issued and the
-/// number of processors available on the system is returned instead. If the
-/// number of processors could not be determined, a warning message is displayed
-/// and 1 is returned.
-static int64_t kitpthrGetNumThreads(int64_t start, int64_t end) {
-  if (const char *envNumThreads = getenv("KIT_NUM_THREADS")) {
-    __kitrt_message(LABEL, "Environment variable KIT_NUM_THREADS=%s",
-                    envNumThreads);
-    char *end = nullptr;
-    long numThreads = strtol(envNumThreads, &end, 10);
-
-    // If *end is not '\0', either there are additional non-numeric characters
-    // in the environment variable, or the environment variable cannot be parsed
-    // to a signed integer. In this case, ignore the environment variable.
-    // If the value of the environment variable is a valid integer, it may
-    // yet be out of range, in which case errno will be set to ERANGE.
-    bool error = *end != '\0' || errno == ERANGE || numThreads < 0 ||
-                 numThreads > KitPthrContext::maxThreads;
-    if (!error)
-      return numThreads;
-
-    __kitrt_warn(LABEL, "Invalid number of threads in KIT_NUM_THREADS");
-  }
-
-  long numThreads = std::thread::hardware_concurrency();
-  if (numThreads <= 0) {
-    __kitrt_warn(LABEL,
-                 "Disable threading. Could not determine number of CPUs");
-    return 1;
-  } else if (numThreads > KitPthrContext::maxThreads) {
-    __kitrt_warn(LABEL, "Disable threading: Too many CPUs found: %ld",
-                 numThreads);
-    return 1;
-  }
-
-  __kitrt_message(LABEL, "CPUs on system: %ld", numThreads);
-  return numThreads;
+/// if it cannot be interpreted as an integer, the number of CPU's detected on
+/// the system is returned instead. If the number of CPU's could not be
+/// determined, return 1.
+static int64_t getNumThreads() {
+  if (unsigned numThreads = __kitrt_num_threads_from_env("KIT_NUM_THREADS"))
+    return numThreads;
+  return __kitrt_num_cpus();
 }
 
 /// Run \p f on the main thread. Block until f completes. Always return nullptr.
@@ -243,7 +209,7 @@ extern "C" KitPthrContext *__kitpthr_launch(KitPthrThrdFn f, int64_t start,
   // This is the number of threads that *may* be launched. However, there may
   // not be enough for work for all threads, so the actual number of threads
   // that are launched may be smaller than this.
-  const int64_t availThrds = kitpthrGetNumThreads(start, end);
+  const int64_t availThrds = getNumThreads();
 
   // If only a single thread is to be used, don't launch any threads. Run f on
   // the main thread and block until it finishes. Return nullptr as the thread
@@ -283,8 +249,8 @@ extern "C" KitPthrContext *__kitpthr_launch(KitPthrThrdFn f, int64_t start,
                                  (pthread_start_t)kitpthrThrdStartFn,
                                  &ctx->thrdInfo[i]))
       kitpthrHandleCreateError(err);
-    __kitrt_message(LABEL, "Running on thread %ld: [%ld, %ld)", i,
-                    info.start, info.end);
+    __kitrt_message(LABEL, "Running on thread %ld: [%ld, %ld)", i, info.start,
+                    info.end);
   }
 
   return ctx;
@@ -303,6 +269,22 @@ extern "C" void __kitpthr_sync(KitPthrContext *ctx) {
     __kitrt_message(LABEL, "Joined thread %ld", i);
   }
   delete ctx;
+}
+
+/// The number of partial reductions to perform in parallel.
+///
+/// \param n The trip count of the parallel loop in containing a reduction
+extern "C" int64_t __kitpthr_reduce_num_partials(int64_t n) {
+  __kitrt_message(LABEL, "Calculating number of partial reductions");
+
+  // There might be something smarter that can be done once we support a proper
+  // reduction tree, but since we only support a reduction tree of depth 1, we
+  // just use as many partials as there are CPU's on the system.
+  int numPartials = getNumThreads();
+
+  __kitrt_message(LABEL, "Number of partial reductions: %ld", numPartials);
+
+  return numPartials;
 }
 
 /// Initialize kitsune's pthreads runtime. Currently, this only sets some

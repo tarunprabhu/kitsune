@@ -7,9 +7,14 @@
 ; CHECK-SAME: i64 %[[N:[^)]+]]
 ; CHECK: %[[RESULT:.+]] = alloca i64
 ; CHECK: %[[SYNCREG:.+]] = tail call token @llvm.syncregion.start()
-; CHECK: %[[NREDS:.+]] = call i64 @llvm.kit.reduce.partials.count(i32 4, i64 %[[N]])
+; CHECK: %[[NREDS:.+]] = call i64 @llvm.kit.reduce.num.partials(i32 4, i64 %[[N]])
 ; CHECK-NEXT: %[[BYTES:.+]] = mul {{.+}} 4, %[[NREDS]]
 ; CHECK-NEXT: %[[REDS:.+]] = call {{.+}} @llvm.kit.mobile.alloc(i64 %[[BYTES]])
+; CHECK-NEXT: call void {{.+}} @llvm.kit.mobile.init
+; CHECK-SAME: i32 4
+; CHECK-SAME: ptr {{[^%]+}} %[[REDS]]
+; CHECK-SAME: i64 %[[NREDS]]
+; CHECK-SAME: i32 [[UNIT:[^)]+]]
 ; CHECK-NEXT: br label %[[PH_O:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[PH_O]]:
@@ -19,11 +24,13 @@
 ; CHECK-NEXT: %[[IV_O:.+]] = phi i64
 ; CHECK-SAME: [ 0, %[[PH_O]] ],
 ; CHECK-SAME: [ %[[INC_O:.+]], %[[LATCH_O:.+]] ]
-; CHECK-NEXT: detach within %[[SYNCREG]], label %[[PH_I:.+]], label %[[LATCH_I:.+]]
+; CHECK-NEXT: detach within %[[SYNCREG]], label %[[GUARD_I:.+]], label %[[LATCH_O:.+]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[GUARD_I]]:
+; CHECK-NEXT: %[[CMP_GUARD:.+]] = icmp uge {{.+}} %[[IV_O]], %[[N]]
+; CHECK-NEXT: br i1 %[[CMP_GUARD]], label %[[END_I:.+]], label %[[PH_I:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[PH_I]]:
-; CHECK-NEXT: %[[ADDR_INIT:.+]] = getelementptr {{.+}} %[[REDS]], i64 %[[IV_O]]
-; CHECK-NEXT: store i32 [[UNIT:.+]], {{.+}} %[[ADDR_INIT]]
 ; CHECK-NEXT: br label %[[HEADER_I:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[HEADER_I]]:
@@ -47,11 +54,14 @@
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[LATCH_I]]:
 ; CHECK-NEXT: %[[INC_I:.+]] = add i64 %[[IV_I]], %[[NREDS]]
-; CHECK-NEXT: %[[CMP_I:.+]] = icmp eq i64 %[[INC_I]], %[[N]]
+; CHECK-NEXT: %[[CMP_I:.+]] = icmp uge i64 %[[INC_I]], %[[N]]
 ; CHECK-NEXT: br i1 %[[CMP_I]], label %[[EXIT_I:.+]], label %[[HEADER_I]],
 ; CHECK-SAME: !llvm.loop ![[LOOP_I:[0-9]+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[EXIT_I]]:
+; CHECK-NEXT: br label %[[END_I]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[END_I]]:
 ; CHECK-NEXT: br label %[[REATTACH:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[REATTACH]]:

@@ -26,7 +26,7 @@
 //     }
 //
 //     void mul(int64_t* res, int64_t v) {
-//         *res += v;
+//         *res *= v;
 //     }
 //
 //     parallel_for (int i = 0; i < n; ++i) {
@@ -37,25 +37,26 @@
 // This pass will transform this into the following for parallel execution on a
 // CPU.
 //
-//     int64_t nreds = kit.reduce.partials.count(n);
-//     int32_t* buf32 = kit.mobile.alloc(nreds * sizeof(int32_t));
-//     int64_t* buf64 = kit.mobile.alloc(nreds * sizeof(int64_t));
-//     parallel_for (int j = 0; j < nreds; ++j) {
-//         int start = 0;
-//         int end = (start + nreds < n) ? start + nreds : n;
-//         buf32[j] = 0;
-//         buf64[j] = 0;
+//     int64_t numPartials = kit.reduce.num.partials(n);
+//     int64_t sizePartial = (n + numPartials - 1) / numPartials;
+//     int32_t* buf32 = kit.mobile.alloc(numPartials * sizeof(int32_t));
+//     int64_t* buf64 = kit.mobile.alloc(numPartials * sizeof(int64_t));
+//     kit.mobile.init(buf32, sizeof(int32_t), 0);
+//     kit.mobile.init(buf64, sizeof(int64_t), 1);
+//     parallel_for (int j = 0; j < numPartials; ++j) {
+//         int start = j * sizePartial;
+//         int end = std::min(start + sizePartial, n);
 //         for (int i = start; i < end; ++i) {
 //             kit.reduce.0(&buf32[j], sizeof(r_sum), i, 0, &sum);
 //             kit.reduce.0(&buf64[j], sizeof(r_mul), i, 1, &mul);
 //         }
 //     }
-//     kit.reduce.1(&r_sum, buf32, nreds, 0, &sum);
-//     kit.reduce.1(&r_mul, buf64, nreds, 1, &mul);
+//     kit.reduce.1(&r_sum, buf32, numPartials, 0, &sum);
+//     kit.reduce.1(&r_mul, buf64, numPartials, 1, &mul);
 //     kit.mobile.free(buf32);
 //     kit.mobile.free(buf64);
 //
-// Here, kit.reduce.partials.count is used to determine the number of partial
+// Here, kit.reduce.num.partials is used to determine the number of partial
 // reductions that are to be performed in parallel. An outer parallel loop is
 // added to carry these out. Each iteration of the parallel loop will perform a
 // sequential reduction. This is followed by calls to kit.reduce.1 which
@@ -63,19 +64,20 @@
 //
 // The code below is the transformation that is carried out for GPU's.
 //
-//     int64_t nreds = kit.reduce.partials.count(n);
-//     int32_t* buf32 = kit.mobile.alloc(nreds * sizeof(int32_t));
-//     int64_t* buf64 = kit.mobile.alloc(nreds * sizeof(int64_t));
-//     parallel_for (int j = 0; j < nreds; ++j) {
-//         buf32[j] = 0;
-//         buf64[j] = 0;
-//         for (int i = j; i < n; i += nreds) {
+//     int64_t numPartials = kit.reduce.num.partials(n);
+//     int64_t partialSize = (n + numPartials - 1) / numPartials;
+//     int32_t* buf32 = kit.mobile.alloc(numPartials * sizeof(int32_t));
+//     int64_t* buf64 = kit.mobile.alloc(numPartials * sizeof(int64_t));
+//     kit.mobile.init(buf32, sizeof(int32_t), 0);
+//     kit.mobile.init(buf64, sizeof(int64_t), 1);
+//     parallel_for (int j = 0; j < numPartials; ++j) {
+//         for (int i = j; i < n; i += numPartials) {
 //             kit.reduce.0(&buf32[j], sizeof(r_sum), i, 0, &sum);
 //             kit.reduce.0(&buf64[j], sizeof(r_mul), i, 1, &mul);
 //         }
 //     }
-//     kit.reduce.1(&r_sum, buf32, nreds, 0, &sum);
-//     kit.reduce.1(&r_mul, buf64, nreds, 1, &mul);
+//     kit.reduce.1(&r_sum, buf32, numPartials, 0, &sum);
+//     kit.reduce.1(&r_mul, buf64, numPartials, 1, &mul);
 //     kit.mobile.free(buf32);
 //     kit.mobile.free(buf64);
 //
@@ -162,19 +164,23 @@ private:
   BasicBlock *genOuterLatchBlock(Loop &loop, BasicBlock &outerReattach);
   BasicBlock *genOuterExitBlock(Loop &loop, BasicBlock &outerLatch,
                                 BasicBlock &outerHeader);
+  BasicBlock *genInnerLoopGuardBlock(Loop &loop, BasicBlock &outerHeader);
+  BasicBlock *genInnerLoopEndBlock(Loop &loop, BasicBlock &outerReattach,
+                                   BasicBlock &innerGuard);
   void genOuterLoopInsts(BasicBlock &outerLatch, BasicBlock &outerHeader,
                          const TapirLoopInfo &tapirLoop);
   void genOuterLoopMD(BasicBlock &outerLatch, Loop &loop);
   Loop *genOuterLoopObject(Loop &loop, BasicBlock &outerPreheader,
                            BasicBlock &outerHeader, BasicBlock &outerReattach,
-                           BasicBlock &outerLatch, BasicBlock &outerExit);
+                           BasicBlock &outerLatch, BasicBlock &outerExit,
+                           BasicBlock &innerGuard, BasicBlock &innerEnd);
   Loop *genOuterLoop(const TapirLoopInfo &tapirLoop);
   BasicBlock *genAllocPartialsBlock(Loop &outerLoop);
   BasicBlock *genReducePartialsBlock(Loop &outerLoop);
   BasicBlock *genFreePartialsBlock(Loop &outerLoop);
   Value *computeNumPartialReductions(BasicBlock &bb, const TapirLoopInfo &loop);
   Value *allocPartialsBuffer(BasicBlock &bb, const ReductionInfo &info);
-  void initPartialsBuffer(Loop &outerLoop, Loop &loop,
+  void initPartialsBuffer(BasicBlock &bb, Loop &loop,
                           const ReductionInfo &info);
   void reduceIntoPartialsBuffer(Loop &outerLoop, Loop &loop,
                                 const ReductionInfo &info);
@@ -185,6 +191,7 @@ private:
                             Value *numPartials);
   void updateInnerLoopIVGPU(Loop &outerLoop, Loop &innerLoop,
                             Value *numPartials);
+  void updateInnerLoopGuardCondition(Loop &innerLoop, Value *numPartials);
   void parallelizeOuterLoop(Loop &outerLoop, Loop &loop);
   void serializeInnerLoop(Loop &loop);
 
@@ -234,10 +241,17 @@ PrepareReductionLoop::collectReductions(Loop &loop) {
 //         LoopLatch
 //     LoopExit
 //
-// For symmetry, this should be added before the loop preheader. However, that
-// would require any allocas in the loop preheader to be moved to the outer loop
-// preheader. Since we control what will be added to the outer loop preheader,
-// we ensure that this is safe.
+// When we add the outer loop header and parallelize it, that header will
+// terminate in a detach instruction, which has two successors. The original
+// loop would then no longer be in loop-simplify form since it would not have a
+// preheader. To ensure that the original loop remains in loop-simplify form,
+// add an empty preheader for the original loop.
+//
+// By adding the outer loop preheader *after* the original loop preheader, we
+// ensure that any code, particularly any syncregions and allocs created in that
+// preheader will be created before the outer loop. Otherwise, these will end
+// up inside what will eventually become a parallel loop - leading to avoidable
+// complications.
 BasicBlock *PrepareReductionLoop::genOuterPreheaderBlock(Loop &loop) {
   LLVM_DEBUG(dbgs() << "PrepareReduction:   Create preheader block\n");
 
@@ -246,11 +260,7 @@ BasicBlock *PrepareReductionLoop::genOuterPreheaderBlock(Loop &loop) {
                               "prduc.ph", /*Before=*/false);
 
   // At this point, we have created the outer loop preheader *after* the
-  // original loop preheader. When we add the outer loop header and parallelize
-  // it, that header will terminate in a detach instruction, which has two
-  // successors. The original loop would then no longer be in loop-simplify form
-  // since it would not have a preheader. To ensure that the original loop
-  // remains in loop-simplify form, add an empty preheader for the original
+  // original loop preheader. Split this to get a new preheader for the inner
   // loop.
   (void)SplitBlock(bb, bb->getTerminator(), &dtu, &li, &mssau,
                    "prduc.inner.ph.new", /*Before=*/false);
@@ -316,7 +326,9 @@ BasicBlock *PrepareReductionLoop::genOuterHeaderBlock(Loop &loop,
 //
 // In the figure above, the original LoopExit block has been split. The
 // instructions that were originally in the exit block of \p loop will be
-// in LoopExit. LoopExitNew will be empty.
+// in LoopExit. The LoopExit block will often contain a sync instruction. Moving
+// the instructions this way ensures that the sync will appear *after* the outer
+// loop. LoopExitNew will be empty.
 BasicBlock *PrepareReductionLoop::genOuterReattachBlock(Loop &loop) {
   LLVM_DEBUG(dbgs() << "PrepareReduction:   Create reattach block\n");
 
@@ -407,6 +419,95 @@ BasicBlock *PrepareReductionLoop::genOuterExitBlock(Loop &loop,
   return bb;
 }
 
+// Generate a basic block that will be the guard for the inner loop. The
+// original inner loop guard will be a predecessor of the loop preheader.
+// However, once the loop is transformed, the inner loop bounds will change, so,
+// a guard may well be necessary. The figure below shows what the CFG is
+// expected to be after this function returns.
+//
+//     LoopPreheader
+//     OuterPreheader
+//         OuterHeader
+//         LoopGuardNew
+//         LoopPreheaderNew
+//             LoopHeader
+//             <LoopBlocks>
+//             LoopLatch
+//         LoopExitNew
+//         OuterReattach
+//         OuterLatch
+//     OuterExit
+//     LoopExit
+//
+// The terminator of the new guard will be unconditional and will branch to the
+// preheader of the inner loop.
+BasicBlock *
+PrepareReductionLoop::genInnerLoopGuardBlock(Loop &loop,
+                                             BasicBlock &outerHeader) {
+  LLVM_DEBUG(dbgs() << "PrepareReduction:   Create loop guard block\n");
+
+  Instruction *term = outerHeader.getTerminator();
+  BasicBlock *bb = SplitBlock(&outerHeader, term, &dtu, &li, &mssau,
+                              "prduc.inner.guard.new", /*Before=*/false);
+
+  return bb;
+}
+
+// Generate a basic block that will be the end block for the inner loop. This
+// will be the destination for the inner loop guard if that loop is to be
+// bypassed. The figure below shows what the CFG is expected to be after this
+// function returns.
+//
+//     LoopPreheader
+//     OuterPreheader
+//         OuterHeader
+//         LoopGuardNew
+//         LoopPreheaderNew
+//             LoopHeader
+//             <LoopBlocks>
+//             LoopLatch
+//         LoopExitNew
+//         LoopEndNew
+//         OuterReattach
+//         OuterLatch
+//     OuterExit
+//     LoopExit
+//
+// A conditional branch will be inserted between the \p innerGuard and the new
+// inner loop end block. The conditional of that branch will not be valid and
+// will be updated later in this transformation.
+BasicBlock *PrepareReductionLoop::genInnerLoopEndBlock(
+    Loop &loop, BasicBlock &outerReattach, BasicBlock &innerGuard) {
+  auto sanityCheck = [](Loop &loop) {
+    assert(loop.getLoopPreheader() && "Inner loop must have a preheader");
+  };
+
+  LLVM_DEBUG(dbgs() << "PrepareReduction:   Create loop end block\n");
+  sanityCheck(loop);
+
+  LLVMContext &ctx = getContext(loop);
+  Instruction *term = outerReattach.getTerminator();
+  BasicBlock *innerEnd = SplitBlock(&outerReattach, term, &dtu, &li, &mssau,
+                                    "prduc.inner.end.new", /*Before=*/true);
+
+  // Now that we have the end block, replace the terminator of the inner loop
+  // guard with a conditional branch.
+  BasicBlock *ph = loop.getLoopPreheader();
+  Constant *cond = ConstantInt::getFalse(ctx);
+  BranchInst *br = BranchInst::Create(innerEnd, ph, cond);
+
+  ReplaceInstWithInst(innerGuard.getTerminator(), br);
+
+  // Update analyses
+  dt.insertEdge(&innerGuard, innerEnd);
+
+#ifndef NDEBUG
+  dt.verify();
+#endif // NDEBUG
+
+  return innerEnd;
+}
+
 // Generate the correct instructions in \outerLatch such that it will iterate
 // correctly. This will update the terminator of the loop latch, as well as the
 // loop induction variable in the outer loop header, \p outerHeader. \p loop is
@@ -467,11 +568,13 @@ void PrepareReductionLoop::genOuterLoopMD(BasicBlock &outerLatch, Loop &loop) {
 //     LoopPreheader
 //     OuterPreheader
 //         OuterHeader
-//             LoopPreheaderNew
+//         LoopGuardNew
+//         LoopPreheaderNew
 //             LoopHeader
 //             <LoopBlocks>
 //             LoopLatch
 //         LoopExitNew
+//         LoopEndNew
 //         OuterReattach
 //         OuterLatch
 //     OuterExit
@@ -487,14 +590,14 @@ void PrepareReductionLoop::genOuterLoopMD(BasicBlock &outerLatch, Loop &loop) {
 //
 // This will update the analysis objects in this class, so they should be safe
 // to use after this returns.
-Loop *PrepareReductionLoop::genOuterLoopObject(Loop &loop, BasicBlock &outerPh,
-                                               BasicBlock &outerHeader,
-                                               BasicBlock &outerReattach,
-                                               BasicBlock &outerLatch,
-                                               BasicBlock &outerExit) {
+Loop *PrepareReductionLoop::genOuterLoopObject(
+    Loop &loop, BasicBlock &outerPh, BasicBlock &outerHeader,
+    BasicBlock &outerReattach, BasicBlock &outerLatch, BasicBlock &outerExit,
+    BasicBlock &innerGuard, BasicBlock &innerEnd) {
   auto sanityCheck = [](Loop &loop, BasicBlock &outerHeader,
                         BasicBlock &outerReattach, BasicBlock &outerLatch,
-                        BasicBlock &outerExit) {
+                        BasicBlock &outerExit, BasicBlock &innerGuard,
+                        BasicBlock &innerEnd) {
     BasicBlock *ph = loop.getLoopPreheader();
     BasicBlock *exit = loop.getExitBlock();
 
@@ -503,12 +606,35 @@ Loop *PrepareReductionLoop::genOuterLoopObject(Loop &loop, BasicBlock &outerPh,
 
     assert(succ_size(&outerHeader) == 1 &&
            "Outer loop header must have a single successor");
-    assert(*succ_begin(&outerHeader) == ph &&
-           "Successor of outer loop header must be the inner loop preheader");
+    assert(*succ_begin(&outerHeader) == &innerGuard &&
+           "Successor of outer loop header must be the inner loop guard");
+
+    BranchInst *br = dyn_cast<BranchInst>(innerGuard.getTerminator());
+    assert(br && "Terminator of inner loop guard must be a branch instruction");
+    assert(br->getNumSuccessors() == 2 &&
+           "Inner loop guard must have exactly two successors");
+    assert(br->getSuccessor(0) == &innerEnd &&
+           "First sucessor of inner loop guard must be loop end block");
+    assert(br->getSuccessor(1) == ph &&
+           "Second successor of inner loop guard must be the loop preheader");
+
+    assert(pred_size(&innerEnd) == 2 &&
+           "Inner loop end block must have exactly two predecessors");
+
+    assert(succ_size(exit) == 1 &&
+           "Inner loop exit block must have exactly one successor");
+    assert(*succ_begin(exit) == &innerEnd &&
+           "Successor of inner loop exit block must be the loop end block");
+
+    assert(succ_size(&innerEnd) == 1 &&
+           "Inner loop end block must have exactly one successor");
+    assert(*succ_begin(&innerEnd) == &outerReattach &&
+           "Successor of inner loop end block must be the outer loop reattach "
+           "block");
 
     assert(pred_size(&outerReattach) == 1 &&
            "Outer loop reattach block must have a single predecessor");
-    assert(*pred_begin(&outerReattach) == exit &&
+    assert(*pred_begin(&outerReattach) == &innerEnd &&
            "Predecessor of outer loop reattach block must be inner loop exit");
     assert(succ_size(&outerReattach) == 1 &&
            "Outer loop reattach block must have a single successor");
@@ -527,7 +653,8 @@ Loop *PrepareReductionLoop::genOuterLoopObject(Loop &loop, BasicBlock &outerPh,
   };
 
   LLVM_DEBUG(dbgs() << "PrepareReduction:   Create loop object\n");
-  sanityCheck(loop, outerHeader, outerReattach, outerLatch, outerExit);
+  sanityCheck(loop, outerHeader, outerReattach, outerLatch, outerExit,
+              innerGuard, innerEnd);
 
   Loop *outerLoop = li.AllocateLoop();
   if (Loop *parentLoop = loop.getParentLoop())
@@ -536,16 +663,21 @@ Loop *PrepareReductionLoop::genOuterLoopObject(Loop &loop, BasicBlock &outerPh,
     li.changeTopLevelLoop(&loop, outerLoop);
   outerLoop->addChildLoop(&loop);
 
+  BasicBlock *ph = loop.getLoopPreheader();
+  BasicBlock *exit = loop.getExitBlock();
+
   // Add blocks to the outer loop. We add them in roughly the same order as the
   // figure above just to keep things somewhat organized. The blocks in the
   // inner loop must also be added to the new outer loop. These don't have to be
   // added to the parents of the outer loop (if any) since they should already
   // be present there, so we just use addBlockEntry().
   outerLoop->addBasicBlockToLoop(&outerHeader, li);
-  outerLoop->addBasicBlockToLoop(*succ_begin(&outerHeader), li);
+  outerLoop->addBasicBlockToLoop(&innerGuard, li);
+  outerLoop->addBasicBlockToLoop(ph, li);
   for (BasicBlock *bb : loop.getBlocks())
     outerLoop->addBlockEntry(bb);
-  outerLoop->addBasicBlockToLoop(*pred_begin(&outerReattach), li);
+  outerLoop->addBasicBlockToLoop(exit, li);
+  outerLoop->addBasicBlockToLoop(&innerEnd, li);
   outerLoop->addBasicBlockToLoop(&outerReattach, li);
   outerLoop->addBasicBlockToLoop(&outerLatch, li);
 
@@ -560,8 +692,6 @@ Loop *PrepareReductionLoop::genOuterLoopObject(Loop &loop, BasicBlock &outerPh,
   loop.verifyLoop();
   outerLoop->verifyLoop();
 #endif // NDEBUG
-
-  LLVM_DEBUG(dbgs() << "outerLoop: " << *outerLoop << "\n");
 
   return outerLoop;
 }
@@ -581,11 +711,13 @@ Loop *PrepareReductionLoop::genOuterLoopObject(Loop &loop, BasicBlock &outerPh,
 //     LoopPreheader
 //     OuterPreheader
 //         OuterHeader
+//         LoopGuardNew
 //         LoopPreheaderNew
 //             LoopHeader
 //             <LoopBlocks>
 //             LoopLatch
 //         LoopExitNew
+//         LoopEndNew
 //         OuterReattach
 //         OuterLatch
 //     OuterExit
@@ -607,6 +739,11 @@ Loop *PrepareReductionLoop::genOuterLoop(const TapirLoopInfo &tapirLoop) {
   BasicBlock *outerReattach = genOuterReattachBlock(loop);
   BasicBlock *outerLatch = genOuterLatchBlock(loop, *outerReattach);
   BasicBlock *outerExit = genOuterExitBlock(loop, *outerLatch, *outerHeader);
+
+  // Add additional basic blocks to guard the inner loop.
+  BasicBlock *innerGuard = genInnerLoopGuardBlock(loop, *outerHeader);
+  BasicBlock *innerEnd =
+      genInnerLoopEndBlock(loop, *outerReattach, *innerGuard);
 
   // We have now created the "core" basic blocks for the outer loop and the CFG
   // is technically correct i.e. the outer loop contains a preheader with an
@@ -634,11 +771,12 @@ Loop *PrepareReductionLoop::genOuterLoop(const TapirLoopInfo &tapirLoop) {
   // Generate a loop object for the outer loop with the given blocks. This will
   // also update the LoopInfo object, so it should be safe to use it after
   // this.
-  Loop *outerLoop = genOuterLoopObject(loop, *outerPreheader, *outerHeader,
-                                       *outerReattach, *outerLatch, *outerExit);
+  Loop *outerLoop =
+      genOuterLoopObject(loop, *outerPreheader, *outerHeader, *outerReattach,
+                         *outerLatch, *outerExit, *innerGuard, *innerEnd);
 
-  LLVM_DEBUG(dbgs() << "PrepareReductions: Done generating outer loop\n");
-  LLVM_DEBUG(dbgs() << "PrepareReductions: Outer loop: " << *outerLoop << "\n");
+  LLVM_DEBUG(dbgs() << "PrepareReduction: Done generating outer loop\n");
+  LLVM_DEBUG(dbgs() << "PrepareReduction:\n" << *outerLoop);
 
   return outerLoop;
 }
@@ -651,11 +789,13 @@ Loop *PrepareReductionLoop::genOuterLoop(const TapirLoopInfo &tapirLoop) {
 //     PartialsAlloc
 //     OuterPreheader
 //         OuterHeader
+//         LoopGuardNew
 //         LoopPreheaderNew
 //             LoopHeader
 //             <LoopBlocks>
 //             LoopLatch
 //         LoopExitNew
+//         LoopEndNew
 //         OuterReattach
 //         OuterLatch
 //     OuterExit
@@ -687,11 +827,13 @@ BasicBlock *PrepareReductionLoop::genAllocPartialsBlock(Loop &outerLoop) {
 //     PartialsAlloc
 //     OuterPreheader
 //         OuterHeader
+//         LoopGuardNew
 //         LoopPreheaderNew
 //             LoopHeader
 //             <LoopBlocks>
 //             LoopLatch
 //         LoopExitNew
+//         LoopEndNew
 //         OuterReattach
 //         OuterLatch
 //     OuterExit
@@ -718,11 +860,13 @@ BasicBlock *PrepareReductionLoop::genReducePartialsBlock(Loop &outerLoop) {
 //     PartialsAlloc
 //     OuterPreheader
 //         OuterHeader
+//         LoopGuardNew
 //         LoopPreheaderNew
 //             LoopHeader
 //             <LoopBlocks>
 //             LoopLatch
 //         LoopExitNew
+//         LoopEndNew
 //         OuterReattach
 //         OuterLatch
 //     OuterExit
@@ -742,10 +886,10 @@ BasicBlock *PrepareReductionLoop::genFreePartialsBlock(Loop &outerLoop) {
 }
 
 // Insert code to calculate the number of partial reductions to use. This
-// simply inserts a call to Kitsune's kit.reduce.partials.count intrinsic that
+// simply inserts a call to Kitsune's kit.reduce.num.partials intrinsic that
 // performs the actual. The intrinsic will be lowered in a later pass.
 //
-//      prduc.nreds = call @llvm.kit.reduce.partials.count(i64 %n)
+//      prduc.numPartials = call @llvm.kit.reduce.num.partials(i64 %n)
 //
 // Here %n is the trip count of the tapir reduction loop being transformed,
 // \p tapirLoop
@@ -773,8 +917,8 @@ Value *PrepareReductionLoop::computeNumPartialReductions(
   IRBuilder<> builder(&*bb.begin());
   Value *tc64 = builder.CreateIntCast(tc, i64, /*isSigned=*/true);
   Value *numPartials =
-      builder.CreateIntrinsic(Intrinsic::kit_reduce_partials_count, {ctt, tc64},
-                              /*FMFSource=*/{}, "prduc.nreds");
+      builder.CreateIntrinsic(Intrinsic::kit_reduce_num_partials, {ctt, tc64},
+                              /*FMFSource=*/{}, "prduc.num.partials");
 
   return numPartials;
 }
@@ -803,30 +947,20 @@ Value *PrepareReductionLoop::allocPartialsBuffer(BasicBlock &bb,
   return buf;
 }
 
-void PrepareReductionLoop::initPartialsBuffer(Loop &outerLoop, Loop &loop,
+void PrepareReductionLoop::initPartialsBuffer(BasicBlock &bb, Loop &loop,
                                               const ReductionInfo &info) {
-  auto sanityCheck = [](const Loop &outerLoop, const Loop &loop,
-                        ScalarEvolution &se) {
-    assert(outerLoop.getInductionVariable(se) &&
-           "Outer loop must have an induction variable");
-    assert(loop.getLoopPreheader() && "Inner loop must have a preheader");
-  };
-
   LLVM_DEBUG(dbgs() << "PrepareReduction: Initialize partials buffer\n");
-  sanityCheck(outerLoop, loop, se);
 
-  Value *unit = info.unit;
+  LLVMContext &ctx = bb.getContext();
+  Constant *ctt = toConstant(*getTargetAttr(loop), ctx);
   Value *partials = info.partials;
-  Type *elemTy = unit->getType();
-  Value *idx = outerLoop.getInductionVariable(se);
+  Value *numPartials = info.numPartials;
+  Value *unit = info.unit;
 
-  BasicBlock *ph = loop.getLoopPreheader();
-  IRBuilder<> builder(ph->getTerminator());
+  IRBuilder<> builder(bb.getTerminator());
 
-  // Since we have generated the code, we know that we are writing in bounds. If
-  // it is not, we have a much bigger problems.
-  Value *addr = builder.CreateInBoundsGEP(elemTy, partials, {idx});
-  (void)builder.CreateStore(unit, addr);
+  builder.CreateIntrinsic(Intrinsic::kit_mobile_init, {unit->getType()},
+                          {ctt, partials, numPartials, unit});
 }
 
 // Consider a reduction loop of the form:
@@ -919,7 +1053,7 @@ void PrepareReductionLoop::updateOuterLoopIV(Loop &outerLoop,
   };
 
   LLVM_DEBUG(
-      dbgs() << "PrepareReduction: Update outer loop induction variable");
+      dbgs() << "PrepareReduction: Update outer loop induction variable\n");
   sanityCheck(outerLoop, se);
 
   // The arguments to the comparison instruction will be the step instruction,
@@ -947,15 +1081,16 @@ void PrepareReductionLoop::updateOuterLoopIV(Loop &outerLoop,
 // For CPU's, a reduction loop of the form:
 //
 //     parallel_for (int i = 0; i < n; ++i)
-//       a += ...
+//         a += ...
 //
 // is transformed into
 //
 //     parallel_for (int j = 0; j < numPartials; ++j) {
-//       start = j * numPartials;
-//       end = min(start + numPartials, n)
-//       for (int i = start; i < end; ++i)
-//         partials[j] += ...
+//         partialSize = (n + numPartials - 1) / numPartials
+//         start = j * partialSize;
+//         end = min(start + partialSize, n)
+//         for (int i = start; i < end; ++i)
+//             partials[j] += ...
 //     }
 //
 // This function only changes the lower bound, upper bound and step of the
@@ -973,37 +1108,52 @@ void PrepareReductionLoop::updateInnerLoopIVCPU(Loop &outerLoop,
            "Inner loop must have a canonical induction variable");
     assert(innerLoop.getBounds(se).has_value() &&
            "Inner loop must have computable loop bounds");
+
+    assert(pred_size(innerLoop.getLoopPreheader()) == 1 &&
+           "Inner loop preheader must have a single predecessor");
+    assert(succ_size(innerLoop.getExitBlock()) == 1 &&
+           "Inner loop exit block must have a single successor");
+
+    assert(innerLoop.getLoopGuardBranch() && "Inner loop must have a guard");
   };
 
   LLVM_DEBUG(
-      dbgs() << "PrepareReduction: update inner loop induction variable");
+      dbgs()
+      << "PrepareReduction: Update inner loop induction variable (CPU)\n");
   sanityCheck(outerLoop, innerLoop, se);
 
   PHINode *outerIV = outerLoop.getInductionVariable(se);
+  Type *ivTy = outerIV->getType();
 
   Loop::LoopBounds innerBounds = *innerLoop.getBounds(se);
-  PHINode *innerIV = innerLoop.getCanonicalInductionVariable();
-  Value *innerFinal = &innerBounds.getFinalIVValue();
-  Instruction *innerStep = &innerBounds.getStepInst();
-  ICmpInst *innerCmp = innerLoop.getLatchCmpInst();
-  BasicBlock *innerPh = innerLoop.getLoopPreheader();
+  PHINode *iv = innerLoop.getCanonicalInductionVariable();
+  Value *tc = &innerBounds.getFinalIVValue();
+  ICmpInst *cmp = innerLoop.getLatchCmpInst();
+  BasicBlock *ph = innerLoop.getLoopPreheader();
+  BasicBlock *guard = *pred_begin(ph);
 
-  IRBuilder<> builder(&*innerPh->begin());
-  Value *start = builder.CreateMul(outerIV, numPartials, "prduc.start");
-  Value *endMax = builder.CreateAdd(start, numPartials);
-  Value *endCmp = builder.CreateICmpULT(endMax, innerFinal);
-  Value *end = builder.CreateSelect(endCmp, endMax, innerFinal, "prduc.end");
+  IRBuilder<> builder(&*guard->begin());
+  Constant *one = ConstantInt::get(ivTy, 1, /*isSigned=*/false);
+  Value *tcPlusPartials = builder.CreateAdd(tc, numPartials);
+  Value *tcPlusPartialsSub1 = builder.CreateSub(tcPlusPartials, one);
+  Value *sizePartials = builder.CreateUDiv(tcPlusPartialsSub1, numPartials,
+                                           "prduc.size.partials");
+  Value *newStart = builder.CreateMul(outerIV, sizePartials, "prduc.start");
+  Value *newMax = builder.CreateAdd(newStart, sizePartials);
+  Value *newEnd = builder.CreateIntrinsic(Intrinsic::umin, {ivTy}, {newMax, tc},
+                                          /*FMFSource=*/{}, "prduc.end");
 
-  unsigned idx = innerCmp->getOperand(0) == innerStep ? 1 : 0;
+  unsigned idx = cmp->getOperand(1) == tc ? 1 : 0;
 
-  innerIV->setIncomingValueForBlock(innerPh, start);
-  innerCmp->setOperand(idx, end);
+  iv->setIncomingValueForBlock(ph, newStart);
+  cmp->setOperand(idx, newEnd);
 
-  se.forgetValue(innerIV);
-  se.forgetValue(innerStep);
+  se.forgetValue(iv);
+  se.forgetValue(tc);
   se.forgetLoop(&innerLoop);
 
 #ifndef NDEBUG
+  dt.verify();
   se.verify();
 #endif // NDEBUG
 }
@@ -1011,13 +1161,13 @@ void PrepareReductionLoop::updateInnerLoopIVCPU(Loop &outerLoop,
 // For GPU's, a reduction loop of the form:
 //
 //     parallel_for (int i = 0; i < n; ++i)
-//       a += ...
+//         a += ...
 //
 // is transformed into
 //
 //     parallel_for (int j = 0; j < numPartials; ++j)
-//       for (int i = j; i < n; i += numPartials)
-//         partials[j] += ...
+//         for (int i = j; i < n; i += numPartials)
+//             partials[j] += ...
 //
 // This function only changes the lower bound, upper bound and step of the
 // inner loop.
@@ -1034,24 +1184,100 @@ void PrepareReductionLoop::updateInnerLoopIVGPU(Loop &outerLoop,
            "Inner loop must have a canonical induction variable");
     assert(innerLoop.getBounds(se).has_value() &&
            "Inner loop must have computable loop bounds");
+
+    CmpInst *cmp = innerLoop.getLatchCmpInst();
+    assert(cmp && "Inner loop must have a unique latch compare instruction");
+    assert(cmp->getPredicate() == ICmpInst::ICMP_EQ &&
+           "Expected inner loop comparison to be EQ");
+
+    BasicBlock *latch = innerLoop.getLoopLatch();
+    BranchInst *br = dyn_cast<BranchInst>(latch->getTerminator());
+    assert(br && "Inner loop latch terminator must be a branch instruction");
+    assert(br->getSuccessor(1) == innerLoop.getHeader() &&
+           "Second successor of inner loop latch must be loop header");
   };
 
   LLVM_DEBUG(
-      dbgs() << "PrepareReduction: update inner loop induction variable");
+      dbgs()
+      << "PrepareReduction: Update inner loop induction variable (GPU)\n");
   sanityCheck(outerLoop, innerLoop, se);
 
   PHINode *outerIV = outerLoop.getInductionVariable(se);
+
   BasicBlock *innerPh = innerLoop.getLoopPreheader();
   PHINode *innerIV = innerLoop.getCanonicalInductionVariable();
-  Instruction &innerStep = innerLoop.getBounds(se)->getStepInst();
-  unsigned idx = innerStep.getOperand(0) == innerIV ? 1 : 0;
+  Instruction *innerStep = &innerLoop.getBounds(se)->getStepInst();
+  ICmpInst *innerCmp = innerLoop.getLatchCmpInst();
+
+  unsigned idx = innerStep->getOperand(0) == innerIV ? 1 : 0;
 
   innerIV->setIncomingValueForBlock(innerPh, outerIV);
-  innerStep.setOperand(idx, numPartials);
+  innerStep->setOperand(idx, numPartials);
+
+  // The predicate of the compare instruction typically checks if the value of
+  // loop induction variable is equal to the trip count and exits if it is. This
+  // works because the primary loop induction variable is canonical. However,
+  // since the inner loop may now have a non-unit step, it may go past the trip
+  // count.
+  //
+  // The sanity check has already ensured that the false branch is the backedge
+  // and the predicate is EQ. If the LHS of the comparison operand is the inner
+  // step, then the comparison is effectively:
+  //
+  //     if (i + 1 == N) goto EXIT else goto HEADER
+  //
+  // We can then replace it with
+  //
+  //     if (i + 1 >= N) goto EXIT else goto HEADER
+  //
+  // Otherwise, the comparison and the replacements are as shown below
+  //
+  //     if (N == i + 1) goto EXIT else goto HEADER
+  //     if (N <= i + 1) goto EXIT else goto HEADER
+  //
+  if (innerCmp->getOperand(0) == innerStep)
+    innerCmp->setPredicate(ICmpInst::ICMP_UGE);
+  else
+    innerCmp->setPredicate(ICmpInst::ICMP_ULE);
 
   se.forgetValue(innerIV);
-  se.forgetValue(&innerStep);
+  se.forgetValue(innerStep);
+  se.forgetValue(innerCmp);
   se.forgetLoop(&innerLoop);
+
+#ifndef NDEBUG
+  dt.verify();
+  li.verify(dt);
+  se.verify();
+#endif // NDEBUG
+}
+
+void PrepareReductionLoop::updateInnerLoopGuardCondition(Loop &loop,
+                                                         Value *numPartials) {
+  auto sanityCheck = [](Loop &loop, ScalarEvolution &se) {
+    BranchInst *br = loop.getLoopGuardBranch();
+    assert(br && "Inner loop must have a guard block");
+
+    assert(isFalse(br->getCondition()) &&
+           "Temporary condition of inner loop guard branch must be `false`");
+
+    assert(loop.getBounds(se).has_value() &&
+           "Inner loop must have finite bounds");
+  };
+
+  LLVM_DEBUG(dbgs() << "PrepareReduction: Update inner loop guard condition\n");
+  sanityCheck(loop, se);
+
+  Loop::LoopBounds bounds = *loop.getBounds(se);
+  Value *start = &bounds.getInitialIVValue();
+  Value *end = &bounds.getFinalIVValue();
+
+  BranchInst *br = loop.getLoopGuardBranch();
+  Value *cmp = new ICmpInst(br->getIterator(), ICmpInst::ICMP_UGE, start, end);
+
+  br->setCondition(cmp);
+
+  se.forgetValue(br);
 
 #ifndef NDEBUG
   se.verify();
@@ -1069,18 +1295,26 @@ void PrepareReductionLoop::parallelizeOuterLoop(Loop &outerLoop, Loop &loop) {
     assert(innerExit && "Inner loop must have a unique exit block");
     assert(outerLatch && "Outer loop must have a unique latch");
 
+    assert(pred_size(innerPh) == 1 &&
+           "Inner loop preheader must have a single predecessor");
+    BasicBlock *innerGuard = *pred_begin(innerPh);
+
     assert(succ_size(outerHeader) == 1 &&
            "Outer loop header must have a single successor");
-    assert(*succ_begin(outerHeader) == innerPh &&
-           "Successor of outer loop header must be inner loop preheader");
+    assert(*succ_begin(outerHeader) == innerGuard &&
+           "Successor of outer loop header must be inner loop guard");
 
     assert(succ_size(innerExit) == 1 &&
            "Inner loop exit block must have a single successor");
+    BasicBlock *innerEnd = *succ_begin(innerExit);
+
+    assert(succ_size(innerEnd) == 1 &&
+           "Inner loop end block must have a single successor");
     assert(pred_size(outerLatch) == 1 &&
            "Outer loop latch must have a single predecessor");
-    assert(*succ_begin(innerExit) == *pred_begin(outerLatch) &&
-           "Successor of inner loop exit must be predecessor of outer loop "
-           "latch");
+    assert(*pred_begin(outerLatch) == *succ_begin(innerEnd) &&
+           "Predecessor of outer loop latch must be the successor of the inner "
+           "loop end block");
 
     // The outer loop should be parallelized before the inner loop, so the
     // inner loop should be still recognized as a tapir loop here.
@@ -1108,7 +1342,8 @@ void PrepareReductionLoop::parallelizeOuterLoop(Loop &outerLoop, Loop &loop) {
 
   BasicBlock *header = outerLoop.getHeader();
   BasicBlock *innerPh = loop.getLoopPreheader();
-  DetachInst *detachInst = DetachInst::Create(innerPh, latch, syncRegion);
+  BasicBlock *innerGuard = *pred_begin(innerPh);
+  DetachInst *detachInst = DetachInst::Create(innerGuard, latch, syncRegion);
   ReplaceInstWithInst(header->getTerminator(), detachInst);
 
   // Update analyses that may have been invalidated by this transformation.
@@ -1220,7 +1455,7 @@ bool PrepareReductionLoop::run(TapirLoopInfo &tapirLoop) {
     reduction.numPartials = numPartials;
     reduction.partials = allocPartialsBuffer(*bbAllocPartials, reduction);
 
-    initPartialsBuffer(*outerLoop, loop, reduction);
+    initPartialsBuffer(*bbAllocPartials, loop, reduction);
     reduceIntoPartialsBuffer(*outerLoop, loop, reduction);
     genFinalReduction(*bbReducePartials, reduction);
     freePartialsBuffer(*bbFreePartials, reduction);
@@ -1237,6 +1472,7 @@ bool PrepareReductionLoop::run(TapirLoopInfo &tapirLoop) {
     updateInnerLoopIVGPU(*outerLoop, loop, numPartials);
   else
     updateInnerLoopIVCPU(*outerLoop, loop, numPartials);
+  updateInnerLoopGuardCondition(loop, numPartials);
 
   // The outer loop is serial and the inner is parallel. But it needs to be the
   // other way around. Once serializeInnerLoop is run, the syncregion associated
@@ -1258,14 +1494,39 @@ bool PrepareReductionLoop::run(TapirLoopInfo &tapirLoop) {
 
   loop.verifyLoop();
   outerLoop->verifyLoop();
-  if (parentLoop)
+  if (parentLoop) {
     parentLoop->verifyLoop();
-
-  if (parentLoop)
     assert(outerLoop->getParentLoop() == parentLoop &&
            "Original parent of inner loop must now be parent of outer loop");
+  }
+
+  // We try to maintain the loops in simplify form. A later pass may well try to
+  // simplify it, but we want to ensure that we preserve this. In case this pass
+  // needs to be modified in the future, this may help ensure that it the
+  // modifications are "consistent".
+  assert(outerLoop->isLoopSimplifyForm() &&
+         "Outer loop must be in loop-simplify form");
+  assert(loop.isLoopSimplifyForm() &&
+         "Inner loop must be in loop-simplify form");
+
+  // The inner loop may not have had a guard. But one will have been added as
+  // part of this transformation. Make sure that it was added correctly.
+  BranchInst *br = loop.getLoopGuardBranch();
+  assert(br && "Inner loop must have a guard");
+  assert(br->getNumSuccessors() == 2 &&
+         "Inner loop guard must have two successors");
+  assert(br->getSuccessor(0) == *succ_begin(loop.getExitBlock()) &&
+         "First successor of inner loop guard must be inner loop end");
+  assert(br->getSuccessor(1) == loop.getLoopPreheader() &&
+         "Second successor of inner loop guard must be inner loop preheader");
+
+  // The outer loop will have been parallelized. Make sure that this is done
+  // correctly.
   assert(getTaskIfTapirLoop(outerLoop, &ti) &&
          "Outer loop recognized as tapir loop");
+
+  // The inner loop will have been serialized. Make sure this is reflected in
+  // the task analysis object.
   assert(!getTaskIfTapirLoop(&loop, &ti) &&
          "Inner loop not recognized as tapir loop");
 #endif // NDEBUG

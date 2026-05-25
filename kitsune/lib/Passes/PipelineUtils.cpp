@@ -152,6 +152,7 @@ ModulePassManager llvm::populateKitPreLoopSpawningPasses(
 
     // Run simplifycfg and loop-simplify after the DeLICM pass since it may
     // leave empty basic blocks around.
+    fpm.addPass(LoopSimplifyPass());
     fpm.addPass(DeLICMPass());
     fpm.addPass(SimplifyCFGPass());
     fpm.addPass(LoopSimplifyPass());

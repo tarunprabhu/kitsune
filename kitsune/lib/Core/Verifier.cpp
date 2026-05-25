@@ -76,6 +76,39 @@ KitVerifier &KitVerifier::verify(const GlobalVariable &g) {
   return *this;
 }
 
+KitVerifier &KitVerifier::verifyIntrMobileInit(const CallBase &call) {
+  auto isSupportedScalar = [](Type *ty) {
+    return ty->isIntegerTy(1) || ty->isIntegerTy(8) || ty->isIntegerTy(16) ||
+           ty->isIntegerTy(32) || ty->isIntegerTy(64) || ty->isFloatTy() ||
+           ty->isDoubleTy();
+  };
+
+  LLVMContext &ctx = call.getContext();
+  Type *i32 = Type::getInt32Ty(ctx);
+  Type *initTy = call.getArgOperand(3)->getType();
+  unsigned numArgs = call.arg_size();
+  switch (numArgs) {
+  case 4:
+    if (initTy->isPointerTy())
+      check(false, DiagID::ErrMobileInitExpectSize, getName(call), *i32);
+    else
+      check(isSupportedScalar(initTy), DiagID::ErrMobileInitUnsupportedType,
+            *initTy, call);
+    break;
+  case 5:
+    check(initTy->isPointerTy(), DiagID::ErrMobileInitExpectPointer,
+          getName(call));
+    check(isInt32(call.getArgOperand(4)), DiagID::ErrMobileInitExpectSize,
+          getName(call), *i32);
+    break;
+  default:
+    check(false, DiagID::ErrNumCallArgs, call, initTy->isPointerTy() ? 5 : 4,
+          numArgs);
+    break;
+  }
+  return *this;
+}
+
 KitVerifier &KitVerifier::verifyIntrReduce(const CallBase &call, Value *unitVal,
                                            Value *reducerVal,
                                            unsigned extraArgNum) {
@@ -156,6 +189,8 @@ KitVerifier &KitVerifier::verifyIntrReduce1(const CallBase &call) {
 
 KitVerifier &KitVerifier::verify(const CallBase &call) {
   switch (call.getIntrinsicID()) {
+  case Intrinsic::kit_mobile_init:
+    return verifyIntrMobileInit(call);
   case Intrinsic::kit_reduce_0:
     return verifyIntrReduce0(call);
   case Intrinsic::kit_reduce_1:

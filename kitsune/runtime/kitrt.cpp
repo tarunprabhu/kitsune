@@ -60,6 +60,9 @@
 #include <mutex>
 #include <stdexcept>
 #include <string>
+#include <thread>
+
+#define LABEL "kitrt"
 
 // FIXME: Combine these global variables into a single struct. This should
 // also be private. However, we expose it because it is examined often by
@@ -67,17 +70,15 @@
 // it in a function may be expensive.
 bool _kitrt_verbose_mode = false;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+extern "C" void __kitrt_enable_verbose_mode() { _kitrt_verbose_mode = true; }
 
-void __kitrt_enable_verbose_mode() { _kitrt_verbose_mode = true; }
+extern "C" void __kitrt_disable_verbose_mode() { _kitrt_verbose_mode = false; }
 
-void __kitrt_disable_verbose_mode() { _kitrt_verbose_mode = false; }
+extern "C" void __kitrt_set_verbose_mode(bool enable) {
+  _kitrt_verbose_mode = enable;
+}
 
-void __kitrt_set_verbose_mode(bool enable) { _kitrt_verbose_mode = enable; }
-
-void __kitrt_initialize() {
+extern "C" void __kitrt_initialize() {
   (void)__kitrt_get_env_value("KITRT_VERBOSE", _kitrt_verbose_mode);
   __kitrt_message("kitrt", "verbose mode enabled from environment variable");
 }
@@ -137,7 +138,7 @@ void __kitrt_message(const char *label, const char *msg, ...) {
   }
 }
 
-void __kitrt_print_stack_trace(void) {
+extern "C" void __kitrt_print_stack_trace(void) {
   const unsigned depth = 25;
   void *trace[depth];
   int size = backtrace(trace, depth);
@@ -150,14 +151,14 @@ void __kitrt_print_stack_trace(void) {
   }
 }
 
-void __kitrt_set_env(const char *varname, const char *value) {
+extern "C" void __kitrt_set_env(const char *varname, const char *value) {
   assert(varname && "Missing variable name");
   assert(value && "Missing value destination");
   if (setenv(varname, value, 0))
     __kitrt_warn("kitrt", "could not set environment variable '%s'", varname);
 }
 
-void __kitrt_unset_env(const char *varname) {
+extern "C" void __kitrt_unset_env(const char *varname) {
   assert(varname && "Missing variable name");
   if (unsetenv(varname))
     __kitrt_warn("kitrt", "could not unset environment variable '%s'", varname);
@@ -169,10 +170,6 @@ unsigned nearestPowerOf2LE(unsigned n) {
     p <<= 1;
   return p >> 1;
 }
-
-#ifdef __cplusplus
-} // extern "C"
-#endif
 
 template <typename F, typename V, typename... Args>
 static bool parseInto(V &out, const std::string &vstr, const char *vname,
@@ -296,3 +293,54 @@ template bool __kitrt_get_env_value(const char *var, long long &);
 template bool __kitrt_get_env_value(const char *var, unsigned long long &);
 template bool __kitrt_get_env_value(const char *var, float &);
 template bool __kitrt_get_env_value(const char *var, double &);
+
+extern "C" unsigned __kitrt_num_threads_from_env(const char *envVar) {
+  const char *envNumThreads = getenv(envVar);
+  if (!envNumThreads) {
+    __kitrt_message(LABEL, "Environment variable %s not set", envVar);
+    return -1;
+  }
+
+  __kitrt_message(LABEL, "Environment variable %s=%s", envVar, envNumThreads);
+
+  char *end = nullptr;
+  long numThreads = strtol(envNumThreads, &end, 10);
+
+  // If *end is not '\0', either there are additional non-numeric characters in
+  // the environment variable, or the environment variable cannot be parsed to a
+  // signed integer. In this case, ignore the environment variable. If the value
+  // value of the environment variable is a valid integer, it may yet be out of
+  // range, in which case errno will be set to ERANGE.
+  bool error = *end != '\0' || errno == ERANGE || numThreads < 0 ||
+               numThreads > std::numeric_limits<int>::max();
+  if (error) {
+    __kitrt_warn(LABEL, "Invalid number of threads in %s", envVar);
+    return -1;
+  }
+
+  __kitrt_message(LABEL, "Number of threads = %d", numThreads);
+  return numThreads;
+}
+
+extern "C" unsigned __kitrt_num_cpus() {
+  __kitrt_message(LABEL, "Determining number of CPUs");
+
+  unsigned cpus = std::thread::hardware_concurrency();
+  if (cpus <= 0) {
+    __kitrt_warn(LABEL, "Could not determine number of CPUs");
+    return 1;
+  } else if (cpus > std::numeric_limits<uint32_t>::max()) {
+    __kitrt_warn(LABEL, "Too many CPUs found: %ld", cpus);
+    return 1;
+  }
+
+  __kitrt_message(LABEL, "Found %d CPUs", cpus);
+  return cpus;
+}
+
+extern "C" unsigned __kitrt_num_threads_or_cpus(const char *envVar) {
+  long numThreads = __kitrt_num_threads_from_env(envVar);
+  if (numThreads != -1)
+    return numThreads;
+  return __kitrt_num_cpus();
+}

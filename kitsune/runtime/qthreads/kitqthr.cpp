@@ -88,6 +88,22 @@ extern "C" void __kitqthr_launch(KitQthrThrdFn f, int64_t start, int64_t end,
   __kitrt_message(LABEL, "Finished multithreaded loop");
 }
 
+/// The number of partial reductions to perform in parallel.
+///
+/// \param n The trip count of the parallel loop in containing a reduction
+extern "C" int64_t __kitqthr_reduce_num_partials(int64_t n) {
+  __kitrt_message(LABEL, "Calculating number of partial reductions");
+
+  // There might be something smarter that can be done once we support a proper
+  // reduction tree, but since we only support a reduction tree of depth 1, this
+  // will do.
+  int64_t numPartials = qthread_num_workers();
+
+  __kitrt_message(LABEL, "Number of partial reductions: %ld", numPartials);
+
+  return numPartials;
+}
+
 /// Initialize kitsune's qthreads runtime as well as the actual qthreads
 /// runtime.
 extern "C" void __kitqthr_initialize(void) {

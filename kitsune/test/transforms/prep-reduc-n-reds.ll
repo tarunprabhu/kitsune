@@ -24,27 +24,38 @@
 ; CHECK: %[[R3:.+]] = alloca i32
 ; CHECK: %[[R4:.+]] = alloca i32
 ;
-; CHECK: %[[NREDS:.+]] = call {{.+}} @llvm.kit.reduce.partials.count(i32 1024, i64 %[[N]])
+; CHECK: %[[NREDS:.+]] = call {{.+}} @llvm.kit.reduce.num.partials(i32 1024, i64 %[[N]])
 ; CHECK-NEXT: %[[BYTES1:.+]] = mul {{.+}} 8, %[[NREDS]]
 ; CHECK-NEXT: %[[BUF1:.+]] = call {{.+}} @llvm.kit.mobile.alloc(i64 %[[BYTES1]])
+; CHECK-NEXT: call void {{.+}} @llvm.kit.mobile.init
+; CHECK-SAME: i32 1024
+; CHECK-SAME: ptr {{[^%]+}} %[[BUF1]]
+; CHECK-SAME: i64 %[[NREDS]]
+; CHECK-SAME: i64 [[UNIT1:[^)]+]]
 ; CHECK-NEXT: %[[BYTES2:.+]] = mul {{.+}} 8, %[[NREDS]]
 ; CHECK-NEXT: %[[BUF2:.+]] = call {{.+}} @llvm.kit.mobile.alloc(i64 %[[BYTES2]])
+; CHECK-NEXT: call void {{.+}} @llvm.kit.mobile.init
+; CHECK-SAME: i32 1024
+; CHECK-SAME: ptr {{[^%]+}} %[[BUF2]]
+; CHECK-SAME: i64 %[[NREDS]]
+; CHECK-SAME: i64 [[UNIT2:[^)]+]]
 ; CHECK-NEXT: %[[BYTES3:.+]] = mul {{.+}} 4, %[[NREDS]]
 ; CHECK-NEXT: %[[BUF3:.+]] = call {{.+}} @llvm.kit.mobile.alloc(i64 %[[BYTES3]])
+; CHECK-NEXT: call void {{.+}} @llvm.kit.mobile.init
+; CHECK-SAME: i32 1024
+; CHECK-SAME: ptr {{[^%]+}} %[[BUF3]]
+; CHECK-SAME: i64 %[[NREDS]]
+; CHECK-SAME: i32 [[UNIT3:[^)]+]]
 ; CHECK-NEXT: %[[BYTES4:.+]] = mul {{.+}} 4, %[[NREDS]]
 ; CHECK-NEXT: %[[BUF4:.+]] = call {{.+}} @llvm.kit.mobile.alloc(i64 %[[BYTES4]])
+; CHECK-NEXT: call void {{.+}} @llvm.kit.mobile.init
+; CHECK-SAME: i32 1024
+; CHECK-SAME: ptr {{[^%]+}} %[[BUF4]]
+; CHECK-SAME: i64 %[[NREDS]]
+; CHECK-SAME: i32 [[UNIT4:[^)]+]]
 ;
 ; CHECK: %[[IV_O:.+]] = phi i64
 ; CHECK-NEXT: detach within
-;
-; CHECK: %[[IADDR1:.+]] = getelementptr {{.+}} %[[BUF1]], i64 %[[IV_O]]
-; CHECK-NEXT: store i64 0, ptr{{.+}} %[[IADDR1]]
-; CHECK-NEXT: %[[IADDR2:.+]] = getelementptr {{.+}} %[[BUF2]], i64 %[[IV_O]]
-; CHECK-NEXT: store i64 1, ptr{{.+}} %[[IADDR2]]
-; CHECK-NEXT: %[[IADDR3:.+]] = getelementptr {{.+}} %[[BUF3]], i64 %[[IV_O]]
-; CHECK-NEXT: store i32 1, ptr{{.+}} %[[IADDR3]]
-; CHECK-NEXT: %[[IADDR4:.+]] = getelementptr {{.+}} %[[BUF4]], i64 %[[IV_O]]
-; CHECK-NEXT: store i32 0, ptr{{.+}} %[[IADDR4]]
 ;
 ; CHECK: %[[IV_I:.+]] = phi i64
 ; CHECK: %[[J32:.+]] = trunc i64 %[[IV_I]] to i32
