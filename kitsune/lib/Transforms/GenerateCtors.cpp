@@ -72,12 +72,48 @@ static bool isCalledWithTTID(Module &m, Intrinsic::ID id, TTID tt) {
   return false;
 }
 
+/// Check if any functions from Cilk's runtime are used.
+static bool usesCilkRT(Module &m) {
+  // __cilkrts_status is probably safe to check for since it is likely to be
+  // used in most cases. Checking for a cilk stack frame is better, but the
+  // stack frame handling functions get inlined making it difficult to be
+  // certain that it is used. We could check that a stack frame is alloca'ed,
+  // but that would involve checking the type name. This is not reliable,
+  // especially on large codes at high optimization levels because the struct
+  // type may be mangled, or replaced with an anonymous type.
+  if (m.getGlobalVariable("__cilkrts_status"))
+    return true;
+
+  // There is a chance that the function will not have been inlined, so we may
+  // as well check for that in case __cilkrts_status is not present.
+  if (m.getFunction("__cilkrts_enter_frame"))
+    return true;
+
+  // The two cases above should handle the common case. But in case they fail,
+  // attempt to find the creation of a cilk stack frame. The stack frame will
+  // have been created in the entry block of the function, so just look there.
+  //
+  // Ideally, we should only look in the outlined function, but there is no way
+  // to reliably identify such functions.
+  for (Function &f : m.functions())
+    if (f.size())
+      for (Instruction &inst : f.getEntryBlock())
+        if (auto *alloca = dyn_cast<AllocaInst>(&inst))
+          if (auto *sty = dyn_cast<StructType>(alloca->getAllocatedType()))
+            if (sty->hasName())
+              return sty->getName().starts_with("__cilkrts_stack_frame");
+
+  return false;
+}
+
 /// Should a ctor be generated for a tapir target.
 static bool shouldGenerateCtor(Module &m, TTID tt) {
   switch (tt) {
   case TTID::Cuda:
   case TTID::Hip:
     return isCalledWithTTID(m, Intrinsic::kit_async_launch_kernel, tt);
+  case TTID::OpenCilk:
+    return usesCilkRT(m);
   case TTID::OpenMP:
     return isCalledWithTTID(m, Intrinsic::kit_launch_threads, tt);
   case TTID::Pthreads:
@@ -92,6 +128,7 @@ static bool shouldGenerateCtor(Module &m, TTID tt) {
 static const std::map<TTID, detail::GenerateCtorImplFn> genCtorFns = {
     {TTID::Cuda, detail::genCtorCuda},
     {TTID::Hip, detail::genCtorHip},
+    {TTID::OpenCilk, detail::genCtorOpenCilk},
     {TTID::OpenMP, detail::genCtorOpenMP},
     {TTID::Pthreads, detail::genCtorPthreads},
     {TTID::Qthreads, detail::genCtorQthreads},

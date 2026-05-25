@@ -1,4 +1,4 @@
-//==- GenerateCtorOpenMP.cpp - Generate ctor for Kitsune's OpenMP runtime --==//
+//- GenerateCtorOpenCilk.cpp - Generate ctor for Kitsune's OpenCilk runtime --//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Generate a global constructor and destructor for Kitsune's OpenMP runtime.
+// Generate a global constructor and destructor for Kitsune's OpenCilk runtime.
 //
 //===----------------------------------------------------------------------===//
 
@@ -14,7 +14,6 @@
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/Tapir.h"
-#include "llvm/IR/Constants.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
@@ -26,9 +25,9 @@ using namespace llvm;
 
 namespace {
 
-/// Helper class to generate a ctor for kitomp (Kitsune's runtime for the openmp
-/// tapir target).
-class GenerateCtorOpenMP {
+/// Helper class to generate a ctor for kitocilk (Kitsune's runtime for the
+/// opencilk tapir target).
+class GenerateCtorOpenCilk {
 private:
   detail::GetTLI getTLI;
   const TTOptions &tto;
@@ -40,16 +39,16 @@ private:
 
     Type *voidTy = Type::getVoidTy(ctx);
     PointerType *ptrTy = PointerType::getUnqual(ctx);
-    Type *boolTy = Type::getInt8Ty(ctx);
 
-    bool verbose = tto.getKitrtVerbose();
-
-    Constant *ctt = toConstant(TTID::OpenMP, ctx);
-    Constant *cVerbose = ConstantInt::get(boolTy, verbose, /*IsSigned=*/false);
+    // Booleans are always 8-bit integers. toConstant would, otherwise return
+    // an i1, but the intrinsic expects i8. Casting the boolean to i8 ensures
+    // that we get a value of the correct type.
+    Constant *verbose = toConstant(uint8_t(tto.getKitrtVerbose()), ctx);
+    Constant *tt = toConstant(TTID::OpenCilk, ctx);
 
     FunctionType *ctorTy = FunctionType::get(voidTy, ptrTy, /*IsVarArg=*/false);
     Function *ctor = Function::Create(ctorTy, GlobalValue::InternalLinkage,
-                                      ".kitomp.ctor", &m);
+                                      ".kitocilk.ctor", &m);
 
     BasicBlock *bbEntry = BasicBlock::Create(ctx, "entry", ctor);
     BasicBlock *bbExit = BasicBlock::Create(ctx, "exit", ctor);
@@ -57,8 +56,8 @@ private:
     builder.SetInsertPoint(bbEntry);
 
     // We can't enable verbose mode until after we call initialize.
-    builder.CreateIntrinsic(Intrinsic::kit_initialize, ctt);
-    builder.CreateIntrinsic(Intrinsic::kit_enable_verbose, cVerbose);
+    builder.CreateIntrinsic(Intrinsic::kit_initialize, tt);
+    builder.CreateIntrinsic(Intrinsic::kit_enable_verbose, verbose);
 
     // Now add the dtor to help us clean up at program exit.
     TargetLibraryInfo &tli = getTLI(*ctor);
@@ -80,11 +79,11 @@ private:
     Type *voidTy = Type::getVoidTy(ctx);
     PointerType *ptrTy = PointerType::getUnqual(ctx);
 
-    Constant *ctt = toConstant(TTID::OpenMP, ctx);
+    Constant *ctt = toConstant(TTID::OpenCilk, ctx);
 
     FunctionType *dtorTy = FunctionType::get(voidTy, ptrTy, /*IsVarArg=*/false);
     Function *dtor = Function::Create(dtorTy, GlobalValue::InternalLinkage,
-                                      ".kitomp.dtor", &m);
+                                      ".kitocilk.dtor", &m);
 
     BasicBlock *bbEntry = BasicBlock::Create(ctx, "entry", dtor);
     BasicBlock *bbExit = BasicBlock::Create(ctx, "exit", dtor);
@@ -100,7 +99,7 @@ private:
   }
 
 public:
-  GenerateCtorOpenMP(detail::GetTLI getTLI, const TTOptions &tto)
+  GenerateCtorOpenCilk(detail::GetTLI getTLI, const TTOptions &tto)
       : getTLI(getTLI), tto(tto) {}
 
   void run(Module &m) {
@@ -115,8 +114,8 @@ public:
 
 } // namespace
 
-void llvm::detail::genCtorOpenMP(Module &m, detail::GetTLI getTLI,
-                                 const TTOptions &tto,
-                                 const detail::GenerateCtorOptions &) {
-  GenerateCtorOpenMP(getTLI, tto).run(m);
+void llvm::detail::genCtorOpenCilk(Module &m, detail::GetTLI getTLI,
+                                   const TTOptions &tto,
+                                   const detail::GenerateCtorOptions &) {
+  GenerateCtorOpenCilk(getTLI, tto).run(m);
 }
