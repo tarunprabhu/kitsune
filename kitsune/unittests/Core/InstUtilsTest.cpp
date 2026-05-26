@@ -118,4 +118,76 @@ TEST(KitInstUtils, getInstClassName) {
   EXPECT_EQ(getInstClassName(*phi), "PHINode");
 }
 
+TEST(KitInstUtils, replaceNonMatchingOperands) {
+  LLVMContext ctx;
+  Type *i32 = Type::getInt32Ty(ctx);
+  Type *f32 = Type::getFloatTy(ctx);
+
+  Constant *c0 = ConstantInt::get(i32, 0);
+  Constant *c1 = ConstantInt::get(i32, 1);
+  Constant *c2 = ConstantInt::get(i32, 2);
+  Constant *cf = ConstantFP::get(f32, 0);
+
+  ICmpInst *cmp = new ICmpInst(ICmpInst::ICMP_NE, c0, c0);
+  BinaryOperator *binOp = BinaryOperator::Create(Instruction::Add, c0, c1);
+  UnaryOperator *unOp = UnaryOperator::Create(Instruction::FNeg, cf);
+  ReturnInst *ret = ReturnInst::Create(ctx);
+
+  EXPECT_FALSE(replaceNonMatchingOperands(*cmp, c0, c1));
+  EXPECT_EQ(cmp->getOperand(0), c0);
+  EXPECT_EQ(cmp->getOperand(1), c0);
+  EXPECT_FALSE(replaceNonMatchingOperands(*unOp, cf, c0));
+  EXPECT_EQ(unOp->getOperand(0), cf);
+  EXPECT_FALSE(replaceNonMatchingOperands(*ret, c0, c2));
+
+  EXPECT_TRUE(replaceNonMatchingOperands(*binOp, c0, c2));
+  EXPECT_EQ(binOp->getOperand(0), c0);
+  EXPECT_EQ(binOp->getOperand(1), c2);
+  EXPECT_TRUE(replaceNonMatchingOperands(*binOp, c2, c1));
+  EXPECT_EQ(binOp->getOperand(0), c1);
+  EXPECT_EQ(binOp->getOperand(1), c2);
+}
+
+TEST(KitInstUtils, replaceMatchingOperands) {
+  LLVMContext ctx;
+  Type *i32 = Type::getInt32Ty(ctx);
+  Type *f32 = Type::getFloatTy(ctx);
+
+  Constant *c0 = ConstantInt::get(i32, 0);
+  Constant *c1 = ConstantInt::get(i32, 1);
+  Constant *c2 = ConstantInt::get(i32, 2);
+  Constant *c3 = ConstantInt::get(i32, 3);
+  Constant *cf = ConstantFP::get(f32, 0);
+
+  ICmpInst *cmp = new ICmpInst(ICmpInst::ICMP_NE, c0, c0);
+  SelectInst *select = SelectInst::Create(cmp, c0, c1);
+  UnaryOperator *unOp = UnaryOperator::Create(Instruction::FNeg, cf);
+  ReturnInst *ret = ReturnInst::Create(ctx, c3);
+  ReturnInst *retVoid = ReturnInst::Create(ctx);
+
+  EXPECT_FALSE(replaceMatchingOperands(*cmp, c1, c2));
+  EXPECT_FALSE(replaceMatchingOperands(*select, c2, c3));
+  EXPECT_FALSE(replaceMatchingOperands(*unOp, c3, c0));
+  EXPECT_EQ(unOp->getOperand(0), cf);
+  EXPECT_FALSE(replaceMatchingOperands(*ret, c0, c1));
+  EXPECT_EQ(ret->getOperand(0), c3);
+  EXPECT_FALSE(replaceMatchingOperands(*retVoid, cmp, c0));
+
+  // If the operand was replaced with itself, this will return false.
+  EXPECT_FALSE(replaceMatchingOperands(*cmp, c0, c0));
+  EXPECT_EQ(cmp->getOperand(0), c0);
+  EXPECT_EQ(cmp->getOperand(1), c0);
+  EXPECT_TRUE(replaceMatchingOperands(*cmp, c0, c1));
+  EXPECT_EQ(cmp->getOperand(0), c1);
+  EXPECT_EQ(cmp->getOperand(1), c1);
+  EXPECT_TRUE(replaceMatchingOperands(*ret, c3, c0));
+  EXPECT_EQ(ret->getOperand(0), c0);
+  EXPECT_TRUE(replaceMatchingOperands(*select, c0, c3));
+  EXPECT_EQ(select->getOperand(1), c3);
+  EXPECT_EQ(select->getOperand(2), c1);
+  EXPECT_TRUE(replaceMatchingOperands(*select, c1, c0));
+  EXPECT_EQ(select->getOperand(1), c3);
+  EXPECT_EQ(select->getOperand(2), c0);
+}
+
 } // namespace

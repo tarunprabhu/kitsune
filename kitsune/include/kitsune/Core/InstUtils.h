@@ -20,6 +20,7 @@ namespace llvm {
 class Instruction;
 class LLVMContext;
 class Module;
+class Value;
 
 /// \addtogroup kitsune
 /// @{
@@ -45,6 +46,28 @@ StringRef getInstClassName(const Instruction &inst);
 
 /// Is the instruction a call to the llvm.syncregion.start() intrinsic.
 bool isCallSyncRegionStart(const Instruction &inst);
+
+/// Replace all operands in the instruction \p inst that are not equal to
+/// \p match with \p v. When matching the operands, this will only check for the
+/// exact same pointer value - no equivalence checks will be performed. Return
+/// true if at least one operand was replaced, false otherwise. The type of \p v
+/// must be the same as the type of any operand being replaced. A type mismatch
+/// will result in a catastrophic error.
+///
+/// This is most useful in instructions with two operands where one of the
+/// operands is to be replaced.
+bool replaceNonMatchingOperands(Instruction &inst, Value *match, Value *v);
+
+/// Replace all operands in the instruction \p inst that are equal to \p match
+/// with \p newOp. When matching the operands, this will only check for the
+/// exact same pointer value - no equivalence checks will be performed. Return
+/// true if at least one operand was replaced, false otherwise. The type of \p v
+/// must be the same as the type of any operand being replaced. A type mismatch
+/// will result in a catastrophic error.
+///
+/// This is most useful in instructions with two operands where one of the
+/// operands is to be replaced.
+bool replaceMatchingOperands(Instruction &inst, Value *match, Value *v);
 
 /// @}
 

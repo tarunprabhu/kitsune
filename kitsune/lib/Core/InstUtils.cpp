@@ -86,3 +86,44 @@ bool llvm::isCallSyncRegionStart(const Instruction &inst) {
         return true;
   return false;
 }
+
+static bool replaceOperand(Instruction &inst, unsigned i, Value *v) {
+  assert(inst.getOperand(i)->getType() == v->getType() &&
+         "Type mismatch between exiting and new operands");
+
+  bool isSame = inst.getOperand(i) == v;
+  inst.setOperand(i, v);
+
+  return !isSame;
+}
+
+static bool canReplaceOperands(Instruction &inst) {
+  return isa<BinaryOperator>(inst) || isa<CmpInst>(inst) ||
+         isa<ReturnInst>(inst) || isa<SelectInst>(inst) ||
+         isa<UnaryOperator>(inst);
+}
+
+bool llvm::replaceNonMatchingOperands(Instruction &inst, Value *match,
+                                      Value *v) {
+  // For now, we limit this to instructions where we know that this is safe.
+  assert(canReplaceOperands(inst) &&
+         "replaceOtherOperands not tested with instrution type");
+
+  bool changed = false;
+  for (unsigned i = 0; i < inst.getNumOperands(); ++i)
+    if (inst.getOperand(i) != match)
+      changed |= replaceOperand(inst, i, v);
+  return changed;
+}
+
+bool llvm::replaceMatchingOperands(Instruction &inst, Value *match, Value *v) {
+  // For now, we limit this to instructions where we know that this is safe.
+  assert(canReplaceOperands(inst) &&
+         "replaceOtherOperands not tested with instrution type");
+
+  bool changed = false;
+  for (unsigned i = 0; i < inst.getNumOperands(); ++i)
+    if (inst.getOperand(i) == match)
+      changed |= replaceOperand(inst, i, v);
+  return changed;
+}

@@ -94,6 +94,7 @@
 #include "kitsune/Transforms/PrepareReductionLoops.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/Diagnostics.h"
+#include "kitsune/Core/InstUtils.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
 #include "kitsune/Core/TapirLoopUtils.h"
@@ -1062,9 +1063,8 @@ void PrepareReductionLoop::updateOuterLoopIV(Loop &outerLoop,
   PHINode *iv = outerLoop.getCanonicalInductionVariable();
   ICmpInst *cmp = outerLoop.getLatchCmpInst();
   Instruction *inc = &outerLoop.getBounds(se)->getStepInst();
-  unsigned idx = cmp->getOperand(0) == inc ? 1 : 0;
 
-  cmp->setOperand(idx, numPartials);
+  replaceNonMatchingOperands(*cmp, inc, numPartials);
 
   // Update analyses that may have been invalidated. We can't recalculate SE,
   // but we can force it recompute the analyses for certain variables and loops
@@ -1143,10 +1143,8 @@ void PrepareReductionLoop::updateInnerLoopIVCPU(Loop &outerLoop,
   Value *newEnd = builder.CreateIntrinsic(Intrinsic::umin, {ivTy}, {newMax, tc},
                                           /*FMFSource=*/{}, "prduc.end");
 
-  unsigned idx = cmp->getOperand(1) == tc ? 1 : 0;
-
   iv->setIncomingValueForBlock(ph, newStart);
-  cmp->setOperand(idx, newEnd);
+  replaceMatchingOperands(*cmp, tc, newEnd);
 
   se.forgetValue(iv);
   se.forgetValue(tc);
@@ -1209,10 +1207,8 @@ void PrepareReductionLoop::updateInnerLoopIVGPU(Loop &outerLoop,
   Instruction *innerStep = &innerLoop.getBounds(se)->getStepInst();
   ICmpInst *innerCmp = innerLoop.getLatchCmpInst();
 
-  unsigned idx = innerStep->getOperand(0) == innerIV ? 1 : 0;
-
   innerIV->setIncomingValueForBlock(innerPh, outerIV);
-  innerStep->setOperand(idx, numPartials);
+  replaceNonMatchingOperands(*innerStep, innerIV, numPartials);
 
   // The predicate of the compare instruction typically checks if the value of
   // loop induction variable is equal to the trip count and exits if it is. This

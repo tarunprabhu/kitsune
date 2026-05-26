@@ -346,10 +346,7 @@ void GPUTTLoopBase::updateTripCount(Loop *loop, PHINode *iv, Value *newTC,
   Value *incr = iv->getIncomingValueForBlock(backEdge);
   ICmpInst *latchCmp = cast<ICmpInst>(vmap.lookup(loop->getLatchCmpInst()));
 
-  // In C++, the bool is implicitly converted to 1 or 0.
-  unsigned op = latchCmp->getOperand(0) == incr;
-
-  latchCmp->setOperand(op, newTC);
+  replaceNonMatchingOperands(*latchCmp, incr, newTC);
 }
 
 GlobalVariable *GPUTTLoopBase::getDevGlobal(GlobalVariable *g,
