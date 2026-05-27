@@ -40,12 +40,12 @@ private:
 
     Type *voidTy = Type::getVoidTy(ctx);
     PointerType *ptrTy = PointerType::getUnqual(ctx);
-    Type *boolTy = Type::getInt8Ty(ctx);
 
-    bool verbose = tto.getKitrtVerbose();
-
-    Constant *ctt = toConstant(TTID::OpenMP, ctx);
-    Constant *cVerbose = ConstantInt::get(boolTy, verbose, /*IsSigned=*/false);
+    // Booleans are always 8-bit integers. toConstant would, otherwise return
+    // an i1, but the intrinsic expects i8. Casting the boolean to i8 ensures
+    // that we get a value of the correct type.
+    Constant *verbose = toConstant(uint8_t(tto.getKitrtVerbose()), ctx);
+    Constant *tt = toConstant(TTID::OpenMP, ctx);
 
     FunctionType *ctorTy = FunctionType::get(voidTy, ptrTy, /*IsVarArg=*/false);
     Function *ctor = Function::Create(ctorTy, GlobalValue::InternalLinkage,
@@ -57,14 +57,13 @@ private:
     builder.SetInsertPoint(bbEntry);
 
     // We can't enable verbose mode until after we call initialize.
-    builder.CreateIntrinsic(Intrinsic::kit_initialize, ctt);
-    builder.CreateIntrinsic(Intrinsic::kit_enable_verbose, cVerbose);
+    builder.CreateIntrinsic(Intrinsic::kit_runtime_initialize, tt);
+    builder.CreateIntrinsic(Intrinsic::kit_runtime_set_verbose, verbose);
 
     // Now add the dtor to help us clean up at program exit.
     TargetLibraryInfo &tli = getTLI(*ctor);
     FunctionCallee atExit = getOrInsertLibFunc(&m, tli, LibFunc_atexit);
     builder.CreateCall(atExit, dtor);
-
     builder.CreateBr(bbExit);
 
     builder.SetInsertPoint(bbExit);
@@ -80,7 +79,7 @@ private:
     Type *voidTy = Type::getVoidTy(ctx);
     PointerType *ptrTy = PointerType::getUnqual(ctx);
 
-    Constant *ctt = toConstant(TTID::OpenMP, ctx);
+    Constant *tt = toConstant(TTID::OpenMP, ctx);
 
     FunctionType *dtorTy = FunctionType::get(voidTy, ptrTy, /*IsVarArg=*/false);
     Function *dtor = Function::Create(dtorTy, GlobalValue::InternalLinkage,
@@ -90,7 +89,7 @@ private:
     BasicBlock *bbExit = BasicBlock::Create(ctx, "exit", dtor);
 
     builder.SetInsertPoint(bbEntry);
-    builder.CreateIntrinsic(Intrinsic::kit_finalize, {ctt});
+    builder.CreateIntrinsic(Intrinsic::kit_runtime_finalize, {tt});
     builder.CreateBr(bbExit);
 
     builder.SetInsertPoint(bbExit);

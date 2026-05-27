@@ -30,7 +30,7 @@ bool llvm::isKitIntrinsicBlocking(Intrinsic::ID id) {
 }
 
 Value *llvm::getStreamFromLaunch(const CallBase &call) {
-  assert(call.getIntrinsicID() == Intrinsic::kit_async_launch_kernel &&
+  assert(call.getIntrinsicID() == Intrinsic::kit_async_gpu_kernel_launch &&
          "Instruction must call async_launch_kernel intrinsic");
 
   // The last parameter of the function type of the callee is the "var arg
@@ -43,7 +43,7 @@ Value *llvm::getStreamFromLaunch(const CallBase &call) {
 }
 
 std::vector<Value *> llvm::getKernelArgumentsFromLaunch(const CallBase &call) {
-  assert(call.getIntrinsicID() == Intrinsic::kit_async_launch_kernel &&
+  assert(call.getIntrinsicID() == Intrinsic::kit_async_gpu_kernel_launch &&
          "Instruction must call async_launch_kernel intrinsic");
 
   // The last parameter of the function type of the callee is the "var arg

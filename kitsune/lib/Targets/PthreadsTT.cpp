@@ -54,10 +54,10 @@ public:
     for (Value *arg : replCall->args())
       launchArgs.push_back(arg);
     Value *thrdCtx = builder.CreateIntrinsic(
-        Intrinsic::kit_async_launch_threads, launchArgs);
+        Intrinsic::kit_async_cpu_threads_launch, launchArgs);
 
     Value *syncArgs[] = {ctt, thrdCtx};
-    (void)builder.CreateIntrinsic(Intrinsic::kit_sync_threads, syncArgs);
+    (void)builder.CreateIntrinsic(Intrinsic::kit_cpu_threads_sync, syncArgs);
 
     assert(replCall->getType() == Type::getVoidTy(ctx) &&
            "The outlined function must not return a value");

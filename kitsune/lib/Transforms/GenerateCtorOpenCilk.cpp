@@ -56,8 +56,8 @@ private:
     builder.SetInsertPoint(bbEntry);
 
     // We can't enable verbose mode until after we call initialize.
-    builder.CreateIntrinsic(Intrinsic::kit_initialize, tt);
-    builder.CreateIntrinsic(Intrinsic::kit_enable_verbose, verbose);
+    builder.CreateIntrinsic(Intrinsic::kit_runtime_initialize, tt);
+    builder.CreateIntrinsic(Intrinsic::kit_runtime_set_verbose, verbose);
 
     // Now add the dtor to help us clean up at program exit.
     TargetLibraryInfo &tli = getTLI(*ctor);
@@ -89,7 +89,7 @@ private:
     BasicBlock *bbExit = BasicBlock::Create(ctx, "exit", dtor);
 
     builder.SetInsertPoint(bbEntry);
-    builder.CreateIntrinsic(Intrinsic::kit_finalize, {ctt});
+    builder.CreateIntrinsic(Intrinsic::kit_runtime_finalize, {ctt});
     builder.CreateBr(bbExit);
 
     builder.SetInsertPoint(bbExit);

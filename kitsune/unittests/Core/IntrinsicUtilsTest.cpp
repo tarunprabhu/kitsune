@@ -22,16 +22,16 @@ namespace {
 
 TEST(KitIntrinsicUtils, isKitIntrinsic) {
   // This is not a comprehensive list, it just attempts to ensure some sanity.
-  EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_async_launch_kernel));
-  EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_async_launch_threads));
-  EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_async_prefetch_dtoh));
-  EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_async_prefetch_htod));
-  EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_enable_verbose));
-  EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_launch_threads));
-  EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_memcpy_dtoh));
-  EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_memcpy_htod));
-  EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_sync_stream));
-  EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_sync_threads));
+  EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_async_cpu_threads_launch));
+  EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_async_gpu_kernel_launch));
+  EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_async_gpu_prefetch_dtoh));
+  EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_async_gpu_prefetch_htod));
+  EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_cpu_threads_launch));
+  EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_cpu_threads_sync));
+  EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_gpu_memcpy_dtoh));
+  EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_gpu_memcpy_htod));
+  EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_gpu_stream_sync));
+  EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_runtime_set_verbose));
 
   EXPECT_FALSE(isKitIntrinsic(Intrinsic::prefetch));
   EXPECT_FALSE(isKitIntrinsic(Intrinsic::memcpy));
@@ -40,48 +40,48 @@ TEST(KitIntrinsicUtils, isKitIntrinsic) {
 
 TEST(KitIntrinsicUtils, isKitIntrinsicAsync) {
   // This ought to be a comprehensive list.
-  EXPECT_TRUE(isKitIntrinsicAsync(Intrinsic::kit_async_launch_kernel));
-  EXPECT_TRUE(isKitIntrinsicAsync(Intrinsic::kit_async_launch_threads));
-  EXPECT_TRUE(isKitIntrinsicAsync(Intrinsic::kit_async_memcpy_dtoh));
-  EXPECT_TRUE(isKitIntrinsicAsync(Intrinsic::kit_async_memcpy_htod));
-  EXPECT_TRUE(isKitIntrinsicAsync(Intrinsic::kit_async_prefetch_dtoh));
-  EXPECT_TRUE(isKitIntrinsicAsync(Intrinsic::kit_async_prefetch_htod));
+  EXPECT_TRUE(isKitIntrinsicAsync(Intrinsic::kit_async_gpu_kernel_launch));
+  EXPECT_TRUE(isKitIntrinsicAsync(Intrinsic::kit_async_cpu_threads_launch));
+  EXPECT_TRUE(isKitIntrinsicAsync(Intrinsic::kit_async_gpu_memcpy_dtoh));
+  EXPECT_TRUE(isKitIntrinsicAsync(Intrinsic::kit_async_gpu_memcpy_htod));
+  EXPECT_TRUE(isKitIntrinsicAsync(Intrinsic::kit_async_gpu_prefetch_dtoh));
+  EXPECT_TRUE(isKitIntrinsicAsync(Intrinsic::kit_async_gpu_prefetch_htod));
 
-  EXPECT_FALSE(isKitIntrinsicAsync(Intrinsic::kit_sync_stream));
-  EXPECT_FALSE(isKitIntrinsicAsync(Intrinsic::kit_sync_threads));
-  EXPECT_FALSE(isKitIntrinsicAsync(Intrinsic::kit_memcpy_dtoh));
-  EXPECT_FALSE(isKitIntrinsicAsync(Intrinsic::kit_memcpy_htod));
-  EXPECT_FALSE(isKitIntrinsicAsync(Intrinsic::kit_enable_verbose));
-  EXPECT_FALSE(isKitIntrinsicAsync(Intrinsic::kit_finalize));
-  EXPECT_FALSE(isKitIntrinsicAsync(Intrinsic::kit_initialize));
+  EXPECT_FALSE(isKitIntrinsicAsync(Intrinsic::kit_gpu_stream_sync));
+  EXPECT_FALSE(isKitIntrinsicAsync(Intrinsic::kit_cpu_threads_sync));
+  EXPECT_FALSE(isKitIntrinsicAsync(Intrinsic::kit_gpu_memcpy_dtoh));
+  EXPECT_FALSE(isKitIntrinsicAsync(Intrinsic::kit_gpu_memcpy_htod));
+  EXPECT_FALSE(isKitIntrinsicAsync(Intrinsic::kit_runtime_finalize));
+  EXPECT_FALSE(isKitIntrinsicAsync(Intrinsic::kit_runtime_initialize));
+  EXPECT_FALSE(isKitIntrinsicAsync(Intrinsic::kit_runtime_set_verbose));
 }
 
 TEST(KitIntrinsicUtils, isKitIntrinsicBlocking) {
   // Most Kitsune intrinsics are blocking. This is mainly here to ensure that
   // this function does not report async calls as blocking. At least the async
   // calls here ought to be comprehensive.
-  EXPECT_FALSE(isKitIntrinsicBlocking(Intrinsic::kit_async_launch_kernel));
-  EXPECT_FALSE(isKitIntrinsicBlocking(Intrinsic::kit_async_launch_threads));
-  EXPECT_FALSE(isKitIntrinsicBlocking(Intrinsic::kit_async_memcpy_dtoh));
-  EXPECT_FALSE(isKitIntrinsicBlocking(Intrinsic::kit_async_memcpy_htod));
-  EXPECT_FALSE(isKitIntrinsicBlocking(Intrinsic::kit_async_prefetch_dtoh));
-  EXPECT_FALSE(isKitIntrinsicBlocking(Intrinsic::kit_async_prefetch_htod));
+  EXPECT_FALSE(isKitIntrinsicBlocking(Intrinsic::kit_async_gpu_kernel_launch));
+  EXPECT_FALSE(isKitIntrinsicBlocking(Intrinsic::kit_async_cpu_threads_launch));
+  EXPECT_FALSE(isKitIntrinsicBlocking(Intrinsic::kit_async_gpu_memcpy_dtoh));
+  EXPECT_FALSE(isKitIntrinsicBlocking(Intrinsic::kit_async_gpu_memcpy_htod));
+  EXPECT_FALSE(isKitIntrinsicBlocking(Intrinsic::kit_async_gpu_prefetch_dtoh));
+  EXPECT_FALSE(isKitIntrinsicBlocking(Intrinsic::kit_async_gpu_prefetch_htod));
 
-  EXPECT_TRUE(isKitIntrinsicBlocking(Intrinsic::kit_sync_stream));
-  EXPECT_TRUE(isKitIntrinsicBlocking(Intrinsic::kit_launch_threads));
-  EXPECT_TRUE(isKitIntrinsicBlocking(Intrinsic::kit_sync_threads));
-  EXPECT_TRUE(isKitIntrinsicBlocking(Intrinsic::kit_memcpy_dtoh));
-  EXPECT_TRUE(isKitIntrinsicBlocking(Intrinsic::kit_memcpy_htod));
-  EXPECT_TRUE(isKitIntrinsicBlocking(Intrinsic::kit_enable_verbose));
-  EXPECT_TRUE(isKitIntrinsicBlocking(Intrinsic::kit_finalize));
-  EXPECT_TRUE(isKitIntrinsicBlocking(Intrinsic::kit_initialize));
+  EXPECT_TRUE(isKitIntrinsicBlocking(Intrinsic::kit_gpu_stream_sync));
+  EXPECT_TRUE(isKitIntrinsicBlocking(Intrinsic::kit_cpu_threads_launch));
+  EXPECT_TRUE(isKitIntrinsicBlocking(Intrinsic::kit_cpu_threads_sync));
+  EXPECT_TRUE(isKitIntrinsicBlocking(Intrinsic::kit_gpu_memcpy_dtoh));
+  EXPECT_TRUE(isKitIntrinsicBlocking(Intrinsic::kit_gpu_memcpy_htod));
+  EXPECT_TRUE(isKitIntrinsicBlocking(Intrinsic::kit_runtime_finalize));
+  EXPECT_TRUE(isKitIntrinsicBlocking(Intrinsic::kit_runtime_initialize));
+  EXPECT_TRUE(isKitIntrinsicBlocking(Intrinsic::kit_runtime_set_verbose));
 }
 
 TEST(KitIntrinsicUtils, getKernelArgumentsFromLaunch) {
   LLVMContext ctx;
   Module m("", ctx);
-  Function *f =
-      Intrinsic::getOrInsertDeclaration(&m, Intrinsic::kit_async_launch_kernel);
+  Function *f = Intrinsic::getOrInsertDeclaration(
+      &m, Intrinsic::kit_async_gpu_kernel_launch);
 
   FunctionType *fty = f->getFunctionType();
   PointerType *ptr = PointerType::getUnqual(ctx);
@@ -123,8 +123,8 @@ TEST(KitIntrinsicUtils, getKernelArgumentsFromLaunch) {
 TEST(KitIntrinsicUtils, getStreamFromLaunch) {
   LLVMContext ctx;
   Module m("", ctx);
-  Function *f =
-      Intrinsic::getOrInsertDeclaration(&m, Intrinsic::kit_async_launch_kernel);
+  Function *f = Intrinsic::getOrInsertDeclaration(
+      &m, Intrinsic::kit_async_gpu_kernel_launch);
 
   FunctionType *fty = f->getFunctionType();
   PointerType *ptr = PointerType::getUnqual(ctx);

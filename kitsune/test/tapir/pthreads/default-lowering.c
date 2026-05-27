@@ -13,14 +13,14 @@
 // CHECK: %[[ARGS:.+]] = alloca { ptr }
 // CHECK: [[BODY:.+]]:
 // CHECK: store ptr %[[A]], ptr %[[ARGS]]
-// CHECK: %[[CTX:.+]] = call ptr @llvm.kit.async.launch.threads(
+// CHECK: %[[CTX:.+]] = call ptr @llvm.kit.async.cpu.threads.launch(
 // CHECK-SAME: i32 1024,
 // CHECK-SAME: ptr @[[OUTLINED:[^,]+]],
 // CHECK-SAME: i64 0,
 // CHECK-SAME: i64 %[[N]],
 // CHECK-SAME: i64 0,
 // CHECK-SAME: ptr %[[ARGS]])
-// CHECK: call void @llvm.kit.sync.threads(i32 1024, ptr %[[CTX]])
+// CHECK: call void @llvm.kit.cpu.threads.sync(i32 1024, ptr %[[CTX]])
 // CHECK: br label %[[END:.+]]
 // CHECK: [[END]]:
 // CHECK: ret void

@@ -159,10 +159,10 @@ void GPUTTLoopBase::copyNonConstGlobals(IRBuilder<> &builder,
       Constant *bytes = ConstantInt::get(i64Ty, size);
 
       Value *devPtr = builder.CreateIntrinsic(
-          ptrTy, Intrinsic::kit_symbol_device_ptr, {ctt, fb, name});
-      if (copyFn == Intrinsic::kit_symbol_memcpy_dtoh)
+          ptrTy, Intrinsic::kit_gpu_symbol_address, {ctt, fb, name});
+      if (copyFn == Intrinsic::kit_gpu_symbol_memcpy_dtoh)
         (void)builder.CreateIntrinsic(voidTy, copyFn, {ctt, g, devPtr, bytes});
-      else if (copyFn == Intrinsic::kit_symbol_memcpy_htod)
+      else if (copyFn == Intrinsic::kit_gpu_symbol_memcpy_htod)
         (void)builder.CreateIntrinsic(voidTy, copyFn, {ctt, devPtr, g, bytes});
       else
         llvm_unreachable("copyNonConstGlobals: Invalid intrinsic");
@@ -171,11 +171,11 @@ void GPUTTLoopBase::copyNonConstGlobals(IRBuilder<> &builder,
 }
 
 void GPUTTLoopBase::copyNonConstGlobalsDToH(IRBuilder<> &builder) {
-  copyNonConstGlobals(builder, Intrinsic::kit_symbol_memcpy_dtoh);
+  copyNonConstGlobals(builder, Intrinsic::kit_gpu_symbol_memcpy_dtoh);
 }
 
 void GPUTTLoopBase::copyNonConstGlobalsHToD(IRBuilder<> &builder) {
-  copyNonConstGlobals(builder, Intrinsic::kit_symbol_memcpy_htod);
+  copyNonConstGlobals(builder, Intrinsic::kit_gpu_symbol_memcpy_htod);
 }
 
 void GPUTTLoopBase::cloneUsedGlobalAliases(ValueToValueMapTy &vmap) {
@@ -700,7 +700,7 @@ void GPUTTLoopBase::processOutlinedLoopCall(TapirLoopInfo &tl,
   Value *tcZ = builder.CreateIntCast(argZ, i64, /*isSigned=*/false);
 
   // Get or create a stream.
-  Value *stream = builder.CreateIntrinsic(Intrinsic::kit_thread_stream, {ctt});
+  Value *stream = builder.CreateIntrinsic(Intrinsic::kit_gpu_stream_new, {ctt});
 
   SmallVector<Value *, 16> args = {
       ctt, embFB, kName, tcZ, tcY, tcX, tpb, kProps, stream,
@@ -712,12 +712,12 @@ void GPUTTLoopBase::processOutlinedLoopCall(TapirLoopInfo &tl,
   // a sync region as an argument This may make it easier to do post-outlining
   // analyses to eliminate/delay device synchronization calls instead of
   // always synchronizing immediately after the kernel launch.
-  (void)builder.CreateIntrinsic(Intrinsic::kit_async_launch_kernel, args);
+  (void)builder.CreateIntrinsic(Intrinsic::kit_async_gpu_kernel_launch, args);
 
   // We explicitly add a sync here because the loop-spawning pass that drives
   // this tapir target does not call the lowerSync callback. If it did, this
   // could, correctly, be moved there.
-  (void)builder.CreateIntrinsic(Intrinsic::kit_sync_stream, {ctt, stream});
+  (void)builder.CreateIntrinsic(Intrinsic::kit_gpu_stream_sync, {ctt, stream});
 
   // After the kernel is done, copy the non-const globals back to the host. This
   // is done here to keep this part of the code generation simple. A subsequent

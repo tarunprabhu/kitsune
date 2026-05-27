@@ -17,6 +17,6 @@
 # RUN: llvm-dis -o - %t/main.o | FileCheck %s --check-prefix MAIN
 # RUN: llvm-dis -o - %t/a.bc | FileCheck %s --check-prefix LAUNCH
 #
-# NO-LAUNCH-NOT: @llvm.kit.async.launch.kernel
+# NO-LAUNCH-NOT: @llvm.kit.async.gpu.kernel.launch
 # MAIN: call void @_Z6vecaddN7kitsune
-# LAUNCH: call {{.+}} @llvm.kit.async.launch.kernel(i32 2,
+# LAUNCH: call {{.+}} @llvm.kit.async.gpu.kernel.launch(i32 2,

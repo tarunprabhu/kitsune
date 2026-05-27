@@ -27,7 +27,7 @@
 // RUN:     -S -emit-llvm -O1 -o - %s \
 // RUN:     | FileCheck %s --check-prefix=LAUNCH
 //
-// LAUNCH: call {{.+}} @llvm.kit.async.launch.kernel
+// LAUNCH: call {{.+}} @llvm.kit.async.gpu.kernel.launch
 // LAUNCH-SAME: i32 57
 
 #include <kitsune.h>

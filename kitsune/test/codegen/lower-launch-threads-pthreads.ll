@@ -14,6 +14,6 @@ define internal void @f(i64 %start, i64 %end, ptr %args) {
 }
 
 define void @launch(i64 %n, ptr %args) {
-  %ctx = call ptr @llvm.kit.async.launch.threads(i32 1024, ptr nonnull @f, i64 0, i64 %n, i64 11, ptr %args)
+  %ctx = call ptr @llvm.kit.async.cpu.threads.launch(i32 1024, ptr nonnull @f, i64 0, i64 %n, i64 11, ptr %args)
   ret void
 }

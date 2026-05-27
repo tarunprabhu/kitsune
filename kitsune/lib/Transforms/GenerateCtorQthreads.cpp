@@ -34,7 +34,7 @@ namespace {
 class GenerateCtorQthreads {
 private:
   detail::GetTLI getTLI;
-  const TTOptions &ttOpts;
+  const TTOptions &tto;
 
 private:
   Function *createCtor(Module &m, Function *dtor) {
@@ -42,26 +42,25 @@ private:
 
     Type *voidTy = Type::getVoidTy(ctx);
     PointerType *ptrTy = PointerType::getUnqual(ctx);
-    Type *boolTy = Type::getInt8Ty(ctx);
 
-    Constant *ctt = toConstant(TTID::Qthreads, ctx);
+    // Booleans are always 8-bit integers. toConstant would, otherwise return
+    // an i1, but the intrinsic expects i8. Casting the boolean to i8 ensures
+    // that we get a value of the correct type.
+    Constant *verbose = toConstant(uint8_t(tto.getKitrtVerbose()), ctx);
+    Constant *tt = toConstant(TTID::Qthreads, ctx);
 
     FunctionType *ctorTy = FunctionType::get(voidTy, ptrTy, false);
     Function *ctor = Function::Create(ctorTy, GlobalValue::InternalLinkage,
                                       ".kitqthr.ctor", &m);
 
     IRBuilder<> builder(BasicBlock::Create(ctx, "entry", ctor));
-
-    builder.CreateIntrinsic(Intrinsic::kit_initialize, {ctt});
-    builder.CreateIntrinsic(
-        Intrinsic::kit_enable_verbose,
-        {ConstantInt::get(boolTy, ttOpts.getKitrtVerbose(), false)});
+    builder.CreateIntrinsic(Intrinsic::kit_runtime_initialize, {tt});
+    builder.CreateIntrinsic(Intrinsic::kit_runtime_set_verbose, verbose);
 
     // Now add the dtor to help us clean up at program exit.
     TargetLibraryInfo &tli = getTLI(*ctor);
     FunctionCallee atExit = getOrInsertLibFunc(&m, tli, LibFunc_atexit);
     builder.CreateCall(atExit, dtor);
-
     builder.CreateRetVoid();
 
     return ctor;
@@ -72,23 +71,22 @@ private:
     Type *voidTy = Type::getVoidTy(ctx);
     PointerType *ptrTy = PointerType::getUnqual(ctx);
 
-    Constant *ctt = toConstant(TTID::Qthreads, ctx);
+    Constant *tt = toConstant(TTID::Qthreads, ctx);
 
     FunctionType *dtorTy = FunctionType::get(voidTy, ptrTy, false);
     Function *dtor = Function::Create(dtorTy, GlobalValue::InternalLinkage,
                                       ".kitqthr.dtor", &m);
 
     IRBuilder<> builder(BasicBlock::Create(ctx, "entry", dtor));
-
-    builder.CreateIntrinsic(Intrinsic::kit_finalize, {ctt});
-
+    builder.CreateIntrinsic(Intrinsic::kit_runtime_finalize, {tt});
     builder.CreateRetVoid();
+
     return dtor;
   }
 
 public:
-  GenerateCtorQthreads(detail::GetTLI getTLI, const TTOptions &ttOpts)
-      : getTLI(getTLI), ttOpts(ttOpts) {}
+  GenerateCtorQthreads(detail::GetTLI getTLI, const TTOptions &tto)
+      : getTLI(getTLI), tto(tto) {}
 
   void run(Module &m) {
     Function *dtor = createDtor(m);
@@ -103,7 +101,7 @@ public:
 } // namespace
 
 void llvm::detail::genCtorQthreads(Module &m, detail::GetTLI getTLI,
-                                   const TTOptions &ttOpts,
+                                   const TTOptions &tto,
                                    const detail::GenerateCtorOptions &) {
-  GenerateCtorQthreads(getTLI, ttOpts).run(m);
+  GenerateCtorQthreads(getTLI, tto).run(m);
 }

@@ -29,12 +29,12 @@
 ; DEFAULT-SAME: { i32 65536, ptr @[[CTOR:[.]kitocilk[.]ctor.*]], ptr null }
 ;
 ; DEFAULT: define {{.*}} @[[DTOR:[.]kitocilk[.]dtor.*]]{{[ ]*}}(
-; DEFAULT: call {{.+}} @llvm.kit.finalize(i32 8)
+; DEFAULT: call {{.+}} @llvm.kit.runtime.finalize(i32 8)
 ;
 ; DEFAULT: define {{.+}} @[[CTOR]]
 ; DEFAULT-NEXT: [[ENTRY:.+]]:
-; DEFAULT-NEXT: call {{.+}} @llvm.kit.initialize(i32 8)
-; DEFAULT-NEXT: call {{.+}} @llvm.kit.enable.verbose(i8 0)
+; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.initialize(i32 8)
+; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.set.verbose(i8 0)
 ; DEFAULT-NEXT: call {{.+}}atexit(ptr @[[DTOR]])
 ; DEFAULT-NEXT: br label %[[EXIT:.+]]
 ; DEFAULT-EMPTY:
@@ -56,7 +56,7 @@
 ; RUN:     | FileCheck %s -check-prefix VERBOSE
 ;
 ; VERBOSE-LABEL: define {{.+}} @.kitocilk.ctor
-; VERBOSE: call {{.+}} @llvm.kit.enable.verbose(i8 1)
+; VERBOSE: call {{.+}} @llvm.kit.runtime.set.verbose(i8 1)
 ;
 ; ----------------------------------------------------------------------------
 

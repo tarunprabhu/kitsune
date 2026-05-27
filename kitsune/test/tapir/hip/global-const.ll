@@ -7,10 +7,10 @@
 ; CHECK-DAG: @[[FB:.+]] = constant {{.+}} !kit.gv ![[MD:[0-9]+]]
 ;
 ; CHECK: define {{.+}} @f
-; CHECK-NOT: llvm.kit.symbol.device.ptr
-; CHECK-NOT: llvm.kit.symbol.memcpy.htod
-; CHECK: %[[TS:.+]] = {{.*}}call {{.+}} @llvm.kit.async.launch.kernel(i32 4, ptr @[[FB]],
-; CHECK-NOT: llvm.kit.symbol.memcpy.dtoh
+; CHECK-NOT: llvm.kit.gpu.symbol.address
+; CHECK-NOT: llvm.kit.gpu.symbol.memcpy.htod
+; CHECK: %[[TS:.+]] = {{.*}}call {{.+}} @llvm.kit.async.gpu.kernel.launch(i32 4, ptr @[[FB]],
+; CHECK-NOT: llvm.kit.gpu.symbol.memcpy.dtoh
 ;
 ; CHECK: define {{.+}} @.kithip.ctor{{[^(]*}}
 ; CHECK: call {{.+}} @__hipRegisterFatBinary

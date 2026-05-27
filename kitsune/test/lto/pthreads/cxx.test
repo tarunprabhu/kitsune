@@ -16,14 +16,14 @@
 # CHECK-SAME: ptr addrspace(67)
 # CHECK-SAME: ptr addrspace(67)
 # CHECK-SAME: {{[}]}}
-# CHECK: %[[CTX:.+]] = call ptr @llvm.kit.async.launch.threads(
+# CHECK: %[[CTX:.+]] = call ptr @llvm.kit.async.cpu.threads.launch(
 # CHECK-SANE: i32 1024,
 # CHECK-SAME: ptr @[[OUTLINED:_Z6vecadd[^,]+]],
 # CHECK-SAME: i64 0,
 # CHECK-SAME: i64 %[[N]],
 # CHECK-SAME: i64 0,
 # CHECK-SAME: ptr %[[PACK]])
-# CHECK: call void @llvm.kit.sync.threads(i32 1024, ptr %[[CTX]])
+# CHECK: call void @llvm.kit.cpu.threads.sync(i32 1024, ptr %[[CTX]])
 # CHECK: ret void
 #
 # CHECK: define internal fastcc void @[[OUTLINED]](

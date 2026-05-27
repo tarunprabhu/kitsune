@@ -54,7 +54,8 @@ public:
     SmallVector<Value *, 16> launchArgs = {ctt, outlined};
     for (Value *arg : replCall->args())
       launchArgs.push_back(arg);
-    (void)builder.CreateIntrinsic(Intrinsic::kit_launch_threads, launchArgs);
+    (void)builder.CreateIntrinsic(Intrinsic::kit_cpu_threads_launch,
+                                  launchArgs);
 
     assert(replCall->getType() == Type::getVoidTy(ctx) &&
            "The outlined function must not return a value");

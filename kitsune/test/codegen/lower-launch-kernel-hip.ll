@@ -34,6 +34,6 @@ target triple = "x86_64-pc-linux-gnu"
 @1 = external global float
 
 define void @launch(ptr %p, ptr dereferenceable(32) %q, i64 %n, float %f) {
-  call ptr (i32, ptr, ptr, i64, i64, i64, i32, ptr, ptr, ...) @llvm.kit.async.launch.kernel(i32 4, ptr nonnull @fb, ptr nonnull @1, i64 %n, i64 0, i64 -1, i32 0, ptr nonnull @0, ptr %p, ptr dereferenceable(32) %q, i32 noundef 98, float %f, ptr null)
+  call ptr (i32, ptr, ptr, i64, i64, i64, i32, ptr, ptr, ...) @llvm.kit.async.gpu.kernel.launch(i32 4, ptr nonnull @fb, ptr nonnull @1, i64 %n, i64 0, i64 -1, i32 0, ptr nonnull @0, ptr %p, ptr dereferenceable(32) %q, i32 noundef 98, float %f, ptr null)
   ret void
 }

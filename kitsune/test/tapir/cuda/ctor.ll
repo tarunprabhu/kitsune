@@ -22,14 +22,14 @@
 ; DEFAULT: define {{.*}} @[[DTOR:[.]kitcuda[.]dtor.*]]{{[ ]*}}(
 ; DEFAULT: %[[HD:.+]] = load ptr, ptr @[[HANDLE]]
 ; DEFAULT: call {{.+}} @__cudaUnregisterFatBinary(ptr %[[HD]])
-; DEFAULT: call {{.+}} @llvm.kit.finalize(i32 2)
+; DEFAULT: call {{.+}} @llvm.kit.runtime.finalize(i32 2)
 ;
 ; DEFAULT: define {{.+}} @[[CTOR]]
-; DEFAULT: call {{.+}} @llvm.kit.initialize(i32 2)
-; DEFAULT: call {{.+}} @llvm.kit.enable.verbose(i8 0)
-; DEFAULT-NOT: call {{.+}} @llvm.kit.set.fixed.tpb(i32 2,
-; DEFAULT: call {{.+}} @llvm.kit.set.max.tpb(i32 2, i32 1024)
-; DEFAULT-DAG: call {{.+}} @llvm.kit.enable.refine.launches(i32 2, i8 1)
+; DEFAULT: call {{.+}} @llvm.kit.runtime.initialize(i32 2)
+; DEFAULT: call {{.+}} @llvm.kit.runtime.set.verbose(i8 0)
+; DEFAULT-NOT: call {{.+}} @llvm.kit.runtime.set.fixed.tpb(i32 2,
+; DEFAULT: call {{.+}} @llvm.kit.runtime.set.max.tpb(i32 2, i32 1024)
+; DEFAULT-DAG: call {{.+}} @llvm.kit.runtime.set.kernel.launch.refinement(i32 2, i8 1)
 ; DEFAULT-DAG: %[[HC:.+]] = call {{.+}}__cudaRegisterFatBinary(ptr @[[BUNDLE]])
 ; DEFAULT: store ptr %[[HC]], ptr @[[HANDLE]]
 ; DEFAULT: call void @__cudaRegisterFatBinaryEnd(ptr %[[HC]])
@@ -46,7 +46,7 @@
 ; RUN:     | FileCheck %s -check-prefix TPB
 ;
 ; TPB-LABEL: define {{.+}} @.kitcuda.ctor
-; TPB: call {{.+}} @llvm.kit.set.fixed.tpb(i32 2, i32 77)
+; TPB: call {{.+}} @llvm.kit.runtime.set.fixed.tpb(i32 2, i32 77)
 ;
 ; ----------------------------------------------------------------------------
 ;
@@ -55,7 +55,7 @@
 ; RUN:     | FileCheck %s -check-prefix MTPB
 ;
 ; MTPB-LABEL: define {{.+}} @.kitcuda.ctor
-; MTPB: call {{.+}} @llvm.kit.set.max.tpb(i32 2, i32 29)
+; MTPB: call {{.+}} @llvm.kit.runtime.set.max.tpb(i32 2, i32 29)
 ;
 ; ----------------------------------------------------------------------------
 ;
@@ -68,7 +68,7 @@
 ; RUN:     | FileCheck %s -check-prefix VERBOSE
 ;
 ; VERBOSE-LABEL: define {{.+}} @.kitcuda.ctor
-; VERBOSE: call {{.+}} @llvm.kit.enable.verbose(i8 1)
+; VERBOSE: call {{.+}} @llvm.kit.runtime.set.verbose(i8 1)
 ;
 ; ----------------------------------------------------------------------------
 ;
@@ -77,7 +77,7 @@
 ; RUN:     | FileCheck %s -check-prefix NOREFINE
 ;
 ; NOREFINE-LABEL: define {{.+}} @.kitcuda.ctor
-; NOREFINE: call {{.+}} @llvm.kit.enable.refine.launches(i32 2, i8 0)
+; NOREFINE: call {{.+}} @llvm.kit.runtime.set.kernel.launch.refinement(i32 2, i8 0)
 ;
 ; ----------------------------------------------------------------------------
 

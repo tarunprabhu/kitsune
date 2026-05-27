@@ -8,16 +8,16 @@
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: define {{.+}} @f1
-; CHECK: %[[STREAM:[0-9]+]] = {{.*}}call ptr @llvm.kit.thread.stream(i32 2)
-; CHECK-NEXT: call {{.+}} @llvm.kit.async.prefetch.htod(i32 2, ptr %source, i64 -1, ptr %[[STREAM]])
-; CHECK-NEXT: call {{.+}} @llvm.kit.async.prefetch.htod(i32 2, ptr %dest, i64 -1, ptr %[[STREAM]])
-; CHECK-NEXT: call {{.+}} @llvm.kit.async.launch.kernel(i32 2,
+; CHECK: %[[STREAM:[0-9]+]] = {{.*}}call ptr @llvm.kit.gpu.stream.new(i32 2)
+; CHECK-NEXT: call {{.+}} @llvm.kit.async.gpu.prefetch.htod(i32 2, ptr %source, i64 -1, ptr %[[STREAM]])
+; CHECK-NEXT: call {{.+}} @llvm.kit.async.gpu.prefetch.htod(i32 2, ptr %dest, i64 -1, ptr %[[STREAM]])
+; CHECK-NEXT: call {{.+}} @llvm.kit.async.gpu.kernel.launch(i32 2,
 ;
 ; CHECK: define {{.+}} @f2
-; CHECK: %[[STREAM:[0-9]+]] = {{.*}}call ptr @llvm.kit.thread.stream(i32 2)
-; CHECK-NEXT: call {{.+}} @llvm.kit.async.prefetch.htod(i32 2, ptr %source, i64 -1, ptr %[[STREAM]])
-; CHECK-NEXT: call {{.+}} @llvm.kit.async.prefetch.htod(i32 2, ptr %dest, i64 -1, ptr %[[STREAM]])
-; CHECK-NEXT: call {{.+}} @llvm.kit.async.launch.kernel(i32 2,
+; CHECK: %[[STREAM:[0-9]+]] = {{.*}}call ptr @llvm.kit.gpu.stream.new(i32 2)
+; CHECK-NEXT: call {{.+}} @llvm.kit.async.gpu.prefetch.htod(i32 2, ptr %source, i64 -1, ptr %[[STREAM]])
+; CHECK-NEXT: call {{.+}} @llvm.kit.async.gpu.prefetch.htod(i32 2, ptr %dest, i64 -1, ptr %[[STREAM]])
+; CHECK-NEXT: call {{.+}} @llvm.kit.async.gpu.kernel.launch(i32 2,
 ;
 ; -----------------------------------------------------------------------------
 

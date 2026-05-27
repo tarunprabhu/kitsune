@@ -24,7 +24,7 @@
 # CHECK: store ptr addrspace(67) %[[B]], ptr %[[PACK1]]
 # CHECK: %[[PACK2:.+]] = getelementptr {{.*}}i8, ptr %[[PACK]]
 # CHECK: store ptr addrspace(67) %[[C]], ptr %[[PACK2]]
-# CHECK: %[[CTX:.+]] = call ptr @llvm.kit.launch.threads(
+# CHECK: %[[CTX:.+]] = call ptr @llvm.kit.cpu.threads.launch(
 # CHECK-SANE: i32 512,
 # CHECK-SAME: ptr @[[OUTLINED:_Z6vecadd[^,]+]],
 # CHECK-SAME: i64 0,

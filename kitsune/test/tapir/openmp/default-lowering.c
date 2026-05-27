@@ -18,7 +18,7 @@
 // CHECK: %[[GS:[0-9]+]] = {{.*}}call i64 @llvm.tapir.loop.grainsize
 // CHECK: %[[ARGPOS:.+]] = getelementptr {{.*}}, ptr %[[ARGS]]
 // CHECK: store ptr %[[A]], ptr %[[ARGPOS]]
-// CHECK: call void @llvm.kit.launch.threads(
+// CHECK: call void @llvm.kit.cpu.threads.launch(
 // CHECK-SAME: i32 512,
 // CHECK-SAME: ptr @[[OUTLINED:[^,]+]],
 // CHECK-SAME: i64 0,

@@ -6,4 +6,4 @@
 # RUN:     | llvm-dis -o - \
 # RUN:     | FileCheck %s
 #
-# CHECK-COUNT-1: call {{.+}} @llvm.kit.async.launch.kernel(i32 2,
+# CHECK-COUNT-1: call {{.+}} @llvm.kit.async.gpu.kernel.launch(i32 2,

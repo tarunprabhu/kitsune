@@ -29,15 +29,15 @@
 ; CHECK: @[[KERN_G:.+]] = private {{.+}} c"__kithip_loop_test.cpp_14_3\00"
 ;
 ; CHECK: define void @vecadd
-; CHECK: call {{.+}} @llvm.kit.async.launch.kernel
+; CHECK: call {{.+}} @llvm.kit.async.gpu.kernel.launch
 ; CHECK-SAME: ptr @[[KERN_VECADD]]
 ;
 ; CHECK: define void @f
-; CHECK: call {{.+}} @llvm.kit.async.launch.kernel
+; CHECK: call {{.+}} @llvm.kit.async.gpu.kernel.launch
 ; CHECK-SAME: ptr @[[KERN_F]]
 ;
 ; CHECK: define void @g
-; CHECK: call {{.+}} @llvm.kit.async.launch.kernel
+; CHECK: call {{.+}} @llvm.kit.async.gpu.kernel.launch
 ; CHECK-SAME: ptr @[[KERN_G]]
 
 define void @vecadd(ptr %c, ptr %a, ptr %b, i64 %n) !dbg !259 {
