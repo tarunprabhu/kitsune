@@ -6,8 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Miscellaneous utilities that are closely related to tapir targets in some
-// way.
+// Miscellaneous utilities for tapir targets and TTID's.
 //
 //===----------------------------------------------------------------------===//
 
@@ -104,3 +103,26 @@ TapirSpawnStrategy llvm::getSpawnStrategyFor(TTID tt) {
   }
   llvm_unreachable("getSpawnStrategyFor: TTID not handled");
 }
+
+bool llvm::isGPUTT(TTID tt) {
+  switch (tt) {
+  case TTID::Cuda:
+  case TTID::Hip:
+    return true;
+  default:
+    return false;
+  }
+}
+
+// The tapir targets that generate embedded bitcode.
+static constexpr TTID ttbcs[] = {TTID::Cuda, TTID::Hip};
+
+ArrayRef<TTID> llvm::ttsGenEmbBC() { return ttbcs; }
+
+bool llvm::generatesEmbBC(TTID tt) {
+  for (TTID t : ttbcs)
+    if (t == tt)
+      return true;
+  return false;
+}
+

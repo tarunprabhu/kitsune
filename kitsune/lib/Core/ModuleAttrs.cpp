@@ -17,8 +17,8 @@
 #include "VerifierImpl.h"
 #include "kitsune/Core/Diagnostics.h"
 #include "kitsune/Core/ModuleUtils.h"
+#include "kitsune/Core/TTUtils.h"
 #include "kitsune/Support/ErrorHandling.h"
-#include "kitsune/Support/TTIDUtils.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/IR/Module.h"
 

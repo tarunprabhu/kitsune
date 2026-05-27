@@ -1,4 +1,4 @@
-//===- TTIDUtilsTest.cpp - Unit tests for TTID utilities ------------------===//
+//===- TTUtilsTest.cpp - Unit tests for tapir target utilities ------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Support/TTIDUtils.h"
+#include "kitsune/Core/TTUtils.h"
 
 #include "gtest/gtest.h"
 
@@ -14,21 +14,13 @@ using namespace llvm;
 
 namespace {
 
-TEST(KitTTUtils, ttsGenEmbBC) {
-  ArrayRef<TTID> tts = ttsGenEmbBC();
+TEST(KitTTUtils, generatesEmbBC) {
+  EXPECT_FALSE(generatesEmbBC(TTID::Nolo));
+  EXPECT_FALSE(generatesEmbBC(TTID::Serial));
+  EXPECT_FALSE(generatesEmbBC(TTID::OpenCilk));
 
-  EXPECT_EQ(tts.size(), 2U);
-  EXPECT_EQ(tts[0], TTID::Cuda);
-  EXPECT_EQ(tts[1], TTID::Hip);
-}
-
-TEST(KitTTUtils, doesTTGenerateEmbBC) {
-  EXPECT_FALSE(doesTTGenEmbBC(TTID::Nolo));
-  EXPECT_FALSE(doesTTGenEmbBC(TTID::Serial));
-  EXPECT_FALSE(doesTTGenEmbBC(TTID::OpenCilk));
-
-  EXPECT_TRUE(doesTTGenEmbBC(TTID::Cuda));
-  EXPECT_TRUE(doesTTGenEmbBC(TTID::Hip));
+  EXPECT_TRUE(generatesEmbBC(TTID::Cuda));
+  EXPECT_TRUE(generatesEmbBC(TTID::Hip));
 }
 
 TEST(KitTTUtils, isGPUTT) {

@@ -8,7 +8,6 @@ add_kitsune_unittest_with_input_files(KitSupportTests
   FromIntTest.cpp
   FromStringTest.cpp
   MaybeBoolTest.cpp
-  TTIDUtilsTest.cpp
   TypeTraitsTest.cpp
 
   EXPORT_SYMBOLS
