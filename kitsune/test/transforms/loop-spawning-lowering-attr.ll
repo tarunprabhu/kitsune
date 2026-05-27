@@ -6,7 +6,7 @@
 ;
 
 ; CHECK-LABEL: @f
-; CHECK: call ptr @llvm.kit.async.launch.threads
+; CHECK: call ptr @llvm.kit.async.cpu.threads.launch
 define void @f(ptr %c, i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
@@ -34,7 +34,7 @@ exit:
 }
 
 ; CHECK-LABEL: @g
-; CHECK-NOT: call ptr @llvm.kit.async.launch.threads
+; CHECK-NOT: call ptr @llvm.kit.async.cpu.threads.launch
 ; CHECK: detach within %syncreg2
 ; CHECK: reattach within %syncreg2
 ; CHECK: sync within %syncreg2

@@ -16,11 +16,11 @@
 ; CHECK-DAG: @[[VARNAME:.+]] = private unnamed_addr constant [5 x i8] c"v137\00"
 ;
 ; CHECK: define {{.+}} @f
-; CHECK: %[[PTR1:.+]] = {{.*}}call {{.+}} @llvm.kit.symbol.device.ptr(i32 2, ptr @[[FB]], ptr @[[VARNAME]])
-; CHECK: call {{.+}} @llvm.kit.symbol.memcpy.htod(i32 2, ptr %[[PTR1]], ptr @[[HOSTVAR]], i64 4)
-; CHECK: %[[TS:.+]] = {{.*}}call {{.+}} @llvm.kit.async.launch.kernel(i32 2, ptr @[[FB]],
-; CHECK: %[[PTR2:.+]] = {{.*}}call {{.+}} @llvm.kit.symbol.device.ptr(i32 2, ptr @[[FB]], ptr @[[VARNAME]])
-; CHECK: call {{.+}} @llvm.kit.symbol.memcpy.dtoh(i32 2, ptr @[[HOSTVAR]], ptr %[[PTR2]], i64 4)
+; CHECK: %[[PTR1:.+]] = {{.*}}call {{.+}} @llvm.kit.gpu.symbol.address(i32 2, ptr @[[FB]], ptr @[[VARNAME]])
+; CHECK: call {{.+}} @llvm.kit.gpu.symbol.memcpy.htod(i32 2, ptr %[[PTR1]], ptr @[[HOSTVAR]], i64 4)
+; CHECK: %[[TS:.+]] = {{.*}}call {{.+}} @llvm.kit.async.gpu.kernel.launch(i32 2, ptr @[[FB]],
+; CHECK: %[[PTR2:.+]] = {{.*}}call {{.+}} @llvm.kit.gpu.symbol.address(i32 2, ptr @[[FB]], ptr @[[VARNAME]])
+; CHECK: call {{.+}} @llvm.kit.gpu.symbol.memcpy.dtoh(i32 2, ptr @[[HOSTVAR]], ptr %[[PTR2]], i64 4)
 ; CHECK: ret void
 ; CHECK-NEXT: }
 ;

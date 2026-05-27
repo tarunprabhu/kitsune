@@ -17,8 +17,8 @@ target triple = "x86_64-pc-linux-gnu"
 @gbuf = external global [7 x float]
 
 define void @f(i64 %n) {
-  call void @llvm.kit.launch.threads(i32 512, ptr @f, i64 0, i64 %n, i64 1, ptr @gbuf)
-  call void @llvm.kit.launch.threads(i32 512, ptr nonnull @f, i64 0, i64 %n, i64 1, ptr nonnull @gbuf) #0
+  call void @llvm.kit.cpu.threads.launch(i32 512, ptr @f, i64 0, i64 %n, i64 1, ptr @gbuf)
+  call void @llvm.kit.cpu.threads.launch(i32 512, ptr nonnull @f, i64 0, i64 %n, i64 1, ptr nonnull @gbuf) #0
   ret void
 }
 

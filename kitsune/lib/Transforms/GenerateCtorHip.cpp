@@ -70,7 +70,7 @@ private:
         ConstantExpr::getGetElementPtr(fatBin->getValueType(), fatBin, zeros),
         ConstantPointerNull::get(ptrTy));
 
-    GlobalVariable *g = new GlobalVariable(m, bundleTy, /*isConstant*/ true,
+    GlobalVariable *g = new GlobalVariable(m, bundleTy, /*isConstant=*/true,
                                            GlobalValue::InternalLinkage,
                                            bundleInit, ".kithip.bundle");
     g->setSection(section);
@@ -89,9 +89,11 @@ private:
     LLVMContext &ctx = m.getContext();
     PointerType *ptrTy = PointerType::getUnqual(ctx);
 
-    GlobalVariable *g = new GlobalVariable(
-        m, ptrTy, /*isConstant*/ false, GlobalValue::InternalLinkage,
-        ConstantPointerNull::get(ptrTy), ".kithip.handle");
+    Constant *cnull = ConstantPointerNull::get(ptrTy);
+
+    GlobalVariable *g = new GlobalVariable(m, ptrTy, /*isConstant=*/false,
+                                           GlobalValue::InternalLinkage,
+                                           /*init=*/cnull, ".kithip.handle");
     g->setAlignment(dl.getPointerABIAlignment(0));
     g->setUnnamedAddr(GlobalValue::UnnamedAddr::None);
 
@@ -108,10 +110,13 @@ private:
     Type *voidTy = Type::getVoidTy(ctx);
     PointerType *ptrTy = PointerType::getUnqual(ctx);
     Type *i32Ty = Type::getInt32Ty(ctx);
-    Type *boolTy = Type::getInt8Ty(ctx);
 
-    Constant *constTT = toConstant(TTID::Hip, ctx);
-    Constant *czero = ConstantInt::get(i32Ty, 0);
+    // Booleans are always 8-bit integers. toConstant would, otherwise return
+    // an i1, but the intrinsic expects i8. Casting the boolean to i8 ensures
+    // that we get a value of the correct type.
+    Constant *cVerbose = toConstant(uint8_t(tto.getKitrtVerbose()), ctx);
+    Constant *ctt = toConstant(TTID::Hip, ctx);
+    Constant *czero = toConstant(0U, ctx);
 
     FunctionType *ctorTy = FunctionType::get(voidTy, ptrTy, false);
     Function *ctor = Function::Create(ctorTy, GlobalValue::InternalLinkage,
@@ -121,43 +126,30 @@ private:
     Type *sizeTTy = tli.getSizeTType(m);
 
     IRBuilder<> builder(BasicBlock::Create(ctx, "entry", ctor));
-
-    FunctionCallee kitrtInitialize =
-        Intrinsic::getOrInsertDeclaration(&m, Intrinsic::kit_initialize);
-    builder.CreateCall(kitrtInitialize, {constTT});
+    builder.CreateIntrinsic(Intrinsic::kit_runtime_initialize, ctt);
 
     // Enable verbose mode early in the constructor so all verbose statements
     // are printed after the runtime has been initialized.
-    FunctionCallee kitrtEnableVerbose =
-        Intrinsic::getOrInsertDeclaration(&m, Intrinsic::kit_enable_verbose);
-    builder.CreateCall(
-        kitrtEnableVerbose,
-        {ConstantInt::get(boolTy, tto.getKitrtVerbose(), false)});
+    builder.CreateIntrinsic(Intrinsic::kit_runtime_set_verbose, cVerbose);
 
     if (tto.getHipXnack() == MaybeBool::On)
       LLVM_DEBUG(dbgs() << "\t\tenable xnack via ctor runtime call.\n");
-
-    FunctionCallee kitrtEnableXnack =
-        Intrinsic::getOrInsertDeclaration(&m, Intrinsic::kit_enable_xnack);
-    builder.CreateCall(
-        kitrtEnableXnack,
-        {ConstantInt::get(boolTy, tto.getHipXnack() == MaybeBool::On)});
+    Constant *cXnack =
+        toConstant(uint8_t(tto.getHipXnack() == MaybeBool::On), ctx);
+    builder.CreateIntrinsic(Intrinsic::kit_runtime_set_xnack, cXnack);
 
     if (genCtorOpts.useYLaunch)
       LLVM_DEBUG(
           dbgs()
           << "\t\tenable y-axis launch pattern via ctor runtime call.\n");
-    FunctionCallee kitrtEnableYAxisLaunch = Intrinsic::getOrInsertDeclaration(
-        &m, Intrinsic::kit_enable_y_axis_launches);
-    builder.CreateCall(
-        kitrtEnableYAxisLaunch,
-        {constTT, ConstantInt::get(boolTy, genCtorOpts.useYLaunch)});
+    Constant *cYAxisLaunch = toConstant(uint8_t(genCtorOpts.useYLaunch), ctx);
+    builder.CreateIntrinsic(Intrinsic::kit_runtime_set_y_axis_kernel_launch,
+                            {ctt, cYAxisLaunch});
 
     if (unsigned fixedTPB = tto.getFixedThreadsPerBlock()) {
-      FunctionCallee kitrtSetFixedTPB =
-          Intrinsic::getOrInsertDeclaration(&m, Intrinsic::kit_set_fixed_tpb);
-      builder.CreateCall(kitrtSetFixedTPB,
-                         {constTT, ConstantInt::get(i32Ty, fixedTPB)});
+      Constant *cTPB = toConstant(fixedTPB, ctx);
+      builder.CreateIntrinsic(Intrinsic::kit_runtime_set_fixed_tpb,
+                              {ctt, cTPB});
     }
 
     // If the MaxThreadsPerBlock has not been set, use a value of 1024 anyway.
@@ -166,13 +158,11 @@ private:
     // on the specific GPU architecture.
     //
     // FIXME: Don't hardcode this value here. Maybe move it to a named constant.
-    FunctionCallee kitrtSetMaxTPB =
-        Intrinsic::getOrInsertDeclaration(&m, Intrinsic::kit_set_max_tpb);
     unsigned maxTPB = tto.getMaxThreadsPerBlock();
     if (!maxTPB)
       maxTPB = 1024;
-    builder.CreateCall(kitrtSetMaxTPB,
-                       {constTT, ConstantInt::get(i32Ty, maxTPB)});
+    Constant *cTPB = toConstant(maxTPB, ctx);
+    builder.CreateIntrinsic(Intrinsic::kit_runtime_set_max_tpb, {ctt, cTPB});
 
     FunctionCallee hipRegisterFatBinary =
         getOrInsertLibFunc(&m, tli, LibFunc_hip_register_fat_binary);
@@ -205,10 +195,10 @@ private:
       // they who have not implemented something?
       Constant *gExt = ConstantInt::get(i32Ty, 0);
 
-      Value *args[] = {bundleHandle, hostG, gName, gName, gExt, gSize, gConst,
-                       // Per the documentation, The last argument to
-                       // hipRegisterVar() must always be zero
-                       czero};
+      // Per the documentation, The last argument to hipRegisterVar() must
+      // always be zero
+      Value *args[] = {bundleHandle, hostG, gName,  gName,
+                       gExt,         gSize, gConst, czero};
 
       LLVM_DEBUG(dbgs() << "\t\t\tregister global '" << hostG->getName()
                         << "' via ctor runtime call.\n");
@@ -218,8 +208,8 @@ private:
     // Now add the dtor to help us clean up at program exit.
     FunctionCallee atExit = getOrInsertLibFunc(&m, tli, LibFunc_atexit);
     builder.CreateCall(atExit, dtor);
-
     builder.CreateRetVoid();
+
     return ctor;
   }
 
@@ -249,12 +239,10 @@ private:
     // of having the test suite actually be useful, don't generate the call to
     // finalize the runtime until we can figure out exactly what is going on
     // there.
-    // Constant *constTT = toConstant(TTID::Hip, ctx);
-    // FunctionCallee kitrtFinalize =
-    //     Intrinsic::getOrInsertDeclaration(&m, Intrinsic::kit_finalize);
-    // builder.CreateCall(kitrtFinalize, {constTT});
-
+    // Constant *ctt = toConstant(TTID::Hip, ctx);
+    // builder.CreateCall(Intrinsic::kit_runtime_finalize, ctt);
     builder.CreateRetVoid();
+
     return dtor;
   }
 

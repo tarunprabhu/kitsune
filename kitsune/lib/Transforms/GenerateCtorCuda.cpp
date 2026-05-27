@@ -95,7 +95,7 @@ private:
         ConstantExpr::getGetElementPtr(fatBin->getValueType(), fatBin, zeros),
         ConstantPointerNull::get(ptrTy));
 
-    GlobalVariable *g = new GlobalVariable(m, bundleTy, /*isConstant*/ true,
+    GlobalVariable *g = new GlobalVariable(m, bundleTy, /*isConstant=*/true,
                                            GlobalValue::InternalLinkage,
                                            bundleInit, ".kitcuda.bundle");
     g->setSection(controlSectionName);
@@ -114,9 +114,11 @@ private:
     LLVMContext &ctx = m.getContext();
     PointerType *ptrTy = PointerType::getUnqual(ctx);
 
-    GlobalVariable *g = new GlobalVariable(
-        m, ptrTy, /*isConstant*/ false, GlobalValue::InternalLinkage,
-        ConstantPointerNull::get(ptrTy), ".kitcuda.handle");
+    Constant *cnull = ConstantPointerNull::get(ptrTy);
+
+    GlobalVariable *g = new GlobalVariable(m, ptrTy, /*isConstant=*/false,
+                                           GlobalValue::InternalLinkage,
+                                           /*init=*/cnull, ".kitcuda.handle");
     g->setAlignment(dl.getPointerABIAlignment(0));
     g->setUnnamedAddr(GlobalValue::UnnamedAddr::None);
 
@@ -133,10 +135,13 @@ private:
     Type *voidTy = Type::getVoidTy(ctx);
     PointerType *ptrTy = PointerType::getUnqual(ctx);
     Type *i32Ty = Type::getInt32Ty(ctx);
-    Type *boolTy = Type::getInt8Ty(ctx);
 
-    Constant *constTT = toConstant(TTID::Cuda, ctx);
-    Constant *czero = ConstantInt::get(i32Ty, 0);
+    // Booleans are always 8-bit integers. toConstant would, otherwise return
+    // an i1, but the intrinsic expects i8. Casting the boolean to i8 ensures
+    // that we get a value of the correct type.
+    Constant *cVerbose = toConstant(uint8_t(tto.getKitrtVerbose()), ctx);
+    Constant *ctt = toConstant(TTID::Cuda, ctx);
+    Constant *czero = toConstant(0U, ctx);
 
     FunctionType *ctorTy = FunctionType::get(voidTy, ptrTy, false);
     Function *ctor = Function::Create(ctorTy, GlobalValue::InternalLinkage,
@@ -146,24 +151,16 @@ private:
     Type *sizeTTy = tli.getSizeTType(m);
 
     IRBuilder<> builder(BasicBlock::Create(ctx, "entry", ctor));
-
-    FunctionCallee kitrtInitialize =
-        Intrinsic::getOrInsertDeclaration(&m, Intrinsic::kit_initialize);
-    builder.CreateCall(kitrtInitialize, {constTT});
+    builder.CreateIntrinsic(Intrinsic::kit_runtime_initialize, ctt);
 
     // Enable verbose mode early in the constructor so all verbose statements
     // are printed after the runtime has been initialized.
-    FunctionCallee kitrtEnableVerbose =
-        Intrinsic::getOrInsertDeclaration(&m, Intrinsic::kit_enable_verbose);
-    builder.CreateCall(
-        kitrtEnableVerbose,
-        {ConstantInt::get(boolTy, tto.getKitrtVerbose(), false)});
+    builder.CreateIntrinsic(Intrinsic::kit_runtime_set_verbose, cVerbose);
 
     if (unsigned fixedTPB = tto.getFixedThreadsPerBlock()) {
-      FunctionCallee kitrtSetFixedTPB =
-          Intrinsic::getOrInsertDeclaration(&m, Intrinsic::kit_set_fixed_tpb);
-      builder.CreateCall(kitrtSetFixedTPB,
-                         {constTT, ConstantInt::get(i32Ty, fixedTPB)});
+      Constant *cTPB = toConstant(fixedTPB, ctx);
+      builder.CreateIntrinsic(Intrinsic::kit_runtime_set_fixed_tpb,
+                              {ctt, cTPB});
     }
 
     // If the MaxThreadsPerBlock has not been set, use a value of 1024 anyway.
@@ -172,20 +169,15 @@ private:
     // on the specific GPU architecture.
     //
     // FIXME: Don't hardcode this value here. Maybe move it to a named constant.
-    FunctionCallee kitrtSetMaxTPB =
-        Intrinsic::getOrInsertDeclaration(&m, Intrinsic::kit_set_max_tpb);
     unsigned maxTPB = tto.getMaxThreadsPerBlock();
     if (!maxTPB)
       maxTPB = 1024;
-    builder.CreateCall(kitrtSetMaxTPB,
-                       {constTT, ConstantInt::get(i32Ty, maxTPB)});
+    Constant *cTPB = toConstant(maxTPB, ctx);
+    builder.CreateIntrinsic(Intrinsic::kit_runtime_set_max_tpb, {ctt, cTPB});
 
-    FunctionCallee kitrtEnableRefineLaunches =
-        Intrinsic::getOrInsertDeclaration(
-            &m, Intrinsic::kit_enable_refine_launches);
-    builder.CreateCall(
-        kitrtEnableRefineLaunches,
-        {constTT, ConstantInt::get(boolTy, genCtorOpts.refineLaunches)});
+    Constant *cRefine = toConstant(uint8_t(genCtorOpts.refineLaunches), ctx);
+    builder.CreateIntrinsic(Intrinsic::kit_runtime_set_kernel_launch_refinement,
+                            {ctt, cRefine});
 
     FunctionCallee cudaRegisterFatBinary =
         getOrInsertLibFunc(&m, tli, LibFunc_cuda_register_fat_binary);
@@ -218,10 +210,10 @@ private:
       // they who have not implemented something?
       Constant *gExt = ConstantInt::get(i32Ty, 0);
 
-      Value *args[] = {bundleHandle, hostG, gName, gName, gExt, gSize, gConst,
-                       // Per the documentation, The last argument to
-                       // cudaRegisterVar() must always be zero
-                       czero};
+      // Per the documentation, The last argument to cudaRegisterVar() must
+      // always be zero
+      Value *args[] = {bundleHandle, hostG, gName,  gName,
+                       gExt,         gSize, gConst, czero};
 
       LLVM_DEBUG(dbgs() << "\t\t\tregister global '" << hostG->getName()
                         << "' via ctor runtime call.\n");
@@ -236,8 +228,8 @@ private:
     // Now add the dtor to help us clean up at program exit.
     FunctionCallee atExit = getOrInsertLibFunc(&m, tli, LibFunc_atexit);
     builder.CreateCall(atExit, dtor);
-
     builder.CreateRetVoid();
+
     return ctor;
   }
 
@@ -261,10 +253,8 @@ private:
         getOrInsertLibFunc(&m, tli, LibFunc_cuda_unregister_fat_binary);
     builder.CreateCall(cudaUnregisterFatBinary, handle);
 
-    Constant *constTT = toConstant(TTID::Cuda, ctx);
-    FunctionCallee kitrtFinalize =
-        Intrinsic::getOrInsertDeclaration(&m, Intrinsic::kit_finalize);
-    builder.CreateCall(kitrtFinalize, {constTT});
+    Constant *ctt = toConstant(TTID::Cuda, ctx);
+    builder.CreateIntrinsic(Intrinsic::kit_runtime_finalize, ctt);
 
     builder.CreateRetVoid();
     return dtor;

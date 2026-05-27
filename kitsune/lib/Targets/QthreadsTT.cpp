@@ -85,7 +85,8 @@ public:
     Value *gs = ConstantInt::get(start->getType(), 0);
     Value *args = replCall->getArgOperand(2);
     Value *launchArgs[] = {ctt, outlined, start, end, gs, args};
-    (void)builder.CreateIntrinsic(Intrinsic::kit_launch_threads, launchArgs);
+    (void)builder.CreateIntrinsic(Intrinsic::kit_cpu_threads_launch,
+                                  launchArgs);
 
     assert(replCall->getNumUses() == 0 &&
            "The outlined function must not have any uses");

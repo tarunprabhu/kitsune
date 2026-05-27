@@ -21,6 +21,7 @@
 #include "kitsune/Core/TTOptions.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
+#include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/Module.h"
@@ -57,10 +58,10 @@ private:
     PointerType *ptrTy = PointerType::getUnqual(ctx);
     Type *i64Ty = Type::getInt64Ty(ctx);
 
-    Module *m = call.getModule();
     Value *stream = getStreamFromLaunch(call);
     for (Value *arg : getKernelArgumentsFromLaunch(call)) {
       if (auto *pty = dyn_cast<PointerType>(arg->getType())) {
+        IRBuilder<> builder(&call);
 
         // These should be required to be pointers in Kitsune's mobile address
         // space. Currently, the frontend support for this is a bit spotty. So
@@ -70,8 +71,7 @@ private:
         // For now, if the pointer is not in the default address space, make
         // sure that it is.
         if (pty->getAddressSpace() != 0)
-          arg = CastInst::Create(CastInst::AddrSpaceCast, arg, ptrTy, "",
-                                 call.getIterator());
+          arg = builder.CreateAddrSpaceCast(arg, ptrTy);
 
         // The pointer to the data to be prefetched must point to UVM allocated
         // memory. By setting the number of bytes to be prefetched to -1, we are
@@ -83,10 +83,8 @@ private:
         Constant *bytes = ConstantInt::get(i64Ty, -1);
 
         Value *ctt = call.getArgOperand(0);
-        FunctionCallee prefetch = Intrinsic::getOrInsertDeclaration(
-            m, Intrinsic::kit_async_prefetch_htod);
-        (void)CallInst::Create(prefetch, {ctt, arg, bytes, stream}, "",
-                               call.getIterator());
+        builder.CreateIntrinsic(Intrinsic::kit_async_gpu_prefetch_htod,
+                                {ctt, arg, bytes, stream});
       }
     }
 
@@ -124,7 +122,7 @@ public:
       return changed;
 
     if (Function *launch = Intrinsic::getDeclarationIfExists(
-            &m, Intrinsic::kit_async_launch_kernel))
+            &m, Intrinsic::kit_async_gpu_kernel_launch))
       for (Use &u : launch->uses())
         if (auto *call = dyn_cast<CallBase>(u.getUser()))
           if (call->getCalledFunction() == launch)

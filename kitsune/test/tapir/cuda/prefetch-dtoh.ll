@@ -12,9 +12,9 @@
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: define {{.+}} @f
-; CHECK: %[[STREAM:[0-9]+]] = {{.*}}call ptr @llvm.kit.thread.stream(i32 2)
-; CHECK: call {{.+}} @llvm.kit.async.launch.kernel(i32 2,
-; CHECK-NOT: call {{.+}} @llvm.kit.async.prefetch.dtoh(i32 2
+; CHECK: %[[STREAM:[0-9]+]] = {{.*}}call ptr @llvm.kit.gpu.stream.new(i32 2)
+; CHECK: call {{.+}} @llvm.kit.async.gpu.kernel.launch(i32 2,
+; CHECK-NOT: call {{.+}} @llvm.kit.async.gpu.prefetch.dtoh(i32 2
 ;
 ; -----------------------------------------------------------------------------
 

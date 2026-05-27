@@ -34,14 +34,14 @@
 # LOWERED-SAME: ptr addrspace(67)
 # LOWERED-SAME: ptr addrspace(67)
 # LOWERED-SAME: {{[}]}}
-# LOWERED: %[[CTX:.+]] = call ptr @llvm.kit.async.launch.threads(
+# LOWERED: %[[CTX:.+]] = call ptr @llvm.kit.async.cpu.threads.launch(
 # LOWERED-SANE: i32 1024,
 # LOWERED-SAME: ptr @[[OUTLINED:_Z6vecadd[^,]+]],
 # LOWERED-SAME: i64 0,
 # LOWERED-SAME: i64 %[[N]],
 # LOWERED-SAME: i64 0,
 # LOWERED-SAME: ptr %[[PACK]])
-# LOWERED: call void @llvm.kit.sync.threads(i32 1024, ptr %[[CTX]])
+# LOWERED: call void @llvm.kit.cpu.threads.sync(i32 1024, ptr %[[CTX]])
 # LOWERED: ret void
 #
 # LOWERED: define internal fastcc void @[[OUTLINED]](

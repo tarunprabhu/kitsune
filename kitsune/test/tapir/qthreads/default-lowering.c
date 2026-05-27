@@ -17,7 +17,7 @@
 // CHECK: [[BODY:.+]]:
 // CHECK-NEXT: %[[ARGPOS:.+]] = getelementptr {{.*}}, ptr %[[ARGS]]
 // CHECK-NEXT: store ptr %[[A]], ptr %[[ARGPOS]]
-// CHECK-NEXT: call void @llvm.kit.launch.threads(
+// CHECK-NEXT: call void @llvm.kit.cpu.threads.launch(
 // CHECK-SAME: i32 32,
 // CHECK-SAME: ptr @[[OUTLINED:[^,]+]],
 // CHECK-SAME: i64 0,

@@ -6,11 +6,11 @@
 ; RUN:     | FileCheck %s --check-prefix NOLO
 ;
 ; NOLO-LABEL: @f
-; NOLO-NEXT: call void @llvm.kit.enable.verbose(i8 1)
+; NOLO-NEXT: call void @llvm.kit.runtime.set.verbose(i8 1)
 ; NOLO-NEXT: ret void
 ;
 ; NOLO-LABEL: @g
-; NOLO-NEXT: call void @llvm.kit.enable.verbose(i8 0)
+; NOLO-NEXT: call void @llvm.kit.runtime.set.verbose(i8 0)
 ; NOLO-NEXT: ret void
 ;
 ; ------------------------------------------------------------------------------
@@ -30,11 +30,11 @@
 target triple = "x86_64-pc-linux-gnu"
 
 define void @f() {
-  call void @llvm.kit.enable.verbose(i8 1)
+  call void @llvm.kit.runtime.set.verbose(i8 1)
   ret void
 }
 
 define void @g() {
-  call void @llvm.kit.enable.verbose(i8 0)
+  call void @llvm.kit.runtime.set.verbose(i8 0)
   ret void
 }

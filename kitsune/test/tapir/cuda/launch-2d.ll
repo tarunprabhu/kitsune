@@ -14,10 +14,10 @@
 ; CHECK-SAME: i64 {{[^%]*}}%[[N:[^)]+]],
 ; CHECK-SAME: ptr {{[^%]*}}%[[C:[^,]+]])
 ;
-; CHECK: %[[STREAM:.+]] = {{.*}}call {{.+}} @llvm.kit.thread.stream(i32 2)
-; CHECK-NOT: {{.*}}call {{.+}} @llvm.kit.async.prefetch.htod
+; CHECK: %[[STREAM:.+]] = {{.*}}call {{.+}} @llvm.kit.gpu.stream.new(i32 2)
+; CHECK-NOT: {{.*}}call {{.+}} @llvm.kit.async.gpu.prefetch.htod
 ;
-; CHECK: %{{[0-9]+}} = {{.*}}call {{.+}} @llvm.kit.async.launch.kernel(
+; CHECK: %{{[0-9]+}} = {{.*}}call {{.+}} @llvm.kit.async.gpu.kernel.launch(
 ; CHECK-SAME: i32 2,
 ; CHECK-SAME: ptr {{.*}}@[[FB]],
 ; CHECK-SAME: ptr {{.*}}@[[G_KNAME]],
@@ -37,7 +37,7 @@
 ; By default, we always enter a sync immediately after the launch. A later
 ; optimization pass may (re)move this if appropriate
 ;
-; CHECK: call {{.+}} @llvm.kit.sync.stream(i32 2, ptr %[[STREAM]])
+; CHECK: call {{.+}} @llvm.kit.gpu.stream.sync(i32 2, ptr %[[STREAM]])
 ; CHECK: ret void
 ; CHECK-NEXT: }
 ;

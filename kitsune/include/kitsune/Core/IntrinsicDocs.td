@@ -123,7 +123,7 @@ def KitMobileInitDoc : KitDocIntrinsic {
       KitDocParam<"buf", "The mobile buffer to initialize">,
       KitDocParam<"n", "The number of elements in the array">,
       KitDocParam<"v", "The initializer">,
-      KitDocParam<"", "If :code:`v` is a pointer, the size of the pointee">,
+      KitDocParam<"size", "If :code:`v` is a pointer, the size of the pointee">,
   ];
   let Descr = [{
 Initialize a mobile buffer. This is most useful when the buffer is a
@@ -214,7 +214,7 @@ consisting of two pointers, `dst` and `src`.
 
 This blocks until all threads launched by the intrinsic have finished executing.
 For the asynchronous equivalent of this intrinsic, see
-:ref:`llvm.kit.async.launch.threads`.
+:ref:`llvm.kit.async.cpu.threads.launch`.
 }];
 }
 
@@ -233,10 +233,10 @@ Launch a parallel loop on one or more CPU threads. This is non-blocking and
 will return immediately.
 
 Returns a pointer to an opaque thread context object. This object must be passed
-to :ref:`llvm.kit.sync.threads` in order to synchronize the threads. It is the
-caller's responsibility to ensure that any memory that is used by `threadFunc`
-is not used until after all threads launched here have finished executing i.e.
-after the threads have been synchronized.
+to :ref:`llvm.kit.cpu.threads.sync` in order to synchronize the threads. It is
+the caller's responsibility to ensure that any memory that is used by
+`threadFunc` is not used until after all threads launched here have finished
+executing i.e. after the threads have been synchronized.
 
 Currently, `beg` must be 0. `grainSize` is not used and may be removed in the
 future. `threadFunc` runs on each thread and handles a subset of the loop
@@ -255,7 +255,7 @@ For instance, in the loop above, `argBundle` will be a pointer to a struct
 consisting of two pointers, `dst` and `src`.
 
 For the synchronous, i.e. blocking, equivalent of this intrinsic, see
-:ref:`llvm.kit.launch.threads`.
+:ref:`llvm.kit.cpu.threads.launch`.
 }];
 }
 
@@ -267,8 +267,8 @@ def KitSyncThreadsDoc : KitDocIntrinsic {
   ];
   let Descr = [{
 Block until all threads launched by an earlier call to
-:ref:`llvm.kit.async.launch.threads` have finished executing. `ctx` must be the
-context object returned by that earlier call.
+:ref:`llvm.kit.async.cpu.threads.launch` have finished executing. `ctx` must be
+the context object returned by that earlier call.
 }];
 }
 
@@ -286,7 +286,7 @@ Copy data from a device (usually a GPU) to the host.
 
 This is a non-blocking call i.e. it will return immediately - potentially before
 all the data has been copied. For the blocking equivalent of this, see
-:ref:`llvm.kit.memcpy.dtoh`.
+:ref:`llvm.kit.gpu.memcpy.dtoh`.
 }];
 }
 
@@ -304,7 +304,7 @@ Copy data from the host to a device (usually a GPU).
 
 This is a non-blocking call i.e. it will return immediately - potentially before
 all the data has been copied. For the blocking equivalent of this, see
-:ref:`llvm.kit.memcpy.htod`.
+:ref:`llvm.kit.gpu.memcpy.htod`.
 }];
 }
 
@@ -320,7 +320,7 @@ def KitMemcpyDToHDoc : KitDocIntrinsic {
 Copy data from a device (usually a GPU) to the host.
 
 This is a blocking call. For the non-blocking equivalent of this, see
-:ref:`llvm.kit.async.memcpy.dtoh`.
+:ref:`llvm.kit.async.gpu.memcpy.dtoh`.
 }];
 }
 
@@ -336,7 +336,7 @@ def KitMemcpyHToDDoc : KitDocIntrinsic {
 Copy data from the host to a device (usually a GPU).
 
 This is a blocking call. For the non-blocking equivalent of this, see
-:ref:`llvm.kit.async.memcpy.htod`.
+:ref:`llvm.kit.async.gpu.memcpy.htod`.
 }];
 }
 
@@ -689,7 +689,7 @@ intrinsic since they are used in the body of the parallel loop.
 This is a non-blocking intrinsic and will return immediately. The returned
 stream can be used to synchronize the GPU i.e. to block until all kernels that
 were launched on the stream have finished executing. This is done by passing the
-stream to the :ref:`llvm.kit.sync.stream` intrinsic. It is the callers
+stream to the :ref:`llvm.kit.gpu.stream.sync` intrinsic. It is the callers
 responsibility to ensure that the GPU has finished executing before any memory
 modified by the kernel is used - either on the host or by another GPU kernel.
 }];

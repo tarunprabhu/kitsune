@@ -111,15 +111,15 @@ static bool shouldGenerateCtor(Module &m, TTID tt) {
   switch (tt) {
   case TTID::Cuda:
   case TTID::Hip:
-    return isCalledWithTTID(m, Intrinsic::kit_async_launch_kernel, tt);
+    return isCalledWithTTID(m, Intrinsic::kit_async_gpu_kernel_launch, tt);
   case TTID::OpenCilk:
     return usesCilkRT(m);
   case TTID::OpenMP:
-    return isCalledWithTTID(m, Intrinsic::kit_launch_threads, tt);
+    return isCalledWithTTID(m, Intrinsic::kit_cpu_threads_launch, tt);
   case TTID::Pthreads:
-    return isCalledWithTTID(m, Intrinsic::kit_async_launch_threads, tt);
+    return isCalledWithTTID(m, Intrinsic::kit_async_cpu_threads_launch, tt);
   case TTID::Qthreads:
-    return isCalledWithTTID(m, Intrinsic::kit_launch_threads, tt);
+    return isCalledWithTTID(m, Intrinsic::kit_cpu_threads_launch, tt);
   default:
     llvm_unreachable("shouldGenereateCtor: TTID not handled");
   }

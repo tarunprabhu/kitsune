@@ -7,8 +7,8 @@
 ; RUN:     | FileCheck %s -check-prefix PREFETCH
 ;
 ; PREFETCH: define {{.+}} @f
-; PREFETCH: call {{.+}} @llvm.kit.async.prefetch.htod(i32 2,
-; PREFETCH: call {{.+}} @llvm.kit.async.launch.kernel(i32 2,
+; PREFETCH: call {{.+}} @llvm.kit.async.gpu.prefetch.htod(i32 2,
+; PREFETCH: call {{.+}} @llvm.kit.async.gpu.kernel.launch(i32 2,
 ; PREFETCH: ret void
 ; PREFETCH-NEXT: }
 ;
@@ -19,8 +19,8 @@
 ; RUN:     | FileCheck %s -check-prefix NO-PREFETCH
 ;
 ; NO-PREFETCH: define {{.+}} @f
-; NO-PREFETCH-NOT: call {{.+}} @llvm.kit.async.prefetch.htod(i32 2,
-; NO-PREFETCH: call {{.+}} @llvm.kit.async.launch.kernel(i32 2,
+; NO-PREFETCH-NOT: call {{.+}} @llvm.kit.async.gpu.prefetch.htod(i32 2,
+; NO-PREFETCH: call {{.+}} @llvm.kit.async.gpu.kernel.launch(i32 2,
 ; NO-PREFETCH: ret void
 ; NO-PREFETCH-NEXT: }
 ;

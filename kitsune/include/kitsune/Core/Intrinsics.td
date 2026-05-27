@@ -14,8 +14,7 @@
 //
 //                                  IMPORTANT
 //
-// - All intrinsic names *must* start with `kit_`. Additionally, all
-//   asynchronous intrinsics *must* start with `kit_async` (see below).
+// - All intrinsic names *must* start with `kit_`.
 //
 // - Intrinsics that are asynchronous *must* start with `kit_async`. Other parts
 //   of the code expect this. Failing to do so could result in miscompilation
@@ -53,25 +52,13 @@ class KitIntrinsic<list<LLVMType> ret_types,
   KitDocIntrinsic Doc;
 }
 
-// Launch a function on one or more CPU threads (synchronous).
-def int_kit_launch_threads
-    : KitIntrinsic<[],
-                   [llvm_i32_ty,  // tapir target id
-                    llvm_ptr_ty,  // thread function
-                    llvm_i64_ty,  // start index
-                    llvm_i64_ty,  // end index
-                    llvm_i64_ty,  // grain size
-                    llvm_ptr_ty], // argument bundle
-                   [ImmArg<ArgIndex<0>>,
-                    NonNull<ArgIndex<1>>,
-                    NonNull<ArgIndex<5>>]> {
-  let Doc = KitLaunchThreadsDoc;
-}
+//------------------------------------------------------------------------------
+// Intrinsics for parallel execution on CPU's.
 
 // Launch a function on one or more CPU threads (asynchronous).
-def int_kit_async_launch_threads
+def int_kit_async_cpu_threads_launch
     : KitIntrinsic<[llvm_ptr_ty],
-                   [llvm_i32_ty,  // tapir target id
+                   [llvm_i32_ty,  // TTID
                     llvm_ptr_ty,  // thread function
                     llvm_i64_ty,  // start index
                     llvm_i64_ty,  // end index
@@ -84,14 +71,32 @@ def int_kit_async_launch_threads
   let Doc = KitAsyncLaunchThreadsDoc;
 }
 
+// Launch a function on one or more CPU threads (synchronous).
+def int_kit_cpu_threads_launch
+    : KitIntrinsic<[],
+                   [llvm_i32_ty,  // TTID
+                    llvm_ptr_ty,  // thread function
+                    llvm_i64_ty,  // start index
+                    llvm_i64_ty,  // end index
+                    llvm_i64_ty,  // grain size
+                    llvm_ptr_ty], // argument bundle
+                   [ImmArg<ArgIndex<0>>,
+                    NonNull<ArgIndex<1>>,
+                    NonNull<ArgIndex<5>>]> {
+  let Doc = KitLaunchThreadsDoc;
+}
+
 // Sync the threads launched by an earlier call to
-// llvm.kit.async.launch.threads.
-def int_kit_sync_threads
+// llvm.kit.async.cpu.threads.launch.
+def int_kit_cpu_threads_sync
     : KitIntrinsic<[], [llvm_i32_ty, llvm_ptr_ty],
                    [ImmArg<ArgIndex<0>>,
                     NonNull<ArgIndex<1>>, Dereferenceable<ArgIndex<1>, 16>]> {
   let Doc = KitSyncThreadsDoc;
 }
+
+//------------------------------------------------------------------------------
+// Intrinsics for parallel execution on GPU's.
 
 // Get the thread index in the x dimension in a GPU kernel.
 def int_kit_gpu_thread_id_x : KitIntrinsic<[llvm_i32_ty], [], [IntrNoMem]> {
@@ -153,11 +158,22 @@ def int_kit_gpu_grid_size_z : KitIntrinsic<[llvm_i32_ty], [], [IntrNoMem]> {
   let Doc = KitGPUGridSizeZDoc;
 }
 
+// Get a new GPU stream.
+def int_kit_gpu_stream_new
+    : KitIntrinsic<[llvm_ptr_ty], [llvm_i32_ty], [ImmArg<ArgIndex<0>>]> {
+  let Doc = KitGPUGetStreamDoc;
+}
+
+// Synchronize a GPU stream.
+def int_kit_gpu_stream_sync
+    : KitIntrinsic<[], [llvm_i32_ty, llvm_ptr_ty], [ImmArg<ArgIndex<0>>]> {
+  let Doc = KitGPUSyncStreamDoc;
+}
+
 // Launch a kernel on the GPU on the given stream.
-// TODO: Rename this to kit_async_gpu_launch_kernel
-def int_kit_async_launch_kernel
+def int_kit_async_gpu_kernel_launch
     : KitIntrinsic<[llvm_ptr_ty], // the stream (may be a new stream)
-                   [llvm_i32_ty,  // tapir target id
+                   [llvm_i32_ty,  // TTID
                     llvm_ptr_ty,  // device code global
                     llvm_ptr_ty,  // name
                     llvm_i64_ty,  // tcZ, or 0
@@ -172,9 +188,9 @@ def int_kit_async_launch_kernel
 }
 
 // Copy data from a device (usually a GPU) to the host.
-def int_kit_async_memcpy_dtoh
+def int_kit_async_gpu_memcpy_dtoh
     : KitIntrinsic<[],
-                   [llvm_i32_ty,  // tapir target id
+                   [llvm_i32_ty,  // TTID
                     llvm_ptr_ty,  // pointer to host memory (destination)
                     llvm_ptr_ty,  // pointer to device memory (source)
                     llvm_i64_ty,  // number of bytes to copy
@@ -184,9 +200,9 @@ def int_kit_async_memcpy_dtoh
 }
 
 // Copy data from the host to a device (usually a GPU).
-def int_kit_async_memcpy_htod
+def int_kit_async_gpu_memcpy_htod
     : KitIntrinsic<[],
-                   [llvm_i32_ty,  // tapir target id
+                   [llvm_i32_ty,  // TTID
                     llvm_ptr_ty,  // pointer to device memory (destination)
                     llvm_ptr_ty,  // pointer to host memory (source)
                     llvm_i64_ty,  // number of bytes to copy
@@ -195,10 +211,32 @@ def int_kit_async_memcpy_htod
   let Doc = KitAsyncMemcpyHToDDoc;
 }
 
+// Copy bytes from the GPU to the host. This is a blocking call.
+def int_kit_gpu_memcpy_dtoh
+    : KitIntrinsic<[],
+                   [llvm_i32_ty,  // TTID
+                    llvm_ptr_ty,  // pointer to host memory (destination)
+                    llvm_ptr_ty,  // pointer to device memory (source)
+                    llvm_i64_ty], // number of bytes to copy
+                   [ImmArg<ArgIndex<0>>]> {
+  let Doc = KitMemcpyDToHDoc;
+}
+
+// Copy bytes from the host to the GPU. This is a blocking call.
+def int_kit_gpu_memcpy_htod
+    : KitIntrinsic<[],
+                   [llvm_i32_ty,  // TTID
+                    llvm_ptr_ty,  // pointer to device memory (destination)
+                    llvm_ptr_ty,  // pointer to host memory (source)
+                    llvm_i64_ty], // number of bytes to copy
+                   [ImmArg<ArgIndex<0>>]> {
+  let Doc = KitMemcpyHToDDoc;
+}
+
 // Issue a prefetch from a device (usually a GPU) to the host.
-def int_kit_async_prefetch_dtoh
+def int_kit_async_gpu_prefetch_dtoh
     : KitIntrinsic<[llvm_ptr_ty], // stream
-                   [llvm_i32_ty,  // tapir target id
+                   [llvm_i32_ty,  // TTID
                     llvm_ptr_ty,  // pointer to memory to prefetch
                     llvm_i64_ty,  // number of bytes to prefetch
                     llvm_ptr_ty], // stream
@@ -207,15 +245,48 @@ def int_kit_async_prefetch_dtoh
 }
 
 // Issue a prefetch from the host to a device (usually a GPU).
-def int_kit_async_prefetch_htod
+def int_kit_async_gpu_prefetch_htod
     : KitIntrinsic<[llvm_ptr_ty], // stream
-                   [llvm_i32_ty,  // tapir target id
+                   [llvm_i32_ty,  // TTID
                     llvm_ptr_ty,  // pointer to memory to prefetch
                     llvm_i64_ty,  // number of bytes to prefetch
                     llvm_ptr_ty], // stream
                    [ImmArg<ArgIndex<0>>, IntrWillReturn]> {
   let Doc = KitAsyncPrefetchHToDDoc;
 }
+
+// Get the address of a symbol on a GPU.
+def int_kit_gpu_symbol_address
+    : KitIntrinsic<[llvm_ptr_ty],
+                   [llvm_i32_ty, llvm_ptr_ty, llvm_ptr_ty],
+                   [ImmArg<ArgIndex<0>>]> {
+  let Doc = KitGPUSymbolAddressDoc;
+}
+
+// Copy a symbol from device to host.
+// FIXME: The runtime call here simply calls cuMemcpyDtoH. We should consider
+// removing this and using kit_memcpy_dtoh instead.
+def int_kit_gpu_symbol_memcpy_dtoh
+    : Intrinsic<[],
+                [llvm_i32_ty,  // TTID
+                 llvm_ptr_ty,  // pointer to symbol on the host
+                 llvm_ptr_ty,  // pointer to symbol on the device
+                 llvm_i64_ty], // number of bytes to copy
+                [ImmArg<ArgIndex<0>>]>;
+
+// Copy a symbol from host to device.
+// FIXME: The runtime call here simply calls cuMemcpyHtoD. We should consider
+// removing this and using kit_memcpy_htod instead.
+def int_kit_gpu_symbol_memcpy_htod
+    : Intrinsic<[],
+                [llvm_i32_ty,  // TTID
+                 llvm_ptr_ty,  // pointer to symbol on the device
+                 llvm_ptr_ty,  // pointer to symbol on the host
+                 llvm_i64_ty], // number of bytes to copy
+                [ImmArg<ArgIndex<0>>]>;
+
+//------------------------------------------------------------------------------
+// Intrinsics for mobile buffers
 
 // Allocate a mobile buffer.
 def int_kit_mobile_alloc
@@ -243,135 +314,8 @@ def int_kit_mobile_init
   let Doc = KitMobileInitDoc;
 }
 
-// Enable/disable kernel launch refinement.
-// TODO: Rename this to int_kit_gpu_enable_kernel_launch_refinement.
-def int_kit_enable_refine_launches
-    : KitIntrinsic<[], [llvm_i32_ty, llvm_i8_ty],
-                   [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>]> {
-  let Doc = KitGPUEnableKernelLaunchRefinementDoc;
-}
-
-// Enable/disable verbose mode in Kitsune's runtime.
-def int_kit_enable_verbose
-    : KitIntrinsic<[], [llvm_i8_ty],
-                   [ImmArg<ArgIndex<0>>]> {
-  let Doc = KitEnableVerboseDoc;
-}
-
-// Enable xnack in the runtime. This is only relevant for the hip tapir target
-// and its associated kitsune runtime.
-// TODO: Rename this to int_kit_gpu_enable_xnack
-def int_kit_enable_xnack
-    : KitIntrinsic<[], [llvm_i8_ty], []> {
-  let Doc = KitGPUEnableXnackDoc;
-}
-
-// Enable the y-axis launch pattern for all GPU kernels.
-// TODO: Rename this to int_kit_gpu_enable_y_axis_kernel_launch
-def int_kit_enable_y_axis_launches
-    : KitIntrinsic<[], [llvm_i32_ty, llvm_i8_ty],
-                   [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>]> {
-  let Doc = KitGPUEnableYAxisKernelLaunchDoc;
-}
-
-// Finalize Kitsune's runtime.
-def int_kit_finalize
-    : KitIntrinsic<[], [llvm_i32_ty], [ImmArg<ArgIndex<0>>]> {
-  let Doc = KitFinalizeDoc;
-}
-
-// Initialize Kitsune's runtime.
-def int_kit_initialize
-    : KitIntrinsic<[], [llvm_i32_ty],
-                   [ImmArg<ArgIndex<0>>]> {
-  let Doc = KitInitializeDoc;
-}
-
-// Copy bytes from the GPU to the host. This is a blocking call.
-def int_kit_memcpy_dtoh
-    : KitIntrinsic<[],
-                   [llvm_i32_ty,  // tapir target id
-                    llvm_ptr_ty,  // pointer to host memory (destination)
-                    llvm_ptr_ty,  // pointer to device memory (source)
-                    llvm_i64_ty], // number of bytes to copy
-                   [ImmArg<ArgIndex<0>>]> {
-  let Doc = KitMemcpyDToHDoc;
-}
-
-// Copy bytes from the host to the GPU. This is a blocking call.
-def int_kit_memcpy_htod
-    : KitIntrinsic<[],
-                   [llvm_i32_ty,  // tapir target id
-                    llvm_ptr_ty,  // pointer to device memory (destination)
-                    llvm_ptr_ty,  // pointer to host memory (source)
-                    llvm_i64_ty], // number of bytes to copy
-                   [ImmArg<ArgIndex<0>>]> {
-  let Doc = KitMemcpyHToDDoc;
-}
-
-// Set the fixed number of threads per block to use when launching GPU kernels.
-// TODO: Rename this to int_kit_gpu_set_fixed_tpb
-def int_kit_set_fixed_tpb
-    : KitIntrinsic<[], [llvm_i32_ty, llvm_i32_ty],
-                   [ImmArg<ArgIndex<0>>]> {
-  let Doc = KitGPUSetFixedTPBDoc;
-}
-
-// Set the maximum number of threads per block to use when launching GPU
-// kernels.
-// TODO: Rename this to int_kit_gpu_set_max_tpb
-def int_kit_set_max_tpb
-    : KitIntrinsic<[], [llvm_i32_ty, llvm_i32_ty],
-                   [ImmArg<ArgIndex<0>>]> {
-  let Doc = KitGPUSetMaxTPBDoc;
-}
-
-// Get the address of a symbol on a GPU.
-// TODO: Rename this to kit_gpu_symbol_address
-def int_kit_symbol_device_ptr
-    : KitIntrinsic<[llvm_ptr_ty],
-                   [llvm_i32_ty, llvm_ptr_ty, llvm_ptr_ty],
-                   [ImmArg<ArgIndex<0>>]> {
-  let Doc = KitGPUSymbolAddressDoc;
-}
-
-// Copy a symbol from device to host.
-// FIXME: The runtime call here simply calls cuMemcpyDtoH. We should consider
-// removing this and using kit_memcpy_dtoh instead.
-def int_kit_symbol_memcpy_dtoh
-    : Intrinsic<[],
-                [llvm_i32_ty,  // tapir target id
-                 llvm_ptr_ty,  // pointer to symbol on the host
-                 llvm_ptr_ty,  // pointer to symbol on the device
-                 llvm_i64_ty], // number of bytes to copy
-                [ImmArg<ArgIndex<0>>]>;
-
-// Copy a symbol from host to device.
-// FIXME: The runtime call here simply calls cuMemcpyHtoD. We should consider
-// removing this and using kit_memcpy_htod instead.
-def int_kit_symbol_memcpy_htod
-    : Intrinsic<[],
-                [llvm_i32_ty,  // tapir target id
-                 llvm_ptr_ty,  // pointer to symbol on the device
-                 llvm_ptr_ty,  // pointer to symbol on the host
-                 llvm_i64_ty], // number of bytes to copy
-                [ImmArg<ArgIndex<0>>]>;
-
-// Synchronize a GPU stream.
-// TODO: Rename this to int_kit_gpu_sync_stream
-def int_kit_sync_stream
-    : KitIntrinsic<[], [llvm_i32_ty, llvm_ptr_ty],
-                   [ImmArg<ArgIndex<0>>]> {
-  let Doc = KitGPUSyncStreamDoc;
-}
-
-// Get a new GPU stream.
-// TODO: Rename this to int_kit_gpu_get_stream
-def int_kit_thread_stream
-    : KitIntrinsic<[llvm_ptr_ty], [llvm_i32_ty],
-                   [ImmArg<ArgIndex<0>>]> {
-  let Doc = KitGPUGetStreamDoc;
-}
+//------------------------------------------------------------------------------
+// Intrinsics to support parallel reductions
 
 // Reduce a single value using a given reduction function.
 def int_kit_reduce_0
@@ -414,4 +358,61 @@ def int_kit_reduce_num_partials
                     llvm_i64_ty], // Reduction loop trip count
                    [ImmArg<ArgIndex<0>>]> {
   let Doc = KitReduceNumPartialsDoc;
+}
+
+//------------------------------------------------------------------------------
+// Intrinsics to control Kitsune's runtime(s).
+
+// Finalize Kitsune's runtime.
+def int_kit_runtime_finalize
+    : KitIntrinsic<[], [llvm_i32_ty], [ImmArg<ArgIndex<0>>]> {
+  let Doc = KitFinalizeDoc;
+}
+
+// Initialize Kitsune's runtime.
+def int_kit_runtime_initialize
+    : KitIntrinsic<[], [llvm_i32_ty], [ImmArg<ArgIndex<0>>]> {
+  let Doc = KitInitializeDoc;
+}
+
+// Set the fixed number of threads per block to use when launching GPU kernels.
+def int_kit_runtime_set_fixed_tpb
+    : KitIntrinsic<[], [llvm_i32_ty, llvm_i32_ty],
+                   [ImmArg<ArgIndex<0>>]> {
+  let Doc = KitGPUSetFixedTPBDoc;
+}
+
+// Enable/disable kernel launch refinement.
+def int_kit_runtime_set_kernel_launch_refinement
+    : KitIntrinsic<[], [llvm_i32_ty, llvm_i8_ty],
+                   [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>]> {
+  let Doc = KitGPUEnableKernelLaunchRefinementDoc;
+}
+
+// Set the maximum number of threads per block to use when launching GPU
+// kernels.
+def int_kit_runtime_set_max_tpb
+    : KitIntrinsic<[], [llvm_i32_ty, llvm_i32_ty],
+                   [ImmArg<ArgIndex<0>>]> {
+  let Doc = KitGPUSetMaxTPBDoc;
+}
+
+// Enable/disable verbose mode in Kitsune's runtime.
+def int_kit_runtime_set_verbose
+    : KitIntrinsic<[], [llvm_i8_ty], [ImmArg<ArgIndex<0>>]> {
+  let Doc = KitEnableVerboseDoc;
+}
+
+// Enable xnack in the runtime. This is only relevant for the hip tapir target
+// and its associated kitsune runtime.
+def int_kit_runtime_set_xnack
+    : KitIntrinsic<[], [llvm_i8_ty], []> {
+  let Doc = KitGPUEnableXnackDoc;
+}
+
+// Enable the y-axis launch pattern for all GPU kernels.
+def int_kit_runtime_set_y_axis_kernel_launch
+    : KitIntrinsic<[], [llvm_i32_ty, llvm_i8_ty],
+                   [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>]> {
+  let Doc = KitGPUEnableYAxisKernelLaunchDoc;
 }

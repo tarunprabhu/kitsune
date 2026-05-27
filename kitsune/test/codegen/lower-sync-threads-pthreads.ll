@@ -10,6 +10,6 @@
 target triple = "x86_64-pc-linux-gnu"
 
 define void @launch(ptr nonnull dereferenceable(16) %ctx) {
-  call void (i32, ptr) @llvm.kit.sync.threads(i32 1024, ptr nonnull dereferenceable(16) %ctx)
+  call void (i32, ptr) @llvm.kit.cpu.threads.sync(i32 1024, ptr nonnull dereferenceable(16) %ctx)
   ret void
 }

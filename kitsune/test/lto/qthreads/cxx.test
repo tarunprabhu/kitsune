@@ -24,7 +24,7 @@
 # CHECK-NEXT: store ptr {{.*}}%[[B]], ptr %[[ARGB]]
 # CHECK-NEXT: %[[ARGC:[0-9]+]] = getelementptr {{.*}}, ptr %[[PACK]]
 # CHECK-NEXT: store ptr {{.*}}%[[C]], ptr %[[ARGC]]
-# CHECK: call void @llvm.kit.launch.threads(
+# CHECK: call void @llvm.kit.cpu.threads.launch(
 # CHECK-SAME: i32 32,
 # CHECK-SAME: ptr @[[OUTLINED:[^,]+]],
 # CHECK-SAME: i64 0,
