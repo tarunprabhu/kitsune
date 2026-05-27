@@ -11,7 +11,6 @@ add_llvm_component_library(LLVMKitSupport
   OptznLevelUtils.cpp
   OstreamUtils.cpp
   ToString.cpp
-  TTIDUtils.cpp
 
   COMPONENT_NAME
   KitSupport

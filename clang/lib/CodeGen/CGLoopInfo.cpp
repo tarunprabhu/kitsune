@@ -9,7 +9,7 @@
 #include "CGLoopInfo.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/MetadataUtils.h"
-#include "kitsune/Support/TTIDUtils.h"
+#include "kitsune/Core/TTUtils.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/Expr.h"

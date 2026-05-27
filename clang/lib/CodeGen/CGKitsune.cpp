@@ -58,7 +58,6 @@
 #include "CodeGenFunction.h"
 #include "kitsune/Core/TTUtils.h"
 #include "kitsune/Frontend/KitsuneOptions.h"
-#include "kitsune/Support/TTIDUtils.h"
 #include "clang/AST/StmtKitsune.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 

@@ -6,8 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Miscellaneous utilities that are closely related to tapir targets in some
-// way.
+// Miscellaneous utilities for tapir targets and TTID's.
 //
 //===----------------------------------------------------------------------===//
 
@@ -35,12 +34,12 @@ using OwnedModule = std::unique_ptr<Module>;
 /// or more bitcode files. The purpose of this module depends on the tapir
 /// target. For instance, for the 'cuda' and 'hip' tapir targets, this module
 /// is obtained from one or more libdevice bitcode files. On the other hand, for
-/// the 'opencilk', the support module is obtained from a bitcode file that
-/// is used to interface with the actual runtime. Not all tapir targets require
-/// a support module. Calling this function with the TTID of such a tapir target
-/// will result in an error.
+/// the 'opencilk' tapir target, the support module is obtained from a bitcode
+/// file that is used to interface with the actual runtime. Not all tapir
+/// targets require a support module. Calling this function with the TTID of
+/// such a tapir target will result in an error.
 ///
-/// More than one module may have to be linkde in order to produce the result.
+/// More than one module may have to be linked in order to produce the result.
 /// The files to be parsed are obtained from the given tapir target options
 /// object. Calling this function multiple times can be expensive, so callers
 /// should cache the returned module when possible.
@@ -67,6 +66,17 @@ Expected<OwnedModule> getLibDeviceModule(TTID tt, const TTOptions &tto,
 /// a result, the spawn strategy can be inferred from the tapir target. This
 /// function provides that mapping.
 TapirSpawnStrategy getSpawnStrategyFor(TTID tt);
+
+/// Does the tapir target generate code that will run on a GPU.
+bool isGPUTT(TTID tt);
+
+/// Check if the given tapir target generates embedded bitcode.
+bool generatesEmbBC(TTID tt);
+
+/// The ID's tapir targets that generate embedded bitcode. This will return the
+/// ID's of *all* tapir targets that generate embedded bitcode, even if one or
+/// more (or even all) of them have been disabled in the build.
+ArrayRef<TTID> ttsGenEmbBC();
 
 /// @}
 

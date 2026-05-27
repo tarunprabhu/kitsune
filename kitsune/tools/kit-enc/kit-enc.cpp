@@ -14,10 +14,10 @@
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/ModuleUtils.h"
 #include "kitsune/Core/TTOptions.h"
+#include "kitsune/Core/TTUtils.h"
 #include "kitsune/Core/Tapir.h"
 #include "kitsune/Support/CommandLineUtils.h"
 #include "kitsune/Support/OstreamUtils.h"
-#include "kitsune/Support/TTIDUtils.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/CodeGen/CommandFlags.h"
 #include "llvm/IR/Module.h"
@@ -78,7 +78,7 @@ int main(int argc, char *argv[]) {
   std::optional<TTOptions> tto =
       TTOptions::createFromSharedCommandLineOptions();
   TTID tt = tto ? tto->getTTID() : ttDefault;
-  if (not doesTTGenEmbBC(tt)) {
+  if (not generatesEmbBC(tt)) {
     WithColor::error() << "'" << tt
                        << "' tapir target does not generate embedded bitcode\n";
     return 2;
