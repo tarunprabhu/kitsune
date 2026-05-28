@@ -26,7 +26,7 @@
 ;
 ; DEFAULT: define {{.+}} @[[CTOR]]
 ; DEFAULT: call {{.+}} @llvm.kit.runtime.initialize(i32 2)
-; DEFAULT: call {{.+}} @llvm.kit.runtime.set.verbose(i8 0)
+; DEFAULT: call {{.+}} @llvm.kit.runtime.set.verbose(i32 2, i8 0)
 ; DEFAULT-NOT: call {{.+}} @llvm.kit.runtime.set.fixed.tpb(i32 2,
 ; DEFAULT: call {{.+}} @llvm.kit.runtime.set.max.tpb(i32 2, i32 1024)
 ; DEFAULT-DAG: call {{.+}} @llvm.kit.runtime.set.kernel.launch.refinement(i32 2, i8 1)
@@ -68,7 +68,7 @@
 ; RUN:     | FileCheck %s -check-prefix VERBOSE
 ;
 ; VERBOSE-LABEL: define {{.+}} @.kitcuda.ctor
-; VERBOSE: call {{.+}} @llvm.kit.runtime.set.verbose(i8 1)
+; VERBOSE: call {{.+}} @llvm.kit.runtime.set.verbose(i32 2, i8 1)
 ;
 ; ----------------------------------------------------------------------------
 ;

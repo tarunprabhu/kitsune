@@ -170,6 +170,7 @@ targets.
 def KitEnableVerboseDoc : KitDocIntrinsic {
   let Category = KitDocCatCommon;
   let ParamDocs = [
+      KitDocParam<"tt", "The ID of the tapir target calling the intrinsic">,
       KitDocParam<"enable", "Non-zero to enable verbose mode, 0 to disable it">
   ];
   let Descr = [{
@@ -404,6 +405,7 @@ GPU's, this is an occupancy-based heuristic provided by Cuda.
 def KitGPUEnableXnackDoc : KitDocIntrinsic {
   let Category = KitDocCatGPU;
   let ParamDocs = [
+      KitDocParam<"tt", "The ID of the tapir target calling the intrinsic">,
       KitDocParam<"enable", "Non-zero to enable xnack, 0 to disable it">
   ];
   let Descr = [{

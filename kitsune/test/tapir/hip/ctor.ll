@@ -30,8 +30,8 @@
 ;
 ; DEFAULT: define {{.+}} @[[CTOR]]
 ; DEFAULT: call {{.+}} @llvm.kit.runtime.initialize(i32 4)
-; DEFAULT: call {{.+}} @llvm.kit.runtime.set.verbose(i8 0)
-; DEFAULT: call {{.+}} @llvm.kit.runtime.set.xnack(i8 1)
+; DEFAULT: call {{.+}} @llvm.kit.runtime.set.verbose(i32 4, i8 0)
+; DEFAULT: call {{.+}} @llvm.kit.runtime.set.xnack(i32 4, i8 1)
 ; DEFAULT: call {{.+}} @llvm.kit.runtime.set.y.axis.kernel.launch(i32 4, i8 0)
 ; DEFAULT-NOT: call {{.+}} @llvm.kit.runtime.set.fixed.tpb(i32 4,
 ; DEFAULT: call {{.+}} @llvm.kit.runtime.set.max.tpb(i32 4, i32 1024)
@@ -72,7 +72,7 @@
 ; RUN:     | FileCheck %s -check-prefix VERBOSE
 ;
 ; VERBOSE-LABEL: kithip.ctor{{.*}}
-; VERBOSE: call {{.+}} @llvm.kit.runtime.set.verbose(i8 1)
+; VERBOSE: call {{.+}} @llvm.kit.runtime.set.verbose(i32 4, i8 1)
 ;
 ; ----------------------------------------------------------------------------
 ;
@@ -85,7 +85,7 @@
 ; RUN:     | FileCheck %s -check-prefix NOXNACK
 ;
 ; NOXNACK-LABEL: kithip.ctor{{.*}}
-; NOXNACK: call {{.+}} @llvm.kit.runtime.set.xnack(i8 0)
+; NOXNACK: call {{.+}} @llvm.kit.runtime.set.xnack(i32 4, i8 0)
 ;
 ; ----------------------------------------------------------------------------
 ;

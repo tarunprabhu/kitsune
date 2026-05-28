@@ -650,28 +650,16 @@ private:
       break;
 
     case Intrinsic::kit_runtime_set_verbose:
-    case Intrinsic::kit_runtime_set_xnack: {
-      // The only argument is an immediate flag. If the flag is false, the
-      // corresponding runtime function should not be called.
-      if (cast<ConstantInt>(call.getArgOperand(0))->isZero())
+    case Intrinsic::kit_runtime_set_xnack:
+    case Intrinsic::kit_runtime_set_y_axis_kernel_launch:
+      // The first argument is the TTID. The second is a flag. If the flag is
+      // false, the corresponding runtime function should not be called.
+      if (isZero(call.getArgOperand(1)))
         call.eraseFromParent();
       else
         lowerIntrinsicDefault(call);
       changed |= true;
       break;
-    }
-
-    case Intrinsic::kit_runtime_set_y_axis_kernel_launch: {
-      // The first argument is the tapir target id. The second is a boolean
-      // immediate flag. If the flag is false, the corresponding runtime
-      // function should not be called.
-      if (cast<ConstantInt>(call.getArgOperand(1))->isZero())
-        call.eraseFromParent();
-      else
-        lowerIntrinsicDefault(call);
-      changed |= true;
-      break;
-    }
 
     default:
       changed |= lowerIntrinsicDefault(call);

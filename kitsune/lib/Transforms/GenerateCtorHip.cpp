@@ -130,13 +130,14 @@ private:
 
     // Enable verbose mode early in the constructor so all verbose statements
     // are printed after the runtime has been initialized.
-    builder.CreateIntrinsic(Intrinsic::kit_runtime_set_verbose, cVerbose);
+    builder.CreateIntrinsic(Intrinsic::kit_runtime_set_verbose,
+                            {ctt, cVerbose});
 
     if (tto.getHipXnack() == MaybeBool::On)
       LLVM_DEBUG(dbgs() << "\t\tenable xnack via ctor runtime call.\n");
     Constant *cXnack =
         toConstant(uint8_t(tto.getHipXnack() == MaybeBool::On), ctx);
-    builder.CreateIntrinsic(Intrinsic::kit_runtime_set_xnack, cXnack);
+    builder.CreateIntrinsic(Intrinsic::kit_runtime_set_xnack, {ctt, cXnack});
 
     if (genCtorOpts.useYLaunch)
       LLVM_DEBUG(
