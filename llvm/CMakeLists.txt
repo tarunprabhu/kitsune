@@ -256,6 +256,42 @@ endif()
 
 # ----------------------- KITSUNE SPECIFIC CONFIGURATION -----------------------
 
+function (get_ttid_for TT OUT)
+  if (TT STREQUAL "cuda")
+    set(${OUT} "TTID::Cuda" PARENT_SCOPE)
+  elseif (TT STREQUAL "custom")
+    set(${OUT} "TTID::Custom" PARENT_SCOPE)
+  elseif (TT STREQUAL "hip")
+    set(${OUT} "TTID::Hip" PARENT_SCOPE)
+  elseif (TT STREQUAL "opencilk")
+    set(${OUT} "TTID::OpenCilk" PARENT_SCOPE)
+  elseif (TT STREQUAL "openmp")
+    set(${OUT} "TTID::OpenMP" PARENT_SCOPE)
+  elseif (TT STREQUAL "pthreads")
+    set(${OUT} "TTID::Pthreads" PARENT_SCOPE)
+  elseif (TT STREQUAL "qthreads")
+    set(${OUT} "TTID::Qthreads" PARENT_SCOPE)
+  elseif (TT STREQUAL "serial")
+    set(${OUT} "TTID::Hip" PARENT_SCOPE)
+  else ()
+    message(FATAL_ERROR "Tapir target not handled: '${target}'")
+  endif ()
+endfunction ()
+
+function (populate_ttids TTS ENABLED_TTS OUT)
+  set(TTIDS)
+  foreach (TT ${TTS})
+    if (TT IN_LIST ENABLED_TTS)
+      set(TTID)
+      get_ttid_for("${TT}" TTID)
+      list(APPEND TTIDS "${TTID}")
+    endif()
+    list(SORT TTIDS)
+    list(JOIN TTIDS ", " TTIDS)
+  endforeach ()
+  set(${OUT} "${TTIDS}" PARENT_SCOPE)
+endfunction ()
+
 # Kitsune is only known to work on a limited number of systems.
 # TODO: We should probably emit a different error message on systems where
 # Kitsune might work, but where it has not been tested.
@@ -430,8 +466,8 @@ if (NOT "all" IN_LIST LLVM_ENABLE_PROJECTS AND
   message(STATUS "enable lld project")
 endif ()
 
-# Both KITSUNE_ALL_LANGS and KITSUNE_ALL_LANGS_STR must be updated when support
-# for a new language is added.
+# Both KITSUNE_KNOWN_LANGS and KITSUNE_KNOWN_LANGS_STR must be updated when
+# support for a new language is added.
 set(KITSUNE_KNOWN_LANGS
   "c;cxx;fortran"
   CACHE INTERNAL
@@ -482,15 +518,21 @@ foreach(l IN LISTS KITSUNE_ENABLED_LANGS)
   # built because the runtime requires it.
   if (lang STREQUAL "c")
     message(STATUS "'${KITSUNE_C_FRONTEND}' frontend is enabled")
-    set(KITSUNE_C_ENABLED ON CACHE INTERNAL "Enable '${KITSUNE_C_FRONTEND}' frontend" FORCE)
+    set(KITSUNE_C_ENABLED ON
+      CACHE INTERNAL
+      "Enable '${KITSUNE_C_FRONTEND}' frontend" FORCE)
     list(APPEND KITSUNE_ENABLED_LANGS_STR "C")
   elseif (lang STREQUAL "cxx")
     message(STATUS "'${KITSUNE_CXX_FRONTEND}' frontend is enabled")
-    set(KITSUNE_CXX_ENABLED ON CACHE INTERNAL "Enable '${KITSUNE_CXX_FRONTEND}' frontend" FORCE)
+    set(KITSUNE_CXX_ENABLED ON
+      CACHE INTERNAL
+      "Enable '${KITSUNE_CXX_FRONTEND}' frontend" FORCE)
     list(APPEND KITSUNE_ENABLED_LANGS_STR "C++")
   elseif (lang STREQUAL "fortran")
     message(STATUS "'${KITSUNE_Fortran_FRONTEND}' frontend is enabled")
-    set(KITSUNE_Fortran_ENABLED ON CACHE INTERNAL "Enable '${KITSUNE_Fortran_FRONTEND}' frontend" FORCE)
+    set(KITSUNE_Fortran_ENABLED ON
+      CACHE INTERNAL
+      "Enable '${KITSUNE_Fortran_FRONTEND}' frontend" FORCE)
 
     if (NOT "all" IN_LIST LLVM_ENABLE_PROJECTS AND
         NOT "flang" IN_LIST LLVM_ENABLE_PROJECTS)
@@ -537,28 +579,17 @@ list(JOIN KITSUNE_ENABLED_LANGS_STR " " KITSUNE_ENABLED_LANGS_STR)
 #
 # The Kokkos option does not need to be moved here (for now) because that only
 # affects clang. And we have ensured that kitsune is configured before clang.
-set(KITSUNE_CUDA_ENABLED OFF CACHE INTERNAL
-  "Enable 'cuda' tapir target" FORCE)
-set(KITSUNE_CUSTOM_ENABLED ON CACHE INTERNAL
-  "Enable 'custom' tapir target" FORCE)
-set(KITSUNE_HIP_ENABLED OFF CACHE INTERNAL
-  "Enable 'hip' tapir target" FORCE)
-set(KITSUNE_LAMBDA_ENABLED OFF CACHE INTERNAL
-  "Enable 'lambda' tapir target" FORCE)
-set(KITSUNE_OMPTASK_ENABLED OFF CACHE INTERNAL
-  "Enable 'omptask' tapir target" FORCE)
-set(KITSUNE_OPENCILK_ENABLED OFF CACHE INTERNAL
-  "Enable 'opencilk' tapir target" FORCE)
-set(KITSUNE_OPENMP_ENABLED ON CACHE INTERNAL
-  "Enable 'openmp' tapir target" FORCE)
-set(KITSUNE_PTHREADS_ENABLED ON CACHE INTERNAL
-  "Enable 'pthreads' tapir target" FORCE)
-set(KITSUNE_QTHREADS_ENABLED OFF CACHE INTERNAL
-  "Enable 'qthreads' tapir target" FORCE)
-set(KITSUNE_REALM_ENABLED OFF CACHE INTERNAL
-  "Enable 'realm' tapir target" FORCE)
-set(KITSUNE_SERIAL_ENABLED ON CACHE INTERNAL
-  "Enable 'serial' tapir target" FORCE)
+set(KITSUNE_CUDA_ENABLED     OFF CACHE INTERNAL "Enable 'cuda'" FORCE)
+set(KITSUNE_CUSTOM_ENABLED   ON  CACHE INTERNAL "Enable 'custom'" FORCE)
+set(KITSUNE_HIP_ENABLED      OFF CACHE INTERNAL "Enable 'hip'" FORCE)
+set(KITSUNE_LAMBDA_ENABLED   OFF CACHE INTERNAL "Enable 'lambda'" FORCE)
+set(KITSUNE_OMPTASK_ENABLED  OFF CACHE INTERNAL "Enable 'omptask'" FORCE)
+set(KITSUNE_OPENCILK_ENABLED OFF CACHE INTERNAL "Enable 'opencilk'" FORCE)
+set(KITSUNE_OPENMP_ENABLED   ON  CACHE INTERNAL "Enable 'openmp'" FORCE)
+set(KITSUNE_PTHREADS_ENABLED ON  CACHE INTERNAL "Enable 'pthreads'" FORCE)
+set(KITSUNE_QTHREADS_ENABLED OFF CACHE INTERNAL "Enable 'qthreads'" FORCE)
+set(KITSUNE_REALM_ENABLED    OFF CACHE INTERNAL "Enable 'realm'" FORCE)
+set(KITSUNE_SERIAL_ENABLED   ON  CACHE INTERNAL "Enable 'serial'" FORCE)
 
 # FIXME: This contains all tapir targets for which some support exists in
 # Kitsune. This includes those tapir targets that are known to be incomplete,
@@ -582,6 +613,25 @@ set(KITSUNE_GUARANTEED_TAPIR_TARGETS
   "custom;openmp;pthreads;serial"
   CACHE INTERNAL
   "The tapir targets that are always built"
+  FORCE)
+
+# We may want a more generic list of tapir targets that are compiled for a
+# "device" - usually an accelerator. But for now, we only support GPU's and
+# there are several places in the code where we need to do something
+# GPU-specific that may not apply to other accelerators. So stick with this for
+# now.
+set(KITSUNE_GPU_TAPIR_TARGETS
+  "cuda;hip"
+  CACHE INTERNAL
+  "The tapir targets that generate code to be executed on GPU's"
+  FORCE)
+
+# The list of tapir targets that use embedded bitcode may not always be the same
+# as the list of GPU/device tapir targets.
+set(KITSUNE_EMB_BC_TAPIR_TARGETS
+  "cuda;hip"
+  CACHE INTERNAL
+  "The tapir targets that generate embedded bitcode modules"
   FORCE)
 
 set(KITSUNE_ENABLE_TAPIR_TARGETS "${KITSUNE_DEFAULT_TAPIR_TARGETS}" CACHE STRING
@@ -616,6 +666,16 @@ foreach(target IN LISTS KITSUNE_ENABLED_TAPIR_TARGETS)
 endforeach ()
 list(SORT KITSUNE_ENABLED_TAPIR_TARGETS_STR)
 list(JOIN KITSUNE_ENABLED_TAPIR_TARGETS_STR " " KITSUNE_ENABLED_TAPIR_TARGETS_STR)
+
+populate_ttids("${KITSUNE_ENABLED_TAPIR_TARGETS}"
+  "${KITSUNE_ENABLED_TAPIR_TARGETS}"
+  KITSUNE_ENABLED_TTIDS)
+populate_ttids("${KITSUNE_GPU_TAPIR_TARGETS}"
+  "${KITSUNE_ENABLED_TAPIR_TARGETS}"
+  KITSUNE_ENABLED_GPU_TTIDS)
+populate_ttids("${KITSUNE_EMB_BC_TAPIR_TARGETS}"
+  "${KITSUNE_ENABLED_TAPIR_TARGETS}"
+  KITSUNE_ENABLED_EMB_BC_TTIDS)
 
 set(KITSUNE_KNOWN_TAPIR_TARGETS_STR "${KITSUNE_KNOWN_TAPIR_TARGETS}")
 list(SORT KITSUNE_KNOWN_TAPIR_TARGETS_STR)
