@@ -15,6 +15,7 @@
 #include "kitsune/CodeGen/CodeGenFatBinaries.h"
 #include "CGFBImpl.h"
 #include "kitsune/Analysis/TTObjectsAnalysis.h"
+#include "kitsune/Config/Config.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/TTUtils.h"
@@ -194,7 +195,7 @@ public:
     bool changed = false;
 
     initializeCGFBOptions(m);
-    for (TTID tt : ttsGenEmbBC()) {
+    for (TTID tt : kitEnabledEmbBCTTIDs()) {
       GlobalVariable *bc = getEmbBCGlobal(tt, m);
       GlobalVariable *fb = getEmbFBGlobal(tt, m);
       if (bc and fb) {

@@ -67,16 +67,16 @@ Expected<OwnedModule> getLibDeviceModule(TTID tt, const TTOptions &tto,
 /// function provides that mapping.
 TapirSpawnStrategy getSpawnStrategyFor(TTID tt);
 
-/// Does the tapir target generate code that will run on a GPU.
+/// Has the given tapir target been enabled in this build.
+bool isEnabledTT(TTID tt);
+
+/// Does the tapir target generate code that will run on a GPU. This will only
+/// return true if the tapir target generates GPU code *AND* the target has been
+/// enabled.
 bool isGPUTT(TTID tt);
 
 /// Check if the given tapir target generates embedded bitcode.
 bool generatesEmbBC(TTID tt);
-
-/// The ID's tapir targets that generate embedded bitcode. This will return the
-/// ID's of *all* tapir targets that generate embedded bitcode, even if one or
-/// more (or even all) of them have been disabled in the build.
-ArrayRef<TTID> ttsGenEmbBC();
 
 /// @}
 

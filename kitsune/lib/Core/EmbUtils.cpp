@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/EmbUtils.h"
+#include "kitsune/Config/Config.h"
 #include "kitsune/Core/Diagnostics.h"
 #include "kitsune/Core/GVAttrs.h"
 #include "kitsune/Core/ModuleAttrs.h"
@@ -165,7 +166,7 @@ Expected<std::unique_ptr<Module>> llvm::getEmbModule(TTID tt, const Module &m) {
 
 Expected<EmbModulesMapTy> llvm::getEmbModules(const Module &m) {
   EmbModulesMapTy embBCs;
-  for (TTID tt : ttsGenEmbBC()) {
+  for (TTID tt : kitEnabledEmbBCTTIDs()) {
     for (const GlobalVariable &g : m.globals()) {
       if (mayContainEmbBC(g, tt)) {
         Expected<std::unique_ptr<Module>> devMOrErr = parseEmbBCGlobal(g);

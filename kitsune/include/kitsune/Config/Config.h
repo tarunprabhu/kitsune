@@ -14,6 +14,8 @@
 #define KITSUNE_CONFIG_CONFIG_H
 
 #include "kitsune/Config/config.h"
+#include "kitsune/Core/Tapir.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
 
 namespace llvm {
@@ -74,6 +76,20 @@ constexpr StringRef kitGCCInstallDir() { return KITSUNE_GCC_INSTALL_DIR; }
 /// the build.
 constexpr StringRef kitEnabledTapirTargets() {
   return KITSUNE_ENABLED_TAPIR_TARGETS;
+}
+
+/// Get a list of TTID's that have been enabled in this build.
+static constexpr TTID kitEnabledTTIDList[] = {KITSUNE_ENABLED_TTIDS};
+constexpr ArrayRef<TTID> kitEnabledTTIDs() { return kitEnabledTTIDList; }
+
+/// Get a list of enabled TTID's that generate GPU code.
+static constexpr TTID kitEnabledGPUTTList[] = {KITSUNE_ENABLED_GPU_TTIDS};
+constexpr ArrayRef<TTID> kitEnabledGPUTTIDs() { return kitEnabledGPUTTList; }
+
+/// Get the list of enabled TTID's that generate embedded bitcode.
+static constexpr TTID kitEnabledEmbBCTTList[] = {KITSUNE_ENABLED_EMB_BC_TTIDS};
+constexpr ArrayRef<TTID> kitEnabledEmbBCTTIDs() {
+  return kitEnabledEmbBCTTList;
 }
 
 /// Has the C frontend been built.

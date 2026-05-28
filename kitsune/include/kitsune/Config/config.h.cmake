@@ -1,10 +1,14 @@
-/*
- * Copyright (c) 2020 Triad National Security, LLC
- *                         All rights reserved.
- *
- * This file is part of the kitsune/llvm project.  It is released under
- * the LLVM license.
- */
+//===- config.h.cmake - Configuration variables from cmake  ----*- C++ -*--===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// Configuration variables initialized by cmake.
+//
+//===----------------------------------------------------------------------===//
 
 #ifndef KITSUNE_CONFIG_H
 #define KITSUNE_CONFIG_H
@@ -21,7 +25,7 @@
 
 // The default GCC installation directory to use. If this is non-null, Kitsune
 // will not scan for a GCC installation. This value can be overridden by passing
-// --gcc-install-dir on the command line
+// --gcc-install-dir on the command line.
 #define KITSUNE_GCC_INSTALL_DIR "@KITSUNE_GCC_INSTALL_DIR@"
 
 // A semicolon-separated list of library names that should always be linked when
@@ -34,40 +38,54 @@
 
 // -----------------------------------------------------------------------------
 
-// The names of the Kitsune frontends
+// The names of the Kitsune frontends.
 #define KITSUNE_C_FRONTEND "@KITSUNE_C_FRONTEND@"
 #define KITSUNE_CXX_FRONTEND "@KITSUNE_CXX_FRONTEND@"
 #define KITSUNE_Fortran_FRONTEND "@KITSUNE_Fortran_FRONTEND@"
 
-// A space-separated string of all languages for which Kitsune frontends exist
+// A space-separated string of all languages for which Kitsune frontends exist.
 #define KITSUNE_KNOWN_LANGS "@KITSUNE_KNOWN_LANGS_STR@"
 
-// Kitsune language support that has been enabled
+// Kitsune language support that has been enabled.
 #cmakedefine01 KITSUNE_C_ENABLED
 #cmakedefine01 KITSUNE_CXX_ENABLED
 #cmakedefine01 KITSUNE_Fortran_ENABLED
 
-// A space-separate dstring of all enabled languages
+// A space-separate dstring of all enabled languages.
 #define KITSUNE_ENABLED_LANGS "@KITSUNE_ENABLED_LANGS_STR@"
 
 // -----------------------------------------------------------------------------
 
 // A space-separated string of all known Tapir targets, including those that
-// have not been enabled
+// have not been enabled.
 #define KITSUNE_KNOWN_TAPIR_TARGETS "@KITSUNE_KNOWN_TAPIR_TARGETS_STR@"
 
 // A space-separated string with the Tapir targets that have been enabled in
-// this build
+// this build.
 #define KITSUNE_ENABLED_TAPIR_TARGETS "@KITSUNE_ENABLED_TAPIR_TARGETS_STR@"
+
+// A comma-separated list of tapir targets that have been enabled in this build.
+// This is *NOT* a string. It can only be used within an initializer list.
+#define KITSUNE_ENABLED_TTIDS @KITSUNE_ENABLED_TTIDS@
+
+// A comma-separated list of tapir targets that generate GPU code and have been
+// enabled in this build. This is *NOT* a string. It can only be used within an
+// initializer list.
+#define KITSUNE_ENABLED_GPU_TTIDS @KITSUNE_ENABLED_GPU_TTIDS@
+
+// A comma-separated list of tapir targets that generated embedded bitcode and
+// have been enabled in this build. This is *NOT* a string. It can only be used
+// within an initializer list.
+#define KITSUNE_ENABLED_EMB_BC_TTIDS @KITSUNE_ENABLED_EMB_BC_TTIDS@
 
 // -----------------------------------------------------------------------------
 
-// Has kokkos support been enabled
+// Has kokkos support been enabled.
 #cmakedefine01 KITSUNE_KOKKOS_ENABLED
 
 // -----------------------------------------------------------------------------
 
-// Has the cuda tapir target been enabled
+// Has the cuda tapir target been enabled.
 #cmakedefine01 KITSUNE_CUDA_ENABLED
 
 #define KITSUNE_CUDA_PREFIX "@KITSUNE_CUDA_PREFIX@"
@@ -85,20 +103,20 @@
 
 // A semicolon-separated list of directories that should be added to the
 // linker's library search and the rpath when the cuda tapir target is
-// specified
+// specified.
 #define KITSUNE_CUDA_LIB_DIRS "@KITSUNE_CUDA_LIB_DIRS@"
 
-// The name of the symbol containing the cuda device code (the fat binary)
+// The name of the symbol containing the cuda device code (the fat binary).
 #define KITSUNE_CUDA_FATBIN_NAME "__kitsune_fatbin_cuda"
 
 // -----------------------------------------------------------------------------
 
-// Has the custom tapir target been enabled
+// Has the custom tapir target been enabled.
 #cmakedefine01 KITSUNE_CUSTOM_ENABLED
 
 // -----------------------------------------------------------------------------
 
-// Has the hip tapir target been enabled
+// Has the hip tapir target been enabled.
 #cmakedefine01 KITSUNE_HIP_ENABLED
 
 #define KITSUNE_HIP_PREFIX "@KITSUNE_HIP_PREFIX@"
@@ -115,40 +133,40 @@
 
 // A semicolon-separated list of directories that should be added to the
 // linker's library search and the rpath when the cuda tapir target is
-// specified
+// specified.
 #define KITSUNE_HIP_LIB_DIRS "@KITSUNE_HIP_LIB_DIRS@"
 
-// The name of the symbol containing the hip device code (the fat binary)
+// The name of the symbol containing the hip device code (the fat binary).
 #define KITSUNE_HIP_FATBIN_NAME "__kitsune_fatbin_hip"
 
 // -----------------------------------------------------------------------------
 
-// Has the lambda tapir target been enabled
+// Has the lambda tapir target been enabled.
 #cmakedefine01 KITSUNE_LAMBDA_ENABLED
 
 // -----------------------------------------------------------------------------
 
-// Has the omptask tapir target been enabled
+// Has the omptask tapir target been enabled.
 #cmakedefine01 KITSUNE_OMPTASK_ENABLED
 
 // -----------------------------------------------------------------------------
 
-// Has the opencilk tapir target been enabled
+// Has the opencilk tapir target been enabled.
 #cmakedefine01 KITSUNE_OPENCILK_ENABLED
 
 // -----------------------------------------------------------------------------
 
-// Has the openmp tapir target been enabled
+// Has the openmp tapir target been enabled.
 #cmakedefine01 KITSUNE_OPENMP_ENABLED
 
 // -----------------------------------------------------------------------------
 
-// Has the pthreads tapir target been enabled
+// Has the pthreads tapir target been enabled.
 #cmakedefine01 KITSUNE_PTHREADS_ENABLED
 
 // -----------------------------------------------------------------------------
 
-// Has the qthreads tapir target been enabled
+// Has the qthreads tapir target been enabled.
 #cmakedefine01 KITSUNE_QTHREADS_ENABLED
 
 // The name of the directory to which libqthread will be installed. This is
@@ -157,12 +175,12 @@
 
 // -----------------------------------------------------------------------------
 
-// Has the realm tapir target been enabled
+// Has the realm tapir target been enabled.
 #cmakedefine01 KITSUNE_REALM_ENABLED
 
 // -----------------------------------------------------------------------------
 
-// Has the serial tapir target been enabled
+// Has the serial tapir target been enabled.
 #cmakedefine01 KITSUNE_SERIAL_ENABLED
 
 // -----------------------------------------------------------------------------

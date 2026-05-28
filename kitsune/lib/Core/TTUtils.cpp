@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/TTUtils.h"
+#include "kitsune/Config/Config.h"
 #include "kitsune/Core/Diagnostics.h"
 #include "kitsune/Core/TTOptions.h"
 #include "llvm/ADT/StringExtras.h"
@@ -104,25 +105,44 @@ TapirSpawnStrategy llvm::getSpawnStrategyFor(TTID tt) {
   llvm_unreachable("getSpawnStrategyFor: TTID not handled");
 }
 
-bool llvm::isGPUTT(TTID tt) {
-  switch (tt) {
-  case TTID::Cuda:
-  case TTID::Hip:
-    return true;
-  default:
-    return false;
-  }
-}
-
-// The tapir targets that generate embedded bitcode.
-static constexpr TTID ttbcs[] = {TTID::Cuda, TTID::Hip};
-
-ArrayRef<TTID> llvm::ttsGenEmbBC() { return ttbcs; }
-
-bool llvm::generatesEmbBC(TTID tt) {
-  for (TTID t : ttbcs)
-    if (t == tt)
+static bool contains(ArrayRef<TTID> tts, TTID key) {
+  for (TTID tt : tts)
+    if (tt == key)
       return true;
   return false;
 }
 
+bool llvm::isGPUTT(TTID tt) { return contains(kitEnabledGPUTTIDs(), tt); }
+
+bool llvm::generatesEmbBC(TTID tt) {
+  return contains(kitEnabledEmbBCTTIDs(), tt);
+}
+
+bool llvm::isEnabledTT(TTID tt) {
+  switch (tt) {
+  case TTID::Nolo:
+    return true;
+  case TTID::Cuda:
+    return kitCudaEnabled();
+  case TTID::Custom:
+    return kitCustomEnabled();
+  case TTID::Hip:
+    return kitHipEnabled();
+  case TTID::OpenCilk:
+    return kitOpenCilkEnabled();
+  case TTID::OpenMP:
+    return kitOpenMPEnabled();
+  case TTID::Pthreads:
+    return kitPthreadsEnabled();
+  case TTID::Qthreads:
+    return kitQthreadsEnabled();
+  case TTID::Serial:
+    return kitSerialEnabled();
+  case TTID::Lambda:
+  case TTID::OMPTask:
+  case TTID::Realm:
+    // These tapir targets are not fully supported yet.
+    break;
+  }
+  llvm_unreachable("isEnabledTT: TTID not handled");
+}
