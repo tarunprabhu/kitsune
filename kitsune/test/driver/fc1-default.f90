@@ -1,3 +1,5 @@
+! REQUIRES: kitfc
+!
 ! Check that the default options added to the internal command lines (for -cc1
 ! and the linker) are as expected. There are corresponding tests that are
 ! tapir-target specific. Those generally check that the external libraries
