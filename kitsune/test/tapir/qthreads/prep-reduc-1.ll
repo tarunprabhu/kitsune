@@ -106,13 +106,7 @@
 ; CHECK-DAG: ![[LOOP_I]] = distinct !{![[LOOP_I]]}
 ; CHECK-DAG: ![[LOOP_O]] = distinct !{![[LOOP_O]], ![[REDUCTION]], ![[TARGET]], ![[PREPARED]]}
 
-define void @min(ptr %res, i32 %v) {
-  %1 = load i32, ptr %res
-  %2 = icmp ult i32 %v, %1
-  %3 = select i1 %2, i32 %v, i32 %1
-  store i32 %3, ptr %res
-  ret void
-}
+declare void @min(ptr %res, i32 %v)
 
 define void @f(i64 %n) {
 entry:

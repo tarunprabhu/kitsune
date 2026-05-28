@@ -5,9 +5,7 @@
 ;
 ; CHECK: incorrect number of params in reducer 'sum'. Expected 2
 
-define void @sum(ptr %dest, i64 %v, ptr %extra) {
-  ret void
-}
+declare void @sum(ptr %res, i64 %v, ptr %extra)
 
 define void @f(ptr addrspace(67) %buf, i64 %n) {
   %r = alloca i64

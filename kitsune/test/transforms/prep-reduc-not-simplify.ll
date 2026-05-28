@@ -5,12 +5,7 @@
 ;
 ; CHECK: loop is not in loop-simplify form
 
-define void @sum(ptr %res, i64 %v) {
-  %1 = load i64, ptr %res
-  %2 = add i64 %1, %v
-  store i64 %2, ptr %res
-  ret void
-}
+declare void @sum(ptr %res, i64 %v)
 
 define void @acc(i64 %n) {
 entry:

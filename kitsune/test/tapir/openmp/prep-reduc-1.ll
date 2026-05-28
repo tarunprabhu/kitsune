@@ -105,12 +105,7 @@
 ; CHECK-DAG: ![[LOOP_I]] = distinct !{![[LOOP_I]]}
 ; CHECK-DAG: ![[LOOP_O]] = distinct !{![[LOOP_O]], ![[REDUCTION]], ![[TARGET]], ![[PREPARED]]}
 
-define void @mul(ptr %res, i64 %v) {
-  %1 = load i64, ptr %res
-  %2 = mul i64 %v, %1
-  store i64 %2, ptr %res
-  ret void
-}
+declare void @mul(ptr %res, i64 %v)
 
 define void @f(i64 %n) {
 entry:

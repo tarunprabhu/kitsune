@@ -1,15 +1,5 @@
 ; Check that successive calls to kit.reduce.1 are grouped together during
-; lowering.
-;
-; RUN: opt -passes='kit-lower-reduce-intrinsics' -S %s \
-; RUN:     | FileCheck %s
-
-declare void @ext()
-declare void @sum(ptr %res, i32 %v)
-declare void @mul(ptr %res, i64 %v)
-declare void @custom(ptr %res, ptr %v, ptr %extra, i8 %more)
-
-; This checks several things at once.
+; lowering. This checks several things at once.
 ;
 ;   - The sizes of the reduction results are not the same, but the calls to the
 ;     intrinsic should be grouped
@@ -19,6 +9,9 @@ declare void @custom(ptr %res, ptr %v, ptr %extra, i8 %more)
 ;
 ;   - If additional parameters are to be passed to the reducer, they are passed
 ;     and this has no effect on the grouping.
+;
+; RUN: opt -passes='kit-lower-reduce-intrinsics' -S %s \
+; RUN:     | FileCheck %s
 ;
 ; CHECK-LABEL: @f1
 ; CHECK-SAME: ptr {{[^%]*}}%[[BUF1:[^,]+]]
@@ -64,6 +57,12 @@ declare void @custom(ptr %res, ptr %v, ptr %extra, i8 %more)
 ; CHECK-NEXT: [[EXIT]]:
 ; CHECK-NEXT: call void @ext()
 ; CHECK-NEXT: ret void
+
+declare void @ext()
+declare void @sum(ptr %res, i32 %v)
+declare void @mul(ptr %res, i64 %v)
+declare void @custom(ptr %res, ptr %v, ptr %extra, i8 %more)
+
 define void @f1(ptr addrspace(67) %buf1, ptr addrspace(67) %buf2, ptr addrspace(67) %buf3, ptr addrspace(67) %buf4, i64 %n, ptr %reducer, ptr %extra, i8 %more) {
 entry:
   %r1 = alloca i32
