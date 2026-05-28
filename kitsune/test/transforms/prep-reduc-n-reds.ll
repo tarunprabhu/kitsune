@@ -86,33 +86,13 @@
 ; CHECK-NEXT: call void @llvm.kit.mobile.free{{.+}} %[[BUF3]]
 ; CHECK-NEXT: call void @llvm.kit.mobile.free{{.+}} %[[BUF4]]
 
-define void @sum.i64(ptr %res, i64 %v) {
-  %1 = load i64, ptr %res
-  %2 = add i64 %1, %v
-  store i64 %2, ptr %res
-  ret void
-}
+declare void @sum.i64(ptr %res, i64 %v)
 
-define void @mul.i64(ptr %res, i64 %v) {
-  %1 = load i64, ptr %res
-  %2 = mul i64 %1, %v
-  store i64 %2, ptr %res
-  ret void
-}
+declare void @mul.i64(ptr %res, i64 %v)
 
-define void @sum.i32(ptr %res, i32 %v) {
-  %1 = load i32, ptr %res
-  %2 = add i32 %1, %v
-  store i32 %2, ptr %res
-  ret void
-}
+declare void @sum.i32(ptr %res, i32 %v)
 
-define void @mul.i32(ptr %res, i32 %v) {
-  %1 = load i32, ptr %res
-  %2 = mul i32 %1, %v
-  store i32 %2, ptr %res
-  ret void
-}
+declare void @mul.i32(ptr %res, i32 %v)
 
 define void @f(i64 %n) {
 entry:

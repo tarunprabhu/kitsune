@@ -99,12 +99,7 @@
 ; CHECK-DAG: ![[LOOP_I]] = distinct !{![[LOOP_I]]}
 ; CHECK-DAG: ![[LOOP_O]] = distinct !{![[LOOP_O]], ![[REDUCTION]], ![[TARGET]], ![[PREPARED]]}
 
-define void @sum(ptr %res, i64 %v) {
-  %1 = load i64, ptr %res
-  %2 = add i64 %1, %v
-  store i64 %2, ptr %res
-  ret void
-}
+declare void @sum (ptr %res, i64 %v)
 
 define void @f1(i64 %n) {
 entry:

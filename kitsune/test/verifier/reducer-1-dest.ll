@@ -5,9 +5,7 @@
 ;
 ; CHECK: type mismatch in reducer 'sum' at param '1'. Expected 'ptr'
 
-define void @sum(double %dest, float %v) {
-  ret void
-}
+declare void @sum(double %dest, float %v)
 
 define void @f(ptr addrspace(67) %buf, i64 %n) {
   %r = alloca i64

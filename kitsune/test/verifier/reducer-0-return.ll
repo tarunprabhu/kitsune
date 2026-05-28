@@ -4,9 +4,7 @@
 ;
 ; CHECK: reducer 'sum' must return void
 
-define ptr @sum(ptr %dest, i8 %v) {
-  ret ptr %dest
-}
+declare ptr @sum(ptr %dest, i8 %v)
 
 define void @f() {
   %r = alloca i64

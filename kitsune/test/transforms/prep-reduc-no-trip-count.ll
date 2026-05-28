@@ -15,12 +15,7 @@
 ; ASSERT: Assertion {{.+}} failed
 ; ERROR: tapir reduction loop header has its address taken
 
-define void @sum(ptr %res, i64 %v) {
-  %1 = load i64, ptr %res
-  %2 = add i64 %1, %v
-  store i64 %2, ptr %res
-  ret void
-}
+declare void @sum(ptr %res, i64 %v)
 
 define void @acc(ptr %ptrn) {
 entry:

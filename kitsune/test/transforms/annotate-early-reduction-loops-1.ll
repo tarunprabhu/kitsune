@@ -4,12 +4,7 @@
 ; RUN: opt -passes="kit-annotate-early" -S %s \
 ; RUN:     | FileCheck %s
 
-define void @sum(ptr %res, i64 %v) {
-  %1 = load i64, ptr %res
-  %2 = add i64 %1, %v
-  store i64 %2, ptr %res
-  ret void
-}
+declare void @sum(ptr %res, i64 %v)
 
 ; The tapir loop does not call @llvm.kit.reduce.0. It should not be annotated.
 ;
