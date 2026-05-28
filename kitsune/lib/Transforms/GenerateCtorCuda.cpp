@@ -155,7 +155,8 @@ private:
 
     // Enable verbose mode early in the constructor so all verbose statements
     // are printed after the runtime has been initialized.
-    builder.CreateIntrinsic(Intrinsic::kit_runtime_set_verbose, cVerbose);
+    builder.CreateIntrinsic(Intrinsic::kit_runtime_set_verbose,
+                            {ctt, cVerbose});
 
     if (unsigned fixedTPB = tto.getFixedThreadsPerBlock()) {
       Constant *cTPB = toConstant(fixedTPB, ctx);

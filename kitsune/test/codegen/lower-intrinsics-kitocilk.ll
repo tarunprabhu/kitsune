@@ -11,6 +11,7 @@
 ; CHECK-SAME: ptr %[[BUF:[^,]+]]
 ; CHECK-SAME: i64 %[[N:[^)]+]]
 ; CHECK-NEXT: call void @__kitocilk_initialize()
+; CHECK-NEXT: call void @__kitrt_enable_verbose_mode()
 ; CHECK-NEXT: call i64 @__kitocilk_reduce_num_partials(i64 %[[N]])
 ; CHECK-NEXT: call void @__kitocilk_finalize()
 
@@ -21,6 +22,8 @@ target triple = "x86_64-pc-linux-gnu"
 
 define void @f(ptr %buf, i64 %n) {
   call void @llvm.kit.runtime.initialize(i32 8)
+  call void @llvm.kit.runtime.set.verbose(i32 2, i8 1)
+  call void @llvm.kit.runtime.set.verbose(i32 2, i8 0)
   %1 = call i64 @llvm.kit.reduce.num.partials(i32 8, i64 %n)
   call void @llvm.kit.runtime.finalize(i32 8)
   ret void

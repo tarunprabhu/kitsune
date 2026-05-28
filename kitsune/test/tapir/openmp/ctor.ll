@@ -13,7 +13,7 @@
 ; DEFAULT: define {{.+}} @[[CTOR]]
 ; DEFAULT-NEXT: [[ENTRY:.+]]:
 ; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.initialize(i32 512)
-; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.set.verbose(i8 0)
+; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.set.verbose(i32 512, i8 0)
 ; DEFAULT-NEXT: call {{.+}}atexit(ptr @[[DTOR]])
 ; DEFAULT-NEXT: br label %[[EXIT:.+]]
 ; DEFAULT-EMPTY:
@@ -30,7 +30,7 @@
 ; RUN:     | FileCheck %s -check-prefix VERBOSE
 ;
 ; VERBOSE-LABEL: define {{.+}} @.kitomp.ctor
-; VERBOSE: call {{.+}} @llvm.kit.runtime.set.verbose(i8 1)
+; VERBOSE: call {{.+}} @llvm.kit.runtime.set.verbose(i32 512, i8 1)
 ;
 ; ----------------------------------------------------------------------------
 

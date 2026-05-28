@@ -13,6 +13,7 @@
 ; CHECK-NEXT: %1 = alloca ptr
 ; CHECK-NEXT: %2 = alloca [1 x ptr]
 ; CHECK-NEXT: call void @__kitcuda_initialize()
+; CHECK-NEXT: call void @__kitrt_enable_verbose_mode()
 ; CHECK-NEXT: call void @__kitcuda_enable_launch_refinement(i8 1)
 ; CHECK-NEXT: call void @__kitcuda_enable_launch_refinement(i8 0)
 ; CHECK-NEXT: call void @__kitcuda_set_default_threads_per_blk(i32 24)
@@ -60,6 +61,8 @@ target triple = "x86_64-pc-linux-gnu"
 
 define void @f(ptr %buf, i64 %n) {
   call void @llvm.kit.runtime.initialize(i32 2)
+  call void @llvm.kit.runtime.set.verbose(i32 2, i8 1)
+  call void @llvm.kit.runtime.set.verbose(i32 2, i8 0)
   call void @llvm.kit.runtime.set.kernel.launch.refinement(i32 2, i8 1)
   call void @llvm.kit.runtime.set.kernel.launch.refinement(i32 2, i8 0)
   call void @llvm.kit.runtime.set.fixed.tpb(i32 2, i32 24)

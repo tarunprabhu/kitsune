@@ -57,7 +57,7 @@ private:
 
     // We can't enable verbose mode until after we call initialize.
     builder.CreateIntrinsic(Intrinsic::kit_runtime_initialize, tt);
-    builder.CreateIntrinsic(Intrinsic::kit_runtime_set_verbose, verbose);
+    builder.CreateIntrinsic(Intrinsic::kit_runtime_set_verbose, {tt, verbose});
 
     // Now add the dtor to help us clean up at program exit.
     TargetLibraryInfo &tli = getTLI(*ctor);

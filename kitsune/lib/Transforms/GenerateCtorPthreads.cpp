@@ -55,7 +55,7 @@ private:
 
     IRBuilder<> builder(BasicBlock::Create(ctx, "entry", ctor));
     builder.CreateIntrinsic(Intrinsic::kit_runtime_initialize, {tt});
-    builder.CreateIntrinsic(Intrinsic::kit_runtime_set_verbose, verbose);
+    builder.CreateIntrinsic(Intrinsic::kit_runtime_set_verbose, {tt, verbose});
 
     // Now add the dtor to help us clean up at program exit.
     TargetLibraryInfo &tli = getTLI(*ctor);
