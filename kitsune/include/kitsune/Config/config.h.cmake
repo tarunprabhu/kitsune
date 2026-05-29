@@ -56,27 +56,50 @@
 
 // -----------------------------------------------------------------------------
 
-// A space-separated string of all known Tapir targets, including those that
+// A space-separated string of all known tapir targets, including those that
 // have not been enabled.
 #define KITSUNE_KNOWN_TAPIR_TARGETS "@KITSUNE_KNOWN_TAPIR_TARGETS_STR@"
 
-// A space-separated string with the Tapir targets that have been enabled in
+// A space-separated string with the tapir targets that have been enabled in
 // this build.
 #define KITSUNE_ENABLED_TAPIR_TARGETS "@KITSUNE_ENABLED_TAPIR_TARGETS_STR@"
+
+// A comma-separated list of all known TTID's. This may not contain all values
+// of the TTID enum. Rather, it only contains those TTID's that are known to
+// the build system. For instance, TTID::Nolo will never be on this list since
+// it is not a "true" tapir target. TTID::Lambda will not appear in this list
+// either because, at the time of writing this comment, Kitsune does not support
+// it. This will include TTID's of targets that are not enabled in this build.
+// This is *NOT* a string. It can only be used within an initializer list.
+#define KITSUNE_KNOWN_TTIDS @KITSUNE_KNOWN_TTIDS@
+
+// A comma-separated list of all TTID's that generate GPU code. This will
+// include TTID's of targets that are not enabled in this build.
+// This is *NOT* a string. It can only be used within an initializer list.
+#define KITSUNE_KNOWN_GPU_TTIDS @KITSUNE_KNOWN_GPU_TTIDS@
+
+// A comma-separated list of all TTID's that generate embedded bitcode. This
+// will include TTID's of targets that are not enabled in this build.
+// This is *NOT* a string. It can only be used within an initializer list.
+#define KITSUNE_KNOWN_EMB_BC_TTIDS @KITSUNE_KNOWN_EMB_BC_TTIDS@
 
 // A comma-separated list of tapir targets that have been enabled in this build.
 // This is *NOT* a string. It can only be used within an initializer list.
 #define KITSUNE_ENABLED_TTIDS @KITSUNE_ENABLED_TTIDS@
 
 // A comma-separated list of tapir targets that generate GPU code and have been
-// enabled in this build. This is *NOT* a string. It can only be used within an
-// initializer list.
+// enabled in this build.
+// This is *NOT* a string. It can only be used within an initializer list.
 #define KITSUNE_ENABLED_GPU_TTIDS @KITSUNE_ENABLED_GPU_TTIDS@
 
 // A comma-separated list of tapir targets that generated embedded bitcode and
-// have been enabled in this build. This is *NOT* a string. It can only be used
-// within an initializer list.
+// have been enabled in this build.
+// This is *NOT* a string. It can only be used within an initializer list.
 #define KITSUNE_ENABLED_EMB_BC_TTIDS @KITSUNE_ENABLED_EMB_BC_TTIDS@
+
+// A comma-separated list of tapir targets that are always enabled.
+// This is *NOT* a string. It can only be used within an initializer list.
+#define KITSUNE_UNIVERSAL_TTIDS @KITSUNE_UNIVERSAL_TTIDS@
 
 // -----------------------------------------------------------------------------
 

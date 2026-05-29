@@ -20,6 +20,19 @@
 
 namespace llvm {
 
+namespace detail {
+
+using TTIDInitList = std::initializer_list<TTID>;
+static constexpr TTIDInitList enabledTTs = {KITSUNE_ENABLED_TTIDS};
+static constexpr TTIDInitList enabledGPUTTs = {KITSUNE_ENABLED_GPU_TTIDS};
+static constexpr TTIDInitList enabledEmbBCTTs = {KITSUNE_ENABLED_EMB_BC_TTIDS};
+static constexpr TTIDInitList knownTTList = {KITSUNE_KNOWN_TTIDS};
+static constexpr TTIDInitList knownGPUTTs = {KITSUNE_KNOWN_GPU_TTIDS};
+static constexpr TTIDInitList knownEmbBCTTs = {KITSUNE_KNOWN_EMB_BC_TTIDS};
+static constexpr TTIDInitList universalTTs = {KITSUNE_UNIVERSAL_TTIDS};
+
+} // namespace detail
+
 /// \addtogroup kitsune
 /// @{
 
@@ -54,6 +67,21 @@ constexpr StringRef kitKnownTapirTargets() {
   return KITSUNE_KNOWN_TAPIR_TARGETS;
 }
 
+/// The list of all known TTID's, including those that have not been enabled.
+/// This may, or *may not* contain all values of the TTID enum.
+constexpr ArrayRef<TTID> kitKnownTTs() { return detail::knownTTList; }
+
+/// The list of all known TTID's that generate code for GPU's, including those
+/// that have not been enabled.
+constexpr ArrayRef<TTID> kitKnownGPUTTs() { return detail::knownGPUTTs; }
+
+/// The list of all known TTID's that generate embedded bitcode, including those
+/// that have not been enabled.
+constexpr ArrayRef<TTID> kitKnownEmbBCTTs() { return detail::knownEmbBCTTs; }
+
+/// The list of universal TTID's - i.e. those that are always enabled.
+constexpr ArrayRef<TTID> kitUniversalTTs() { return detail::universalTTs; }
+
 //------------------------------------------------------------------------------
 
 /// The major version of this build.
@@ -78,18 +106,15 @@ constexpr StringRef kitEnabledTapirTargets() {
   return KITSUNE_ENABLED_TAPIR_TARGETS;
 }
 
-/// Get a list of TTID's that have been enabled in this build.
-static constexpr TTID kitEnabledTTIDList[] = {KITSUNE_ENABLED_TTIDS};
-constexpr ArrayRef<TTID> kitEnabledTTIDs() { return kitEnabledTTIDList; }
+/// The list of TTID's that have been enabled in this build.
+constexpr ArrayRef<TTID> kitEnabledTTs() { return detail::enabledTTs; }
 
-/// Get a list of enabled TTID's that generate GPU code.
-static constexpr TTID kitEnabledGPUTTList[] = {KITSUNE_ENABLED_GPU_TTIDS};
-constexpr ArrayRef<TTID> kitEnabledGPUTTIDs() { return kitEnabledGPUTTList; }
+/// The list of enabled TTID's that generate GPU code.
+constexpr ArrayRef<TTID> kitEnabledGPUTTs() { return detail::enabledGPUTTs; }
 
-/// Get the list of enabled TTID's that generate embedded bitcode.
-static constexpr TTID kitEnabledEmbBCTTList[] = {KITSUNE_ENABLED_EMB_BC_TTIDS};
-constexpr ArrayRef<TTID> kitEnabledEmbBCTTIDs() {
-  return kitEnabledEmbBCTTList;
+/// The the list of enabled TTID's that generate embedded bitcode.
+constexpr ArrayRef<TTID> kitEnabledEmbBCTTs() {
+  return detail::enabledEmbBCTTs;
 }
 
 /// Has the C frontend been built.

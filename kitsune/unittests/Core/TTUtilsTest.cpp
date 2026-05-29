@@ -7,6 +7,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/TTUtils.h"
+#include "kitsune/Config/Config.h"
+#include "llvm/ADT/SetVector.h"
 
 #include "gtest/gtest.h"
 
@@ -14,24 +16,74 @@ using namespace llvm;
 
 namespace {
 
-TEST(KitTTUtils, generatesEmbBC) {
-  EXPECT_FALSE(generatesEmbBC(TTID::Nolo));
-  EXPECT_FALSE(generatesEmbBC(TTID::Serial));
-  EXPECT_FALSE(generatesEmbBC(TTID::OpenCilk));
+static SmallSetVector<TTID, 4> getAsSet(ArrayRef<TTID> tts) {
+  return SmallSetVector<TTID, 4>(tts.begin(), tts.end());
+}
 
-  EXPECT_TRUE(generatesEmbBC(TTID::Cuda));
-  EXPECT_TRUE(generatesEmbBC(TTID::Hip));
+TEST(KitTTUtils, generatesEmbBC) {
+  SmallSetVector<TTID, 4> knownEmbBCTTs = getAsSet(kitKnownEmbBCTTs());
+  for (TTID tt : kitKnownTTs())
+    EXPECT_EQ(generatesEmbBC(tt), knownEmbBCTTs.contains(tt));
 }
 
 TEST(KitTTUtils, isGPUTT) {
-  EXPECT_TRUE(isGPUTT(TTID::Cuda));
-  EXPECT_TRUE(isGPUTT(TTID::Hip));
+  SmallSetVector<TTID, 4> knownGPUTTs = getAsSet(kitKnownGPUTTs());
+  for (TTID tt : kitKnownTTs())
+    EXPECT_EQ(isGPUTT(tt), knownGPUTTs.contains(tt));
+}
 
-  EXPECT_FALSE(isGPUTT(TTID::Nolo));
-  EXPECT_FALSE(isGPUTT(TTID::Serial));
-  EXPECT_FALSE(isGPUTT(TTID::OpenCilk));
-  EXPECT_FALSE(isGPUTT(TTID::Pthreads));
-  EXPECT_FALSE(isGPUTT(TTID::Qthreads));
+TEST(KitTTUtils, getSpawnStrategy) {
+  // TTID::Nolo will never be in the known TT's list.
+  EXPECT_EQ(getSpawnStrategyFor(TTID::Nolo), TapirSpawnStrategy::Sequential);
+
+  for (TTID tt : kitKnownTTs()) {
+    TapirSpawnStrategy strategy = getSpawnStrategyFor(tt);
+    switch (tt) {
+    case TTID::Serial:
+      EXPECT_EQ(strategy, TapirSpawnStrategy::Sequential);
+      break;
+    case TTID::OpenCilk:
+      EXPECT_EQ(strategy, TapirSpawnStrategy::DivideAndConquer);
+      break;
+    case TTID::Cuda:
+    case TTID::Hip:
+      EXPECT_EQ(strategy, TapirSpawnStrategy::GPU);
+      break;
+    case TTID::Custom:
+    case TTID::OpenMP:
+    case TTID::Pthreads:
+    case TTID::Qthreads:
+      EXPECT_EQ(strategy, TapirSpawnStrategy::Basic);
+      break;
+    default:
+      FAIL();
+      break;
+    }
+  }
+}
+
+TEST(KitTTUtils, isEnabledTT) {
+  for (TTID tt : kitKnownTTs()) {
+    bool enabled = isEnabledTT(tt);
+    if (tt == TTID::Cuda)
+      EXPECT_EQ(enabled, kitCudaEnabled());
+    else if (tt == TTID::Custom)
+      EXPECT_EQ(enabled, kitCustomEnabled());
+    else if (tt == TTID::Hip)
+      EXPECT_EQ(enabled, kitHipEnabled());
+    else if (tt == TTID::OpenCilk)
+      EXPECT_EQ(enabled, kitOpenCilkEnabled());
+    else if (tt == TTID::OpenMP)
+      EXPECT_EQ(enabled, kitOpenMPEnabled());
+    else if (tt == TTID::Pthreads)
+      EXPECT_EQ(enabled, kitPthreadsEnabled());
+    else if (tt == TTID::Qthreads)
+      EXPECT_EQ(enabled, kitQthreadsEnabled());
+    else if (tt == TTID::Serial)
+      EXPECT_EQ(enabled, kitSerialEnabled());
+    else
+      FAIL();
+  }
 }
 
 } // namespace
