@@ -107,12 +107,12 @@ TEST(KitIntrinsicUtils, getKernelArgumentsFromLaunch) {
       fty, f,
       {ctt, cnull, cnull, c0_8, c0_8, c0_8, c0_4, cnull, cnull, g, cfp, ctt});
 
-  EXPECT_EQ(getKernelArgumentsFromLaunch(*call0), std::vector<Value *>());
-  EXPECT_EQ(getKernelArgumentsFromLaunch(*call1), std::vector<Value *>({g}));
+  EXPECT_EQ(getKernelArgumentsFromLaunch(*call0), (SmallVector<Value *, 8>{}));
+  EXPECT_EQ(getKernelArgumentsFromLaunch(*call1), (SmallVector<Value *, 8>{g}));
   EXPECT_EQ(getKernelArgumentsFromLaunch(*call2),
-            std::vector<Value *>({g, cfp}));
+            (SmallVector<Value *, 8>{g, cfp}));
   EXPECT_EQ(getKernelArgumentsFromLaunch(*call3),
-            std::vector<Value *>({g, cfp, ctt}));
+            (SmallVector<Value *, 8>{g, cfp, ctt}));
 
   call0->deleteValue();
   call1->deleteValue();

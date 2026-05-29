@@ -942,8 +942,9 @@ Value *PrepareReductionLoop::allocPartialsBuffer(BasicBlock &bb,
   Value *n64 = builder.CreateIntCast(info.numPartials, i64, /*isSigned=*/true);
   Value *sz64 = builder.CreateIntCast(info.elemSize, i64, /*isSigned=*/true);
   Value *bytes = builder.CreateNUWMul(sz64, n64, "prduc.bytes");
-  Value *buf = builder.CreateIntrinsic(Intrinsic::kit_mobile_alloc, bytes,
-                                       /*FMFSource=*/{}, "prduc.reds");
+  Value *buf =
+      builder.CreateIntrinsic(Intrinsic::kit_mobile_alloc, {info.tt, bytes},
+                              /*FMFSource=*/{}, "prduc.reds");
 
   return buf;
 }
@@ -1030,11 +1031,12 @@ void PrepareReductionLoop::genFinalReduction(BasicBlock &bb,
 // Generate code to free the buffer containing the partial reductions. This
 // will simply insert a call to Kitsune's `kit.mobile.free` intrinsic.
 void PrepareReductionLoop::freePartialsBuffer(BasicBlock &bb,
-                                              const ReductionInfo &reduction) {
+                                              const ReductionInfo &info) {
   LLVM_DEBUG(dbgs() << "PrepareReduction: Free buffers for partials\n");
 
   IRBuilder builder(bb.getTerminator());
-  (void)builder.CreateIntrinsic(Intrinsic::kit_mobile_free, reduction.partials);
+  (void)builder.CreateIntrinsic(Intrinsic::kit_mobile_free,
+                                {info.tt, info.partials});
 }
 
 // When the outer loop was generated, the induction variable was canonical and

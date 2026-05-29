@@ -21,6 +21,9 @@
 //   since analyses may make incorrect assumptions about the available of the
 //   data being operated on by these asynchronous intrinsics.
 //
+// - The first argument of Kitsune's intrinsics must be a TTID. This must be a
+//   32-bit integer and a compile-time constant.
+//
 // - Boolean arguments must have type i8, not i1. This is to simplify lowering
 //   since, in the runtime, booleans are always 8-bit.
 //
@@ -290,15 +293,16 @@ def int_kit_gpu_symbol_memcpy_htod
 
 // Allocate a mobile buffer.
 def int_kit_mobile_alloc
-    : KitIntrinsic<[llvm_mobile_ptr_ty], [llvm_i64_ty],
-                   [NoAlias<RetIndex>]> {
+    : KitIntrinsic<[llvm_mobile_ptr_ty], [llvm_i32_ty, llvm_i64_ty],
+                   [NoAlias<RetIndex>, ImmArg<ArgIndex<0>>]> {
   let Doc = KitMobileAllocDoc;
 }
 
 // Free a mobile buffer previously allocated by llvm.kit.mobile.alloc.
 def int_kit_mobile_free
-    : KitIntrinsic<[], [llvm_mobile_ptr_ty],
-                   [NoCapture<ArgIndex<0>>, ReadNone<ArgIndex<0>>]> {
+    : KitIntrinsic<[], [llvm_i32_ty, llvm_mobile_ptr_ty],
+                   [ImmArg<ArgIndex<0>>, NoCapture<ArgIndex<1>>,
+                    ReadNone<ArgIndex<1>>]> {
   let Doc = KitMobileFreeDoc;
 }
 

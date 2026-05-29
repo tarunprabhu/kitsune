@@ -303,6 +303,14 @@ public:
 
   std::optional<llvm::TTID> getTTID() const { return tt; }
 
+  /// Get the TTID from the options, or a default value.
+  /// FIXME: This is *NOT* to be widely used. The presence of this method
+  /// implies that there is a "default" tapir target. We need to carefully
+  /// consider the implications of this decision.
+  llvm::TTID getTTIDOr(llvm::TTID defawlt) const {
+    return tt.value_or(defawlt);
+  }
+
   llvm::StringRef getTTPlugin() const { return ttPlugin; }
 
   unsigned getFixedThreadsPerBlock() const { return fixedThreadsPerBlock; }

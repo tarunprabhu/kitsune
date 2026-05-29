@@ -87,6 +87,7 @@ class KitDocIntrinsic {
 def KitMobileAllocDoc : KitDocIntrinsic {
   let Category = KitDocCatMemAlloc;
   let ParamDocs = [
+      KitDocParam<"tt", "The ID of the tapir target calling the intrinsic">,
       KitDocParam<"size", "The number of bytes to allocate">
   ];
   let Descr = [{
@@ -108,6 +109,7 @@ intrinsic.
 def KitMobileFreeDoc : KitDocIntrinsic {
   let Category = KitDocCatMemAlloc;
   let ParamDocs = [
+      KitDocParam<"tt", "The ID of the tapir target calling the intrinsic">,
       KitDocParam<"buf", "The mobile buffer to be freed">
   ];
   let Descr = [{

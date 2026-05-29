@@ -29,24 +29,22 @@
 #include "llvm/InitializePasses.h"
 #include "llvm/Transforms/Utils/BuildLibCalls.h"
 
-#include <map>
-#include <vector>
-
 #define DEBUG_TYPE "kit-lower-intrinsics"
 
 using namespace llvm;
 
 namespace {
 
-using KitsuneRuntimeFuncMap = std::map<Intrinsic::ID, LibFunc>;
+using KitRTFuncMap = SmallDenseMap<Intrinsic::ID, LibFunc>;
+using KitRTFuncArgMap = SmallDenseMap<Intrinsic::ID, SmallVector<unsigned, 4>>;
 
 /// Kitsune runtime functions for any tapir target.
-static const KitsuneRuntimeFuncMap kitFuncs = {
+static const KitRTFuncMap kitFuncs = {
     {Intrinsic::kit_runtime_set_verbose, LibFunc_kitrt_enable_verbose},
 };
 
 /// Kitsune runtime functions for the cuda tapir target.
-static const KitsuneRuntimeFuncMap kitCudaFuncs = {
+static const KitRTFuncMap kitCudaFuncs = {
     {Intrinsic::kit_async_gpu_kernel_launch, LibFunc_kitcuda_launch_kernel},
     {Intrinsic::kit_async_gpu_prefetch_dtoh, LibFunc_kitcuda_prefetch_dtoh},
     {Intrinsic::kit_async_gpu_prefetch_htod, LibFunc_kitcuda_prefetch_htod},
@@ -67,7 +65,7 @@ static const KitsuneRuntimeFuncMap kitCudaFuncs = {
 };
 
 /// Kitsune runtime functions for the hip tapir target.
-static const KitsuneRuntimeFuncMap kitHipFuncs = {
+static const KitRTFuncMap kitHipFuncs = {
     {Intrinsic::kit_async_gpu_kernel_launch, LibFunc_kithip_launch_kernel},
     {Intrinsic::kit_async_gpu_prefetch_dtoh, LibFunc_kithip_prefetch_dtoh},
     {Intrinsic::kit_async_gpu_prefetch_htod, LibFunc_kithip_prefetch_htod},
@@ -89,14 +87,18 @@ static const KitsuneRuntimeFuncMap kitHipFuncs = {
 };
 
 /// Kitsune runtime functions for the opencilk tapir target.
-static const KitsuneRuntimeFuncMap kitOpenCilkFuncs = {
+static const KitRTFuncMap kitOpenCilkFuncs = {
+    {Intrinsic::kit_mobile_alloc, LibFunc_malloc},
+    {Intrinsic::kit_mobile_free, LibFunc_free},
     {Intrinsic::kit_reduce_num_partials, LibFunc_kitocilk_reduce_num_partials},
     {Intrinsic::kit_runtime_finalize, LibFunc_kitocilk_finalize},
     {Intrinsic::kit_runtime_initialize, LibFunc_kitocilk_initialize},
 };
 
 /// Kitsune runtime functions for the openmp tapir target.
-static const KitsuneRuntimeFuncMap kitOpenMPFuncs = {
+static const KitRTFuncMap kitOpenMPFuncs = {
+    {Intrinsic::kit_mobile_alloc, LibFunc_malloc},
+    {Intrinsic::kit_mobile_free, LibFunc_free},
     {Intrinsic::kit_cpu_threads_launch, LibFunc_kitomp_launch},
     {Intrinsic::kit_reduce_num_partials, LibFunc_kitomp_reduce_num_partials},
     {Intrinsic::kit_runtime_finalize, LibFunc_kitomp_finalize},
@@ -104,17 +106,24 @@ static const KitsuneRuntimeFuncMap kitOpenMPFuncs = {
 };
 
 /// Kitsune runtime functions for the pthreads tapir target.
-static const KitsuneRuntimeFuncMap kitPthreadsFuncs = {
+static const KitRTFuncMap kitPthreadsFuncs = {
     {Intrinsic::kit_async_cpu_threads_launch, LibFunc_kitpthr_launch},
     {Intrinsic::kit_cpu_threads_sync, LibFunc_kitpthr_sync},
+    {Intrinsic::kit_mobile_alloc, LibFunc_malloc},
+    {Intrinsic::kit_mobile_free, LibFunc_free},
     {Intrinsic::kit_reduce_num_partials, LibFunc_kitpthr_reduce_num_partials},
     {Intrinsic::kit_runtime_finalize, LibFunc_kitpthr_finalize},
     {Intrinsic::kit_runtime_initialize, LibFunc_kitpthr_initialize},
 };
 
 /// Kitsune runtime functions for the qthreads tapir target.
-static const KitsuneRuntimeFuncMap kitQthreadsFuncs = {
+static const KitRTFuncMap kitQthreadsFuncs = {
     {Intrinsic::kit_cpu_threads_launch, LibFunc_kitqthr_launch},
+    // There may be some benefit to using the memory allocation functions
+    // provided by qthreads. Those use memory pools and it is not yet clear if
+    // that is something we should consider using.
+    {Intrinsic::kit_mobile_alloc, LibFunc_malloc},
+    {Intrinsic::kit_mobile_free, LibFunc_free},
     {Intrinsic::kit_reduce_num_partials, LibFunc_kitqthr_reduce_num_partials},
     {Intrinsic::kit_runtime_finalize, LibFunc_kitqthr_finalize},
     {Intrinsic::kit_runtime_initialize, LibFunc_kitqthr_initialize},
@@ -122,7 +131,7 @@ static const KitsuneRuntimeFuncMap kitQthreadsFuncs = {
 
 /// Runtime library function maps for tapir targets that have a corresponding
 /// kitsune runtime.
-static const std::map<TTID, KitsuneRuntimeFuncMap> kitTTFuncs = {
+static const SmallDenseMap<TTID, KitRTFuncMap> kitTTFuncs = {
     {TTID::Cuda, kitCudaFuncs},         {TTID::Hip, kitHipFuncs},
     {TTID::OpenCilk, kitOpenCilkFuncs}, {TTID::OpenMP, kitOpenMPFuncs},
     {TTID::Pthreads, kitPthreadsFuncs}, {TTID::Qthreads, kitQthreadsFuncs},
@@ -157,7 +166,7 @@ static const std::map<TTID, KitsuneRuntimeFuncMap> kitTTFuncs = {
 /// function must be provided for it. If the arguments to an intrinsic must be
 /// modified before passing them to the runtime function, the lowering *MUST* be
 /// handled with a custom lowering function.
-static const std::map<Intrinsic::ID, std::vector<unsigned>> kitRTArgMap = {
+static const KitRTFuncArgMap kitRTArgMap = {
     {Intrinsic::kit_async_cpu_threads_launch, {1, 2, 3, 4, 5}},
     {Intrinsic::kit_cpu_threads_launch, {1, 2, 3, 4, 5}},
     {Intrinsic::kit_cpu_threads_sync, {1}},
@@ -186,19 +195,16 @@ static const std::map<Intrinsic::ID, std::vector<unsigned>> kitRTArgMap = {
 /// Main implementation class to lower Kitsune intrinsics.
 class LowerKitIntrinsics {
 private:
-  const TTObjects &ttObjs;
-  TargetLibraryInfo &tli;
+  const TargetLibraryInfo &tli;
 
 private:
-  /// Some runtime intrinsics take the tapir target id as the first argument.
-  /// Get the tapir target from this argument. It is an error to call this
-  /// function with a call that is not a kitsune runtime intrinsic and does not
-  /// have a valid tapir target as the first argument.
-  TTID getTTID(CallInst &call) const {
-    if (auto *cint = dyn_cast<ConstantInt>(call.getArgOperand(0)))
-      if (std::optional<TTID> tt = fromConstant<TTID>(*cint))
-        return *tt;
-    llvm_unreachable("getTTID: Not a valid tapir target id");
+  /// All runtime intrinsics take the TTID as the first argument. Parse this
+  /// into a TTID enum.
+  TTID getTTID(Value *v) const {
+    assert(isa<Constant>(v) && "TTID must be a constant");
+    assert(fromConstant<TTID>(*cast<Constant>(v)) && "Not a valid TTID");
+
+    return *fromConstant<TTID>(*cast<Constant>(v));
   }
 
   FunctionCallee getOrInsertLibFunc(Module &m, LibFunc libFunc) {
@@ -216,48 +222,33 @@ private:
   FunctionCallee getOrInsertLibFunc(Module &m, TTID tt, Intrinsic::ID id) {
     assert(kitTTFuncs.find(tt) != kitTTFuncs.end() &&
            "getRuntimeFunc: Invalid tapir target for intrinsic");
+    const KitRTFuncMap &funcs = kitTTFuncs.at(tt);
 
-    const KitsuneRuntimeFuncMap &funcs = kitTTFuncs.at(tt);
     assert(funcs.find(id) != funcs.end() &&
-           "getRuntimeFunc: No kitsune library function for tapir "
-           "target");
-
+           "getRuntimeFunc: No kitsune library function for tapir target");
     return getOrInsertLibFunc(m, funcs.at(id));
   }
 
-  FunctionCallee getMobileAllocFunc(Module &m, Intrinsic::ID id) {
-    /// TODO: Currently, this is very naive and simply looks at the primary
-    /// target. This will not work correctly in multi-target mode. But that
-    /// requires a more sophisticated analysis which should be implemented
-    /// eventually.
-    std::optional<TTID> tt = ttObjs.getTTIDOrNull();
-    if (not tt)
-      return getOrInsertLibFunc(m, LibFunc_malloc);
+  FunctionCallee getMobileAllocFunc(Module &m, CallInst &call) {
+    Intrinsic::ID id = call.getIntrinsicID();
+    TTID tt = getTTID(call.getArgOperand(0));
 
-    switch (*tt) {
+    switch (tt) {
+    case TTID::Nolo:
+      llvm_unreachable("getMobileAllocFunc: TTID is Nolo");
+    case TTID::Serial:
+      return getOrInsertLibFunc(m, LibFunc_malloc);
     case TTID::Cuda:
-      return getOrInsertLibFunc(m, TTID::Cuda, id);
     case TTID::Hip:
-      return getOrInsertLibFunc(m, TTID::Hip, id);
+    case TTID::OpenCilk:
+    case TTID::OpenMP:
+    case TTID::Pthreads:
+    case TTID::Qthreads:
+      return getOrInsertLibFunc(m, tt, id);
     case TTID::Custom:
       // TODO: A custom tapir target may require a custom memory allocator.
       // Currently, there is no way to have the plugin specify a memory
       // allocator to use, so just default to using libc's malloc.
-    case TTID::Nolo:
-      // When using the 'nolo' tapir target, we should never get here, but in
-      // case we do, just default to using libc's malloc.
-    case TTID::OpenCilk:
-    case TTID::OpenMP:
-    case TTID::Pthreads:
-    case TTID::Serial:
-      return getOrInsertLibFunc(m, LibFunc_malloc);
-    case TTID::Qthreads:
-      // There may be some benefit to using the memory allocation functions
-      // provided by qthreads. Those use memory pools and it is not yet clear
-      // if that is something we should consider using.
-      //
-      // TODO: Check if we should be using qthreads memory pools, and if not,
-      // remove this comment.
       return getOrInsertLibFunc(m, LibFunc_malloc);
     case TTID::Lambda:
     case TTID::OMPTask:
@@ -265,41 +256,30 @@ private:
       // These tapir targets are not fully supported yet, but add them to this
       // switch to ensure that a warning is emitted when a new tapir target is
       // added.
-      break;
+      llvm_unreachable("getMobileAllocFunc: TTID not handled");
     }
-    llvm_unreachable("getMemAllocFunc: TTID not handled");
   }
 
-  FunctionCallee getMobileFreeFunc(Module &m, Intrinsic::ID id) {
-    /// TODO: Currently, this is very naive and simply looks at the primary
-    /// target. This will not work correctly in multi-target mode. But that
-    /// requires a more sophisticated analysis which should be implemented
-    /// eventually.
-    std::optional<TTID> tt = ttObjs.getTTIDOrNull();
-    if (not tt)
-      return getOrInsertLibFunc(m, LibFunc_free);
+  FunctionCallee getMobileFreeFunc(Module &m, CallInst &call) {
+    Intrinsic::ID id = call.getIntrinsicID();
+    TTID tt = getTTID(call.getArgOperand(0));
 
-    switch (*tt) {
+    switch (tt) {
+    case TTID::Nolo:
+      llvm_unreachable("getMobileFreeFunc: TTID is Nolo");
+    case TTID::Serial:
+      return getOrInsertLibFunc(m, LibFunc_free);
     case TTID::Cuda:
-      return getOrInsertLibFunc(m, TTID::Cuda, id);
     case TTID::Hip:
-      return getOrInsertLibFunc(m, TTID::Hip, id);
+    case TTID::OpenCilk:
+    case TTID::OpenMP:
+    case TTID::Pthreads:
+    case TTID::Qthreads:
+      return getOrInsertLibFunc(m, tt, id);
     case TTID::Custom:
       // TODO: A custom tapir target may require a custom memory deallocator.
       // Currently, there is no way to have the plugin specify a memory
       // deallocator to use, so just default to using libc's free.
-    case TTID::Nolo:
-      // When using the 'nolo' tapir target, we should never get here, but in
-      // case we do, just default to using libc's free.
-    case TTID::OpenCilk:
-    case TTID::OpenMP:
-    case TTID::Pthreads:
-    case TTID::Serial:
-      return getOrInsertLibFunc(m, LibFunc_free);
-    case TTID::Qthreads:
-      // We currently use malloc when allocating memory for use with the
-      // qthreads tapir target. If that is ever changed, this should be changed
-      // to use the corresponding free function instead.
       return getOrInsertLibFunc(m, LibFunc_free);
     case TTID::Lambda:
     case TTID::OMPTask:
@@ -307,9 +287,8 @@ private:
       // These tapir targets are not fully supported yet, but add them to this
       // switch to ensure that a warning is emitted when a new tapir target is
       // added.
-      break;
+      llvm_unreachable("getMobileFreeFunc: TTID not handled");
     }
-    llvm_unreachable("getMemFreeFunc: TTID not handled");
   }
 
   FunctionCallee getMobileInitFunc(Module &m, CallInst &call) {
@@ -347,10 +326,10 @@ private:
 
     switch (id) {
     case Intrinsic::kit_mobile_alloc:
-      return getMobileAllocFunc(m, id);
+      return getMobileAllocFunc(m, call);
 
     case Intrinsic::kit_mobile_free:
-      return getMobileFreeFunc(m, id);
+      return getMobileFreeFunc(m, call);
 
     case Intrinsic::kit_mobile_init:
       return getMobileInitFunc(m, call);
@@ -366,7 +345,7 @@ private:
 
     default:
       // Intrinsics with runtime functions dependent on the tapir target.
-      return getOrInsertLibFunc(m, getTTID(call), id);
+      return getOrInsertLibFunc(m, getTTID(call.getArgOperand(0)), id);
     }
   }
 
@@ -428,8 +407,9 @@ private:
     newCall->copyMetadata(call);
     newCall->setCallingConv(call.getCallingConv());
 
-    // Because the result of the lowered intrinsic must be cast to a different
-    // "type", tail calls cannot be guaranteed.
+    // Because the result of the lowered intrinsic may be cast to a different
+    // type (typically this will be an address space cast), tail calls cannot be
+    // guaranteed.
     CallInst::TailCallKind tck = call.getTailCallKind();
     if (tck == CallInst::TCK_MustTail)
       newCall->setTailCallKind(CallInst::TCK_Tail);
@@ -446,19 +426,15 @@ private:
     if (not f.getCallee())
       return false;
 
-    std::vector<Value *> args;
-    for (Use &arg : call.args())
-      args.push_back(arg.get());
     BasicBlock::iterator pos = call.getIterator();
     Type *retTy = call.getType();
 
     // The result of the new call will be a pointer in the default address
-    // space. However, all uses of the call will be in the mobile address
-    // space.
-    CallInst *newCall = createNewCallFor(call, f, args);
+    // space. However, all uses of the call will be in the mobile address space.
+    CallInst *newCall = createNewCallFor(call, f, call.getArgOperand(1));
     CastInst *cst =
         CastInst::Create(Instruction::AddrSpaceCast, newCall, retTy, "", pos);
-    newCall->setAttributes(createNewAttrList(call, {0}));
+    newCall->setAttributes(createNewAttrList(call, {1}));
 
     cst->moveAfter(newCall);
     call.replaceAllUsesWith(cst);
@@ -481,9 +457,9 @@ private:
     // The call expects a pointer in the default address space, but the
     // argument to Kitsune's intrinsic will be in the mobile address space.
     CastInst *cst = CastInst::Create(Instruction::AddrSpaceCast,
-                                     call.getArgOperand(0), ptrTy, "", pos);
+                                     call.getArgOperand(1), ptrTy, "", pos);
     CallInst *newCall = createNewCallFor(call, f, cst);
-    newCall->setAttributes(createNewAttrList(call, {0}));
+    newCall->setAttributes(createNewAttrList(call, {1}));
 
     call.replaceAllUsesWith(newCall);
     call.eraseFromParent();
@@ -548,7 +524,7 @@ private:
 
     BasicBlock &bbEntry = call.getParent()->getParent()->getEntryBlock();
 
-    std::vector<Value *> kernelArgs = getKernelArgumentsFromLaunch(call);
+    SmallVector<Value *, 8> kernelArgs = getKernelArgumentsFromLaunch(call);
     ArrayType *arrTy = ArrayType::get(ptrTy, kernelArgs.size());
     AllocaInst *argArray = new AllocaInst(arrTy, 0, "", bbEntry.begin());
     for (size_t i = 0; i < kernelArgs.size(); ++i) {
@@ -611,7 +587,7 @@ private:
 
     ArrayRef argMap = kitRTArgMap.at(call.getIntrinsicID());
     FunctionCallee f = getRuntimeFunc(call);
-    std::vector<Value *> args;
+    SmallVector<Value *, 4> args;
     for (unsigned argNo : argMap)
       args.push_back(call.getArgOperand(argNo));
 
@@ -670,16 +646,12 @@ private:
   }
 
 public:
-  LowerKitIntrinsics(const TTObjects &ttObjs, TargetLibraryInfo &tli)
-      : ttObjs(ttObjs), tli(tli) {}
+  LowerKitIntrinsics(TargetLibraryInfo &tli) : tli(tli) {}
 
   bool run(Function &f) {
     bool changed = false;
-    std::optional<TTID> tt = ttObjs.getTTIDOrNull();
-    if (not tt or *tt == TTID::Nolo)
-      return changed;
 
-    std::vector<CallInst *> calls;
+    SmallVector<CallInst *, 4> calls;
     for (inst_iterator i = inst_begin(f), e = inst_end(f); i != e; ++i) {
       if (auto *call = dyn_cast<CallInst>(&*i)) {
         if (isKitIntrinsic(call->getIntrinsicID()))
@@ -717,11 +689,13 @@ public:
         getAnalysis<TTObjectsAnalysisWrapperPass>().getResult();
 
     bool changed = false;
-    for (Function &f : m) {
-      TargetLibraryInfo &tli =
-          getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(f);
-
-      changed |= LowerKitIntrinsics(ttObjs, tli).run(f);
+    std::optional<TTID> tt = ttObjs.getTTIDOrNull();
+    if (tt.has_value() && *tt != TTID::Nolo) {
+      for (Function &f : m) {
+        TargetLibraryInfo &tli =
+            getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(f);
+        changed |= LowerKitIntrinsics(tli).run(f);
+      }
     }
 
     return changed;
@@ -751,10 +725,13 @@ PreservedAnalyses LowerKitIntrinsicsPass::run(Module &m,
   const TTObjects &ttObjs = mam.getResult<TTObjectsAnalysis>(m);
 
   bool changed = false;
-  for (Function &f : m) {
-    TargetLibraryInfo &tli = fam.getResult<TargetLibraryAnalysis>(f);
+  std::optional<TTID> tt = ttObjs.getTTIDOrNull();
+  if (tt.has_value() && *tt != TTID::Nolo) {
+    for (Function &f : m) {
+      TargetLibraryInfo &tli = fam.getResult<TargetLibraryAnalysis>(f);
 
-    changed |= LowerKitIntrinsics(ttObjs, tli).run(f);
+      changed |= LowerKitIntrinsics(tli).run(f);
+    }
   }
 
   // If any kitsune intrinsics were replaced, the call graph will have changed,
