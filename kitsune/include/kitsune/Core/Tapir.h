@@ -55,19 +55,19 @@ namespace llvm {
 enum class TTID : uint32_t {
   /// Pseudo tapir target that does not lower tapir instructions. This is
   /// primarily useful to generate LLVM IR containing tapir instructions.
-  Nolo = 0x0,
+  Nolo = 0x0, // i32 0
 
   /// Lower to a straightforward serial implementation.
-  Serial = 0x1,
+  Serial = 0x1, // i32 1
 
   /// Lower to run on NVIDIA GPU's.
-  Cuda = 0x2,
+  Cuda = 0x2, // i32 2
 
   /// Lower to run on AMD GPU's.
-  Hip = 0x4,
+  Hip = 0x4, // i32 4
 
   /// Lower to use the OpenCilk runtime.
-  OpenCilk = 0x8,
+  OpenCilk = 0x8, // i32 8
 
   // Lower to a JIT-enabled, GPU-agnostic runtime. The original implementation
   // of this is largely obsolete, but we may add a new JIT-enabled runtime in
@@ -75,34 +75,34 @@ enum class TTID : uint32_t {
   // GPUABI = 0x10,
 
   /// Lower to use the Qthreads runtime.
-  Qthreads = 0x20,
+  Qthreads = 0x20, // i32 32
 
   /// Lower to use Legion's Realm runtime.
   /// FIXME: This is currently disabled and needs to be updated before it can be
   /// re-enabled.
-  Realm = 0x40,
+  Realm = 0x40, // i32 64
 
   /// Lower using a generic tapir target that uses bitcode files containing the
   /// bulk of the code used to lower a tapir loop (or other construct).
   /// FIXME: This has not been fully implemented or tested.
-  Lambda = 0x80,
+  Lambda = 0x80, // i32 128
 
   /// Lowering to the OpenMP task ABI.
   /// FIXME: This has not been fully implemented or tested.
-  OMPTask = 0x100,
+  OMPTask = 0x100, // i32 256
 
   /// Lower to use OpenMP's runtime. This will use libomp that is built together
   /// with Kitsune. Using other OpenMP libraries is not (and likely will never
   /// be) supported.
-  OpenMP = 0x200,
+  OpenMP = 0x200, // i32 512
 
   /// Lowering to use POSIX threads (pthreads). On POSIX platforms, these are
   /// guaranteed to be available.
-  Pthreads = 0x400,
+  Pthreads = 0x400, // i32 1024
 
   /// Lower using a tapir target that is loaded from tapir target plugin. The
   /// plugin is a dynamic shared object.
-  Custom = 0x800,
+  Custom = 0x800, // i32 2047
 };
 
 /// The default primary tapir target. This is present simply to reiterate the
