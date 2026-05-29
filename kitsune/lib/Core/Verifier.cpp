@@ -20,6 +20,7 @@
 #include "ModuleAttrsImpl.h"
 #include "VerifierImpl.h"
 #include "kitsune/Core/Attrs.h"
+#include "kitsune/Core/IntrinsicUtils.h"
 #include "kitsune/Core/ValueUtils.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/Analysis/LoopInfo.h"
@@ -188,6 +189,10 @@ KitVerifier &KitVerifier::verifyIntrReduce1(const CallBase &call) {
 }
 
 KitVerifier &KitVerifier::verify(const CallBase &call) {
+  Intrinsic::ID id = call.getIntrinsicID();
+  if (isKitIntrinsic(id))
+    check(getTTIDFromKitIntrCall(call).has_value(), DiagID::ErrKitIntrNoTTID);
+
   switch (call.getIntrinsicID()) {
   case Intrinsic::kit_mobile_init:
     return verifyIntrMobileInit(call);
@@ -195,6 +200,11 @@ KitVerifier &KitVerifier::verify(const CallBase &call) {
     return verifyIntrReduce0(call);
   case Intrinsic::kit_reduce_1:
     return verifyIntrReduce1(call);
+  case Intrinsic::kit_runtime_set_xnack:
+  case Intrinsic::kit_runtime_set_y_axis_kernel_launch:
+    if (std::optional<TTID> tt = getTTIDFromKitIntrCall(call))
+      check(*tt == TTID::Hip, DiagID::ErrKitIntrWrongTTID, TTID::Hip);
+    return *this;
   default:
     return *this;
   }
