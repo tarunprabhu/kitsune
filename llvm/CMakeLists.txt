@@ -591,25 +591,17 @@ set(KITSUNE_QTHREADS_ENABLED OFF CACHE INTERNAL "Enable 'qthreads'" FORCE)
 set(KITSUNE_REALM_ENABLED    OFF CACHE INTERNAL "Enable 'realm'" FORCE)
 set(KITSUNE_SERIAL_ENABLED   ON  CACHE INTERNAL "Enable 'serial'" FORCE)
 
-# FIXME: This contains all tapir targets for which some support exists in
-# Kitsune. This includes those tapir targets that are known to be incomplete,
-# bit-rotted or otherwise broken. At some point, we should only retain support
-# for tapir targets that are in "reasonable" shape. This list should be trimmed
-# down at that point.
+# In addition to these, there is partial support in the source code for the
+# 'lambda', 'omptask', and 'realm' tapir targets. Enabling those tapir targets
+# will, in all likelihood, result in build failures, so they are not present in
+# this list of known tapir targets.
 set(KITSUNE_KNOWN_TAPIR_TARGETS
-  "cuda;custom;hip;lambda;omptask;opencilk;openmp;pthreads;qthreads;realm;serial"
+  "cuda;custom;hip;opencilk;openmp;pthreads;qthreads;serial"
   CACHE INTERNAL
   "All known Tapir targets"
   FORCE)
 
-set(KITSUNE_DEFAULT_TAPIR_TARGETS
-  "cuda;hip;opencilk;qthreads"
-  CACHE INTERNAL
-  "The tapir targets that are built by default if a list of targets to build is
-not provided explicitly"
-  FORCE)
-
-set(KITSUNE_GUARANTEED_TAPIR_TARGETS
+set(KITSUNE_UNIVERSAL_TAPIR_TARGETS
   "custom;openmp;pthreads;serial"
   CACHE INTERNAL
   "The tapir targets that are always built"
@@ -634,8 +626,8 @@ set(KITSUNE_EMB_BC_TAPIR_TARGETS
   "The tapir targets that generate embedded bitcode modules"
   FORCE)
 
-set(KITSUNE_ENABLE_TAPIR_TARGETS "${KITSUNE_DEFAULT_TAPIR_TARGETS}" CACHE STRING
-  "Semi-colon separated list of tapir targets to build (${KITSUNE_KNOWN_TAPIR_TARGETS}) or \"all\" to build all known tapir targets")
+set(KITSUNE_ENABLE_TAPIR_TARGETS "all" CACHE STRING
+  "Semicolon separated list of tapir targets to enable, or \"all\" to enable all known tapir targets")
 if (KITSUNE_ENABLE_TAPIR_TARGETS STREQUAL "all")
   set(KITSUNE_ENABLE_TAPIR_TARGETS "${KITSUNE_KNOWN_TAPIR_TARGETS}")
 endif ()
@@ -645,7 +637,7 @@ set(KITSUNE_ENABLED_TAPIR_TARGETS
   CACHE INTERNAL
   "Semicolon-separated list of tapir targets to build")
 
-foreach(target IN LISTS KITSUNE_GUARANTEED_TAPIR_TARGETS)
+foreach(target IN LISTS KITSUNE_UNIVERSAL_TAPIR_TARGETS)
   if (NOT target IN_LIST KITSUNE_ENABLED_TAPIR_TARGETS)
     list(APPEND KITSUNE_ENABLED_TAPIR_TARGETS "${target}")
   endif ()

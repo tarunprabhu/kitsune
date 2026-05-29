@@ -7,8 +7,7 @@ orphan: true
 This is a quick reference to some terminology used in Kitsune and LLVM. This is
 not intended to be comprehensive. The primary focus is on terms that are unique
 to Kitsune. Terms from LLVM that are closely related to Kitsune-specific terms
-are also included. Finally, this includes terminology that is not strictly
-Kitsune-specific, but is used, perhaps exclusively, in Kitsune's documentation.
+are also included.
 
 <!----------------------------------------------------------------------------->
 
@@ -648,8 +647,9 @@ Kitsune-specific, but is used, perhaps exclusively, in Kitsune's documentation.
 (glossary-universal-tapir-target)=
 **universal tapir target**
 : A [tapir target](glossary-tapir-target) that is always enabled when Kitsune is
-  built. This is the current list of universal tapir target:
-  {{kitsune_guaranteed_tapir_targets_list}}
+  built. This is the current list of universal tapir targets:
+
+  {{'```[{}]```'.format(kitsune_universal_tapir_targets_list)}}
 
 (glossary-use-time)=
 **use-time**
@@ -659,4 +659,4 @@ Kitsune-specific, but is used, perhaps exclusively, in Kitsune's documentation.
 
 (glossary-user-code)=
 **user code**
-: Code that is (usually in the process of being) compiled by Kitsune
+: Code that is compiled using Kitsune.

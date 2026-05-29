@@ -28,13 +28,13 @@ be capable of compiling Kitsune, but they have not been tested.
 | MacOSX | arm64 | Clang |
 ```
 
-There are no plans to support Kitsune on Windows.
+There are, currently, no plans to support Kitsune on Windows.
 
 ### Software
 
 Kitsune requires several software packages to be installed. These are
 enumerated [here](https://llvm.org/docs/GettingStarted.html#software). In
-addition to the packages listed there, Kitsune may need additional packages
+addition to the packages listed there, Kitsune may require additional packages
 depending on the tapir targets that are enabled and other configuration
 options. These will be listed in the tapir-target-specific sections below.
 At a minimum the following may be required:
@@ -86,11 +86,8 @@ architectures on which the tapir targets may be enabled.
 
 The cuda tapir target requires the
 [NVIDIA CUDA toolkit](https://developer.nvidia.com/cuda-toolkit).
-On Linux, the easiest way to obtain this is via the
-package manager of your distribution. The name of the package, if available,
-varies
-depending on the distribution. The table below lists the names of the required
-package on some distributions.
+On Linux, this can often be obtained from the distribution's package manager.
+The table below lists the names of the required package on some distributions.
 
 ```{table}
 | Distribution | Package |
@@ -100,19 +97,18 @@ package on some distributions.
 | Gentoo | nvidia-cuda-toolkit |
 ```
 
-For definitive instructions on how to install NVIDIA's CUDA toolkit, consult
-your distribution's documentation. Note that only a fairly narrow range of
-cuda toolkit versions are supported. If the package provided by
-your distribution does not fall in this range, you may have to download and
-install it [manually](https://developer.nvidia.com/cuda-downloads).
+Kitsune only supports a fairly narrow range of CUDA toolkit versions. If the
+package provided by your distribution does not fall in this range, you may have
+to download and install it
+[manually](https://developer.nvidia.com/cuda-downloads). More information is
+available [here](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/).
 
 #### hip
 
 The hip tapir target requires AMD's
-[ROCm](https://rocm.docs.amd.com/en/latest/). On Linux, easiest way to obtain
-this is via the package manager of your distribution. The name of the package,
-if available, varies depending on the distribution. The table below lists the
-names of the required packages on some distributions.
+[ROCm](https://rocm.docs.amd.com/en/latest/).
+On Linux, this can often be obtained from the distribution's package manager.
+The table below lists the names of the required package on some distributions.
 
 ```{table}
 | Distribution | Package |
@@ -122,10 +118,9 @@ names of the required packages on some distributions.
 | Gentoo | rocm-core |
 ```
 
-For definitive instructions on how to install AMD's ROCm, consult your
-distribution's documentation. Note that only a fairly narrow range of ROCm
-versions are supported. If the package provided by your distribution does not
-fall in this range, you may have to download and install it
+Kitsune only supports a fairly narrow range of ROCm versions. If the package
+provided by your distribution does not fall in this range, you may have to
+download and install it
 [manually](https://rocm.docs.amd.com/projects/install-on-linux/en/latest/).
 
 ## Obtaining Kitsune
@@ -159,8 +154,7 @@ Alternatively, only the latest commit in the current branch may be cloned
 In either of these cases, the `git checkout` command is not required.
 
 ```{note}
-If you are interested in contributing to Kitsune, a full checkout using SSH
-is recommended.
+If you intend to contribute to Kitsune, we recommend a full checkout.
 ```
 
 ## Building Kitsune
@@ -177,8 +171,8 @@ section, we will assume that the Ninja generator is used.
 
 At a bare minimum, building Kitsune involves [configuring](#configure),
 then [building](#build) and, optionally, [installing](#install). The commands
-below show roughly what this might entail. More details follow in the sections
-for each step.
+below show roughly how this might be done. The following sections provide more
+details about each of these steps.
 
 ```
 mkdir build-directory
@@ -212,7 +206,7 @@ cmake -G Ninja [OPTIONS] /path/to/kitsune/llvm
 Here, `[OPTIONS]` are the desired configuration options. These will be
 discussed presently. Meanwhile, note that the last argument on the command
 line above is `/path/to/kitsune/llvm`. The trailing `llvm` is required. Without
-it, cmake will raise an error.
+it, `cmake` will raise an error.
 
 A basic configuration command that one could use is shown here
 
@@ -227,35 +221,38 @@ cmake -G Ninja \
       /path/to/kitsune/llvm
 ```
 
-Note that we have used `clang` and `clang++` that are assumed to be in `$PATH`
-here. On systems where they are available, `gcc` and `g++` may also be used.
+Note that we have used `clang` and `clang++` that are assumed to be in `$PATH`.
+On systems where they are available, `gcc` and `g++` may also be used.
 
 A number of options are available to customize Kitsune's configuration. In most
 cases, you will need to explicitly provide one or more of these. In addition,
 most of
 [LLVM's configuration options](https://llvm.org/docs/CMake.html#frequently-used-llvm-related-variables) may also be used,
 [albeit with some caveats](#modified-llvm-cmake-options). A list of Kitsune-specific
-configuration options follow. The values in parentheses are the default values
-for these options. We begin with the options that are likely to be used by
-most users. Following the default value in parentheses is the cmake type of
-the option.
+configuration options follow. We begin with the options that are likely to be
+used by most users. The value in parentheses following each option name is the
+default value for that option. The value after the final colon is the `cmake`
+type of the option.
 
-- **KITSUNE_ENABLE_TAPIR_TARGETS** ("{{kitsune_default_tapir_targets}}") : `STRING`
+- **KITSUNE_ENABLE_TAPIR_TARGETS** ("all") : `STRING`
 
     A semicolon-separated list of tapir targets that should be built. The
     following list contains the elements that may be added to this list.
 
-    {{'```[{}]```'.format(kitsune_default_tapir_targets_list)}}
+    {{'```[{}]```'.format(kitsune_known_tapir_targets_list)}}
 
-    By default, all tapir targets in this list are built. These are the
-    "non-universal" tapir targets. The "universal" tapir targets are always
-    built. The complete list of supported tapir targets can be found
-    [here](tapir-targets-table-platforms). In order to build only the universal
-    tapir targets, the following may be passed to cmake
+    By default, all tapir targets in this list are built. The special value,
+    "all" may also be specified to build all targets. In order to build only the
+    ["universal" tapir targets](glossary-universal-tapir-target), the following
+    may be passed to cmake:
 
     ```
     -DKITSUNE_ENABLE_TAPIR_TARGETS=""
     ```
+
+    More information about the universal, and non-universal, tapir targets can
+    be found [here](tapir-targets-table-platforms).
+
 
 - **KITSUNE_ENABLE_LANGS** ("{{kitsune_default_langs}}") : `STRING`
 
@@ -273,6 +270,12 @@ the option.
     By default, only the C and C++ frontends are built. These are also
     mandatory. In other words, if any other languages are added to the list,
     'c' and 'cxx' _must_ be present.
+
+    ```{warning}
+    At this time, support for Fortran is in a very preliminary stage.
+    Enabling it is not recommended unless you actually intend to implement
+    support for it.
+    ```
 
 - **KITSUNE_CUDA_PREFIX** (`""`) : `STRING`
 
@@ -464,12 +467,12 @@ are listed below.
 
     ```{warning}
     When developing for Kitsune, setting the `-DLLVM_TARGETS_TO_BUILD=host` can
-    sometimes hide bugs inadvertently introduced into other backends by
-    modifications made earlier in the compilation pipeline.
+    sometimes hide bugs introduced into other backends by modifications made to
+    the compilation pipeline.
     ```
 
-    Some tapir targets require additional backends. The table below summarized
-    the backends required by such tapir targets.
+    Some tapir targets require additional backends. These targets, and the
+    backends that they require are listed in the table below.
 
     ```{table}
     | Tapir Target | Backend |
@@ -478,31 +481,29 @@ are listed below.
     | [hip](tapir-targets-hip) | AMDGPU |
     ```
 
-    If these tapir targets targets have been enabled, the corresponding backends
-    must be added to `LLVM_TARGETS_TO_BUILD`. For convenience, Kitsune's build
-    system will automatically add the required backends if they have not been
+    If these tapir targets have been enabled, the corresponding backends must
+    be added to `LLVM_TARGETS_TO_BUILD`. For convenience, Kitsune's build system
+    will automatically add the required backends if they have not been
     explicitly specified. More details about Kitsune's build system can be
     [found here](BuildSystem.md).
 
 
 #### Modified LLVM CMake Options ###
 
-If you have built LLVM in the past, note that there are some other differences
-in the way Kitsune is built and in how some of LLVM's configuration options are
-handled. In general, most of
-[LLVM's configuration options](https://llvm.org/docs/CMake.html#frequently-used-llvm-related-variables)
-are supported. A few, such as `BUILD_SHARED_LIBS` are not supported - setting
-them to a non-default value will result in a configure-time error. Others,
-such as `LLVM_BUILD_LLVM_DYLIB` have different defaults in Kitsune. A complete
-list of unsupported and modified options are
-[provided](getting-started-modified-llvm-cmake-options).
+In general, most
+[LLVM configuration options](https://llvm.org/docs/CMake.html#frequently-used-llvm-related-variables)
+are supported. However, some, such as `BUILD_SHARED_LIBS`, are not supported -
+setting them to a non-default value will result in a configure-time error.
+Others, such as `LLVM_BUILD_LLVM_DYLIB`, have different defaults in Kitsune.
+A complete list of unsupported and modified options are
+[in the table below](getting-started-modified-llvm-cmake-options).
 
 
 (getting-started-modified-llvm-cmake-options)=
 ```{table}
 | Option | Default (Kitsune) | Default (LLVM) | Comments |
 | :----- | :---------------- | :------------- | :------- |
-| `BUILD_SHARED_LIBS` | `OFF` | `OFF` | Settings this to `ON` will result in a configure-time error |
+| `BUILD_SHARED_LIBS` | `OFF` | `OFF` | Setting this to `ON` will result in a configure-time error |
 | `LLVM_BUILD_LLVM_DYLIB` | `ON` | `OFF` | The user-provided value of this parameter is effectively ignored. Kitsune's build system will force this to be set to `ON` |
 | `LLVM_ENABLE_PROJECTS` | `"clang;kitsune;lld"` | `""` | Projects strictly required by Kitsune will always be built. Optional (from Kitsune's perspective) projects may be provided by the user. These will be respected
 ```
@@ -528,16 +529,16 @@ the default if the `-G` option was not provided), the
 `make` command should be used.
 
 Note that, unlike `ninja`, parallel builds may _not_ be the default in all
-`make` implementations. Building in parallel must be requested explicitly. In
-the case of GNU make, the following command is the equivalent of invoking
-`ninja` without any other command-line options
+`make` implementations. In such cases, building in parallel must be requested
+explicitly. In the case of GNU `make`, the invocation below is the equivalent
+of invoking `ninja` without any command-line options.
 
 ```
 make -j
 ```
 
-Some `make` implementations, notably on FreeBSD require an explicit number of
-parallel jobs to be provided to the `-j` option.
+Some `make` implementations, such as the one available by default on FreeBSD,
+require an explicit number of parallel jobs to be provided to the `-j` option.
 
 ```
 make -j 8
@@ -571,15 +572,15 @@ than building `clang` or `llvm`.
 ### Check
 
 Running Kitsune's checks after a successful build is not required, but it is
-recommended.
+strongly recommended.
 
 ```
 ninja check-kitsune-all
 ```
 
-This will run the Kitsune-specific tests as well as on the subprojects required
-by Kitsune. The command below shows the individual `check-` commands for each
-project. These may be run separately if one wishes.
+This will run the Kitsune-specific tests as well as the tests for the
+subprojects required by Kitsune. The command below shows the individual
+`check-` commands for each project. These may be run separately if desired.
 
 ```
 ninja check-kitsune check-clang check-llvm check-lld
@@ -592,9 +593,10 @@ These can also be run explicitly.
 ninja check-mlir check-flang
 ```
 
-Unlike the builds, the tests of MLIR and Flang are not as
-memory-intensive, so running them without explicitly providing `-j <N>` to
-`ninja` should not cause any problems.
+Unlike the builds, the tests of MLIR and Flang are not as memory-intensive, so
+running them without explicitly providing `-j <N>` to `ninja` should not cause
+any problems.
+
 
 ### Install
 
@@ -611,7 +613,7 @@ On the other hand, if `KITSUNE_SYSROOT` was set, running the Kitsune drivers,
 `kitcc`, `kit++` or `kitfc`, from the build directory will require
 `--sysroot` to be passed every time. This can be very inconvenient, especially
 when compiling non-trivial applications. In this case, installation is generally
-required. See [post-install](#post-install) section for more
+required. See the [post-install](#post-install) section for more
 information.
 
 ### Post-install
