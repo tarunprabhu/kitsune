@@ -261,6 +261,12 @@ def ErrGeneric
 def ErrAttrGeneric
   : Error<"attribute '{}': {}">;
 
+def ErrKitIntrNoTTID
+  : Error<"first argument to call is not a valid TTID">;
+
+def ErrKitIntrWrongTTID
+  : Error<"TTID argument in call must be '{}'">;
+
 // ------------------------- Kitsune-specific warnings -------------------------
 //
 // Although not strictly required, the names of all warnings should be prefixed
