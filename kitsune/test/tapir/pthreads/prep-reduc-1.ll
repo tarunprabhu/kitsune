@@ -9,7 +9,7 @@
 ; CHECK: %[[SYNCREG:.+]] = tail call token @llvm.syncregion.start()
 ; CHECK: %[[NREDS:.+]] = call i64 @llvm.kit.reduce.num.partials(i32 1024, i64 %[[N]])
 ; CHECK-NEXT: %[[BYTES:.+]] = mul {{.+}} 8, %[[NREDS]]
-; CHECK-NEXT: %[[REDS:.+]] = call {{.+}} @llvm.kit.mobile.alloc(i64 %[[BYTES]])
+; CHECK-NEXT: %[[REDS:.+]] = call {{.+}} @llvm.kit.mobile.alloc(i32 1024, i64 %[[BYTES]])
 ; CHECK-NEXT: call void {{.+}} @llvm.kit.mobile.init
 ; CHECK-SAME: i32 1024
 ; CHECK-SAME: ptr {{[^%]+}} %[[REDS]]
@@ -93,7 +93,7 @@
 ; CHECK-NEXT: br label %[[PARTIAL_FREE:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[PARTIAL_FREE]]:
-; CHECK-NEXT: call void @llvm.kit.mobile.free(ptr {{.+}} %[[REDS]])
+; CHECK-NEXT: call void @llvm.kit.mobile.free(i32 1024, ptr {{.+}} %[[REDS]])
 ; CHECK-NEXT: br label %[[SYNC:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[SYNC]]:

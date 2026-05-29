@@ -13,9 +13,8 @@
 #ifndef KITSUNE_CORE_INTRINSIC_UTILS_H
 #define KITSUNE_CORE_INTRINSIC_UTILS_H
 
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/Intrinsics.h"
-
-#include <vector>
 
 namespace llvm {
 
@@ -44,7 +43,7 @@ Value *getStreamFromLaunch(const CallBase &call);
 
 /// Get the arguments that will be passed to the kernel in the given call to
 /// Kitsune's launch_kernel intrinsic.
-std::vector<Value *> getKernelArgumentsFromLaunch(const CallBase &call);
+SmallVector<Value *, 8> getKernelArgumentsFromLaunch(const CallBase &call);
 
 /// @}
 

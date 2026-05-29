@@ -40,24 +40,41 @@ static const clang::Type *getUnqualifiedDesugaredType(const Expr &expr) {
 static RValue emitKitMobileAllocCall(const CallExpr &theCall,
                                      CodeGenFunction &cgf, ReturnValueSlot rv) {
   CodeGenModule &cgm = cgf.CGM;
+  const driver::KitsuneOptions &kitOpts = cgm.getKitsuneOpts();
+
   CGBuilderTy &builder = cgf.Builder;
+  LLVMContext &ctx = builder.getContext();
+
   Function *f = cgm.getIntrinsic(Intrinsic::kit_mobile_alloc);
   llvm::FunctionType *fty = f->getFunctionType();
   Value *size = cgf.EmitScalarExpr(theCall.getArg(0));
-  if (size->getType() != fty->getParamType(0))
-    size = builder.CreateTruncOrBitCast(size, fty->getParamType(0));
+  if (size->getType() != fty->getParamType(1))
+    size = builder.CreateTruncOrBitCast(size, fty->getParamType(1));
 
-  return RValue::get(builder.CreateCall(f, {size}));
+  // FIXME: Defaulting to serial has the effect of behaving similar to vanilla
+  // C/C++. It is reasonable for this, but we need to consider what to do when
+  // --tapir is not provided with Kitsune's frontend.
+  Value *tt = toConstant(kitOpts.getTTIDOr(TTID::Serial), ctx);
+
+  return RValue::get(builder.CreateCall(f, {tt, size}));
 }
 
 static RValue emitKitMobileFreeCall(const CallExpr &theCall,
                                     CodeGenFunction &cgf, ReturnValueSlot rv) {
   CodeGenModule &cgm = cgf.CGM;
+  const driver::KitsuneOptions &kitOpts = cgm.getKitsuneOpts();
+
   CGBuilderTy &builder = cgf.Builder;
-  Function *f = cgm.getIntrinsic(Intrinsic::kit_mobile_free);
+  LLVMContext &ctx = builder.getContext();
+
+  // FIXME: Defaulting to serial has the effect of behaving similar to vanilla
+  // C/C++. It is reasonable for this, but we need to consider what to do when
+  // --tapir is not provided with Kitsune's frontend.
+  Value *tt = toConstant(kitOpts.getTTIDOr(TTID::Serial), ctx);
   Value *ptr = cgf.EmitScalarExpr(theCall.getArg(0));
 
-  return RValue::get(builder.CreateCall(f, {ptr}));
+  return RValue::get(
+      builder.CreateIntrinsic(Intrinsic::kit_mobile_free, {tt, ptr}));
 }
 
 static RValue emitKitMobileCastUnsafeCall(const CallExpr &theCall,
@@ -65,6 +82,7 @@ static RValue emitKitMobileCastUnsafeCall(const CallExpr &theCall,
                                           ReturnValueSlot rv) {
   CGBuilderTy &builder = cgf.Builder;
   LLVMContext &ctx = builder.getContext();
+
   Value *ptr = cgf.EmitScalarExpr(theCall.getArg(0));
   llvm::Type *destTy = llvm::PointerType::get(ctx, KitAS::Mobile);
 
@@ -251,9 +269,9 @@ static RValue emitKitReduceCall(const CallExpr &theCall, CodeGenFunction &cgf,
   const driver::KitsuneOptions &kitOpts = cgm.getKitsuneOpts();
 
   // FIXME: This should not be mandatory. But for now, we leave it this way.
-  // There is a broader question of how to handle Kitsune's builtins with the
-  // vanilla clang that is built together with Kitsune. Until that is resolved,
-  // we leave this in and accept that this might fail in some cases.
+  // There is a broader question of how to handle Kitsune's builtins when the
+  // kitcc frontend is used but a tapir target is not provided. Until that is
+  // resolved, we leave this in and accept that this might fail in some cases.
   assert(kitOpts.hasTTID() && "TTID not set in Kitsune options");
 
   const Expr *destExpr = theCall.getArg(0);

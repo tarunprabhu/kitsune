@@ -42,7 +42,8 @@ Value *llvm::getStreamFromLaunch(const CallBase &call) {
   return call.getArgOperand(calleeTy->getNumParams() - 1);
 }
 
-std::vector<Value *> llvm::getKernelArgumentsFromLaunch(const CallBase &call) {
+SmallVector<Value *, 8>
+llvm::getKernelArgumentsFromLaunch(const CallBase &call) {
   assert(call.getIntrinsicID() == Intrinsic::kit_async_gpu_kernel_launch &&
          "Instruction must call async_launch_kernel intrinsic");
 
@@ -50,7 +51,7 @@ std::vector<Value *> llvm::getKernelArgumentsFromLaunch(const CallBase &call) {
   // type". By definition, this is also the argument number of the first
   // variadic argument in the call. This, along with all subsequent arguments
   // in the call are the arguments to the kernel function being launched.
-  std::vector<Value *> args;
+  SmallVector<Value *, 8> args;
   Function *callee = call.getCalledFunction();
   FunctionType *calleeTy = callee->getFunctionType();
   for (unsigned i = calleeTy->getNumParams(); i < call.arg_size(); ++i)

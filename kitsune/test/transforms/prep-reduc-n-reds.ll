@@ -26,28 +26,28 @@
 ;
 ; CHECK: %[[NREDS:.+]] = call {{.+}} @llvm.kit.reduce.num.partials(i32 1024, i64 %[[N]])
 ; CHECK-NEXT: %[[BYTES1:.+]] = mul {{.+}} 8, %[[NREDS]]
-; CHECK-NEXT: %[[BUF1:.+]] = call {{.+}} @llvm.kit.mobile.alloc(i64 %[[BYTES1]])
+; CHECK-NEXT: %[[BUF1:.+]] = call {{.+}} @llvm.kit.mobile.alloc(i32 1024, i64 %[[BYTES1]])
 ; CHECK-NEXT: call void {{.+}} @llvm.kit.mobile.init
 ; CHECK-SAME: i32 1024
 ; CHECK-SAME: ptr {{[^%]+}} %[[BUF1]]
 ; CHECK-SAME: i64 %[[NREDS]]
 ; CHECK-SAME: i64 [[UNIT1:[^)]+]]
 ; CHECK-NEXT: %[[BYTES2:.+]] = mul {{.+}} 8, %[[NREDS]]
-; CHECK-NEXT: %[[BUF2:.+]] = call {{.+}} @llvm.kit.mobile.alloc(i64 %[[BYTES2]])
+; CHECK-NEXT: %[[BUF2:.+]] = call {{.+}} @llvm.kit.mobile.alloc(i32 1024, i64 %[[BYTES2]])
 ; CHECK-NEXT: call void {{.+}} @llvm.kit.mobile.init
 ; CHECK-SAME: i32 1024
 ; CHECK-SAME: ptr {{[^%]+}} %[[BUF2]]
 ; CHECK-SAME: i64 %[[NREDS]]
 ; CHECK-SAME: i64 [[UNIT2:[^)]+]]
 ; CHECK-NEXT: %[[BYTES3:.+]] = mul {{.+}} 4, %[[NREDS]]
-; CHECK-NEXT: %[[BUF3:.+]] = call {{.+}} @llvm.kit.mobile.alloc(i64 %[[BYTES3]])
+; CHECK-NEXT: %[[BUF3:.+]] = call {{.+}} @llvm.kit.mobile.alloc(i32 1024, i64 %[[BYTES3]])
 ; CHECK-NEXT: call void {{.+}} @llvm.kit.mobile.init
 ; CHECK-SAME: i32 1024
 ; CHECK-SAME: ptr {{[^%]+}} %[[BUF3]]
 ; CHECK-SAME: i64 %[[NREDS]]
 ; CHECK-SAME: i32 [[UNIT3:[^)]+]]
 ; CHECK-NEXT: %[[BYTES4:.+]] = mul {{.+}} 4, %[[NREDS]]
-; CHECK-NEXT: %[[BUF4:.+]] = call {{.+}} @llvm.kit.mobile.alloc(i64 %[[BYTES4]])
+; CHECK-NEXT: %[[BUF4:.+]] = call {{.+}} @llvm.kit.mobile.alloc(i32 1024, i64 %[[BYTES4]])
 ; CHECK-NEXT: call void {{.+}} @llvm.kit.mobile.init
 ; CHECK-SAME: i32 1024
 ; CHECK-SAME: ptr {{[^%]+}} %[[BUF4]]
@@ -81,10 +81,10 @@
 ; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.1{{.*}} ptr %[[R3]], {{.+}} %[[BUF3]], i64 %[[NREDS]], i32 1, ptr @mul.i32
 ; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.1{{.*}} ptr %[[R4]], {{.+}} %[[BUF4]], i64 %[[NREDS]], i32 0, ptr @sum.i32
 ;
-; CHECK: call void @llvm.kit.mobile.free{{.+}} %[[BUF1]]
-; CHECK-NEXT: call void @llvm.kit.mobile.free{{.+}} %[[BUF2]]
-; CHECK-NEXT: call void @llvm.kit.mobile.free{{.+}} %[[BUF3]]
-; CHECK-NEXT: call void @llvm.kit.mobile.free{{.+}} %[[BUF4]]
+; CHECK: call void @llvm.kit.mobile.free(i32 1024, ptr addrspace(67) %[[BUF1]])
+; CHECK-NEXT: call void @llvm.kit.mobile.free(i32 1024, ptr addrspace(67) %[[BUF2]])
+; CHECK-NEXT: call void @llvm.kit.mobile.free(i32 1024, ptr addrspace(67) %[[BUF3]])
+; CHECK-NEXT: call void @llvm.kit.mobile.free(i32 1024, ptr addrspace(67) %[[BUF4]])
 
 declare void @sum.i64(ptr %res, i64 %v)
 
