@@ -91,8 +91,7 @@ myst_substitutions = {
 # useful in documents.
 for key in [
     "kitsune_default_langs",
-    "kitsune_default_tapir_targets",
-    "kitsune_guaranteed_tapir_targets",
+    "kitsune_universal_tapir_targets",
     "kitsune_known_tapir_targets",
 ]:
     v = getenv(key.upper())
