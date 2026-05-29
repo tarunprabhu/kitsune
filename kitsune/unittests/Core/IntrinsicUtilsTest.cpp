@@ -151,4 +151,32 @@ TEST(KitIntrinsicUtils, getStreamFromLaunch) {
   call1->deleteValue();
 }
 
+TEST(KitIntrinsicUtils, getTTIDFromKitIntrCall) {
+  LLVMContext ctx;
+  Module m("", ctx);
+  Type *i32 = Type::getInt32Ty(ctx);
+
+  Constant *c0 = ConstantInt::get(i32, 0);
+  Constant *c1 = ConstantInt::get(i32, unsigned(TTID::Serial));
+  Constant *c_1 = ConstantInt::get(i32, -1, /*isSigned=*/true);
+
+  Function *min = Intrinsic::getOrInsertDeclaration(&m, Intrinsic::umin, {i32});
+  Function *init =
+      Intrinsic::getOrInsertDeclaration(&m, Intrinsic::kit_runtime_initialize);
+  Function *fin =
+      Intrinsic::getOrInsertDeclaration(&m, Intrinsic::kit_runtime_finalize);
+
+  CallInst *callMin = CallInst::Create(min->getFunctionType(), min, {c0, c1});
+  CallInst *callInit = CallInst::Create(init->getFunctionType(), init, {c_1});
+  CallInst *callFin = CallInst::Create(fin->getFunctionType(), fin, {c1});
+
+  EXPECT_FALSE(getTTIDFromKitIntrCall(*callMin).has_value());
+  EXPECT_FALSE(getTTIDFromKitIntrCall(*callInit).has_value());
+  EXPECT_EQ(getTTIDFromKitIntrCall(*callFin), TTID::Serial);
+
+  callMin->deleteValue();
+  callInit->deleteValue();
+  callFin->deleteValue();
+}
+
 } // namespace

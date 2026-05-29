@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/IntrinsicUtils.h"
+#include "kitsune/Core/ConstantUtils.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/Instructions.h"
 
@@ -58,4 +59,11 @@ llvm::getKernelArgumentsFromLaunch(const CallBase &call) {
     args.push_back(call.getArgOperand(i));
 
   return args;
+}
+
+std::optional<TTID> llvm::getTTIDFromKitIntrCall(const CallBase &call) {
+  if (Intrinsic::ID id = call.getIntrinsicID())
+    if (isKitIntrinsic(id))
+      return fromConstant<TTID>(*cast<Constant>(call.getArgOperand(0)));
+  return std::nullopt;
 }

@@ -231,7 +231,7 @@ private:
 
   FunctionCallee getMobileAllocFunc(Module &m, CallInst &call) {
     Intrinsic::ID id = call.getIntrinsicID();
-    TTID tt = getTTID(call.getArgOperand(0));
+    TTID tt = *getTTIDFromKitIntrCall(call);
 
     switch (tt) {
     case TTID::Nolo:
@@ -262,7 +262,7 @@ private:
 
   FunctionCallee getMobileFreeFunc(Module &m, CallInst &call) {
     Intrinsic::ID id = call.getIntrinsicID();
-    TTID tt = getTTID(call.getArgOperand(0));
+    TTID tt = *getTTIDFromKitIntrCall(call);
 
     switch (tt) {
     case TTID::Nolo:

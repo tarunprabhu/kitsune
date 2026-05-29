@@ -13,6 +13,7 @@
 #ifndef KITSUNE_CORE_INTRINSIC_UTILS_H
 #define KITSUNE_CORE_INTRINSIC_UTILS_H
 
+#include "kitsune/Core/Tapir.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/Intrinsics.h"
 
@@ -44,6 +45,15 @@ Value *getStreamFromLaunch(const CallBase &call);
 /// Get the arguments that will be passed to the kernel in the given call to
 /// Kitsune's launch_kernel intrinsic.
 SmallVector<Value *, 8> getKernelArgumentsFromLaunch(const CallBase &call);
+
+/// Get the TTID argument from a call. This will return std::nullopt if any of
+/// the following is not true:
+///
+///   - The call is not to a Kitsune-specific intrinsic.
+///   - The first argument to the call is not an immediate constant integer
+///     whose value is not a valid integer representation of a TTID.
+///
+std::optional<TTID> getTTIDFromKitIntrCall(const CallBase &call);
 
 /// @}
 
