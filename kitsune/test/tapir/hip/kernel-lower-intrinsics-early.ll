@@ -57,27 +57,27 @@ declare void @ext(i32)
 
 define void @f() {
 threadidx:
-  %tid.x = call i32 @llvm.kit.gpu.thread.id.x();
-  %tid.y = call i32 @llvm.kit.gpu.thread.id.y();
-  %tid.z = call i32 @llvm.kit.gpu.thread.id.z();
+  %tid.x = call i32 @llvm.kit.gpu.thread.id.x(i32 4);
+  %tid.y = call i32 @llvm.kit.gpu.thread.id.y(i32 4);
+  %tid.z = call i32 @llvm.kit.gpu.thread.id.z(i32 4);
   br label %blockidx
 
 blockidx:
-  %bid.x = call i32 @llvm.kit.gpu.block.id.x();
-  %bid.y = call i32 @llvm.kit.gpu.block.id.y();
-  %bid.z = call i32 @llvm.kit.gpu.block.id.z();
+  %bid.x = call i32 @llvm.kit.gpu.block.id.x(i32 4);
+  %bid.y = call i32 @llvm.kit.gpu.block.id.y(i32 4);
+  %bid.z = call i32 @llvm.kit.gpu.block.id.z(i32 4);
   br label %blockdim
 
 blockdim:
-  %bsz.x = call i32 @llvm.kit.gpu.block.size.x();
-  %bsz.y = call i32 @llvm.kit.gpu.block.size.y();
-  %bsz.z = call i32 @llvm.kit.gpu.block.size.z();
+  %bsz.x = call i32 @llvm.kit.gpu.block.size.x(i32 4);
+  %bsz.y = call i32 @llvm.kit.gpu.block.size.y(i32 4);
+  %bsz.z = call i32 @llvm.kit.gpu.block.size.z(i32 4);
   br label %griddim
 
 griddim:
-  %gsz.x = call i32 @llvm.kit.gpu.grid.size.x();
-  %gsz.y = call i32 @llvm.kit.gpu.grid.size.y();
-  %gsz.z = call i32 @llvm.kit.gpu.grid.size.z();
+  %gsz.x = call i32 @llvm.kit.gpu.grid.size.x(i32 4);
+  %gsz.y = call i32 @llvm.kit.gpu.grid.size.y(i32 4);
+  %gsz.z = call i32 @llvm.kit.gpu.grid.size.z(i32 4);
   br label %uses
 
 uses:

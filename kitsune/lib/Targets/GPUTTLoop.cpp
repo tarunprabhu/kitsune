@@ -491,6 +491,8 @@ void GPUTTLoopBase::emitIndexCalculation(IRBuilder<> &builder, PHINode *iv,
     return join_items("", base, suffixes[int(dirxn)]);
   };
 
+  LLVMContext &ctx = builder.getContext();
+
   // The outlined loop runs from [iv0, tc] where iv0 and tc are bounds passed to
   // the kernel function. Convert these to use threadIdx, blockIdx, blockDim
   // etc.
@@ -505,9 +507,13 @@ void GPUTTLoopBase::emitIndexCalculation(IRBuilder<> &builder, PHINode *iv,
   // in the lowering process and is unlikely to ever change. If this is ever
   // non-zero, it will likely cause a lot of problems everywhere.
   //
-  Value *tid = builder.CreateIntrinsic(getThreadIdFn(), {}, {}, n("tid"));
-  Value *bid = builder.CreateIntrinsic(getBlockIdFn(), {}, {}, n("bid"));
-  Value *bsz = builder.CreateIntrinsic(getBlockSizeFn(), {}, {}, n("bsz"));
+  Value *ctt = toConstant(tt, ctx);
+  Value *tid = builder.CreateIntrinsic(getThreadIdFn(), {ctt}, /*FMFSource=*/{},
+                                       n("tid"));
+  Value *bid = builder.CreateIntrinsic(getBlockIdFn(), {ctt}, /*FMFSource=*/{},
+                                       n("bid"));
+  Value *bsz = builder.CreateIntrinsic(getBlockSizeFn(), {ctt},
+                                       /*FMFSource=*/{}, n("bsz"));
   Value *bdxbi = builder.CreateMul(bsz, bid);
   Value *bdxbipti = builder.CreateAdd(bdxbi, tid, n(".ivb"));
 
