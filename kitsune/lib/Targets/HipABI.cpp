@@ -255,6 +255,7 @@ protected:
     assert(getDepth() == 1 &&
            "Y-axis launches are only supported on loops with depth 1");
 
+    LLVMContext &ctx = f.getContext();
     Loop *loop = tl.getLoop();
 
     auto *bbEntry = cast<BasicBlock>(vmap.lookup(loop->getLoopPreheader()));
@@ -264,12 +265,14 @@ protected:
     Type *ivType = iv->getType();
 
     IRBuilder<> bldr(bbEntry->getTerminator());
-    Value *tidX =
-        bldr.CreateIntrinsic(Intrinsic::kit_gpu_thread_id_y, {}, {}, "tid.x");
-    Value *bidX =
-        bldr.CreateIntrinsic(Intrinsic::kit_gpu_block_id_x, {}, {}, "bid.x");
-    Value *bszX =
-        bldr.CreateIntrinsic(Intrinsic::kit_gpu_block_size_y, {}, {}, "bsz.x");
+
+    Value *ctt = toConstant(tt, ctx);
+    Value *tidX = bldr.CreateIntrinsic(Intrinsic::kit_gpu_thread_id_y, {ctt},
+                                       /*FMFSource=*/{}, "tid.x");
+    Value *bidX = bldr.CreateIntrinsic(Intrinsic::kit_gpu_block_id_x, {ctt},
+                                       /*FMFSource=*/{}, "bid.x");
+    Value *bszX = bldr.CreateIntrinsic(Intrinsic::kit_gpu_block_size_y, {ctt},
+                                       /*FMFSource=*/{}, "bsz.x");
     Value *bdxbi = bldr.CreateMul(bszX, bidX);
     Value *tipbdxbi = bldr.CreateAdd(bdxbi, tidX, ".ivbeg.x");
     Value *ivBeg =

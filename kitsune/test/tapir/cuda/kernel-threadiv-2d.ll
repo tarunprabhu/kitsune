@@ -13,16 +13,16 @@
 ; CHECK-SAME: i64 {{[^%]*}}%[[TC_X:[^,]+]],
 ; CHECK-SAME: #{{[0-9]+}}
 ;
-; CHECK: %[[TID_Y:.+]] = {{.*}}call i32 @llvm.kit.gpu.thread.id.y()
-; CHECK: %[[BID_Y:.+]] = {{.*}}call i32 @llvm.kit.gpu.block.id.y()
-; CHECK: %[[BSZ_Y:.+]] = {{.*}}call i32 @llvm.kit.gpu.block.size.y()
+; CHECK: %[[TID_Y:.+]] = {{.*}}call i32 @llvm.kit.gpu.thread.id.y(i32 2)
+; CHECK: %[[BID_Y:.+]] = {{.*}}call i32 @llvm.kit.gpu.block.id.y(i32 2)
+; CHECK: %[[BSZ_Y:.+]] = {{.*}}call i32 @llvm.kit.gpu.block.size.y(i32 2)
 ; CHECK: %[[OFF_Y:.+]] = mul i32 %[[BSZ_Y]], %[[BID_Y]]
 ; CHECK: %[[IVBEG32_Y:.+]] = add i32 %[[OFF_Y]], %[[TID_Y]]
 ; CHECK: %[[IVBEG_Y:.+]] = zext i32 %[[IVBEG32_Y]] to i64
 ;
-; CHECK: %[[TID_X:.+]] = {{.*}}call i32 @llvm.kit.gpu.thread.id.x()
-; CHECK: %[[BID_X:.+]] = {{.*}}call i32 @llvm.kit.gpu.block.id.x()
-; CHECK: %[[BSZ_X:.+]] = {{.*}}call i32 @llvm.kit.gpu.block.size.x()
+; CHECK: %[[TID_X:.+]] = {{.*}}call i32 @llvm.kit.gpu.thread.id.x(i32 2)
+; CHECK: %[[BID_X:.+]] = {{.*}}call i32 @llvm.kit.gpu.block.id.x(i32 2)
+; CHECK: %[[BSZ_X:.+]] = {{.*}}call i32 @llvm.kit.gpu.block.size.x(i32 2)
 ; CHECK: %[[OFF_X:.+]] = mul i32 %[[BSZ_X]], %[[BID_X]]
 ; CHECK: %[[IVBEG32_X:.+]] = add i32 %[[OFF_X]], %[[TID_X]]
 ; CHECK: %[[IVBEG_X:.+]] = zext i32 %[[IVBEG32_X]] to i64

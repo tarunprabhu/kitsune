@@ -447,7 +447,9 @@ to get the address of any global value.
 
 def KitGPUTIDXDoc : KitDocIntrinsic {
   let Category = KitDocCatGPU;
-  let ParamDocs = [];
+  let ParamDocs = [
+    KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
+  ];
   let Descr = [{
 Get the thread index in the `x` dimension in a GPU kernel. In a
 multi-dimensional kernel launch, this will be the fastest-changing index.
@@ -463,7 +465,9 @@ This is lowered to one of the following intrinsics:
 
 def KitGPUTIDYDoc : KitDocIntrinsic {
   let Category = KitDocCatGPU;
-  let ParamDocs = [];
+  let ParamDocs = [
+    KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
+  ];
   let Descr = [{
 Get the thread index in the `y` dimension in a GPU kernel. In a
 multi-dimensional kernel launch, this will be the second-fastest-changing index.
@@ -479,7 +483,9 @@ This is lowered to one of the following intrinsics:
 
 def KitGPUTIDZDoc : KitDocIntrinsic {
   let Category = KitDocCatGPU;
-  let ParamDocs = [];
+  let ParamDocs = [
+    KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
+  ];
   let Descr = [{
 Get the thread index in the `z` dimension in a GPU kernel. In a 3-dimensional
 kernel launch, this will be the slowest-changing index. This is lowered to one
@@ -495,7 +501,9 @@ of the following intrinsics:
 
 def KitGPUBlockIDXDoc : KitDocIntrinsic {
   let Category = KitDocCatGPU;
-  let ParamDocs = [];
+  let ParamDocs = [
+    KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
+  ];
   let Descr = [{
 Get the block index in the `x` dimension in a GPU kernel. In a
 multi-dimensional kernel launch, this will be the fastest-changing index.
@@ -511,7 +519,9 @@ This is lowered to one of the following intrinsics:
 
 def KitGPUBlockIDYDoc : KitDocIntrinsic {
   let Category = KitDocCatGPU;
-  let ParamDocs = [];
+  let ParamDocs = [
+    KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
+  ];
   let Descr = [{
 Get the block index in the `y` dimension in a GPU kernel. In a
 multi-dimensional kernel launch, this will be the second-fastest-changing index.
@@ -527,7 +537,9 @@ This is lowered to one of the following intrinsics:
 
 def KitGPUBlockIDZDoc : KitDocIntrinsic {
   let Category = KitDocCatGPU;
-  let ParamDocs = [];
+  let ParamDocs = [
+    KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
+  ];
   let Descr = [{
 Get the block index in the `z` dimension in a GPU kernel. In a 3-dimensional
 kernel launch, this will be the slowest-changing index. This is lowered to one
@@ -543,7 +555,9 @@ of the following intrinsics:
 
 def KitGPUBlockSizeXDoc : KitDocIntrinsic {
   let Category = KitDocCatGPU;
-  let ParamDocs = [];
+  let ParamDocs = [
+    KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
+  ];
   let Descr = [{
 Get the number of blocks in the `x` dimension in a GPU kernel. In a
 multi-dimensional kernel launch, this will be the fastest-changing index.
@@ -562,7 +576,9 @@ vendor-provided bitcode file, which is called with a specific argument.
 
 def KitGPUBlockSizeYDoc : KitDocIntrinsic {
   let Category = KitDocCatGPU;
-  let ParamDocs = [];
+  let ParamDocs = [
+    KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
+  ];
   let Descr = [{
 Get the number of blocks in the `y` dimension in a GPU kernel. In a
 multi-dimensional kernel launch, this will be the second-fastest-changing index.
@@ -581,7 +597,9 @@ vendor-provided bitcode file, which is called with a specific argument.
 
 def KitGPUBlockSizeZDoc : KitDocIntrinsic {
   let Category = KitDocCatGPU;
-  let ParamDocs = [];
+  let ParamDocs = [
+    KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
+  ];
   let Descr = [{
 Get the number of blocks in the `z` dimension in a GPU kernel. In a
 3-dimensional kernel launch, this will be the slowest-changing index. This is
@@ -600,7 +618,9 @@ vendor-provided bitcode file, which is called with a specific argument.
 
 def KitGPUGridSizeXDoc : KitDocIntrinsic {
   let Category = KitDocCatGPU;
-  let ParamDocs = [];
+  let ParamDocs = [
+    KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
+  ];
   let Descr = [{
 Get the number of grids in the `x` dimension in a GPU kernel. In a
 multi-dimensional kernel launch, this will be the fastest-changing index.
@@ -619,7 +639,9 @@ vendor-provided bitcode file, which is called with a specific argument.
 
 def KitGPUGridSizeYDoc : KitDocIntrinsic {
   let Category = KitDocCatGPU;
-  let ParamDocs = [];
+  let ParamDocs = [
+    KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
+  ];
   let Descr = [{
 Get the number of grids in the `y` dimension in a GPU kernel. In a
 multi-dimensional kernel launch, this will be the second-fastest-changing index.
@@ -638,7 +660,9 @@ vendor-provided bitcode file, which is called with a specific argument.
 
 def KitGPUGridSizeZDoc : KitDocIntrinsic {
   let Category = KitDocCatGPU;
-  let ParamDocs = [];
+  let ParamDocs = [
+    KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
+  ];
   let Descr = [{
 Get the number of grids in the `z` dimension in a GPU kernel. In a
 3-dimensional kernel launch, this will be the slowest-changing index. This is

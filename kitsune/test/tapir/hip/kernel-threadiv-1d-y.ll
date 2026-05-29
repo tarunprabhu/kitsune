@@ -11,9 +11,9 @@
 ; CHECK-SAME: i64 {{[^%]*}}%[[TC:[^,]+]],
 ; CHECK-SAME: i64 {{[^)]+}})
 ; CHECK-SAME: #[[ATTRS:[0-9]+]]
-; CHECK: %[[TIDX:.+]] = {{.*}}call i32 @llvm.kit.gpu.thread.id.y()
-; CHECK: %[[BIDX:.+]] = {{.*}}call i32 @llvm.kit.gpu.block.id.x()
-; CHECK: %[[BDIM:.+]] = {{.*}}call i32 @llvm.kit.gpu.block.size.y()
+; CHECK: %[[TIDX:.+]] = {{.*}}call i32 @llvm.kit.gpu.thread.id.y(i32 4)
+; CHECK: %[[BIDX:.+]] = {{.*}}call i32 @llvm.kit.gpu.block.id.x(i32 4)
+; CHECK: %[[BDIM:.+]] = {{.*}}call i32 @llvm.kit.gpu.block.size.y(i32 4)
 ; CHECK: %[[BOFF:.+]] = mul i32 %[[BDIM]], %[[BIDX]]
 ; CHECK: %[[IVBEG32:.+]] = add i32 %[[BOFF]], %[[TIDX]]
 ; CHECK: %[[IVBEG:.+]] = zext i32 %[[IVBEG32]] to i64

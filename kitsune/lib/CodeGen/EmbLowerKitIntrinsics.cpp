@@ -41,9 +41,14 @@ replaceAllSimple(Module &embM,
 
   for (auto [call, newCallee] : calls) {
     IRBuilder<> builder(call);
-    SmallVector<Value *, 4> args(call->arg_begin(), call->arg_end());
-    CallInst *newCall = builder.CreateIntrinsic(newCallee, args);
 
+    // The first argument of the call will be the TTID. This is never needed
+    // when lowering a simple call.
+    SmallVector<Value *, 4> args;
+    for (unsigned i = 1; i < call->arg_size(); ++i)
+      args.push_back(call->getArgOperand(i));
+
+    CallInst *newCall = builder.CreateIntrinsic(newCallee, args);
     newCall->takeName(call);
     call->replaceAllUsesWith(newCall);
     call->eraseFromParent();

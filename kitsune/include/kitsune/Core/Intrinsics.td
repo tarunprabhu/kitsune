@@ -102,62 +102,74 @@ def int_kit_cpu_threads_sync
 // Intrinsics for parallel execution on GPU's.
 
 // Get the thread index in the x dimension in a GPU kernel.
-def int_kit_gpu_thread_id_x : KitIntrinsic<[llvm_i32_ty], [], [IntrNoMem]> {
+def int_kit_gpu_thread_id_x
+    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty], [IntrNoMem]> {
   let Doc = KitGPUTIDXDoc;
 }
 
 // Get the thread index in the y dimension in a GPU kernel.
-def int_kit_gpu_thread_id_y : KitIntrinsic<[llvm_i32_ty], [], [IntrNoMem]> {
+def int_kit_gpu_thread_id_y
+    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty], [IntrNoMem]> {
   let Doc = KitGPUTIDYDoc;
 }
 
 // Get the thread index in the z dimension in a GPU kernel.
-def int_kit_gpu_thread_id_z : KitIntrinsic<[llvm_i32_ty], [], [IntrNoMem]> {
+def int_kit_gpu_thread_id_z
+    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty], [IntrNoMem]> {
   let Doc = KitGPUTIDZDoc;
 }
 
 // Get the block index in the x dimension in a GPU kernel.
-def int_kit_gpu_block_id_x : KitIntrinsic<[llvm_i32_ty], [], [IntrNoMem]> {
+def int_kit_gpu_block_id_x
+    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty], [IntrNoMem]> {
   let Doc = KitGPUBlockIDXDoc;
 }
 
 // Get the block index in the y dimension in a GPU kernel.
-def int_kit_gpu_block_id_y : KitIntrinsic<[llvm_i32_ty], [], [IntrNoMem]> {
+def int_kit_gpu_block_id_y
+    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty], [IntrNoMem]> {
   let Doc = KitGPUBlockIDYDoc;
 }
 
 // Get the block index in the z dimension in a GPU kernel.
-def int_kit_gpu_block_id_z : KitIntrinsic<[llvm_i32_ty], [], [IntrNoMem]> {
+def int_kit_gpu_block_id_z
+    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty], [IntrNoMem]> {
   let Doc = KitGPUBlockIDZDoc;
 }
 
 // Get the number of blocks in the x dimension in a GPU kernel.
-def int_kit_gpu_block_size_x : KitIntrinsic<[llvm_i32_ty], [], [IntrNoMem]> {
+def int_kit_gpu_block_size_x
+    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty], [IntrNoMem]> {
   let Doc = KitGPUBlockSizeXDoc;
 }
 
 // Get the number of blocks in the y dimension in a GPU kernel.
-def int_kit_gpu_block_size_y : KitIntrinsic<[llvm_i32_ty], [], [IntrNoMem]> {
+def int_kit_gpu_block_size_y
+    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty], [IntrNoMem]> {
   let Doc = KitGPUBlockSizeYDoc;
 }
 
 // Get the number of blocks in the x dimension in a GPU kernel.
-def int_kit_gpu_block_size_z : KitIntrinsic<[llvm_i32_ty], [], [IntrNoMem]> {
+def int_kit_gpu_block_size_z
+    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty], [IntrNoMem]> {
   let Doc = KitGPUBlockSizeZDoc;
 }
 
 // Get the number of grids in the x dimension in a GPU kernel.
-def int_kit_gpu_grid_size_x : KitIntrinsic<[llvm_i32_ty], [], [IntrNoMem]> {
+def int_kit_gpu_grid_size_x
+    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty], [IntrNoMem]> {
   let Doc = KitGPUGridSizeXDoc;
 }
 
 // Get the number of blocks in the y dimension in a GPU kernel.
-def int_kit_gpu_grid_size_y : KitIntrinsic<[llvm_i32_ty], [], [IntrNoMem]> {
+def int_kit_gpu_grid_size_y
+    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty], [IntrNoMem]> {
   let Doc = KitGPUGridSizeYDoc;
 }
 
 // Get the number of blocks in the x dimension in a GPU kernel.
-def int_kit_gpu_grid_size_z : KitIntrinsic<[llvm_i32_ty], [], [IntrNoMem]> {
+def int_kit_gpu_grid_size_z
+    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty], [IntrNoMem]> {
   let Doc = KitGPUGridSizeZDoc;
 }
 
