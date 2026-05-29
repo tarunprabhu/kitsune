@@ -70,9 +70,7 @@ TapirSpawnStrategy getSpawnStrategyFor(TTID tt);
 /// Has the given tapir target been enabled in this build.
 bool isEnabledTT(TTID tt);
 
-/// Does the tapir target generate code that will run on a GPU. This will only
-/// return true if the tapir target generates GPU code *AND* the target has been
-/// enabled.
+/// Does the tapir target generate code that will run on a GPU.
 bool isGPUTT(TTID tt);
 
 /// Check if the given tapir target generates embedded bitcode.

@@ -195,7 +195,7 @@ public:
     bool changed = false;
 
     initializeCGFBOptions(m);
-    for (TTID tt : kitEnabledEmbBCTTIDs()) {
+    for (TTID tt : kitKnownEmbBCTTs()) {
       GlobalVariable *bc = getEmbBCGlobal(tt, m);
       GlobalVariable *fb = getEmbFBGlobal(tt, m);
       if (bc and fb) {

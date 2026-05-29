@@ -256,6 +256,8 @@ endif()
 
 # ----------------------- KITSUNE SPECIFIC CONFIGURATION -----------------------
 
+# Get the TTID enum for the tapir target, TT. OUT is the out variable that will
+# contain the result.
 function (get_ttid_for TT OUT)
   if (TT STREQUAL "cuda")
     set(${OUT} "TTID::Cuda" PARENT_SCOPE)
@@ -272,16 +274,20 @@ function (get_ttid_for TT OUT)
   elseif (TT STREQUAL "qthreads")
     set(${OUT} "TTID::Qthreads" PARENT_SCOPE)
   elseif (TT STREQUAL "serial")
-    set(${OUT} "TTID::Hip" PARENT_SCOPE)
+    set(${OUT} "TTID::Serial" PARENT_SCOPE)
   else ()
     message(FATAL_ERROR "Tapir target not handled: '${target}'")
   endif ()
 endfunction ()
 
-function (populate_ttids TTS ENABLED_TTS OUT)
+# Populate the out variable OUT with a list of TTID's corresponding to the
+# tapir targets that are in TTS, and FILTER. Both TTS and FILTER are lists.
+# For instance, if TTS and FILTER were both "cuda;hip", the value of OUT would
+# be "TTID::Cuda;TTID::Hip".
+function (populate_ttids TTS FILTER OUT)
   set(TTIDS)
   foreach (TT ${TTS})
-    if (TT IN_LIST ENABLED_TTS)
+    if (TT IN_LIST FILTER)
       set(TTID)
       get_ttid_for("${TT}" TTID)
       list(APPEND TTIDS "${TTID}")
@@ -659,12 +665,30 @@ endforeach ()
 list(SORT KITSUNE_ENABLED_TAPIR_TARGETS_STR)
 list(JOIN KITSUNE_ENABLED_TAPIR_TARGETS_STR " " KITSUNE_ENABLED_TAPIR_TARGETS_STR)
 
+populate_ttids("${KITSUNE_KNOWN_TAPIR_TARGETS}"
+  "${KITSUNE_KNOWN_TAPIR_TARGETS}"
+  KITSUNE_KNOWN_TTIDS)
+
+populate_ttids("${KITSUNE_UNIVERSAL_TAPIR_TARGETS}"
+  "${KITSUNE_ENABLED_TAPIR_TARGETS}"
+  KITSUNE_UNIVERSAL_TTIDS)
+
+populate_ttids("${KITSUNE_GPU_TAPIR_TARGETS}"
+  "${KITSUNE_GPU_TAPIR_TARGETS}"
+  KITSUNE_KNOWN_GPU_TTIDS)
+
+populate_ttids("${KITSUNE_EMB_BC_TAPIR_TARGETS}"
+  "${KITSUNE_EMB_BC_TAPIR_TARGETS}"
+  KITSUNE_KNOWN_EMB_BC_TTIDS)
+
 populate_ttids("${KITSUNE_ENABLED_TAPIR_TARGETS}"
   "${KITSUNE_ENABLED_TAPIR_TARGETS}"
   KITSUNE_ENABLED_TTIDS)
+
 populate_ttids("${KITSUNE_GPU_TAPIR_TARGETS}"
   "${KITSUNE_ENABLED_TAPIR_TARGETS}"
   KITSUNE_ENABLED_GPU_TTIDS)
+
 populate_ttids("${KITSUNE_EMB_BC_TAPIR_TARGETS}"
   "${KITSUNE_ENABLED_TAPIR_TARGETS}"
   KITSUNE_ENABLED_EMB_BC_TTIDS)

@@ -112,37 +112,8 @@ static bool contains(ArrayRef<TTID> tts, TTID key) {
   return false;
 }
 
-bool llvm::isGPUTT(TTID tt) { return contains(kitEnabledGPUTTIDs(), tt); }
+bool llvm::isGPUTT(TTID tt) { return contains(kitKnownGPUTTs(), tt); }
 
-bool llvm::generatesEmbBC(TTID tt) {
-  return contains(kitEnabledEmbBCTTIDs(), tt);
-}
+bool llvm::generatesEmbBC(TTID tt) { return contains(kitKnownEmbBCTTs(), tt); }
 
-bool llvm::isEnabledTT(TTID tt) {
-  switch (tt) {
-  case TTID::Nolo:
-    return true;
-  case TTID::Cuda:
-    return kitCudaEnabled();
-  case TTID::Custom:
-    return kitCustomEnabled();
-  case TTID::Hip:
-    return kitHipEnabled();
-  case TTID::OpenCilk:
-    return kitOpenCilkEnabled();
-  case TTID::OpenMP:
-    return kitOpenMPEnabled();
-  case TTID::Pthreads:
-    return kitPthreadsEnabled();
-  case TTID::Qthreads:
-    return kitQthreadsEnabled();
-  case TTID::Serial:
-    return kitSerialEnabled();
-  case TTID::Lambda:
-  case TTID::OMPTask:
-  case TTID::Realm:
-    // These tapir targets are not fully supported yet.
-    break;
-  }
-  llvm_unreachable("isEnabledTT: TTID not handled");
-}
+bool llvm::isEnabledTT(TTID tt) { return contains(kitEnabledTTs(), tt); }

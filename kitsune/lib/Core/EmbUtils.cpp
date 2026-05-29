@@ -166,7 +166,7 @@ Expected<std::unique_ptr<Module>> llvm::getEmbModule(TTID tt, const Module &m) {
 
 Expected<EmbModulesMapTy> llvm::getEmbModules(const Module &m) {
   EmbModulesMapTy embBCs;
-  for (TTID tt : kitEnabledEmbBCTTIDs()) {
+  for (TTID tt : kitKnownEmbBCTTs()) {
     for (const GlobalVariable &g : m.globals()) {
       if (mayContainEmbBC(g, tt)) {
         Expected<std::unique_ptr<Module>> devMOrErr = parseEmbBCGlobal(g);

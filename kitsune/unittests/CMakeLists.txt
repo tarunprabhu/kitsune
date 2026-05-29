@@ -28,6 +28,7 @@ if (CMAKE_COMPILER_IS_GNUCXX)
 endif ()
 
 add_subdirectory(Analysis)
+add_subdirectory(Config)
 add_subdirectory(Core)
 add_subdirectory(Frontend)
 add_subdirectory(Passes)
