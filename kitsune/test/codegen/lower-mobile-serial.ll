@@ -1,5 +1,3 @@
-; REQUIRES: kitsune-serial
-;
 ; Check basic lowering of Kitsune's mobile intrinsics with the serial tapir
 ; target. These do not have any custom attributes, calling conventions, debug
 ; info, or metadata. Those will be checked in other tests.
