@@ -12,6 +12,7 @@
 
 #include "CGKitsune.h"
 #include "CodeGenFunction.h"
+#include "kitsune/Clang/ASTUtils.h"
 #include "kitsune/Clang/ReductionUtils.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/KitOptions.h"
@@ -20,22 +21,6 @@
 using namespace clang;
 using namespace CodeGen;
 using namespace llvm;
-
-// TODO:? Is it worth making this available as an expression utility?
-// Strip implicit expressions and cleanups to retrieve the underlying
-// expression.
-static const Expr *getUnderlyingExpr(const Expr *expr) {
-  const Expr *underlying = expr->IgnoreImplicit();
-  if (const auto *ewc = dyn_cast<ExprWithCleanups>(underlying))
-    return getUnderlyingExpr(ewc->getSubExpr());
-  return underlying;
-}
-
-// TODO:? Is it worth making this available as an expression utility?
-// Get the underlying unqualified desugared type of the expression
-static const clang::Type *getUnqualifiedDesugaredType(const Expr &expr) {
-  return expr.getType()->getUnqualifiedDesugaredType();
-}
 
 static RValue emitKitMobileAllocCall(const CallExpr &theCall,
                                      CodeGenFunction &cgf, ReturnValueSlot rv) {
@@ -282,7 +267,7 @@ static RValue emitKitReduceCall(const CallExpr &theCall, CodeGenFunction &cgf,
   const DataLayout &layout = cgm.getDataLayout();
   llvm::Module &m = cgm.getModule();
   bool isUnsigned =
-      getUnqualifiedDesugaredType(*valueExpr)->isUnsignedIntegerType();
+      getUnqualifiedDesugaredType(valueExpr)->isUnsignedIntegerType();
 
   Value *tt = toConstant(*kitOpts.getTTID(), ctx);
   Value *dest = cgf.EmitScalarExpr(destExpr);
