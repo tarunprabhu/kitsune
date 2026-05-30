@@ -150,43 +150,14 @@ if (KITSUNE_KOKKOS_ENABLED)
     -DBUILD_SHARED_LIBS=ON
     ${KITSUNE_KOKKOS_BUILD_CONFIGURE_FLAGS})
 
-  # We have to patch kokkos to disable some sections of code that are using
-  # exceptions.
-  set(KITSUNE_KOKKOS_PATCH_EXCS ${KITSUNE_SOURCE_DIR}/patches/Kokkos_Exceptions.patch)
-
-  # ----------------------------------------------------------------------------
-  #                               WARNING
-  #
-  #   The PATCH_COMMAND below will succeed even if the patch fails to apply.
-  #   Extra care must be taken when updating the GIT_TAG that the patch still
-  #   applies cleanly.
-  # ---------------------------------------------------------------------------
-  #
-  # The PATCH_COMMAND will only apply the patch if none of the files in the
-  # checkout have been changed. This should be the case
-  #
-  #   - If this is the first time that Kokkos is being checked out
-  #   - If the git tag was changed since the last time this was checked out
-  #
-  # The subcommands only use short options because the utilities on some systems
-  # (such as the BSD's) do not support long options.
-  #
-  # TODO: Update Kokkos.
-  #
-  set(patch_warning "-- SKIPPING patch: Patch may have been applied already")
   ExternalProject_Add(kokkos
     DEPENDS                 clang lld llvm-config llvm-link
     GIT_REPOSITORY          https://github.com/kokkos/kokkos.git
-    GIT_TAG                 606866d # 4.0.00
+    GIT_TAG                 4.7.00
     SOURCE_DIR              ${KITSUNE_KOKKOS_SRC_DIR}
     BINARY_DIR              ${KITSUNE_KOKKOS_BUILD_DIR}
     STAMP_DIR               ${KITSUNE_KOKKOS_STAMP_DIR}
     CMAKE_ARGS              ${KITSUNE_KOKKOS_BUILD_CMAKE_FLAGS}
-    PATCH_COMMAND           ${GIT} status --porcelain --untracked-files=no
-                            | ${WC} -l
-                            | ${GREP} -q 0
-                            && ${PATCH} -p0 --input=${KITSUNE_KOKKOS_PATCH_EXCS}
-                            || ${CMAKE_COMMAND} -E echo "${patch_warning}"
     LIST_SEPARATOR          :
     USES_TERMINAL_PATCH     TRUE
     USES_TERMINAL_CONFIGURE TRUE
