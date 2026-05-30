@@ -22,7 +22,6 @@ set(LLVM_LINK_COMPONENTS
   KitAnalysis
   KitCodeGen
   KitCore
-  KitFrontend
   KitSupport
   LTO
   Linker
@@ -181,5 +180,6 @@ add_clang_library(clangCodeGen
   clangBasic
   clangFrontend
   clangLex
+  clangKitSupport
   clangSerialization
   )

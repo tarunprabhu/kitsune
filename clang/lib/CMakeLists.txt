@@ -1,3 +1,13 @@
+# ${KITSUNE_SOURCE_DIR} is set to the kitsune/ directory at the top level of the
+# llvm-project repo. ${KITSUNE_SOURCE_DIR}/lib/Clang contains utilities to
+# handle Kitsune's extensions to C/C++, as well as support code for the driver
+# and frontend.
+#
+# We must descend into the Clang subdirectory of ${KITSUNE_SOURCE_DIR}/lib
+# explicitly because CMakeLists.txt in ${KITSUNE_SOURCE_DIR}/lib will not do so.
+# That file will only descend into the subdirectories that are to be compiled
+# as LLVM libraries to be linked to libLLVM.so.
+add_subdirectory(${KITSUNE_SOURCE_DIR}/lib/Clang ${KITSUNE_BINARY_DIR}/lib/Clang)
 add_subdirectory(Headers)
 add_subdirectory(Basic)
 add_subdirectory(APINotes)

@@ -18,7 +18,7 @@
 // specified, use '*__mobile__'. Note that there is no space between '*' and
 // 'mobile'. '*__mobile__' is equivalent to `* [[kitsune::mobile]]`.
 
-include "kitsune/Frontend/CBuiltinDocs.td"
+include "kitsune/Clang/BuiltinDocs.td"
 
 class KitCBuiltin : Builtin {
   KitDocCBuiltin Doc;

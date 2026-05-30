@@ -875,5 +875,5 @@ def warn_drv_openacc_without_cir
               "-fclangir to enable runtime effect">,
       InGroup<SourceUsesOpenACC>;
 
-include "kitsune/Frontend/DriverDiagnostics.td"
+include "kitsune/Clang/DriverDiagnostics.td"
 }

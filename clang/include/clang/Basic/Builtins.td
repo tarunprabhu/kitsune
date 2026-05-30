@@ -5164,4 +5164,4 @@ def CountedByRef : Builtin {
   let Prototype = "int(...)";
 }
 
-include "kitsune/Frontend/CBuiltins.td"
+include "kitsune/Clang/Builtins.td"

@@ -9447,4 +9447,4 @@ def wasm_opt : Flag<["--"], "wasm-opt">,
   HelpText<"Enable the wasm-opt optimizer (default)">,
   MarshallingInfoNegativeFlag<LangOpts<"NoWasmOpt">>;
 
-include "kitsune/Frontend/DriverOptions.td"
+include "kitsune/Clang/DriverOptions.td"

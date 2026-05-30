@@ -3,12 +3,16 @@ include(LLVM-Build)
 # `Demangle', `Support' and `TableGen' libraries are added on the top-level
 # CMakeLists.txt
 
-# As much as possible of Kitsune-specific code has been moved to
-# ${KITSUNE_SOURCE_DIR}/lib. This is the kitsune subdirectory that exists at the
-# top level of the llvm-project checkout. For now, all the libraries there are
-# treated as LLVM libraries and are intended to be part of libLLVM.so.
-# Therefore, we enter that directory here instead of dealing with it in the
-# top-level CMakeLists.txt.
+# Most Kitsune-specific code has been moved to the kitsune/ directory at the
+# root of the llvm-project. ${KITSUNE_SOURCE_DIR} is set to this directory. The
+# contents of most subdirectories of ${KITSUNE_SOURCE_DIR}/lib are treated
+# as LLVM libraries that will become part of libLLVM.so. Therefore, we enter
+# that directory here instead of dealing with it in the top-level
+# CMakeLists.txt.
+#
+# ${KITSUNE_SOURCE_DIR}/lib also contains subdirectories for LLVM's frontends
+# such as clang and flang. The CMakeLists.txt in ${KITSUNE_SOURCE_DIR}/lib does
+# not descend into those directories.
 add_subdirectory(${KITSUNE_SOURCE_DIR}/lib ${KITSUNE_BINARY_DIR}/lib)
 add_subdirectory(IR)
 add_subdirectory(FuzzMutate)

@@ -10,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef KITSUNE_FRONTEND_REDUCTION_UTILS_H
-#define KITSUNE_FRONTEND_REDUCTION_UTILS_H
+#ifndef KITSUNE_CLANG_REDUCTION_UTILS_H
+#define KITSUNE_CLANG_REDUCTION_UTILS_H
 
 #include "kitsune/Support/FromInt.h"
 #include "llvm/ADT/StringRef.h"
@@ -60,4 +60,4 @@ Constant *getUnitValueFor(ReduceOp op, Type *ty);
 
 } // namespace llvm
 
-#endif // KITSUNE_FRONTEND_REDUCTION_UTILS_H
+#endif // KITSUNE_CLANG_REDUCTION_UTILS_H

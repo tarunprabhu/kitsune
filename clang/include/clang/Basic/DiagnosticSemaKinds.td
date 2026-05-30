@@ -13483,5 +13483,5 @@ def err_acc_device_type_multiple_archs
 def err_amdgcn_load_lds_size_invalid_value : Error<"invalid size value">;
 def note_amdgcn_load_lds_size_valid_value : Note<"size must be %select{1, 2, or 4|1, 2, 4, 12 or 16}0">;
 
-include "kitsune/Frontend/CSemaDiagnostics.td"
+include "kitsune/Clang/SemaDiagnostics.td"
 } // end of sema component.
