@@ -10,10 +10,6 @@ set(LLVM_LINK_COMPONENTS
   Passes
 )
 
-add_kitsune_unittest_with_input_files(KitPassesTests
+add_kitsune_unittest(KitPassesTests
   PipelineUtilsTest.cpp
-
-  EXPORT_SYMBOLS
 )
-
-target_link_libraries(KitPassesTests PRIVATE LLVMTestingSupport)

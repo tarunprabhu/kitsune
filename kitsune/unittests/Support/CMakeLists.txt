@@ -4,13 +4,9 @@ set(LLVM_LINK_COMPONENTS
   Support
 )
 
-add_kitsune_unittest_with_input_files(KitSupportTests
+add_kitsune_unittest(KitSupportTests
   FromIntTest.cpp
   FromStringTest.cpp
   MaybeBoolTest.cpp
   TypeTraitsTest.cpp
-
-  EXPORT_SYMBOLS
 )
-
-target_link_libraries(KitSupportTests PRIVATE LLVMTestingSupport)
