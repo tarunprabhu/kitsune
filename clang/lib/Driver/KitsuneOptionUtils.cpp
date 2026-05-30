@@ -11,8 +11,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Driver/KitsuneOptionUtils.h"
+#include "kitsune/Core/KitOptions.h"
 #include "kitsune/Core/TTPlugin.h"
-#include "kitsune/Frontend/KitsuneOptions.h"
 #include "kitsune/Support/FromString.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Driver/Driver.h"
@@ -31,7 +31,7 @@ using namespace clang::driver::options;
 using namespace llvm;
 using namespace llvm::opt;
 
-using llvm::driver::KitsuneOptions;
+using llvm::driver::KitOptions;
 
 static unsigned reportInvalidOptimizationLevel(const opt::Arg &a,
                                                DiagnosticsEngine &diags) {
@@ -45,7 +45,7 @@ static unsigned reportInvalidOptimizationLevel(const opt::Arg &a,
 
 unsigned clang::getSpeedupLevel(const opt::ArgList &args,
                                 DiagnosticsEngine &diags) {
-  unsigned defaultSpeedup = KitsuneOptions::defaultSpeedupLevel;
+  unsigned defaultSpeedup = KitOptions::defaultSpeedupLevel;
   if (const opt::Arg *a = args.getLastArg(OPT_O_Group)) {
     const opt::Option &option = a->getOption();
     if (option.matches(OPT_O0)) {
@@ -132,7 +132,7 @@ parseCommaSeparatedList(StringRef s, DiagnosticsEngine &diags) {
   return list;
 }
 
-static void parseKitsuneCommonGPUArgs(KitsuneOptions &opts, const ArgList &args,
+static void parseKitsuneCommonGPUArgs(KitOptions &opts, const ArgList &args,
                                       const OptTable &optTable,
                                       DiagnosticsEngine &diags) {
   if (const Arg *a = args.getLastArg(OPT_tapir_gpu_tpb_EQ)) {
@@ -151,10 +151,10 @@ static void parseKitsuneCommonGPUArgs(KitsuneOptions &opts, const ArgList &args,
 
   opts.setGPUPrefetch(args.hasFlag(OPT_tapir_gpu_prefetch,
                                    OPT_tapir_gpu_no_prefetch,
-                                   KitsuneOptions::defaultGPUPrefetch));
+                                   KitOptions::defaultGPUPrefetch));
 }
 
-static bool parseKitsuneCudaArgs(KitsuneOptions &opts, const ArgList &args,
+static bool parseKitsuneCudaArgs(KitOptions &opts, const ArgList &args,
                                  const OptTable &optTable,
                                  DiagnosticsEngine &diags) {
   unsigned numErrorsBefore = diags.getNumErrors();
@@ -180,7 +180,7 @@ static bool parseKitsuneCudaArgs(KitsuneOptions &opts, const ArgList &args,
   return diags.getNumErrors() == numErrorsBefore;
 }
 
-static bool parseKitsuneCustomArgs(KitsuneOptions &opts, const ArgList &args,
+static bool parseKitsuneCustomArgs(KitOptions &opts, const ArgList &args,
                                    const OptTable &optTable,
                                    DiagnosticsEngine &diags) {
   unsigned numErrorsBefore = diags.getNumErrors();
@@ -205,7 +205,7 @@ static bool parseKitsuneCustomArgs(KitsuneOptions &opts, const ArgList &args,
   return diags.getNumErrors() == numErrorsBefore;
 }
 
-static bool parseKitsuneHipArgs(KitsuneOptions &opts, const ArgList &args,
+static bool parseKitsuneHipArgs(KitOptions &opts, const ArgList &args,
                                 const OptTable &optTable,
                                 DiagnosticsEngine &diags) {
   unsigned numErrorsBefore = diags.getNumErrors();
@@ -254,7 +254,7 @@ static bool parseKitsuneHipArgs(KitsuneOptions &opts, const ArgList &args,
   return diags.getNumErrors() == numErrorsBefore;
 }
 
-static bool parseKitsuneLambdaArgs(KitsuneOptions &opts, const ArgList &args,
+static bool parseKitsuneLambdaArgs(KitOptions &opts, const ArgList &args,
                                    const OptTable &optTable,
                                    DiagnosticsEngine &diags) {
   unsigned numErrorsBefore = diags.getNumErrors();
@@ -266,7 +266,7 @@ static bool parseKitsuneLambdaArgs(KitsuneOptions &opts, const ArgList &args,
   return diags.getNumErrors() == numErrorsBefore;
 }
 
-static bool parseKitsuneOMPTaskArgs(KitsuneOptions &opts, const ArgList &args,
+static bool parseKitsuneOMPTaskArgs(KitOptions &opts, const ArgList &args,
                                     const OptTable &optTable,
                                     DiagnosticsEngine &diags) {
   unsigned numErrorsBefore = diags.getNumErrors();
@@ -278,7 +278,7 @@ static bool parseKitsuneOMPTaskArgs(KitsuneOptions &opts, const ArgList &args,
   return diags.getNumErrors() == numErrorsBefore;
 }
 
-static bool parseKitsuneOpenCilkArgs(KitsuneOptions &opts, const ArgList &args,
+static bool parseKitsuneOpenCilkArgs(KitOptions &opts, const ArgList &args,
                                      const OptTable &optTable,
                                      DiagnosticsEngine &diags) {
   unsigned numErrorsBefore = diags.getNumErrors();
@@ -297,7 +297,7 @@ static bool parseKitsuneOpenCilkArgs(KitsuneOptions &opts, const ArgList &args,
   return diags.getNumErrors() == numErrorsBefore;
 }
 
-static bool parseKitsuneRealmArgs(KitsuneOptions &opts, const ArgList &args,
+static bool parseKitsuneRealmArgs(KitOptions &opts, const ArgList &args,
                                   const OptTable &optTable,
                                   DiagnosticsEngine &diags) {
   unsigned numErrorsBefore = diags.getNumErrors();
@@ -309,7 +309,7 @@ static bool parseKitsuneRealmArgs(KitsuneOptions &opts, const ArgList &args,
   return diags.getNumErrors() == numErrorsBefore;
 }
 
-static bool parseKitsuneTTArgs(KitsuneOptions &kitOpts, TTID tt,
+static bool parseKitsuneTTArgs(KitOptions &kitOpts, TTID tt,
                                const ArgList &args, const OptTable &optTable,
                                DiagnosticsEngine &diags) {
   switch (tt) {
@@ -339,7 +339,7 @@ static bool parseKitsuneTTArgs(KitsuneOptions &kitOpts, TTID tt,
   llvm_unreachable("ParseKitsuneTTArgs: TTID not handled");
 }
 
-bool clang::parseKitsuneArgs(KitsuneOptions &kitOpts, const char *argv0,
+bool clang::parseKitsuneArgs(KitOptions &kitOpts, const char *argv0,
                              const ArgList &args, const OptTable &optTable,
                              DiagnosticsEngine &diags) {
   unsigned numErrorsBefore = diags.getNumErrors();

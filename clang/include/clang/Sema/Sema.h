@@ -113,7 +113,7 @@
 
 namespace llvm {
 namespace driver {
-class KitsuneOptions;
+class KitOptions;
 }
 struct InlineAsmIdentifierInfo;
 } // namespace llvm
@@ -216,7 +216,7 @@ class SemaPPCallbacks;
 class TemplateDeductionInfo;
 } // namespace sema
 
-using llvm::driver::KitsuneOptions;
+using llvm::driver::KitOptions;
 
 // AssignmentAction - This is used by all the assignment diagnostic functions
 // to represent what is actually causing the operation
@@ -939,7 +939,7 @@ public:
   LLVM_DECLARE_VIRTUAL_ANCHOR_FUNCTION();
 
   const LangOptions &getLangOpts() const { return LangOpts; }
-  const KitsuneOptions &getKitsuneOpts() const { return KitsuneOpts; }
+  const KitOptions &getKitOpts() const { return KitOpts; }
   OpenCLOptions &getOpenCLOptions() { return OpenCLFeatures; }
   FPOptions &getCurFPFeatures() { return CurFPFeatures; }
 
@@ -1314,7 +1314,7 @@ public:
   FPOptions CurFPFeatures;
 
   const LangOptions &LangOpts;
-  const KitsuneOptions &KitsuneOpts;
+  const KitOptions &KitOpts;
   Preprocessor &PP;
   ASTContext &Context;
   ASTConsumer &Consumer;

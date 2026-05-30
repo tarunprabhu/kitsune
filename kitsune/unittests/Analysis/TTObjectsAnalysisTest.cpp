@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Analysis/TTObjectsAnalysis.h"
-#include "kitsune/Frontend/KitsuneOptions.h"
+#include "kitsune/Core/KitOptions.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/AsmParser/Parser.h"
@@ -164,7 +164,7 @@ TEST(KitTTObjectsAnalysis, noTapirLoops) {
   std::unique_ptr<Module> m = parseAssemblyString(noTapirLoops, err, ctx);
   Function *f = m->getFunction("f");
 
-  driver::KitsuneOptions kitOpts;
+  driver::KitOptions kitOpts;
   kitOpts.setTTID(TTID::Serial);
   kitOpts.setCudaArch("sm_17");
 
@@ -223,7 +223,7 @@ TEST(KitTTObjectsAnalysis, mixed) {
   std::unique_ptr<Module> m = parseAssemblyString(mixed1, err, ctx);
   Function *f = m->getFunction("f");
 
-  driver::KitsuneOptions kitOpts;
+  driver::KitOptions kitOpts;
   kitOpts.setTTID(TTID::Serial);
   std::optional<TTOptions> tto =
       TTOptions::create(kitOpts, OptznLevel::O2, FPOpFusion::Standard);
@@ -260,7 +260,7 @@ TEST(KitTTObjectsAnalysis, mixed) {
 TEST(KitTTObjectsAnalysis, withMultipleFuncs) {
   LLVMContext ctx;
   SMDiagnostic err;
-  driver::KitsuneOptions kitOpts;
+  driver::KitOptions kitOpts;
   std::optional<TTOptions> tto = std::nullopt;
 
   kitOpts.setTTID(TTID::OpenMP);

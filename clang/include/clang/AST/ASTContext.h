@@ -52,7 +52,7 @@ struct fltSemantics;
 template <typename T, unsigned N> class SmallPtrSet;
 
 namespace driver {
-class KitsuneOptions;
+class KitOptions;
 }
 
 } // namespace llvm
@@ -692,7 +692,7 @@ private:
   LangOptions &LangOpts;
 
   /// The Kitsune options that have been set.
-  llvm::driver::KitsuneOptions &KitsuneOpts;
+  llvm::driver::KitOptions &KitOpts;
 
   /// NoSanitizeList object that is used by sanitizers to decide which
   /// entities should not be instrumented.
@@ -892,9 +892,7 @@ public:
 
   const LangOptions& getLangOpts() const { return LangOpts; }
 
-  const llvm::driver::KitsuneOptions &getKitsuneOpts() const {
-    return KitsuneOpts;
-  }
+  const llvm::driver::KitOptions &getKitOpts() const { return KitOpts; }
 
   // If this condition is false, typo correction must be performed eagerly
   // rather than delayed in many places, as it makes use of dependent types.
@@ -1320,8 +1318,7 @@ public:
 
   ASTContext(LangOptions &LOpts, SourceManager &SM, IdentifierTable &idents,
              SelectorTable &sels, Builtin::Context &builtins,
-             llvm::driver::KitsuneOptions &KOpts,
-             TranslationUnitKind TUKind);
+             llvm::driver::KitOptions &KitOpts, TranslationUnitKind TUKind);
   ASTContext(const ASTContext &) = delete;
   ASTContext &operator=(const ASTContext &) = delete;
   ~ASTContext();

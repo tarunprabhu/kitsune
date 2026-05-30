@@ -9,7 +9,7 @@
 #ifndef LLVM_CLANG_FRONTEND_COMPILERINVOCATION_H
 #define LLVM_CLANG_FRONTEND_COMPILERINVOCATION_H
 
-#include "kitsune/Frontend/KitsuneOptions.h"
+#include "kitsune/Core/KitOptions.h"
 #include "clang/APINotes/APINotesOptions.h"
 #include "clang/Basic/CodeGenOptions.h"
 #include "clang/Basic/DiagnosticOptions.h"
@@ -127,7 +127,7 @@ protected:
   std::shared_ptr<ssaf::SSAFOptions> SSAFOpts;
 
   /// Kitsune-specific options.
-  std::shared_ptr<llvm::driver::KitsuneOptions> KitsuneOpts;
+  std::shared_ptr<llvm::driver::KitOptions> KitOpts;
 
   /// Dummy tag type whose instance can be passed into the constructor to
   /// prevent creation of the reference-counted option objects.
@@ -167,9 +167,7 @@ public:
     return *PreprocessorOutputOpts;
   }
   const ssaf::SSAFOptions &getSSAFOpts() const { return *SSAFOpts; }
-  const llvm::driver::KitsuneOptions &getKitsuneOpts() const {
-    return *KitsuneOpts;
-  }
+  const llvm::driver::KitOptions &getKitOpts() const { return *KitOpts; }
   /// @}
 
   /// Command line generation.
@@ -224,8 +222,8 @@ private:
                                   const std::string &OutputFile,
                                   const LangOptions *LangOpts);
 
-  // Generate command line options from KitsuneOptions.
-  static void GenerateKitsuneArgs(const llvm::driver::KitsuneOptions& Opts,
+  // Generate command line options from KitOptions.
+  static void GenerateKitsuneArgs(const llvm::driver::KitOptions& KitOpts,
                                   ArgumentConsumer Consumer);
   /// @}
 };
@@ -281,7 +279,7 @@ public:
   using CompilerInvocationBase::getPreprocessorOutputOpts;
   using CompilerInvocationBase::getSSAFOpts;
   using CompilerInvocationBase::getTargetOpts;
-  using CompilerInvocationBase::getKitsuneOpts;
+  using CompilerInvocationBase::getKitOpts;
   /// @}
 
   /// Mutable getters.
@@ -304,7 +302,7 @@ public:
     return *PreprocessorOutputOpts;
   }
   ssaf::SSAFOptions &getSSAFOpts() { return *SSAFOpts; }
-  llvm::driver::KitsuneOptions &getKitsuneOpts() { return *KitsuneOpts; }
+  llvm::driver::KitOptions &getKitOpts() { return *KitOpts; }
   /// @}
 
   /// Invokes the \a Fn with CowCompilerInvocation representing \c this.
@@ -375,7 +373,7 @@ private:
                             InputKind IK, const llvm::Triple &T,
                             std::vector<std::string> &Includes,
                             DiagnosticsEngine &Diags,
-                            const llvm::driver::KitsuneOptions &KitsuneOpts);
+                            const llvm::driver::KitOptions &KitOpts);
 
   /// Parse command line options that map to CodeGenOptions.
   static bool ParseCodeGenArgs(CodeGenOptions &Opts, llvm::opt::ArgList &Args,
@@ -392,7 +390,7 @@ private:
   // options cannot be done when parsing the arguments.
   static bool CheckKitsuneArgs(const llvm::opt::ArgList &Args,
                                const llvm::Triple &T,
-                               const llvm::driver::KitsuneOptions &KitsuneOpts,
+                               const llvm::driver::KitOptions &KitOpts,
                                const LangOptions &LangOpts,
                                DiagnosticsEngine &Diags);
 };
@@ -448,7 +446,7 @@ public:
   DependencyOutputOptions &getMutDependencyOutputOpts();
   PreprocessorOutputOptions &getMutPreprocessorOutputOpts();
   ssaf::SSAFOptions &getMutSSAFOpts();
-  llvm::driver::KitsuneOptions &getMutKitsuneOpts();
+  llvm::driver::KitOptions &getMutKitOpts();
   /// @}
 
   /// The result of mutable visitation.

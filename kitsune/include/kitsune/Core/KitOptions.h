@@ -1,4 +1,4 @@
-//===- KitsuneOptions.h - Options shared by Kitsune frontends ---*- C++ -*-===//
+//===- KitOptions.h - Kitsune options shared by all frontends ---*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,15 +6,13 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file defines Kitsune-specific frontend options common to clang and
-// flang. These are not exactly the same as TTOptions which are the options used
-// by the various tapir targets. These options can affect parsing and lowering
-// of the various languages supported by Kitsune.
+// Options shared by Kitsune's frontends. These options can affect parsing and
+// lowering of the various languages supported by Kitsune.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef KITSUNE_FRONTEND_KITSUNE_OPTIONS_H
-#define KITSUNE_FRONTEND_KITSUNE_OPTIONS_H
+#ifndef KITSUNE_CORE_KIT_OPTIONS_H
+#define KITSUNE_CORE_KIT_OPTIONS_H
 
 #include "kitsune/Config/Config.h"
 #include "kitsune/Core/Tapir.h"
@@ -30,12 +28,19 @@ namespace driver {
 /// \addtogroup kitsune
 /// @{
 
-/// Options that are Kitsune-specific. These affect both the Kitsune "language"
-/// i.e. forall, spawn, sync etc. and the backend code-generation via Tapir.
+/// Kitsune-specific options. These affect both the Kitsune language extensions,
+/// such as forall, spawn, sync etc., the middle-end optimizations, including
+/// the lowering of parallel constructs by Tapir, and machine-code generation,
+/// especially if something Kitsune-specific must be performed.
+///
 /// This is in the llvm::driver namespace because that is where objects that are
 /// shared between LLVM frontends are added by convention. This object is
 /// currently shared between clang and flang.
-class KitsuneOptions {
+///
+/// This is intended to be a POD (Plain Old Data) type. All accessor methods are
+/// defined in this header, both for performance and to allow it to be used
+/// without requiring the libLLVMKitCore to be linked into the user.
+class KitOptions {
 public:
   /// Should the loop stripmining pass be enabled by default.
   static constexpr bool defaultStripmineLoops = false;
@@ -198,7 +203,7 @@ private:
   std::string openCilkRuntimeBCFile;
 
 public:
-  KitsuneOptions()
+  KitOptions()
       : kitsuneFrontend(false), kokkos(false), kokkosNoInit(false),
         stripmineLoops(defaultStripmineLoops), tapirVerbose(false),
         kitrtVerbose(false), gpuPrefetch(defaultGPUPrefetch) {}
@@ -217,7 +222,7 @@ public:
 
   void setTTID(llvm::TTID tt) { this->tt = tt; }
 
-  void setTTPlugin(llvm::StringRef path) { this->ttPlugin = path; }
+  void setTTPlugin(StringRef path) { this->ttPlugin = path; }
 
   void setStripmineLoops(bool stripmineLoops = true) {
     this->stripmineLoops = stripmineLoops;
@@ -243,44 +248,38 @@ public:
 
   void setGPUPrefetch(bool prefetch) { this->gpuPrefetch = prefetch; }
 
-  void setLLD(llvm::StringRef lld) { this->lld = lld; }
+  void setLLD(StringRef lld) { this->lld = lld; }
   /// @}
 
   /// @{
   /// Setters for options related to the cuda tapir target.
-  void setCudaArch(llvm::StringRef arch) { this->cudaArch = arch; }
+  void setCudaArch(StringRef arch) { this->cudaArch = arch; }
 
-  void setCudaVirtArch(llvm::StringRef arch) { this->cudaVirtArch = arch; }
+  void setCudaVirtArch(StringRef arch) { this->cudaVirtArch = arch; }
 
-  void setCudaFeatures(llvm::StringRef features) {
-    this->cudaFeatures = features;
-  }
+  void setCudaFeatures(StringRef features) { this->cudaFeatures = features; }
 
-  void setCudaRuntimeBCFile(llvm::StringRef file) {
-    this->cudaRuntimeBCFile = file;
-  }
+  void setCudaRuntimeBCFile(StringRef file) { this->cudaRuntimeBCFile = file; }
   /// @}
 
   /// @{
   /// Setters for options related to the hip tapir target.
-  void setHipArch(llvm::StringRef arch) { this->hipArch = arch; }
+  void setHipArch(StringRef arch) { this->hipArch = arch; }
 
-  void setHipFeatures(llvm::StringRef features) {
-    this->hipFeatures = features;
-  }
+  void setHipFeatures(StringRef features) { this->hipFeatures = features; }
 
   void setHipSramECC(MaybeBool ecc) { this->hipSRAMECC = ecc; }
 
   void setHipXnack(MaybeBool xnack) { this->hipXnack = xnack; }
 
-  void addHipRuntimeBCFile(llvm::StringRef file) {
+  void addHipRuntimeBCFile(StringRef file) {
     this->hipRuntimeBCFiles.push_back(file.str());
   }
   /// @}
 
   /// @{
   /// Setters for options related to the opencilk tapir target.
-  void setOpenCilkRuntimeBCFile(llvm::StringRef path) {
+  void setOpenCilkRuntimeBCFile(StringRef path) {
     this->openCilkRuntimeBCFile = path;
   }
   /// @}
@@ -301,17 +300,15 @@ public:
 
   bool getKitrtVerbose() const { return kitrtVerbose; }
 
-  std::optional<llvm::TTID> getTTID() const { return tt; }
+  std::optional<TTID> getTTID() const { return tt; }
 
   /// Get the TTID from the options, or a default value.
   /// FIXME: This is *NOT* to be widely used. The presence of this method
   /// implies that there is a "default" tapir target. We need to carefully
   /// consider the implications of this decision.
-  llvm::TTID getTTIDOr(llvm::TTID defawlt) const {
-    return tt.value_or(defawlt);
-  }
+  TTID getTTIDOr(TTID defawlt) const { return tt.value_or(defawlt); }
 
-  llvm::StringRef getTTPlugin() const { return ttPlugin; }
+  StringRef getTTPlugin() const { return ttPlugin; }
 
   unsigned getFixedThreadsPerBlock() const { return fixedThreadsPerBlock; }
 
@@ -319,31 +316,29 @@ public:
 
   bool getGPUPrefetch() const { return gpuPrefetch; }
 
-  llvm::StringRef getLLD() const { return lld; }
+  StringRef getLLD() const { return lld; }
 
-  llvm::StringRef getCudaArch() const { return cudaArch; }
+  StringRef getCudaArch() const { return cudaArch; }
 
-  llvm::StringRef getCudaVirtArch() const { return cudaVirtArch; }
+  StringRef getCudaVirtArch() const { return cudaVirtArch; }
 
-  llvm::StringRef getCudaFeatures() const { return cudaFeatures; }
+  StringRef getCudaFeatures() const { return cudaFeatures; }
 
-  llvm::StringRef getCudaRuntimeBCFile() const { return cudaRuntimeBCFile; }
+  StringRef getCudaRuntimeBCFile() const { return cudaRuntimeBCFile; }
 
-  llvm::StringRef getHipArch() const { return hipArch; }
+  StringRef getHipArch() const { return hipArch; }
 
   MaybeBool getHipSRAMECC() const { return hipSRAMECC; }
 
   MaybeBool getHipXnack() const { return hipXnack; }
 
-  llvm::StringRef getHipFeatures() const { return hipFeatures; }
+  StringRef getHipFeatures() const { return hipFeatures; }
 
   ArrayRef<std::string> getHipRuntimeBCFiles() const {
     return hipRuntimeBCFiles;
   }
 
-  llvm::StringRef getOpenCilkRuntimeBCFile() const {
-    return openCilkRuntimeBCFile;
-  }
+  StringRef getOpenCilkRuntimeBCFile() const { return openCilkRuntimeBCFile; }
 };
 
 /// @}
@@ -352,4 +347,4 @@ public:
 
 } // namespace llvm
 
-#endif // KITSUNE_FRONTEND_KITSUNE_OPTIONS_H
+#endif // KITSUNE_CORE_KIT_OPTIONS_H

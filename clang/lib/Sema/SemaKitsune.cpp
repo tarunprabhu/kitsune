@@ -12,10 +12,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Sema/SemaKitsune.h"
-#include "kitsune/Frontend/KitsuneOptions.h"
+#include "kitsune/Core/KitOptions.h"
 #include "kitsune/Frontend/ReductionUtils.h"
 #include "clang/AST/StmtKitsune.h"
-// #include "clang/AST/Type.h"
 #include "clang/Sema/Sema.h"
 
 using namespace clang;
@@ -136,7 +135,7 @@ Attr *SemaKitsune::handleTTAttr(Stmt *stmt, const ParsedAttr &attr,
   if (clss == Stmt::ForallStmtClass || clss == Stmt::CXXForallRangeStmtClass) {
     return ::new (ctx) TTAttr(ctx, attr, kind);
   } else if (auto *expr = dyn_cast<Expr>(stmt)) {
-    if (sema.getKitsuneOpts().getKokkos()) {
+    if (sema.getKitOpts().getKokkos()) {
       // See if this is an attributed Kokkos statement (if so, there is a
       // CallExpr lurking further down in the AST). To find this CallExpr we
       // need to work past implicit expressions and any associated cleanups.

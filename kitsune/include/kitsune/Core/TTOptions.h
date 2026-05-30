@@ -26,13 +26,13 @@
 namespace llvm {
 
 namespace driver {
-class KitsuneOptions;
+class KitOptions;
 }
 
 /// \addtogroup kitsune
 /// @{
 
-using KitsuneOptions = driver::KitsuneOptions;
+using KitOptions = driver::KitOptions;
 using FPOpFusionMode = FPOpFusion::FPOpFusionMode;
 
 /// Options for the tapir targets. The same options object is used for all
@@ -242,7 +242,7 @@ public:
 
   /// Construct an options object from the given frontend options. If a TTID
   /// is not set in the kitsune options, std::nullopt is returned.
-  static std::optional<TTOptions> create(const KitsuneOptions &kitOpts,
+  static std::optional<TTOptions> create(const KitOptions &kitOpts,
                                          OptznLevel optLevel,
                                          FPOpFusionMode fpOpFusionMode);
 

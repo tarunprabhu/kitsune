@@ -334,11 +334,11 @@ public:
     return Invocation->getAPINotesOpts();
   }
 
-  llvm::driver::KitsuneOptions &getKitsuneOpts() {
-    return Invocation->getKitsuneOpts();
+  llvm::driver::KitOptions &getKitOpts() {
+    return Invocation->getKitOpts();
   }
-  const llvm::driver::KitsuneOptions &getKitsuneOpts() const {
-    return Invocation->getKitsuneOpts();
+  const llvm::driver::KitOptions &getKitOpts() const {
+    return Invocation->getKitOpts();
   }
 
   LangOptions &getLangOpts() { return Invocation->getLangOpts(); }

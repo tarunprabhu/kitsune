@@ -145,7 +145,7 @@ static std::string getProfileGenName(const CodeGenOptions &CodeGenOpts) {
 }
 
 static std::optional<TTOptions>
-createTTOptions(const KitsuneOptions &KitOpts, unsigned SpeedupLevel,
+createTTOptions(const KitOptions &KitOpts, unsigned SpeedupLevel,
                 unsigned SizeLevel, FPOpFusion::FPOpFusionMode FPOpFusionMode) {
   OptznLevel OptznLevel = createOptznLevelFrom(SpeedupLevel, SizeLevel);
   return TTOptions::create(KitOpts, OptznLevel, FPOpFusionMode);
@@ -159,7 +159,7 @@ class EmitAssemblyHelper {
   const CodeGenOptions &CodeGenOpts;
   const clang::TargetOptions &TargetOpts;
   const LangOptions &LangOpts;
-  const KitsuneOptions &KitsuneOpts;
+  const KitOptions &KitOpts;
   llvm::Module *TheModule;
   IntrusiveRefCntPtr<llvm::vfs::FileSystem> VFS;
 
@@ -178,7 +178,7 @@ class EmitAssemblyHelper {
     FPOpFusion::FPOpFusionMode FPOpFusionMode = FPOpFusion::Standard;
     if (TM)
       FPOpFusionMode = TM->Options.AllowFPOpFusion;
-    return createTTOptions(KitsuneOpts, CodeGenOpts.OptimizationLevel,
+    return createTTOptions(KitOpts, CodeGenOpts.OptimizationLevel,
                            CodeGenOpts.OptimizeSize, FPOpFusionMode);
   }
 
@@ -243,7 +243,7 @@ public:
                      IntrusiveRefCntPtr<llvm::vfs::FileSystem> VFS)
       : CI(CI), Diags(CI.getDiagnostics()), CodeGenOpts(CGOpts),
         TargetOpts(CI.getTargetOpts()), LangOpts(CI.getLangOpts()),
-        KitsuneOpts(CI.getKitsuneOpts()), TheModule(M), VFS(std::move(VFS)),
+        KitOpts(CI.getKitOpts()), TheModule(M), VFS(std::move(VFS)),
         TargetTriple(TheModule->getTargetTriple()) {}
 
   ~EmitAssemblyHelper() {
@@ -992,7 +992,7 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
   PTO.CallGraphProfile = !CodeGenOpts.DisableIntegratedAS;
   PTO.UnifiedLTO = CodeGenOpts.UnifiedLTO;
   PTO.DevirtualizeSpeculatively = CodeGenOpts.DevirtualizeSpeculatively;
-  PTO.LoopStripmine = KitsuneOpts.getStripmineLoops();
+  PTO.LoopStripmine = KitOpts.getStripmineLoops();
   PTO.TTOpts = getTTOptions();
 
   LoopAnalysisManager LAM;
@@ -1454,7 +1454,7 @@ runThinLTOBackend(CompilerInstance &CI, ModuleSummaryIndex *CombinedIndex,
   DiagnosticsEngine &Diags = CI.getDiagnostics();
   const auto &CGOpts = CI.getCodeGenOpts();
   const auto &TOpts = CI.getTargetOpts();
-  const KitsuneOptions &KOpts = CI.getKitsuneOpts();
+  const KitOptions &KitOpts = CI.getKitOpts();
   DenseMap<StringRef, DenseMap<GlobalValue::GUID, GlobalValueSummary *>>
       ModuleToDefinedGVSummaries;
   CombinedIndex->collectDefinedGVSummariesPerModule(ModuleToDefinedGVSummaries);
@@ -1506,7 +1506,7 @@ runThinLTOBackend(CompilerInstance &CI, ModuleSummaryIndex *CombinedIndex,
   // non-integrated assemblers don't recognize .cgprofile section.
   Conf.PTO.CallGraphProfile = !CGOpts.DisableIntegratedAS;
   Conf.PTO.TTOpts =
-      createTTOptions(KOpts, CGOpts.OptimizationLevel, CGOpts.OptimizeSize,
+      createTTOptions(KitOpts, CGOpts.OptimizationLevel, CGOpts.OptimizeSize,
                       Conf.Options.AllowFPOpFusion);
 
   // Context sensitive profile.

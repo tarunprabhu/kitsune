@@ -621,10 +621,9 @@ getFPOpFusionMode(Fortran::common::LangOptions::FPModeKind fpContractMode) {
   llvm_unreachable("getFPOpFusionMode: Unexpected FP contract mode");
 }
 
-static std::optional<llvm::TTOptions>
-getTTOptions(CompilerInstance &ci) {
+static std::optional<llvm::TTOptions> getTTOptions(CompilerInstance &ci) {
   CompilerInvocation &invoc = ci.getInvocation();
-  const llvm::driver::KitsuneOptions &kitsuneOpts = invoc.getKitsuneOpts();
+  const llvm::driver::KitOptions &kitOpts = invoc.getKitOpts();
   const Fortran::common::LangOptions &langOpts = invoc.getLangOpts();
   const CodeGenOptions &opts = invoc.getCodeGenOpts();
   llvm::OptimizationLevel level = mapToLevel(opts);
@@ -633,7 +632,7 @@ getTTOptions(CompilerInstance &ci) {
   llvm::FPOpFusion::FPOpFusionMode fpFusion =
       getFPOpFusionMode(langOpts.getFPContractMode());
 
-  return llvm::TTOptions::create(kitsuneOpts, optznLevel, fpFusion);
+  return llvm::TTOptions::create(kitOpts, optznLevel, fpFusion);
 }
 
 // Lower using HLFIR then run the FIR to HLFIR pipeline
@@ -984,8 +983,7 @@ static void generateMachineCodeOrAssemblyImpl(
 
 void CodeGenAction::runOptimizationPipeline(llvm::raw_pwrite_stream &os) {
   CompilerInstance &ci = getInstance();
-  const llvm::driver::KitsuneOptions &kitsuneOpts =
-      ci.getInvocation().getKitsuneOpts();
+  const llvm::driver::KitOptions &kitOpts = ci.getInvocation().getKitOpts();
   const CodeGenOptions &opts = ci.getInvocation().getCodeGenOpts();
   llvm::OptimizationLevel level = mapToLevel(opts);
 
@@ -1052,7 +1050,7 @@ void CodeGenAction::runOptimizationPipeline(llvm::raw_pwrite_stream &os) {
   pto.LoopInterleaving = opts.UnrollLoops;
   pto.LoopVectorization = opts.VectorizeLoop;
   pto.SLPVectorization = opts.VectorizeSLP;
-  pto.LoopStripmine = kitsuneOpts.getStripmineLoops();
+  pto.LoopStripmine = kitOpts.getStripmineLoops();
   pto.TTOpts = getTTOptions(ci);
 
   llvm::PassBuilder pb(targetMachine, pto, pgoOpt, &pic);

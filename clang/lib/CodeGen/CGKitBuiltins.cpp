@@ -13,7 +13,7 @@
 #include "CGKitsune.h"
 #include "CodeGenFunction.h"
 #include "kitsune/Core/ConstantUtils.h"
-#include "kitsune/Frontend/KitsuneOptions.h"
+#include "kitsune/Core/KitOptions.h"
 #include "kitsune/Frontend/ReductionUtils.h"
 #include "kitsune/Support/AddrSpace.h"
 
@@ -40,7 +40,7 @@ static const clang::Type *getUnqualifiedDesugaredType(const Expr &expr) {
 static RValue emitKitMobileAllocCall(const CallExpr &theCall,
                                      CodeGenFunction &cgf, ReturnValueSlot rv) {
   CodeGenModule &cgm = cgf.CGM;
-  const driver::KitsuneOptions &kitOpts = cgm.getKitsuneOpts();
+  const driver::KitOptions &kitOpts = cgm.getKitOpts();
 
   CGBuilderTy &builder = cgf.Builder;
   LLVMContext &ctx = builder.getContext();
@@ -62,7 +62,7 @@ static RValue emitKitMobileAllocCall(const CallExpr &theCall,
 static RValue emitKitMobileFreeCall(const CallExpr &theCall,
                                     CodeGenFunction &cgf, ReturnValueSlot rv) {
   CodeGenModule &cgm = cgf.CGM;
-  const driver::KitsuneOptions &kitOpts = cgm.getKitsuneOpts();
+  const driver::KitOptions &kitOpts = cgm.getKitOpts();
 
   CGBuilderTy &builder = cgf.Builder;
   LLVMContext &ctx = builder.getContext();
@@ -266,7 +266,7 @@ static RValue emitKitReduceCall(const CallExpr &theCall, CodeGenFunction &cgf,
   };
 
   CodeGenModule &cgm = cgf.CGM;
-  const driver::KitsuneOptions &kitOpts = cgm.getKitsuneOpts();
+  const driver::KitOptions &kitOpts = cgm.getKitOpts();
 
   // FIXME: This should not be mandatory. But for now, we leave it this way.
   // There is a broader question of how to handle Kitsune's builtins when the

@@ -21,7 +21,7 @@
 namespace llvm {
 
 namespace driver {
-class KitsuneOptions;
+class KitOptions;
 } // namespace driver
 
 namespace opt {
@@ -63,9 +63,8 @@ getTTConfigFileName(const llvm::opt::ArgList &args);
 /// should only be called when the value of the tapir --tapir flag is valid.
 std::optional<llvm::TTID> parseTTIfValid(const llvm::opt::ArgList &args);
 
-/// Parse the Kitsune-specific command line options into a KitsuneOptions
-/// object.
-/// \param kitOpts The KitsuneOptions object into which to parse the command
+/// Parse the Kitsune-specific command line options into a KitOptions object.
+/// \param kitOpts The KitOptions object into which to parse the command
 /// line options
 /// \param argv0 The first argument on the command line. This is the name of the
 /// executable
@@ -73,7 +72,7 @@ std::optional<llvm::TTID> parseTTIfValid(const llvm::opt::ArgList &args);
 /// \param optTable The options table
 /// \param diags The diagnostics engine
 /// \returns true if parsing the options was successful, false otherwise
-bool parseKitsuneArgs(llvm::driver::KitsuneOptions &kitOpts, const char *argv0,
+bool parseKitsuneArgs(llvm::driver::KitOptions &kitOpts, const char *argv0,
                       const llvm::opt::ArgList &args,
                       const llvm::opt::OptTable &optTable,
                       clang::DiagnosticsEngine &diags);

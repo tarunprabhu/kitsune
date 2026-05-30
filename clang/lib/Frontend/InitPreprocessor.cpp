@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Frontend/KitsuneOptions.h"
+#include "kitsune/Core/KitOptions.h"
 #include "kitsune/Support/OstreamUtils.h"
 #include "clang/Basic/DiagnosticLex.h"
 #include "clang/Basic/HLSLRuntime.h"
@@ -862,7 +862,7 @@ void DefineFixedPointMacros(const TargetInfo &TI, MacroBuilder &Builder,
 
 static void InitializePredefinedMacros(const TargetInfo &TI,
                                        const LangOptions &LangOpts,
-                                       const KitsuneOptions &KitsuneOpts,
+                                       const KitOptions &KitOpts,
                                        const FrontendOptions &FEOpts,
                                        const PreprocessorOptions &PPOpts,
                                        MacroBuilder &Builder) {
@@ -891,7 +891,7 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   // with the principle of "absence indicating absence". The empty string would
   // be too much like the "special sentinel indicating absence".
   Builder.defineMacro("__kitsune__"); // Kitsune Frontend
-  if (std::optional<llvm::TTID> tt = KitsuneOpts.getTTID()) {
+  if (std::optional<llvm::TTID> tt = KitOpts.getTTID()) {
     std::string s;
     llvm::raw_string_ostream os(s);
     os << '"' << *tt << '"';
@@ -1579,7 +1579,7 @@ void clang::InitializePreprocessor(Preprocessor &PP,
                                    const PCHContainerReader &PCHContainerRdr,
                                    const FrontendOptions &FEOpts,
                                    const CodeGenOptions &CodeGenOpts,
-                                   const KitsuneOptions &KitsuneOpts) {
+                                   const KitOptions &KitOpts) {
   const LangOptions &LangOpts = PP.getLangOpts();
   std::string PredefineBuffer;
   PredefineBuffer.reserve(4080);
@@ -1596,10 +1596,10 @@ void clang::InitializePreprocessor(Preprocessor &PP,
     // FIXME: This will create multiple definitions for most of the predefined
     // macros. This is not the right way to handle this.
     if ((LangOpts.CUDA || LangOpts.isTargetDevice()) && PP.getAuxTargetInfo())
-      InitializePredefinedMacros(*PP.getAuxTargetInfo(), LangOpts, KitsuneOpts,
+      InitializePredefinedMacros(*PP.getAuxTargetInfo(), LangOpts, KitOpts,
                                  FEOpts, PP.getPreprocessorOpts(), Builder);
 
-    InitializePredefinedMacros(PP.getTargetInfo(), LangOpts, KitsuneOpts,
+    InitializePredefinedMacros(PP.getTargetInfo(), LangOpts, KitOpts,
                                FEOpts, PP.getPreprocessorOpts(), Builder);
 
     // Install definitions to make Objective-C++ ARC work well with various
