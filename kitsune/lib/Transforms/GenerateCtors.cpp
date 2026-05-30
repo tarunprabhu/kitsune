@@ -29,7 +29,7 @@
 #include "GenerateCtorsImpl.h"
 #include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/Core/ConstantUtils.h"
-#include "kitsune/Frontend/CommandLineOptions.h"
+#include "kitsune/Support/CommandLineOptions.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"

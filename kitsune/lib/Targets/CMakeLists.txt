@@ -46,7 +46,6 @@ add_llvm_component_library(LLVMKitTargets
   BitReader
   BitWriter
   Core
-  KitFrontend
   KitSupport
   Support
   TapirOpts

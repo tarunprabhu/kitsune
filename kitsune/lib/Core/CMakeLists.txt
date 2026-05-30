@@ -43,7 +43,6 @@ add_llvm_component_library(LLVMKitCore
   BitWriter
   CodeGen
   Core
-  KitFrontend
   KitSupport
   MC
   Support

@@ -19,7 +19,6 @@ add_llvm_component_library(LLVMKitAnalysis
   Analysis
   Core
   KitCore
-  KitFrontend
   KitSupport
   KitTargets
   Support

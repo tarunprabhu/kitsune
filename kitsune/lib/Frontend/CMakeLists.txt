@@ -1,5 +1,4 @@
 add_llvm_component_library(LLVMKitFrontend
-  CommandLineOptions.cpp
   ReductionUtils.cpp
 
   DEPENDS

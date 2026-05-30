@@ -3,6 +3,7 @@
 # on any libraries that transitively depend on LLVMCore.
 
 add_llvm_component_library(LLVMKitSupport
+  CommandLineOptions.cpp
   CommandLineUtils.cpp
   ErrorHandling.cpp
   ErrorUtils.cpp

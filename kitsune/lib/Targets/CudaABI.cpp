@@ -77,7 +77,7 @@
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/ValueUtils.h"
-#include "kitsune/Frontend/CommandLineOptions.h"
+#include "kitsune/Support/CommandLineOptions.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/IRBuilder.h"

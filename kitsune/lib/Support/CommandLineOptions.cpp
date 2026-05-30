@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Frontend/CommandLineOptions.h"
+#include "kitsune/Support/CommandLineOptions.h"
 
 using namespace llvm;
 

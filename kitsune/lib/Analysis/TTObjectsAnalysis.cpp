@@ -15,7 +15,7 @@
 
 #include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/Core/LoopAttrs.h"
-#include "kitsune/Frontend/CommandLineOptions.h"
+#include "kitsune/Support/CommandLineOptions.h"
 #include "kitsune/Targets/TapirTargets.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/Analysis/LoopInfo.h"
@@ -123,8 +123,8 @@ TTObjectsAnalysis::TTObjectsAnalysis(std::optional<TTOptions> tto)
     ttObjs.getOptions().print(outs(), /*all=*/true);
 }
 
-TTObjectsAnalysis::Result
-TTObjectsAnalysis::run(Module &m, ModuleAnalysisManager &mam) {
+TTObjectsAnalysis::Result TTObjectsAnalysis::run(Module &m,
+                                                 ModuleAnalysisManager &mam) {
   // If a primary tapir target has not been set, don't do anything more since
   // the lack of a primary tapir target implies that tapir lowering has not been
   // enabled.
@@ -160,15 +160,13 @@ INITIALIZE_PASS(TTObjectsAnalysisWrapperPass, DEBUG_TYPE,
 
 TTObjectsAnalysisWrapperPass::TTObjectsAnalysisWrapperPass()
     : ImmutablePass(ID), ttObjs(std::nullopt) {
-  initializeTTObjectsAnalysisWrapperPassPass(
-      *PassRegistry::getPassRegistry());
+  initializeTTObjectsAnalysisWrapperPassPass(*PassRegistry::getPassRegistry());
 }
 
 TTObjectsAnalysisWrapperPass::TTObjectsAnalysisWrapperPass(
     std::optional<TTOptions> ttOpts)
     : ImmutablePass(ID), ttObjs(ttOpts) {
-  initializeTTObjectsAnalysisWrapperPassPass(
-      *PassRegistry::getPassRegistry());
+  initializeTTObjectsAnalysisWrapperPassPass(*PassRegistry::getPassRegistry());
 }
 
 void TTObjectsAnalysisWrapperPass::getAnalysisUsage(AnalysisUsage &au) const {

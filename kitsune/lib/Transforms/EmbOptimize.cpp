@@ -19,7 +19,7 @@
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/TTUtils.h"
 #include "kitsune/Core/TargetUtils.h"
-#include "kitsune/Frontend/CommandLineOptions.h"
+#include "kitsune/Support/CommandLineOptions.h"
 #include "kitsune/Support/OptznLevelUtils.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/GlobalVariable.h"
