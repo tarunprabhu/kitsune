@@ -52,7 +52,7 @@
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
 #include "kitsune/Core/TTUtils.h"
-#include "kitsune/Frontend/CommandLineOptions.h"
+#include "kitsune/Support/CommandLineOptions.h"
 #include "kitsune/Support/ErrorHandling.h"
 #include "kitsune/Targets/TapirTargets.h"
 #include "llvm/ADT/SmallSet.h"

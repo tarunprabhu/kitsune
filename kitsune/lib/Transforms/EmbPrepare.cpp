@@ -26,7 +26,7 @@
 #include "kitsune/Transforms/EmbPrepare.h"
 #include "EmbPrepareImpl.h"
 #include "kitsune/Analysis/TTObjectsAnalysis.h"
-#include "kitsune/Frontend/CommandLineOptions.h"
+#include "kitsune/Support/CommandLineOptions.h"
 
 using namespace llvm;
 
