@@ -56,8 +56,8 @@
 
 #include "CGKitsune.h"
 #include "CodeGenFunction.h"
+#include "kitsune/Core/KitOptions.h"
 #include "kitsune/Core/TTUtils.h"
-#include "kitsune/Frontend/KitsuneOptions.h"
 #include "clang/AST/StmtKitsune.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 
@@ -270,7 +270,7 @@ void CodeGenFunction::RestoreDeclMap(const VarDecl *IV, const Address IVAddr) {
 
 void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
                                      ArrayRef<const Attr *> Attrs) {
-  const llvm::driver::KitsuneOptions &KitOpts = CGM.getKitsuneOpts();
+  const llvm::driver::KitOptions &KitOpts = CGM.getKitOpts();
   assert(KitOpts.getTTID().has_value() && "TTID not set in Kitsune options");
 
   llvm::TTID TT = getTTID(Attrs, *KitOpts.getTTID());
@@ -438,7 +438,7 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
 
 void CodeGenFunction::EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
                                              ArrayRef<const Attr *> Attrs) {
-  const llvm::driver::KitsuneOptions &KitOpts = CGM.getKitsuneOpts();
+  const llvm::driver::KitOptions &KitOpts = CGM.getKitOpts();
   assert(KitOpts.getTTID().has_value() && "TTID not set in Kitsune options");
 
   llvm::TTID TT = getTTID(Attrs, *KitOpts.getTTID());

@@ -10,7 +10,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Frontend/KitsuneOptions.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/EvaluatedExprVisitor.h"
 #include "clang/Basic/TargetInfo.h"

@@ -14,8 +14,8 @@
 #include "ToolChains/Flang.h"
 #include "ToolChains/InterfaceStubs.h"
 #include "kitsune/Config/Config.h"
+#include "kitsune/Core/KitOptions.h"
 #include "kitsune/Core/TTPlugin.h"
-#include "kitsune/Frontend/KitsuneOptions.h"
 #include "kitsune/Support/ErrorUtils.h"
 #include "kitsune/Support/FromString.h"
 #include "kitsune/Support/ToString.h"
@@ -64,7 +64,7 @@ using namespace driver;
 using namespace tools;
 using namespace llvm;
 using namespace llvm::opt;
-using llvm::driver::KitsuneOptions;
+using llvm::driver::KitOptions;
 
 static llvm::opt::Arg *GetRTTIArgument(const ArgList &Args) {
   return Args.getLastArg(options::OPT_mkernel, options::OPT_fapple_kext,
@@ -1979,7 +1979,7 @@ void ToolChain::AddKitsuneGPUCommonArgs(const ArgList &Args,
   PushLastArg(CmdArgs, Args, MLLVM, options::OPT_tapir_gpu_tpb_EQ);
   PushLastArg(CmdArgs, Args, MLLVM, options::OPT_tapir_gpu_max_tpb_EQ);
 
-  bool DefaultPrefetch = KitsuneOptions::defaultGPUPrefetch;
+  bool DefaultPrefetch = KitOptions::defaultGPUPrefetch;
   if (Args.hasFlag(options::OPT_tapir_gpu_prefetch,
                    options::OPT_tapir_gpu_no_prefetch, DefaultPrefetch))
     PushArg(CmdArgs, Args, MLLVM, options::OPT_tapir_gpu_prefetch);
@@ -2010,7 +2010,7 @@ void ToolChain::AddKitsuneCudaCommonArgs(const ArgList &Args,
     CudaArch = Args.getLastArgValue(options::OPT_tapir_cuda_arch_EQ).str();
   else
     CudaArch = GetUniqueSystemGPUOrDefault(D, NVTC, ExtendedArgs,
-                                           KitsuneOptions::defaultCudaArch);
+                                           KitOptions::defaultCudaArch);
   PushArg(CmdArgs, Args, MLLVM, options::OPT_tapir_cuda_arch_EQ, CudaArch);
 
   OffloadArch OffloadArch = StringToOffloadArch(CudaArch);
@@ -2105,7 +2105,7 @@ void ToolChain::AddKitsuneHipCommonArgs(const ArgList &Args,
     HipArch = Args.getLastArgValue(options::OPT_tapir_hip_arch_EQ).str();
   else
     HipArch = GetUniqueSystemGPUOrDefault(D, *AMDTC, ExtendedArgs,
-                                          KitsuneOptions::defaultHipArch);
+                                          KitOptions::defaultHipArch);
   PushArg(CmdArgs, Args, MLLVM, options::OPT_tapir_hip_arch_EQ, HipArch);
 
   // In order to correctly compute the target features for this AMDGPU, as of
@@ -2136,7 +2136,7 @@ void ToolChain::AddKitsuneHipCommonArgs(const ArgList &Args,
   // and xnack next. If AMD decides to hack in more features in this appalling
   // manner, those will, in all likelihood, also need to be in alphabetical
   // order.
-  std::string DefaultECC = llvm::toString(KitsuneOptions::defaultHipSRAMECC);
+  std::string DefaultECC = llvm::toString(KitOptions::defaultHipSRAMECC);
   StringRef ArgECC =
       Args.getLastArgValue(options::OPT_tapir_hip_sramecc_EQ, DefaultECC);
   if (std::optional<MaybeBool> ECC =
@@ -2155,7 +2155,7 @@ void ToolChain::AddKitsuneHipCommonArgs(const ArgList &Args,
             llvm::toString(*ECC));
   }
 
-  std::string DefaultXnack = llvm::toString(KitsuneOptions::defaultHipXnack);
+  std::string DefaultXnack = llvm::toString(KitOptions::defaultHipXnack);
   StringRef ArgXnack =
       Args.getLastArgValue(options::OPT_tapir_hip_xnack_EQ, DefaultXnack);
   if (std::optional<MaybeBool> Xnack =

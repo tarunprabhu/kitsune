@@ -13,8 +13,8 @@
 
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/Diagnostics.h"
+#include "kitsune/Core/KitOptions.h"
 #include "kitsune/Core/TTUtils.h"
-#include "kitsune/Frontend/KitsuneOptions.h"
 #include "kitsune/Support/CommandLineOptions.h"
 #include "kitsune/Support/OptznLevelUtils.h"
 #include "kitsune/Support/OstreamUtils.h"
@@ -92,19 +92,17 @@ static cl::opt<unsigned> clMaxThreadsPerBlock(
 
 static cl::opt<bool>
     clGPUPrefetch("tapir-gpu-prefetch",
-                  cl::init(KitsuneOptions::defaultGPUPrefetch),
+                  cl::init(KitOptions::defaultGPUPrefetch),
                   cl::desc("Enable generation of calls to prefetch managed "
                            "memory between host and device"),
                   cl::cat(cl::catKitClOpts));
 
 // ------------------------- cuda tapir target options -------------------------
 
-static const std::string clCudaArchHelp =
-    join_items(KitsuneOptions::defaultCudaArch,
-               "NVIDIA GPU architecture (default = ", ")");
+static const std::string clCudaArchHelp = join_items(
+    KitOptions::defaultCudaArch, "NVIDIA GPU architecture (default = ", ")");
 static cl::opt<std::string>
-    clCudaArch("tapir-cuda-arch",
-               cl::init(KitsuneOptions::defaultCudaArch.str()),
+    clCudaArch("tapir-cuda-arch", cl::init(KitOptions::defaultCudaArch.str()),
                cl::desc(clCudaArchHelp), cl::cat(cl::catKitClOpts));
 
 static cl::opt<std::string>
@@ -133,16 +131,16 @@ static cl::opt<std::string>
 // ------------------------- hip tapir target options -------------------------
 
 static const std::string clHipArchHelp = join_items(
-    KitsuneOptions::defaultHipArch, "AMD GPU architecture (default = ", ")");
+    KitOptions::defaultHipArch, "AMD GPU architecture (default = ", ")");
 static cl::opt<std::string>
-    clHipArch("tapir-hip-arch", cl::init(KitsuneOptions::defaultHipArch.str()),
+    clHipArch("tapir-hip-arch", cl::init(KitOptions::defaultHipArch.str()),
               cl::desc(clHipArchHelp), cl::cat(cl::catKitClOpts));
 
 static const std::string clHipSRAMECCHelp = join_items(
-    toString(KitsuneOptions::defaultHipSRAMECC),
+    toString(KitOptions::defaultHipSRAMECC),
     "Whether to enable the sramecc target feature (default = '", "')");
 static cl::opt<MaybeBool> clHipSRAMECC(
-    "tapir-hip-sramecc", cl::init(KitsuneOptions::defaultHipSRAMECC),
+    "tapir-hip-sramecc", cl::init(KitOptions::defaultHipSRAMECC),
     cl::desc(clHipSRAMECCHelp),
     cl::values(
         clEnumValN(MaybeBool::Off, "off", "Set the sramecc- target feature"),
@@ -151,10 +149,10 @@ static cl::opt<MaybeBool> clHipSRAMECC(
     cl::cat(cl::catKitClOpts));
 
 static const std::string clHipXnackHelp =
-    join_items(toString(KitsuneOptions::defaultHipXnack),
+    join_items(toString(KitOptions::defaultHipXnack),
                "Whether to enable the xnack target feature (default = '", "')");
 static cl::opt<MaybeBool> clHipXnack(
-    "tapir-hip-xnack", cl::init(KitsuneOptions::defaultHipXnack),
+    "tapir-hip-xnack", cl::init(KitOptions::defaultHipXnack),
     cl::desc(clHipXnackHelp),
     cl::values(
         clEnumValN(MaybeBool::Off, "off", "Set the xnack- target feature"),
@@ -408,7 +406,7 @@ std::optional<TTOptions> TTOptions::createFromCommandLine(char optLevel) {
   return createFromCommandLine(createOptznLevelFrom(optLevel));
 }
 
-std::optional<TTOptions> TTOptions::create(const KitsuneOptions &kitOpts,
+std::optional<TTOptions> TTOptions::create(const KitOptions &kitOpts,
                                            OptznLevel optznLevel,
                                            FPOpFusionMode fpOpFusionMode) {
   if (!kitOpts.getTTID())

@@ -24,7 +24,7 @@
 #include "CodeGenPGO.h"
 #include "ConstantEmitter.h"
 #include "TargetInfo.h"
-#include "kitsune/Frontend/KitsuneOptions.h"
+#include "kitsune/Core/KitOptions.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/ASTLambda.h"
 #include "clang/AST/Attr.h"
@@ -5843,7 +5843,7 @@ RValue CodeGenFunction::EmitRValueForField(LValue LV,
 RValue CodeGenFunction::EmitCallExpr(const CallExpr *E,
                                      ReturnValueSlot ReturnValue,
                                      llvm::CallBase **CallOrInvoke) {
-  const llvm::driver::KitsuneOptions &kitOpts = CGM.getKitsuneOpts();
+  const llvm::driver::KitOptions &kitOpts = CGM.getKitOpts();
   if (kitOpts.getKokkos() || kitOpts.getKokkosNoInit()) {
     // If this is a Kokkos construct that is handled specially by Kitsune, we
     // may replace it with a traditional loop construct (in the case of

@@ -204,8 +204,8 @@ static bool CheckOptLevel(const ArgList &Args) {
   return true;
 }
 
-static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
-                                DiagnosticsEngine &Diags) {
+static void CheckKitOptions(const Driver &D, const ArgList &Args,
+                            DiagnosticsEngine &Diags) {
   llvm::Triple Triple = llvm::Triple(D.getTargetTriple());
 
   // If this is not a Kitsune frontend, Kitsune options are not allowed.
@@ -224,7 +224,7 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
         StringRef FpContract = A->getValue();
         if (FpContract == "on" || FpContract == "fast-honor-pragmas") {
           D.Diag(diag::err_drv_unsupported_option_argument_for_frontend)
-            << A->getSpelling() << FpContract << llvm::kitFortranFrontend();
+              << A->getSpelling() << FpContract << llvm::kitFortranFrontend();
           return;
         }
       }
@@ -277,7 +277,7 @@ static void CheckKitsuneOptions(const Driver &D, const ArgList &Args,
     CheckTTEnabled(D, *TT);
 
     if (*TT == llvm::TTID::Custom) {
-      const Arg* A = Args.getLastArg(options::OPT_tapir_plugin_EQ);
+      const Arg *A = Args.getLastArg(options::OPT_tapir_plugin_EQ);
       if (!A)
         D.Diag(diag::err_drv_kitsune_plugin_missing);
       if (std::optional<std::string> Plugin =
@@ -2076,7 +2076,7 @@ Compilation *Driver::BuildCompilation(ArrayRef<const char *> ArgList) {
 
   // This has to be done here at the latest because the line below moves Args
   // into UArgs.
-  CheckKitsuneOptions(*this, Args, Diags);
+  CheckKitOptions(*this, Args, Diags);
 
   std::unique_ptr<llvm::opt::InputArgList> UArgs =
       std::make_unique<InputArgList>(std::move(Args));

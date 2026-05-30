@@ -19,6 +19,7 @@
 #include "clang/Driver/ToolChain.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "llvm/Support/VirtualFileSystem.h"
+
 #include "gtest/gtest.h"
 
 using namespace clang;
@@ -28,9 +29,10 @@ namespace {
 
 // Check that the KitsuneFrontend flag is correctly set in the driver.
 TEST(KitsuneFrontendTest, KitsuneFrontend) {
+  struct TestDiagnosticConsumer : public DiagnosticConsumer {};
+
   DiagnosticOptions diagOpts;
   IntrusiveRefCntPtr<DiagnosticIDs> diagID(new DiagnosticIDs());
-  struct TestDiagnosticConsumer : public DiagnosticConsumer {};
   DiagnosticsEngine diags(diagID, diagOpts, new TestDiagnosticConsumer);
   IntrusiveRefCntPtr<llvm::vfs::InMemoryFileSystem> fs(
       new llvm::vfs::InMemoryFileSystem);
@@ -73,12 +75,12 @@ TEST(KitsuneFrontendTest, KitsuneFrontend) {
 }
 
 // Check that the isKitsuneFrontend() returns the correct value depending on
-// the frontend used. This checks for the flag in the LangOptions object which
-// is different from the driver and must be set correctly as well.w
+// the frontend used.
 TEST(KitsuneFrontendTest, KitsuneLangOptions) {
+  struct TestDiagnosticConsumer : public DiagnosticConsumer {};
+
   DiagnosticOptions diagOpts;
   IntrusiveRefCntPtr<DiagnosticIDs> diagID(new DiagnosticIDs());
-  struct TestDiagnosticConsumer : public DiagnosticConsumer {};
   DiagnosticsEngine diags(diagID, diagOpts, new TestDiagnosticConsumer);
   IntrusiveRefCntPtr<llvm::vfs::InMemoryFileSystem> fs(
       new llvm::vfs::InMemoryFileSystem);
@@ -86,26 +88,26 @@ TEST(KitsuneFrontendTest, KitsuneLangOptions) {
   const char *args[] = {"-cc1", "foo.c"};
 
   CompilerInvocation::CreateFromArgs(invoc, args, diags, KITSUNE_C_FRONTEND);
-  EXPECT_TRUE(invoc.getKitsuneOpts().isKitsuneFrontend());
+  EXPECT_TRUE(invoc.getKitOpts().isKitsuneFrontend());
 
   CompilerInvocation::CreateFromArgs(invoc, args, diags, KITSUNE_CXX_FRONTEND);
-  EXPECT_TRUE(invoc.getKitsuneOpts().isKitsuneFrontend());
+  EXPECT_TRUE(invoc.getKitOpts().isKitsuneFrontend());
 
   CompilerInvocation::CreateFromArgs(invoc, args, diags, "/bin/clang");
-  EXPECT_FALSE(invoc.getKitsuneOpts().isKitsuneFrontend());
+  EXPECT_FALSE(invoc.getKitOpts().isKitsuneFrontend());
 
   CompilerInvocation::CreateFromArgs(invoc, args, diags, "/bin/clang++");
-  EXPECT_FALSE(invoc.getKitsuneOpts().isKitsuneFrontend());
+  EXPECT_FALSE(invoc.getKitOpts().isKitsuneFrontend());
 
 #if KITSUNE_Fortran_ENABLED
   const char *fc1Args[] = {"-fc1", "foo.f90"};
 
   CompilerInvocation::CreateFromArgs(invoc, fc1Args, diags,
                                      KITSUNE_Fortran_FRONTEND);
-  EXPECT_TRUE(invoc.getKitsuneOpts().isKitsuneFrontend());
+  EXPECT_TRUE(invoc.getKitOpts().isKitsuneFrontend());
 
   CompilerInvocation::CreateFromArgs(invoc, fc1Args, diags, "/bin/flang");
-  EXPECT_FALSE(invoc.getKitsuneOpts().isKitsuneFrontend());
+  EXPECT_FALSE(invoc.getKitOpts().isKitsuneFrontend());
 #endif // KITSUNE_Fortran_ENABLED
 }
 

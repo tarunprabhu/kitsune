@@ -33,7 +33,7 @@
 
 namespace llvm {
 namespace driver {
-class KitsuneOptions;
+class KitOptions;
 }
 } // namespace llvm
 
@@ -57,7 +57,7 @@ void InitializePreprocessor(Preprocessor &PP, const PreprocessorOptions &PPOpts,
                             const PCHContainerReader &PCHContainerRdr,
                             const FrontendOptions &FEOpts,
                             const CodeGenOptions &CodeGenOpts,
-                            const llvm::driver::KitsuneOptions &KitsuneOpts);
+                            const llvm::driver::KitOptions &KitOpts);
 
 /// DoPrintPreprocessedInput - Implement -E mode.
 void DoPrintPreprocessedInput(Preprocessor &PP, raw_ostream *OS,

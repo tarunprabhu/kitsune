@@ -11,7 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/AST/ASTVector.h"
-#include "kitsune/Frontend/KitsuneOptions.h"
+#include "kitsune/Core/KitOptions.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/Basic/Builtins.h"
 #include "clang/Basic/FileManager.h"
@@ -30,7 +30,7 @@ protected:
       : FileMgr(FileMgrOpts), DiagID(new DiagnosticIDs()),
         Diags(DiagID, DiagOpts, new IgnoringDiagConsumer()),
         SourceMgr(Diags, FileMgr), Idents(LangOpts, nullptr),
-        Ctxt(LangOpts, SourceMgr, Idents, Sels, Builtins, KitsuneOpts,
+        Ctxt(LangOpts, SourceMgr, Idents, Sels, Builtins, KitOpts,
              TU_Complete) {}
 
   FileSystemOptions FileMgrOpts;
@@ -40,7 +40,7 @@ protected:
   DiagnosticsEngine Diags;
   SourceManager SourceMgr;
   LangOptions LangOpts;
-  llvm::driver::KitsuneOptions KitsuneOpts;
+  llvm::driver::KitOptions KitOpts;
   IdentifierTable Idents;
   SelectorTable Sels;
   Builtin::Context Builtins;

@@ -104,7 +104,7 @@ using namespace clang;
 using namespace driver;
 using namespace options;
 using namespace llvm::opt;
-using llvm::driver::KitsuneOptions;
+using llvm::driver::KitOptions;
 
 //===----------------------------------------------------------------------===//
 // Helpers.
@@ -142,7 +142,7 @@ CompilerInvocationBase::CompilerInvocationBase()
       FrontendOpts(std::make_shared<FrontendOptions>()),
       DependencyOutputOpts(std::make_shared<DependencyOutputOptions>()),
       PreprocessorOutputOpts(std::make_shared<PreprocessorOutputOptions>()),
-      KitsuneOpts(std::make_shared<KitsuneOptions>()) {}
+      KitOpts(std::make_shared<KitOptions>()) {}
 
 CompilerInvocationBase &
 CompilerInvocationBase::deep_copy_assign(const CompilerInvocationBase &X) {
@@ -160,7 +160,7 @@ CompilerInvocationBase::deep_copy_assign(const CompilerInvocationBase &X) {
     FrontendOpts = make_shared_copy(X.getFrontendOpts());
     DependencyOutputOpts = make_shared_copy(X.getDependencyOutputOpts());
     PreprocessorOutputOpts = make_shared_copy(X.getPreprocessorOutputOpts());
-    KitsuneOpts = make_shared_copy(X.getKitsuneOpts());
+    KitOpts = make_shared_copy(X.getKitOpts());
   }
   return *this;
 }
@@ -181,7 +181,7 @@ CompilerInvocationBase::shallow_copy_assign(const CompilerInvocationBase &X) {
     FrontendOpts = X.FrontendOpts;
     DependencyOutputOpts = X.DependencyOutputOpts;
     PreprocessorOutputOpts = X.PreprocessorOutputOpts;
-    KitsuneOpts = X.KitsuneOpts;
+    KitOpts = X.KitOpts;
   }
   return *this;
 }
@@ -257,8 +257,8 @@ CowCompilerInvocation::getMutPreprocessorOutputOpts() {
   return ensureOwned(PreprocessorOutputOpts);
 }
 
-KitsuneOptions& CowCompilerInvocation::getMutKitsuneOpts() {
-  return ensureOwned(KitsuneOpts);
+KitOptions& CowCompilerInvocation::getMutKitOpts() {
+  return ensureOwned(KitOpts);
 }
 
 //===----------------------------------------------------------------------===//
@@ -4067,7 +4067,7 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
                                        InputKind IK, const llvm::Triple &T,
                                        std::vector<std::string> &Includes,
                                        DiagnosticsEngine &Diags,
-                                       const KitsuneOptions &KitsuneOpts) {
+                                       const KitOptions &KitOpts) {
   unsigned NumErrorsBefore = Diags.getNumErrors();
 
   if (IK.getFormat() == InputKind::Precompiled ||
@@ -4178,9 +4178,9 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
   Opts.IncludeDefaultHeader = Args.hasArg(OPT_finclude_default_header);
   Opts.DeclareOpenCLBuiltins = Args.hasArg(OPT_fdeclare_opencl_builtins);
 
-  // KitsuneOpts will already have been set correctly. IsKitsune must be set
-  // before setting the defaults.
-  Opts.IsKitsune = KitsuneOpts.isKitsuneFrontend() && KitsuneOpts.hasTTID();
+  // KitOpts will already have been set correctly. IsKitsune must be set before
+  // setting the defaults.
+  Opts.IsKitsune = KitOpts.isKitsuneFrontend() && KitOpts.hasTTID();
 
   LangOptions::setLangDefaults(Opts, IK.getLanguage(), T, Includes, LangStd);
 
@@ -4774,9 +4774,9 @@ bool CompilerInvocation::ParseLangArgs(LangOptions &Opts, ArgList &Args,
   return Diags.getNumErrors() == NumErrorsBefore;
 }
 
-void CompilerInvocationBase::GenerateKitsuneArgs(const KitsuneOptions &Opts,
+void CompilerInvocationBase::GenerateKitsuneArgs(const KitOptions &Opts,
                                                  ArgumentConsumer Consumer) {
-  auto GenerateTTArg = [&](llvm::TTID TT, const KitsuneOptions &Opts,
+  auto GenerateTTArg = [&](llvm::TTID TT, const KitOptions &Opts,
                            ArgumentConsumer Consumer) -> void {
     switch (TT) {
     case llvm::TTID::Cuda:
@@ -4862,10 +4862,10 @@ void CompilerInvocationBase::GenerateKitsuneArgs(const KitsuneOptions &Opts,
 
 bool CompilerInvocation::CheckKitsuneArgs(const ArgList &Args,
                                           const llvm::Triple &Triple,
-                                          const KitsuneOptions &KitsuneOpts,
+                                          const KitOptions &KitOpts,
                                           const LangOptions &LangOpts,
                                           DiagnosticsEngine &Diags) {
-  std::optional<llvm::TTID> TT = KitsuneOpts.getTTID();
+  std::optional<llvm::TTID> TT = KitOpts.getTTID();
   if (not TT)
     return true;
 
@@ -5248,7 +5248,7 @@ bool CompilerInvocation::CreateFromArgsImpl(
   InputArgList Args = Opts.ParseArgs(CommandLineArgs, MissingArgIndex,
                                      MissingArgCount, VisibilityMask);
   LangOptions &LangOpts = Res.getLangOpts();
-  KitsuneOptions &KitsuneOpts = Res.getKitsuneOpts();
+  KitOptions &KitOpts = Res.getKitOpts();
 
   // Check for missing argument error.
   if (MissingArgCount)
@@ -5293,9 +5293,9 @@ bool CompilerInvocation::CreateFromArgsImpl(
   // Parse the Kitsune arguments as early as possible. These affect how the
   // lang options are setup. For instance, the default FPContract value changes
   // when compiling with Kitsune's frontend.
-  parseKitsuneArgs(KitsuneOpts, Argv0, Args, Opts, Diags);
+  parseKitsuneArgs(KitOpts, Argv0, Args, Opts, Diags);
   ParseLangArgs(LangOpts, Args, DashX, T, Res.getPreprocessorOpts().Includes,
-                Diags, KitsuneOpts);
+                Diags, KitOpts);
   if (Res.getFrontendOpts().ProgramAction == frontend::RewriteObjC)
     LangOpts.ObjCExceptions = 1;
 
@@ -5377,7 +5377,7 @@ bool CompilerInvocation::CreateFromArgsImpl(
   // code together, but that is not possible. It is this way because I am trying
   // to consolidate all the Kitsune-specific code to the extent possible to
   // make merging easier.
-  CheckKitsuneArgs(Args, T, Res.getKitsuneOpts(), Res.getLangOpts(), Diags);
+  CheckKitsuneArgs(Args, T, Res.getKitOpts(), Res.getLangOpts(), Diags);
 
   return Diags.getNumErrors() == NumErrorsBefore;
 }
@@ -5551,7 +5551,7 @@ void CompilerInvocationBase::generateCC1CommandLine(
   GeneratePreprocessorOutputArgs(getPreprocessorOutputOpts(), Consumer,
                                  getFrontendOpts().ProgramAction);
   GenerateDependencyOutputArgs(getDependencyOutputOpts(), Consumer);
-  GenerateKitsuneArgs(getKitsuneOpts(), Consumer);
+  GenerateKitsuneArgs(getKitOpts(), Consumer);
 }
 
 std::vector<std::string> CompilerInvocationBase::getCC1CommandLine() const {

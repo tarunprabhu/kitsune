@@ -101,7 +101,7 @@
 using namespace clang;
 
 using llvm::TimeRecord;
-using llvm::driver::KitsuneOptions;
+using llvm::driver::KitOptions;
 
 namespace {
 
@@ -803,7 +803,7 @@ std::unique_ptr<ASTUnit> ASTUnit::LoadFromASTFile(
     WhatToLoad ToLoad, std::shared_ptr<DiagnosticOptions> DiagOpts,
     IntrusiveRefCntPtr<DiagnosticsEngine> Diags,
     const FileSystemOptions &FileSystemOpts, const HeaderSearchOptions &HSOpts,
-    const LangOptions *LangOpts, const KitsuneOptions* KitsuneOpts,
+    const LangOptions *LangOpts, const KitOptions* KitOpts,
     bool OnlyLocalDecls,
     CaptureDiagsKind CaptureDiagnostics, bool AllowASTWithCompilerErrors,
     bool UserFilesAreVolatile, IntrusiveRefCntPtr<llvm::vfs::FileSystem> VFS) {
@@ -820,9 +820,8 @@ std::unique_ptr<ASTUnit> ASTUnit::LoadFromASTFile(
 
   AST->LangOpts = LangOpts ? std::make_unique<LangOptions>(*LangOpts)
                            : std::make_unique<LangOptions>();
-  AST->KitsuneOpts = KitsuneOpts
-                         ? std::make_unique<KitsuneOptions>(*KitsuneOpts)
-                         : std::make_unique<KitsuneOptions>();
+  AST->KitOpts = KitOpts ? std::make_unique<KitOptions>(*KitOpts)
+                         : std::make_unique<KitOptions>();
   AST->OnlyLocalDecls = OnlyLocalDecls;
   AST->CaptureDiagnostics = CaptureDiagnostics;
   AST->DiagOpts = DiagOpts;
@@ -856,7 +855,7 @@ std::unique_ptr<ASTUnit> ASTUnit::LoadFromASTFile(
   if (ToLoad >= LoadASTOnly)
     AST->Ctx = new ASTContext(*AST->LangOpts, AST->getSourceManager(),
                               PP.getIdentifierTable(), PP.getSelectorTable(),
-                              PP.getBuiltinInfo(), *AST->KitsuneOpts,
+                              PP.getBuiltinInfo(), *AST->KitOpts,
                               AST->getTranslationUnitKind());
 
   DisableValidationForModuleKind disableValid =

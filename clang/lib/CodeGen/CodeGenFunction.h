@@ -56,7 +56,7 @@ class Value;
 class CanonicalLoopInfo;
 
 namespace driver {
-class KitsuneOptions;
+class KitOptions;
 }
 } // namespace llvm
 
@@ -2708,8 +2708,8 @@ public:
   }
 
   const LangOptions &getLangOpts() const { return CGM.getLangOpts(); }
-  const llvm::driver::KitsuneOptions &getKitsuneOpts() const {
-    return CGM.getKitsuneOpts();
+  const llvm::driver::KitOptions &getKitOpts() const {
+    return CGM.getKitOpts();
   }
 
   /// Returns a pointer to the function's exception object and selector slot,

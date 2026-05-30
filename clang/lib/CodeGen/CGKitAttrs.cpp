@@ -12,7 +12,7 @@
 
 #include "CGKitsune.h"
 #include "CodeGenFunction.h"
-#include "kitsune/Frontend/KitsuneOptions.h"
+#include "kitsune/Core/KitOptions.h"
 
 using namespace clang;
 using namespace CodeGen;
@@ -62,7 +62,7 @@ void clang::CodeGen::AddKitAttributes(CodeGenModule &cgm, const VarDecl &vd,
   // opt-in features. Since the attributes will have no effect unless lowering
   // using tapir is enabled, we might as well only add the attributes only if a
   // tapir target has been set.
-  if (!cgm.getKitsuneOpts().hasTTID())
+  if (!cgm.getKitOpts().hasTTID())
     return;
 
   if (const auto *attr = vd.getAttr<KitsuneMemAccessAttr>())
@@ -77,7 +77,7 @@ void clang::CodeGen::AddKitAttributes(CodeGenModule &cgm,
   // opt-in features. Since the attributes will have no effect unless lowering
   // using tapir is enabled, we might as well only add the attributes only if a
   // tapir target has been set.
-  if (!cgm.getKitsuneOpts().hasTTID())
+  if (!cgm.getKitOpts().hasTTID())
     return;
 
   addKitMemAccessAttr(cgm, fd, f);

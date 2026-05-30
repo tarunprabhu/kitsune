@@ -57,8 +57,8 @@
 
 #include "CGKitsune.h"
 #include "CodeGenFunction.h"
+#include "kitsune/Core/KitOptions.h"
 #include "kitsune/Core/TTUtils.h"
-#include "kitsune/Frontend/KitsuneOptions.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 
 using namespace clang;
@@ -285,7 +285,7 @@ void CodeGenFunction::EmitKokkosIncrement(const ParmVarDecl *IV) {
 
 bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
                                             ArrayRef<const Attr *> Attrs) {
-  const llvm::driver::KitsuneOptions &KitOpts = CGM.getKitsuneOpts();
+  const llvm::driver::KitOptions &KitOpts = CGM.getKitOpts();
   assert(KitOpts.getTTID().has_value() && "TTID not set in Kitsune options");
 
   llvm::TTID TT = getTTID(Attrs, *KitOpts.getTTID());

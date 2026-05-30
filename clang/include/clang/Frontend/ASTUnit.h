@@ -13,7 +13,7 @@
 #ifndef LLVM_CLANG_FRONTEND_ASTUNIT_H
 #define LLVM_CLANG_FRONTEND_ASTUNIT_H
 
-#include "kitsune/Frontend/KitsuneOptions.h"
+#include "kitsune/Core/KitOptions.h"
 #include "clang-c/Index.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/Basic/Diagnostic.h"
@@ -107,7 +107,7 @@ public:
   };
 
 private:
-  std::shared_ptr<llvm::driver::KitsuneOptions> KitsuneOpts;
+  std::shared_ptr<llvm::driver::KitOptions> KitOpts;
   std::unique_ptr<LangOptions> LangOpts;
   // FIXME: The documentation on \c LoadFrom* member functions states that the
   // DiagnosticsEngine (and therefore DiagnosticOptions) must outlive the
@@ -475,9 +475,9 @@ public:
     return *TheSema;
   }
 
-  const llvm::driver::KitsuneOptions &getKitsuneOpts() const {
-    assert(KitsuneOpts && "ASTUnit does not have Kitsune options");
-    return *KitsuneOpts;
+  const llvm::driver::KitOptions &getKitOpts() const {
+    assert(KitOpts && "ASTUnit does not have Kitsune options");
+    return *KitOpts;
   }
 
   const LangOptions &getLangOpts() const {
@@ -717,7 +717,7 @@ public:
       IntrusiveRefCntPtr<DiagnosticsEngine> Diags,
       const FileSystemOptions &FileSystemOpts,
       const HeaderSearchOptions &HSOpts, const LangOptions *LangOpts = nullptr,
-      const llvm::driver::KitsuneOptions *KitsuneOpts = nullptr,
+      const llvm::driver::KitOptions *KitOpts = nullptr,
       bool OnlyLocalDecls = false,
       CaptureDiagsKind CaptureDiagnostics = CaptureDiagsKind::None,
       bool AllowASTWithCompilerErrors = false,

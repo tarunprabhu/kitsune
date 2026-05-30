@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Frontend/KitsuneOptions.h"
+#include "kitsune/Core/KitOptions.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Expr.h"
 #include "clang/Basic/Diagnostic.h"
@@ -120,7 +120,7 @@ protected:
   ExpectedDiagConsumer *Consumer;
   DiagnosticsEngine Diags;
   SourceManager SourceMgr;
-  llvm::driver::KitsuneOptions KitOpts;
+  llvm::driver::KitOptions KitOpts;
   LangOptions LangOpts;
   PreprocessorOptions PPOpts;
   std::shared_ptr<TargetOptions> TargetOpts;
