@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Sema/SemaKitsune.h"
+#include "kitsune/Clang/ASTUtils.h"
 #include "kitsune/Clang/ReductionUtils.h"
 #include "kitsune/Core/KitOptions.h"
 #include "clang/AST/StmtKitsune.h"
@@ -21,16 +22,6 @@ using namespace clang;
 using namespace sema;
 
 template <typename V> static constexpr Handled<V> notHandled;
-
-// TODO:? Is it worth making this available as an expression utility?
-// Strip implicit expressions and cleanups to retrieve the underlying
-// expression.
-static Expr *getUnderlyingExpr(Expr *expr) {
-  Expr *underlying = expr->IgnoreImplicit();
-  if (auto *ewc = dyn_cast<ExprWithCleanups>(underlying))
-    return getUnderlyingExpr(ewc->getSubExpr());
-  return underlying;
-}
 
 StmtResult Sema::ActOnSpawnStmt(SourceLocation spawnLoc, StringRef sv,
                                 Stmt *subStmt) {
@@ -297,7 +288,7 @@ static bool checkReduceValueType(llvm::ReduceOp op, QualType argType) {
 
 bool SemaKitsune::checkReduceCall(CallExpr *theCall) {
   SourceLocation loc = theCall->getBeginLoc();
-  IntegerLiteral *iLit =
+  const IntegerLiteral *iLit =
       dyn_cast<IntegerLiteral>(getUnderlyingExpr(theCall->getArg(1)));
   if (!iLit) {
     Diag(loc, diag::err_kit_reduce_op_not_literal);

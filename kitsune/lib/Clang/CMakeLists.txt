@@ -6,6 +6,7 @@ set(LLVM_LINK_COMPONENTS
   Support)
 
 add_clang_library(clangKitSupport
+  ASTUtils.cpp
   ReductionUtils.cpp
 
   DEPENDS
