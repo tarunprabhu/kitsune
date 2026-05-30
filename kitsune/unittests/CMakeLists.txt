@@ -1,17 +1,38 @@
 add_custom_target(KitsuneUnitTests)
 set_target_properties(KitsuneUnitTests PROPERTIES FOLDER "Kitsune/Tests")
 
-# FIXME: The argument test_dirname is misleading because the argument is
-# actually the name of the test executable, not the directory.
-function(add_kitsune_unittest test_dirname)
-  add_unittest(KitsuneUnitTests ${test_dirname} ${ARGN})
-endfunction()
+# Add a unittest with name TEST_NAME to the suite of Kitsune's unit tests.
+# This will create an executable named TEST_NAME that will be linked against
+# gtest. The code below shows how this function may be used.
+#
+#     set(LLVM_LINK_COMPONENTS L1 L2)
+#     set(CLANG_LINK_COMPONENTS C1 C2)
+#
+#     add_kitsune_unittest(ExecName
+#       Source1.cpp
+#       Source2.cpp
+#       ...
+#
+#       <other named arguments>
+#     )
+#
+# This will create an executable named ExecName using the source files
+# Source1.cpp, Source2.cpp, and so on. The additional named arguments, indicated
+# by '<other named arguments>' in the example above are passed as is to
+# `add_unittest` (defined in `AddLLVM.cmake`).
+#
+# Additional libraries to be linked into the executable can be provided by
+# setting the `LLVM_LINK_COMPONENTS` and `CLANG_LINK_COMPONENTS` variables.
+# In the example above, this will link libLLVML1, libLLVML2, libclangC1, and
+# libclangC2 into the executable ExecName. Note how a prefix is automatically
+# added depending on the variable containing the library.
+function(add_kitsune_unittest test_name)
+  add_unittest(KitsuneUnitTests ${test_name} ${ARGN} EXPORT_SYMBOLS)
 
-# FIXME: Replace all uses of add_kitsune_unittest_with_input_files with
-# add_kitsune_unittest. The use of the former is explicitly discouraged, and we
-# don't have any input files for the unit tests anyway.
-function(add_kitsune_unittest_with_input_files test_dirname)
-  add_unittest_with_input_files(KitsuneUnitTests ${test_dirname} ${ARGN})
+  list(TRANSFORM CLANG_LINK_COMPONENTS PREPEND "clang")
+  target_link_libraries(${test_name} PRIVATE ${CLANG_LINK_COMPONENTS})
+
+  target_link_libraries(${test_name} PRIVATE LLVMTestingSupport)
 endfunction()
 
 # gtest macros like EXPECT_TRUE are expanded to a single line multi-statement

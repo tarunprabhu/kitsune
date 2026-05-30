@@ -11,13 +11,9 @@ set(LLVM_LINK_COMPONENTS
   KitCore
 )
 
-add_kitsune_unittest_with_input_files(KitAnalysisTests
+add_kitsune_unittest(KitAnalysisTests
   TTObjectsAnalysisTest.cpp
-
-  EXPORT_SYMBOLS
 )
-
-target_link_libraries(KitAnalysisTests PRIVATE LLVMTestingSupport)
 
 # On AIX, enable run-time linking to allow symbols from the plugins shared
 # objects to be properly bound.
