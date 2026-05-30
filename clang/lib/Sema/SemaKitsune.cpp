@@ -12,8 +12,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Sema/SemaKitsune.h"
+#include "kitsune/Clang/ReductionUtils.h"
 #include "kitsune/Core/KitOptions.h"
-#include "kitsune/Frontend/ReductionUtils.h"
 #include "clang/AST/StmtKitsune.h"
 #include "clang/Sema/Sema.h"
 

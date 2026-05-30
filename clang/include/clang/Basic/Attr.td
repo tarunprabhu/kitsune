@@ -5508,5 +5508,5 @@ def Personality : InheritableAttr {
 // but without adding Kitsune's include directory to the search path. We use
 // this workaround to avoid modifying too much in upstream llvm-project. It's
 // not pretty, but it works with all uses of this file.
-include "../../kitsune/include/kitsune/Frontend/CAttrDocs.td"
-include "../../kitsune/include/kitsune/Frontend/CAttrs.td"
+include "../../kitsune/include/kitsune/Clang/AttrDocs.td"
+include "../../kitsune/include/kitsune/Clang/Attrs.td"

@@ -6,11 +6,11 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Utilities for reduction support in frontends.
+// Utilities for reduction support in C/C++.
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Frontend/ReductionUtils.h"
+#include "kitsune/Clang/ReductionUtils.h"
 #include "llvm/IR/Constants.h"
 
 using namespace llvm;

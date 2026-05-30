@@ -979,5 +979,5 @@ def warn_drv_gcc_install_dir_libstdcxx : Warning<
 def err_drv_reflection_requires_cxx26 : Error<
   "option '%0' is only supported when compiling in C++26 mode">;
 
-include "kitsune/Frontend/DriverDiagnostics.td"
+include "kitsune/Clang/DriverDiagnostics.td"
 }

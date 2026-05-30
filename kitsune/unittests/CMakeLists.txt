@@ -1,10 +1,15 @@
 add_custom_target(KitsuneUnitTests)
 set_target_properties(KitsuneUnitTests PROPERTIES FOLDER "Kitsune/Tests")
 
+# FIXME: The argument test_dirname is misleading because the argument is
+# actually the name of the test executable, not the directory.
 function(add_kitsune_unittest test_dirname)
   add_unittest(KitsuneUnitTests ${test_dirname} ${ARGN})
 endfunction()
 
+# FIXME: Replace all uses of add_kitsune_unittest_with_input_files with
+# add_kitsune_unittest. The use of the former is explicitly discouraged, and we
+# don't have any input files for the unit tests anyway.
 function(add_kitsune_unittest_with_input_files test_dirname)
   add_unittest_with_input_files(KitsuneUnitTests ${test_dirname} ${ARGN})
 endfunction()
@@ -28,8 +33,8 @@ if (CMAKE_COMPILER_IS_GNUCXX)
 endif ()
 
 add_subdirectory(Analysis)
+add_subdirectory(Clang)
 add_subdirectory(Config)
 add_subdirectory(Core)
-add_subdirectory(Frontend)
 add_subdirectory(Passes)
 add_subdirectory(Support)

@@ -529,5 +529,5 @@ def err_cir_verification_failed_pre_passes : Error<
     "CIR module verification error before running CIR-to-CIR passes">,
     DefaultFatal;
 
-include "kitsune/Frontend/CFrontendDiagnostics.td"
+include "kitsune/Clang/FrontendDiagnostics.td"
 }

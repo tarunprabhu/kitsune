@@ -3,7 +3,6 @@ set(LLVM_LINK_COMPONENTS
   Demangle
   FrontendHLSL
   FrontendOpenMP
-  KitFrontend
   MC
   Support
   TargetParser
@@ -118,5 +117,6 @@ add_clang_library(clangSema
   clangBasic
   clangEdit
   clangLex
+  clangKitSupport
   clangSupport
   )

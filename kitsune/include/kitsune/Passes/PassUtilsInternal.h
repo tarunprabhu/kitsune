@@ -176,10 +176,9 @@ private:
       return 1;
 
     // We call the internal diagnostic function directly. Otherwise, we would
-    // have to include "kitsune/Frontend/Diagnostics.h" which would change
-    // every time a new diagnostic was added and trigger a major rebuild. The
-    // internal function is a special case added just to avoid this problem.
-    // Yes, it is absolutely ugly, but there we are.
+    // have to include "kitsune/Core/Diagnostics.h" which changes each time a
+    // diagnostic is added and triggers a major rebuild. The internal function
+    // is a special case added just to avoid this problem.
     emitPassNotRunDiagnostic(PassT::name(), T::name());
     return 0;
   }

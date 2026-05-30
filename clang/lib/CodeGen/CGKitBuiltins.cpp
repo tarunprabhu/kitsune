@@ -12,9 +12,9 @@
 
 #include "CGKitsune.h"
 #include "CodeGenFunction.h"
+#include "kitsune/Clang/ReductionUtils.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/KitOptions.h"
-#include "kitsune/Frontend/ReductionUtils.h"
 #include "kitsune/Support/AddrSpace.h"
 
 using namespace clang;
