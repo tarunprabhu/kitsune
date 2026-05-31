@@ -8808,9 +8808,9 @@ static void processTypeAttrs(TypeProcessingState &state, QualType &type,
     // otherwise, add it to the FnAttrs list for rechaining.
     switch (attr.getKind()) {
     default:
-      if (Handled<QualType> h =
+      if (Handled<QualType> H =
               state.getSema().Kitsune().processTypeAttribute(type, attr)) {
-        QualType newType = *h;
+        QualType newType = H.value();
         if (newType != type)
           type = newType;
         attr.setUsedAsTypeAttr();

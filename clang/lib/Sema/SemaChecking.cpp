@@ -3210,8 +3210,11 @@ Sema::CheckBuiltinFunctionCall(FunctionDecl *FDecl, unsigned BuiltinID,
     break;
   }
 
-  if (Handled<bool> h = Kitsune().checkBuiltinFunctionCall(BuiltinID, TheCall))
-    if (!*h)
+  // If the builtin is a Kitsune-specific builtin, the returned value will
+  // contain a boolean. If that boolean is false, an error was found during the
+  // check.
+  if (Handled<bool> H = Kitsune().checkBuiltinFunctionCall(BuiltinID, TheCall))
+    if (!H.value())
       return ExprError();
 
   if (getLangOpts().HLSL && HLSL().CheckBuiltinFunctionCall(BuiltinID, TheCall))

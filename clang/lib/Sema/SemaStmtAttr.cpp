@@ -725,8 +725,8 @@ static Attr *ProcessStmtAttribute(Sema &S, Stmt *St, const ParsedAttr &A,
   case ParsedAttr::AT_Atomic:
     return handleAtomicAttr(S, St, A, Range);
   default:
-    if (Handled<Attr *> h = S.Kitsune().processStmtAttribute(St, A, Range))
-      return *h;
+    if (Handled<Attr *> H = S.Kitsune().processStmtAttribute(St, A, Range))
+      return H.value();
     if (Attr *AT = nullptr; A.getInfo().handleStmtAttribute(S, St, A, AT) !=
                             ParsedAttrInfo::NotHandled) {
       return AT;
