@@ -82,7 +82,7 @@ static void checkTTEnabled(llvm::TTID tt, DiagnosticsEngine &diags) {
     // as "not enabled".
     break;
   }
-  diags.Report(diag::err_drv_kitsune_target_not_enabled) << llvm::toString(tt);
+  diags.Report(diag::err_drv_kit_target_not_enabled) << llvm::toString(tt);
 }
 
 // Check the optimization level. Kitsune supports a narrower range of
@@ -112,8 +112,7 @@ static void checkThreadsPerBlock(const Arg &a, const ArgList &args,
   else if (val.getAsInteger(10, n))
     diags.Report(diag::err_drv_invalid_int_value) << a.getAsString(args) << val;
   else if (n < 1 || n > 1024)
-    diags.Report(diag::err_drv_kitsune_threads_per_block)
-        << a.getAsString(args);
+    diags.Report(diag::err_drv_kit_threads_per_block) << a.getAsString(args);
 }
 
 void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
@@ -126,7 +125,7 @@ void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
   // If this is not a Kitsune frontend, Kitsune options are not allowed.
   if (!isKitsuneFrontend) {
     for (Arg *a : args.filtered(options::OPT_kitsune_Group)) {
-      diags.Report(diag::err_drv_kitsune_frontend_only) << a->getSpelling();
+      diags.Report(diag::err_drv_kit_frontend_only) << a->getSpelling();
       return;
     }
   }
@@ -138,7 +137,7 @@ void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
       if (Arg *a = args.getLastArg(options::OPT_ffp_contract)) {
         StringRef fpContract = a->getValue();
         if (fpContract == "on" || fpContract == "fast-honor-pragmas") {
-          diags.Report(diag::err_drv_unsupported_option_argument_for_frontend)
+          diags.Report(diag::err_drv_kit_unsupported_optarg)
               << a->getSpelling() << fpContract << llvm::kitFortranFrontend();
           return;
         }
@@ -146,7 +145,7 @@ void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
     }
 
     if (!checkOptLevel(args)) {
-      diags.Report(diag::err_drv_kitsune_bad_opt_level)
+      diags.Report(diag::err_drv_kit_bad_opt_level)
           << args.getLastArg(options::OPT_O_Group)->getSpelling();
       return;
     }
@@ -156,13 +155,13 @@ void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
   bool isKokkosNoInit = args.hasArg(options::OPT_kokkos_no_init);
   if (isKokkos || isKokkosNoInit) {
     if constexpr (!llvm::kitKokkosEnabled()) {
-      diags.Report(diag::err_drv_kitsune_kokkos_disabled);
+      diags.Report(diag::err_drv_kit_kokkos_disabled);
       return;
     }
 
     // If --kokkos is provided, then a tapir target must also be provided.
     if (!args.hasArg(options::OPT_tapir_EQ)) {
-      diags.Report(diag::err_drv_kitsune_tapir_required)
+      diags.Report(diag::err_drv_kit_tapir_required)
           << args.getLastArg(options::OPT_kokkos, options::OPT_kokkos_no_init)
                  ->getSpelling();
       return;
@@ -173,7 +172,7 @@ void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
   // That target must be 'custom', but that will be checked later.
   if (args.hasArg(options::OPT_tapir_plugin_EQ))
     if (not args.hasArg(options::OPT_tapir_EQ))
-      diags.Report(diag::err_drv_kitsune_plugin_wrong_target);
+      diags.Report(diag::err_drv_kit_plugin_wrong_target);
 
   // Check that the --tapir flag has a valid value. This stops us from
   // reporting multiple errors because the flag is examined in several places.
@@ -187,25 +186,25 @@ void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
 
     if (args.hasArg(options::OPT_tapir_plugin_EQ))
       if (*tt != llvm::TTID::Custom)
-        diags.Report(diag::err_drv_kitsune_plugin_wrong_target);
+        diags.Report(diag::err_drv_kit_plugin_wrong_target);
 
     checkTTEnabled(*tt, diags);
 
     if (*tt == llvm::TTID::Custom) {
       const Arg *a = args.getLastArg(options::OPT_tapir_plugin_EQ);
       if (!a)
-        diags.Report(diag::err_drv_kitsune_plugin_missing);
+        diags.Report(diag::err_drv_kit_plugin_missing);
       if (std::optional<std::string> plugin =
               getUniqueArgValue(args, options::OPT_tapir_plugin_EQ)) {
         if (plugin->empty())
           diags.Report(diag::err_drv_missing_argument)
               << a->getAsString(args) << 1;
       } else {
-        diags.Report(diag::err_drv_kitsune_plugin_multiple);
+        diags.Report(diag::err_drv_kit_plugin_multiple);
       }
     } else if (*tt == llvm::TTID::OpenCilk) {
       if (!triple.isOSLinux() && !triple.isOSFreeBSD() && !triple.isMacOSX())
-        diags.Report(diag::err_drv_tapir_target_system)
+        diags.Report(diag::err_drv_kit_tt_system)
             << llvm::toString(*tt) << triple.getOSName();
 
       switch (triple.getArch()) {
@@ -217,13 +216,13 @@ void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
       case llvm::Triple::aarch64_be:
         break;
       default:
-        diags.Report(diag::err_drv_tapir_target_arch)
+        diags.Report(diag::err_drv_kit_tt_arch)
             << llvm::toString(*tt) << triple.getArchName();
         break;
       }
     } else if (*tt == llvm::TTID::Qthreads) {
       if (!triple.isOSLinux() && !triple.isMacOSX())
-        diags.Report(diag::err_drv_tapir_target_system)
+        diags.Report(diag::err_drv_kit_tt_system)
             << llvm::toString(*tt) << triple.getOSName();
 
       switch (triple.getArch()) {
@@ -235,19 +234,19 @@ void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
       case llvm::Triple::aarch64_be:
         break;
       default:
-        diags.Report(diag::err_drv_tapir_target_arch)
+        diags.Report(diag::err_drv_kit_tt_arch)
             << llvm::toString(*tt) << triple.getArchName();
         break;
       }
     }
 
     if (args.hasArg(options::OPT_offload_targets_EQ))
-      diags.Report(clang::diag::err_drv_kitsune_offload);
+      diags.Report(clang::diag::err_drv_kit_offload);
 
     // Kitsune does not support ROCm ABI versions < 5. But that should only be
     // relevant when using the Kitsune frontend.
     if (amdgpuCodeObjectVersion < 5)
-      diags.Report(diag::err_drv_kitsune_hip_code_object_version)
+      diags.Report(diag::err_drv_kit_hip_code_object_version)
           << amdgpuCodeObjectVersion;
 
     // Kitsune supports a narrower range of optimization levels than clang or
@@ -259,7 +258,7 @@ void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
     // tapir target is set to nolo. The latter allows -O0 because no lowering
     // takes place and it is very useful to just dump out "tapirized" LLVM IR.
     if (speedupLevel == 0 && *tt != llvm::TTID::Nolo)
-      diags.Report(clang::diag::err_drv_kitsune_optzns_required);
+      diags.Report(clang::diag::err_drv_kit_optzns_required);
 
     // The way the middle-end passes are built, the tapir passes are not run if
     // LTO is enabled and the optimization level is < O2. It is not clear why
@@ -269,7 +268,7 @@ void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
     bool isLTO =
         args.hasArg(options::OPT_flto) || args.hasArg(options::OPT_flto_EQ);
     if (isLTO && speedupLevel < 2)
-      diags.Report(clang::diag::err_drv_kitsune_lto_o2_required);
+      diags.Report(clang::diag::err_drv_kit_lto_o2_required);
 
     // With the cuda tapir target, if debug info is enabled, ptxas cannot be
     // run with optimizations because it does not support "optimized debugging".
@@ -277,10 +276,10 @@ void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
     // this combination of options.
     if (*tt == llvm::TTID::Cuda && args.getLastArg(options::OPT_g_Group)) {
       if (speedupLevel == 1) {
-        diags.Report(clang::diag::warn_drv_kitsune_cuda_optzns_debug)
+        diags.Report(clang::diag::warn_drv_kit_cuda_optzns_debug)
             << speedupLevel;
       } else if (speedupLevel > 1) {
-        diags.Report(clang::diag::err_drv_kitsune_cuda_optzns_debug);
+        diags.Report(clang::diag::err_drv_kit_cuda_optzns_debug);
         return;
       }
     }
@@ -291,7 +290,7 @@ void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
   if (const Arg *a = args.getLastArg(options::OPT_tapir_cuda_arch_EQ)) {
     OffloadArch arch = StringToOffloadArch(a->getValue());
     if (arch == OffloadArch::UNKNOWN || !IsNVIDIAOffloadArch(arch))
-      diags.Report(diag::err_drv_kitsune_bad_cuda_arch) << a->getValue();
+      diags.Report(diag::err_drv_kit_bad_cuda_arch) << a->getValue();
   }
 
   // Check that the --tapir-cuda-arch option has a valid value. If an empty
@@ -299,13 +298,12 @@ void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
   if (const Arg *a = args.getLastArg(options::OPT_tapir_hip_arch_EQ)) {
     OffloadArch arch = StringToOffloadArch(a->getValue());
     if (arch == OffloadArch::UNKNOWN || !IsAMDOffloadArch(arch))
-      diags.Report(diag::err_drv_kitsune_bad_hip_arch) << a->getValue();
+      diags.Report(diag::err_drv_kit_bad_hip_arch) << a->getValue();
   }
 
   // Check that options accepting numeric arguments are within a valid range.
   if (Arg *a = args.getLastArg(options::OPT_tapir_gpu_tpb_EQ))
     checkThreadsPerBlock(*a, args, diags);
-
 
   if (Arg *a = args.getLastArg(options::OPT_tapir_gpu_max_tpb_EQ))
     checkThreadsPerBlock(*a, args, diags);
@@ -328,8 +326,7 @@ void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
   if (isUsingLTO && args.getLastArg(options::OPT_tapir_EQ)) {
     if (const Arg *a =
             args.getLastArg(options::OPT_fuse_ld_EQ, options::OPT_ld_path_EQ))
-      diags.Report(diag::err_drv_kitsune_lto_disallowed_arg)
-          << a->getSpelling();
+      diags.Report(diag::err_drv_kit_lto_disallowed_arg) << a->getSpelling();
   }
 }
 
@@ -452,7 +449,7 @@ static bool parseKitsuneCudaArgs(KitOptions &opts, const ArgList &args,
       OPT_tapir_cuda_features_EQ, OPT_tapir_cuda_runtime_bc_EQ};
   for (OptSpecifier opt : requiredOpts)
     if (!args.hasArg(opt))
-      diags.Report(diag::err_drv_kitsune_missing_required)
+      diags.Report(diag::err_drv_kit_missing_required)
           << optTable.getOptionName(opt);
 
   if (diags.getNumErrors() > numErrorsBefore)
@@ -476,7 +473,7 @@ static bool parseKitsuneCustomArgs(KitOptions &opts, const ArgList &args,
   const OptSpecifier requiredOpts[] = {OPT_tapir_plugin_EQ};
   for (OptSpecifier opt : requiredOpts)
     if (!args.hasArg(opt))
-      diags.Report(diag::err_drv_kitsune_missing_required)
+      diags.Report(diag::err_drv_kit_missing_required)
           << optTable.getOptionName(opt);
 
   if (diags.getNumErrors() > numErrorsBefore)
@@ -485,7 +482,7 @@ static bool parseKitsuneCustomArgs(KitOptions &opts, const ArgList &args,
   StringRef pluginFile = args.getLastArgValue(OPT_tapir_plugin_EQ);
   Expected<TTPlugin> ttPlugin = TTPlugin::load(pluginFile);
   if (!ttPlugin)
-    diags.Report(diag::err_drv_kitsune_plugin_invalid)
+    diags.Report(diag::err_drv_kit_plugin_invalid)
         << toString(ttPlugin.takeError());
 
   opts.setTTPlugin(pluginFile);
@@ -504,7 +501,7 @@ static bool parseKitsuneHipArgs(KitOptions &opts, const ArgList &args,
       OPT_tapir_hip_sramecc_EQ,     OPT_tapir_hip_xnack_EQ};
   for (OptSpecifier opt : requiredOpts)
     if (!args.hasArg(opt))
-      diags.Report(diag::err_drv_kitsune_missing_required)
+      diags.Report(diag::err_drv_kit_missing_required)
           << optTable.getOptionName(opt);
 
   if (diags.getNumErrors() > numErrorsBefore)
@@ -573,7 +570,7 @@ static bool parseKitsuneOpenCilkArgs(KitOptions &opts, const ArgList &args,
 
   for (OptSpecifier opt : {OPT_tapir_opencilk_runtime_bc_EQ})
     if (!args.hasArg(opt))
-      diags.Report(diag::err_drv_kitsune_missing_required)
+      diags.Report(diag::err_drv_kit_missing_required)
           << optTable.getOptionName(opt);
 
   if (diags.getNumErrors() > numErrorsBefore)

@@ -1805,7 +1805,7 @@ StmtResult Sema::ActOnWhileStmt(SourceLocation WhileLoc,
 
   // KITSUNE FIXME: Why is this a warning? Is it really a problem.
   if (Body->getStmtClass() == Stmt::SpawnStmtClass)
-    Diag(WhileLoc, diag::warn_spawn_as_loop_body) << "while";
+    Diag(WhileLoc, diag::warn_kit_spawn_as_loop_body) << "while";
 
   auto CondVal = Cond.get();
   CheckBreakContinueBinding(CondVal.second);
@@ -1838,7 +1838,7 @@ Sema::ActOnDoStmt(SourceLocation DoLoc, Stmt *Body,
 
   // KITSUNE FIXME: Why is this a warning? Is it really a problem.
   if (Body->getStmtClass() == Stmt::SpawnStmtClass)
-    Diag(DoLoc, diag::warn_spawn_as_loop_body) << "do";
+    Diag(DoLoc, diag::warn_kit_spawn_as_loop_body) << "do";
 
   CheckBreakContinueBinding(Cond);
   ExprResult CondResult = CheckBooleanCondition(DoLoc, Cond);
@@ -2277,7 +2277,7 @@ StmtResult Sema::ActOnForStmt(SourceLocation ForLoc, SourceLocation LParenLoc,
 
   // KITSUNE FIXME: Why is this a warning? Is it really a problem.
   if (Body->getStmtClass() == Stmt::SpawnStmtClass)
-    Diag(ForLoc, diag::warn_spawn_as_loop_body) << "for";
+    Diag(ForLoc, diag::warn_kit_spawn_as_loop_body) << "for";
 
   if (!getLangOpts().CPlusPlus) {
     if (DeclStmt *DS = dyn_cast_or_null<DeclStmt>(First)) {
@@ -4820,7 +4820,7 @@ StmtResult Sema::ActOnForallStmt(SourceLocation ForLoc,
   // private induction variable as we don't use any form of metadata
   if (!First)
     return StmtError(
-        Diag(LParenLoc.getLocWithOffset(1), diag::err_forall_no_init));
+        Diag(LParenLoc.getLocWithOffset(1), diag::err_kit_forall_no_init));
 
   // If the statement is present, it must be a DeclStmt. We need to have a
   // private induction variable in order to correctly generate code in all
@@ -4828,22 +4828,22 @@ StmtResult Sema::ActOnForallStmt(SourceLocation ForLoc,
   // race on that variable for some tapir targets.
   if (!isa<DeclStmt>(First))
     return StmtError(
-        Diag(First->getBeginLoc(), diag::err_forall_init_not_decl));
+        Diag(First->getBeginLoc(), diag::err_kit_forall_init_not_decl));
 
   // Currently, we only support a single induction variable in a forall loop.
   // The Kitsune-specific tapir targets may not correctly handle multiple
   // induction variables. This is a limitation that may be worth fixing.
   if (!cast<DeclStmt>(First)->isSingleDecl())
     return StmtError(
-        Diag(First->getBeginLoc(), diag::err_forall_init_multiple));
+        Diag(First->getBeginLoc(), diag::err_kit_forall_init_multiple));
 
   // A forall statement must have a condition. Without a condition, it would be
   // up to the loop body to break in order not to have an infinite loop. As
   // mentioned below, breaking loops doesn't make sense in a parallel for.
   if (!Second.get().first &&
       !Second.get().second) // neither condition declaration nor expression
-    return StmtError(
-        Diag(First->getEndLoc().getLocWithOffset(1), diag::err_forall_no_cond));
+    return StmtError(Diag(First->getEndLoc().getLocWithOffset(1),
+                          diag::err_kit_forall_no_cond));
 
   // A forall statement must have an increment expression. If it didn't, we
   // would need to modify the induction variable in the loop body. But in a
@@ -4853,7 +4853,7 @@ StmtResult Sema::ActOnForallStmt(SourceLocation ForLoc,
   // since this isn't passed at the moment.
   if (!Third)
     return StmtError(
-        Diag(RParenLoc.getLocWithOffset(-1), diag::err_forall_no_inc));
+        Diag(RParenLoc.getLocWithOffset(-1), diag::err_kit_forall_no_inc));
 
   // We can't allow break statements in a forall statement. Breaking a serial
   // loop means stopping later iterations which is essentially having one loop
@@ -4865,7 +4865,7 @@ StmtResult Sema::ActOnForallStmt(SourceLocation ForLoc,
   // check explicitly disallows breaking.
   auto BCF = BreakContinueFinder(*this, Body);
   if (BCF.BreakFound())
-    return StmtError(Diag(BCF.GetBreakLoc(), diag::err_forall_has_break));
+    return StmtError(Diag(BCF.GetBreakLoc(), diag::err_kit_forall_has_break));
 
   // KITSUNE FIXME: This needs to be a considerably more sophisticated check.
   //
@@ -4883,7 +4883,7 @@ StmtResult Sema::ActOnForallStmt(SourceLocation ForLoc,
   // to descend into the body of the forall and check everywhere there. That,
   // at least, is not unreasonable.
   if (Body->getStmtClass() == Stmt::SpawnStmtClass)
-    return StmtError(Diag(ForLoc, diag::err_spawn_in_forall));
+    return StmtError(Diag(ForLoc, diag::err_kit_spawn_in_forall));
 
   if (isa<NullStmt>(Body))
     getCurCompoundScope().setHasEmptyLoopBodies();

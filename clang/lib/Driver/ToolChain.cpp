@@ -1942,14 +1942,14 @@ static std::string GetUniqueSystemGPUOrDefault(const Driver &D,
   DiagnosticsEngine &Diags = D.getDiags();
   Expected<SmallVector<std::string>> Archs = TC.getSystemGPUArchs(Args);
   if (!Archs) {
-    Diags.Report(diag::warn_drv_kitsune_no_gpu)
+    Diags.Report(diag::warn_drv_kit_no_gpu)
         << llvm::toString(Archs.takeError()) << Default;
     return Default.str();
   }
 
   std::set<std::string> Uniq(Archs->begin(), Archs->end());
   if (Uniq.size() != 1) {
-    D.getDiags().Report(diag::warn_drv_kitsune_multi_gpu)
+    D.getDiags().Report(diag::warn_drv_kit_multi_gpu)
         << TC.getArchName() << llvm::join(Uniq.begin(), Uniq.end(), ",");
     return Default.str();
   }

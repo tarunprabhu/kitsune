@@ -4879,13 +4879,13 @@ bool CompilerInvocation::CheckKitsuneArgs(const ArgList &Args,
   //
   // I have no words ...
   if (LangOpts.HIP)
-    Diags.Report(clang::diag::err_drv_kitsune_hip);
+    Diags.Report(clang::diag::err_drv_kit_hip);
   else if (LangOpts.CUDA)
-    Diags.Report(clang::diag::err_drv_kitsune_cuda);
+    Diags.Report(clang::diag::err_drv_kit_cuda);
   else if (LangOpts.ObjC)
-    Diags.Report(clang::diag::err_drv_kitsune_objc);
+    Diags.Report(clang::diag::err_drv_kit_objc);
   else if (LangOpts.OpenCL)
-    Diags.Report(clang::diag::err_drv_kitsune_opencl);
+    Diags.Report(clang::diag::err_drv_kit_opencl);
 
   return Diags.getNumErrors() == NumErrorsBefore;
 }
