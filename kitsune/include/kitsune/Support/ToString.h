@@ -16,8 +16,8 @@
 
 #include "kitsune/Core/OptznLevel.h"
 #include "kitsune/Core/Tapir.h"
-#include "llvm/ADT/StringRef.h"
 #include "kitsune/Support/MaybeBool.h"
+#include "llvm/ADT/StringRef.h"
 
 namespace llvm {
 

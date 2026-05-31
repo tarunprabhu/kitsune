@@ -33,9 +33,8 @@ static cl::opt<bool>
               cl::desc("Dump the tapir target options if they have been set"),
               cl::Hidden, cl::cat(cl::catKitClOpts));
 
-/// Empty vector of tapir targets to be used when
-/// TTObjects::getRequiredTTs is called with a function that does not
-/// contain any tapir loops.
+/// Empty vector of tapir targets to be used when TTObjects::getRequiredTTs is
+/// called with a function that does not contain any tapir loops.
 static const std::vector<TTID> noTTs;
 
 TTObjects::TTObjects(std::optional<TTOptions> ttOpts) : ttOpts(ttOpts) {}

@@ -148,9 +148,7 @@ public:
   /// Get the function to which this tapir loop nest belongs.
   Function *getParent() const { return nest.getParent(); }
 
-  const UnsafeInstsList &getUnsafeInsts() const {
-    return unsafeInsts;
-  }
+  const UnsafeInstsList &getUnsafeInsts() const { return unsafeInsts; }
 
 public:
   /// Create a tapir loop nest object rooted at the given loop. If the loop is
