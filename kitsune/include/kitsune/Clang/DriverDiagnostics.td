@@ -86,9 +86,6 @@ def err_drv_kit_hip: Error<
 def err_drv_kit_offload : Error<
   "cannot use offload with a tapir target">;
 
-def err_drv_kit_opencilk_missing_abi_bitcode: Error<
-  "cannot find OpenCilk runtime ABI bitcode file">;
-
 def err_drv_kit_kokkos_disabled : Error<
   "kokkos support was not enabled when kitsune was built">;
 
