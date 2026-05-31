@@ -103,6 +103,19 @@ static bool checkOptLevel(const ArgList &args) {
   return true;
 }
 
+static void checkThreadsPerBlock(const Arg &a, const ArgList &args,
+                                 DiagnosticsEngine &diags) {
+  int n = 0;
+  StringRef val = a.getValue();
+  if (val.empty())
+    diags.Report(diag::err_drv_missing_argument) << a.getAsString(args) << 1;
+  else if (val.getAsInteger(10, n))
+    diags.Report(diag::err_drv_invalid_int_value) << a.getAsString(args) << val;
+  else if (n < 1 || n > 1024)
+    diags.Report(diag::err_drv_kitsune_threads_per_block)
+        << a.getAsString(args);
+}
+
 void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
                                     bool isFlangMode, bool isUsingLTO,
                                     StringRef tripleStr,
@@ -290,31 +303,12 @@ void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
   }
 
   // Check that options accepting numeric arguments are within a valid range.
-  if (Arg *a = args.getLastArg(options::OPT_tapir_gpu_tpb_EQ)) {
-    int n = 0;
-    StringRef val = a->getValue();
-    if (val.empty())
-      diags.Report(diag::err_drv_missing_argument) << a->getAsString(args) << 1;
-    else if (val.getAsInteger(10, n))
-      diags.Report(diag::err_drv_invalid_int_value)
-          << a->getAsString(args) << val;
-    else if (n < 1 || n > 1024)
-      diags.Report(diag::err_drv_kitsune_threads_per_block)
-          << a->getAsString(args);
-  }
+  if (Arg *a = args.getLastArg(options::OPT_tapir_gpu_tpb_EQ))
+    checkThreadsPerBlock(*a, args, diags);
 
-  if (Arg *a = args.getLastArg(options::OPT_tapir_gpu_max_tpb_EQ)) {
-    int n = 0;
-    StringRef val = a->getValue();
-    if (val.empty())
-      diags.Report(diag::err_drv_missing_argument) << a->getAsString(args) << 1;
-    else if (val.getAsInteger(10, n))
-      diags.Report(diag::err_drv_invalid_int_value)
-          << a->getAsString(args) << val;
-    else if (n < 1 || n > 1024)
-      diags.Report(diag::err_drv_kitsune_threads_per_block)
-          << a->getAsString(args);
-  }
+
+  if (Arg *a = args.getLastArg(options::OPT_tapir_gpu_max_tpb_EQ))
+    checkThreadsPerBlock(*a, args, diags);
 
   for (OptSpecifier opt :
        {options::OPT_tapir_hip_sramecc_EQ, options::OPT_tapir_hip_xnack_EQ}) {
