@@ -8,6 +8,7 @@
 
 #include "Darwin.h"
 #include "Arch/ARM.h"
+#include "kitsune/Clang/KitDriverUtils.h"
 #include "clang/Basic/AlignedAllocation.h"
 #include "clang/Basic/ObjCRuntime.h"
 #include "clang/Config/config.h"
@@ -15,7 +16,6 @@
 #include "clang/Driver/Compilation.h"
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/DriverDiagnostic.h"
-#include "clang/Driver/KitsuneOptionUtils.h"
 #include "clang/Driver/Options.h"
 #include "clang/Driver/SanitizerArgs.h"
 #include "llvm/ADT/StringSwitch.h"

@@ -871,9 +871,6 @@ llvm::StringRef getDriverMode(StringRef ProgName, ArrayRef<const char *> Args);
 /// Checks whether the value produced by getDriverMode is for CL mode.
 bool IsClangCL(StringRef DriverMode);
 
-/// Checks whether the given program is a Kitsune frontend.
-bool IsKitsuneFrontend(StringRef ProgName);
-
 /// Expand response files from a clang driver or cc1 invocation.
 ///
 /// \param Args The arguments that will be expanded.

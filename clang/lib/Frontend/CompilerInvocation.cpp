@@ -8,6 +8,7 @@
 
 #include "clang/Frontend/CompilerInvocation.h"
 #include "TestModuleFileExtension.h"
+#include "kitsune/Clang/KitDriverUtils.h"
 #include "kitsune/Core/Tapir.h"
 #include "kitsune/Support/ToString.h"
 #include "clang/Basic/Builtins.h"
@@ -30,7 +31,6 @@
 #include "clang/Config/config.h"
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/DriverDiagnostic.h"
-#include "clang/Driver/KitsuneOptionUtils.h"
 #include "clang/Driver/Options.h"
 #include "clang/Frontend/CommandLineSourceLoc.h"
 #include "clang/Frontend/DependencyOutputOptions.h"

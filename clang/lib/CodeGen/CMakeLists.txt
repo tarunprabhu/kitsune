@@ -180,6 +180,6 @@ add_clang_library(clangCodeGen
   clangBasic
   clangFrontend
   clangLex
-  clangKitSupport
+  clangKitAST
   clangSerialization
   )
