@@ -117,6 +117,6 @@ add_clang_library(clangSema
   clangBasic
   clangEdit
   clangLex
-  clangKitSupport
+  clangKitAST
   clangSupport
   )

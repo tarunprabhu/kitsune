@@ -1,4 +1,4 @@
-//===- KitsuneOptionUtils.h - Utilities for Kitsune options -----*- C++ -*-===//
+//=- KitDriverUtils.h - Utilities for Kitsune's command-line opts -*- C++ -*-=//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,14 +6,15 @@
 //
 //===----------------------------------------------------------------------===//
 ///
-/// Helper functions to parse Kitsune-specific command line options
+/// Helper functions for Kitsune-specific command line options.
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_DRIVER_KITSUNE_OPTION_UTILS_H
-#define LLVM_CLANG_DRIVER_KITSUNE_OPTION_UTILS_H
+#ifndef KITSUNE_CLANG_KIT_DRIVER_UTILS_H
+#define KITSUNE_CLANG_KIT_DRIVER_UTILS_H
 
 #include "kitsune/Core/Tapir.h"
+#include "clang/Driver/Driver.h"
 #include "llvm/ADT/StringRef.h"
 
 #include <optional>
@@ -34,14 +35,29 @@ class OptTable;
 
 namespace clang {
 
-class DiagnosticsEngine;
+namespace driver {
+
+/// Is \p progName the name of a Kitsune frontend.
+bool isKitsuneFrontend(StringRef progName);
+
+/// Validate the Kitsune-specific options in \p args.
+/// If any options are invalid, a diagnostic will be emitted. The caller will
+/// determine what to do if any diagnostics were emitted.
+///
+/// We don't want a circular dependence between this and clang's Driver object,
+/// so we pass in certain values that we would otherwise have looked up in the
+/// Driver object.
+void checkKitOptions(const llvm::opt::ArgList &args, bool isKitsuneFrontend,
+                     bool isFlangMode, bool isUsingLTO, StringRef triple,
+                     unsigned amdgpuCodeObjectVersion,
+                     DiagnosticsEngine &diags);
 
 /// Get the optimzation speedup level as an integer. This is not as
 /// straightforward as it might appear since clang and flang use different
-/// defaults when no optimization level is provided and we have to handle flags
-/// such as -Ofast and the rather infuriating -O. We need this behavior to be
-/// consistent between kitcc, kit++ and kitfc, even if that behavior differs
-/// from clang and flang.
+/// defaults when no optimization level is provided and we have to handle
+/// flags such as -Ofast and the rather infuriating -O. We need this
+/// behavior to be consistent between kitcc, kit++ and kitfc, even if that
+/// behavior differs from clang and flang.
 unsigned getSpeedupLevel(const llvm::opt::ArgList &args,
                          clang::DiagnosticsEngine &diags);
 
@@ -77,6 +93,8 @@ bool parseKitsuneArgs(llvm::driver::KitOptions &kitOpts, const char *argv0,
                       const llvm::opt::OptTable &optTable,
                       clang::DiagnosticsEngine &diags);
 
+} // namespace driver
+
 } // namespace clang
 
-#endif // LLVM_CLANG_DRIVER_KITSUNE_OPTION_UTILS_H
+#endif // KITSUNE_CLANG_KIT_DRIVER_UTILS_H

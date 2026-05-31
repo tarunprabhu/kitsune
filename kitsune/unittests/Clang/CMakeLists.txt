@@ -3,7 +3,7 @@ set(LLVM_LINK_COMPONENTS
 )
 
 set(CLANG_LINK_COMPONENTS
-  KitSupport
+  KitAST
 )
 
 add_kitsune_unittest(KitClangTests

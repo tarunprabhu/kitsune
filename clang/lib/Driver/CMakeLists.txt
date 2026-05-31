@@ -31,7 +31,6 @@ add_clang_library(clangDriver
   Distro.cpp
   Driver.cpp
   Job.cpp
-  KitsuneOptionUtils.cpp
   ModulesDriver.cpp
   Multilib.cpp
   MultilibBuilder.cpp
@@ -120,5 +119,6 @@ add_clang_library(clangDriver
   clangSerialization
   clangLex
   clangOptions
+  clangKitDriver
   ${system_libs}
   )
