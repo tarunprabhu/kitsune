@@ -93,9 +93,8 @@ Handled<bool> SemaKitsune::processDeclAttribute(Decl *decl,
   case ParsedAttr::AT_KitsuneMemAccess:
     return handleMemAccessAttr(decl, attr);
   default:
-    break;
+    return notHandled<bool>;
   }
-  return notHandled<bool>;
 }
 
 Attr *SemaKitsune::handleTTAttr(Stmt *stmt, const ParsedAttr &attr,
@@ -184,9 +183,8 @@ Handled<Attr *> SemaKitsune::processStmtAttribute(Stmt *stmt,
   case ParsedAttr::AT_TT:
     return handleTTAttr(stmt, attr, range);
   default:
-    break;
+    return notHandled<Attr *>;
   }
-  return notHandled<Attr *>;
 }
 
 void SemaKitsune::checkAttributes(const Stmt *stmt,
@@ -240,9 +238,8 @@ Handled<QualType> SemaKitsune::processTypeAttribute(QualType type,
   case ParsedAttr::AT_KitsuneMobile:
     return handleMobileAttr(type, attr);
   default:
-    break;
+    return notHandled<QualType>;
   }
-  return notHandled<QualType>;
 }
 
 bool SemaKitsune::checkMobileFreeCall(CallExpr *theCall) {

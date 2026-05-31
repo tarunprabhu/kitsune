@@ -7615,7 +7615,7 @@ ProcessDeclAttribute(Sema &S, Scope *scope, Decl *D, const ParsedAttr &AL,
 
   switch (AL.getKind()) {
   default:
-    if (Handled<bool> h = S.Kitsune().processDeclAttribute(D, AL))
+    if (Handled<bool> H = S.Kitsune().processDeclAttribute(D, AL))
       break;
     if (AL.getInfo().handleDeclAttribute(S, D, AL) != ParsedAttrInfo::NotHandled)
       break;
