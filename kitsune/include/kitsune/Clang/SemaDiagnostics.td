@@ -16,69 +16,69 @@
 //===----------------------------------------------------------------------===//
 
 // General errors that may apply to all Kitsune-specific attributes
-def err_duplicate_attribute_stmt : Error<
+def err_kit_duplicate_attribute_stmt : Error<
     "attribute %0 cannot appear more than once on a statement">;
 
 // tapir::target attribute
-def err_tapir_target_attr_unsupported_stmt: Error<
+def err_kit_tt_attr_unsupported_stmt: Error<
     "'tapir::target' attribute: unsupported statement">;
-def err_tapir_target_unknown: Error<
+def err_kit_tt_unknown: Error<
     "'tapir::target' attribute: unknown value ">;
-def err_tapir_target_custom: Error<
+def err_kit_tt_custom: Error<
     "'tapir::target' attribute: value cannot be 'custom'">;
 
 // kernel::launch attribute
-def err_kitsune_launch_range: Error<
+def err_kit_launch_range: Error<
     "'kitsune::launch' attribute: value not in range [0,1024]">;
 
 // spawn statement
-def warn_spawn_as_loop_body: Warning<
+def warn_kit_spawn_as_loop_body: Warning<
     "%0 loop with spawn statement body has undefined behavior">,
     InGroup<Kitsune>;
-def err_spawn_in_forall: Error<
+def err_kit_spawn_in_forall: Error<
     "spawn statements are not allowed in forall loops">;
 
 // forall statement
-def err_forall_no_init: Error<
+def err_kit_forall_no_init: Error<
     "forall statement must have an initialization expression">;
-def err_forall_no_cond: Error<
+def err_kit_forall_no_cond: Error<
     "forall statement must have a condition expression">;
-def err_forall_no_inc: Error<
+def err_kit_forall_no_inc: Error<
     "forall statement must have an increment expression">;
-def err_forall_has_break: Error<
+def err_kit_forall_has_break: Error<
     "forall body may not have a break statement">;
-def err_forall_init_not_decl: Error<
+def err_kit_forall_init_not_decl: Error<
     "initializer in a forall statement must be a variable declaration">;
-def err_forall_init_multiple: Error<
+def err_kit_forall_init_multiple: Error<
     "initializer in a forall statement must declare exactly one variable">;
 
 // memory access qualifiers
-def err_kitsune_multiple_access_qualifiers : Error<
+def err_kit_multiple_access_qualifiers : Error<
     "multiple access qualifiers">;
-def note_kitsune_typedef_access_qualifier : Note<
+def note_kit_typedef_access_qualifier : Note<
     "previously declared '%0' here">;
 
 // mobile attribute/qualifier
-def err_kitsune_mobile_on_non_pointer : Error<
+def err_kit_mobile_on_non_pointer : Error<
     "'kitsune::mobile' can only be used on a pointer type">;
-def err_kitsune_cast_to_mobile : Error<
+def err_kit_cast_to_mobile : Error<
     "cast to a kitsune::mobile pointer is not allowed">;
-def err_kitsune_cast_away_mobile : Error<
+def err_kit_cast_away_mobile : Error<
     "%0 cannot be used to cast away mobile qualifier. Use c-style cast "
     "instead">;
 
-def note_ovl_candidate_no_mobile: Note<
+def note_kit_ovl_candidate_no_mobile: Note<
     "candidate %sub{select_ovl_candidate_kind}0,1,2 not viable: "
     "%ordinal4 argument (%3) does not accept mobile pointer. Consider using "
     "__kitsune_mobile_cast_unsafe">;
-def note_ovl_candidate_with_mobile: Note<
+def note_kit_ovl_candidate_with_mobile: Note<
     "candidate %sub{select_ovl_candidate_kind}0,1,2 not viable: "
     "%ordinal4 argument (%3) requires mobile pointer">;
 
 // mobile builtins
-def err_kitsune_mobile_free_arg : Error<
+def err_kit_mobile_free_arg : Error<
     "argument of kitsune_mobile_free must have mobile qualifier">;
-def err_kitsune_mobile_cast_arg: Error<
+def err_kit_mobile_cast_arg: Error<
     "argument of __kitsune_mobile_cast_arg must be a non-mobile pointer">;
 
 // reduce builtins

@@ -74,7 +74,7 @@ bool SemaKitsune::handleMemAccessAttr(Decl *decl, const ParsedAttr &attr) {
       Diag(attr.getLoc(), diag::warn_duplicate_declspec)
           << attr.getAttrName()->getName() << attr.getRange();
     } else {
-      Diag(attr.getLoc(), diag::err_kitsune_multiple_access_qualifiers)
+      Diag(attr.getLoc(), diag::err_kit_multiple_access_qualifiers)
           << decl->getSourceRange();
       decl->setInvalidDecl(true);
       return true;
@@ -103,18 +103,18 @@ Attr *SemaKitsune::handleTTAttr(Stmt *stmt, const ParsedAttr &attr,
   StringRef str;
   SourceLocation argLoc;
   if (!sema.checkStringLiteralArgumentAttr(attr, 0, str, &argLoc)) {
-    Diag(attr.getLoc(), diag::err_tapir_target_unknown);
+    Diag(attr.getLoc(), diag::err_kit_tt_unknown);
     return nullptr;
   }
 
   TTAttr::TTAttrKind kind;
   if (!TTAttr::ConvertStrToTTAttrKind(str, kind)) {
-    Diag(attr.getLoc(), diag::err_tapir_target_unknown);
+    Diag(attr.getLoc(), diag::err_kit_tt_unknown);
     return nullptr;
   }
 
   if (kind == TTAttr::Custom) {
-    Diag(attr.getLoc(), diag::err_tapir_target_custom);
+    Diag(attr.getLoc(), diag::err_kit_tt_custom);
     return nullptr;
   }
 
@@ -146,7 +146,7 @@ Attr *SemaKitsune::handleTTAttr(Stmt *stmt, const ParsedAttr &attr,
     }
   }
 
-  Diag(attr.getLoc(), diag::err_tapir_target_attr_unsupported_stmt);
+  Diag(attr.getLoc(), diag::err_kit_tt_attr_unsupported_stmt);
   return nullptr;
 }
 
@@ -168,7 +168,7 @@ Attr *SemaKitsune::handleLaunchAttr(Stmt *stmt, const ParsedAttr &attr,
         << attr << /* positive (1 == non-negative) */ 0;
     return nullptr;
   } else if (val > 1024) {
-    Diag(attr.getLoc(), diag::err_kitsune_launch_range) << attr;
+    Diag(attr.getLoc(), diag::err_kit_launch_range) << attr;
     return nullptr;
   }
 
@@ -193,7 +193,8 @@ void SemaKitsune::checkAttributes(const Stmt *stmt,
                                   const SmallVectorImpl<const Attr *> &attrs) {
   attr::Kind checkMaxOneAttrs[] = {attr::TT, attr::KitsuneLaunch};
   for (attr::Kind kind : checkMaxOneAttrs)
-    if (!checkMaxOneOccurrence(kind, attrs, diag::err_duplicate_attribute_stmt))
+    if (!checkMaxOneOccurrence(kind, attrs,
+                               diag::err_kit_duplicate_attribute_stmt))
       return;
 }
 
@@ -215,9 +216,9 @@ QualType SemaKitsune::handleMemAccessAttr(QualType type,
     if (existingAttrName == attrName)
       Diag(attrLoc, diag::warn_duplicate_declspec) << attrName << attrRange;
     else
-      Diag(attrLoc, diag::err_kitsune_multiple_access_qualifiers);
+      Diag(attrLoc, diag::err_kit_multiple_access_qualifiers);
 
-    Diag(typeDecl->getBeginLoc(), diag::note_kitsune_typedef_access_qualifier)
+    Diag(typeDecl->getBeginLoc(), diag::note_kit_typedef_access_qualifier)
         << existingAttrName;
   }
   return type;
@@ -227,7 +228,7 @@ QualType SemaKitsune::handleMobileAttr(QualType type, const ParsedAttr &attr) {
   if (type->isPointerType())
     return sema.Context.getMobilePointerType(type->getPointeeType());
 
-  Diag(attr.getLoc(), diag::err_kitsune_mobile_on_non_pointer);
+  Diag(attr.getLoc(), diag::err_kit_mobile_on_non_pointer);
   return type;
 }
 
@@ -249,7 +250,7 @@ bool SemaKitsune::checkMobileFreeCall(CallExpr *theCall) {
   if (argType->isMobilePointerType())
     return true;
 
-  Diag(theCall->getBeginLoc(), diag::err_kitsune_mobile_free_arg);
+  Diag(theCall->getBeginLoc(), diag::err_kit_mobile_free_arg);
   return false;
 }
 
@@ -258,7 +259,7 @@ bool SemaKitsune::checkMobileCastUnsafeCall(CallExpr *theCall) {
   if (argType->isPointerType() && !argType->isMobilePointerType())
     return true;
 
-  Diag(theCall->getBeginLoc(), diag::err_kitsune_mobile_cast_arg);
+  Diag(theCall->getBeginLoc(), diag::err_kit_mobile_cast_arg);
   return false;
 }
 
@@ -365,12 +366,12 @@ bool SemaKitsune::checkMobileCast(Expr *srcExpr, QualType destType,
                                   StringRef castKind) {
   QualType srcType = srcExpr->getType();
   if (!srcType->isMobilePointerType() && destType->isMobilePointerType()) {
-    Diag(loc, diag::err_kitsune_cast_to_mobile);
+    Diag(loc, diag::err_kit_cast_to_mobile);
     return false;
   }
   if (!allowStripMobile) {
     if (srcType->isMobilePointerType() && !destType->isMobilePointerType()) {
-      Diag(loc, diag::err_kitsune_cast_away_mobile) << castKind;
+      Diag(loc, diag::err_kit_cast_away_mobile) << castKind;
       return false;
     }
   }
