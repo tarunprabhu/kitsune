@@ -116,4 +116,10 @@ bool llvm::isGPUTT(TTID tt) { return contains(kitKnownGPUTTs(), tt); }
 
 bool llvm::generatesEmbBC(TTID tt) { return contains(kitKnownEmbBCTTs(), tt); }
 
-bool llvm::isEnabledTT(TTID tt) { return contains(kitEnabledTTs(), tt); }
+bool llvm::isEnabledTT(TTID tt) {
+  // TTID::Nolo will never be in the known tapir target list since it is not a
+  // "true" tapir target. Nevertheless, it must be treated as "always enabled".
+  if (tt == TTID::Nolo)
+    return true;
+  return contains(kitEnabledTTs(), tt);
+}
