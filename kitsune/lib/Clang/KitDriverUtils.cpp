@@ -13,6 +13,7 @@
 #include "kitsune/Clang/KitDriverUtils.h"
 #include "kitsune/Core/KitOptions.h"
 #include "kitsune/Core/TTPlugin.h"
+#include "kitsune/Core/TTUtils.h"
 #include "kitsune/Support/FromString.h"
 #include "kitsune/Support/ToString.h"
 #include "clang/Basic/DiagnosticDriver.h"
@@ -48,41 +49,6 @@ static std::optional<std::string> getUniqueArgValue(const ArgList &args,
   if (uniq.size() == 1)
     return *uniq.begin();
   return std::nullopt;
-}
-
-static void checkTTEnabled(llvm::TTID tt, DiagnosticsEngine &diags) {
-  switch (tt) {
-  case llvm::TTID::Cuda:
-    if constexpr (llvm::kitCudaEnabled())
-      return;
-    break;
-  case llvm::TTID::Hip:
-    if constexpr (llvm::kitHipEnabled())
-      return;
-    break;
-  case llvm::TTID::OpenCilk:
-    if constexpr (llvm::kitOpenCilkEnabled())
-      return;
-    break;
-  case llvm::TTID::Qthreads:
-    if constexpr (llvm::kitQthreadsEnabled())
-      return;
-    break;
-  case llvm::TTID::Custom:
-  case llvm::TTID::Nolo:
-  case llvm::TTID::OpenMP:
-  case llvm::TTID::Pthreads:
-  case llvm::TTID::Serial:
-    // These tapir targets are always enabled.
-    return;
-  case llvm::TTID::Lambda:
-  case llvm::TTID::OMPTask:
-  case llvm::TTID::Realm:
-    // These tapir targets are not fully supported. For now, these are treated
-    // as "not enabled".
-    break;
-  }
-  diags.Report(diag::err_drv_kit_target_not_enabled) << llvm::toString(tt);
 }
 
 // Check the optimization level. Kitsune supports a narrower range of
@@ -188,7 +154,8 @@ void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
       if (*tt != llvm::TTID::Custom)
         diags.Report(diag::err_drv_kit_plugin_wrong_target);
 
-    checkTTEnabled(*tt, diags);
+    if (!isEnabledTT(*tt))
+      diags.Report(diag::err_drv_kit_target_not_enabled) << llvm::toString(*tt);
 
     if (*tt == llvm::TTID::Custom) {
       const Arg *a = args.getLastArg(options::OPT_tapir_plugin_EQ);

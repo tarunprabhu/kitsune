@@ -63,6 +63,7 @@ TEST(KitTTUtils, getSpawnStrategy) {
 }
 
 TEST(KitTTUtils, isEnabledTT) {
+  EXPECT_TRUE(isEnabledTT(TTID::Nolo));
   for (TTID tt : kitKnownTTs()) {
     bool enabled = isEnabledTT(tt);
     if (tt == TTID::Cuda)
