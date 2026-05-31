@@ -11,6 +11,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/FuncUtils.h"
+#include "llvm/ADT/PostOrderIterator.h"
+#include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/CFG.h"
 #include "llvm/IR/Function.h"
 
 using namespace llvm;
@@ -54,4 +57,18 @@ void llvm::copyAttrs(Function &dst, const Function &src) {
 void llvm::copyAttrs(Argument &dst, const Argument &src) {
   for (Attribute attr : src.getAttributes())
     dst.addAttr(attr);
+}
+
+bool llvm::sortBasicBlocks(Function &f) {
+  if (!f.size())
+    return false;
+
+  SmallVector<BasicBlock *> bbs;
+  for (BasicBlock *bb : ReversePostOrderTraversal<Function *>(&f))
+    bbs.push_back(bb);
+
+  for (unsigned i = 1, e = bbs.size(); i < e; ++i)
+    bbs[i]->moveAfter(bbs[i - 1]);
+
+  return true;
 }
