@@ -1,5 +1,5 @@
 ; Check that when the standard sequence of optimization passes are run on the
-; device module generated from a tapir loop nest of depth 2, the results are
+; device module generated from a tapir loop nest of depth 3, the results are
 ; as expected.
 ;
 ; ------------------------------------------------------------------------------
@@ -17,6 +17,7 @@
 ; O0: define {{.+}} @__kitcuda_{{.+}}(i64
 ; O0: = phi i64
 ; O0: = phi i64
+; O0: = phi i64
 ;
 ; ------------------------------------------------------------------------------
 ;
@@ -31,6 +32,8 @@
 ;
 ; O2-NOT: = phi i64
 ; O2: define {{.+}} @__kitcuda_{{[^(]+}}(
+; O2-SAME: i64 {{[^%]*}}%[[LB_Z:[^,]+]],
+; O2-SAME: i64 {{[^%]*}}%[[TC_Z:[^,]+]],
 ; O2-SAME: i64 {{[^%]*}}%[[LB_Y:[^,]+]],
 ; O2-SAME: i64 {{[^%]*}}%[[TC_Y:[^,]+]],
 ; O2-SAME: i64 {{[^%]*}}%[[LB_X:[^,]+]],
@@ -39,16 +42,19 @@
 ; O2-SAME: i64 {{[^%]*}}%[[N:[^)]+]])
 ; O2-SAME: #{{[0-9]+}}
 ;
-; O2-NEXT: [[PH_Y:.+]]:
+; O2-NEXT: [[PH_Z:.+]]:
+; O2: %[[IVBEG_Z:.+]] = zext i32 %{{.+}} to i64
 ; O2: %[[IVBEG_Y:.+]] = zext i32 %{{.+}} to i64
 ; O2: %[[IVBEG_X:.+]] = zext i32 %{{.+}} to i64
+; O2-NEXT: %[[IVCOND_Z:.+]] = icmp ugt i64 %[[TC_Z]], %[[IVBEG_Z]]
 ; O2-NEXT: %[[IVCOND_Y:.+]] = icmp ugt i64 %[[TC_Y]], %[[IVBEG_Y]]
 ; O2-NEXT: %[[IVCOND_X:.+]] = icmp ugt i64 %[[TC_X]], %[[IVBEG_X]]
-; O2-NEXT: %[[IVCOND:.+]] = and i1 %[[IVCOND_Y]], %[[IVCOND_X]]
+; O2-NEXT: %[[IVCOND_TMP:.+]] = and i1 %[[IVCOND_Z]], %[[IVCOND_Y]]
+; O2-NEXT: %[[IVCOND:.+]] = and i1 %[[IVCOND_TMP]], %[[IVCOND_X]]
 ; O2-NEXT: br i1 %[[IVCOND]], label %[[BODY:[^,]+]], label %[[EXIT:.+]]
 ;
 ; O2: [[BODY]]:
-; O2: call void @ext2(ptr %[[BUF]], i64 %[[IVBEG_Y]], i64 %[[IVBEG_X]])
+; O2: call void @ext3(ptr %[[BUF]], i64 %[[IVBEG_Z]], i64 %[[IVBEG_Y]], i64 %[[IVBEG_X]])
 ; O2-NEXT: br label %[[EXIT]]
 ;
 ; O2: [[EXIT]]:
@@ -56,7 +62,7 @@
 ;
 ; ------------------------------------------------------------------------------
 
-define void @pp(i64 %m, i64 %n, ptr %c) {
+define void @ppp(i64 %m, i64 %n, i64 %p, ptr %c) {
 entry:
   %syncreg.i = tail call token @llvm.syncregion.start()
   br label %for.i.header
@@ -74,7 +80,26 @@ for.j.header:
   detach within %syncreg.j, label %for.j.body, label %for.j.latch
 
 for.j.body:
-  call void @ext2(ptr %c, i64 %i, i64 %j)
+  %syncreg.k = tail call token @llvm.syncregion.start()
+  br label %for.k.header
+
+for.k.header:
+  %k = phi i64 [ 0, %for.j.body ], [ %inc.k, %for.k.latch ]
+  detach within %syncreg.k, label %for.k.body, label %for.k.latch
+
+for.k.body:
+  call void @ext3(ptr %c, i64 %i, i64 %j, i64 %k)
+  reattach within %syncreg.k, label %for.k.latch
+
+for.k.latch:
+  %inc.k = add i64 %k, 1
+  %cmp.k = icmp eq i64 %inc.k, %p
+  br i1 %cmp.k, label %for.k.exit, label %for.k.header, !llvm.loop !2
+
+for.k.exit:
+  sync within %syncreg.k, label %for.k.end
+
+for.k.end:
   reattach within %syncreg.j, label %for.j.latch
 
 for.j.latch:
@@ -100,13 +125,15 @@ for.i.end:
   ret void
 }
 
-declare void @ext2(ptr, i64, i64)
+declare void @ext3(ptr, i64, i64, i64)
 
-!0 = distinct !{!0, !2, !3, !4, !5, !6}
-!1 = distinct !{!1, !2, !3, !7}
-!2 = !{!"tapir.loop.target", i32 2}
-!3 = !{!"tapir.loop.spawn.strategy", i32 3}
-!4 = !{!"tapir.loop.lowering.enabled"}
-!5 = !{!"tapir.loop.perfect.depth", i32 2}
-!6 = !{!"tapir.loop.perfect.level", i32 1}
-!7 = !{!"tapir.loop.perfect.level", i32 2}
+!0 = distinct !{!0, !3, !4, !5, !6, !7}
+!1 = distinct !{!1, !3, !4, !8}
+!2 = distinct !{!2, !3, !4, !9}
+!3 = !{!"tapir.loop.target", i32 2}
+!4 = !{!"tapir.loop.spawn.strategy", i32 3}
+!5 = !{!"tapir.loop.lowering.enabled"}
+!6 = !{!"tapir.loop.perfect.depth", i32 3}
+!7 = !{!"tapir.loop.perfect.level", i32 1}
+!8 = !{!"tapir.loop.perfect.level", i32 2}
+!9 = !{!"tapir.loop.perfect.level", i32 3}

@@ -19,7 +19,7 @@
 ;
 ; ------------------------------------------------------------------------------
 ;
-; If compiling with optimizations, the loop will be removed since the trip
+; If compiling with optimizations, the loop will be removed since the trip count
 ; is determined to be 1. This is because the 'hip' tapir target hard-codes this
 ; value when generating the code. If the grain size is changed to be something
 ; other than 1, this will certainly change.
