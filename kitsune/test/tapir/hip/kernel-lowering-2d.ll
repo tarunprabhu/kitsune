@@ -1,6 +1,6 @@
 ; Check that the general structure of a kernel generated immediately after
-; lowering of a tapir loop nest of depth 1 is as expected. In this case, a
-; single loop will be present in the kernel body.
+; lowering of a tapir loop nest of depth 2 is as expected. In this case, two
+; loops will be present in the kernel body.
 ;
 ; FIXME: The structure of the basic blocks here is fairly convoluted. This has
 ; to do with the order of basic blocks that get passed to the outliner. Tapir
