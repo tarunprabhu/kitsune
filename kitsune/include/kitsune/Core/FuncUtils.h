@@ -54,6 +54,22 @@ void copyAttrs(Function &dst, const Function &src);
 /// Copy attributes from the argument \p src to the argument \p dst.
 void copyAttrs(Argument &dst, const Argument &src);
 
+/// Sort the basic blocks in the function so they are in some "reasonable"
+/// order, usually something that resembles "program order". In most cases,
+/// this is just reverse postorder, but it may be some other hybrid ordering.
+///
+/// This is mainly useful when printing the function during testing/debugging.
+/// A particular case is when Tapir's loop outliner runs. Since it treats all
+/// nested tapir loops as subtasks of the outermost loop, it moves basic blocks
+/// based on the spindles to which they belong. This complicates testing for
+/// the non-opencilk tapir targets since they would prefer the blocks to be in
+/// the order in which they were in the original tapir loop.
+///
+/// Returns true if sorting was attempted. This will return true even if the
+/// basic blocks were already sorted. Essentially, this will only return false
+/// if \p f does not contain any basic blocks.
+bool sortBasicBlocks(Function &f);
+
 /// @}
 
 } // namespace llvm

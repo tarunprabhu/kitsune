@@ -89,6 +89,7 @@ list(APPEND KITSUNE_TEST_DEPS
   kit-config
   kit-enc
   kit-mbc
+  kit-sort
   kitsune-resource-headers
   clang
   clang-offload-bundler
@@ -205,6 +206,7 @@ add_custom_target(check-kitsune-pass-plugin DEPENDS check-kitsune-plugins-pass)
 add_custom_target(check-kitsune-tt-plugin DEPENDS check-kitsune-plugins-tt)
 add_custom_target(check-kitsune-kit-enc DEPENDS check-kitsune-tools-kit-enc)
 add_custom_target(check-kitsune-kit-mbc DEPENDS check-kitsune-tools-kit-mbc)
+add_custom_target(check-kitsune-kit-sort DEPENDS check-kitsune-tools-kit-sort)
 add_custom_target(check-kitsune-llc DEPENDS check-kitsune-tools-llc)
 add_custom_target(check-kitsune-lld DEPENDS check-kitsune-tools-lld)
 add_custom_target(check-kitsune-opt DEPENDS check-kitsune-tools-opt)

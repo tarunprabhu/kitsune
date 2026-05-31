@@ -18,4 +18,5 @@ available when Kitsune is built and installed,
     kit-config
     kit-enc
     kit-mbc
+    kit-sort
 ```
