@@ -2,51 +2,46 @@
 ; lowering of a tapir loop nest of depth 2 is as expected. In this case, two
 ; loops will be present in the kernel body.
 ;
-; FIXME: The structure of the basic blocks here is fairly convoluted. This has
-; to do with the order of basic blocks that get passed to the outliner. Tapir
-; tries to arrange these based on spindles and subtasks. In the case of loop
-; nests of depth 2, the inner loop is also a tapir loop and is, therefore, seen
-; as a subtask. What we really would like to do here is to stop it from being
-; treated as a tapir loop. We don't yet have a sane way of doing that, so we
-; have to put up with this messy structure for now.
-;
 ; RUN: opt --tapir=hip -passes='loop-spawning' %s \
 ; RUN:     | %kit-mbc -S \
+; RUN:     | %kit-sort \
 ; RUN:     | FileCheck %s
 ;
-; CHECK-LABEL: define
+; CHECK-LABEL: define {{.*}}amdgpu_kernel
 ;
 ; CHECK: [[PH_Y:.+]]:
 ; CHECK: [[HEADER_Y:.+]]:
 ; CHECK-NEXT: phi i64
-; CHECK-NEXT: br label %[[BODY:.+]]
+; CHECK-SAME: [ {{[^,]+}}, %[[PH_Y]] ]
+; CHECK-SAME: [ {{[^,]+}}, %[[LATCH_Y:.+]] ]
+; CHECK-NEXT: br label %[[BODY_Y:.+]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[PH_X:.+]]:
+; CHECK-NEXT: [[BODY_Y]]:
 ; CHECK-NEXT: br label %[[HEADER_X:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[HEADER_X]]:
 ; CHECK-NEXT: phi i64
-; CHECK-NEXT: br label %[[BODY:.+]]
+; CHECK-SAME: [ {{[^,]+}}, %[[BODY_Y]] ]
+; CHECK-SAME: [ {{[^,]+}}, %[[LATCH_X:.+]] ]
+; CHECK-NEXT: br label %[[BODY_X:.+]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[LATCH_X:.+]]:
-; CHECK: br i1 %{{.+}}, label %[[EXIT_Y:.+]], label %[[HEADER_X]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[EXIT_Y]]:
-; CHECK-NEXT: br label %[[END_Y:.+]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[END_Y:.+]]:
-; CHECK-NEXT: br label %[[LATCH_Y:.+]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[BODY]]:
-; CHECK-NEXT: getelementptr
-; CHECK-NEXT: mul
-; CHECK-NEXT: store
+; CHECK-NEXT: [[BODY_X]]:
+; CHECK-NEXT: call void @ext2
 ; CHECK-NEXT: br label %[[LATCH_X]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[LATCH_Y]]:
-; CHECK: br i1 %{{.+}}, label %[[EXIT:.+]], label %[[HEADER_Y]]
+; CHECK-NEXT: [[LATCH_X]]:
+; CHECK: br i1 %{{.+}}, label %[[EXIT_X:.+]], label %[[HEADER_X]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[EXIT]]:
+; CHECK-NEXT: [[EXIT_X]]:
+; CHECK-NEXT: br label %[[END_X:.+]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[END_X:.+]]:
+; CHECK-NEXT: br label %[[LATCH_Y]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[LATCH_Y]]:
+; CHECK: br i1 %{{.+}}, label %[[EXIT_Y:.+]], label %[[HEADER_Y]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[EXIT_Y]]:
 ; CHECK-NEXT: ret void
 
 define void @pp(i64 %m, i64 %n, ptr %c) {
@@ -67,9 +62,7 @@ for.j.header:
   detach within %syncreg.j, label %for.j.body, label %for.j.latch
 
 for.j.body:
-  %arrayidx = getelementptr i64, ptr %c, i64 %j
-  %product = mul i64 %m, %n
-  store i64 %product, ptr %arrayidx
+  call void @ext2(ptr %c, i64 %i, i64 %j)
   reattach within %syncreg.j, label %for.j.latch
 
 for.j.latch:
@@ -94,6 +87,8 @@ for.i.exit:
 for.i.end:
   ret void
 }
+
+declare void @ext2(ptr, i64, i64)
 
 !0 = distinct !{!0, !2, !3, !4, !5, !6}
 !1 = distinct !{!1, !2, !3, !7}

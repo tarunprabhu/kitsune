@@ -1,18 +1,27 @@
 ; Check that the general structure of a kernel generated immediately after
-; lowering of a tapir loop nest of depth 2 is as expected. In this case, two
+; lowering of a tapir loop nest of depth 3 is as expected. In this case, three
 ; loops will be present in the kernel body.
 ;
-; RUN: opt --tapir=cuda -passes='loop-spawning' %s \
+; RUN: opt --tapir=hip -passes='loop-spawning' %s \
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | %kit-sort \
 ; RUN:     | FileCheck %s
 ;
-; CHECK-LABEL: define {{.*}}ptx_kernel
+; CHECK-LABEL: define {{.*}}amdgpu_kernel
 ;
-; CHECK: [[PH_Y:.+]]:
-; CHECK: [[HEADER_Y:.+]]:
+; CHECK: [[PH_Z:.+]]:
+; CHECK: [[HEADER_Z:.+]]:
 ; CHECK-NEXT: phi i64
-; CHECK-SAME: [ {{[^,]+}}, %[[PH_Y]] ]
+; CHECK-SAME: [ {{[^,]+}}, %[[PH_Z]] ]
+; CHECK-SAME: [ {{[^,]+}}, %[[LATCH_Z:.+]] ]
+; CHECK-NEXT: br label %[[BODY_Z:.+]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[BODY_Z]]:
+; CHECK-NEXT: br label %[[HEADER_Y:.+]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[HEADER_Y:.+]]:
+; CHECK-NEXT: phi i64
+; CHECK-SAME: [ {{[^,]+}}, %[[BODY_Z]] ]
 ; CHECK-SAME: [ {{[^,]+}}, %[[LATCH_Y:.+]] ]
 ; CHECK-NEXT: br label %[[BODY_Y:.+]]
 ; CHECK-EMPTY:
@@ -26,7 +35,7 @@
 ; CHECK-NEXT: br label %[[BODY_X:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[BODY_X]]:
-; CHECK-NEXT: call void @ext2
+; CHECK-NEXT: call void @ext3
 ; CHECK-NEXT: br label %[[LATCH_X]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[LATCH_X]]:
@@ -42,9 +51,18 @@
 ; CHECK: br i1 %{{.+}}, label %[[EXIT_Y:.+]], label %[[HEADER_Y]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[EXIT_Y]]:
+; CHECK-NEXT: br label %[[END_Y:.+]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[END_Y:.+]]:
+; CHECK-NEXT: br label %[[LATCH_Z]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[LATCH_Z]]:
+; CHECK: br i1 %{{.+}}, label %[[EXIT_Z:.+]], label %[[HEADER_Z]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[EXIT_Z]]:
 ; CHECK-NEXT: ret void
 
-define void @pp(i64 %m, i64 %n, ptr %c) {
+define void @ppp(i64 %m, i64 %n, i64 %p, ptr %c) {
 entry:
   %syncreg.i = tail call token @llvm.syncregion.start()
   br label %for.i.header
@@ -62,7 +80,26 @@ for.j.header:
   detach within %syncreg.j, label %for.j.body, label %for.j.latch
 
 for.j.body:
-  call void @ext2(ptr %c, i64 %i, i64 %j)
+  %syncreg.k = tail call token @llvm.syncregion.start()
+  br label %for.k.header
+
+for.k.header:
+  %k = phi i64 [ 0, %for.j.body ], [ %inc.k, %for.k.latch ]
+  detach within %syncreg.k, label %for.k.body, label %for.k.latch
+
+for.k.body:
+  call void @ext3(ptr %c, i64 %i, i64 %j, i64 %k)
+  reattach within %syncreg.k, label %for.k.latch
+
+for.k.latch:
+  %inc.k = add i64 %k, 1
+  %cmp.k = icmp eq i64 %inc.k, %p
+  br i1 %cmp.k, label %for.k.exit, label %for.k.header, !llvm.loop !2
+
+for.k.exit:
+  sync within %syncreg.k, label %for.k.end
+
+for.k.end:
   reattach within %syncreg.j, label %for.j.latch
 
 for.j.latch:
@@ -88,13 +125,15 @@ for.i.end:
   ret void
 }
 
-declare void @ext2(ptr, i64, i64)
+declare void @ext3(ptr, i64, i64, i64)
 
-!0 = distinct !{!0, !2, !3, !4, !5, !6}
-!1 = distinct !{!1, !2, !3, !7}
-!2 = !{!"tapir.loop.target", i32 2}
-!3 = !{!"tapir.loop.spawn.strategy", i32 3}
-!4 = !{!"tapir.loop.lowering.enabled"}
-!5 = !{!"tapir.loop.perfect.depth", i32 2}
-!6 = !{!"tapir.loop.perfect.level", i32 1}
-!7 = !{!"tapir.loop.perfect.level", i32 2}
+!0 = distinct !{!0, !3, !4, !5, !6, !7}
+!1 = distinct !{!1, !3, !4, !8}
+!2 = distinct !{!2, !3, !4, !9}
+!3 = !{!"tapir.loop.target", i32 4}
+!4 = !{!"tapir.loop.spawn.strategy", i32 3}
+!5 = !{!"tapir.loop.lowering.enabled"}
+!6 = !{!"tapir.loop.perfect.depth", i32 3}
+!7 = !{!"tapir.loop.perfect.level", i32 1}
+!8 = !{!"tapir.loop.perfect.level", i32 2}
+!9 = !{!"tapir.loop.perfect.level", i32 3}

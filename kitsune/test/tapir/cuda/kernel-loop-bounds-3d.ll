@@ -1,19 +1,26 @@
 ; Check that the loop bounds of the loops are replaced correctly in the
-; kernel function generated from a tapir loop nest of depth 2.
+; kernel function generated from a tapir loop nest of depth 3.
 ;
 ; NOTE: The upper bound is determined by the grainsize. We deliberately do not
 ; check for the actual grainsize here. That will be tested elsewhere.
 ;
-; RUN: opt --tapir=hip -passes='loop-spawning' %s \
+; RUN: opt --tapir=cuda -passes='loop-spawning' %s \
 ; RUN:     | %kit-mbc -S \
+; RUN:     | %kit-sort \
 ; RUN:     | FileCheck %s
 ;
-; CHECK-LABEL: define {{.*}}amdgpu_kernel
+; CHECK-LABEL: define {{.*}}ptx_kernel
 ;
+; CHECK: %[[IVBEG_Z:.+]] = zext i32 %{{.+}} to i64
+; CHECK: %[[IVEND_Z:.+]] = add i64 %[[IVBEG_Z]]
 ; CHECK: %[[IVBEG_Y:.+]] = zext i32 %{{.+}} to i64
 ; CHECK: %[[IVEND_Y:.+]] = add i64 %[[IVBEG_Y]]
 ; CHECK: %[[IVBEG_X:.+]] = zext i32 %{{.+}} to i64
 ; CHECK: %[[IVEND_X:.+]] = add i64 %[[IVBEG_X]]
+;
+; CHECK: %[[IV_Z:.+]] = phi i64
+; CHECK-SAME: [ %[[IVBEG_Z]], %{{[^]]+}} ]
+; CHECK-SAME: [ %[[IVNEXT_Z:.+]], %[[LATCH_Z:.+]] ]
 ;
 ; CHECK: %[[IV_Y:.+]] = phi i64
 ; CHECK-SAME: [ %[[IVBEG_Y]], %{{[^]]+}} ]
@@ -31,12 +38,17 @@
 ; CHECK: [[LATCH_Y]]:
 ; CHECK: %[[IVNEXT_Y:.+]] = add {{.*}}i64 %[[IV_Y]]
 ; CHECK: %[[IVCOND_Y:.+]] = icmp eq i64 %[[IVNEXT_Y]], %[[IVEND_Y]]
-; CHECK: br i1 %[[IVCOND_Y]], label %[[EXIT:.+]], label %{{.+}}
+; CHECK: br i1 %[[IVCOND_Y]], label %{{.+}}, label %{{.+}}
+;
+; CHECK: [[LATCH_Z]]:
+; CHECK: %[[IVNEXT_Z:.+]] = add {{.*}}i64 %[[IV_Z]]
+; CHECK: %[[IVCOND_Z:.+]] = icmp eq i64 %[[IVNEXT_Z]], %[[IVEND_Z]]
+; CHECK: br i1 %[[IVCOND_Z]], label %[[EXIT:.+]], label %{{.+}}
 ;
 ; CHECK: [[EXIT]]:
 ; CHECK-NEXT: ret void
 
-define void @pp(i64 %m, i64 %n, ptr %c) {
+define void @ppp(i64 %m, i64 %n, i64 %p, ptr %c) {
 entry:
   %syncreg.i = tail call token @llvm.syncregion.start()
   br label %for.i.header
@@ -54,9 +66,26 @@ for.j.header:
   detach within %syncreg.j, label %for.j.body, label %for.j.latch
 
 for.j.body:
-  %arrayidx = getelementptr i64, ptr %c, i64 %j
-  %product = mul i64 %m, %n
-  store i64 %product, ptr %arrayidx
+  %syncreg.k = tail call token @llvm.syncregion.start()
+  br label %for.k.header
+
+for.k.header:
+  %k = phi i64 [ 0, %for.j.body ], [ %inc.k, %for.k.latch ]
+  detach within %syncreg.k, label %for.k.body, label %for.k.latch
+
+for.k.body:
+  call void @ext3(ptr %c, i64 %i, i64 %j, i64 %k)
+  reattach within %syncreg.k, label %for.k.latch
+
+for.k.latch:
+  %inc.k = add i64 %k, 1
+  %cmp.k = icmp eq i64 %inc.k, %p
+  br i1 %cmp.k, label %for.k.exit, label %for.k.header, !llvm.loop !2
+
+for.k.exit:
+  sync within %syncreg.k, label %for.k.end
+
+for.k.end:
   reattach within %syncreg.j, label %for.j.latch
 
 for.j.latch:
@@ -82,11 +111,15 @@ for.i.end:
   ret void
 }
 
-!0 = distinct !{!0, !2, !3, !4, !5, !6}
-!1 = distinct !{!1, !2, !3, !7}
-!2 = !{!"tapir.loop.target", i32 4}
-!3 = !{!"tapir.loop.spawn.strategy", i32 3}
-!4 = !{!"tapir.loop.lowering.enabled"}
-!5 = !{!"tapir.loop.perfect.depth", i32 2}
-!6 = !{!"tapir.loop.perfect.level", i32 1}
-!7 = !{!"tapir.loop.perfect.level", i32 2}
+declare void @ext3(ptr, i64, i64, i64)
+
+!0 = distinct !{!0, !3, !4, !5, !6, !7}
+!1 = distinct !{!1, !3, !4, !8}
+!2 = distinct !{!2, !3, !4, !9}
+!3 = !{!"tapir.loop.target", i32 2}
+!4 = !{!"tapir.loop.spawn.strategy", i32 3}
+!5 = !{!"tapir.loop.lowering.enabled"}
+!6 = !{!"tapir.loop.perfect.depth", i32 3}
+!7 = !{!"tapir.loop.perfect.level", i32 1}
+!8 = !{!"tapir.loop.perfect.level", i32 2}
+!9 = !{!"tapir.loop.perfect.level", i32 3}

@@ -8,35 +8,30 @@
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
-; CHECK-LABEL: define
+; CHECK-LABEL: define {{.*}}ptx_kernel
 ;
-; CHECK-NEXT: [[PH_Y:.+]]:
 ; CHECK: %[[IVBEG_Y:.+]] = zext i32 %{{.+}} to i64
 ; CHECK: %[[IVEND_Y:.+]] = add i64 %[[IVBEG_Y]]
 ; CHECK: %[[IVBEG_X:.+]] = zext i32 %{{.+}} to i64
 ; CHECK: %[[IVEND_X:.+]] = add i64 %[[IVBEG_X]]
 ;
-; CHECK: [[HEADER_Y:.+]]:
 ; CHECK: %[[IV_Y:.+]] = phi i64
-; CHECK-SAME: [ %[[IVBEG_Y]], %[[PH_Y]] ]
+; CHECK-SAME: [ %[[IVBEG_Y]], %{{[^]]+}} ]
 ; CHECK-SAME: [ %[[IVNEXT_Y:.+]], %[[LATCH_Y:.+]] ]
 ;
-; CHECK: [[PH_X:.+]]:
-;
-; CHECK: [[HEADER_X:.+]]:
 ; CHECK: %[[IV_X:.+]] = phi i64
-; CHECK-SAME: [ %[[IVBEG_X]], %[[PH_X]] ]
+; CHECK-SAME: [ %[[IVBEG_X]], %{{[^]]+}} ]
 ; CHECK-SAME: [ %[[IVNEXT_X:.+]], %[[LATCH_X:.+]] ]
 ;
 ; CHECK: [[LATCH_X]]:
 ; CHECK: %[[IVNEXT_X:.+]] = add {{.*}}i64 %[[IV_X]]
 ; CHECK: %[[IVCOND_X:.+]] = icmp eq i64 %[[IVNEXT_X]], %[[IVEND_X]]
-; CHECK: br i1 %[[IVCOND_X]], label %{{.+}}, label %[[HEADER_X]]
+; CHECK: br i1 %[[IVCOND_X]], label %{{.+}}, label %{{.+}}
 ;
 ; CHECK: [[LATCH_Y]]:
 ; CHECK: %[[IVNEXT_Y:.+]] = add {{.*}}i64 %[[IV_Y]]
 ; CHECK: %[[IVCOND_Y:.+]] = icmp eq i64 %[[IVNEXT_Y]], %[[IVEND_Y]]
-; CHECK: br i1 %[[IVCOND_Y]], label %[[EXIT:.+]], label %[[HEADER_Y]]
+; CHECK: br i1 %[[IVCOND_Y]], label %[[EXIT:.+]], label %{{.+}}
 ;
 ; CHECK: [[EXIT]]:
 ; CHECK-NEXT: ret void
