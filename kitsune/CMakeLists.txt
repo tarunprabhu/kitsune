@@ -61,6 +61,22 @@ macro(populate_unique_parents LIBS OUT)
   endforeach ()
 endmacro ()
 
+# Prepare the variable OUT for use in an ExternalProject command. INP is a list
+# of compiler/linker options. All elements of INP will be copied to OUT. In
+# addition to this, the --sysroot= option will be added to OUT if
+# KITSUNE_SYSROOT is not empty. OUT will use '|' as the list separator instead
+# of the usual ';'. Because ExternalProject issues commands on a terminal, the
+# use of ';' is unreliable since the terminal may interpret it as an
+# end-of-command marker. '|' was deemed to be safe since it is unlikely to
+# appear in the library or path names.
+macro(prepare_extproj_cmdline_opts INP OUT)
+  set(${OUT} "${INP}")
+  if (KITSUNE_SYSROOT)
+    string(APPEND ${OUT} " --sysroot=${KITSUNE_SYSROOT}")
+  endif ()
+  string(REPLACE ";" "|" ${OUT} "${${OUT}}")
+endmacro ()
+
 # FIXME: Should this be named KITRT_* since we don't have a separate kitcuda
 # library any longer?
 option(KITCUDA_ENABLE_NVTX
@@ -111,19 +127,23 @@ if (KITSUNE_KOKKOS_ENABLED)
 
   set(KITSUNE_KOKKOS_BUILD_CONFIGURE_FLAGS ""
     CACHE STRING
-    "Additional options to be passed to be CMake when configuring Kokkos.
-    These are only used when building Kitsune")
+    "Additional options to be passed to be CMake when configuring Kokkos. These
+    are only used when building Kokkos as part of building Kitsune itself")
 
   set(KITSUNE_KOKKOS_BUILD_COMPILE_FLAGS ""
     CACHE STRING
-    "Additional C++ compiler flags needed to build Kokkos. These are only
-     used when building Kitsune")
+    "Additional C++ compiler flags needed to build Kokkos. These are only used
+     when building Kokkos as part of building Kitsune itself")
 
-  set(KITSUNE_KOKKOS_CXX_FLAGS "${KITSUNE_KOKKOS_BUILD_COMPILE_FLAGS}")
-  if (KITSUNE_SYSROOT)
-    string(APPEND KITSUNE_KOKKOS_CXX_FLAGS " --sysroot=${KITSUNE_SYSROOT}")
-  endif ()
-  string(REPLACE ";" ":" KITSUNE_KOKKOS_CXX_FLAGS "${KITSUNE_KOKKOS_CXX_FLAGS}")
+  set(KITSUNE_KOKKOS_BUILD_LINK_FLAGS ""
+    CACHE STRING
+    "Additional linker options needed to build Kokkos. These are only used when
+     building Kokkos as part of building Kitsune itself")
+
+  prepare_extproj_cmdline_opts("${KITSUNE_KOKKOS_BUILD_COMPILE_FLAGS}"
+    KITSUNE_KOKKOS_CXX_FLAGS)
+  prepare_extproj_cmdline_opts("${KITSUNE_KOKKOS_BUILD_LINK_FLAGS}"
+    KITSUNE_KOKKOS_LINKER_FLAGS)
 
   set(KITSUNE_KOKKOS_SRC_DIR  ${KITSUNE_TARGETS_BINARY_DIR}/kokkos/kokkos)
   set(KITSUNE_KOKKOS_BUILD_DIR ${KITSUNE_TARGETS_BINARY_DIR}/kokkos/build)
@@ -140,9 +160,12 @@ if (KITSUNE_KOKKOS_ENABLED)
     -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
     -DCMAKE_CXX_FLAGS=${KITSUNE_KOKKOS_CXX_FLAGS}
     -DCMAKE_CXX_COMPILER_WORKS=1
+    -DCMAKE_EXE_LINKER_FLAGS=${KITSUNE_KOKKOS_LINKER_FLAGS}
+    -DCMAKE_SHARED_LINKER_FLAGS=${KITSUNE_KOKKOS_LINKER_FLAGS}
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
     -DCMAKE_COLOR_DIAGNOSTICS=${CMAKE_COLOR_DIAGNOSTICS}
     -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
+    -DCMAKE_VERBOSE_MAKEFILE=ON
     -DCMAKE_INSTALL_PREFIX=${KITSUNE_KOKKOS_INSTALL_DIR}
     -DCMAKE_SIZEOF_VOID_P=${CMAKE_SIZEOF_VOID_P}
     -DKokkos_ENABLE_SERIAL=ON
@@ -158,7 +181,7 @@ if (KITSUNE_KOKKOS_ENABLED)
     BINARY_DIR              ${KITSUNE_KOKKOS_BUILD_DIR}
     STAMP_DIR               ${KITSUNE_KOKKOS_STAMP_DIR}
     CMAKE_ARGS              ${KITSUNE_KOKKOS_BUILD_CMAKE_FLAGS}
-    LIST_SEPARATOR          :
+    LIST_SEPARATOR          |
     USES_TERMINAL_PATCH     TRUE
     USES_TERMINAL_CONFIGURE TRUE
     USES_TERMINAL_BUILD     TRUE
@@ -442,24 +465,27 @@ if (KITSUNE_OPENCILK_ENABLED)
   set(KITSUNE_OPENCILK_BUILD_CONFIGURE_FLAGS ""
     CACHE STRING
     "Additional options to be passed to CMake when configuring Cheetah (the
-    OpenCilk runtime). These are only used when building Kitsune")
+    OpenCilk runtime). These are only used when building Cheetah as part of
+    building Kitsune itself")
 
   set(KITSUNE_OPENCILK_BUILD_COMPILE_FLAGS ""
     CACHE STRING
     "Additional compiler flags needed to build Cheetah (the OpenCilk runtime).
-    These are only used when building Kitsune")
+    These are only used when building Cheetah as part of building Kitsune
+    itself")
 
-  set(KITSUNE_OPENCILK_C_FLAGS "${KITSUNE_OPENCILK_BUILD_COMPILE_FLAGS}")
-  if (KITSUNE_SYSROOT)
-    string(APPEND KITSUNE_OPENCILK_C_FLAGS " --sysroot=${KITSUNE_SYSROOT}")
-  endif ()
-  string(REPLACE ";" | KITSUNE_OPENCILK_C_FLAGS "${KITSUNE_OPENCILK_C_FLAGS}")
+  set(KITSUNE_OPENCILK_BUILD_LINK_FLAGS ""
+    CACHE STRING
+    "Additional linker flags needed to build Cheetah (the OpenCilk runtime).
+    These are only used when building Cheetah as part of building Kitsune
+    itself")
 
-  set(KITSUNE_OPENCILK_CXX_FLAGS "${KITSUNE_OPENCILK_BUILD_COMPILE_FLAGS}")
-  if (KITSUNE_SYSROOT)
-    string(APPEND KITSUNE_OPENCILK_CXX_FLAGS " --sysroot=${KITSUNE_SYSROOT}")
-  endif ()
-  string(REPLACE ";" | KITSUNE_OPENCILK_CXX_FLAGS "${KITSUNE_OPENCILK_CXX_FLAGS}")
+  prepare_extproj_cmdline_opts("${KITSUNE_OPENCILK_BUILD_COMPILE_FLAGS}"
+    KITSUNE_OPENCILK_C_FLAGS)
+  prepare_extproj_cmdline_opts("${KITSUNE_OPENCILK_BUILD_COMPILE_FLAGS}"
+    KITSUNE_OPENCILK_CXX_FLAGS)
+  prepare_extproj_cmdline_opts("${KITSUNE_OPENCILK_BUILD_LINK_FLAGS}"
+    KITSUNE_OPENCILK_LINKER_FLAGS)
 
   # We pass some LLVM_* variables to make Cheetah behave as if it were an
   # in-tree build.
@@ -481,6 +507,8 @@ if (KITSUNE_OPENCILK_ENABLED)
     -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
     -DCMAKE_CXX_FLAGS=${KITSUNE_OPENCILK_CXX_FLAGS}
     -DCMAKE_CXX_COMPILER_WORKS=1
+    -DCMAKE_EXE_LINKER_FLAGS=${KITSUNE_OPENCILK_LINKER_FLAGS}
+    -DCMAKE_SHARED_LINKER_FLAGS=${KITSUNE_OPENCILK_LINKER_FLAGS}
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
     -DCMAKE_COLOR_DIAGNOSTICS=${CMAKE_COLOR_DIAGNOSTICS}
     -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
@@ -549,20 +577,32 @@ if (KITSUNE_OPENMP_ENABLED)
   # treated as a runtime by LLVM while Kitsune is a project. This means that it
   # is difficult (and probably impossible) to ensure that libomp will be built
   # before Kitsune. libomp.so is also present in a directory that is not easily
-  # accessible, so the library cannot be copied to
+  # accessible, so the library cannot be copied to the correct "staging"
+  # directory where it can be found when linking the runtime.
   message(STATUS "Kitsune: openmp target enabled")
 
-  set(KITSUNE_OPENMP_C_FLAGS "")
-  if (KITSUNE_SYSROOT)
-    string(APPEND KITSUNE_OPENMP_C_FLAGS " --sysroot=${KITSUNE_SYSROOT}")
-  endif ()
-  string(REPLACE ";" | KITSUNE_OPENMP_C_FLAGS "${KITSUNE_OPENMP_C_FLAGS}")
+  set(KITSUNE_OPENMP_BUILD_CONFIGURE_FLAGS ""
+    CACHE STRING
+    "Additional options to be passed to CMake when configuring the openmp
+    runtime. These are only used when building openmp as part of building
+    Kitsune itself")
 
-  set(KITSUNE_OPENMP_CXX_FLAGS "")
-  if (KITSUNE_SYSROOT)
-    string(APPEND KITSUNE_OPENMP_CXX_FLAGS " --sysroot=${KITSUNE_SYSROOT}")
-  endif ()
-  string(REPLACE ";" | KITSUNE_OPENMP_CXX_FLAGS "${KITSUNE_OPENMP_CXX_FLAGS}")
+  set(KITSUNE_OPENMP_BUILD_COMPILE_FLAGS ""
+    CACHE STRING
+    "Additional compiler flags needed to build the openmp runtime. These are
+    only used when building Cheetah as part of building Kitsune itself")
+
+  set(KITSUNE_OPENMP_BUILD_LINK_FLAGS ""
+    CACHE STRING
+    "Additional linker flags needed to build the openmp runtime. These are only
+    used when building Cheetah as part of building Kitsune itself")
+
+  prepare_extproj_cmdline_opts("${KITSUNE_OPENMP_BUILD_COMPILE_FLAGS}"
+    KITSUNE_OPENMP_C_FLAGS)
+  prepare_extproj_cmdline_opts("${KITSUNE_OPENMP_BUILD_COMPILE_FLAGS}"
+    KITSUNE_OPENMP_CXX_FLAGS)
+  prepare_extproj_cmdline_opts("${KITSUNE_OPENMP_BUILD_LINK_FLAGS}"
+    KITSUNE_OPENMP_LINKER_FLAGS)
 
   set(KITSUNE_OPENMP_SOURCE_DIR ${CMAKE_SOURCE_DIR}/../runtimes)
   set(KITSUNE_OPENMP_BINARY_DIR ${KITSUNE_TARGETS_BINARY_DIR}/openmp/build)
@@ -587,6 +627,8 @@ if (KITSUNE_OPENMP_ENABLED)
     -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
     -DCMAKE_CXX_FLAGS=${KITSUNE_OPENMP_CXX_FLAGS}
     -DCMAKE_CXX_COMPILER_WORKS=1
+    -DCMAKE_EXE_LINKER_FLAGS=${KITSUNE_OPENMP_LINKER_FLAGS}
+    -DCMAKE_SHARED_LINKER_FLAGS=${KITSUNE_OPENMP_LINKER_FLAGS}
     -DCMAKE_INSTALL_PREFIX=${KITSUNE_OPENMP_INSTALL_DIR}
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
     -DCMAKE_COLOR_DIAGNOSTICS=${CMAKE_COLOR_DIAGNOSTICS}
@@ -645,17 +687,27 @@ if (KITSUNE_QTHREADS_ENABLED)
   # this anytime soon.
   message(STATUS "Kitsune: qthreads target enabled")
 
-  set(KITSUNE_QTHREADS_C_FLAGS "")
-  if (KITSUNE_SYSROOT)
-    string(APPEND KITSUNE_QTHREADS_C_FLAGS " --sysroot=${KITSUNE_SYSROOT}")
-  endif ()
-  string(REPLACE ";" | KITSUNE_QTHREADS_C_FLAGS "${KITSUNE_QTHREADS_C_FLAGS}")
+  set(KITSUNE_QTHREADS_BUILD_CONFIGURE_FLAGS ""
+    CACHE STRING
+    "Additional options to be passed to CMake when configuring qthreads. These
+    are only used when building qthreads as part of building Kitsune itself")
 
-  set(KITSUNE_QTHREADS_CXX_FLAGS "")
-  if (KITSUNE_SYSROOT)
-    string(APPEND KITSUNE_QTHREADS_CXX_FLAGS " --sysroot=${KITSUNE_SYSROOT}")
-  endif ()
-  string(REPLACE ";" | KITSUNE_QTHREADS_CXX_FLAGS "${KITSUNE_QTHREADS_CXX_FLAGS}")
+  set(KITSUNE_QTHREADS_BUILD_COMPILE_FLAGS ""
+    CACHE STRING
+    "Additional compiler flags needed to build qthreads. These are only used
+    when building qthreads as part of building Kitsune itself")
+
+  set(KITSUNE_QTHREADS_BUILD_LINK_FLAGS ""
+    CACHE STRING
+    "Additional linker flags needed to build qthreads. These are only used when
+    building qthreads as part of building Kitsune itself")
+
+  prepare_extproj_cmdline_opts("${KITSUNE_QTHREADS_BUILD_COMPILE_FLAGS}"
+    KITSUNE_QTHREADS_C_FLAGS)
+  prepare_extproj_cmdline_opts("${KITSUNE_QTHREADS_BUILD_COMPILE_FLAGS}"
+    KITSUNE_QTHREADS_CXX_FLAGS)
+  prepare_extproj_cmdline_opts("${KITSUNE_QTHREADS_BUILD_LINK_FLAGS}"
+    KITSUNE_QTHREADS_LINKER_FLAGS)
 
   set(KITSUNE_QTHREADS_LIBDIR "${CMAKE_INSTALL_LIBDIR}")
   set(KITSUNE_QTHREADS_SOURCE_DIR ${KITSUNE_TARGETS_BINARY_DIR}/qthreads/qthreads)
@@ -670,6 +722,8 @@ if (KITSUNE_QTHREADS_ENABLED)
     -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
     -DCMAKE_CXX_FLAGS=${KITSUNE_QTHREADS_CXX_FLAGS}
     -DCMAKE_CXX_COMPILER_WORKS=1
+    -DCMAKE_EXE_LINKER_FLAGS=${KITSUNE_QTHREADS_LINKER_FLAGS}
+    -DCMAKE_SHARED_LINKER_FLAGS=${KITSUNE_QTHREADS_LINKER_FLAGS}
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
     -DCMAKE_COLOR_DIAGNOSTICS=${CMAKE_COLOR_DIAGNOSTICS}
     -DCMAKE_INSTALL_PREFIX=${KITSUNE_QTHREADS_INSTALL_DIR}
@@ -732,17 +786,28 @@ endif()
 # install directory for kitsune as specified by ${CMAKE_INSTALL_PREFIX}.
 set(KITSUNE_RUNTIME_INSTALL_DIR ${KITSUNE_BINARY_DIR}/${KITSUNE_LIBNAME})
 
-set(KITSUNE_RUNTIME_C_FLAGS)
-if (KITSUNE_SYSROOT)
-  list(APPEND KITSUNE_RUNTIME_C_FLAGS "--sysroot=${KITSUNE_SYSROOT}")
-endif ()
-string(REPLACE ";" "|" KITSUNE_RUNTIME_C_FLAGS "${KITSUNE_RUNTIME_C_FLAGS}")
+set(KITSUNE_RUNTIME_BUILD_CONFIGURE_FLAGS ""
+  CACHE STRING
+  "Additional options to be passed to CMake when configuring Kitsune's runtime.
+  These are only used when building the runtime as part of building Kitsune
+  itself")
 
-set(KITSUNE_RUNTIME_CXX_FLAGS)
-if (KITSUNE_SYSROOT)
-  list(APPEND KITSUNE_RUNTIME_CXX_FLAGS "--sysroot=${KITSUNE_SYSROOT}")
-endif ()
-string(REPLACE ";" "|" KITSUNE_RUNTIME_CXX_FLAGS "${KITSUNE_RUNTIME_CXX_FLAGS}")
+set(KITSUNE_RUNTIME_BUILD_COMPILE_FLAGS ""
+  CACHE STRING
+  "Additional compiler flags needed to build Kitsune's runtime. These are only
+  used when building Kitsune's runtime as part of building Kitsune itself")
+
+set(KITSUNE_RUNTIME_BUILD_LINK_FLAGS ""
+  CACHE STRING
+  "Additional linker flags needed to build Kitsune's runtime. These are only
+  used when building Kitsune's runtime as part of building Kitsune itself")
+
+prepare_extproj_cmdline_opts("${KITSUNE_RUNTIME_BUILD_COMPILE_FLAGS}"
+  KITSUNE_RUNTIME_C_FLAGS)
+prepare_extproj_cmdline_opts("${KITSUNE_RUNTIME_BUILD_COMPILE_FLAGS}"
+  KITSUNE_RUNTIME_CXX_FLAGS)
+prepare_extproj_cmdline_opts("${KITSUNE_RUNTIME_BUILD_LINK_FLAGS}"
+  KITSUNE_RUNTIME_LINKER_FLAGS)
 
 # -----------------------------------------------------------------------------
 # The CLANG_, KITSUNE_ and LLVM_ variables that are passed in when configuring
@@ -767,6 +832,8 @@ set(KITSUNE_RUNTIME_CONFIGURE_ARGS
   -DCMAKE_CXX_COMPILER_LAUNCHER=${CMAKE_CXX_COMPILER_LAUNCHER}
   -DCMAKE_CXX_COMPILER_WORKS=1
   -DCMAKE_CXX_FLAGS=${KITSUNE_RUNTIME_CXX_FLAGS}
+  -DCMAKE_EXE_LINKER_FLAGS=${KITSUNE_RUNTIME_LINKER_FLAGS}
+  -DCMAKE_SHARED_LINKER_FLAGS=${KITSUNE_RUNTIME_LINKER_FLAGS}
   -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
   -DCMAKE_COLOR_DIAGNOSTICS=${CMAKE_COLOR_DIAGNOSTICS}
   -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
