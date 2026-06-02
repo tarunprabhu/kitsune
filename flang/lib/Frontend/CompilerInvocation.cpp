@@ -1477,7 +1477,7 @@ static bool parseKitsuneArgs(CompilerInvocation &invoc, const char *argv0,
   bool success = true;
 
   llvm::driver::KitOptions &kitOpts = invoc.getKitOpts();
-  success &= parseKitsuneArgs(kitOpts, argv0, args, opts, diags);
+  success &= clang::driver::parseKitsuneArgs(kitOpts, argv0, args, opts, diags);
 
   return success;
 }
