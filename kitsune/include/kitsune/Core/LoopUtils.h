@@ -26,6 +26,7 @@ class LLVMContext;
 class Loop;
 class LoopInfo;
 class Module;
+class PHINode;
 class Task;
 class TaskInfo;
 
@@ -158,6 +159,11 @@ unsigned getNumIndVars(const Loop &loop);
 /// not in a subloop of \p loop.
 bool isInLoop(const Instruction &inst, const Loop &loop, LoopInfo &li,
               bool strict = false);
+
+/// If the given induction variable has at least one use that is not in \p loop,
+/// return true. \p iv is expected to be an induction variable associated with
+/// \p loop.
+bool isUsedOutsideLoop(const PHINode &iv, const Loop &loop, LoopInfo &li);
 
 /// @}
 

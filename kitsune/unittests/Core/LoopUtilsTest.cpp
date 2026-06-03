@@ -825,4 +825,38 @@ TEST_F(KitLoopUtils, isInLoop) {
   EXPECT_FALSE(isInLoop(*ret, *innerLoop, *li, /*strict=*/true));
 }
 
+static constexpr StringRef usedOutside = R"(
+define i64 @f(i64 %n) {
+entry:
+  br label %loop
+
+loop:
+  %i = phi i64 [ 19, %entry ], [ %inc.i, %loop ]
+  %j = phi i64 [ 0, %entry ], [ %inc.j, %loop ]
+  %inc.i = add i64 %i, 10
+  %inc.j = add i64 %j, 1
+  %cmp.j = icmp eq i64 %inc.j, %n
+  br i1 %cmp.j, label %exit, label %loop, !llvm.loop !0
+
+exit:
+  %tmp = phi i64 [ %j, %loop ]
+  ret i64 %tmp
+}
+
+!0 = distinct !{!0}
+)";
+
+TEST_F(KitLoopUtils, isUsedOutsideLoop) {
+  setup(usedOutside, "f");
+  Loop *loop = *li->begin();
+  BasicBlock *header = loop->getHeader();
+  PHINode *iv = loop->getCanonicalInductionVariable();
+
+  for (PHINode &phi : header->phis()) {
+    // The loop has two induction variables. The canonical one is used outside
+    // the loop, the other is not.
+    EXPECT_EQ(isUsedOutsideLoop(phi, *loop, *li), &phi == iv);
+  }
+}
+
 } // namespace
