@@ -270,3 +270,15 @@ bool llvm::isInLoop(const Instruction &inst, const Loop &loop, LoopInfo &li,
   }
   return false;
 }
+
+bool llvm::isUsedOutsideLoop(const PHINode &iv, const Loop &loop,
+                             LoopInfo &li) {
+  for (const User *user : iv.users()) {
+    // If the user of the PHINode is not an instruction, we are not sure what
+    // it is, so be conservative and assume that the use is outside the loop.
+    const Instruction *inst = dyn_cast<Instruction>(user);
+    if (!inst || !isInLoop(*inst, loop, li))
+      return true;
+  }
+  return false;
+}

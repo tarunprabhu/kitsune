@@ -219,7 +219,7 @@ def ErrTapirLoopThrowsException
   : Error<"tapir loop may not throw an exception">;
 
 def ErrTapirLoopIVUsedOutsideLoop
-  : Error<"tapir loop induction variable used outside tapir loop: '{}'">;
+  : Error<"tapir loop induction variable used outside tapir loop">;
 
 def ErrReduceUnitValMismatch
   : Error<"type mismatch between value being reduced and unit">;

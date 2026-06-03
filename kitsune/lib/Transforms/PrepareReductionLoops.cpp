@@ -1602,17 +1602,14 @@ static bool check(TapirLoopInfo &tapirLoop, DominatorTree &dt, LoopInfo &li,
     return complain(loop, DiagID::ErrTapirLoopNoPrimaryIV);
 
   for (auto &[iv, ivDescr] : *tapirLoop.getInductionVars()) {
-    for (User *user : iv->users()) {
-      if (auto *inst = dyn_cast<Instruction>(user)) {
-        if (!isInLoop(*inst, loop, li))
-          return complain(loop, DiagID::ErrTapirLoopIVUsedOutsideLoop,
-                          getName(*user));
-      } else {
+    for (User *user : iv->users())
+      if (!isa<Instruction>(user))
         return complain(
             loop, DiagID::ErrGeneric,
             "Use of tapir loop induction variable is not an instruction");
-      }
-    }
+
+    if (isUsedOutsideLoop(*iv, loop, li))
+      return complain(loop, DiagID::ErrTapirLoopIVUsedOutsideLoop);
   }
 
   // TODO:? It is not clear why this is an issue. It was "inherited" from the
