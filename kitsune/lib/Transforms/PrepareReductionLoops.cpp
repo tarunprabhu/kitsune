@@ -1603,6 +1603,9 @@ static bool check(TapirLoopInfo &tapirLoop, DominatorTree &dt, LoopInfo &li,
   if (!loop.isLCSSAForm(dt))
     return complain(loop, DiagID::ErrLoopNotLCSSAForm);
 
+  if (getNumIndVars(loop) > 1)
+    return complain(loop, DiagID::ErrTapirLoopSingleIndVar);
+
   if (!tapirLoop.hasPrimaryInduction())
     return complain(loop, DiagID::ErrTapirLoopNoPrimaryIV);
 
