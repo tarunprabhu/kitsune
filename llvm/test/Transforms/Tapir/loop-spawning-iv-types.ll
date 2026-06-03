@@ -78,6 +78,8 @@ attributes #1 = { argmemonly nounwind willreturn }
 !llvm.ident = !{!0}
 
 !0 = !{!"clang version 10.0.1 (git@github.com:OpenCilk/opencilk-project.git af592c078a4129622f80fbbe0288dc984e63ff40)"}
-!1 = distinct !{!1, !2, !3}
+!1 = distinct !{!1, !2, !3, !4, !5}
 !2 = !{!"tapir.loop.spawn.strategy", i32 2}
 !3 = !{!"tapir.loop.grainsize", i32 1}
+!4 = !{!"tapir.loop.target", i32 8}
+!5 = !{!"tapir.loop.lowering.enabled"}

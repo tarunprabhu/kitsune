@@ -81,6 +81,8 @@ attributes #3 = { argmemonly }
 
 !0 = !{i32 1, !"wchar_size", i32 4}
 !1 = !{!"clang version 6.0.0 (git@github.com:wsmoses/Tapir-Clang.git 4243d6a74e292ae62b82f7ff71233f8a2aeb4481) (git@github.mit.edu:SuperTech/Tapir-CSI-llvm.git 23d12922c9b8bcbec235e208eb6b60a2dcee6451)"}
-!2 = distinct !{!2, !3, !4}
+!2 = distinct !{!2, !3, !4, !5, !6}
 !3 = !{!"tapir.loop.spawn.strategy", i32 2}
 !4 = !{!"tapir.loop.grainsize", i32 4}
+!5 = !{!"tapir.loop.target", i32 8}
+!6 = !{!"tapir.loop.lowering.enabled"}

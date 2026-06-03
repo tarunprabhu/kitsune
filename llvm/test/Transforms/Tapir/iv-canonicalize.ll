@@ -77,5 +77,7 @@ declare double @julia_log_12250(double)
 
 attributes #0 = { argmemonly nounwind }
 
-!84 = distinct !{!84, !85}
+!84 = distinct !{!84, !85, !86, !87}
 !85 = !{!"tapir.loop.spawn.strategy", i32 2}
+!86 = !{!"tapir.loop.target", i32 8}
+!87 = !{!"tapir.loop.lowering.enabled"}

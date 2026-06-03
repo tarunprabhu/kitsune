@@ -693,3 +693,9 @@ if "system-aix" in config.available_features:
 
 if config.has_logf128:
     config.available_features.add("has_logf128")
+
+# This is needed by the Tapir tests in llvm/test/Transforms/Tapir. Several of
+# the tests there ought to be in kitsune/test/tapir/opencilk, but we try to
+# minimize the differences between us and opencilk.
+if config.kitsune_opencilk:
+    config.available_features.add("kitsune-opencilk")
