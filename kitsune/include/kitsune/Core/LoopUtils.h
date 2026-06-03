@@ -148,6 +148,10 @@ void clearMandatoryLLVMLoopAttrs(Loop &loop);
 bool serializeTapirLoop(Loop &loop, Task &task, DominatorTree *dt = nullptr,
                         TaskInfo *ti = nullptr);
 
+/// Get the number of induction variables in the loop. This is the just the
+/// count of the number of PHI nodes in the loop header.
+unsigned getNumIndVars(const Loop &loop);
+
 /// @}
 
 } // namespace llvm

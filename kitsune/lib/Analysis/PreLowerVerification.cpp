@@ -276,11 +276,7 @@ private:
   ///  - A sync instruction must post-dominate the tapir loop.
   ///
   void checkTapirLoop(const Loop &loop, const Task &task) {
-    unsigned numPhis = 0;
-    for (const Instruction &inst : *loop.getHeader())
-      if (isa<PHINode>(inst))
-        ++numPhis;
-    if (numPhis > 1)
+    if (getNumIndVars(loop) > 1)
       emitDiag(loop, DiagID::ErrTapirLoopSingleIndVar);
 
     const DetachInst *detachInst = task.getDetach();

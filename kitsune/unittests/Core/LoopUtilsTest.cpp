@@ -706,4 +706,49 @@ TEST_F(KitLoopUtils, clearMandatoryLLVMLoopAttrs) {
   EXPECT_EQ(loop->getLoopID()->getNumOperands(), 2U);
 }
 
+static constexpr StringRef loops = R"(
+define void @f(i64 %n) {
+entry:
+  br label %loop2
+
+loop2:
+  %i = phi i64 [ 0, %entry ], [ %inc.i, %loop2 ]
+  %j = phi i32 [ 1, %entry ], [ %inc.j, %loop2 ]
+  %inc.i = add i64 %i, 1
+  %inc.j = add i32 %j, 1
+  %cmp.i = icmp eq i64 %inc.i, %n
+  br i1 %cmp.i, label %loop1, label %loop2, !llvm.loop !2
+
+loop1:
+  %k = phi i64 [ 0, %entry ], [ %inc.k, %loop1 ]
+  %inc.k = add i64 %k, 1
+  %cmp.k = icmp eq i64 %inc.k, %n
+  br i1 %cmp.k, label %loop0, label %loop1, !llvm.loop !1
+
+loop0:
+  br label %loop0, !llvm.loop !0
+
+exit:
+  ret void
+}
+
+!0 = distinct !{!0}
+!1 = distinct !{!1}
+!2 = distinct !{!2}
+)";
+
+TEST_F(KitLoopUtils, getNumIndVars) {
+  setup(loops, "f");
+
+  for (BasicBlock &bb : *f) {
+    StringRef name = bb.getName();
+    if (name == "loop0")
+      EXPECT_EQ(getNumIndVars(*li->getLoopFor(&bb)), 0U);
+    else if (name == "loop1")
+      EXPECT_EQ(getNumIndVars(*li->getLoopFor(&bb)), 1U);
+    else if (name == "loop2")
+      EXPECT_EQ(getNumIndVars(*li->getLoopFor(&bb)), 2U);
+  }
+}
+
 } // namespace

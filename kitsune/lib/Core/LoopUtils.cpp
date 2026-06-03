@@ -251,3 +251,8 @@ bool llvm::serializeTapirLoop(Loop &loop, Task &task, DominatorTree *dt,
 
   return true;
 }
+
+unsigned llvm::getNumIndVars(const Loop &loop) {
+  iterator_range<BasicBlock::phi_iterator> phis = loop.getHeader()->phis();
+  return std::distance(phis.begin(), phis.end());
+}
