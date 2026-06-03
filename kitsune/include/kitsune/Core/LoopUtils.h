@@ -21,6 +21,7 @@ namespace llvm {
 class BasicBlock;
 class DominatorTree;
 class Function;
+class Instruction;
 class LLVMContext;
 class Loop;
 class LoopInfo;
@@ -151,6 +152,12 @@ bool serializeTapirLoop(Loop &loop, Task &task, DominatorTree *dt = nullptr,
 /// Get the number of induction variables in the loop. This is the just the
 /// count of the number of PHI nodes in the loop header.
 unsigned getNumIndVars(const Loop &loop);
+
+/// Check if the instruction \p inst is in the loop \p loop, or any of its
+/// subloops. If \p strict is true, \p inst must be precisely in \p loop, and
+/// not in a subloop of \p loop.
+bool isInLoop(const Instruction &inst, const Loop &loop, LoopInfo &li,
+              bool strict = false);
 
 /// @}
 

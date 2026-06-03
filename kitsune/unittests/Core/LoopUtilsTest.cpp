@@ -706,7 +706,7 @@ TEST_F(KitLoopUtils, clearMandatoryLLVMLoopAttrs) {
   EXPECT_EQ(loop->getLoopID()->getNumOperands(), 2U);
 }
 
-static constexpr StringRef loops = R"(
+static constexpr StringRef multipleIVs = R"(
 define void @f(i64 %n) {
 entry:
   br label %loop2
@@ -738,7 +738,7 @@ exit:
 )";
 
 TEST_F(KitLoopUtils, getNumIndVars) {
-  setup(loops, "f");
+  setup(multipleIVs, "f");
 
   for (BasicBlock &bb : *f) {
     StringRef name = bb.getName();
@@ -749,6 +749,80 @@ TEST_F(KitLoopUtils, getNumIndVars) {
     else if (name == "loop2")
       EXPECT_EQ(getNumIndVars(*li->getLoopFor(&bb)), 2U);
   }
+}
+
+static constexpr StringRef loops = R"(
+define void @f(i64 %n) {
+entry:
+  br label %header.o
+
+header.o:
+  %i = phi i64 [ 0, %entry ], [ %inc.i, %latch.o ]
+  br label %loop.i
+
+loop.i:
+  %j = phi i64 [ 0, %header.o ], [ %inc.j, %loop.i ]
+  %inc.j = add i64 %j, 1
+  %cmp.j = icmp eq i64 %inc.j, %n
+  br i1 %cmp.j, label %latch.o, label %loop.i, !llvm.loop !1
+
+latch.o:
+  %inc.i = add i64 %i, 1
+  %cmp.i = icmp eq i64 %inc.i, %n
+  br i1 %cmp.i, label %exit, label %header.o, !llvm.loop !0
+
+exit:
+  ret void
+}
+
+!0 = distinct !{!0}
+!1 = distinct !{!1}
+)";
+
+TEST_F(KitLoopUtils, isInLoop) {
+  setup(loops, "f");
+
+  Loop *outerLoop, *innerLoop;
+  for (BasicBlock &bb : *f)
+    if (bb.getName() == "header.o")
+      outerLoop = li->getLoopFor(&bb);
+    else if (bb.getName() == "loop.i")
+      innerLoop = li->getLoopFor(&bb);
+
+  // latchI is the latch of the inner loop and must be in both loops, unless
+  // strict is true in which case, it will only be in the inner loop.
+  Instruction *latchI = innerLoop->getLoopLatch()->getTerminator();
+
+  // By default, strict should be `false`.
+  EXPECT_TRUE(isInLoop(*latchI, *outerLoop, *li));
+  EXPECT_TRUE(isInLoop(*latchI, *innerLoop, *li));
+
+  EXPECT_TRUE(isInLoop(*latchI, *outerLoop, *li, /*strict=*/false));
+  EXPECT_FALSE(isInLoop(*latchI, *outerLoop, *li, /*strict=*/true));
+  EXPECT_TRUE(isInLoop(*latchI, *innerLoop, *li, /*strict=*/false));
+  EXPECT_TRUE(isInLoop(*latchI, *innerLoop, *li, /*strict=*/true));
+
+  // latchO is the latch of the outer loop and must be in the outer loop, but
+  // not the inner.
+  Instruction *latchO = outerLoop->getLoopLatch()->getTerminator();
+  EXPECT_TRUE(isInLoop(*latchO, *outerLoop, *li));
+  EXPECT_TRUE(isInLoop(*latchO, *outerLoop, *li, /*strict=*/true));
+  EXPECT_FALSE(isInLoop(*latchO, *innerLoop, *li));
+  EXPECT_FALSE(isInLoop(*latchO, *innerLoop, *li, /*strict=*/true));
+
+  // br has a parent, but it is not in any loop.
+  Instruction *br = f->getEntryBlock().getTerminator();
+  EXPECT_FALSE(isInLoop(*br, *outerLoop, *li, /*strict=*/false));
+  EXPECT_FALSE(isInLoop(*br, *outerLoop, *li, /*strict=*/true));
+  EXPECT_FALSE(isInLoop(*br, *innerLoop, *li, /*strict=*/false));
+  EXPECT_FALSE(isInLoop(*br, *innerLoop, *li, /*strict=*/true));
+
+  // ret does not have a parent.
+  ReturnInst *ret = ReturnInst::Create(ctx);
+  EXPECT_FALSE(isInLoop(*ret, *outerLoop, *li, /*strict=*/false));
+  EXPECT_FALSE(isInLoop(*ret, *outerLoop, *li, /*strict=*/true));
+  EXPECT_FALSE(isInLoop(*ret, *innerLoop, *li, /*strict=*/false));
+  EXPECT_FALSE(isInLoop(*ret, *innerLoop, *li, /*strict=*/true));
 }
 
 } // namespace

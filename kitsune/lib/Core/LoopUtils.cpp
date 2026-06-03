@@ -256,3 +256,17 @@ unsigned llvm::getNumIndVars(const Loop &loop) {
   iterator_range<BasicBlock::phi_iterator> phis = loop.getHeader()->phis();
   return std::distance(phis.begin(), phis.end());
 }
+
+bool llvm::isInLoop(const Instruction &inst, const Loop &loop, LoopInfo &li,
+                    bool strict) {
+  if (const BasicBlock *bb = inst.getParent()) {
+    Loop *l = li.getLoopFor(bb);
+    if (!l)
+      return false;
+    else if (strict)
+      return l == &loop;
+    else
+      return loop.contains(l);
+  }
+  return false;
+}
