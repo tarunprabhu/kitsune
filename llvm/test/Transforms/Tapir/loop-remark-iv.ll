@@ -92,4 +92,6 @@ attributes #27 = { noreturn nounwind }
 !18 = !{!19, !19, i64 0}
 !19 = !{!"any pointer", !5, i64 0}
 !41 = !{!7, !7, i64 0}
-!171 = distinct !{!171, !17}
+!171 = distinct !{!171, !17, !172, !173}
+!172 = !{!"tapir.loop.target", i32 8}
+!173 = !{!"tapir.loop.lowering.enabled"}

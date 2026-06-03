@@ -404,4 +404,6 @@ declare void @llvm.detached.rethrow.sl_p0i8i32s(token, { i8*, i32 }) #13
 !242 = distinct !{!242, !240}
 !243 = distinct !{!243, !60}
 !244 = distinct !{!244, !60}
-!245 = distinct !{!245, !29}
+!245 = distinct !{!245, !29, !246, !247}
+!246 = !{!"tapir.loop.target", i32 8}
+!247 = !{!"tapir.loop.lowering.enabled"}

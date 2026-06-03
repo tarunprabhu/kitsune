@@ -3,7 +3,7 @@
 ; Check that Tapir lowering ensures the call to the outlined helper
 ; function has debug information.
 ;
-; RUN: opt < %s -passes="tapir-lowering<O0>" -tapir-target=opencilk -use-opencilk-runtime-bc=false -debug-abi-calls -S | FileCheck %s
+; RUN: opt < %s -passes="tapir-lowering<O0>" -tapir-target=opencilk -use-opencilk-runtime-bc=false --tapir-opencilk-runtime-bc=%S/libopencilk-abi.bc -debug-abi-calls -S | FileCheck %s
 target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
 
@@ -277,7 +277,7 @@ attributes #7 = { nounwind }
 !50 = !DILocation(line: 15, column: 45, scope: !47)
 !51 = !DILocation(line: 15, column: 31, scope: !41)
 !52 = !DILocation(line: 15, column: 3, scope: !41)
-!53 = distinct !{!53, !39, !54, !55}
+!53 = distinct !{!53, !39, !54, !55, !83, !84}
 !54 = !DILocation(line: 15, column: 45, scope: !31)
 !55 = !{!"tapir.loop.spawn.strategy", i32 2}
 !56 = !DILocation(line: 17, column: 3, scope: !18)
@@ -307,3 +307,5 @@ attributes #7 = { nounwind }
 !80 = !DILocation(line: 22, column: 3, scope: !18)
 !81 = !DILocation(line: 23, column: 3, scope: !18)
 !82 = !DILocation(line: 24, column: 1, scope: !18)
+!83 = !{!"tapir.loop.target", i32 8}
+!84 = !{!"tapir.loop.lowering.enabled"}

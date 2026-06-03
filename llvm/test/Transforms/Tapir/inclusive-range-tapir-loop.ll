@@ -1388,10 +1388,12 @@ declare void @free(i8* nocapture) local_unnamed_addr #1
 !99 = distinct !{!99, !76}
 !100 = distinct !{!100, !82}
 !101 = distinct !{!101, !78, !76}
-!102 = distinct !{!102, !6}
+!102 = distinct !{!102, !6, !109, !110}
 !103 = distinct !{!103, !76}
 !104 = distinct !{!104, !82}
 !105 = distinct !{!105, !78, !76}
 !106 = distinct !{!106, !82}
-!107 = distinct !{!107, !6}
+!107 = distinct !{!107, !6, !109, !110}
 !108 = distinct !{!108, !82}
+!109 = !{!"tapir.loop.target", i32 8}
+!110 = !{!"tapir.loop.lowering.enabled"}

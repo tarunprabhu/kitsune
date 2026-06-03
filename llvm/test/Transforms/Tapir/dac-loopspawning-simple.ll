@@ -95,5 +95,7 @@ attributes #1 = { "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-
 attributes #2 = { nounwind }
 attributes #3 = { argmemonly nounwind }
 
-!1 = distinct !{!1, !2}
+!1 = distinct !{!1, !2, !3, !4}
 !2 = !{!"tapir.loop.spawn.strategy", i32 2}
+!3 = !{!"tapir.loop.target", i32 8}
+!4 = !{!"tapir.loop.lowering.enabled"}

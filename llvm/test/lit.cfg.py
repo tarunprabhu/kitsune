@@ -956,3 +956,9 @@ if lit_config.update_tests:
     from update_any_test_checks import utc_lit_plugin
 
     lit_config.test_updaters.append(utc_lit_plugin)
+
+# This is needed by the Tapir tests in llvm/test/Transforms/Tapir. Several of
+# the tests there ought to be in kitsune/test/tapir/opencilk, but we try to
+# minimize the differences between us and opencilk.
+if config.kitsune_opencilk:
+    config.available_features.add("kitsune-opencilk")

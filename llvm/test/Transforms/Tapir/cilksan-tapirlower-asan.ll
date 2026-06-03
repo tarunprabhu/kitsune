@@ -5,12 +5,12 @@
 ; that ASan does not attempt to unpoison allocas that end up on
 ; different stacks.
 ;
-; RUN: opt < %s -passes="cilksan" -S | FileCheck %s --check-prefixes=CHECK,CHECK-CSAN
-; RUN: opt < %s -passes="cilksan,tapir-lowering<O0>" -tapir-target=opencilk -use-opencilk-runtime-bc=false -debug-abi-calls -S | FileCheck %s --check-prefixes=CHECK,CHECK-CSAN,CHECK-TAPIR
-; RUN: opt < %s -passes="cilksan,tapir-lowering<O0>,asan" -tapir-target=opencilk -use-opencilk-runtime-bc=false -debug-abi-calls -S | FileCheck %s --check-prefixes=CHECK,CHECK-ASAN
-; RUN: opt < %s -passes="csi-setup,csi" -S | FileCheck %s --check-prefixes=CHECK,CHECK-CSI
-; RUN: opt < %s -passes="csi-setup,csi,tapir-lowering<O0>" -tapir-target=opencilk -use-opencilk-runtime-bc=false -debug-abi-calls -S | FileCheck %s --check-prefixes=CHECK,CHECK-CSI,CHECK-TAPIR
-; RUN: opt < %s -passes="csi-setup,csi,tapir-lowering<O0>,asan" -tapir-target=opencilk -use-opencilk-runtime-bc=false -debug-abi-calls -S | FileCheck %s --check-prefixes=CHECK-CSI-ASAN
+; RUN: opt < %s -passes="cilksan" --tapir-opencilk-runtime-bc=%S/libopencilk-abi.bc -S | FileCheck %s --check-prefixes=CHECK,CHECK-CSAN
+; RUN: opt < %s -passes="cilksan,tapir-lowering<O0>" -tapir-target=opencilk -use-opencilk-runtime-bc=false --tapir-opencilk-runtime-bc=%S/libopencilk-abi.bc -debug-abi-calls -S | FileCheck %s --check-prefixes=CHECK,CHECK-CSAN,CHECK-TAPIR
+; RUN: opt < %s -passes="cilksan,tapir-lowering<O0>,asan" -tapir-target=opencilk -use-opencilk-runtime-bc=false --tapir-opencilk-runtime-bc=%S/libopencilk-abi.bc -debug-abi-calls -S | FileCheck %s --check-prefixes=CHECK,CHECK-ASAN
+; RUN: opt < %s -passes="csi-setup,csi" --tapir-opencilk-runtime-bc=%S/libopencilk-abi.bc -S | FileCheck %s --check-prefixes=CHECK,CHECK-CSI
+; RUN: opt < %s -passes="csi-setup,csi,tapir-lowering<O0>" -tapir-target=opencilk -use-opencilk-runtime-bc=false --tapir-opencilk-runtime-bc=%S/libopencilk-abi.bc -debug-abi-calls -S | FileCheck %s --check-prefixes=CHECK,CHECK-CSI,CHECK-TAPIR
+; RUN: opt < %s -passes="csi-setup,csi,tapir-lowering<O0>,asan" -tapir-target=opencilk -use-opencilk-runtime-bc=false --tapir-opencilk-runtime-bc=%S/libopencilk-abi.bc -debug-abi-calls -S | FileCheck %s --check-prefixes=CHECK-CSI-ASAN
 target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
 
@@ -266,7 +266,9 @@ attributes #6 = { nounwind }
 !3 = !{i32 7, !"uwtable", i32 2}
 !4 = !{i32 7, !"frame-pointer", i32 2}
 !5 = !{!"clang version 16.0.6 (git@github.com:OpenCilk/opencilk-project.git d631c52742bc32d008a8101e6fc002f5085e1274)"}
-!6 = distinct !{!6, !7}
+!6 = distinct !{!6, !7, !10, !11}
 !7 = !{!"tapir.loop.spawn.strategy", i32 2}
 !8 = distinct !{!8, !9}
 !9 = !{!"llvm.loop.mustprogress"}
+!10 = !{!"tapir.loop.target", i32 8}
+!11 = !{!"tapir.loop.lowering.enabled"}
