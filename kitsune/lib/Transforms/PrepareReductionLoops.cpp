@@ -1548,14 +1548,6 @@ static bool complain(const Loop &loop, DiagID diag, Args &&...args) {
 // satisfied.
 static bool check(TapirLoopInfo &tapirLoop, DominatorTree &dt, LoopInfo &li,
                   PredicatedScalarEvolution &pse) {
-  auto isInLoop = [](const Instruction &inst, const Loop &loop,
-                     const LoopInfo &li) -> bool {
-    if (Loop *l = li.getLoopFor(inst.getParent()))
-      if (loop.contains(l))
-        return true;
-    return false;
-  };
-
   auto anyPredecessorDoesNotReattach = [](const BasicBlock &latch) -> bool {
     return llvm::any_of(predecessors(&latch), [](const BasicBlock *bb) {
       return isa<ReattachInst>(bb->getTerminator());
