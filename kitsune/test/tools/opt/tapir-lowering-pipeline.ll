@@ -22,42 +22,44 @@
 ;
 ; RUN: opt -passes='tapir-lowering<O1>' --tapir=serial -debug-pass-manager %s \
 ; RUN:     -disable-output 2>&1 \
-; RUN:     | FileCheck %s -check-prefix O123SZ
+; RUN:     | FileCheck %s -check-prefix O123S
 ;
 ; RUN: opt -passes='tapir-lowering<O2>' --tapir=serial -debug-pass-manager %s \
 ; RUN:     -disable-output 2>&1 \
-; RUN:     | FileCheck %s -check-prefix O123SZ
+; RUN:     | FileCheck %s -check-prefix O123S
 ;
 ; RUN: opt -passes='tapir-lowering<O3>' --tapir=serial -debug-pass-manager %s \
 ; RUN:     -disable-output 2>&1 \
-; RUN:     | FileCheck %s -check-prefix O123SZ
+; RUN:     | FileCheck %s -check-prefix O123S
 ;
 ; RUN: opt -passes='tapir-lowering<Os>' --tapir=serial -debug-pass-manager %s \
 ; RUN:     -disable-output 2>&1 \
-; RUN:     | FileCheck %s -check-prefix O123SZ
+; RUN:     | FileCheck %s -check-prefix O123S
 ;
-; RUN: opt -passes='tapir-lowering<Oz>' --tapir=serial -debug-pass-manager %s \
-; RUN:     -disable-output 2>&1 \
-; RUN:     | FileCheck %s -check-prefix O123SZ
+; RUN: not opt -passes='tapir-lowering<Oz>' --tapir=serial -debug-pass-manager \
+; RUN:     -disable-output %s 2>&1 \
+; RUN:     | FileCheck %s -check-prefix ERROR
 ;
-; O123SZ:      Running pass:     PreLowerVerificationPass
-; O123SZ-NEXT: Running analysis: TTObjectsAnalysis
-; O123SZ-NEXT: Running pass:     PreLowerAnnotate
-; O123SZ-NEXT: Running pass:     SerializePass
-; O123SZ-NEXT: Running pass:     LoopSpawningPass
-; O123SZ-NEXT: Running pass:     TapirToTargetPass
-; O123SZ-NEXT: Running pass:     IPSCCPPass
-; O123SZ-NEXT: Running pass:     CalledValuePropagationPass
-; O123SZ-NEXT: Running pass:     GlobalOptPass
-; O123SZ-NEXT: Running pass:     DeadArgumentEliminationPass
-; O123SZ-NEXT: Running pass:     AlwaysInlinerPass
-; O123SZ-NEXT: Running analysis: ProfileSummaryAnalysis
-; O123SZ:      Running analysis: GlobalsAA
-; O123SZ-NEXT: Running analysis: CallGraphAnalysis
-; O123SZ:      Running analysis: LazyCallGraphAnalysis
-; O123SZ-NEXT: Running pass:     EliminateAvailableExternallyPass
-; O123SZ-NEXT: Running pass:     ReversePostOrderFunctionAttrs
-; O123SZ-NEXT: Running pass:     GlobalDCEPass
-; O123SZ-NEXT: Running pass:     VerifierPass
+; ERROR: unsupported optimization level '-Oz'
+;
+; O123S:      Running pass:     PreLowerVerificationPass
+; O123S-NEXT: Running analysis: TTObjectsAnalysis
+; O123S-NEXT: Running pass:     PreLowerAnnotate
+; O123S-NEXT: Running pass:     SerializePass
+; O123S-NEXT: Running pass:     LoopSpawningPass
+; O123S-NEXT: Running pass:     TapirToTargetPass
+; O123S-NEXT: Running pass:     IPSCCPPass
+; O123S-NEXT: Running pass:     CalledValuePropagationPass
+; O123S-NEXT: Running pass:     GlobalOptPass
+; O123S-NEXT: Running pass:     DeadArgumentEliminationPass
+; O123S-NEXT: Running pass:     AlwaysInlinerPass
+; O123S-NEXT: Running analysis: ProfileSummaryAnalysis
+; O123S:      Running analysis: GlobalsAA
+; O123S-NEXT: Running analysis: CallGraphAnalysis
+; O123S:      Running analysis: LazyCallGraphAnalysis
+; O123S-NEXT: Running pass:     EliminateAvailableExternallyPass
+; O123S-NEXT: Running pass:     ReversePostOrderFunctionAttrs
+; O123S-NEXT: Running pass:     GlobalDCEPass
+; O123S-NEXT: Running pass:     VerifierPass
 ;
 ; ------------------------------------------------------------------------------

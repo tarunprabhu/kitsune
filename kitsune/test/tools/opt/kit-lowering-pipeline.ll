@@ -22,23 +22,25 @@
 ;
 ; RUN: opt --tapir=serial -passes='kit-lowering<O1>' -debug-pass-manager %s \
 ; RUN:     -o /dev/null 2>&1 \
-; RUN:     | FileCheck %s -check-prefix O123SZ
+; RUN:     | FileCheck %s -check-prefix O123S
 ;
 ; RUN: opt --tapir=serial -passes='kit-lowering<O2>' -debug-pass-manager %s \
 ; RUN:     -o /dev/null 2>&1 \
-; RUN:     | FileCheck %s -check-prefix O123SZ
+; RUN:     | FileCheck %s -check-prefix O123S
 ;
 ; RUN: opt --tapir=serial -passes='kit-lowering<O3>' -debug-pass-manager %s \
 ; RUN:     -o /dev/null 2>&1 \
-; RUN:     | FileCheck %s -check-prefix O123SZ
+; RUN:     | FileCheck %s -check-prefix O123S
 ;
 ; RUN: opt --tapir=serial -passes='kit-lowering<Os>' -debug-pass-manager %s \
 ; RUN:     -o /dev/null 2>&1 \
-; RUN:     | FileCheck %s -check-prefix O123SZ
+; RUN:     | FileCheck %s -check-prefix O123S
 ;
-; RUN: opt --tapir=serial -passes='kit-lowering<Oz>' -debug-pass-manager %s \
-; RUN:     -o /dev/null 2>&1 \
-; RUN:     | FileCheck %s -check-prefix O123SZ
+; RUN: not opt --tapir=serial -passes='kit-lowering<Oz>' -debug-pass-manager \
+; RUN:     %s -o /dev/null 2>&1 \
+; RUN:     | FileCheck %s -check-prefix ERROR
+;
+; ERROR: unsupported optimization level '-Oz'
 ;
 ; <KIT-PRE-TAPIR>
 ; There are no standard pre-tapir passes at this time
@@ -50,41 +52,41 @@
 ; match runs of the pass from earlier in the pipeline. PrepareReductionLoops
 ; will fail if any of these are not run, so something will at least catch it
 ; if they are ever removed from the pipeline.
-; O123SZ:      Running pass:     PrepareReductionLoopsPass
-; O123SZ:      Running pass:     LowerKitReduceIntrinsicsPass
-; O123SZ:      Running pass:     ModuleInlinerPass
-; O123SZ:      Running pass:     EarlyCSEPass
-; O123SZ:      Running pass:     SimplifyCFGPass
-; O123SZ:      Running pass:     InstCombinePass
-; O123SZ:      Running pass:     SCCPPass
-; O123SZ:      Running pass:     BDCEPass
-; O123SZ:      Running pass:     InstCombinePass
-; O123SZ:      Running pass:     DSEPass
-; O123SZ:      Running pass:     ADCEPass
-; O123SZ:      Running pass:     DeLICMPass
-; O123SZ:      Running pass:     SimplifyCFGPass
-; O123SZ:      Running pass:     LoopSimplifyPass
-; O123SZ:      Running pass:     PreLowerVerificationPass
-; O123SZ:      Running pass:     PreLowerAnnotate
-; O123SZ:      Running pass:     SerializePass
+; O123S:      Running pass:     PrepareReductionLoopsPass
+; O123S:      Running pass:     LowerKitReduceIntrinsicsPass
+; O123S:      Running pass:     ModuleInlinerPass
+; O123S:      Running pass:     EarlyCSEPass
+; O123S:      Running pass:     SimplifyCFGPass
+; O123S:      Running pass:     InstCombinePass
+; O123S:      Running pass:     SCCPPass
+; O123S:      Running pass:     BDCEPass
+; O123S:      Running pass:     InstCombinePass
+; O123S:      Running pass:     DSEPass
+; O123S:      Running pass:     ADCEPass
+; O123S:      Running pass:     DeLICMPass
+; O123S:      Running pass:     SimplifyCFGPass
+; O123S:      Running pass:     LoopSimplifyPass
+; O123S:      Running pass:     PreLowerVerificationPass
+; O123S:      Running pass:     PreLowerAnnotate
+; O123S:      Running pass:     SerializePass
 ; </KIT-PRE-LOOP-SPAWNING>
 ;
-; O123SZ-NEXT: Running pass:     LoopSpawningPass
-; O123SZ:      Running pass:     TapirToTargetPass
+; O123S-NEXT: Running pass:     LoopSpawningPass
+; O123S:      Running pass:     TapirToTargetPass
 ;
 ; <KIT-POST-TAPIR>
-; O123SZ:      Running pass:     PrefetchForDevicePass
-; O123SZ:      Running pass:     EmbLowerKitIntrinsicsEarlyPass
-; O123SZ:      Running pass:     EmbResolveLibDeviceCallsPass
-; O123SZ:      Running pass:     EmbPreparePass
-; O123SZ:      Running pass:     EmbLinkLibDeviceBitcodePass
-; O123SZ:      Running pass:     EmbOptimizePass
-; O123SZ:      Running pass:     RecomputeKernelPropertiesPass
-; O123SZ:      Running pass:     GenerateCtorsPass
+; O123S:      Running pass:     PrefetchForDevicePass
+; O123S:      Running pass:     EmbLowerKitIntrinsicsEarlyPass
+; O123S:      Running pass:     EmbResolveLibDeviceCallsPass
+; O123S:      Running pass:     EmbPreparePass
+; O123S:      Running pass:     EmbLinkLibDeviceBitcodePass
+; O123S:      Running pass:     EmbOptimizePass
+; O123S:      Running pass:     RecomputeKernelPropertiesPass
+; O123S:      Running pass:     GenerateCtorsPass
 ; </KIT-POST-TAPIR>
 ;
-; O123SZ:      Running pass:     VerifierPass
-; O123SZ:      Running pass:     BitcodeWriterPass
+; O123S:      Running pass:     VerifierPass
+; O123S:      Running pass:     BitcodeWriterPass
 
 define void @f() {
   ret void

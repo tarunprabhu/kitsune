@@ -54,13 +54,19 @@ static std::optional<std::string> getUniqueArgValue(const ArgList &args,
 // Check the optimization level. Kitsune supports a narrower range of
 // optimization levels than clang or flang. If an optimization level is
 // specified and it is invalid, return true, otherwise return false.
+//
+// We currently only support -O1, -O2, -O3, -Og, and -Os. -Oz results in tapir
+// loops not being transformed correctly prior to loop spawning. It is not clear
+// that -Os and -Oz are relevant for the users of Kitsune. Since -Os seems to
+// works, we support it, but if, in the future, Kitsune requires certain passes
+// that are not run at -Os, we may remove support for that too.
 static bool checkOptLevel(const ArgList &args) {
   if (const Arg *a = args.getLastArg(options::OPT_O_Group)) {
     if (a->getOption().matches(options::OPT_O0)) {
       return true;
     } else if (a->getNumValues()) {
       StringRef v = a->getValue();
-      if (v == "1" || v == "2" || v == "3" || v == "g" || v == "s" || v == "z")
+      if (v == "1" || v == "2" || v == "3" || v == "g" || v == "s")
         return true;
     }
     return false;
@@ -112,7 +118,7 @@ void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
 
     if (!checkOptLevel(args)) {
       diags.Report(diag::err_drv_kit_bad_opt_level)
-          << args.getLastArg(options::OPT_O_Group)->getSpelling();
+          << args.getLastArg(options::OPT_O_Group)->getAsString(args);
       return;
     }
   }
