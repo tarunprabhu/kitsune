@@ -16,12 +16,14 @@
 // RUN: %kitxx -Os -mllvm -debug-pass=Structure %s -c -o /dev/null 2>&1 \
 // RUN:     | FileCheck -check-prefix DEFAULT %s
 //
-// RUN: %kitxx -Oz -mllvm -debug-pass=Structure %s -c -o /dev/null 2>&1 \
-// RUN:     | FileCheck -check-prefix DEFAULT %s
+// RUN: not %kitxx -Oz -mllvm -debug-pass=Structure %s -c -o /dev/null 2>&1 \
+// RUN:     | FileCheck -check-prefix ERROR %s
 //
 // DEFAULT-NOT: Strip Kitsune address spaces
 // DEFAULT-NOT: Lower Kitsune intrinsics
 // DEFAULT-NOT: Generate Kitsune fat binaries
+//
+// ERROR: unsupported optimization level '-Oz'
 //
 // -----------------------------------------------------------------------------
 // If the --tapir option is provided, the Kitsune passes are run at all
@@ -47,9 +49,9 @@
 // RUN:     -mllvm -debug-pass=Structure 2>&1 \
 // RUN:     | FileCheck %s -check-prefix TAPIR
 //
-// RUN: %kitxx -Oz --tapir=nolo %s -c -o /dev/null \
+// RUN: not %kitxx -Oz --tapir=nolo %s -c -o /dev/null \
 // RUN:     -mllvm -debug-pass=Structure 2>&1 \
-// RUN:     | FileCheck %s -check-prefix TAPIR
+// RUN:     | FileCheck %s -check-prefix ERROR
 //
 // TAPIR: ModulePass Manager
 // TAPIR-NEXT: Lower Kitsune intrinsics (embedded)

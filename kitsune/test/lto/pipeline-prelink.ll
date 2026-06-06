@@ -22,9 +22,9 @@
 ; RUN:     -flto -Xclang -fdebug-pass-manager 2>&1 \
 ; RUN:     | FileCheck %s
 ;
-; RUN: %kitcc -Oz --tapir=serial -c -emit-llvm -o /dev/null %s \
+; RUN: not %kitcc -Oz --tapir=serial -c -emit-llvm -o /dev/null %s \
 ; RUN:     -flto -Xclang -fdebug-pass-manager 2>&1 \
-; RUN:     | FileCheck %s
+; RUN:     | FileCheck %s --check-prefix=ERROR
 ;
 ; -----------------------------------------------------------------------------
 ;
@@ -42,6 +42,8 @@
 ; CHECK-NOT:  Running pass:      RecomputeKernelPropertiesPass
 ; CHECK-NOT:  Running pass:      GenerateCtorsPass
 ; CHECK-NOT:  Running pass:      LowerRuntimeIntrinsicsPass
+;
+; ERROR: unsupported optimization level '-Oz'
 
 define void @f() {
   ret void

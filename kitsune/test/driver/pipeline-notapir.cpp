@@ -20,9 +20,9 @@
 // RUN:     -Xclang -fdebug-pass-manager 2>&1 \
 // RUN:     | FileCheck %s
 //
-// RUN: %kitxx -Oz -c -emit-llvm -o /dev/null %s \
+// RUN: not %kitxx -Oz -c -emit-llvm -o /dev/null %s \
 // RUN:     -Xclang -fdebug-pass-manager 2>&1 \
-// RUN:     | FileCheck %s
+// RUN:     | FileCheck %s --check-prefix ERROR
 //
 // CHECK-NOT:  Running pass:     EarlyAnnotatePass
 // CHECK-NOT:  Running analysis: TTObjectsAnalysis
@@ -33,3 +33,5 @@
 // CHECK-NOT:  Running pass:     EmbOptimizePass
 // CHECK-NOT:  Running pass:     RecomputeKernelPropertiesPass
 // CHECK-NOT:  Running pass:     GenerateCtorsPass
+//
+// ERROR: unsupported optimization level '-Oz'

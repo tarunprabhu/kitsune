@@ -326,19 +326,19 @@ TAPIR_PIPELINE_PASS(
       setupOptionsForPipelineAlias(PTO, L);
       return buildTapirLoweringPipeline(L, ThinOrFullLTOPhase::None);
     },
-    parseOptLevelParam, "O0;O1;O2;O3;Os;Oz")
+    parseOptLevelParam, "O0;O1;O2;O3;Os")
 TAPIR_PIPELINE_PASS(
     "tapir-lowering-loops", "", [&](OptimizationLevel L) {
       setupOptionsForPipelineAlias(PTO, L);
       return buildTapirLoopLoweringPipeline(L, ThinOrFullLTOPhase::None);
     },
-    parseOptLevelParam, "O0;O1;O2;O3;Os;Oz")
+    parseOptLevelParam, "O0;O1;O2;O3;Os")
 TAPIR_PIPELINE_PASS(
     "kit-lowering", "", [&](OptimizationLevel L) {
       setupOptionsForPipelineAlias(PTO, L);
       return buildKitsuneLoweringPipeline(L, ThinOrFullLTOPhase::None);
     },
-    parseOptLevelParam, "O0;O1;O2;O3;Os;Oz")
+    parseOptLevelParam, "O0;O1;O2;O3;Os")
 
 #undef TAPIR_PIPELINE_PASS
 

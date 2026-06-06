@@ -18,40 +18,42 @@
 ;
 ; RUN: %kitcc -flto -O2 --tapir=serial -o /dev/null %s %sysroot \
 ; RUN:     -Xlinker --lto-debug-pass-manager -Xlinker --lto-emit-llvm 2>&1 \
-; RUN:     | FileCheck %s -check-prefix O23SZ
+; RUN:     | FileCheck %s -check-prefix O23S
 ;
 ; RUN: %kitcc -flto -O3 --tapir=serial -o /dev/null %s %sysroot \
 ; RUN:     -Xlinker --lto-debug-pass-manager -Xlinker --lto-emit-llvm 2>&1 \
-; RUN:     | FileCheck %s -check-prefix O23SZ
+; RUN:     | FileCheck %s -check-prefix O23S
 ;
 ; RUN: %kitcc -flto -Os --tapir=serial -o /dev/null %s %sysroot \
 ; RUN:     -Xlinker --lto-debug-pass-manager -Xlinker --lto-emit-llvm 2>&1 \
-; RUN:     | FileCheck %s -check-prefix O23SZ
+; RUN:     | FileCheck %s -check-prefix O23S
 ;
-; RUN: %kitcc -flto -Oz --tapir=serial -o /dev/null %s %sysroot \
+; RUN: not %kitcc -flto -Oz --tapir=serial -o /dev/null %s %sysroot \
 ; RUN:     -Xlinker --lto-debug-pass-manager -Xlinker --lto-emit-llvm 2>&1 \
-; RUN:     | FileCheck %s -check-prefix O23SZ
+; RUN:     | FileCheck %s -check-prefix ERROR
 ;
 ; -----------------------------------------------------------------------------
 ;
-; O23SZ-NOT:   Running pass:      EarlyAnnotatePass
+; O23S-NOT:   Running pass:      EarlyAnnotatePass
 ;
-; O23SZ:       Running pass:      PreLowerVerificationPass
-; O23SZ-NEXT:  Running analysis:  TTObjectsAnalysis
-; O23SZ-NEXT:  Running pass:      PreLowerAnnotate
-; O23SZ-NEXT:  Running pass:      SerializePass
-; O23SZ-NEXT:  Running pass:      LoopSpawningPass
-; O23SZ-NEXT:  Running pass:      TapirToTargetPass
-; O23SZ:       Running pass:      PrefetchForDevicePass
-; O23SZ-NEXT:  Running pass:      EmbLowerKitIntrinsicsEarlyPass
-; O23SZ-NEXT:  Running pass:      EmbResolveLibDeviceCallsPass
-; O23SZ-NEXT:  Running pass:      EmbPreparePass
-; O23SZ-NEXT:  Running pass:      EmbLinkLibDeviceBitcodePass
-; O23SZ-NEXT:  Running pass:      EmbOptimizePass
-; O23SZ-NEXT:  Running pass:      RecomputeKernelPropertiesPass
-; O23SZ-NEXT:  Running pass:      GenerateCtorsPass
-; O23SZ-NEXT:  Running pass:      VerifierPass
-; O23SZ-NEXT:  Running analysis:  VerifierAnalysis
+; O23S:       Running pass:      PreLowerVerificationPass
+; O23S-NEXT:  Running analysis:  TTObjectsAnalysis
+; O23S-NEXT:  Running pass:      PreLowerAnnotate
+; O23S-NEXT:  Running pass:      SerializePass
+; O23S-NEXT:  Running pass:      LoopSpawningPass
+; O23S-NEXT:  Running pass:      TapirToTargetPass
+; O23S:       Running pass:      PrefetchForDevicePass
+; O23S-NEXT:  Running pass:      EmbLowerKitIntrinsicsEarlyPass
+; O23S-NEXT:  Running pass:      EmbResolveLibDeviceCallsPass
+; O23S-NEXT:  Running pass:      EmbPreparePass
+; O23S-NEXT:  Running pass:      EmbLinkLibDeviceBitcodePass
+; O23S-NEXT:  Running pass:      EmbOptimizePass
+; O23S-NEXT:  Running pass:      RecomputeKernelPropertiesPass
+; O23S-NEXT:  Running pass:      GenerateCtorsPass
+; O23S-NEXT:  Running pass:      VerifierPass
+; O23S-NEXT:  Running analysis:  VerifierAnalysis
+;
+; ERROR: unsupported optimization level '-Oz'
 
 define void @f() {
   ret void

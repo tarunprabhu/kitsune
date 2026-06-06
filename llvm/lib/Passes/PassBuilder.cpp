@@ -1934,6 +1934,10 @@ Error PassBuilder::parseModulePass(ModulePassManager &MPM,
       return Params.takeError();                                               \
                                                                                \
     OptimizationLevel L = Params.get();                                        \
+    if (L.getSizeLevel() == 2)                                                 \
+      return createStringError(                                                \
+          formatv("error: unsupported optimization level '-Oz'"));             \
+                                                                               \
     PTO.TTOpts->setOptznLevelFrom(L);                                          \
                                                                                \
     MPM.addPass(CREATE_PASS(L));                                               \

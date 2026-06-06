@@ -41,9 +41,9 @@
 # RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
 # RUN:     | FileCheck %s -check-prefixes=ALL,O2
 #
-# RUN: %kitxx -### --tapir=serial -Oz -flto \
+# RUN: not %kitxx -### --tapir=serial -Oz -flto \
 # RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
-# RUN:     | FileCheck %s -check-prefixes=ALL,O2
+# RUN:     | FileCheck %s -check-prefixes=ERROR
 #
 # ------------------------------------------------------------------------------
 #
@@ -54,3 +54,4 @@
 # KITRT_VERBOSE: "-mllvm" "--kitrt-verbose"
 # FP_STANDARD: "-mllvm" "--fp-contract=on"
 # FP_FAST: "-mllvm" "--fp-contract=fast"
+# ERROR: unsupported optimization level '-Oz'
