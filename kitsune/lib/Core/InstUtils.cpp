@@ -127,3 +127,13 @@ bool llvm::replaceMatchingOperands(Instruction &inst, Value *match, Value *v) {
       changed |= replaceOperand(inst, i, v);
   return changed;
 }
+
+Value *llvm::getNonMatchingOperand(BinaryOperator &binOp, Value *match) {
+  Value *op0 = binOp.getOperand(0);
+  Value *op1 = binOp.getOperand(1);
+  if (op0 == match && op1 != match)
+    return op1;
+  else if (op1 == match && op0 != match)
+    return op0;
+  return nullptr;
+}
