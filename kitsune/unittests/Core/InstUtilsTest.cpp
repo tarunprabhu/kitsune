@@ -190,4 +190,24 @@ TEST(KitInstUtils, replaceMatchingOperands) {
   EXPECT_EQ(select->getOperand(2), c0);
 }
 
+TEST(KitInstUtils, getNonMatchingOperand) {
+  LLVMContext ctx;
+  Type *i32 = Type::getInt32Ty(ctx);
+  Type *f32 = Type::getFloatTy(ctx);
+
+  Constant *c0 = ConstantInt::get(i32, 0);
+  Constant *c1 = ConstantInt::get(i32, 1);
+  Constant *c2 = ConstantInt::get(i32, 2);
+  Constant *cf = ConstantFP::get(f32, 0);
+
+  BinaryOperator *iop = BinaryOperator::Create(Instruction::Add, c0, c1);
+  BinaryOperator *fop = BinaryOperator::Create(Instruction::FMul, cf, cf);
+
+  EXPECT_EQ(getNonMatchingOperand(*iop, c0), c1);
+  EXPECT_EQ(getNonMatchingOperand(*iop, c1), c0);
+  EXPECT_FALSE(getNonMatchingOperand(*iop, c2));
+  EXPECT_FALSE(getNonMatchingOperand(*iop, cf));
+  EXPECT_FALSE(getNonMatchingOperand(*fop, cf));
+}
+
 } // namespace
