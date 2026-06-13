@@ -154,6 +154,17 @@ This pass should only be run once per module and should be run as late as
 possible.
 
 
+(passes-kit-ive)=
+### kit-ive
+
+Eliminate secondary induction variables in tapir loops. The canonical induction
+variable is defined as the primary induction variable. All other induction
+variables in the loop are, by definition, secondary. These are computed as
+functions of the primary induction variable. An error is raised if any secondary
+induction variables cannot be replaced - typically because they cannot be
+expressed as pure functions of the primary induction variable.
+
+
 (passes-kit-kernel-properties)=
 ### kit-kernel-properties
 
@@ -205,7 +216,7 @@ suitable for parallel execution on CPU's and GPU's. This only carries out the
 transformation on a loop and adds some supporting code - typically calls to
 other Kitsune-specific intrinsics. For a complete transformation, these
 intrinsics must be lowered. This is done in several different passes such as
-[kit-lower-reduce-intrinsics](passes-kit-lower-reduce-intrinsics) and 
+[kit-lower-reduce-intrinsics](passes-kit-lower-reduce-intrinsics) and
 [kit-lower-intrinsics](passes-kit-lower-intrinsics).
 
 

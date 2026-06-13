@@ -30,6 +30,10 @@
 //
 // CHECK:      Running pass:      EarlyAnnotatePass
 //
+// CHECK-NOT:  Running pass:      SecondaryIVEliminationPass
+// CHECK-NOT:  Running pass:      PrepareReductionLoopsPass
+// CHECK-NOT:  Running pass:      LowerKitReduceIntrinsicsPass
+// CHECK-NOT:  Running pass:      DeLICMPass
 // CHECK-NOT:  Running pass:      PreLowerVerificationPass
 // CHECK-NOT:  Running analysis:  TTObjectsAnalysis
 // CHECK-NOT:  Running pass:      PreLowerAnnotate
