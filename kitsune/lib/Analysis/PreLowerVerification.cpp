@@ -200,7 +200,7 @@ private:
     // All perfectly nested tapir loops for a GPU must be canonical.
     for (const Loop *loop : perfectLoops)
       if (!loop->isCanonical(se))
-        emitDiag(*loop, DiagID::ErrTapirLoopNotCanonicalGPU);
+        emitDiag(*loop, DiagID::ErrTapirLoopNoCanonicalIV);
 
     // The loop bounds of all perfectly nested tapir loops in a tapir loop nest
     // must be loop-invariant with respect to the outer loop.

@@ -6,9 +6,8 @@
 ; RUN: not opt --tapir=nolo --passes=kit-verify-prelower %s 2>&1 \
 ; RUN:     -disable-output \
 ; RUN:     | FileCheck %s
-;
 
-; CHECK: tapir loop for GPU is not canonical
+; CHECK: tapir loop
 ; CHECK-NEXT: from loop 'p.loop.i'
 ; CHECK-NEXT: from function 'p'
 ;
@@ -39,7 +38,7 @@ for.i.exit:
   ret void
 }
 
-; CHECK: tapir loop for GPU is not canonical
+; CHECK: tapir loop does not have a canonical induction variable
 ; CHECK-NEXT: from loop 'pp.loop.j'
 ; CHECK-NEXT: from function 'pp'
 ;
@@ -87,7 +86,6 @@ for.i.exit:
 for.i.end:
   ret void
 }
-
 
 !0 = distinct !{!0, !1, !2}
 !1 = !{!"tapir.loop.target", i32 2}

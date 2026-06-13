@@ -185,8 +185,8 @@ def ErrTapirLoopSyncRegionUses
 def ErrTapirLoopSyncMustPostDominate
   : Error<"tapir loop not post-dominated by sync instruction">;
 
-def ErrTapirLoopNotCanonicalGPU
-  : Error<"tapir loop for GPU is not canonical">;
+def ErrTapirLoopNoCanonicalIV
+  : Error<"tapir loop does not have a canonical induction variable">;
 
 def ErrTapirNestBoundsVariantGPU
   : Error<"bounds of GPU loop must be invariant in the nest">;
@@ -254,6 +254,24 @@ def ErrReducerTypeMismatch
 def ErrReducerNumParams
   : Error<"incorrect number of params in reducer '{}'. Expected {}. Got {}">;
 
+def ErrKitIntrNoTTID
+  : Error<"first argument to call is not a valid TTID">;
+
+def ErrKitIntrWrongTTID
+  : Error<"TTID argument in call must be '{}'">;
+
+def ErrSecondaryIVType
+  : Error<"secondary induction variable has unsupported type '{}'">;
+
+def ErrSecondaryIVNotBinOp
+  : Error<"secondary induction variable has unsupported incoming value '{}'">;
+
+def ErrSecondaryIVOperator
+  : Error<"secondary induction variable has unsupported operator '{}'">;
+
+def ErrSecondaryIVNonConstStep
+  : Error<"secondary induction variable has non-constant step">;
+
 // Generic errors that can be used to emit any error message.
 def ErrGeneric
   : Error<"{}">;
@@ -261,11 +279,8 @@ def ErrGeneric
 def ErrAttrGeneric
   : Error<"attribute '{}': {}">;
 
-def ErrKitIntrNoTTID
-  : Error<"first argument to call is not a valid TTID">;
-
-def ErrKitIntrWrongTTID
-  : Error<"TTID argument in call must be '{}'">;
+def ErrNYI
+  : Error<"NOT YET IMPLEMENTED: {}">;
 
 // ------------------------- Kitsune-specific warnings -------------------------
 //

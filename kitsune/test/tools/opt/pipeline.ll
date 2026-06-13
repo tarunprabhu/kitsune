@@ -35,21 +35,20 @@
 ; -----------------------------------------------------------------------------
 ; Unlike the frontends, -O0 is allowed with --tapir, even if the tapir target
 ; is not nolo. In this case, only a limited number of passes are run.
+; We don't use the text of this file as input here because it will result in a
+; failure since loop-spawning will not run.
 ;
-; RUN: opt -O0 --tapir=serial -debug-pass-manager %s -o /dev/null 2>&1 \
+; FIXME: Should we consider not allowing -O0 as an optimization level if
+; --tapir is given. It is not clear what advantage there is to allowing -O0 if
+; it is likely to result in a failure.
+;
+; RUN: echo "" | opt -O0 --tapir=serial -debug-pass-manager -o /dev/null 2>&1 \
 ; RUN:     | FileCheck -check-prefix O0 %s
 ;
 ; O0:      Running pass:     TapirToTargetPass
-; O0-NEXT: Running analysis: TTObjectsAnalysis
-; O0-NEXT: Running analysis: LoopAnalysis
-; O0-NEXT: Running analysis: DominatorTreeAnalysis
-; O0-NEXT: Running analysis: TaskAnalysis
-; O0-NEXT: Running pass:     AlwaysInlinerPass
-; O0-NEXT: Running pass:     AnnotationRemarksPass
-; O0-NEXT: Running analysis: TargetLibraryAnalysis
-; O0-NEXT: Running pass:     VerifierPass
-; O0-NEXT: Running analysis: VerifierAnalysis
-; O0-NEXT: Running pass:     BitcodeWriterPass
+; O0:      Running pass:     AlwaysInlinerPass
+; O0:      Running pass:     VerifierPass
+; O0:      Running pass:     BitcodeWriterPass
 ;
 ; -----------------------------------------------------------------------------
 ; If the --tapir option is provided to opt, the Kitsune passes are run at all
@@ -83,6 +82,8 @@
 ; match runs of the pass from earlier in the pipeline. PrepareReductionLoops
 ; will fail if any of these are not run, so something will at least catch it
 ; if they are ever removed from the pipeline.
+; O123SZ:      Running pass:     SecondaryIVEliminationPass
+; O123SZ:      Running pass:     ADCEPass
 ; O123SZ:      Running pass:     PrepareReductionLoopsPass
 ; O123SZ:      Running pass:     LowerKitReduceIntrinsicsPass
 ; O123SZ:      Running pass:     ModuleInlinerPass
@@ -122,6 +123,35 @@
 ;
 ; -----------------------------------------------------------------------------
 
-define void @f() {
-  ret void
+define i32 @f(i32 %argc, ptr %argv) {
+entry:
+  %syncreg = tail call token @llvm.syncregion.start()
+  %n = sext i32 %argc to i64
+  br label %header
+
+header:
+  %i = phi i64 [ 0, %entry ], [ %inc.i, %latch ]
+  detach within %syncreg, label %body, label %latch
+
+body:
+  call void @ext(i64 %i)
+  reattach within %syncreg, label %latch
+
+latch:
+  %inc.i = add i64 %i, 1
+  %cmp = icmp eq i64 %inc.i, %n
+  br i1 %cmp, label %exit, label %header, !llvm.loop !0
+
+exit:
+  sync within %syncreg, label %end
+
+end:
+  ret i32 0
 }
+
+declare void @ext(i64)
+
+!0 = distinct !{!0, !1, !2, !3}
+!1 = !{!"tapir.loop.target", i32 1}
+!2 = !{!"tapir.loop.spawn.strategy", i32 1}
+!3 = !{!"tapir.loop.lowering.enabled"}

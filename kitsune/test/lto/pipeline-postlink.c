@@ -36,23 +36,46 @@
 //
 // O23S-NOT:  Running pass:     EarlyAnnotatePass
 //
+// O23S:      Running pass:     SecondaryIVEliminationPass
+// O23S:      Running pass:     ADCEPass
+// O23S:      Running pass:     PrepareReductionLoopsPass
+// O23S:      Running pass:     LowerKitReduceIntrinsicsPass
+// O23S:      Running pass:     ModuleInlinerPass
+// O23S:      Running pass:     EarlyCSEPass
+// O23S:      Running pass:     SimplifyCFGPass
+// O23S:      Running pass:     InstCombinePass
+// O23S:      Running pass:     SCCPPass
+// O23S:      Running pass:     BDCEPass
+// O23S:      Running pass:     InstCombinePass
+// O23S:      Running pass:     DSEPass
+// O23S:      Running pass:     ADCEPass
+// O23S:      Running pass:     DeLICMPass
+// O23S:      Running pass:     SimplifyCFGPass
+// O23S:      Running pass:     LoopSimplifyPass
 // O23S:      Running pass:     PreLowerVerificationPass
-// O23S-NEXT: Running analysis: TTObjectsAnalysis
-// O23S-NEXT: Running pass:     PreLowerAnnotate
-// O23S-NEXT: Running pass:     SerializePass
-// O23S-NEXT: Running pass:     LoopSpawningPass
-// O23S-NEXT: Running pass:     TapirToTargetPass
+// O23S:      Running pass:     PreLowerAnnotate
+// O23S:      Running pass:     SerializePass
+// O23S:      Running pass:     LoopSpawningPass
+// O23S:      Running pass:     TapirToTargetPass
 // O23S:      Running pass:     PrefetchForDevicePass
-// O23S-NEXT: Running pass:     EmbLowerKitIntrinsicsEarlyPass
-// O23S-NEXT: Running pass:     EmbResolveLibDeviceCallsPass
-// O23S-NEXT: Running pass:     EmbPreparePass
-// O23S-NEXT: Running pass:     EmbLinkLibDeviceBitcodePass
-// O23S-NEXT: Running pass:     EmbOptimizePass
-// O23S-NEXT: Running pass:     RecomputeKernelPropertiesPass
-// O23S-NEXT: Running pass:     GenerateCtorsPass
-// O23S-NEXT: Running pass:     VerifierPass
-// O23S-NEXT: Running analysis: VerifierAnalysis
+// O23S:      Running pass:     EmbLowerKitIntrinsicsEarlyPass
+// O23S:      Running pass:     EmbResolveLibDeviceCallsPass
+// O23S:      Running pass:     EmbPreparePass
+// O23S:      Running pass:     EmbLinkLibDeviceBitcodePass
+// O23S:      Running pass:     EmbOptimizePass
+// O23S:      Running pass:     RecomputeKernelPropertiesPass
+// O23S:      Running pass:     GenerateCtorsPass
+// O23S:      Running pass:     VerifierPass
+// O23S:      Running analysis: VerifierAnalysis
 //
 // ERROR: unsupported optimization level '-Oz'
 
-void f() {}
+#include <kitsune.h>
+
+void ext(long);
+
+int main(int argc, char *argv[]) {
+  forall (long i = 0; i < argc; ++i)
+    ext(i);
+  return 0;
+}

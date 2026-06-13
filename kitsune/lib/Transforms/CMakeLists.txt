@@ -22,6 +22,7 @@ add_llvm_component_library(LLVMKitTransforms
   PrefetchForDevice.cpp
   PrepareReductionLoops.cpp
   RecomputeKernelProperties.cpp
+  SecondaryIVElimination.cpp
   Serialize.cpp
 
   DEPENDS

@@ -29,6 +29,7 @@
 #include "kitsune/Transforms/PrefetchForDevice.h"
 #include "kitsune/Transforms/PrepareReductionLoops.h"
 #include "kitsune/Transforms/RecomputeKernelProperties.h"
+#include "kitsune/Transforms/SecondaryIVElimination.h"
 #include "kitsune/Transforms/Serialize.h"
 #include "llvm/Transforms/InstCombine/InstCombine.h"
 #include "llvm/Transforms/Scalar/ADCE.h"
@@ -141,7 +142,9 @@ ModulePassManager llvm::populateKitPreLoopSpawningPasses(
 
     fpm.addPass(LoopSimplifyPass());
     lpm.addPass(LoopRotatePass());
+    lpm.addPass(SecondaryIVEliminationPass());
     fpm.addPass(createFunctionToLoopPassAdaptor(std::move(lpm)));
+    fpm.addPass(ADCEPass());
     fpm.addPass(LCSSAPass());
     fpm.addPass(PrepareReductionLoopsPass());
     fpm.addPass(LowerKitReduceIntrinsicsPass());

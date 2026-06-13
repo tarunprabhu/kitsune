@@ -36,25 +36,69 @@
 ;
 ; O23S-NOT:   Running pass:      EarlyAnnotatePass
 ;
+; O23S:       Running pass:      SecondaryIVEliminationPass
+; O23S:       Running pass:      ADCEPass
+; O23S:       Running pass:      PrepareReductionLoopsPass
+; O23S:       Running pass:      LowerKitReduceIntrinsicsPass
+; O23S:       Running pass:      ModuleInlinerPass
+; O23S:       Running pass:      EarlyCSEPass
+; O23S:       Running pass:      SimplifyCFGPass
+; O23S:       Running pass:      InstCombinePass
+; O23S:       Running pass:      SCCPPass
+; O23S:       Running pass:      BDCEPass
+; O23S:       Running pass:      InstCombinePass
+; O23S:       Running pass:      DSEPass
+; O23S:       Running pass:      ADCEPass
+; O23S:       Running pass:      DeLICMPass
+; O23S:       Running pass:      SimplifyCFGPass
+; O23S:       Running pass:      LoopSimplifyPass
 ; O23S:       Running pass:      PreLowerVerificationPass
-; O23S-NEXT:  Running analysis:  TTObjectsAnalysis
-; O23S-NEXT:  Running pass:      PreLowerAnnotate
-; O23S-NEXT:  Running pass:      SerializePass
-; O23S-NEXT:  Running pass:      LoopSpawningPass
-; O23S-NEXT:  Running pass:      TapirToTargetPass
+; O23S:       Running pass:      PreLowerAnnotate
+; O23S:       Running pass:      SerializePass
+; O23S:       Running pass:      LoopSpawningPass
+; O23S:       Running pass:      TapirToTargetPass
 ; O23S:       Running pass:      PrefetchForDevicePass
-; O23S-NEXT:  Running pass:      EmbLowerKitIntrinsicsEarlyPass
-; O23S-NEXT:  Running pass:      EmbResolveLibDeviceCallsPass
-; O23S-NEXT:  Running pass:      EmbPreparePass
-; O23S-NEXT:  Running pass:      EmbLinkLibDeviceBitcodePass
-; O23S-NEXT:  Running pass:      EmbOptimizePass
-; O23S-NEXT:  Running pass:      RecomputeKernelPropertiesPass
-; O23S-NEXT:  Running pass:      GenerateCtorsPass
-; O23S-NEXT:  Running pass:      VerifierPass
-; O23S-NEXT:  Running analysis:  VerifierAnalysis
+; O23S:       Running pass:      EmbLowerKitIntrinsicsEarlyPass
+; O23S:       Running pass:      EmbResolveLibDeviceCallsPass
+; O23S:       Running pass:      EmbPreparePass
+; O23S:       Running pass:      EmbLinkLibDeviceBitcodePass
+; O23S:       Running pass:      EmbOptimizePass
+; O23S:       Running pass:      RecomputeKernelPropertiesPass
+; O23S:       Running pass:      GenerateCtorsPass
+; O23S:       Running pass:      VerifierPass
+; O23S:       Running analysis:  VerifierAnalysis
 ;
 ; ERROR: unsupported optimization level '-Oz'
 
-define void @f() {
-  ret void
+define i32 @main(i32 %argc, ptr %argv) {
+entry:
+  %syncreg = tail call token @llvm.syncregion.start()
+  %n = sext i32 %argc to i64
+  br label %header
+
+header:
+  %i = phi i64 [ 0, %entry ], [ %inc.i, %latch ]
+  detach within %syncreg, label %body, label %latch
+
+body:
+  call void @ext(i64 %i)
+  reattach within %syncreg, label %latch
+
+latch:
+  %inc.i = add i64 %i, 1
+  %cmp = icmp eq i64 %inc.i, %n
+  br i1 %cmp, label %exit, label %header, !llvm.loop !0
+
+exit:
+  sync within %syncreg, label %end
+
+end:
+  ret i32 0
 }
+
+declare void @ext(i64)
+
+!0 = distinct !{!0, !1, !2, !3}
+!1 = !{!"tapir.loop.target", i32 1}
+!2 = !{!"tapir.loop.spawn.strategy", i32 1}
+!3 = !{!"tapir.loop.lowering.enabled"}

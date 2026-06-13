@@ -36,6 +36,7 @@
 #include "kitsune/Transforms/PrefetchForDevice.h"
 #include "kitsune/Transforms/PrepareReductionLoops.h"
 #include "kitsune/Transforms/RecomputeKernelProperties.h"
+#include "kitsune/Transforms/SecondaryIVElimination.h"
 #include "kitsune/Transforms/Serialize.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Analysis/AliasAnalysisEvaluator.h"
