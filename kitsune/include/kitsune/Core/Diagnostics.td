@@ -221,6 +221,12 @@ def ErrTapirLoopThrowsException
 def ErrTapirLoopIVUsedOutsideLoop
   : Error<"tapir loop induction variable used outside tapir loop">;
 
+// The first argument is the "kind" of a tapir loop block, e.g. 'header' or
+// 'latch'. The second argument is the "kind" of the terminator, e.g.
+// 'conditional branch', or 'unconditional branch'.
+def ErrTapirLoopUnexpectedTerminator
+  : Error<"tapir loop {} must be terminated by a {}">;
+
 def ErrReduceUnitValMismatch
   : Error<"type mismatch between value being reduced and unit">;
 
@@ -282,6 +288,7 @@ def ErrAttrGeneric
 def ErrNYI
   : Error<"NOT YET IMPLEMENTED: {}">;
 
+
 // ------------------------- Kitsune-specific warnings -------------------------
 //
 // Although not strictly required, the names of all warnings should be prefixed
@@ -296,6 +303,7 @@ def WarnParallelLoopImperfectlyNested
 // Generic warning that can be used to emit any warning message.
 def WarnGeneric
   : Warning<"{}">;
+
 
 // ------------------------- Kitsune-specific remarks -------------------------
 //
