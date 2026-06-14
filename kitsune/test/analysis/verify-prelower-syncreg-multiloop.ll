@@ -26,10 +26,13 @@ for.i.latch:
   br i1 %cmp.i, label %for.i.exit, label %for.i.header, !llvm.loop !0
 
 for.i.exit:
-  sync within %syncreg, label %for.i2.header
+  sync within %syncreg, label %for.i2.ph
+
+for.i2.ph:
+  br label %for.i2.header
 
 for.i2.header:
-  %i2 = phi i64 [ 0, %for.i.exit ], [ %inc.i2, %for.i2.latch ]
+  %i2 = phi i64 [ 0, %for.i2.ph ], [ %inc.i2, %for.i2.latch ]
   detach within %syncreg, label %for.i2.body, label %for.i2.latch
 
 for.i2.body:

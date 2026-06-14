@@ -61,6 +61,7 @@
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/IR/InstIterator.h"
+#include "llvm/Transforms/Tapir/TapirLoopInfo.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
 
 #define DEBUG_TYPE "kit-verify-prelower"
@@ -74,8 +75,8 @@ static cl::opt<bool> clDisableVerifyPreLower(
 
 namespace {
 
-/// Get a unique instruction of type T in a loop, or nullptr if one does not
-/// exist. This will *not* look for such an instruction in any subloops.
+// Get a unique instruction of type T in a loop, or nullptr if one does not
+// exist. This will *not* look for such an instruction in any subloops.
 template <typename InstType>
 static const InstType *getUniqueInstInLoop(const Loop &loop) {
   SmallVector<const InstType *, 4> insts;
@@ -96,8 +97,8 @@ static SmallSet<const SyncInst *, 4> getSyncInstsFor(const Value &syncRegion) {
   return syncInsts;
 }
 
-/// Result of running the tapir verifier. Currently, this only contains counts
-/// of the number of errors and warnings that were emitted.
+// Result of running the tapir verifier. Currently, this only contains counts
+// of the number of errors and warnings that were emitted.
 struct Log {
   unsigned errors = 0;
   unsigned warnings = 0;
@@ -129,9 +130,9 @@ protected:
   }
 };
 
-/// Verifier class for a function. This is only a class because it is a
-/// convenient container for the function-level analyses that the various
-/// checks may use.
+// Verifier class for a function. This is only a class because it is a
+// convenient container for the function-level analyses that the various
+// checks may use.
 class VerifierF : public Verifier<VerifierF> {
 private:
   LoopInfo &li;
@@ -197,11 +198,6 @@ private:
       }
     }
 
-    // All perfectly nested tapir loops for a GPU must be canonical.
-    for (const Loop *loop : perfectLoops)
-      if (!loop->isCanonical(se))
-        emitDiag(*loop, DiagID::ErrTapirLoopNoCanonicalIV);
-
     // The loop bounds of all perfectly nested tapir loops in a tapir loop nest
     // must be loop-invariant with respect to the outer loop.
     for (const Loop *loop : perfectLoops) {
@@ -243,15 +239,15 @@ private:
     llvm_unreachable("checkTopLevelTapirLoop: TTID not handled");
   }
 
-  /// Find the top-level tapir loops in a function and check that they are
-  /// consistent. This primarily checks the tapir targets on the subloops and
-  /// the loop nest structure.
+  // Find the top-level tapir loops in a function and check that they are
+  // consistent. This primarily checks the tapir targets on the subloops and
+  // the loop nest structure.
   void checkTopLevelTapirLoops(Function &f) {
     for (Loop *loop : getTopLevelTapirLoops(li))
       checkTopLevelTapirLoop(*loop);
   }
 
-  /// Check that a given value is a sync region definition.
+  // Check that a given value is a sync region definition.
   template <typename InstType> void checkSyncRegionDefn(const InstType &inst) {
     if (const auto *call = dyn_cast<CallBase>(inst.getSyncRegion()))
       if (Function *f = call->getCalledFunction())
@@ -260,42 +256,41 @@ private:
     emitDiag(inst, DiagID::ErrTapirLoopSyncRegionDefn);
   }
 
-  /// Check the structure of a tapir loops.
-  ///
-  ///  - It must have a single induction variable. This is strictly required
-  ///    for tapir loops on the GPU. However, those for the CPU may have more
-  ///    than one induction variable, but we do not support this currently.
-  ///
-  ///  - The loop must contain exactly one detach instruction, and exactly one
-  ///    reattach instruction (subloops may also contain detaches and
-  ///    reattaches, but these are ignored). Specifically, we don't allow
-  ///    "free-standing" detaches and reattaches, although Tapir allows them.
-  ///    This is because this represents a form of nested parallelism that we
-  ///    don't yet support.
-  ///
-  ///  - A sync instruction must post-dominate the tapir loop.
-  ///
-  void checkTapirLoop(const Loop &loop, const Task &task) {
-    if (getNumIndVars(loop) > 1)
-      emitDiag(loop, DiagID::ErrTapirLoopSingleIndVar);
+  // Check the instructions in a tapir loop.
+  //
+  //  - The loop must contain exactly one detach instruction, and exactly one
+  //    reattach instruction (subloops may also contain detaches and
+  //    reattaches, but these are ignored). Specifically, we don't allow
+  //    "free-standing" detaches and reattaches, although Tapir allows them.
+  //    This is because this represents a form of nested parallelism that we
+  //    don't yet support.
+  //
+  //  - A sync instruction must post-dominate the tapir loop.
+  //
+  //  - The terminator of the loop preheader must be an unconditional branch.
+  //
+  //  - The terminator of the loop latch must be a conditional branch. This
+  //    should nearly always be the case, but changes to the pass pipeline may
+  //    result in this constraint being violated.
+  //
+  void checkTapirLoopInsts(const Loop &loop, Task &task) {
+    auto isBr = [](const Instruction &inst, bool conditional) -> bool {
+      const BranchInst *br = dyn_cast<BranchInst>(&inst);
+      return br && br->isConditional() == conditional;
+    };
 
     const DetachInst *detachInst = task.getDetach();
-    if (getUniqueInstInLoop<DetachInst>(loop) != detachInst) {
-      emitDiag(loop, DiagID::ErrTapirLoopNoUniqueDetachInst);
-      return;
-    }
+    if (getUniqueInstInLoop<DetachInst>(loop) != detachInst)
+      return emitDiag(loop, DiagID::ErrTapirLoopNoUniqueDetachInst);
 
     const ReattachInst *reattachInst = getUniqueInstInLoop<ReattachInst>(loop);
-    if (!reattachInst) {
-      emitDiag(loop, DiagID::ErrTapirLoopNoUniqueReattachInst);
-      return;
-    }
+    if (!reattachInst)
+      return emitDiag(loop, DiagID::ErrTapirLoopNoUniqueReattachInst);
 
     const Value *syncRegion = detachInst->getSyncRegion();
     SmallSet<const SyncInst *, 4> syncInsts = getSyncInstsFor(*syncRegion);
     if (syncInsts.size() < 1) {
-      emitDiag(loop, DiagID::ErrTapirLoopNoUniqueSyncInst);
-      return;
+      return emitDiag(loop, DiagID::ErrTapirLoopNoUniqueSyncInst);
     } else if (syncInsts.size() > 1) {
       // We could have multiple sync instructions in a sync since task-simplify
       // may have merged sync regions. Ideally, we would not want this to be an
@@ -303,7 +298,6 @@ private:
       // do that.
       return;
     }
-    const SyncInst *syncInst = *syncInsts.begin();
 
     // We have to check that the sync instruction post-dominates the loop. We
     // do this by checking that each of the loop exit blocks is post-dominated
@@ -322,6 +316,7 @@ private:
     // assume that encountering it at runtime will result in a catastrophic
     // failure. In the CFG, therefore, there can be no path from there to a sync
     // instruction.
+    const SyncInst *syncInst = *syncInsts.begin();
     SmallVector<BasicBlock *, 4> exits;
     loop.getUniqueExitBlocks(exits);
     for (BasicBlock *exit : exits)
@@ -331,16 +326,61 @@ private:
 
     checkSyncRegionDefn(*detachInst);
     checkSyncRegionDefn(*reattachInst);
+
+    // The loop is guaranteed to be in simplify form, so a preheader and unique
+    // latch are guaranteed to be present.
+    BasicBlock *ph = loop.getLoopPreheader();
+    assert(ph && "Tapir loop must have a preheader");
+    if (!isBr(*ph->getTerminator(), /*conditional=*/false))
+      emitDiag(loop, DiagID::ErrTapirLoopUnexpectedTerminator, "preheader",
+               "unconditional branch");
+
+    BasicBlock *latch = loop.getLoopLatch();
+    assert(latch && "Tapir loop must have a unique latch");
+    if (!isBr(*latch->getTerminator(), /*conditional=*/true))
+      emitDiag(loop, DiagID::ErrTapirLoopUnexpectedTerminator, "latch",
+               "conditional branch");
+  }
+
+  // Check additional properties of tapir loops that are derived from it.
+  //
+  //  - The loop has a single induction variable, and that IV is canonical
+  //
+  //  - The tapir loop has a finite trip count
+  //
+  void checkTapirLoopProperties(Loop &loop, Task &task) {
+    if (getNumIndVars(loop) > 1)
+      return emitDiag(loop, DiagID::ErrTapirLoopSingleIndVar);
+
+    if (!loop.getCanonicalInductionVariable())
+      return emitDiag(loop, DiagID::ErrTapirLoopNoCanonicalIV);
+
+    PredicatedScalarEvolution pse(se, loop);
+    TapirLoopInfo tl(&loop, &task);
+    Value *tc = tl.getOrCreateTripCount(pse, DEBUG_TYPE,
+                                        /*OptimizationRemarkEmitter=*/nullptr);
+    if (!tc)
+      return emitDiag(loop, DiagID::ErrTapirLoopNoFiniteTripCount);
   }
 
   void checkAllTapirLoops(Function &f) {
-    for (const Loop *loop : li.getLoopsInPreorder())
-      if (Task *task = getTaskIfTapirLoop(loop, &ti))
-        checkTapirLoop(*loop, *task);
+    for (Loop *loop : li.getLoopsInPreorder()) {
+      if (isTapirLoop(*loop)) {
+        Task *task = getTaskIfTapirLoop(loop, &ti);
+        if (!task)
+          return emitDiag(*loop, DiagID::ErrTapirLoopNoTask);
+
+        if (!loop->isLoopSimplifyForm())
+          return emitDiag(*loop, DiagID::ErrLoopNotSimplifyForm);
+
+        checkTapirLoopInsts(*loop, *task);
+        checkTapirLoopProperties(*loop, *task);
+      }
+    }
   }
 
-  /// Check that detach and reattach instructions may not appear outside tapir
-  /// loops.
+  // Check that detach and reattach instructions do not appear outside tapir
+  // loops.
   void checkTapirInsts(const Function &f) {
     SmallSet<const BasicBlock *, 8> bbs;
     for (const Loop *loop : getTapirLoops(li))
@@ -369,15 +409,15 @@ public:
   }
 };
 
-/// Verifier for a module. This does not descend into any of the functions, but
-/// only verifies module-level entities such as global variables, module-level
-/// debug information and metadata, etc.
+// Verifier for a module. This does not descend into any of the functions, but
+// only verifies module-level entities such as global variables, module-level
+// debug information and metadata, etc.
 class VerifierM : public Verifier<VerifierM> {
 private:
   TTObjects &ttObjs;
 
 private:
-  /// Check if all tapir targets required by the module have been enabled.
+  // Check if all tapir targets required by the module have been enabled.
   void checkTTsEnabled(ArrayRef<TTID> tts) {
     for (TTID tt : tts)
       if (not isTTEnabled(tt))
@@ -391,9 +431,9 @@ public:
     ArrayRef tts = ttObjs.getRequiredTTs(m);
     checkTTsEnabled(tts);
 
-    /// FIXME: At this time, we do not support multi-target execution.
-    /// Therefore, only one tapir target must be required in the module. Once we
-    /// support multi-target execution, this check can be removed.
+    // At this time, we do not support multi-target execution. Therefore, only
+    // one tapir target must be required in the module. Once we support
+    // multi-target execution, this check can be removed.
     if (tts.size() > 1)
       emitDiag(DiagID::ErrTTMultiple);
   }
