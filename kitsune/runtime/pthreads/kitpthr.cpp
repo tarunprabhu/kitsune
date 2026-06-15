@@ -56,39 +56,13 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <errno.h>
 #include <limits.h>
 #include <pthread.h>
-#include <errno.h>
 
 #define LABEL "kitpthr"
 
-[[noreturn]] static void kitpthrHandleCreateError(int err) {
-  const char *lede = "Could not create thread";
-  switch (err) {
-  case EINVAL:
-    __kitrt_fatal(LABEL, "%s. Invalid attributes", lede);
-  case EAGAIN:
-    __kitrt_fatal(LABEL, "%s. Insufficient resources", lede);
-  case EPERM:
-    __kitrt_fatal(LABEL, "%s. Insufficient permissions", lede);
-  default:
-    __kitrt_fatal(LABEL, "%s. Unknown error", lede);
-  }
-}
-
-[[noreturn]] static void kitpthrHandleJoinError(int err) {
-  const char *lede = "Error joining thread";
-  switch (err) {
-  case EDEADLK:
-    __kitrt_fatal(LABEL, "%s. Deadlock detected", lede);
-  case EINVAL:
-    __kitrt_fatal(LABEL, "%s. Thread is not joinable", lede);
-  case ESRCH:
-    __kitrt_fatal(LABEL, "%s. Invalid thread id", lede);
-  default:
-    __kitrt_fatal(LABEL, "%s. Unknown error", lede);
-  }
-}
+namespace {
 
 /// The type of the pthread start function.
 using pthread_start_t = void *(*)(void *);
@@ -140,6 +114,36 @@ public:
   KitPthrContext &operator=(const KitPthrContext &) = delete;
 };
 
+} // namespace
+
+[[noreturn]] static void kitpthrHandleCreateError(int err) {
+  const char *lede = "Could not create thread";
+  switch (err) {
+  case EINVAL:
+    __kitrt_fatal(LABEL, "%s. Invalid attributes", lede);
+  case EAGAIN:
+    __kitrt_fatal(LABEL, "%s. Insufficient resources", lede);
+  case EPERM:
+    __kitrt_fatal(LABEL, "%s. Insufficient permissions", lede);
+  default:
+    __kitrt_fatal(LABEL, "%s. Unknown error", lede);
+  }
+}
+
+[[noreturn]] static void kitpthrHandleJoinError(int err) {
+  const char *lede = "Error joining thread";
+  switch (err) {
+  case EDEADLK:
+    __kitrt_fatal(LABEL, "%s. Deadlock detected", lede);
+  case EINVAL:
+    __kitrt_fatal(LABEL, "%s. Thread is not joinable", lede);
+  case ESRCH:
+    __kitrt_fatal(LABEL, "%s. Invalid thread id", lede);
+  default:
+    __kitrt_fatal(LABEL, "%s. Unknown error", lede);
+  }
+}
+
 /// The number of threads to use. Ideally, this should be part of a global
 /// object that contains all the state needed by the runtime. But that would
 /// require reorganization of the runtime. A separate effort is underway that
@@ -153,9 +157,7 @@ static unsigned __kitpthr_num_threads_v = 1;
 /// Get the number of parallel workers that are available. Generally, this
 /// function should be used when this must be queried instead of calling
 /// `qthread_num_workers()`.
-static unsigned __kitpthr_num_threads() {
-  return __kitpthr_num_threads_v;
-}
+static unsigned __kitpthr_num_threads() { return __kitpthr_num_threads_v; }
 
 /// Run \p f on the main thread. Block until f completes. Always return nullptr.
 /// \p start, \p end and \p args are passed to \p f.
@@ -215,6 +217,7 @@ extern "C" KitPthrContext *__kitpthr_launch(KitPthrThrdFn f, int64_t start,
   // not be enough for work for all threads, so the actual number of threads
   // that are launched may be smaller than this.
   const unsigned availThrds = __kitpthr_num_threads();
+  __kitrt_message(LABEL, "Available threads: %ld", availThrds);
 
   // If only a single thread is to be used, don't launch any threads. Run f on
   // the main thread and block until it finishes. Return nullptr as the thread
@@ -227,7 +230,11 @@ extern "C" KitPthrContext *__kitpthr_launch(KitPthrThrdFn f, int64_t start,
   // on one or another platform. Setting to a constant avoids the conditional
   // compilation directives that would other wise be needed here.
   constexpr int64_t one = 1;
-  const int64_t thrdSpan = std::max((end - start) / availThrds, one);
+
+  // Adding `availThrds - 1` handles the case where the range of iterations is
+  // not an integer multiple of `availThrds`.
+  const int64_t thrdSpan =
+      std::max((end - start + availThrds - 1) / availThrds, one);
   __kitrt_message(LABEL, "Iterations per thread: %ld", thrdSpan);
 
   // The actual number of threads that are to be launched. Adding `thrdSpan - 1`
@@ -237,6 +244,8 @@ extern "C" KitPthrContext *__kitpthr_launch(KitPthrThrdFn f, int64_t start,
   // such things.
   const int64_t thrds = (end + thrdSpan - 1 - start) / thrdSpan;
   __kitrt_message(LABEL, "Launching %ld threads", thrds);
+  assert(thrds <= availThrds &&
+         "Cannot launch more threads than the number that are available");
 
   KitPthrContext *ctx = new KitPthrContext(thrds);
   for (int64_t i = 0, beg = start; beg < end; beg += thrdSpan, ++i) {
@@ -250,12 +259,12 @@ extern "C" KitPthrContext *__kitpthr_launch(KitPthrThrdFn f, int64_t start,
     if (pthread_attr_init(&info.attr))
       __kitrt_fatal(LABEL, "Error initializing thread attributes");
 
+    __kitrt_message(LABEL, "Fork thread %ld: [%ld, %ld)", i, info.start,
+                    info.end);
     if (int err = pthread_create(&info.id, &info.attr,
                                  (pthread_start_t)kitpthrThrdStartFn,
                                  &ctx->thrdInfo[i]))
       kitpthrHandleCreateError(err);
-    __kitrt_message(LABEL, "Running on thread %ld: [%ld, %ld)", i, info.start,
-                    info.end);
   }
 
   return ctx;
@@ -310,6 +319,7 @@ extern "C" void __kitpthr_initialize(void) {
   // pthreads does not have to be initialized.
 
   __kitrt_message(LABEL, "Number of threads = %d", __kitpthr_num_threads());
+
   __kitrt_message(LABEL, "Initialized Kitsune pthreads runtime");
 }
 
