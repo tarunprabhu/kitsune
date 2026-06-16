@@ -165,6 +165,19 @@ bool isInLoop(const Instruction &inst, const Loop &loop, LoopInfo &li,
 /// \p loop.
 bool isUsedOutsideLoop(const PHINode &iv, const Loop &loop, LoopInfo &li);
 
+/// Get the "entry block" of the tapir loop body. This is the block that is
+/// detached from the tapir loop header. For instance, for the tapir loop below,
+/// this will return the basic block named "body".
+///
+///   header:
+///     %i = phi i64 [ 0, %entry ], [ %next.i, %latch ]
+///     detach within %syncreg, label %body, label %latch
+///
+///   body:
+///     <instructions>
+///
+BasicBlock *getTapirLoopDetachedBlock(Loop &loop);
+
 /// @}
 
 } // namespace llvm
