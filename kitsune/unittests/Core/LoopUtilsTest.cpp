@@ -859,4 +859,11 @@ TEST_F(KitLoopUtils, isUsedOutsideLoop) {
   }
 }
 
+TEST_F(KitLoopUtils, getTapirLoopDetachedBlock) {
+  setup(simpleTapirLoop, "f");
+  Loop *loop = *li->begin();
+
+  EXPECT_EQ(getTapirLoopDetachedBlock(*loop)->getName(), "for.i.body");
+}
+
 } // namespace

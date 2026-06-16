@@ -282,3 +282,16 @@ bool llvm::isUsedOutsideLoop(const PHINode &iv, const Loop &loop,
   }
   return false;
 }
+
+BasicBlock *llvm::getTapirLoopDetachedBlock(Loop &loop) {
+  assert(isTapirLoop(loop) && "Cannot detached block of a regular loop");
+
+  BasicBlock *header = loop.getHeader();
+  assert(header && "Tapir loop must have a header");
+
+  DetachInst *detach = dyn_cast<DetachInst>(header->getTerminator());
+  assert(detach &&
+         "Terminator of tapir loop header must be a detach instruction");
+
+  return detach->getDetached();
+}
