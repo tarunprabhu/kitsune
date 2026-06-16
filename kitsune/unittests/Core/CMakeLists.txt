@@ -31,6 +31,7 @@ add_kitsune_unittest(KitCoreTests
   TestUtils.cpp
   TypeUtilsTest.cpp
   TTUtilsTest.cpp
+  UseUtilsTest.cpp
   ValueUtilsTest.cpp
 )
 
