@@ -105,6 +105,12 @@ std::optional<T> fromConstant(const Constant &c) {
 
 /// @}
 
+/// Get a constant zero for the given type.
+Constant *getZero(Type *type);
+
+/// Get a constant one for the given type.
+Constant *getOne(Type *type);
+
 /// @}
 
 } // namespace llvm

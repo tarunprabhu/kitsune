@@ -148,3 +148,19 @@ std::optional<T> llvm::fromConstant(const Constant &c) {
   return std::nullopt;
 }
 template std::optional<StringRef> llvm::fromConstant(const Constant &c);
+
+Constant *llvm::getZero(Type *type) {
+  if (type->isIntegerTy())
+    return ConstantInt::get(type, 0, /*isSigned=*/false);
+  else if (type->isFloatTy() || type->isDoubleTy())
+    return ConstantFP::get(type, 0);
+  llvm_unreachable("getZero: Type not handled");
+}
+
+Constant *llvm::getOne(Type *type) {
+  if (type->isIntegerTy())
+    return ConstantInt::get(type, 1, /*isSigned=*/false);
+  else if (type->isFloatingPointTy())
+    return ConstantFP::get(type, 1.0);
+  llvm_unreachable("getZero: Type not handled");
+}
