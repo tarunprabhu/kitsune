@@ -3,20 +3,31 @@
 ;
 ; RUN: opt -passes=kit-ive -S %s | FileCheck %s
 ;
-; CHECK: %[[CIV:.+]] = phi i64
-; CHECK-NEXT: %[[SECIVI:.+]] = phi i32
-; CHECK-NEXT: %[[SECIVF:.+]] = phi float
-; CHECK-NEXT: %[[CSTFCIV:.+]] = sitofp i64 %[[CIV]] to float
-; CHECK-NEXT: %[[STRIDEF:.+]] = fmul float %[[CSTFCIV]], 2.000000e+00
-; CHECK-NEXT: %[[REPLF:.+]] = fadd float 3.000000e+00, %[[STRIDEF]]
-; CHECK-NEXT: %[[CSTICIV:.+]] = trunc i64 %[[CIV]] to i32
-; CHECK-NEXT: %[[STRIDEI:.+]] = mul i32 %[[CSTICIV]], 5
-; CHECK-NEXT: %[[REPLI:.+]] = add i32 99, %[[STRIDEI]]
-; CHECK-NEXT: detach within
+; CHECK-LABEL: @f
+; CHECK-NEXT: [[PH:.+]]:
+; CHECK-NEXT: %[[SYNCREG:.+]] = tail call token
+; CHECK-NEXT: br label %[[HEADER:.+]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[BODY:.+]]
+; CHECK-NEXT: [[HEADER]]:
+; CHECK: %[[PRIMIV:.+]] = phi i64
+; CHECK-SAME: [ 0, %[[PH]] ]
+; CHECK-SAME: [ %[[NEXT_PRIMIV:.+]], %[[LATCH:.+]] ]
+; CHECK: detach within %[[SYNCREG]], label %[[BODY:.+]], label %[[LATCH]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[BODY]]:
+; CHECK-NEXT: %[[CSTF:.+]] = sitofp i64 %[[PRIMIV]] to float
+; CHECK-NEXT: %[[STRIDEF:.+]] = fmul float %[[CSTF]], 2.000000e+00
+; CHECK-NEXT: %[[REPLF:.+]] = fadd float 3.000000e+00, %[[STRIDEF]]
+; CHECK-NEXT: %[[CSTI:.+]] = trunc i64 %[[PRIMIV]] to i32
+; CHECK-NEXT: %[[STRIDEI:.+]] = mul i32 %[[CSTI]], 5
+; CHECK-NEXT: %[[REPLI:.+]] = add i32 99, %[[STRIDEI]]
 ; CHECK-NEXT: call void @ext(i32 %[[REPLI]], float %[[REPLF]])
-; CHECK-NEXT: reattach
+; CHECK-NEXT: reattach within %[[SYNCREG]], label %[[LATCH]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[LATCH]]:
+; CHECK-NEXT: %[[NEXT_PRIMIV]] = add i64 %[[PRIMIV]], 1
+; CHECK-NEXT: %[[CMP_PRIMIV:.+]] = icmp eq i64 %[[PRIMIV]]
+; CHECK-NEXT: br i1 %[[CMP_PRIMIV]], label %[[EXIT:.+]], label %[[HEADER]]
 
 define void @f(i64 %n) {
 entry:
@@ -48,4 +59,3 @@ declare void @ext(i32, float)
 
 !0 = !{!"tapir.loop.target", i32 1}
 !1 = distinct !{!1, !0}
-

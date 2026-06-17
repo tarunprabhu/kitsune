@@ -161,6 +161,12 @@ def ErrTTIncompatibleLoopGPU
 def ErrTapirInstNotInTapirLoop
   : Error<"tapir instructions outside tapir loops are not yet supported">;
 
+def ErrTapirLoopHeaderTerminator
+  : Error<"tapir loop header terminator must be a detach instruction">;
+
+def ErrTapirLoopHeaderInst
+  : Error<"tapir loop header must contain only phi nodes">;
+
 def ErrTapirLoopSingleIndVar
   : Error<"tapir loop must have at most one induction variable">;
 
@@ -220,6 +226,12 @@ def ErrTapirLoopThrowsException
 
 def ErrTapirLoopIVUsedOutsideLoop
   : Error<"tapir loop induction variable used outside tapir loop">;
+
+def ErrTapirLoopIVUsesInLatch
+  : Error<"tapir loop induction variable must have exactly one use in latch">;
+
+def ErrTapirLoopIVNotUpdatedInLatch
+  : Error<"tapir loop induction variable not updated in latch">;
 
 // The first argument is the "kind" of a tapir loop block, e.g. 'header' or
 // 'latch'. The second argument is the "kind" of the terminator, e.g.

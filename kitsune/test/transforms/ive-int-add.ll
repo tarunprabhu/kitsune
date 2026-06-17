@@ -1,21 +1,30 @@
-; Check that a secondary induction variable that has the same type as the
-; primary induction variable and is an add-recurrence is handled correctly.
+; Check that a secondary induction variable that is an integer add recurrence
+; is handled correctly.
 ;
-; This pass will only compute the secondary IV from the primary and replace all
-; uses of the secondary, but will not remove any code.
+; RUN: opt -passes='kit-ive' %s -S | FileCheck %s
 ;
-; RUN: opt -passes='kit-ive' %s -S 2>&1 | FileCheck %s
-;
-; CHECK: %[[CIV:.+]] = phi i64
-; CHECK-NEXT: %[[SECIV:.+]] = phi i32
-; CHECK-NEXT: %[[CSTCIV:.+]] = trunc i64 %[[CIV]] to i32
-; CHECK-NEXT: %[[STRIDE:.+]] = mul i32 %[[CSTCIV]], 5
-; CHECK-NEXT: %[[REPL:.+]] = add i32 99, %[[STRIDE]]
-; CHECK-NEXT: detach within
+; CHECK-LABEL: @f
+; CHECK-NEXT: [[PH:.+]]:
+; CHECK-NEXT: %[[SYNCREG:.+]] = tail call token
+; CHECK-NEXT: br label %[[HEADER:.+]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[BODY:.+]]
+; CHECK-NEXT: [[HEADER]]:
+; CHECK: %[[PRIMIV:.+]] = phi i64
+; CHECK-SAME: [ 0, %[[PH]] ]
+; CHECK-SAME: [ %[[NEXT_PRIMIV:.+]], %[[LATCH:.+]] ]
+; CHECK: detach within %[[SYNCREG]], label %[[BODY:.+]], label %[[LATCH]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[BODY]]:
+; CHECK-NEXT: %[[CST:.+]] = trunc i64 %[[PRIMIV]] to i32
+; CHECK-NEXT: %[[STRIDE:.+]] = mul i32 %[[CST]], 5
+; CHECK-NEXT: %[[REPL:.+]] = add i32 99, %[[STRIDE]]
 ; CHECK-NEXT: call void @ext(i32 %[[REPL]])
-; CHECK-NEXT: reattach
+; CHECK-NEXT: reattach within %[[SYNCREG]], label %[[LATCH]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[LATCH]]:
+; CHECK-NEXT: %[[NEXT_PRIMIV]] = add i64 %[[PRIMIV]], 1
+; CHECK-NEXT: %[[CMP_PRIMIV:.+]] = icmp eq i64 %[[PRIMIV]]
+; CHECK-NEXT: br i1 %[[CMP_PRIMIV]], label %[[EXIT:.+]], label %[[HEADER]]
 
 define void @f(i64 %n) {
 entry:

@@ -144,7 +144,6 @@ ModulePassManager llvm::populateKitPreLoopSpawningPasses(
     lpm.addPass(LoopRotatePass());
     lpm.addPass(SecondaryIVEliminationPass());
     fpm.addPass(createFunctionToLoopPassAdaptor(std::move(lpm)));
-    fpm.addPass(ADCEPass());
     fpm.addPass(LCSSAPass());
     fpm.addPass(PrepareReductionLoopsPass());
     fpm.addPass(LowerKitReduceIntrinsicsPass());

@@ -37,7 +37,6 @@
 ; O23S-NOT:   Running pass:      EarlyAnnotatePass
 ;
 ; O23S:       Running pass:      SecondaryIVEliminationPass
-; O23S:       Running pass:      ADCEPass
 ; O23S:       Running pass:      PrepareReductionLoopsPass
 ; O23S:       Running pass:      LowerKitReduceIntrinsicsPass
 ; O23S:       Running pass:      ModuleInlinerPass
