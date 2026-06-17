@@ -22,9 +22,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Transforms/SecondaryIVElimination.h"
+#include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/Diagnostics.h"
 #include "kitsune/Core/InstUtils.h"
 #include "kitsune/Core/LoopUtils.h"
+#include "kitsune/Core/UseUtils.h"
 #include "kitsune/Support/ErrorHandling.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/ScalarEvolution.h"
@@ -46,7 +48,7 @@ private:
 private:
   bool check(Loop &loop);
 
-  bool eliminate(PHINode &iv, Value *repl);
+  bool eliminate(PHINode &iv, Value *repl, Loop &loop);
 
   bool tryToEliminateFPAdd(PHINode &secIV, Constant *step, Loop &loop);
   bool tryToEliminateFPSub(PHINode &secIV, Constant *step, Loop &loop);
@@ -81,13 +83,34 @@ template <typename T, typename... Args>
   exitOnError();
 }
 
-bool SecondaryIVElimination::eliminate(PHINode &iv, Value *repl) {
-  LLVM_DEBUG(dbgs() << "SecIVE:   Eliminating secondary induction '"
-                    << getName(iv) << "'\n");
+static IRBuilder<> getIRBuilder(Loop &loop) {
+  BasicBlock *body = getTapirLoopDetachedBlock(loop);
+  return IRBuilder<>(&*body->getFirstNonPHIOrDbg());
+}
 
-  // We can just RAUW the phi node and rely on a DCE pass to clean up any
-  // resulting dead code.
-  iv.replaceAllUsesWith(repl);
+bool SecondaryIVElimination::eliminate(PHINode &secIV, Value *repl,
+                                       Loop &loop) {
+  LLVM_DEBUG(dbgs() << "SecIVE:   Eliminating secondary induction '"
+                    << getName(secIV) << "'\n");
+
+  BasicBlock *latch = loop.getLoopLatch();
+  secIV.replaceUsesWithIf(repl,
+                          [latch](Use &u) { return !isUseInBlock(u, *latch); });
+
+  // The only remaining use of the secondary IV will be the increment in the
+  // loop latch.
+  Value *secIVNext = secIV.getIncomingValueForBlock(latch);
+
+  // There is a cyclic dependence between the secIV definition and its uses
+  // since the use is an incoming value in the definition. To remove the use,
+  // we must break the cycle. We do this by replacing the incoming value with
+  // a constant.
+  secIV.setIncomingValueForBlock(latch, getZero(secIV.getType()));
+
+  // Now, we can finally erase everything.
+  cast<Instruction>(secIVNext)->eraseFromParent();
+  secIV.eraseFromParent();
+
   return true;
 }
 
@@ -110,15 +133,14 @@ bool SecondaryIVElimination::tryToEliminateFPAdd(PHINode &secIV, Constant *step,
   BasicBlock *ph = loop.getLoopPreheader();
   Value *secInit = secIV.getIncomingValueForBlock(ph);
   Type *secType = secIV.getType();
-  PHINode *canonIV = loop.getCanonicalInductionVariable();
+  PHINode *primIV = loop.getCanonicalInductionVariable();
 
-  BasicBlock *header = loop.getHeader();
-  IRBuilder<> builder(&*header->getFirstNonPHIOrDbg());
-  Value *cstIV = builder.CreateSIToFP(canonIV, secType);
-  Value *stride = builder.CreateFMul(cstIV, step);
+  IRBuilder<> builder = getIRBuilder(loop);
+  Value *cstPIV = builder.CreateSIToFP(primIV, secType);
+  Value *stride = builder.CreateFMul(cstPIV, step);
   Value *repl = builder.CreateFAdd(secInit, stride);
 
-  return eliminate(secIV, repl);
+  return eliminate(secIV, repl, loop);
 }
 
 // Replace a secondary induction variable, `siv` with initial value `init`,
@@ -141,15 +163,14 @@ bool SecondaryIVElimination::tryToEliminateFPSub(PHINode &secIV, Constant *step,
   BasicBlock *ph = loop.getLoopPreheader();
   Value *secInit = secIV.getIncomingValueForBlock(ph);
   Type *secType = secIV.getType();
-  PHINode *canonIV = loop.getCanonicalInductionVariable();
+  PHINode *primIV = loop.getCanonicalInductionVariable();
 
-  BasicBlock *header = loop.getHeader();
-  IRBuilder<> builder(&*header->getFirstNonPHIOrDbg());
-  Value *cstIV = builder.CreateSIToFP(canonIV, secType);
-  Value *stride = builder.CreateFMul(cstIV, step);
+  IRBuilder<> builder = getIRBuilder(loop);
+  Value *cstPIV = builder.CreateSIToFP(primIV, secType);
+  Value *stride = builder.CreateFMul(cstPIV, step);
   Value *repl = builder.CreateFSub(secInit, stride);
 
-  return eliminate(secIV, repl);
+  return eliminate(secIV, repl, loop);
 }
 
 // Replace a secondary induction variable, `siv` with initial value `init`,
@@ -174,16 +195,15 @@ bool SecondaryIVElimination::tryToEliminateFPMul(PHINode &secIV, Constant *step,
   BasicBlock *ph = loop.getLoopPreheader();
   Value *secInit = secIV.getIncomingValueForBlock(ph);
   Type *secType = secIV.getType();
-  PHINode *canonIV = loop.getCanonicalInductionVariable();
-  Type *canonType = canonIV->getType();
+  PHINode *primIV = loop.getCanonicalInductionVariable();
+  Type *primType = primIV->getType();
 
-  BasicBlock *header = loop.getHeader();
-  IRBuilder<> builder(&*header->getFirstNonPHIOrDbg());
-  Value *stride = builder.CreateIntrinsic(Intrinsic::powi, {secType, canonType},
-                                          {step, canonIV});
+  IRBuilder<> builder = getIRBuilder(loop);
+  Value *stride = builder.CreateIntrinsic(Intrinsic::powi, {secType, primType},
+                                          {step, primIV});
   Value *repl = builder.CreateFMul(secInit, stride);
 
-  return eliminate(secIV, repl);
+  return eliminate(secIV, repl, loop);
 }
 
 // Replace a secondary induction variable, `siv` with initial value `init`,
@@ -208,16 +228,15 @@ bool SecondaryIVElimination::tryToEliminateFPDiv(PHINode &secIV, Constant *step,
   BasicBlock *ph = loop.getLoopPreheader();
   Value *secInit = secIV.getIncomingValueForBlock(ph);
   Type *secType = secIV.getType();
-  PHINode *canonIV = loop.getCanonicalInductionVariable();
-  Type *canonType = canonIV->getType();
+  PHINode *primIV = loop.getCanonicalInductionVariable();
+  Type *primType = primIV->getType();
 
-  BasicBlock *header = loop.getHeader();
-  IRBuilder<> builder(&*header->getFirstNonPHIOrDbg());
-  Value *stride = builder.CreateIntrinsic(Intrinsic::powi, {secType, canonType},
-                                          {step, canonIV});
+  IRBuilder<> builder = getIRBuilder(loop);
+  Value *stride = builder.CreateIntrinsic(Intrinsic::powi, {secType, primType},
+                                          {step, primIV});
   Value *repl = builder.CreateFDiv(secInit, stride);
 
-  return eliminate(secIV, repl);
+  return eliminate(secIV, repl, loop);
 }
 
 // Replace a secondary induction variable, `siv` with initial value `init`,
@@ -239,15 +258,14 @@ bool SecondaryIVElimination::tryToEliminateIntAdd(PHINode &secIV,
   BasicBlock *ph = loop.getLoopPreheader();
   Value *secInit = secIV.getIncomingValueForBlock(ph);
   Type *secType = secIV.getType();
-  PHINode *canonIV = loop.getCanonicalInductionVariable();
+  PHINode *primIV = loop.getCanonicalInductionVariable();
 
-  BasicBlock *header = loop.getHeader();
-  IRBuilder<> builder(&*header->getFirstNonPHIOrDbg());
-  Value *cstCIV = builder.CreateIntCast(canonIV, secType, /*IsSigned=*/false);
-  Value *stride = builder.CreateMul(cstCIV, step);
+  IRBuilder<> builder = getIRBuilder(loop);
+  Value *cstPIV = builder.CreateIntCast(primIV, secType, /*IsSigned=*/false);
+  Value *stride = builder.CreateMul(cstPIV, step);
   Value *repl = builder.CreateAdd(secInit, stride);
 
-  return eliminate(secIV, repl);
+  return eliminate(secIV, repl, loop);
 }
 
 // Replace a secondary induction variable, `siv` with initial value `init`,
@@ -269,15 +287,14 @@ bool SecondaryIVElimination::tryToEliminateIntSub(PHINode &secIV,
   BasicBlock *ph = loop.getLoopPreheader();
   Value *secInit = secIV.getIncomingValueForBlock(ph);
   Type *secType = secIV.getType();
-  PHINode *canonIV = loop.getCanonicalInductionVariable();
+  PHINode *primIV = loop.getCanonicalInductionVariable();
 
-  BasicBlock *header = loop.getHeader();
-  IRBuilder<> builder(&*header->getFirstNonPHIOrDbg());
-  Value *cstCIV = builder.CreateIntCast(canonIV, secType, /*IsSigned=*/false);
-  Value *stride = builder.CreateMul(cstCIV, step);
+  IRBuilder<> builder = getIRBuilder(loop);
+  Value *cstPIV = builder.CreateIntCast(primIV, secType, /*IsSigned=*/false);
+  Value *stride = builder.CreateMul(cstPIV, step);
   Value *repl = builder.CreateSub(secInit, stride);
 
-  return eliminate(secIV, repl);
+  return eliminate(secIV, repl, loop);
 }
 
 // Replace a secondary induction variable, `siv` with initial value `init`,
@@ -358,15 +375,14 @@ bool SecondaryIVElimination::tryToEliminateIntLShl(PHINode &secIV,
   BasicBlock *ph = loop.getLoopPreheader();
   Value *secInit = secIV.getIncomingValueForBlock(ph);
   Type *secType = secIV.getType();
-  PHINode *canonIV = loop.getCanonicalInductionVariable();
+  PHINode *primIV = loop.getCanonicalInductionVariable();
 
-  BasicBlock *header = loop.getHeader();
-  IRBuilder<> builder(&*header->getFirstNonPHIOrDbg());
-  Value *cstCIV = builder.CreateIntCast(canonIV, secType, /*IsSigned=*/false);
-  Value *stride = builder.CreateMul(cstCIV, step);
+  IRBuilder<> builder = getIRBuilder(loop);
+  Value *cstPIV = builder.CreateIntCast(primIV, secType, /*IsSigned=*/false);
+  Value *stride = builder.CreateMul(cstPIV, step);
   Value *repl = builder.CreateShl(secInit, stride);
 
-  return eliminate(secIV, repl);
+  return eliminate(secIV, repl, loop);
 }
 
 // Replace a secondary induction variable, `siv` with initial value `init`,
@@ -388,15 +404,14 @@ bool SecondaryIVElimination::tryToEliminateIntLShr(PHINode &secIV,
   BasicBlock *ph = loop.getLoopPreheader();
   Value *secInit = secIV.getIncomingValueForBlock(ph);
   Type *secType = secIV.getType();
-  PHINode *canonIV = loop.getCanonicalInductionVariable();
+  PHINode *primIV = loop.getCanonicalInductionVariable();
 
-  BasicBlock *header = loop.getHeader();
-  IRBuilder<> builder(&*header->getFirstNonPHIOrDbg());
-  Value *cstCIV = builder.CreateIntCast(canonIV, secType, /*IsSigned=*/false);
-  Value *stride = builder.CreateMul(cstCIV, step);
+  IRBuilder<> builder = getIRBuilder(loop);
+  Value *cstPIV = builder.CreateIntCast(primIV, secType, /*IsSigned=*/false);
+  Value *stride = builder.CreateMul(cstPIV, step);
   Value *repl = builder.CreateLShr(secInit, stride);
 
-  return eliminate(secIV, repl);
+  return eliminate(secIV, repl, loop);
 }
 
 // Replace a secondary induction variable, `siv` with initial value `init`,
@@ -418,15 +433,14 @@ bool SecondaryIVElimination::tryToEliminateIntAShr(PHINode &secIV,
   BasicBlock *ph = loop.getLoopPreheader();
   Value *secInit = secIV.getIncomingValueForBlock(ph);
   Type *secType = secIV.getType();
-  PHINode *canonIV = loop.getCanonicalInductionVariable();
+  PHINode *primIV = loop.getCanonicalInductionVariable();
 
-  BasicBlock *header = loop.getHeader();
-  IRBuilder<> builder(&*header->getFirstNonPHIOrDbg());
-  Value *cstCIV = builder.CreateIntCast(canonIV, secType, /*IsSigned=*/false);
-  Value *stride = builder.CreateMul(cstCIV, step);
+  IRBuilder<> builder = getIRBuilder(loop);
+  Value *cstPIV = builder.CreateIntCast(primIV, secType, /*IsSigned=*/false);
+  Value *stride = builder.CreateMul(cstPIV, step);
   Value *repl = builder.CreateAShr(secInit, stride);
 
-  return eliminate(secIV, repl);
+  return eliminate(secIV, repl, loop);
 }
 
 bool SecondaryIVElimination::tryToEliminate(PHINode &secIV, Loop &loop) {
@@ -524,15 +538,38 @@ bool SecondaryIVElimination::check(Loop &loop) {
     return false;
   };
 
+  // We have to ensure that there are no non-phi instructions in the header.
+  // This is strictly enforced for tapir loops just loop-spawning, but we have
+  // to do so here as well. The code to compute the secondary IV from the
+  // primary IV will be inserted in the detached block of the tapir loop. If
+  // any uses of the secondary IV are present in the header, this will result
+  // in an invalid module.
+  BasicBlock *header = loop.getHeader();
+  if (!isa<DetachInst>(header->getTerminator()))
+    return complain(loop, DiagID::ErrTapirLoopHeaderTerminator);
+
+  // This is a sanity check in case a pass that ran before this broke the tapir
+  // loop in some way. The code in this pass expects the detach instruction to
+  // be present.
+  for (Instruction &inst : *header)
+    if (!isa<PHINode>(inst) && !isa<DetachInst>(inst))
+      return complain(loop, DiagID::ErrTapirLoopHeaderInst);
+
+  // Th computation of the secondary IV as a function of the primary IV assumes
+  // that the primary IV is canonical.
+  PHINode *primIV = loop.getCanonicalInductionVariable();
+  if (!primIV)
+    return complain(loop, DiagID::ErrTapirLoopNoCanonicalIV);
+
+  // Strictly speaking, this pass only requires the loop to have a unique latch,
+  // but it is safer to require the loop to be in simplify-form.
   if (!loop.isLoopSimplifyForm())
     return complain(loop, DiagID::ErrLoopNotSimplifyForm);
 
-  PHINode *canonIV = loop.getCanonicalInductionVariable();
-  if (!canonIV)
-    return complain(loop, DiagID::ErrTapirLoopNoCanonicalIV);
+  BasicBlock *latch = loop.getLoopLatch();
 
   for (PHINode &iv : loop.getHeader()->phis()) {
-    if (&iv == canonIV)
+    if (&iv == primIV)
       continue;
 
     // We only support eliminating certain forms of secondary inductions. If the
@@ -549,11 +586,6 @@ bool SecondaryIVElimination::check(Loop &loop) {
     if (isUsedOutsideLoop(iv, loop, li))
       return complain(iv, DiagID::ErrTapirLoopIVUsedOutsideLoop);
 
-    // The loop is guaranteed to be in simplify-form. It will have a unique
-    // latch, and a unique backedge.
-    BasicBlock *latch = loop.getLoopLatch();
-    Value *upd = iv.getIncomingValueForBlock(latch);
-
     // We currently only support eliminating secondary inductions of the form
     //
     //     x = x OP c
@@ -563,6 +595,7 @@ bool SecondaryIVElimination::check(Loop &loop) {
     // no way to reliably determine that at this time. But we probably ought to
     // support arithmetic expressions as the right-hand side of OP. It is not
     // clear, though, if that is actually relevant for us.
+    Value *upd = iv.getIncomingValueForBlock(latch);
     BinaryOperator *binOp = dyn_cast<BinaryOperator>(upd);
     if (!binOp)
       return complain(iv, DiagID::ErrSecondaryIVNotBinOp, *upd);
@@ -572,9 +605,31 @@ bool SecondaryIVElimination::check(Loop &loop) {
     unsigned opcode = binOp->getOpcode();
     if (!isSupportedBinOp(opcode))
       return complain(iv, DiagID::ErrSecondaryIVOperator, getBinOpName(opcode));
+
+    // The only uses of the secondary IV in the loop latch must be the increment
+    // that flows back to the loop header. If that is not the case, we may not
+    // be able to safely eliminate the IV.
+    SmallVector<Value *, 1> usesInLatch;
+    for (Use &u : iv.uses())
+      if (isUseInBlock(u, *latch))
+        usesInLatch.push_back(u.getUser());
+
+    if (usesInLatch.size() != 1)
+      return complain(iv, DiagID::ErrTapirLoopIVUsesInLatch);
+    else if (iv.getIncomingValueForBlock(latch) != usesInLatch[0])
+      return complain(iv, DiagID::ErrTapirLoopIVNotUpdatedInLatch);
   }
 
   return true;
+}
+
+static SmallVector<PHINode *, 4> getSecIVs(Loop &loop) {
+  SmallVector<PHINode *, 4> secIVs;
+  PHINode *primIV = loop.getCanonicalInductionVariable();
+  for (PHINode &iv : loop.getHeader()->phis())
+    if (&iv != primIV)
+      secIVs.push_back(&iv);
+  return secIVs;
 }
 
 bool SecondaryIVElimination::run(Loop &loop) {
@@ -590,10 +645,9 @@ bool SecondaryIVElimination::run(Loop &loop) {
     exitOnError();
 
   LLVM_DEBUG(dbgs() << "SecIVE: Checking loop " << getName(loop) << "\n");
-  PHINode *canonIV = loop.getCanonicalInductionVariable();
-  for (PHINode &iv : loop.getHeader()->phis())
-    if (&iv != canonIV)
-      changed |= tryToEliminate(iv, loop);
+  SmallVector<PHINode *, 4> secIVs = getSecIVs(loop);
+  for (PHINode *iv : secIVs)
+    changed |= tryToEliminate(*iv, loop);
 
   return changed;
 }

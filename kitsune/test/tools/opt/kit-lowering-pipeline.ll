@@ -56,7 +56,6 @@
 ; will fail if any of these are not run, so something will at least catch it
 ; if they are ever removed from the pipeline.
 ; O123S:      Running pass:     SecondaryIVEliminationPass
-; O123S:      Running pass:     ADCEPass
 ; O123S:      Running pass:     PrepareReductionLoopsPass
 ; O123S:      Running pass:     LowerKitReduceIntrinsicsPass
 ; O123S:      Running pass:     ModuleInlinerPass

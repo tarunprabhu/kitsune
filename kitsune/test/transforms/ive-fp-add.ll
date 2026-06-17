@@ -1,21 +1,30 @@
-; Check that a secondary induction variable that has the same type as the
-; primary induction variable and is an add-recurrence is handled correctly.
-;
-; This pass will only compute the secondary IV from the primary and replace all
-; uses of the secondary, but will not remove any code.
+; Check that a secondary induction variable that is a floating point add
+; recurrence is handled correctly.
 ;
 ; RUN: opt -passes='kit-ive' %s -S | FileCheck %s
 ;
-; CHECK: %[[IV:.+]] = phi i64
-; CHECK-NEXT: %j = phi float
-; CHECK-NEXT: %[[CSTIV:.+]] = sitofp i64 %[[IV]] to float
-; CHECK-NEXT: %[[STRIDE:.+]] = fmul float %[[CSTIV]], 5.000000e-01
-; CHECK-NEXT: %[[REPL:.+]] = fadd float 9.900000e+01, %[[STRIDE]]
-; CHECK-NEXT: detach within
+; CHECK-LABEL: @f
+; CHECK-NEXT: [[PH:.+]]:
+; CHECK-NEXT: %[[SYNCREG:.+]] = tail call token
+; CHECK-NEXT: br label %[[HEADER:.+]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[BODY:.+]]
+; CHECK-NEXT: [[HEADER]]:
+; CHECK: %[[PRIMIV:.+]] = phi i64
+; CHECK-SAME: [ 0, %[[PH]] ]
+; CHECK-SAME: [ %[[NEXT_PRIMIV:.+]], %[[LATCH:.+]] ]
+; CHECK: detach within %[[SYNCREG]], label %[[BODY:.+]], label %[[LATCH]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[BODY]]:
+; CHECK-NEXT: %[[CST:.+]] = sitofp i64 %[[PRIMIV]] to float
+; CHECK-NEXT: %[[STRIDE:.+]] = fmul float %[[CST]], 5.000000e-01
+; CHECK-NEXT: %[[REPL:.+]] = fadd float 9.900000e+01, %[[STRIDE]]
 ; CHECK-NEXT: call void @ext(float %[[REPL]])
-; CHECK-NEXT: reattach
+; CHECK-NEXT: reattach within %[[SYNCREG]], label %[[LATCH]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[LATCH]]:
+; CHECK-NEXT: %[[NEXT_PRIMIV]] = add i64 %[[PRIMIV]], 1
+; CHECK-NEXT: %[[CMP_PRIMIV:.+]] = icmp eq i64 %[[PRIMIV]]
+; CHECK-NEXT: br i1 %[[CMP_PRIMIV]], label %[[EXIT:.+]], label %[[HEADER]]
 
 define void @f(i64 %n) {
 entry:
