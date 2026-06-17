@@ -159,4 +159,58 @@ TEST(KitConstantUtils, toConstant) {
   EXPECT_EQ(fromConstant<StringRef>(*clit), "lse");
 }
 
+TEST(KitConstantUtils, getZero) {
+  LLVMContext ctx;
+  Constant *i1 = getZero(Type::getInt1Ty(ctx));
+  Constant *i8 = getZero(Type::getInt8Ty(ctx));
+  Constant *i16 = getZero(Type::getInt16Ty(ctx));
+  Constant *i32 = getZero(Type::getInt32Ty(ctx));
+  Constant *i64 = getZero(Type::getInt64Ty(ctx));
+  Constant *f32 = getZero(Type::getFloatTy(ctx));
+  Constant *f64 = getZero(Type::getDoubleTy(ctx));
+
+  EXPECT_TRUE(i1->isNullValue());
+  EXPECT_TRUE(i8->isNullValue());
+  EXPECT_TRUE(i16->isNullValue());
+  EXPECT_TRUE(i32->isNullValue());
+  EXPECT_TRUE(i64->isNullValue());
+  EXPECT_TRUE(f32->isNullValue());
+  EXPECT_TRUE(f64->isNullValue());
+
+  EXPECT_TRUE(i1->getType()->isIntegerTy(1));
+  EXPECT_TRUE(i8->getType()->isIntegerTy(8));
+  EXPECT_TRUE(i16->getType()->isIntegerTy(16));
+  EXPECT_TRUE(i32->getType()->isIntegerTy(32));
+  EXPECT_TRUE(i64->getType()->isIntegerTy(64));
+  EXPECT_TRUE(f32->getType()->isFloatTy());
+  EXPECT_TRUE(f64->getType()->isDoubleTy());
+}
+
+TEST(KitConstantUtils, getOne) {
+  LLVMContext ctx;
+  Constant *i1 = getOne(Type::getInt1Ty(ctx));
+  Constant *i8 = getOne(Type::getInt8Ty(ctx));
+  Constant *i16 = getOne(Type::getInt16Ty(ctx));
+  Constant *i32 = getOne(Type::getInt32Ty(ctx));
+  Constant *i64 = getOne(Type::getInt64Ty(ctx));
+  Constant *f32 = getOne(Type::getFloatTy(ctx));
+  Constant *f64 = getOne(Type::getDoubleTy(ctx));
+
+  EXPECT_TRUE(i1->isOneValue());
+  EXPECT_TRUE(i8->isOneValue());
+  EXPECT_TRUE(i16->isOneValue());
+  EXPECT_TRUE(i32->isOneValue());
+  EXPECT_TRUE(i64->isOneValue());
+  EXPECT_EQ(cast<ConstantFP>(f32)->getValue(), APFloat(1.0f));
+  EXPECT_EQ(cast<ConstantFP>(f64)->getValue(), APFloat(1.0));
+
+  EXPECT_TRUE(i1->getType()->isIntegerTy(1));
+  EXPECT_TRUE(i8->getType()->isIntegerTy(8));
+  EXPECT_TRUE(i16->getType()->isIntegerTy(16));
+  EXPECT_TRUE(i32->getType()->isIntegerTy(32));
+  EXPECT_TRUE(i64->getType()->isIntegerTy(64));
+  EXPECT_TRUE(f32->getType()->isFloatTy());
+  EXPECT_TRUE(f64->getType()->isDoubleTy());
+}
+
 } // namespace

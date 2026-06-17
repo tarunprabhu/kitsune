@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Clang/ReductionUtils.h"
+#include "kitsune/Core/ConstantUtils.h"
 #include "llvm/IR/Constants.h"
 
 using namespace llvm;
@@ -55,24 +56,6 @@ StringRef llvm::toString(ReduceOp op) {
   }
   // clang-format on
   llvm_unreachable("toString(ReduceOp): Reduction operator not handled");
-}
-
-static Constant *getZero(Type *type) {
-  if (type->isIntegerTy())
-    return ConstantInt::get(type, 0, /*isSigned=*/false);
-  else if (type->isFloatTy() || type->isDoubleTy())
-    return ConstantFP::get(type, 0);
-  llvm_unreachable("getZero: Type not handled");
-}
-
-static Constant *getOne(Type *type) {
-  if (type->isIntegerTy())
-    return ConstantInt::get(type, 1, /*isSigned=*/false);
-  else if (type->isFloatTy())
-    return ConstantFP::get(type, 1.0f);
-  else if (type->isDoubleTy())
-    return ConstantFP::get(type, 1.0);
-  llvm_unreachable("getZero: Type not handled");
 }
 
 static Constant *getOnes(Type *type) {
