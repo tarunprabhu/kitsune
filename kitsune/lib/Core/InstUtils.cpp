@@ -137,3 +137,17 @@ Value *llvm::getNonMatchingOperand(BinaryOperator &binOp, Value *match) {
     return op0;
   return nullptr;
 }
+
+bool llvm::isCondBr(const Instruction &inst) {
+  if (const auto *br = dyn_cast<BranchInst>(&inst))
+    if (br->isConditional())
+      return true;
+  return false;
+}
+
+bool llvm::isUncondBr(const Instruction &inst) {
+  if (const auto *br = dyn_cast<BranchInst>(&inst))
+    if (!br->isConditional())
+      return true;
+  return false;
+}

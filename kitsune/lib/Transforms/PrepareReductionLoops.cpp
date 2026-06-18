@@ -1554,12 +1554,6 @@ static bool check(TapirLoopInfo &tapirLoop, DominatorTree &dt, LoopInfo &li,
     });
   };
 
-  auto isTerminatorCondBr = [](const BasicBlock &bb) -> bool {
-    if (auto *br = dyn_cast<BranchInst>(bb.getTerminator()))
-      return !br->isUnconditional();
-    return false;
-  };
-
   auto getConvergentOpIfAny = [](const Loop &loop) -> Instruction * {
     for (BasicBlock *bb : loop.getBlocks())
       for (Instruction &inst : *bb)
@@ -1629,7 +1623,7 @@ static bool check(TapirLoopInfo &tapirLoop, DominatorTree &dt, LoopInfo &li,
   // loop latch. We should either remove the check if it is not needed, or
   // ensure that it can never happen - perhaps by running the loop-rotate pass -
   // then remove this comment.
-  if (!isTerminatorCondBr(*latch))
+  if (!isCondBr(*latch->getTerminator()))
     return complain(loop, DiagID::ErrGeneric,
                     "tapir reduction loop latch is not a conditional branch");
 
