@@ -4,7 +4,7 @@
 ;
 ; RUN: not opt --tapir=nolo -passes=kit-verify-prelower %s 2>&1 | FileCheck %s
 
-; CHECK: could not compute finite trip count for tapir loop
+; CHECK: tapir loop trip count is not finite
 
 ; In this test, the trip count is loop invariant, but it has not been hoisted
 ; outside the loop. Such behavior has been seen when LICM does not hoist the
