@@ -57,6 +57,7 @@
 #include "kitsune/Targets/TapirTargets.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/Analysis/LoopInfo.h"
+#include "llvm/Analysis/OptimizationRemarkEmitter.h"
 #include "llvm/Analysis/PostDominators.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
@@ -74,20 +75,6 @@ static cl::opt<bool> clDisableVerifyPreLower(
     cl::desc("Disable Kitsune's pre-lowering verifier"));
 
 namespace {
-
-// Get a unique instruction of type T in a loop, or nullptr if one does not
-// exist. This will *not* look for such an instruction in any subloops.
-template <typename InstType>
-static const InstType *getUniqueInstInLoop(const Loop &loop) {
-  SmallVector<const InstType *, 4> insts;
-  for (const BasicBlock *bb : getBlocksNotInSubLoops(loop))
-    for (const Instruction &inst : *bb)
-      if (const auto *asType = dyn_cast<InstType>(&inst))
-        insts.push_back(asType);
-  if (insts.size() == 1)
-    return insts.front();
-  return nullptr;
-}
 
 static SmallSet<const SyncInst *, 4> getSyncInstsFor(const Value &syncRegion) {
   SmallSet<const SyncInst *, 4> syncInsts;
@@ -118,15 +105,17 @@ protected:
       ++log.warnings;
   }
 
-  template <typename... Args> void emitDiag(DiagID id, Args &&...args) {
+  template <typename... Args> bool emitDiag(DiagID id, Args &&...args) {
     emitDiagnostic(id, args...);
     record(id);
+    return false;
   }
 
   template <typename IRElement, typename... Args>
-  void emitDiag(const IRElement &e, DiagID id, Args &&...args) {
+  bool emitDiag(const IRElement &e, DiagID id, Args &&...args) {
     emitDiagnostic(e, id, args...);
     record(id);
+    return false;
   }
 };
 
@@ -136,6 +125,7 @@ protected:
 class VerifierF : public Verifier<VerifierF> {
 private:
   LoopInfo &li;
+  OptimizationRemarkEmitter &ore;
   PostDominatorTree &pdt;
   ScalarEvolution &se;
   TaskInfo &ti;
@@ -247,13 +237,109 @@ private:
       checkTopLevelTapirLoop(*loop);
   }
 
+  // Check the instructions in the tapir loop preheader.
+  //
+  //   - It must be terminated by an unconditional branch instruction.
+  //
+  bool checkTapirLoopPreheader(Loop &loop) {
+    BasicBlock *ph = loop.getLoopPreheader();
+    if (!isUncondBr(*ph->getTerminator()))
+      return emitDiag(loop, DiagID::ErrTapirLoopBlockTerminator, "preheader",
+                      "unconditional branch");
+    return true;
+  }
+
+  // Check the instructions in the tapir loop header.
+  //
+  //  - It must be terminated by a detach instruction.
+  //
+  //  - It can only contain PHI nodes, and no other instructions.
+  //
+  bool checkTapirLoopHeader(Loop &loop) {
+    BasicBlock *header = loop.getHeader();
+
+    // Debug info instructions are permitted. However, we expect these to be
+    // automatically upgraded to DbgRecord's, so we don't check for them.
+    for (Instruction &inst : *header)
+      if (!isa<PHINode>(inst) && !isa<DetachInst>(inst))
+        return emitDiag(loop, DiagID::ErrTapirLoopHeaderInstNotPHI);
+
+    if (!isa<DetachInst>(header->getTerminator()))
+      return emitDiag(loop, DiagID::ErrTapirLoopBlockTerminator, "header",
+                      "detach");
+
+    return true;
+  }
+
+  // Check the instructions in the tapir loop latch.
+  //
+  //  - It must be terminated by a conditional branch instruction.
+  //
+  //  - It can only contain the instructions to update the canonical loop
+  //    induction variable, and nothing else.
+  //
+  bool checkTapirLoopLatch(Loop &loop) {
+    BasicBlock *latch = loop.getLoopLatch();
+    Instruction *latchTerm = latch->getTerminator();
+    if (!isCondBr(*latchTerm))
+      return emitDiag(loop, DiagID::ErrTapirLoopBlockTerminator, "latch",
+                      "conditional branch");
+
+    // Collect the instructions that are used to compute the termination
+    // condition and branch.
+    SmallPtrSet<Instruction *, 4> expected;
+    BranchInst *br = cast<BranchInst>(latchTerm);
+    if (auto *cmp = dyn_cast<Instruction>(br->getCondition())) {
+      for (Value *op : cmp->operands())
+        if (auto *inst = dyn_cast<Instruction>(op))
+          expected.insert(inst);
+      expected.insert(cmp);
+    }
+    expected.insert(br);
+
+    // In some cases, the updated induction variable is not actually used to
+    // compute the termination condition. This can happen, for instance, when
+    // the loop induction variable is in the range [1,n], in which case the
+    // termination condition in the loop is computed using the "old" value of
+    // the canonical loop induction, i, not the "updated" value of i. In other
+    // words, while one might expect to see the following code in the latch:
+    //
+    //   %next.i = add i64 %i, 1
+    //   %cmp.i = icmp eq i64 %next.i, %n
+    //   br label %cmp.i, label %exit, label %header
+    //
+    // we instead see something like this:
+    //
+    //   %next.i = add i64 %i, 1
+    //   %cmp.i = icmp eq i64 %i, %n1
+    //   br label %cmp.i, label %exit, label %header
+    //
+    // where %n1 = sub i64 %n, 1.
+    //
+    // To handle this case, we unconditionally add the incoming value from the
+    // latch to the expected instructions list. It is safe to cast this to an
+    // instruction because we are guaranteed that it is incremented by 1
+    //
+    PHINode *primIV = loop.getCanonicalInductionVariable();
+    expected.insert(cast<Instruction>(primIV->getIncomingValueForBlock(latch)));
+
+    // Debug info instructions are permitted. However, we expect these to be
+    // automatically upgraded to DbgRecord's, so we don't check for them.
+    for (Instruction &inst : *latch)
+      if (!expected.contains(&inst))
+        return emitDiag(loop, DiagID::ErrTapirLoopLatchInstUnexpected,
+                        getName(inst));
+
+    return true;
+  }
+
   // Check that a given value is a sync region definition.
-  template <typename InstType> void checkSyncRegionDefn(const InstType &inst) {
+  template <typename InstType> bool checkSyncRegionDefn(const InstType &inst) {
     if (const auto *call = dyn_cast<CallBase>(inst.getSyncRegion()))
       if (Function *f = call->getCalledFunction())
         if (f->getIntrinsicID() == Intrinsic::syncregion_start)
-          return;
-    emitDiag(inst, DiagID::ErrTapirLoopSyncRegionDefn);
+          return true;
+    return emitDiag(inst, DiagID::ErrTapirLoopSyncRegionDefn);
   }
 
   // Check the instructions in a tapir loop.
@@ -273,17 +359,12 @@ private:
   //    should nearly always be the case, but changes to the pass pipeline may
   //    result in this constraint being violated.
   //
-  void checkTapirLoopInsts(const Loop &loop, Task &task) {
-    auto isBr = [](const Instruction &inst, bool conditional) -> bool {
-      const BranchInst *br = dyn_cast<BranchInst>(&inst);
-      return br && br->isConditional() == conditional;
-    };
-
+  bool checkTapirLoopInsts(const Loop &loop, Task &task) {
     const DetachInst *detachInst = task.getDetach();
-    if (getUniqueInstInLoop<DetachInst>(loop) != detachInst)
+    if (getUniqueInstInLoopOnly<DetachInst>(loop) != detachInst)
       return emitDiag(loop, DiagID::ErrTapirLoopNoUniqueDetachInst);
 
-    const ReattachInst *reattachInst = getUniqueInstInLoop<ReattachInst>(loop);
+    const auto *reattachInst = getUniqueInstInLoopOnly<ReattachInst>(loop);
     if (!reattachInst)
       return emitDiag(loop, DiagID::ErrTapirLoopNoUniqueReattachInst);
 
@@ -296,7 +377,7 @@ private:
       // may have merged sync regions. Ideally, we would not want this to be an
       // error, but we will have to fix the optimization pipeline before we can
       // do that.
-      return;
+      return true;
     }
 
     // We have to check that the sync instruction post-dominates the loop. We
@@ -322,61 +403,64 @@ private:
     for (BasicBlock *exit : exits)
       if (!isUnreachable(*exit))
         if (!pdt.dominates(syncInst, &exit->front()))
-          emitDiag(loop, DiagID::ErrTapirLoopSyncMustPostDominate);
+          return emitDiag(loop, DiagID::ErrTapirLoopSyncMustPostDominate);
 
     checkSyncRegionDefn(*detachInst);
     checkSyncRegionDefn(*reattachInst);
 
-    // The loop is guaranteed to be in simplify form, so a preheader and unique
-    // latch are guaranteed to be present.
-    BasicBlock *ph = loop.getLoopPreheader();
-    assert(ph && "Tapir loop must have a preheader");
-    if (!isBr(*ph->getTerminator(), /*conditional=*/false))
-      emitDiag(loop, DiagID::ErrTapirLoopUnexpectedTerminator, "preheader",
-               "unconditional branch");
+    return true;
+  }
 
-    BasicBlock *latch = loop.getLoopLatch();
-    assert(latch && "Tapir loop must have a unique latch");
-    if (!isBr(*latch->getTerminator(), /*conditional=*/true))
-      emitDiag(loop, DiagID::ErrTapirLoopUnexpectedTerminator, "latch",
-               "conditional branch");
+  // Check that the tapir loop has a single induction variable, and that that IV
+  // is canonical.
+  bool checkTapirLoopIV(Loop &loop) {
+    if (getNumIndVars(loop) > 1)
+      return emitDiag(loop, DiagID::ErrTapirLoopIVMultiple);
+
+    if (!loop.getCanonicalInductionVariable())
+      return emitDiag(loop, DiagID::ErrTapirLoopIVNotCanonical);
+
+    return true;
   }
 
   // Check additional properties of tapir loops that are derived from it.
   //
-  //  - The loop has a single induction variable, and that IV is canonical
-  //
   //  - The tapir loop has a finite trip count
   //
-  void checkTapirLoopProperties(Loop &loop, Task &task) {
-    if (getNumIndVars(loop) > 1)
-      return emitDiag(loop, DiagID::ErrTapirLoopSingleIndVar);
-
-    if (!loop.getCanonicalInductionVariable())
-      return emitDiag(loop, DiagID::ErrTapirLoopNoCanonicalIV);
-
+  bool checkTapirLoopProperties(Loop &loop, Task &task) {
     PredicatedScalarEvolution pse(se, loop);
     TapirLoopInfo tl(&loop, &task);
-    Value *tc = tl.getOrCreateTripCount(pse, DEBUG_TYPE,
-                                        /*OptimizationRemarkEmitter=*/nullptr);
-    if (!tc)
+    tl.collectIVs(pse, DEBUG_TYPE, &ore);
+    if (!tl.getOrCreateTripCount(pse, DEBUG_TYPE, &ore))
       return emitDiag(loop, DiagID::ErrTapirLoopNoFiniteTripCount);
+
+    return true;
   }
 
-  void checkAllTapirLoops(Function &f) {
+  bool checkAllTapirLoops(Function &f) {
     for (Loop *loop : li.getLoopsInPreorder()) {
-      if (isTapirLoop(*loop)) {
-        Task *task = getTaskIfTapirLoop(loop, &ti);
-        if (!task)
-          return emitDiag(*loop, DiagID::ErrTapirLoopNoTask);
+      if (!isTapirLoop(*loop))
+        continue;
 
-        if (!loop->isLoopSimplifyForm())
-          return emitDiag(*loop, DiagID::ErrLoopNotSimplifyForm);
+      Task *task = getTaskIfTapirLoop(loop, &ti);
+      if (!task)
+        return emitDiag(*loop, DiagID::ErrTapirLoopNoTask);
 
-        checkTapirLoopInsts(*loop, *task);
-        checkTapirLoopProperties(*loop, *task);
-      }
+      if (!loop->isLoopSimplifyForm())
+        return emitDiag(*loop, DiagID::ErrLoopNotSimplifyForm);
+
+      // clang-format off
+      if (!checkTapirLoopIV(*loop)
+          || !checkTapirLoopInsts(*loop, *task)
+          || !checkTapirLoopPreheader(*loop)
+          || !checkTapirLoopHeader(*loop)
+          || !checkTapirLoopLatch(*loop)
+          || !checkTapirLoopProperties(*loop, *task))
+        return false;
+      // clang-format on
     }
+
+    return true;
   }
 
   // Check that detach and reattach instructions do not appear outside tapir
@@ -398,9 +482,9 @@ private:
   }
 
 public:
-  VerifierF(Log &log, LoopInfo &li, PostDominatorTree &pdt, ScalarEvolution &se,
-            TaskInfo &ti)
-      : Verifier(log), li(li), pdt(pdt), se(se), ti(ti) {}
+  VerifierF(Log &log, LoopInfo &li, OptimizationRemarkEmitter &ore,
+            PostDominatorTree &pdt, ScalarEvolution &se, TaskInfo &ti)
+      : Verifier(log), li(li), ore(ore), pdt(pdt), se(se), ti(ti) {}
 
   void run(Function &f) {
     checkTapirInsts(f);
@@ -455,11 +539,13 @@ PreservedAnalyses PreLowerVerificationPass::run(Module &m,
   for (Function &f : m) {
     if (f.size()) {
       LoopInfo &li = fam.getResult<LoopAnalysis>(f);
+      OptimizationRemarkEmitter &ore =
+          fam.getResult<OptimizationRemarkEmitterAnalysis>(f);
       PostDominatorTree &pdt = fam.getResult<PostDominatorTreeAnalysis>(f);
       ScalarEvolution &se = fam.getResult<ScalarEvolutionAnalysis>(f);
       TaskInfo &ti = fam.getResult<TaskAnalysis>(f);
 
-      VerifierF(log, li, pdt, se, ti).run(f);
+      VerifierF(log, li, ore, pdt, se, ti).run(f);
     }
   }
 
