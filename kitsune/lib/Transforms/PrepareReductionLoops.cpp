@@ -1581,10 +1581,10 @@ static bool check(TapirLoopInfo &tapirLoop, DominatorTree &dt, LoopInfo &li,
     return complain(loop, DiagID::ErrLoopNotLCSSAForm);
 
   if (getNumIndVars(loop) > 1)
-    return complain(loop, DiagID::ErrTapirLoopSingleIndVar);
+    return complain(loop, DiagID::ErrTapirLoopIVMultiple);
 
-  if (!tapirLoop.hasPrimaryInduction())
-    return complain(loop, DiagID::ErrTapirLoopNoPrimaryIV);
+  if (!loop.getCanonicalInductionVariable())
+    return complain(loop, DiagID::ErrTapirLoopIVNotCanonical);
 
   for (auto &[iv, ivDescr] : *tapirLoop.getInductionVars()) {
     for (User *user : iv->users())
@@ -1615,8 +1615,8 @@ static bool check(TapirLoopInfo &tapirLoop, DominatorTree &dt, LoopInfo &li,
   // ensure that it can never happen - perhaps by running the loop-rotate pass -
   // then remove this comment.
   if (!isCondBr(*latch->getTerminator()))
-    return complain(loop, DiagID::ErrGeneric,
-                    "tapir reduction loop latch is not a conditional branch");
+    return complain(loop, DiagID::ErrTapirLoopBlockTerminator, "latch",
+                    "conditional branch");
 
   if (!tapirLoop.getTripCount())
     return complain(loop, DiagID::ErrTapirLoopNoFiniteTripCount);
@@ -1649,9 +1649,7 @@ static bool check(TapirLoopInfo &tapirLoop, DominatorTree &dt, LoopInfo &li,
 
   const DetachInst *di = getUniqueInstInLoopOnly<DetachInst>(loop);
   if (!di)
-    return complain(
-        loop, DiagID::ErrGeneric,
-        "tapir reduction loop must have a single detach instruction");
+    return complain(loop, DiagID::ErrTapirLoopNoUniqueDetachInst);
   else if (di->getDetached() != task.getEntry())
     return complain(loop, DiagID::ErrGeneric,
                     "tapir reduction loop task entry does not match block "

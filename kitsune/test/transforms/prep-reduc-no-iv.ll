@@ -3,7 +3,7 @@
 ;
 ; RUN: not opt -passes='kit-reductions' -S %s 2>&1 | FileCheck %s
 ;
-; CHECK: primary induction variable not found in tapir loop
+; CHECK: tapir loop does not have a canonical induction variable
 
 declare void @sum(ptr %res, i64 %v)
 

@@ -161,14 +161,11 @@ def ErrTTIncompatibleLoopGPU
 def ErrTapirInstNotInTapirLoop
   : Error<"tapir instructions outside tapir loops are not yet supported">;
 
-def ErrTapirLoopHeaderTerminator
-  : Error<"tapir loop header terminator must be a detach instruction">;
-
-def ErrTapirLoopHeaderInst
+def ErrTapirLoopHeaderInstNotPHI
   : Error<"tapir loop header must contain only phi nodes">;
 
-def ErrTapirLoopSingleIndVar
-  : Error<"tapir loop must have at most one induction variable">;
+def ErrTapirLoopLatchInstUnexpected
+  : Error<"tapir loop latch contains unexpected instruction: {}">;
 
 def ErrTapirLoopNoUniqueDetachInst
   : Error<"tapir loop does not have a unique detach instruction">;
@@ -191,11 +188,23 @@ def ErrTapirLoopSyncRegionUses
 def ErrTapirLoopSyncMustPostDominate
   : Error<"tapir loop not post-dominated by sync instruction">;
 
-def ErrTapirLoopNoCanonicalIV
+def ErrTapirLoopIVMultiple
+  : Error<"tapir loop must have at most one induction variable">;
+
+def ErrTapirLoopIVNotCanonical
   : Error<"tapir loop does not have a canonical induction variable">;
 
-def ErrTapirNestBoundsVariantGPU
-  : Error<"bounds of GPU loop must be invariant in the nest">;
+def ErrTapirLoopIVUsedOutsideLoop
+  : Error<"tapir loop induction variable used outside tapir loop">;
+
+def ErrTapirLoopIVUsesInLatch
+  : Error<"tapir loop induction variable must have exactly one use in latch">;
+
+def ErrTapirLoopIVNotUpdatedInLatch
+  : Error<"tapir loop induction variable not updated in latch">;
+
+def ErrTapirLoopNoFiniteTripCount
+  : Error<"tapir loop trip count is not finite">;
 
 def ErrLoopNotSimplifyForm
   : Error<"loop is not in loop-simplify form">;
@@ -203,7 +212,7 @@ def ErrLoopNotSimplifyForm
 def ErrLoopNotLCSSAForm
   : Error<"loop is not in LCSSA form">;
 
-def ErrLoopNotInRotateForm
+def ErrLoopNotRotateForm
   : Error<"loop is not in loop-rotate form">;
 
 def ErrTapirLoopNoTask
@@ -215,32 +224,17 @@ def ErrTapirLoopNotSafeToClone
 def ErrTapirLoopConvergent
   : Error<"tapir loop contains convergent operation: '{}'">;
 
-def ErrTapirLoopNoPrimaryIV
-  : Error<"primary induction variable not found in tapir loop">;
-
-def ErrTapirLoopNoFiniteTripCount
-  : Error<"could not compute finite trip count for tapir loop">;
-
 def ErrTapirLoopThrowsException
   : Error<"tapir loop may not throw an exception">;
-
-def ErrTapirLoopIVUsedOutsideLoop
-  : Error<"tapir loop induction variable used outside tapir loop">;
-
-def ErrTapirLoopIVUsesInLatch
-  : Error<"tapir loop induction variable must have exactly one use in latch">;
-
-def ErrTapirLoopIVNotUpdatedInLatch
-  : Error<"tapir loop induction variable not updated in latch">;
 
 // The first argument is the "kind" of a tapir loop block, e.g. 'header' or
 // 'latch'. The second argument is the "kind" of the terminator, e.g.
 // 'conditional branch', or 'unconditional branch'.
-def ErrTapirLoopUnexpectedTerminator
+def ErrTapirLoopBlockTerminator
   : Error<"tapir loop {} must be terminated by a {}">;
 
-def ErrReduceUnitValMismatch
-  : Error<"type mismatch between value being reduced and unit">;
+def ErrTapirNestBoundsVariantGPU
+  : Error<"bounds of GPU loop must be invariant in the nest">;
 
 def ErrVarArgCallRequiredType
   : Error<"invalid argument in call '{}' at '{}'. Expected value of type '{}'">;
@@ -259,6 +253,9 @@ def ErrMobileInitExpectExtra
 
 def ErrMobileInitUnsupportedType
   : Error<"unsupported initializer type '{}' in call '{}'">;
+
+def ErrReduceUnitValMismatch
+  : Error<"type mismatch between value being reduced and unit">;
 
 def ErrReducerMinArgs
   : Error<"incorrect number of params in reducer '{}'. Expected 2">;

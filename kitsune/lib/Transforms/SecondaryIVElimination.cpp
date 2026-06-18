@@ -546,20 +546,21 @@ bool SecondaryIVElimination::check(Loop &loop) {
   // in an invalid module.
   BasicBlock *header = loop.getHeader();
   if (!isa<DetachInst>(header->getTerminator()))
-    return complain(loop, DiagID::ErrTapirLoopHeaderTerminator);
+    return complain(loop, DiagID::ErrTapirLoopBlockTerminator, "header",
+                    "detach");
 
   // This is a sanity check in case a pass that ran before this broke the tapir
   // loop in some way. The code in this pass expects the detach instruction to
   // be present.
   for (Instruction &inst : *header)
     if (!isa<PHINode>(inst) && !isa<DetachInst>(inst))
-      return complain(loop, DiagID::ErrTapirLoopHeaderInst);
+      return complain(loop, DiagID::ErrTapirLoopHeaderInstNotPHI);
 
   // Th computation of the secondary IV as a function of the primary IV assumes
   // that the primary IV is canonical.
   PHINode *primIV = loop.getCanonicalInductionVariable();
   if (!primIV)
-    return complain(loop, DiagID::ErrTapirLoopNoCanonicalIV);
+    return complain(loop, DiagID::ErrTapirLoopIVNotCanonical);
 
   // Strictly speaking, this pass only requires the loop to have a unique latch,
   // but it is safer to require the loop to be in simplify-form.

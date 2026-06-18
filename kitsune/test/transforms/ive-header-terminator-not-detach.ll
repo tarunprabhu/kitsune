@@ -3,7 +3,7 @@
 ;
 ; RUN: not opt -passes='kit-ive' -S %s 2>&1 | FileCheck %s
 ;
-; CHECK: tapir loop header terminator must be a detach instruction
+; CHECK: tapir loop header must be terminated by a detach
 
 define void @f(i64 %n) {
 entry:

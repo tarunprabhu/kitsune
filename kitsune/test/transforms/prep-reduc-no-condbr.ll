@@ -2,7 +2,7 @@
 ;
 ; RUN: not opt -passes='kit-reductions' -S %s 2>&1 | FileCheck %s
 ;
-; CHECK: tapir reduction loop latch is not a conditional branch
+; CHECK: tapir loop latch must be terminated by a conditional branch
 
 declare void @sum(ptr %res, i64 %v)
 
