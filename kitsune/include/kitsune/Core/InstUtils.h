@@ -74,6 +74,12 @@ bool replaceMatchingOperands(Instruction &inst, Value *match, Value *v);
 /// If neither operand matches \p match, return \p nullptr.
 Value *getNonMatchingOperand(BinaryOperator &binOp, Value *match);
 
+/// Is the given instruction a conditional branch.
+bool isCondBr(const Instruction &inst);
+
+/// Is the given instruction an unconditional branch.
+bool isUncondBr(const Instruction &inst);
+
 /// @}
 
 } // namespace llvm

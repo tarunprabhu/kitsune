@@ -210,4 +210,28 @@ TEST(KitInstUtils, getNonMatchingOperand) {
   EXPECT_FALSE(getNonMatchingOperand(*fop, cf));
 }
 
+TEST(KitInstUtils, isCondBr) {
+  LLVMContext ctx;
+  BasicBlock *bt = BasicBlock::Create(ctx);
+  BasicBlock *bf = BasicBlock::Create(ctx);
+  Constant *cond = ConstantInt::getTrue(ctx);
+  BranchInst *condBr = BranchInst::Create(bt, bf, cond);
+  BranchInst *uncondBr = BranchInst::Create(bt);
+
+  EXPECT_TRUE(isCondBr(*condBr));
+  EXPECT_FALSE(isCondBr(*uncondBr));
+}
+
+TEST(KitInstUtils, isUncondBr) {
+  LLVMContext ctx;
+  BasicBlock *bt = BasicBlock::Create(ctx);
+  BasicBlock *bf = BasicBlock::Create(ctx);
+  Constant *cond = ConstantInt::getTrue(ctx);
+  BranchInst *condBr = BranchInst::Create(bt, bf, cond);
+  BranchInst *uncondBr = BranchInst::Create(bt);
+
+  EXPECT_TRUE(isUncondBr(*uncondBr));
+  EXPECT_FALSE(isUncondBr(*condBr));
+}
+
 } // namespace
