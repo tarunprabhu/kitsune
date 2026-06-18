@@ -1,4 +1,4 @@
-; The terminator of the tapir loop preheader must be an unconditional branch.
+; The termination of the tapir loop latch must be a conditional branch.
 ;
 ; RUN: not opt --tapir=nolo -passes='kit-verify-prelower' %s 2>&1 | FileCheck %s
 ;
