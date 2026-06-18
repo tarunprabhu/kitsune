@@ -15,6 +15,7 @@
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Analysis/LoopInfo.h"
 
 namespace llvm {
 
@@ -177,6 +178,29 @@ bool isUsedOutsideLoop(const PHINode &iv, const Loop &loop, LoopInfo &li);
 ///     <instructions>
 ///
 BasicBlock *getTapirLoopDetachedBlock(Loop &loop);
+
+/// Get a unique instruction of type \tparam InstType in a loop, or nullptr if
+/// one does not exist. This will *not* look for such an instruction in any
+/// subloops.
+template <typename InstType>
+static const InstType *getUniqueInstInLoopOnly(const Loop &loop) {
+  const InstType *uniq = nullptr;
+  for (const BasicBlock *bb : getBlocksNotInSubLoops(loop))
+    for (const Instruction &inst : *bb)
+      if (const auto *asType = dyn_cast<InstType>(&inst)) {
+        // If an instruction of the given type has already been seen, a unique
+        // instruction of the given type does not exist.
+        if (uniq)
+          return nullptr;
+        uniq = asType;
+      }
+
+  // If no instructions of the given type were seen, this will be nullptr.
+  // Otherwise, this will contain the unique instruction. If more than one
+  // instruction of the given type was seen, the loop will have returned early -
+  // control will never reach here.
+  return uniq;
+}
 
 /// @}
 

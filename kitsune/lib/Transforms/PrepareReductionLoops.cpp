@@ -1563,15 +1563,6 @@ static bool check(TapirLoopInfo &tapirLoop, DominatorTree &dt, LoopInfo &li,
     return nullptr;
   };
 
-  auto getDetachInsts = [](const Loop &loop) -> SmallVector<DetachInst *, 1> {
-    SmallVector<DetachInst *, 1> detachInsts;
-    for (BasicBlock *bb : getBlocksNotInSubLoops(loop))
-      for (Instruction &inst : *bb)
-        if (auto *detachInst = dyn_cast<DetachInst>(&inst))
-          detachInsts.push_back(detachInst);
-    return detachInsts;
-  };
-
   const Loop &loop = *tapirLoop.getLoop();
   Task &task = *tapirLoop.getTask();
 
@@ -1656,14 +1647,12 @@ static bool check(TapirLoopInfo &tapirLoop, DominatorTree &dt, LoopInfo &li,
   if (Instruction *inst = getConvergentOpIfAny(loop))
     return complain(loop, DiagID::ErrTapirLoopConvergent, *inst);
 
-  SmallVector<DetachInst *, 1> detachInsts = getDetachInsts(loop);
-  if (detachInsts.size() != 1)
+  const DetachInst *di = getUniqueInstInLoopOnly<DetachInst>(loop);
+  if (!di)
     return complain(
         loop, DiagID::ErrGeneric,
         "tapir reduction loop must have a single detach instruction");
-
-  DetachInst *di = detachInsts.front();
-  if (di->getDetached() != task.getEntry())
+  else if (di->getDetached() != task.getEntry())
     return complain(loop, DiagID::ErrGeneric,
                     "tapir reduction loop task entry does not match block "
                     "detached from header");
