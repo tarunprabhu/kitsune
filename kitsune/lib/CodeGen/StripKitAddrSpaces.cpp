@@ -14,14 +14,13 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/CodeGen/StripKitAddrSpaces.h"
-#include "kitsune/Core/AddrSpaceUtils.h"
-#include "kitsune/Support/AddrSpace.h"
+#include "kitsune/Core/AddrSpace.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 
-#define DEBUG_TYPE "kit-strip-addr-spaces"
+#define DEBUG_TYPE "kit-strip-addrspaces"
 
 using namespace llvm;
 
@@ -43,7 +42,7 @@ public:
 
   void getAnalysisUsage(AnalysisUsage &au) const override {}
 
-  bool runOnModule(Module &m) override { return stripKitsuneAddrSpaces(m); }
+  bool runOnModule(Module &m) override { return stripKitAddrSpaces(m); }
 
 public:
   static char ID;
@@ -64,7 +63,7 @@ ModulePass *llvm::createStripKitAddrSpacesLegacyPass() {
 
 PreservedAnalyses StripKitAddrSpacesPass::run(Module &m,
                                               ModuleAnalysisManager &mam) {
-  if (stripKitsuneAddrSpaces(m))
+  if (stripKitAddrSpaces(m))
     return PreservedAnalyses::none();
   return PreservedAnalyses::all();
 }

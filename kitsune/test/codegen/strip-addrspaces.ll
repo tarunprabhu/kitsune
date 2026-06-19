@@ -1,4 +1,6 @@
-; RUN: opt -passes "kit-strip-addr-spaces" -S %s | FileCheck %s
+; Check that the kit-strip-addrspaces pass works as expected.
+;
+; RUN: opt -passes=kit-strip-addrspaces -S %s | FileCheck %s
 
 ; CHECK: %S1{{.*}} = type { i32, ptr }
 %S1 = type { i32, ptr addrspace(67) }

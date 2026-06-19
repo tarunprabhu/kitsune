@@ -1,4 +1,4 @@
-//===- AddrSpaceUtils.cpp - Utilities related to Kitsune's address spaces -===//
+//===- AddrSpace.cpp - Support for Kitsune's address spaces ---------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,12 +6,11 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Utilities related to Kitsune's address spaces.
+// Definitions and utilities for Kitsune's address spaces.
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Core/AddrSpaceUtils.h"
-#include "kitsune/Support/AddrSpace.h"
+#include "kitsune/Core/AddrSpace.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/IR/Constants.h"
@@ -46,7 +45,7 @@ private:
     Intrinsic::ID id = f.getIntrinsicID();
     FunctionType *fty = f.getFunctionType();
 
-    std::vector<Type *> params;
+    SmallVector<Type *, 4> params;
     for (unsigned i : paramIndices)
       params.push_back(fty->getParamType(i));
 
@@ -61,37 +60,35 @@ private:
     return false;
   }
 
+  bool fixIntrinsic(Function &f) {
+    // It is not clear why these intrinsics have to be handled specially,
+    // but simply calculating the intrinsic name with the function parameter
+    // types does not work correctly.
+    switch (f.getIntrinsicID()) {
+    case Intrinsic::memcpy:
+    case Intrinsic::memcpy_inline:
+    case Intrinsic::memmove:
+      return fixIntrinsic(f, {0, 1, 2});
+    case Intrinsic::memset:
+    case Intrinsic::memset_inline:
+      return fixIntrinsic(f, {0, 2});
+    default:
+      return false;
+    }
+  }
+
   /// Replace overloaded intrinsic functions. We only need to replace intrinsics
   /// which may be overloaded with different pointer types. Currently, this
   /// only replaces the intrinsics corresponding to libc's memcpy, memmove and
   /// memset functions. This list may need to be expanded.
   bool fixIntrinsics(Module &m) {
-    bool changed = false;
-    std::vector<Function *> fns;
+    SmallVector<Function *, 8> fns;
     for (Function &f : m)
       fns.push_back(&f);
 
-    for (Function *f : fns) {
-      // It is not clear why these intrinsics have to be handled specially,
-      // but simply calculating the intrinsic name with the function parameter
-      // types does not work correctly.
-      switch (f->getIntrinsicID()) {
-      case Intrinsic::not_intrinsic:
-        break;
-      case Intrinsic::memcpy:
-      case Intrinsic::memcpy_inline:
-      case Intrinsic::memmove:
-        changed |= fixIntrinsic(*f, {0, 1, 2});
-        break;
-      case Intrinsic::memset:
-      case Intrinsic::memset_inline:
-        changed |= fixIntrinsic(*f, {0, 2});
-        break;
-      default:
-        // TODO: We may need to support other intrinsics.
-        break;
-      }
-    }
+    bool changed = false;
+    for (Function *f : fns)
+      changed |= fixIntrinsic(*f);
     return changed;
   }
 
@@ -101,11 +98,11 @@ private:
     bool changed = false;
 
     // We iterate over the function until convergence. I should come up with an
-    // example of this, if for no other reason than to convince myself that this
-    // can actually happen.
+    // example of this, if for no other reason than to convince myself that more
+    // than one pass over the function may be necessary.
     do {
-      std::vector<AddrSpaceCastInst *> redundant;
-      for (inst_iterator i = inst_begin(f); i != inst_end(f); ++i)
+      SmallVector<AddrSpaceCastInst *, 4> redundant;
+      for (inst_iterator i = inst_begin(f), e = inst_end(f); i != e; ++i)
         if (auto *cst = dyn_cast<AddrSpaceCastInst>(&*i))
           if (cst->getSrcAddressSpace() == cst->getDestAddressSpace())
             redundant.push_back(cst);
@@ -135,7 +132,7 @@ private:
   /// mutated, return a new function type, otherwise return nullptr.
   FunctionType *mutatedType(FunctionType *fty) {
     if (funcTys.find(fty) == funcTys.end()) {
-      std::vector<Type *> paramTys;
+      SmallVector<Type *, 4> paramTys;
       for (Type *paramTy : fty->params())
         if (Type *newTy = mutatedType(paramTy))
           paramTys.push_back(newTy);
@@ -171,7 +168,7 @@ private:
   /// create a struct with a suffix appended to it.
   StructType *mutatedType(StructType *sty) {
     if (structTys.find(sty) == structTys.end()) {
-      std::vector<Type *> elemTys;
+      SmallVector<Type *, 4> elemTys;
       for (Type *elemTy : sty->elements())
         if (Type *newTy = mutatedType(elemTy))
           elemTys.push_back(newTy);
@@ -365,6 +362,4 @@ public:
 
 } // namespace
 
-bool llvm::stripKitsuneAddrSpaces(Module &m) {
-  return StripAddrSpaces().run(m);
-}
+bool llvm::stripKitAddrSpaces(Module &m) { return StripAddrSpaces().run(m); }

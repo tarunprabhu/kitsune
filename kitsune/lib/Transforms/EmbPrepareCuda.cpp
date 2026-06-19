@@ -12,7 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "EmbPrepareImpl.h"
-#include "kitsune/Core/AddrSpaceUtils.h"
+#include "kitsune/Core/AddrSpace.h"
 #include "kitsune/Core/FuncAttrs.h"
 #include "kitsune/Core/TTOptions.h"
 #include "llvm/ADT/StringExtras.h"
@@ -68,7 +68,7 @@ public:
     bool changed = false;
 
     changed |= fixDeviceFuncAttrs(devM);
-    changed |= stripKitsuneAddrSpaces(devM);
+    changed |= stripKitAddrSpaces(devM);
 
     return changed;
   }
