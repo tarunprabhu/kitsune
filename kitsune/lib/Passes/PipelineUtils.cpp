@@ -87,6 +87,29 @@ bool llvm::runTapirLoweringPasses(ThinOrFullLTOPhase phase,
     return true;
 }
 
+template <typename Pass, typename... Args>
+static void addModulePass(ModulePassManager &mpm, Args &&...args) {
+  mpm.addPass(Pass(args...));
+}
+
+template <typename Pass, typename... Args>
+static void addFunctionPass(ModulePassManager &mpm, Args &&...args) {
+  FunctionPassManager fpm;
+
+  fpm.addPass(Pass(args...));
+  mpm.addPass(createModuleToFunctionPassAdaptor(std::move(fpm)));
+}
+
+template <typename Pass, typename... Args>
+static void addLoopPass(ModulePassManager &mpm, Args &&...args) {
+  LoopPassManager lpm;
+  FunctionPassManager fpm;
+
+  lpm.addPass(Pass(args...));
+  fpm.addPass(createFunctionToLoopPassAdaptor(std::move(lpm)));
+  mpm.addPass(createModuleToFunctionPassAdaptor(std::move(fpm)));
+}
+
 ModulePassManager
 llvm::populateKitPreTapirPasses(PassBuilder &pb, OptimizationLevel optLevel,
                                 ThinOrFullLTOPhase ltoPhase,
@@ -103,10 +126,7 @@ llvm::populateKitPreTapirPasses(PassBuilder &pb, OptimizationLevel optLevel,
   return mpm;
 }
 
-static FunctionPassManager populateSimplifyPasses() {
-  FunctionPassManager fpm;
-  LoopPassManager lpm;
-
+static void populateSimplifyPasses(ModulePassManager &mpm) {
   // the kit-reductions pass may not leave the IR in as clean a state as we
   // would like. All these passes are probably overkill, but we definitely
   // need at least indvars and simplifycfg.
@@ -115,18 +135,16 @@ static FunctionPassManager populateSimplifyPasses() {
   // implementation used Tapir's loop stripmining pass, and comments in the code
   // suggested that these would be useful. We have since used a totally new
   // approach, so it is not clear how many of these are actually needed.
-  fpm.addPass(EarlyCSEPass(/*UseMemorySSA=*/true));
-  lpm.addPass(IndVarSimplifyPass());
-  fpm.addPass(createFunctionToLoopPassAdaptor(std::move(lpm)));
-  fpm.addPass(SimplifyCFGPass());
-  fpm.addPass(InstCombinePass());
-  fpm.addPass(SCCPPass());
-  fpm.addPass(BDCEPass());
-  fpm.addPass(InstCombinePass());
-  fpm.addPass(DSEPass());
-  fpm.addPass(ADCEPass());
-
-  return fpm;
+  //
+  addFunctionPass<EarlyCSEPass>(mpm, /*UseMemorySSA=*/true);
+  addLoopPass<IndVarSimplifyPass>(mpm);
+  addFunctionPass<SimplifyCFGPass>(mpm);
+  addFunctionPass<InstCombinePass>(mpm);
+  addFunctionPass<SCCPPass>(mpm);
+  addFunctionPass<BDCEPass>(mpm);
+  addFunctionPass<InstCombinePass>(mpm);
+  addFunctionPass<DSEPass>(mpm);
+  addFunctionPass<ADCEPass>(mpm);
 }
 
 ModulePassManager llvm::populateKitPreLoopSpawningPasses(
@@ -137,34 +155,43 @@ ModulePassManager llvm::populateKitPreLoopSpawningPasses(
   // At optimization level O0, loop spawning will not be run, so there is no
   // point in running the other Kitsune-specific passes.
   if (optLevel.getSpeedupLevel() > 0) {
-    FunctionPassManager fpm;
-    LoopPassManager lpm;
+    addFunctionPass<LoopSimplifyPass>(mpm);
+    addLoopPass<LoopRotatePass>(mpm);
+    addLoopPass<SecondaryIVEliminationPass>(mpm);
 
-    fpm.addPass(LoopSimplifyPass());
-    lpm.addPass(LoopRotatePass());
-    lpm.addPass(SecondaryIVEliminationPass());
-    fpm.addPass(createFunctionToLoopPassAdaptor(std::move(lpm)));
-    fpm.addPass(LCSSAPass());
-    fpm.addPass(PrepareReductionLoopsPass());
-    fpm.addPass(LowerKitReduceIntrinsicsPass());
-    mpm.addPass(createModuleToFunctionPassAdaptor(std::move(fpm)));
-    mpm.addPass(ModuleInlinerPass());
-    fpm.addPass(populateSimplifyPasses());
-    mpm.addPass(createModuleToFunctionPassAdaptor(std::move(fpm)));
+    // SecondaryIVElimination will preserve the loop-simplify and loop-rotate
+    // nature of the loop. It is not clear why we need to recompute LCSSA.
+    addFunctionPass<LCSSAPass>(mpm);
+    addFunctionPass<PrepareReductionLoopsPass>(mpm);
+    addFunctionPass<LowerKitReduceIntrinsicsPass>(mpm);
 
-    // Run simplifycfg and loop-simplify after the DeLICM pass since it may
-    // leave empty basic blocks around.
-    fpm.addPass(LoopSimplifyPass());
-    fpm.addPass(DeLICMPass());
-    fpm.addPass(SimplifyCFGPass());
-    fpm.addPass(LoopSimplifyPass());
-    mpm.addPass(createModuleToFunctionPassAdaptor(std::move(fpm)));
+    // We must run the module inliner because the reducer function should be
+    // inlined after the loop has been prepared.
+    addModulePass<ModuleInlinerPass>(mpm);
 
-    mpm.addPass(PreLowerVerificationPass());
+    // After preparing the loop for parallel reductions, we run the module
+    // inliner. Between those two passes, the IR should be cleaned up.
+    populateSimplifyPasses(mpm);
 
-    fpm.addPass(PreLowerAnnotatePass());
-    fpm.addPass(SerializePass());
-    mpm.addPass(createModuleToFunctionPassAdaptor(std::move(fpm)));
+    // It is not clear if we really need to run loop-simplify here, but DeLICM
+    // requires it, so we might as well.
+    addFunctionPass<LoopSimplifyPass>(mpm);
+    addFunctionPass<DeLICMPass>(mpm);
+
+    // Run simplifycfg after the DeLICM pass since it may leave empty basic
+    // blocks around.
+    addFunctionPass<SimplifyCFGPass>(mpm);
+
+    // Running simplifycfg may require the loop to be simplified again.
+    // The PreLowerVerification pass requires the tapir loops to be in simplify
+    // form.
+    addFunctionPass<LoopSimplifyPass>(mpm);
+    addModulePass<PreLowerVerificationPass>(mpm);
+
+    // TODO:? Do we need to run the pre-lower verification pass after the
+    // serialize pass?
+    addFunctionPass<PreLowerAnnotatePass>(mpm);
+    addFunctionPass<SerializePass>(mpm);
   }
 
   return mpm;
@@ -181,17 +208,17 @@ llvm::populateKitPostTapirPasses(PassBuilder &pb, OptimizationLevel optLevel,
   if (optLevel.getSpeedupLevel() > 0) {
     pb.invokeKitsunePostTapirEarlyEPCallbacks(mpm, optLevel);
 
-    mpm.addPass(PrefetchForDevicePass());
-    mpm.addPass(EmbLowerKitIntrinsicsEarlyPass());
-    mpm.addPass(EmbResolveLibDeviceCallsPass());
-    mpm.addPass(EmbPreparePass());
-    mpm.addPass(EmbLinkLibDeviceBitcodePass());
-    mpm.addPass(EmbOptimizePass());
+    addModulePass<PrefetchForDevicePass>(mpm);
+    addModulePass<EmbLowerKitIntrinsicsEarlyPass>(mpm);
+    addModulePass<EmbResolveLibDeviceCallsPass>(mpm);
+    addModulePass<EmbPreparePass>(mpm);
+    addModulePass<EmbLinkLibDeviceBitcodePass>(mpm);
+    addModulePass<EmbOptimizePass>(mpm);
 
     pb.invokeKitsunePostTapirLateEPCallbacks(mpm, optLevel);
 
-    mpm.addPass(RecomputeKernelPropertiesPass());
-    mpm.addPass(GenerateCtorsPass());
+    addModulePass<RecomputeKernelPropertiesPass>(mpm);
+    addModulePass<GenerateCtorsPass>(mpm);
 
     pb.invokeKitsunePostTapirLastEPCallbacks(mpm, optLevel);
   }
