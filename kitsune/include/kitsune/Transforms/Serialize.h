@@ -13,7 +13,7 @@
 #ifndef KITSUNE_TRANSFORMS_SERIALIZE_H
 #define KITSUNE_TRANSFORMS_SERIALIZE_H
 
-#include "kitsune/Core/ModuleAttrs.h"
+#include "kitsune/Core/FuncAttrs.h"
 #include "kitsune/Passes/PassUtils.h"
 #include "kitsune/Transforms/PreLowerAnnotate.h"
 #include "llvm/IR/PassManager.h"
@@ -24,10 +24,10 @@ namespace llvm {
 /// Serialize certain tapir constructs.
 class SerializePass : public PassInfoMixin<SerializePass> {
 public:
-  PreservedAnalyses run(Module &m, ModuleAnalysisManager &am);
+  PreservedAnalyses run(Function &f, FunctionAnalysisManager &am);
 
   using Requires = std::tuple<PreLowerAnnotatePass>;
-  static constexpr auto hasRunAttr = ModuleAttrKind::SerializePass;
+  static constexpr auto hasRunAttr = FuncAttrKind::SerializePass;
 };
 
 static_assert(check_pass_dependent<SerializePass>());

@@ -188,14 +188,11 @@ MODULE_PASS("emb-lower-intrinsics-early", EmbLowerKitIntrinsicsEarlyPass())
 MODULE_PASS("emb-optimize", EmbOptimizePass())
 MODULE_PASS("emb-prepare", EmbPreparePass())
 MODULE_PASS("emb-resolve-libdevice-calls", EmbResolveLibDeviceCallsPass())
-MODULE_PASS("kit-annotate-prelower", PreLowerAnnotatePass())
 MODULE_PASS("kit-cgfb", CodeGenFatBinariesPass())
 MODULE_PASS("kit-ctors", GenerateCtorsPass())
 MODULE_PASS("kit-kernel-properties", RecomputeKernelPropertiesPass())
 MODULE_PASS("kit-prefetch", PrefetchForDevicePass())
-MODULE_PASS("kit-lower-intrinsics", LowerKitIntrinsicsPass())
 MODULE_PASS("kit-strip-addr-spaces", StripKitAddrSpacesPass())
-MODULE_PASS("kit-serialize", SerializePass())
 MODULE_PASS("kit-verify-prelower",
             PreLowerVerificationPass(/*exitIfError=*/true))
 
@@ -623,9 +620,12 @@ FUNCTION_PASS("wasm-eh-prepare", WasmEHPreparePass())
 // Kitsune-specific function passes. Keep these separate from the rest because
 // it makes merges a bit easier at times.
 FUNCTION_PASS("kit-annotate-early", EarlyAnnotatePass())
+FUNCTION_PASS("kit-annotate-prelower", PreLowerAnnotatePass())
 FUNCTION_PASS("kit-delicm", DeLICMPass())
+FUNCTION_PASS("kit-lower-intrinsics", LowerKitIntrinsicsPass())
 FUNCTION_PASS("kit-lower-reduce-intrinsics", LowerKitReduceIntrinsicsPass())
 FUNCTION_PASS("kit-reductions", PrepareReductionLoopsPass())
+FUNCTION_PASS("kit-serialize", SerializePass())
 
 #undef FUNCTION_PASS
 

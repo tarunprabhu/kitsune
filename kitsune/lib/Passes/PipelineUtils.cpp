@@ -162,11 +162,9 @@ ModulePassManager llvm::populateKitPreLoopSpawningPasses(
 
     mpm.addPass(PreLowerVerificationPass());
 
-    // annotate-tapir-loops requires the loops to be in simplified and rotated
-    // form. Since this pipeline is run just before loop-spawning, both the
-    // loop-simplify and loop-rotate passes are guaranteed to have been run.
-    mpm.addPass(PreLowerAnnotatePass());
-    mpm.addPass(SerializePass());
+    fpm.addPass(PreLowerAnnotatePass());
+    fpm.addPass(SerializePass());
+    mpm.addPass(createModuleToFunctionPassAdaptor(std::move(fpm)));
   }
 
   return mpm;

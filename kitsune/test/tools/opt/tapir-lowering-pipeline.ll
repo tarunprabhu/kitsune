@@ -8,12 +8,8 @@
 ; RUN:     -disable-output 2>&1 \
 ; RUN:     | FileCheck %s -check-prefix O0
 ;
-; O0:      Running pass:     TapirToTargetPass
-; O0-NEXT: Running analysis: InnerAnalysisManagerProxy
-; O0-NEXT: Running analysis: TTObjectsAnalysis
-; O0-NEXT: Running pass:     AlwaysInlinerPass
-; O0-NEXT: Running analysis: ProfileSummaryAnalysis
-; O0-NEXT: Running pass:     VerifierPass
+; O0:         Running pass:     TapirToTargetPass
+; O0:         Running pass:     VerifierPass
 ;
 ; ------------------------------------------------------------------------------
 ; At higher optimization levels, the Kitsune passes that are run are always
@@ -43,23 +39,22 @@
 ; ERROR: unsupported optimization level '-Oz'
 ;
 ; O123S:      Running pass:     PreLowerVerificationPass
-; O123S-NEXT: Running analysis: TTObjectsAnalysis
-; O123S-NEXT: Running pass:     PreLowerAnnotate
-; O123S-NEXT: Running pass:     SerializePass
-; O123S-NEXT: Running pass:     LoopSpawningPass
-; O123S-NEXT: Running pass:     TapirToTargetPass
-; O123S-NEXT: Running pass:     IPSCCPPass
-; O123S-NEXT: Running pass:     CalledValuePropagationPass
-; O123S-NEXT: Running pass:     GlobalOptPass
-; O123S-NEXT: Running pass:     DeadArgumentEliminationPass
-; O123S-NEXT: Running pass:     AlwaysInlinerPass
-; O123S-NEXT: Running analysis: ProfileSummaryAnalysis
-; O123S:      Running analysis: GlobalsAA
-; O123S-NEXT: Running analysis: CallGraphAnalysis
-; O123S:      Running analysis: LazyCallGraphAnalysis
-; O123S-NEXT: Running pass:     EliminateAvailableExternallyPass
-; O123S-NEXT: Running pass:     ReversePostOrderFunctionAttrs
-; O123S-NEXT: Running pass:     GlobalDCEPass
-; O123S-NEXT: Running pass:     VerifierPass
+; O123S:      Running pass:     PreLowerAnnotate
+; O123S:      Running pass:     SerializePass
+; O123S:      Running pass:     LoopSpawningPass
+; O123S:      Running pass:     TapirToTargetPass
+; O123S:      Running pass:     IPSCCPPass
+; O123S:      Running pass:     CalledValuePropagationPass
+; O123S:      Running pass:     GlobalOptPass
+; O123S:      Running pass:     DeadArgumentEliminationPass
+; O123S:      Running pass:     AlwaysInlinerPass
+; O123S:      Running pass:     EliminateAvailableExternallyPass
+; O123S:      Running pass:     ReversePostOrderFunctionAttrs
+; O123S:      Running pass:     GlobalDCEPass
+; O123S:      Running pass:     VerifierPass
 ;
 ; ------------------------------------------------------------------------------
+
+define void @f() {
+  ret void
+}

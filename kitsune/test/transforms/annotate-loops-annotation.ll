@@ -4,7 +4,12 @@
 ; RUN: opt -passes='kit-annotate-prelower' -S %s \
 ; RUN:     | FileCheck %s
 ;
-; CHECK: !kit.module = !{![[MD:[0-9]+]]}
+; CHECK-LABEL: @f
+; CHECK-SAME: !kit.func ![[MD:[0-9]+]]
 ;
 ; CHECK-DAG: ![[MD]] = distinct !{![[MD]], ![[FLAG:[0-9]+]]}
-; CHECK-DAG: ![[FLAG]] = !{!"kit.module.pre.lower.annotate.pass"}
+; CHECK-DAG: ![[FLAG]] = !{!"kit.func.pre.lower.annotate.pass"}
+
+define void @f() {
+  ret void
+}

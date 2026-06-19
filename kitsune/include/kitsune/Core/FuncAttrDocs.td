@@ -35,3 +35,17 @@ this is the entry point into the GPU and will be launched onto the GPU by
 Kitsune's runtime.
 }];
 }
+
+def KitPreLowerAnnotatePassDoc : KitDocAttr {
+  let Documentation = [{
+The presence of this attribute indicates that the `kit-annotate-prelower`
+pass has been run on the function.
+}];
+}
+
+def KitSerializePassDoc : KitDocAttr {
+  let Documentation = [{
+The presence of this attribute indicates that the `kit-serialize` pass has been
+run on the function.
+}];
+}
