@@ -137,21 +137,21 @@ TEST(KitValueUtils, isType) {
   Constant *cf32 = ConstantFP::get(f32, 0);
   Constant *cf64 = ConstantFP::get(f64, 0);
 
-  EXPECT_TRUE(isBool(ci1));
-  EXPECT_TRUE(isInt8(ci8));
-  EXPECT_TRUE(isInt16(ci16));
-  EXPECT_TRUE(isInt32(ci32));
-  EXPECT_TRUE(isInt64(ci64));
-  EXPECT_TRUE(isFloat(cf32));
-  EXPECT_TRUE(isDouble(cf64));
+  EXPECT_TRUE(isBool(*ci1));
+  EXPECT_TRUE(isInt8(*ci8));
+  EXPECT_TRUE(isInt16(*ci16));
+  EXPECT_TRUE(isInt32(*ci32));
+  EXPECT_TRUE(isInt64(*ci64));
+  EXPECT_TRUE(isFloat(*cf32));
+  EXPECT_TRUE(isDouble(*cf64));
 
-  EXPECT_FALSE(isBool(ci8));
-  EXPECT_FALSE(isInt8(ci16));
-  EXPECT_FALSE(isInt16(ci32));
-  EXPECT_FALSE(isInt32(ci64));
-  EXPECT_FALSE(isInt64(ci1));
-  EXPECT_FALSE(isFloat(cf64));
-  EXPECT_FALSE(isDouble(cf32));
+  EXPECT_FALSE(isBool(*ci8));
+  EXPECT_FALSE(isInt8(*ci16));
+  EXPECT_FALSE(isInt16(*ci32));
+  EXPECT_FALSE(isInt32(*ci64));
+  EXPECT_FALSE(isInt64(*ci1));
+  EXPECT_FALSE(isFloat(*cf64));
+  EXPECT_FALSE(isDouble(*cf32));
 }
 
 TEST(KitValueUtils, isPointerType) {
@@ -164,17 +164,17 @@ TEST(KitValueUtils, isPointerType) {
   Constant *c0 = ConstantPointerNull::get(pty0);
   Constant *c67 = ConstantPointerNull::get(pty67);
 
-  EXPECT_TRUE(isPointer(c0));
-  EXPECT_TRUE(isPointer(c67));
-  EXPECT_TRUE(isPointer(c0, 0));
-  EXPECT_TRUE(isPointer(c67, 67));
+  EXPECT_TRUE(isPointer(*c0));
+  EXPECT_TRUE(isPointer(*c67));
+  EXPECT_TRUE(isPointer(*c0, 0));
+  EXPECT_TRUE(isPointer(*c67, 67));
 
-  EXPECT_FALSE(isPointer(c0, 67));
-  EXPECT_FALSE(isPointer(c67, 0));
+  EXPECT_FALSE(isPointer(*c0, 67));
+  EXPECT_FALSE(isPointer(*c67, 0));
 
-  EXPECT_FALSE(isPointer(c64));
-  EXPECT_FALSE(isPointer(c64, 0));
-  EXPECT_FALSE(isPointer(c64, 64));
+  EXPECT_FALSE(isPointer(*c64));
+  EXPECT_FALSE(isPointer(*c64, 0));
+  EXPECT_FALSE(isPointer(*c64, 64));
 }
 
 } // namespace

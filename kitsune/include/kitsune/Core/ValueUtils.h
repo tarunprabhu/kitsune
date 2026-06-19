@@ -30,40 +30,41 @@ class Value;
 Module *getModule(Value &v);
 const Module *getModule(const Value &v);
 
-/// Return true if the given value has type `i1`
+/// Return true if the given value has type `i1`, false otherwise.
 bool isBool(const Value *v);
 bool isBool(const Value &v);
 
-/// Return true if the given value has type `i8`
+/// Return true if the given value has type `i8`, false otherwise.
 bool isInt8(const Value *v);
 bool isInt8(const Value &v);
 
-/// Return true if the given value has type `i16`
+/// Return true if the given value has type `i16`, false otherwise.
 bool isInt16(const Value *v);
 bool isInt16(const Value &v);
 
-/// Return true if the given value has type `i32`
+/// Return true if the given value has type `i32`, false otherwise.
 bool isInt32(const Value *v);
 bool isInt32(const Value &v);
 
-/// Return true if the given value has type `i64`
+/// Return true if the given value has type `i64`, false otherwise.
 bool isInt64(const Value *v);
 bool isInt64(const Value &v);
 
-/// Return true if the given value has type `float`
+/// Return true if the given value has type `float`, false otherwise.
 bool isFloat(const Value *v);
 bool isFloat(const Value &v);
 
-/// Return true if the given value has type `double`
+/// Return true if the given value has type `double`, false otherwise.
 bool isDouble(const Value *v);
 bool isDouble(const Value &v);
 
-/// Return true if the \p v has type `ptr`. This will return true regardless of
-/// the address space of the pointer.
+/// Return true if the \p v has type `ptr`, false otherwise. This will return
+/// true regardless of the address space of the pointer.
 bool isPointer(const Value *v);
 bool isPointer(const Value &v);
 
-/// Return true if the \p v has type `ptr` in the given address space.
+/// Return true if the \p v has type `ptr` in the given address space, false
+/// otherwise.
 bool isPointer(const Value *v, unsigned addrSpace);
 bool isPointer(const Value &v, unsigned addrSpace);
 
