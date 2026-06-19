@@ -26,6 +26,7 @@
 #include "kitsune/Transforms/GenerateCtors.h"
 #include "kitsune/Transforms/LowerKitReduceIntrinsics.h"
 #include "kitsune/Transforms/PreLowerAnnotate.h"
+#include "kitsune/Transforms/PreLowerPrepare.h"
 #include "kitsune/Transforms/PrefetchForDevice.h"
 #include "kitsune/Transforms/PrepareReductionLoops.h"
 #include "kitsune/Transforms/RecomputeKernelProperties.h"
@@ -157,6 +158,7 @@ ModulePassManager llvm::populateKitPreLoopSpawningPasses(
   if (optLevel.getSpeedupLevel() > 0) {
     addFunctionPass<LoopSimplifyPass>(mpm);
     addLoopPass<LoopRotatePass>(mpm);
+    addLoopPass<PreLowerPreparePass>(mpm);
     addLoopPass<SecondaryIVEliminationPass>(mpm);
 
     // SecondaryIVElimination will preserve the loop-simplify and loop-rotate

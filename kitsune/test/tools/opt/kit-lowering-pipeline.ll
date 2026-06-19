@@ -9,14 +9,14 @@
 ; FIXME: Should we consider not allowing -O0 as an optimization level for
 ; Kitsune's lowering passes?
 ;
-; RUN: echo "" | opt --tapir=serial -passes='kit-lowering<O0>' \
-; RUN:     -debug-pass-manager -o /dev/null 2>&1 \
+; RUN: echo "" \
+; RUN:     | opt --tapir=serial -passes='kit-lowering<O0>' -debug-pass-manager \
+; RUN:           -disable-output 2>&1 \
 ; RUN:     | FileCheck %s -check-prefix O0
 ;
 ; O0:      Running pass:     TapirToTargetPass
 ; O0:      Running pass:     AlwaysInlinerPass
 ; O0:      Running pass:     VerifierPass
-; O0:      Running pass:     BitcodeWriterPass
 ;
 ; ------------------------------------------------------------------------------
 ; At higher optimization levels, the Kitsune passes that are run are always
@@ -55,6 +55,7 @@
 ; match runs of the pass from earlier in the pipeline. PrepareReductionLoops
 ; will fail if any of these are not run, so something will at least catch it
 ; if they are ever removed from the pipeline.
+; O123S:      Running pass:     PreLowerPreparePass
 ; O123S:      Running pass:     SecondaryIVEliminationPass
 ; O123S:      Running pass:     PrepareReductionLoopsPass
 ; O123S:      Running pass:     LowerKitReduceIntrinsicsPass
@@ -71,7 +72,7 @@
 ; O123S:      Running pass:     SimplifyCFGPass
 ; O123S:      Running pass:     LoopSimplifyPass
 ; O123S:      Running pass:     PreLowerVerificationPass
-; O123S:      Running pass:     PreLowerAnnotate
+; O123S:      Running pass:     PreLowerAnnotatePass
 ; O123S:      Running pass:     SerializePass
 ; </KIT-PRE-LOOP-SPAWNING>
 ;

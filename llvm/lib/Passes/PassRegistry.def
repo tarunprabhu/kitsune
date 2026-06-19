@@ -838,7 +838,9 @@ LOOP_PASS("print<loopnest>", LoopNestPrinterPass(errs()))
 LOOP_PASS("tapir-indvars",
           IndVarSimplifyPass(/*WidenIndVars=*/true, /*TapirLoopsOnly=*/true))
 
+LOOP_PASS("kit-prepare-prelower", PreLowerPreparePass())
 LOOP_PASS("kit-ive", SecondaryIVEliminationPass())
+
 #undef LOOP_PASS
 
 #ifndef LOOP_PASS_WITH_PARAMS

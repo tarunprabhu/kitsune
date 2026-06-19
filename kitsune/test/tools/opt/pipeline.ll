@@ -20,7 +20,12 @@
 ; RUN: opt -Oz -debug-pass-manager %s -disable-output 2>&1 \
 ; RUN:     | FileCheck -check-prefix DEFAULT %s
 ;
-; DEFAULT-NOT: Running pass:     TapirLoopAnnotatorPass
+; DEFAULT-NOT: Running pass:     PreLowerPreparePass
+; DEFAULT-NOT: Running pass:     SecondaryIVEliminationPass
+; DEFAULT-NOT: Running pass:     PrepareReductionLoopsPass
+; DEFAULT-NOT: Running pass:     LowerKitReduceIntrinsicsPass
+; DEFAULT-NOT: Running pass:     DeLICMPass
+; DEFAULT-NOT: Running pass:     PreLowerAnnotatePass
 ; DEFAULT-NOT: Running pass:     LoopSpawningPass
 ; DEFAULT-NOT: Running pass:     TapirToTargetPass
 ; DEFAULT-NOT: Running pass:     PrefetchForDevicePass
@@ -82,6 +87,7 @@
 ; match runs of the pass from earlier in the pipeline. PrepareReductionLoops
 ; will fail if any of these are not run, so something will at least catch it
 ; if they are ever removed from the pipeline.
+; O123SZ:      Running pass:     PreLowerPreparePass
 ; O123SZ:      Running pass:     SecondaryIVEliminationPass
 ; O123SZ:      Running pass:     PrepareReductionLoopsPass
 ; O123SZ:      Running pass:     LowerKitReduceIntrinsicsPass
@@ -98,7 +104,7 @@
 ; O123SZ:      Running pass:     SimplifyCFGPass
 ; O123SZ:      Running pass:     LoopSimplifyPass
 ; O123SZ:      Running pass:     PreLowerVerificationPass
-; O123SZ:      Running pass:     PreLowerAnnotate
+; O123SZ:      Running pass:     PreLowerAnnotatePass
 ; O123SZ:      Running pass:     SerializePass
 ; </KIT-PRE-LOOP-SPAWNING>
 ;

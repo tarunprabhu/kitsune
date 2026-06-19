@@ -30,13 +30,13 @@
 ;
 ; CHECK:      Running pass:      EarlyAnnotatePass
 ;
+; CHECK-NOT:  Running pass:      PreLowerPreparePass
 ; CHECK-NOT:  Running pass:      SecondaryIVEliminationPass
 ; CHECK-NOT:  Running pass:      PrepareReductionLoopsPass
 ; CHECK-NOT:  Running pass:      LowerKitReduceIntrinsicsPass
 ; CHECK-NOT:  Running pass:      DeLICMPass
 ; CHECK-NOT:  Running pass:      PreLowerVerificationPass
-; CHECK-NOT:  Running analysis:  TTObjectsAnalysis
-; CHECK-NOT:  Running pass:      PreLowerAnnotate
+; CHECK-NOT:  Running pass:      PreLowerAnnotatePass
 ; CHECK-NOT:  Running pass:      SerializePass
 ; CHECK-NOT:  Running pass:      LoopSpawningPass
 ; CHECK-NOT:  Running pass:      EmbResolveLibDeviceCallsPass

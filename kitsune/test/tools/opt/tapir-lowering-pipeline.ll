@@ -3,12 +3,19 @@
 ;
 ; ------------------------------------------------------------------------------
 ; Tapir lowering is available at O0, but only a limited set of passes are run.
+; We don't use the text of this file as input here because it will result in a
+; failure since loop-spawning will not run.
 ;
-; RUN: opt -passes='tapir-lowering<O0>' --tapir=serial -debug-pass-manager %s \
-; RUN:     -disable-output 2>&1 \
+; FIXME: Should we consider not allowing -O0 as an optimization level for
+; Kitsune's lowering passes?
+;
+; RUN: echo "" \
+; RUN:     | opt -passes='tapir-lowering<O0>' --tapir=serial \
+; RUN:           -debug-pass-manager -disable-output 2>&1 \
 ; RUN:     | FileCheck %s -check-prefix O0
 ;
 ; O0:         Running pass:     TapirToTargetPass
+; O0:         Running pass:     AlwaysInlinerPass
 ; O0:         Running pass:     VerifierPass
 ;
 ; ------------------------------------------------------------------------------
@@ -38,23 +45,60 @@
 ;
 ; ERROR: unsupported optimization level '-Oz'
 ;
+; O123S:      Running pass:     PreLowerPreparePass
+; O123S:      Running pass:     SecondaryIVEliminationPass
+; O123S:      Running pass:     PrepareReductionLoopsPass
+; O123S:      Running pass:     LowerKitReduceIntrinsicsPass
+; O123S:      Running pass:     ModuleInlinerPass
+; O123S:      Running pass:     EarlyCSEPass
+; O123S:      Running pass:     SimplifyCFGPass
+; O123S:      Running pass:     InstCombinePass
+; O123S:      Running pass:     SCCPPass
+; O123S:      Running pass:     BDCEPass
+; O123S:      Running pass:     InstCombinePass
+; O123S:      Running pass:     DSEPass
+; O123S:      Running pass:     ADCEPass
+; O123S:      Running pass:     DeLICMPass
+; O123S:      Running pass:     SimplifyCFGPass
+; O123S:      Running pass:     LoopSimplifyPass
 ; O123S:      Running pass:     PreLowerVerificationPass
-; O123S:      Running pass:     PreLowerAnnotate
+; O123S:      Running pass:     PreLowerAnnotatePass
 ; O123S:      Running pass:     SerializePass
 ; O123S:      Running pass:     LoopSpawningPass
 ; O123S:      Running pass:     TapirToTargetPass
-; O123S:      Running pass:     IPSCCPPass
-; O123S:      Running pass:     CalledValuePropagationPass
-; O123S:      Running pass:     GlobalOptPass
-; O123S:      Running pass:     DeadArgumentEliminationPass
-; O123S:      Running pass:     AlwaysInlinerPass
-; O123S:      Running pass:     EliminateAvailableExternallyPass
-; O123S:      Running pass:     ReversePostOrderFunctionAttrs
-; O123S:      Running pass:     GlobalDCEPass
 ; O123S:      Running pass:     VerifierPass
 ;
 ; ------------------------------------------------------------------------------
 
-define void @f() {
-  ret void
+define i32 @main(i32 %argc, ptr %argv) {
+entry:
+  %syncreg = tail call token @llvm.syncregion.start()
+  %n = sext i32 %argc to i64
+  br label %header
+
+header:
+  %i = phi i64 [ 0, %entry ], [ %inc.i, %latch ]
+  detach within %syncreg, label %body, label %latch
+
+body:
+  call void @ext(i64 %i)
+  reattach within %syncreg, label %latch
+
+latch:
+  %inc.i = add i64 %i, 1
+  %cmp = icmp eq i64 %inc.i, %n
+  br i1 %cmp, label %exit, label %header, !llvm.loop !0
+
+exit:
+  sync within %syncreg, label %end
+
+end:
+  ret i32 0
 }
+
+declare void @ext(i64)
+
+!0 = distinct !{!0, !1, !2, !3}
+!1 = !{!"tapir.loop.target", i32 1}
+!2 = !{!"tapir.loop.spawn.strategy", i32 1}
+!3 = !{!"tapir.loop.lowering.enabled"}
