@@ -34,6 +34,7 @@
 !
 ! O23SZ-NOT:  Running pass:     EarlyAnnotatePass
 !
+! O23SZ:      Running pass:     PreLowerPreparePass
 ! O23SZ:      Running pass:     SecondaryIVEliminationPass
 ! O23SZ:      Running pass:     PrepareReductionLoopsPass
 ! O23SZ:      Running pass:     LowerKitReduceIntrinsicsPass
@@ -51,7 +52,7 @@
 ! O23SZ:      Running pass:     LoopSimplifyPass
 ! O23SZ:      Running pass:     PreLowerVerificationPass
 ! O23SZ-NEXT: Running analysis: TTObjectsAnalysis
-! O23SZ-NEXT: Running pass:     PreLowerAnnotate
+! O23SZ-NEXT: Running pass:     PreLowerAnnotatePass
 ! O23SZ-NEXT: Running pass:     SerializePass
 ! O23SZ-NEXT: Running pass:     LoopSpawningPass
 ! O23SZ-NEXT: Running pass:     TapirToTargetPass

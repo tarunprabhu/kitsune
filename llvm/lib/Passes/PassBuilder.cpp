@@ -33,6 +33,7 @@
 #include "kitsune/Transforms/GenerateCtors.h"
 #include "kitsune/Transforms/LowerKitReduceIntrinsics.h"
 #include "kitsune/Transforms/PreLowerAnnotate.h"
+#include "kitsune/Transforms/PreLowerPrepare.h"
 #include "kitsune/Transforms/PrefetchForDevice.h"
 #include "kitsune/Transforms/PrepareReductionLoops.h"
 #include "kitsune/Transforms/RecomputeKernelProperties.h"

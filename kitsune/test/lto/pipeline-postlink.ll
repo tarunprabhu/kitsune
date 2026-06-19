@@ -36,6 +36,7 @@
 ;
 ; O23S-NOT:   Running pass:      EarlyAnnotatePass
 ;
+; O23S:       Running pass:      PreLowerPreparePass
 ; O23S:       Running pass:      SecondaryIVEliminationPass
 ; O23S:       Running pass:      PrepareReductionLoopsPass
 ; O23S:       Running pass:      LowerKitReduceIntrinsicsPass
@@ -52,7 +53,7 @@
 ; O23S:       Running pass:      SimplifyCFGPass
 ; O23S:       Running pass:      LoopSimplifyPass
 ; O23S:       Running pass:      PreLowerVerificationPass
-; O23S:       Running pass:      PreLowerAnnotate
+; O23S:       Running pass:      PreLowerAnnotatePass
 ; O23S:       Running pass:      SerializePass
 ; O23S:       Running pass:      LoopSpawningPass
 ; O23S:       Running pass:      TapirToTargetPass
