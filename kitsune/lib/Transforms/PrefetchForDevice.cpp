@@ -17,6 +17,8 @@
 
 #include "kitsune/Transforms/PrefetchForDevice.h"
 #include "kitsune/Analysis/TTObjectsAnalysis.h"
+#include "kitsune/Core/AddrSpace.h"
+#include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/IntrinsicUtils.h"
 #include "kitsune/Core/TTOptions.h"
 #include "llvm/IR/Constants.h"
@@ -44,107 +46,103 @@ namespace {
 /// to reflect any changes.
 class Prefetch {
 private:
-  const TTOptions &tto;
-
-private:
-  /// Insert prefetches from host to device before the given kernel launch call.
-  /// Currently, this inserts the prefetches immediately before the call. It may
-  /// be beneficial to insert these earlier in the function. That optimization
-  /// may be implemented at some point.
-  bool insertPrefetchesHToD(CallBase &call) {
-    bool changed = false;
-
-    LLVMContext &ctx = call.getContext();
-    PointerType *ptrTy = PointerType::getUnqual(ctx);
-    Type *i64Ty = Type::getInt64Ty(ctx);
-
-    Value *stream = getStreamFromLaunch(call);
-    for (Value *arg : getKernelArgumentsFromLaunch(call)) {
-      if (auto *pty = dyn_cast<PointerType>(arg->getType())) {
-        IRBuilder<> builder(&call);
-
-        // These should be required to be pointers in Kitsune's mobile address
-        // space. Currently, the frontend support for this is a bit spotty. So
-        // the Kitsune intrinsics operate on pointers in the default address
-        // space. But this really should change at some point.
-        //
-        // For now, if the pointer is not in the default address space, make
-        // sure that it is.
-        if (pty->getAddressSpace() != 0)
-          arg = builder.CreateAddrSpaceCast(arg, ptrTy);
-
-        // The pointer to the data to be prefetched must point to UVM allocated
-        // memory. By setting the number of bytes to be prefetched to -1, we are
-        // instructing the runtime to prefetch the entire UVM-allocated buffer.
-        // The runtime keeps track of this.
-        //
-        // TODO: Do some analysis to only prefetch the number of bytes that are
-        // actually used (or likely to be used) by the kernel.
-        Constant *bytes = ConstantInt::get(i64Ty, -1);
-
-        Value *ctt = call.getArgOperand(0);
-        builder.CreateIntrinsic(Intrinsic::kit_async_gpu_prefetch_htod,
-                                {ctt, arg, bytes, stream});
-      }
-    }
-
-    return changed;
-  }
-
-  /// Insert prefetches from device to host after the given kernel launch call.
-  /// This is not currently implemented.
-  bool insertPrefetchesDToH(CallBase &call) {
-    // It is not yet clear if this is beneficial, but this placeholder is
-    // retained here in case we determine that it is.
-    return false;
-  }
-
-  /// Insert prefetches for the given kernel launch call if necessary. Return
-  /// true if any prefetch calls were inserted, false otherwise.
-  bool insertPrefetches(CallBase &call) {
-    bool changed = false;
-
-    changed |= insertPrefetchesHToD(call);
-    changed |= insertPrefetchesDToH(call);
-
-    return changed;
-  }
+  bool insertPrefetchesHToD(CallBase &call);
+  bool insertPrefetchesDToH(CallBase &call);
+  bool insertPrefetches(CallBase &call);
 
 public:
-  Prefetch(const TTOptions &tto) : tto(tto) {}
-
-  /// Iterate over the functions in the module and insert prefetch calls into
-  /// them if required. Return false if no prefetch calls were inserted, true
-  /// otherwise.
-  bool run(Module &m) {
-    bool changed = false;
-    if (not tto.getGPUPrefetch())
-      return changed;
-
-    if (Function *launch = Intrinsic::getDeclarationIfExists(
-            &m, Intrinsic::kit_async_gpu_kernel_launch))
-      for (Use &u : launch->uses())
-        if (auto *call = dyn_cast<CallBase>(u.getUser()))
-          if (call->getCalledFunction() == launch)
-            changed |= insertPrefetches(*call);
-
-    return changed;
-  }
+  bool run(Module &m);
 };
 
 } // namespace
 
+/// Insert prefetches from host to device before the given kernel launch call.
+/// Currently, this inserts the prefetches immediately before the call. It may
+/// be beneficial to insert these earlier in the function. That optimization
+/// may be implemented at some point.
+bool Prefetch::insertPrefetchesHToD(CallBase &call) {
+  LLVMContext &ctx = call.getContext();
+  PointerType *ptrTy = PointerType::getUnqual(ctx);
+
+  bool changed = false;
+  Value *stream = getStreamFromLaunch(call);
+  for (Value *arg : getKernelArgumentsFromLaunch(call)) {
+    if (auto *pty = dyn_cast<PointerType>(arg->getType())) {
+      IRBuilder<> builder(&call);
+
+      // These should be required to be pointers in Kitsune's mobile address
+      // space. Currently, the frontend support for this is a bit spotty, so
+      // Kitsune's intrinsics operate on pointers in the default address space.
+      // But this really should change at some point.
+      //
+      // For now, if the pointer is not in the default address space, make
+      // sure that it is.
+      if (pty->getAddressSpace() != KitAS::Default)
+        arg = builder.CreateAddrSpaceCast(arg, ptrTy);
+
+      // The pointer to the data to be prefetched must point to UVM allocated
+      // memory. By setting the number of bytes to be prefetched to -1, we are
+      // instructing the runtime to prefetch the entire UVM-allocated buffer.
+      // The runtime keeps track of this.
+      //
+      // TODO: Do some analysis to only prefetch the number of bytes that are
+      // actually used (or likely to be used) by the kernel.
+      Constant *bytes = toConstant(-1L, ctx);
+
+      Value *ctt = call.getArgOperand(0);
+      builder.CreateIntrinsic(Intrinsic::kit_async_gpu_prefetch_htod,
+                              {ctt, arg, bytes, stream});
+
+      changed |= true;
+    }
+  }
+
+  return changed;
+}
+
+/// Insert prefetches from device to host after the given kernel launch call.
+bool Prefetch::insertPrefetchesDToH(CallBase &call) {
+  // TODO: Implement this.
+  return false;
+}
+
+/// Insert prefetches for the given kernel launch call if necessary. Return
+/// true if any prefetch calls were inserted, false otherwise.
+bool Prefetch::insertPrefetches(CallBase &call) {
+  bool changed = false;
+
+  changed |= insertPrefetchesHToD(call);
+  changed |= insertPrefetchesDToH(call);
+
+  return changed;
+}
+
+/// Return true if at least one prefetch call was added to a function in the
+/// module \p m, false otherwise.
+bool Prefetch::run(Module &m) {
+  bool changed = false;
+  if (Function *launch = Intrinsic::getDeclarationIfExists(
+          &m, Intrinsic::kit_async_gpu_kernel_launch))
+    for (Use &u : launch->uses())
+      if (auto *call = dyn_cast<CallBase>(u.getUser()))
+        if (call->getCalledFunction() == launch)
+          changed |= insertPrefetches(*call);
+  return changed;
+}
+
 PreservedAnalyses PrefetchForDevicePass::run(Module &m,
-                                             ModuleAnalysisManager &mam) {
+                                             ModuleAnalysisManager &am) {
   // If no primary tapir target has been set, there will be nothing to do, so
   // bail out immediately.
-  const TTObjects &ttObjs = mam.getResult<TTObjectsAnalysis>(m);
+  const TTObjects &ttObjs = am.getResult<TTObjectsAnalysis>(m);
   if (not ttObjs.hasTTID())
     return PreservedAnalyses::all();
 
   const TTOptions &tto = ttObjs.getOptions();
+  if (not tto.getGPUPrefetch())
+    return PreservedAnalyses::all();
 
-  if (Prefetch(tto).run(m))
+  if (Prefetch().run(m))
     return PreservedAnalyses::none();
   return PreservedAnalyses::all();
 }

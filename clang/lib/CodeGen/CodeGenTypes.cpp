@@ -18,7 +18,7 @@
 #include "CGOpenCLRuntime.h"
 #include "CGRecordLayout.h"
 #include "TargetInfo.h"
-#include "kitsune/Support/AddrSpace.h"
+#include "kitsune/Core/AddrSpace.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclObjC.h"

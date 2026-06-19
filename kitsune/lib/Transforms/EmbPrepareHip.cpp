@@ -12,10 +12,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "EmbPrepareImpl.h"
-#include "kitsune/Core/AddrSpaceUtils.h"
+#include "kitsune/Core/AddrSpace.h"
 #include "kitsune/Core/FuncAttrs.h"
 #include "kitsune/Core/TTOptions.h"
-#include "kitsune/Support/AddrSpace.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/IRBuilder.h"
@@ -84,9 +83,8 @@ private:
         if (auto *argTy = dyn_cast<PointerType>(arg.getType())) {
           unsigned argAS = argTy->getAddressSpace();
           if (argAS != AMDGPUAS::GLOBAL_ADDRESS) {
-            assert(
-                (argAS == 0 || argAS == KitAS::Mobile) &&
-                "Argument must be in the default, or Kitsune's, address space");
+            assert((argAS == KitAS::Default || argAS == KitAS::Mobile) &&
+                   "Argument in unknown address space");
 
             // We cannot create a cast instruction before mutating the type of
             // the argument since the source and destination types will be the
@@ -244,7 +242,7 @@ public:
     changed |= fixAllocaAddrSpace(devM);
     changed |= fixDeviceFuncAttrs(devM);
     changed |= fixCallingConventions(devM);
-    changed |= stripKitsuneAddrSpaces(devM);
+    changed |= stripKitAddrSpaces(devM);
 
     return changed;
   }

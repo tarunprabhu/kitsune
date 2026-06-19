@@ -1,5 +1,5 @@
 add_llvm_component_library(LLVMKitCore
-  AddrSpaceUtils.cpp
+  AddrSpace.cpp
   ArgAttrs.cpp
   ArgUtils.cpp
   AttrsImpl.cpp

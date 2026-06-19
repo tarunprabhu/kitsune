@@ -14,9 +14,9 @@
 #include "CodeGenFunction.h"
 #include "kitsune/Clang/ASTUtils.h"
 #include "kitsune/Clang/ReductionUtils.h"
+#include "kitsune/Core/AddrSpace.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/KitOptions.h"
-#include "kitsune/Support/AddrSpace.h"
 
 using namespace clang;
 using namespace CodeGen;
