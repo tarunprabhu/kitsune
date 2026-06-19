@@ -43,217 +43,224 @@ private:
   const detail::CGFBOptions &cgfbOpts;
 
 private:
-  std::unique_ptr<ToolOutputFile> generatePTX(Module &km) {
-    LLVM_DEBUG(dbgs() << "\t- generating ptx...\n");
-
-    // Translate the device module from LLVM-IR to PTX. This creates an
-    // intermediate PTX file.
-    SmallString<1024> ptxFilename;
-    std::string model =
-        join_items("-", "kitcu", "%%%%%%%%", sys::path::filename(km.getName()));
-    sys::fs::createUniquePath(model.c_str(), ptxFilename, true);
-    sys::path::replace_extension(ptxFilename, ".ptx");
-    LLVM_DEBUG(dbgs() << "\t- ptx file: '" << ptxFilename << "'.\n");
-
-    std::error_code ec;
-    auto ptxFile = std::make_unique<ToolOutputFile>(
-        ptxFilename, ec, sys::fs::OpenFlags::OF_None);
-    if (ec)
-      report_fatal_error(Twine("Could not create ptx file: ") + ec.message());
-
-    // The build system should have ensured that the NVPTX target is available.
-    TargetMachine *tm =
-        createTargetMachine(TTID::Cuda, tto, cgfbOpts.cgOptLevel);
-    assert(tm && "Could not create NVPTX target machine");
-    if (cgfbOpts.debugTargetMachine)
-      detail::debugTargetMachine(*tm, errs());
-    if (cgfbOpts.debugTargetOptions)
-      dump(tm->Options, errs());
-    if (cgfbOpts.debugMCTargetOptions)
-      dump(tm->Options.MCOptions, errs());
-
-    // Setup the passes and request that the output goes to the specified PTX
-    // file.
-    legacy::PassManager passMgr;
-    if (tm->addPassesToEmitFile(passMgr, ptxFile->os(),
-                                /*DwoOut=*/nullptr,
-                                CodeGenFileType::AssemblyFile,
-                                /*DisableVerify=*/false))
-      report_fatal_error(Twine("PTX generation failed: ") + ec.message());
-    passMgr.run(km);
-
-    LLVM_DEBUG(dbgs() << "PTX generation complete.\n\n");
-    return ptxFile;
-  }
-
-  std::unique_ptr<ToolOutputFile> assemblePTX(ToolOutputFile &ptxFile) {
-    LLVM_DEBUG(dbgs() << "\t- generating asm...\n");
-
-    std::string ptxFilename = ptxFile.getFilename().str();
-    SmallString<255> asmFilename(ptxFilename);
-    sys::path::replace_extension(asmFilename, ".s");
-    LLVM_DEBUG(dbgs() << "\t- asm file: '" << ptxFilename << "'.\n");
-
-    std::error_code ec;
-    auto asmFile = std::make_unique<ToolOutputFile>(
-        asmFilename, ec, sys::fs::OpenFlags::OF_None);
-    if (ec)
-      report_fatal_error(Twine("Could not create asm file: ") + ec.message());
-
-    // Build the command line for ptxas.
-    std::vector<StringRef> args;
-
-    StringRef ptxas = kitCudaPtxas();
-    args.push_back(ptxas);
-
-    // TODO: Do we need/want to add support for generating relocatable code? It
-    // may be useful to allow deferring symbol resolution to link time. That
-    // may be necessary if we ever support separate compilation with device
-    // functions spread across translation units. That would entail adding
-    // the --compile option here.
-
-    // The gpu architecture (e.g., sm_86)
-    args.push_back("--gpu-name");
-    args.push_back(tto.getCudaArch());
-
-    // Warn if we spill registers and provide feedback on kernel stats.
-    args.push_back("--warn-on-spills");
-
-    if (tto.getTapirVerbose())
-      args.push_back("--verbose");
-
-    std::string optLevel =
-        std::to_string(getSpeedupLevel(cgfbOpts.ptxasOptLevel));
-    args.push_back("--opt-level");
-    args.push_back(optLevel);
-
-    std::string scodeFilename = asmFile->getFilename().str();
-    args.push_back("--output-file");
-    args.push_back(scodeFilename);
-
-    args.push_back(ptxFilename);
-
-    LLVM_DEBUG({
-      dbgs() << "\t- ptxas command line:\n";
-      dbgs() << "\t\t" << ptxas << "\n";
-      unsigned i = 1;
-      for (StringRef arg : args)
-        dbgs() << "\t\t" << i++ << ": " << arg << "\n";
-      dbgs() << "\n\n";
-    });
-    if (cgfbOpts.debugCommandLines)
-      errs() << join(args, " ") << "\n";
-
-    std::string errMsg;
-    if (sys::ExecuteAndWait(ptxas, args,
-                            /*Env=*/std::nullopt,
-                            /*Redirects=*/{},
-                            /*SecondsToWait=*/0, /* 0 => unlimited */
-                            /*MemoryLimit=*/0,   /* 0 => unlimited */
-                            &errMsg))
-      report_fatal_error(Twine("'ptxas' failed: ") + errMsg);
-
-    LLVM_DEBUG(dbgs() << "asm file generation complete.\n\n");
-    return asmFile;
-  }
-
-  std::unique_ptr<ToolOutputFile> createFatBinary(ToolOutputFile &asmFile) {
-    LLVM_DEBUG(dbgs() << "\t- generating fatbin...\n");
-
-    SmallString<255> fatbinFilename(asmFile.getFilename());
-    sys::path::replace_extension(fatbinFilename, ".cufatbin");
-    LLVM_DEBUG(dbgs() << "\t- fatbin file '" << fatbinFilename << "'.\n");
-
-    std::error_code ec;
-    auto fatbinFile = std::make_unique<ToolOutputFile>(
-        fatbinFilename, ec, sys::fs::OpenFlags::OF_None);
-
-    StringRef fatbin = kitCudaFatbinary();
-    std::vector<StringRef> args;
-    args.push_back(fatbin);
-    args.push_back("--64");
-    args.push_back("--create");
-    args.push_back(fatbinFilename);
-
-    // args is a vector of StringRefs. Since it doesn't own the contents, the
-    // contents of args must live at least as long as args. If imgArgs is
-    // declared inside the conditional, it will go out of scope when the body
-    // of the conditional is exited.
-    std::string imgArgs;
-    if constexpr (kitCudaMajorVersion() < 13) {
-      imgArgs = join_items("", "--image=profile=", tto.getCudaArch(),
-                           ",file=", asmFile.getFilename());
-      args.push_back(imgArgs);
-    }
-
-    // FIXME: This code looks like it is broken.
-    // std::list<std::string> PTXFilesArgList;
-    // if (EmbedPTXInFatbinaries) {
-    //   StringRef varch = ttOpts.getCudaVirtArch();
-    //   if (varch == "unknown")
-    //     report_fatal_error("cuabi: no virtual target for given gpuarch '" +
-    //                        TTO.getCudaArch() + "'!");
-
-    //   std::string PTXFixedArgStr =
-    //       ("--image=profile=" + VArchStr + ",file=").str();
-    //   for (auto &PTXFile : ModulePTXFileList) {
-    //     std::string arg = PTXFixedArgStr + PTXFile;
-    //     std::list<std::string>::const_iterator it;
-    //     it = PTXFilesArgList.emplace(PTXFilesArgList.end(), std::move(arg));
-    //     args.push_back(it->c_str());
-    //   }
-    // }
-
-    LLVM_DEBUG({
-      dbgs() << "\tfatbinary command line:\n";
-      unsigned i = 0;
-      for (StringRef arg : args)
-        dbgs() << "\t\t" << i++ << ": " << arg << "\n";
-      dbgs() << "\n\n";
-    });
-    if (cgfbOpts.debugCommandLines)
-      errs() << join(args, " ") << "\n";
-
-    std::string errMsg;
-    if (sys::ExecuteAndWait(/*Program=*/fatbin,
-                            /*Args=*/args,
-                            /*Env=*/std::nullopt,
-                            /*Redirects=*/{},
-                            /*(0 => unlimited) SecondsToWait=*/0,
-                            /*(0 => unlimited) MemoryLimit=*/0,
-                            /*ErrMsg=*/&errMsg))
-      // TODO: Need to check what sort of actual state 'fatbinary' returns to
-      // the environment -- currently assuming it matches standard practices
-      report_fatal_error(Twine("fatbinary failed: ") + errMsg);
-
-    return fatbinFile;
-  }
+  std::unique_ptr<ToolOutputFile> generatePTX(Module &km);
+  std::unique_ptr<ToolOutputFile> assemblePTX(ToolOutputFile &ptxFile);
+  std::unique_ptr<ToolOutputFile> createFatBinary(ToolOutputFile &asmFile);
 
 public:
-  CGFBCuda(const TTOptions &tto, const detail::CGFBOptions &cgfbOpts)
-      : tto(tto), cgfbOpts(cgfbOpts) {}
+  CGFBCuda(const TTOptions &tto, const detail::CGFBOptions &cgfbOpts);
 
-  bool run(GlobalVariable &gfb, const GlobalVariable &gbc) {
-    Expected<std::unique_ptr<Module>> kmOrErr = parseEmbBCGlobal(gbc);
-    if (not kmOrErr)
-      exitOnError(kmOrErr.takeError());
-
-    std::unique_ptr<Module> km = std::move(kmOrErr.get());
-    std::unique_ptr<ToolOutputFile> ptxFile = generatePTX(*km);
-    std::unique_ptr<ToolOutputFile> asmFile = assemblePTX(*ptxFile);
-    std::unique_ptr<ToolOutputFile> fatbinFile = createFatBinary(*asmFile);
-    detail::embedFatBinary(*fatbinFile, gfb);
-
-    if (cgfbOpts.keepFiles) {
-      ptxFile->keep();
-      asmFile->keep();
-      fatbinFile->keep();
-    }
-    return true;
-  }
+  bool run(GlobalVariable &gfb, const GlobalVariable &gbc);
 };
 
 } // namespace
+
+CGFBCuda::CGFBCuda(const TTOptions &tto, const detail::CGFBOptions &cgfbOpts)
+    : tto(tto), cgfbOpts(cgfbOpts) {}
+
+std::unique_ptr<ToolOutputFile> CGFBCuda::generatePTX(Module &km) {
+  LLVM_DEBUG(dbgs() << "\t- generating ptx...\n");
+
+  // Translate the device module from LLVM-IR to PTX. This creates an
+  // intermediate PTX file.
+  SmallString<1024> ptxFilename;
+  std::string model =
+      join_items("-", "kitcu", "%%%%%%%%", sys::path::filename(km.getName()));
+  sys::fs::createUniquePath(model.c_str(), ptxFilename, true);
+  sys::path::replace_extension(ptxFilename, ".ptx");
+  LLVM_DEBUG(dbgs() << "\t- ptx file: '" << ptxFilename << "'.\n");
+
+  std::error_code ec;
+  auto ptxFile = std::make_unique<ToolOutputFile>(ptxFilename, ec,
+                                                  sys::fs::OpenFlags::OF_None);
+  if (ec)
+    report_fatal_error(Twine("Could not create ptx file: ") + ec.message());
+
+  // The build system should have ensured that the NVPTX target is available.
+  TargetMachine *tm = createTargetMachine(TTID::Cuda, tto, cgfbOpts.cgOptLevel);
+  assert(tm && "Could not create NVPTX target machine");
+  if (cgfbOpts.debugTargetMachine)
+    detail::debugTargetMachine(*tm, errs());
+  if (cgfbOpts.debugTargetOptions)
+    dump(tm->Options, errs());
+  if (cgfbOpts.debugMCTargetOptions)
+    dump(tm->Options.MCOptions, errs());
+
+  // Setup the passes and request that the output goes to the specified PTX
+  // file.
+  legacy::PassManager passMgr;
+  if (tm->addPassesToEmitFile(passMgr, ptxFile->os(),
+                              /*DwoOut=*/nullptr, CodeGenFileType::AssemblyFile,
+                              /*DisableVerify=*/false))
+    report_fatal_error(Twine("PTX generation failed: ") + ec.message());
+  passMgr.run(km);
+
+  LLVM_DEBUG(dbgs() << "PTX generation complete.\n\n");
+  return ptxFile;
+}
+
+std::unique_ptr<ToolOutputFile> CGFBCuda::assemblePTX(ToolOutputFile &ptxFile) {
+  LLVM_DEBUG(dbgs() << "\t- generating asm...\n");
+
+  std::string ptxFilename = ptxFile.getFilename().str();
+  SmallString<255> asmFilename(ptxFilename);
+  sys::path::replace_extension(asmFilename, ".s");
+  LLVM_DEBUG(dbgs() << "\t- asm file: '" << ptxFilename << "'.\n");
+
+  std::error_code ec;
+  auto asmFile = std::make_unique<ToolOutputFile>(asmFilename, ec,
+                                                  sys::fs::OpenFlags::OF_None);
+  if (ec)
+    report_fatal_error(Twine("Could not create asm file: ") + ec.message());
+
+  // Build the command line for ptxas.
+  std::vector<StringRef> args;
+
+  StringRef ptxas = kitCudaPtxas();
+  args.push_back(ptxas);
+
+  // TODO: Do we need/want to add support for generating relocatable code? It
+  // may be useful to allow deferring symbol resolution to link time. That may
+  // be necessary if we ever support separate compilation with device functions
+  // spread across translation units. That would entail adding the --compile
+  // option here.
+
+  // The gpu architecture (e.g., sm_86)
+  args.push_back("--gpu-name");
+  args.push_back(tto.getCudaArch());
+
+  // Warn if we spill registers and provide feedback on kernel stats.
+  args.push_back("--warn-on-spills");
+
+  if (tto.getTapirVerbose())
+    args.push_back("--verbose");
+
+  std::string optLevel =
+      std::to_string(getSpeedupLevel(cgfbOpts.ptxasOptLevel));
+  args.push_back("--opt-level");
+  args.push_back(optLevel);
+
+  std::string scodeFilename = asmFile->getFilename().str();
+  args.push_back("--output-file");
+  args.push_back(scodeFilename);
+
+  args.push_back(ptxFilename);
+
+  LLVM_DEBUG({
+    dbgs() << "\t- ptxas command line:\n";
+    dbgs() << "\t\t" << ptxas << "\n";
+    unsigned i = 1;
+    for (StringRef arg : args)
+      dbgs() << "\t\t" << i++ << ": " << arg << "\n";
+    dbgs() << "\n\n";
+  });
+  if (cgfbOpts.debugCommandLines)
+    errs() << join(args, " ") << "\n";
+
+  std::string errMsg;
+  if (sys::ExecuteAndWait(ptxas, args,
+                          /*Env=*/std::nullopt,
+                          /*Redirects=*/{},
+                          /*SecondsToWait=*/0, /* 0 => unlimited */
+                          /*MemoryLimit=*/0,   /* 0 => unlimited */
+                          &errMsg))
+    report_fatal_error(Twine("'ptxas' failed: ") + errMsg);
+
+  LLVM_DEBUG(dbgs() << "asm file generation complete.\n\n");
+  return asmFile;
+}
+
+std::unique_ptr<ToolOutputFile>
+CGFBCuda::createFatBinary(ToolOutputFile &asmFile) {
+  LLVM_DEBUG(dbgs() << "\t- generating fatbin...\n");
+
+  SmallString<255> fatbinFilename(asmFile.getFilename());
+  sys::path::replace_extension(fatbinFilename, ".cufatbin");
+  LLVM_DEBUG(dbgs() << "\t- fatbin file '" << fatbinFilename << "'.\n");
+
+  std::error_code ec;
+  auto fatbinFile = std::make_unique<ToolOutputFile>(
+      fatbinFilename, ec, sys::fs::OpenFlags::OF_None);
+
+  StringRef fatbin = kitCudaFatbinary();
+  std::vector<StringRef> args;
+  args.push_back(fatbin);
+  args.push_back("--64");
+  args.push_back("--create");
+  args.push_back(fatbinFilename);
+
+  // args is a vector of StringRefs. Since it doesn't own the contents, the
+  // contents of args must live at least as long as args. If imgArgs is declared
+  // inside the conditional, it will go out of scope when the body of the
+  // conditional is exited.
+  std::string imgArgs;
+  if constexpr (kitCudaMajorVersion() < 13) {
+    imgArgs = join_items("", "--image=profile=", tto.getCudaArch(),
+                         ",file=", asmFile.getFilename());
+    args.push_back(imgArgs);
+  }
+
+  // FIXME: This code looks like it is broken.
+  // std::list<std::string> PTXFilesArgList;
+  // if (EmbedPTXInFatbinaries) {
+  //   StringRef varch = ttOpts.getCudaVirtArch();
+  //   if (varch == "unknown")
+  //     report_fatal_error("cuabi: no virtual target for given gpuarch '" +
+  //                        TTO.getCudaArch() + "'!");
+
+  //   std::string PTXFixedArgStr =
+  //       ("--image=profile=" + VArchStr + ",file=").str();
+  //   for (auto &PTXFile : ModulePTXFileList) {
+  //     std::string arg = PTXFixedArgStr + PTXFile;
+  //     std::list<std::string>::const_iterator it;
+  //     it = PTXFilesArgList.emplace(PTXFilesArgList.end(), std::move(arg));
+  //     args.push_back(it->c_str());
+  //   }
+  // }
+
+  LLVM_DEBUG({
+    dbgs() << "\tfatbinary command line:\n";
+    unsigned i = 0;
+    for (StringRef arg : args)
+      dbgs() << "\t\t" << i++ << ": " << arg << "\n";
+    dbgs() << "\n\n";
+  });
+  if (cgfbOpts.debugCommandLines)
+    errs() << join(args, " ") << "\n";
+
+  std::string errMsg;
+  if (sys::ExecuteAndWait(/*Program=*/fatbin,
+                          /*Args=*/args,
+                          /*Env=*/std::nullopt,
+                          /*Redirects=*/{},
+                          /*(0 => unlimited) SecondsToWait=*/0,
+                          /*(0 => unlimited) MemoryLimit=*/0,
+                          /*ErrMsg=*/&errMsg))
+    // TODO: Need to check what sort of actual state 'fatbinary' returns to
+    // the environment -- currently assuming it matches standard practices
+    report_fatal_error(Twine("fatbinary failed: ") + errMsg);
+
+  return fatbinFile;
+}
+
+bool CGFBCuda::run(GlobalVariable &gfb, const GlobalVariable &gbc) {
+  Expected<std::unique_ptr<Module>> kmOrErr = parseEmbBCGlobal(gbc);
+  if (not kmOrErr)
+    exitOnError(kmOrErr.takeError());
+
+  std::unique_ptr<Module> km = std::move(kmOrErr.get());
+  std::unique_ptr<ToolOutputFile> ptxFile = generatePTX(*km);
+  std::unique_ptr<ToolOutputFile> asmFile = assemblePTX(*ptxFile);
+  std::unique_ptr<ToolOutputFile> fatbinFile = createFatBinary(*asmFile);
+  detail::embedFatBinary(*fatbinFile, gfb);
+
+  if (cgfbOpts.keepFiles) {
+    ptxFile->keep();
+    asmFile->keep();
+    fatbinFile->keep();
+  }
+  return true;
+}
 
 bool llvm::detail::cgfbCuda(GlobalVariable &gfb, const GlobalVariable &gbc,
                             const TTOptions &tto,
