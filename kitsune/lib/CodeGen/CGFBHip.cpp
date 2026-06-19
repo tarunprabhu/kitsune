@@ -31,6 +31,26 @@
 
 using namespace llvm;
 
+namespace {
+
+/// Helper class to generate code for AMD GPU's from embedded bitcode.
+class CGFBHip {
+private:
+  const TTOptions &tto;
+  const detail::CGFBOptions &cgfbOpts;
+
+private:
+  std::unique_ptr<ToolOutputFile> createObject(Module &km);
+  std::unique_ptr<ToolOutputFile> createSharedObject(ToolOutputFile &objFile);
+
+public:
+  CGFBHip(const TTOptions &tto, const detail::CGFBOptions &cgfbOpts);
+
+  bool run(GlobalVariable &gfb, const GlobalVariable &gbc);
+};
+
+} // namespace
+
 static StringRef getSRAMECCFeature(const TTOptions &tto) {
   switch (tto.getHipSRAMECC()) {
   case MaybeBool::On:
@@ -53,154 +73,140 @@ static StringRef getXnackFeature(const TTOptions &tto) {
   }
 }
 
-namespace {
+CGFBHip::CGFBHip(const TTOptions &tto, const detail::CGFBOptions &cgfbOpts)
+    : tto(tto), cgfbOpts(cgfbOpts) {}
 
-/// Helper class to generate code for AMD GPU's from embedded bitcode.
-class CGFBHip {
-private:
-  const TTOptions &tto;
-  const detail::CGFBOptions &cgfbOpts;
+std::unique_ptr<ToolOutputFile> CGFBHip::createObject(Module &km) {
+  LLVM_DEBUG(dbgs() << "\t- generating amdgpu object file...\n");
 
-private:
-  std::unique_ptr<ToolOutputFile> createObject(Module &km) {
-    LLVM_DEBUG(dbgs() << "\t- generating amdgpu object file...\n");
+  SmallString<1024> objFilename;
+  std::string model =
+      join_items("-", "kithip", "%%%%%%%%", sys::path::filename(km.getName()));
+  sys::fs::createUniquePath(model.c_str(), objFilename, true);
+  sys::path::replace_extension(objFilename, ".amdgpu.o");
+  LLVM_DEBUG(dbgs() << "\t- amdgpu object file: '" << objFilename << "'.\n");
 
-    SmallString<1024> objFilename;
-    std::string model = join_items("-", "kithip", "%%%%%%%%",
-                                   sys::path::filename(km.getName()));
-    sys::fs::createUniquePath(model.c_str(), objFilename, true);
-    sys::path::replace_extension(objFilename, ".amdgpu.o");
-    LLVM_DEBUG(dbgs() << "\t- amdgpu object file: '" << objFilename << "'.\n");
+  std::error_code ec;
+  auto objFile = std::make_unique<ToolOutputFile>(objFilename, ec,
+                                                  sys::fs::OpenFlags::OF_None);
+  if (ec)
+    report_fatal_error(Twine("Could not create amdgpu object file: ") +
+                       ec.message());
 
-    std::error_code ec;
-    auto objFile = std::make_unique<ToolOutputFile>(
-        objFilename, ec, sys::fs::OpenFlags::OF_None);
-    if (ec)
-      report_fatal_error(Twine("Could not create amdgpu object file: ") +
-                         ec.message());
+  // The build system should have ensured that the AMDGPU target is available.
+  TargetMachine *tm = createTargetMachine(TTID::Hip, tto, cgfbOpts.cgOptLevel);
+  assert(tm && "Could not create AMDGPU target machine");
+  if (cgfbOpts.debugTargetMachine)
+    detail::debugTargetMachine(*tm, errs());
+  if (cgfbOpts.debugTargetOptions)
+    dump(tm->Options, errs());
+  if (cgfbOpts.debugMCTargetOptions)
+    dump(tm->Options.MCOptions, errs());
 
-    // The build system should have ensured that the AMDGPU target is
-    // available.
-    TargetMachine *tm =
-        createTargetMachine(TTID::Hip, tto, cgfbOpts.cgOptLevel);
-    assert(tm && "Could not create AMDGPU target machine");
-    if (cgfbOpts.debugTargetMachine)
-      detail::debugTargetMachine(*tm, errs());
-    if (cgfbOpts.debugTargetOptions)
-      dump(tm->Options, errs());
-    if (cgfbOpts.debugMCTargetOptions)
-      dump(tm->Options.MCOptions, errs());
+  // Setup the passes and request that the output goes to the specified object
+  // file.
+  legacy::PassManager passMgr;
+  if (tm->addPassesToEmitFile(passMgr, objFile->os(),
+                              /*DwoOut=*/nullptr, CodeGenFileType::ObjectFile,
+                              /*DisableVerify=*/false))
+    report_fatal_error("AMDGPU object file generation failed");
+  passMgr.run(km);
 
-    // Setup the passes and request that the output goes to the specified object
-    // file.
-    legacy::PassManager passMgr;
-    if (tm->addPassesToEmitFile(passMgr, objFile->os(),
-                                /*DwoOut=*/nullptr, CodeGenFileType::ObjectFile,
-                                /*DisableVerify=*/false))
-      report_fatal_error("AMDGPU object file generation failed");
-    passMgr.run(km);
+  LLVM_DEBUG(dbgs() << "AMDGPU object file generation complete.\n\n");
+  return objFile;
+}
 
-    LLVM_DEBUG(dbgs() << "AMDGPU object file generation complete.\n\n");
-    return objFile;
+std::unique_ptr<ToolOutputFile>
+CGFBHip::createSharedObject(ToolOutputFile &objFile) {
+  LLVM_DEBUG(dbgs() << "\t- generating amdgpu shared object...\n");
+
+  SmallString<255> soFilename(objFile.getFilename());
+  sys::path::replace_extension(soFilename, ".amdgpu.so");
+  LLVM_DEBUG(dbgs() << "\t- amdgpu shared object file: '" << soFilename
+                    << "'.\n");
+
+  std::error_code ec;
+  auto soFile = std::make_unique<ToolOutputFile>(soFilename, ec,
+                                                 sys::fs::OpenFlags::OF_None);
+  if (ec)
+    report_fatal_error(Twine("Could not create amdgpu shared object file: ") +
+                       ec.message());
+
+  // FIXME: This only works on ELF-based systems.
+  //
+  // We currently send the "top-level" lld binary down from clang. Instead, we
+  // could use the driver to compute the right lld variant and send that down
+  // instead. That should obviate the need for the flavor argument since the
+  // name with which lld is invoked will allow it to internally determine the
+  // object file format.
+  //
+  // Once we do that, would we even need "-m elf64_amdgpu"? What does that do?
+  std::vector<StringRef> args;
+
+  StringRef lld = tto.getLLD();
+  args.push_back(lld);
+
+  args.push_back("-flavor");
+  args.push_back("gnu");
+  args.push_back("-m");
+  args.push_back("elf64_amdgpu");
+  args.push_back("--no-undefined");
+  args.push_back("-shared");
+  args.push_back("--eh-frame-hdr");
+  args.push_back("--plugin-opt=-amdgpu-internalize-symbols");
+
+  std::string mcpu = join_items("", "--plugin-opt=-mcpu=", tto.getHipArch(),
+                                getSRAMECCFeature(tto), getXnackFeature(tto));
+  args.push_back(mcpu);
+
+  std::string optLevel = "-" + toString(tto.getOptznLevel());
+  args.push_back(optLevel);
+
+  args.push_back("-o");
+  args.push_back(soFile->getFilename());
+
+  args.push_back(objFile.getFilename());
+
+  LLVM_DEBUG({
+    dbgs() << "\t- lld command line:\n";
+    dbgs() << "\t\t" << lld << "\n";
+    unsigned i = 1;
+    for (StringRef arg : args)
+      dbgs() << "\t\t" << i++ << ": " << arg << "\n";
+    dbgs() << "\n\n";
+  });
+  if (cgfbOpts.debugCommandLines)
+    outs() << join(args, " ") << "\n";
+
+  std::string errMsg;
+  if (sys::ExecuteAndWait(lld, args,
+                          /*Env=*/std::nullopt,
+                          /*Redirects=*/{},
+                          /*SecondsToWait=*/0, /* 0 => unlimited */
+                          /*MemoryLimit=*/0,   /* 0 => unlimited */
+                          &errMsg))
+    report_fatal_error(Twine("lld failed: ") + errMsg);
+
+  LLVM_DEBUG(dbgs() << "AMDGPU shared object file generation complete.\n\n");
+  return soFile;
+}
+
+bool CGFBHip::run(GlobalVariable &gfb, const GlobalVariable &gbc) {
+  Expected<std::unique_ptr<Module>> kmOrErr = parseEmbBCGlobal(gbc);
+  if (not kmOrErr)
+    exitOnError(kmOrErr.takeError());
+
+  std::unique_ptr<Module> km = std::move(kmOrErr.get());
+  std::unique_ptr<ToolOutputFile> objFile = createObject(*km);
+  std::unique_ptr<ToolOutputFile> soFile = createSharedObject(*objFile);
+  detail::embedFatBinary(*soFile, gfb);
+
+  if (cgfbOpts.keepFiles) {
+    objFile->keep();
+    soFile->keep();
   }
-
-  std::unique_ptr<ToolOutputFile> createSharedObject(ToolOutputFile &objFile) {
-    LLVM_DEBUG(dbgs() << "\t- generating amdgpu shared object...\n");
-
-    SmallString<255> soFilename(objFile.getFilename());
-    sys::path::replace_extension(soFilename, ".amdgpu.so");
-    LLVM_DEBUG(dbgs() << "\t- amdgpu shared object file: '" << soFilename
-                      << "'.\n");
-
-    std::error_code ec;
-    auto soFile = std::make_unique<ToolOutputFile>(soFilename, ec,
-                                                   sys::fs::OpenFlags::OF_None);
-    if (ec)
-      report_fatal_error(Twine("Could not create amdgpu shared object file: ") +
-                         ec.message());
-
-    // FIXME: This only works on ELF-based systems.
-    //
-    // We currently send the "top-level" lld binary down from clang. Instead, we
-    // could use the driver to compute the right lld variant and send that down
-    // instead. That should obviate the need for the flavor argument since the
-    // name with which lld is invoked will allow it to internally determine the
-    // object file format.
-    //
-    // Once we do that, would we even need "-m elf64_amdgpu"? What does that do?
-    std::vector<StringRef> args;
-
-    StringRef lld = tto.getLLD();
-    args.push_back(lld);
-
-    args.push_back("-flavor");
-    args.push_back("gnu");
-    args.push_back("-m");
-    args.push_back("elf64_amdgpu");
-    args.push_back("--no-undefined");
-    args.push_back("-shared");
-    args.push_back("--eh-frame-hdr");
-    args.push_back("--plugin-opt=-amdgpu-internalize-symbols");
-
-    std::string mcpu = join_items("", "--plugin-opt=-mcpu=", tto.getHipArch(),
-                                  getSRAMECCFeature(tto), getXnackFeature(tto));
-    args.push_back(mcpu);
-
-    std::string optLevel = "-" + toString(tto.getOptznLevel());
-    args.push_back(optLevel);
-
-    args.push_back("-o");
-    args.push_back(soFile->getFilename());
-
-    args.push_back(objFile.getFilename());
-
-    LLVM_DEBUG({
-      dbgs() << "\t- lld command line:\n";
-      dbgs() << "\t\t" << lld << "\n";
-      unsigned i = 1;
-      for (StringRef arg : args)
-        dbgs() << "\t\t" << i++ << ": " << arg << "\n";
-      dbgs() << "\n\n";
-    });
-    if (cgfbOpts.debugCommandLines)
-      outs() << join(args, " ") << "\n";
-
-    std::string errMsg;
-    if (sys::ExecuteAndWait(lld, args,
-                            /*Env=*/std::nullopt,
-                            /*Redirects=*/{},
-                            /*SecondsToWait=*/0, /* 0 => unlimited */
-                            /*MemoryLimit=*/0,   /* 0 => unlimited */
-                            &errMsg))
-      report_fatal_error(Twine("lld failed: ") + errMsg);
-
-    LLVM_DEBUG(dbgs() << "AMDGPU shared object file generation complete.\n\n");
-    return soFile;
-  }
-
-public:
-  CGFBHip(const TTOptions &tto, const detail::CGFBOptions &cgfbOpts)
-      : tto(tto), cgfbOpts(cgfbOpts) {}
-
-  bool run(GlobalVariable &gfb, const GlobalVariable &gbc) {
-    Expected<std::unique_ptr<Module>> kmOrErr = parseEmbBCGlobal(gbc);
-    if (not kmOrErr)
-      exitOnError(kmOrErr.takeError());
-
-    std::unique_ptr<Module> km = std::move(kmOrErr.get());
-    std::unique_ptr<ToolOutputFile> objFile = createObject(*km);
-    std::unique_ptr<ToolOutputFile> soFile = createSharedObject(*objFile);
-    detail::embedFatBinary(*soFile, gfb);
-
-    if (cgfbOpts.keepFiles) {
-      objFile->keep();
-      soFile->keep();
-    }
-    return false;
-  }
-};
-
-} // namespace
+  return false;
+}
 
 bool llvm::detail::cgfbHip(GlobalVariable &gfb, const GlobalVariable &gbc,
                            const TTOptions &tto,

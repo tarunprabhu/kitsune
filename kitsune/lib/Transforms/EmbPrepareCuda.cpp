@@ -30,51 +30,58 @@ private:
   const detail::EmbPrepareOptions &prepOpts;
 
 private:
-  /// Fix the attributes on the "non-kernel" functions. The attributes on the
-  /// kernel function will have been set by the tapir targets.
-  bool fixDeviceFuncAttrs(Module &devM) {
-    bool changed = false;
-    for (Function &f : devM.functions()) {
-      if (hasDeviceAttr(f)) {
-        f.removeFnAttr("target-cpu");
-        f.removeFnAttr("target-features");
-        f.removeFnAttr("tune-cpu");
-
-        f.addFnAttr("target-cpu", tto.getCudaArch());
-        f.addFnAttr(
-            "target-features",
-            join_items(",", tto.getCudaTargetFeatures(), tto.getCudaArch()));
-
-        bool hasNoInline = f.hasFnAttribute(Attribute::NoInline);
-        if (prepOpts.inlineAllForce) {
-          f.removeFnAttr(Attribute::NoInline);
-          f.addFnAttr(Attribute::AlwaysInline);
-        } else if (prepOpts.inlineAll and (not hasNoInline)) {
-          f.addFnAttr(Attribute::AlwaysInline);
-        }
-
-        changed |= true;
-      }
-    }
-    return changed;
-  }
+  bool fixDeviceFuncAttrs(Module &devM);
 
 public:
   EmbPrepareCuda(const TTOptions &tto,
-                 const detail::EmbPrepareOptions &prepOpts)
-      : tto(tto), prepOpts(prepOpts) {}
+                 const detail::EmbPrepareOptions &prepOpts);
 
-  bool run(Module &devM) {
-    bool changed = false;
-
-    changed |= fixDeviceFuncAttrs(devM);
-    changed |= stripKitAddrSpaces(devM);
-
-    return changed;
-  }
+  bool run(Module &devM);
 };
 
 } // namespace
+
+EmbPrepareCuda::EmbPrepareCuda(const TTOptions &tto,
+                               const detail::EmbPrepareOptions &prepOpts)
+    : tto(tto), prepOpts(prepOpts) {}
+
+/// Fix the attributes on the "non-kernel" functions. The attributes on the
+/// kernel function will have been set by the tapir targets.
+bool EmbPrepareCuda::fixDeviceFuncAttrs(Module &devM) {
+  bool changed = false;
+  for (Function &f : devM.functions()) {
+    if (hasDeviceAttr(f)) {
+      f.removeFnAttr("target-cpu");
+      f.removeFnAttr("target-features");
+      f.removeFnAttr("tune-cpu");
+
+      f.addFnAttr("target-cpu", tto.getCudaArch());
+      f.addFnAttr(
+          "target-features",
+          join_items(",", tto.getCudaTargetFeatures(), tto.getCudaArch()));
+
+      bool hasNoInline = f.hasFnAttribute(Attribute::NoInline);
+      if (prepOpts.inlineAllForce) {
+        f.removeFnAttr(Attribute::NoInline);
+        f.addFnAttr(Attribute::AlwaysInline);
+      } else if (prepOpts.inlineAll and (not hasNoInline)) {
+        f.addFnAttr(Attribute::AlwaysInline);
+      }
+
+      changed |= true;
+    }
+  }
+  return changed;
+}
+
+bool EmbPrepareCuda::run(Module &devM) {
+  bool changed = false;
+
+  changed |= fixDeviceFuncAttrs(devM);
+  changed |= stripKitAddrSpaces(devM);
+
+  return changed;
+}
 
 bool llvm::detail::embPrepareCuda(Module &m, const TTOptions &tto,
                                   const detail::EmbPrepareOptions &prepOpts) {
