@@ -13,7 +13,7 @@
 #ifndef KITSUNE_TRANSFORMS_PRE_LOWER_ANNOTATE_H
 #define KITSUNE_TRANSFORMS_PRE_LOWER_ANNOTATE_H
 
-#include "kitsune/Core/ModuleAttrs.h"
+#include "kitsune/Core/FuncAttrs.h"
 #include "kitsune/Passes/PassUtils.h"
 #include "llvm/IR/PassManager.h"
 
@@ -25,9 +25,9 @@ namespace llvm {
 /// lowering.
 class PreLowerAnnotatePass : public PassInfoMixin<PreLowerAnnotatePass> {
 public:
-  PreservedAnalyses run(Module &m, ModuleAnalysisManager &am);
+  PreservedAnalyses run(Function &f, FunctionAnalysisManager &am);
 
-  static constexpr auto hasRunAttr = ModuleAttrKind::PreLowerAnnotatePass;
+  static constexpr auto hasRunAttr = FuncAttrKind::PreLowerAnnotatePass;
 };
 
 static_assert(check_pass_requirable<PreLowerAnnotatePass>());

@@ -178,28 +178,13 @@ SetVector<Loop *> getLoopsToSerialize(LoopInfo &li) {
   return loopsToSerialize;
 }
 
-/// Check the loops in the given function and serialize any that should be
-/// serialized. Return true if at least one loop was serialized, false
-/// otherwise.
-static bool run(Function &f, FunctionAnalysisManager &am) {
-  bool changed = false;
+PreservedAnalyses SerializePass::run(Function &f, FunctionAnalysisManager &am) {
   LoopInfo &li = am.getResult<LoopAnalysis>(f);
   TaskInfo &ti = am.getResult<TaskAnalysis>(f);
 
+  bool changed = false;
   for (Loop *loop : getLoopsToSerialize(li))
     changed |= serializeLoop(*loop, *getTaskIfTapirLoop(loop, &ti));
-
-  return changed;
-}
-
-PreservedAnalyses SerializePass::run(Module &m, ModuleAnalysisManager &mam) {
-  bool changed = false;
-  FunctionAnalysisManager &fam =
-      mam.getResult<FunctionAnalysisManagerModuleProxy>(m).getManager();
-
-  for (Function &f : m)
-    if (f.size())
-      changed |= ::run(f, fam);
 
   if (changed)
     return PreservedAnalyses::none();

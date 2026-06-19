@@ -14,7 +14,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/CodeGen/LowerKitIntrinsics.h"
-#include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/IntrinsicUtils.h"
 #include "kitsune/Core/Tapir.h"
@@ -235,7 +234,7 @@ private:
 
     switch (tt) {
     case TTID::Nolo:
-      llvm_unreachable("getMobileAllocFunc: TTID is Nolo");
+      return nullptr;
     case TTID::Serial:
       return getOrInsertLibFunc(m, LibFunc_malloc);
     case TTID::Cuda:
@@ -266,7 +265,7 @@ private:
 
     switch (tt) {
     case TTID::Nolo:
-      llvm_unreachable("getMobileFreeFunc: TTID is Nolo");
+      return nullptr;
     case TTID::Serial:
       return getOrInsertLibFunc(m, LibFunc_free);
     case TTID::Cuda:
@@ -292,6 +291,10 @@ private:
   }
 
   FunctionCallee getMobileInitFunc(Module &m, CallInst &call) {
+    TTID tt = *getTTIDFromKitIntrCall(call);
+    if (tt == TTID::Nolo)
+      return nullptr;
+
     // Currently, we always lower to a runtime function provided by Kitsune that
     // runs on the host.
     // FIXME: We should probably lower this differently depending on how the
@@ -670,9 +673,9 @@ public:
 };
 
 /// Pass, for the legacy pass manager, that lowers kitsune-specific intrinsics.
-class LowerKitIntrinsicsLegacyPass : public ModulePass {
+class LowerKitIntrinsicsLegacyPass : public FunctionPass {
 public:
-  LowerKitIntrinsicsLegacyPass() : ModulePass(ID) {
+  LowerKitIntrinsicsLegacyPass() : FunctionPass(ID) {
     initializeLowerKitIntrinsicsLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
@@ -680,25 +683,14 @@ public:
   StringRef getPassName() const override { return "Lower Kitsune intrinsics"; }
 
   void getAnalysisUsage(AnalysisUsage &au) const override {
-    au.addRequired<TTObjectsAnalysisWrapperPass>();
     au.addRequired<TargetLibraryInfoWrapperPass>();
   }
 
-  bool runOnModule(Module &m) override {
-    const TTObjects &ttObjs =
-        getAnalysis<TTObjectsAnalysisWrapperPass>().getResult();
+  bool runOnFunction(Function &f) override {
+    TargetLibraryInfo &tli =
+        getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(f);
 
-    bool changed = false;
-    std::optional<TTID> tt = ttObjs.getTTIDOrNull();
-    if (tt.has_value() && *tt != TTID::Nolo) {
-      for (Function &f : m) {
-        TargetLibraryInfo &tli =
-            getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(f);
-        changed |= LowerKitIntrinsics(tli).run(f);
-      }
-    }
-
-    return changed;
+    return LowerKitIntrinsics(tli).run(f);
   }
 
 public:
@@ -711,31 +703,20 @@ char LowerKitIntrinsicsLegacyPass::ID = 0;
 
 INITIALIZE_PASS_BEGIN(LowerKitIntrinsicsLegacyPass, DEBUG_TYPE,
                       "Lower Kitsune intrinsics", false, false)
-INITIALIZE_PASS_DEPENDENCY(TTObjectsAnalysisWrapperPass)
 INITIALIZE_PASS_END(LowerKitIntrinsicsLegacyPass, DEBUG_TYPE,
                     "Lower Kitsune intrinsics", false, false)
 
-ModulePass *llvm::createLowerKitIntrinsicsLegacyPass() {
+FunctionPass *llvm::createLowerKitIntrinsicsLegacyPass() {
   return new LowerKitIntrinsicsLegacyPass();
 }
 
-PreservedAnalyses LowerKitIntrinsicsPass::run(Module &m,
-                                              ModuleAnalysisManager &mam) {
-  auto &fam = mam.getResult<FunctionAnalysisManagerModuleProxy>(m).getManager();
-  const TTObjects &ttObjs = mam.getResult<TTObjectsAnalysis>(m);
-
-  bool changed = false;
-  std::optional<TTID> tt = ttObjs.getTTIDOrNull();
-  if (tt.has_value() && *tt != TTID::Nolo) {
-    for (Function &f : m) {
-      TargetLibraryInfo &tli = fam.getResult<TargetLibraryAnalysis>(f);
-
-      changed |= LowerKitIntrinsics(tli).run(f);
-    }
-  }
+PreservedAnalyses LowerKitIntrinsicsPass::run(Function &f,
+                                              FunctionAnalysisManager &am) {
+  TargetLibraryInfo &tli = am.getResult<TargetLibraryAnalysis>(f);
 
   // If any kitsune intrinsics were replaced, the call graph will have changed,
   // but other analyses will not have been invalidated.
+  bool changed = LowerKitIntrinsics(tli).run(f);
   if (changed) {
     PreservedAnalyses pa;
     pa.preserve<FunctionAnalysisManagerCGSCCProxy>();

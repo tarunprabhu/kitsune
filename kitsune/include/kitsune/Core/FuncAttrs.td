@@ -49,3 +49,14 @@ def Kernel : FuncAttr<> {
   let HasCustomVerifier = true;
   let Documentation = KitKernelDoc;
 }
+
+// Flag indicating that the kit-annotate-prelower pass has been run on the
+// function.
+def PreLowerAnnotatePass : FuncAttr<> {
+  let Documentation = KitPreLowerAnnotatePassDoc;
+}
+
+// Flag indicating that the kit-serialize pass has been run on the function.
+def SerializePass : FuncAttr<> {
+  let Documentation = KitSerializePassDoc;
+}

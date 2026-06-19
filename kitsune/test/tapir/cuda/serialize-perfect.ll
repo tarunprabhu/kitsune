@@ -13,7 +13,7 @@
 ; CHECK: ret void
 ;
 ; forall (i ...)
-define void @p(i64 %n) {
+define void @p(i64 %n) !kit.func !13 {
 entry:
   %syncreg.i = tail call token @llvm.syncregion.start()
   br label %for.i.header
@@ -52,7 +52,7 @@ for.i.exit:
 ;
 ; forall (i ...)
 ;   forall (j ...)
-define void @pp(i64 %m, i64 %n) {
+define void @pp(i64 %m, i64 %n) !kit.func !13 {
 entry:
   %syncreg.i = tail call token @llvm.syncregion.start()
   br label %for.i.header
@@ -115,7 +115,7 @@ for.i.end:
 ; forall (i ...)
 ;   forall (j ...)
 ;     forall (k ...)
-define void @ppp(i64 %m, i64 %n, i64 %p) {
+define void @ppp(i64 %m, i64 %n, i64 %p) !kit.func !13 {
 entry:
   %syncreg.i = tail call token @llvm.syncregion.start()
   br label %for.i.header
@@ -177,8 +177,6 @@ for.i.end:
   ret void
 }
 
-!kit.module = !{!13}
-
 !0 = distinct !{!0, !6, !7, !10}
 !1 = distinct !{!1, !6, !11}
 !2 = distinct !{!2, !6, !8, !10}
@@ -193,4 +191,4 @@ for.i.end:
 !11 = !{!"tapir.loop.perfect.level", i32 2}
 !12 = !{!"tapir.loop.perfect.level", i32 3}
 !13 = distinct !{!13, !14}
-!14 = !{!"kit.module.pre.lower.annotate.pass"}
+!14 = !{!"kit.func.pre.lower.annotate.pass"}

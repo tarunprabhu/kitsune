@@ -5,3 +5,7 @@
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: 'SerializePass': required pass 'PreLowerAnnotatePass' has not been run
+
+define void @f() {
+  ret void
+}

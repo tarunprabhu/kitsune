@@ -51,7 +51,7 @@
 ;         ext2(i, j);
 ;     }
 ; }
-define void @pep(i64 %m, i64 %n) {
+define void @pep(i64 %m, i64 %n) !kit.func !7 {
 entry:
   %syncreg.i = tail call token @llvm.syncregion.start()
   br label %for.i.header
@@ -100,8 +100,6 @@ declare void @ext1(i64)
 
 declare void @ext2(i64, i64)
 
-!kit.module = !{!7}
-
 !0 = distinct !{!0, !2, !3, !4, !6}
 !1 = distinct !{!1, !2, !5}
 !2 = !{!"tapir.loop.target", i32 4}
@@ -110,4 +108,4 @@ declare void @ext2(i64, i64)
 !5 = !{!"tapir.loop.name", !"loop.j"}
 !6 = !{!"tapir.loop.name", !"loop.i"}
 !7 = distinct !{!7, !8}
-!8 = !{!"kit.module.pre.lower.annotate.pass"}
+!8 = !{!"kit.func.pre.lower.annotate.pass"}

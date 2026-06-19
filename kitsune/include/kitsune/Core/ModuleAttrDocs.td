@@ -28,17 +28,3 @@ of the attribute value. In the future, this may be expanded to include other
 information if having them is determined to be useful.
 }];
 }
-
-def KitPreLowerAnnotatePassDoc : KitDocAttr {
-  let Documentation = [{
-The presence of this attribute indicates that the `kit-annotate-prelower`
-pass has been run on the module.
-}];
-}
-
-def KitSerializePassDoc : KitDocAttr {
-  let Documentation = [{
-The presence of this attribute indicates that the `kit-serialize` pass has been
-run on the module.
-}];
-}

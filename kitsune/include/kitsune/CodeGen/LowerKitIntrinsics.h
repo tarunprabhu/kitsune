@@ -17,17 +17,17 @@
 
 namespace llvm {
 
-class ModulePass;
+class FunctionPass;
 
 /// \ingroup kitsune
 /// Lower Kitsune-specific intrinsics.
 class LowerKitIntrinsicsPass : public PassInfoMixin<LowerKitIntrinsicsPass> {
 public:
-  PreservedAnalyses run(Module &m, ModuleAnalysisManager &am);
+  PreservedAnalyses run(Function &f, FunctionAnalysisManager &am);
 };
 
 /// \ingroup kitsune
-ModulePass *createLowerKitIntrinsicsLegacyPass();
+FunctionPass *createLowerKitIntrinsicsLegacyPass();
 
 } // namespace llvm
 

@@ -63,14 +63,3 @@ def DeviceModuleFlags : ModuleAttr<DeviceModuleFlagsTy> {
   let HasCustomVerifier = true;
   let Documentation = KitDeviceModuleFlagsDoc;
 }
-
-// Flag indicating that the kit-annotate-prelower pass has been run on the
-// module.
-def PreLowerAnnotatePass : ModuleAttr<> {
-  let Documentation = KitPreLowerAnnotatePassDoc;
-}
-
-// Flag indicating that the kit-serialize pass has been run on the module.
-def SerializePass : ModuleAttr<> {
-  let Documentation = KitSerializePassDoc;
-}

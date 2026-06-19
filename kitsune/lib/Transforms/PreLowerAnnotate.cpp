@@ -11,11 +11,12 @@
 // These are intended to inform how the loop will be transformed prior to loop
 // spawning and may also be used to affect how the loop will be spawned.
 //
-// For example, a tapir loop that performs a reduction will be annotated with
-// the tapir.loop.reduction. If compiling for a GPU, a pass that runs before
-// loop spawning will examine this annotation and transform the loop to a form
-// suitable for computing parallel reductions on a GPU. That pass will ignore
-// loops that do not contain the attribute.
+// For example, in a perfect nest of tapir loops to be compiled for the GPU,
+// only the outermost loop should be handled by loop spawning - the GPU-centric
+// tapir targets will correctly handle the inner loops. This pass will add the
+// tapir.loop.lowering.enabled attribute to the outermost loop, but not the
+// inner ones. The loop-spawning pass examines this attribute to determine which
+// loops to lower.
 //
 //===----------------------------------------------------------------------===//
 
@@ -66,35 +67,27 @@ static void annotateTapirLoopsForGPU(Loop &root, ScalarEvolution &se) {
   }
 }
 
-PreservedAnalyses PreLowerAnnotatePass::run(Module &m,
-                                            ModuleAnalysisManager &mam) {
-  FunctionAnalysisManager &fam =
-      mam.getResult<FunctionAnalysisManagerModuleProxy>(m).getManager();
+PreservedAnalyses PreLowerAnnotatePass::run(Function &f,
+                                            FunctionAnalysisManager &am) {
+  LoopInfo &li = am.getResult<LoopAnalysis>(f);
+  ScalarEvolution &se = am.getResult<ScalarEvolutionAnalysis>(f);
 
-  for (Function &f : m) {
-    if (!f.size())
+  /// Find the subloops that are contained within a tapir loop nest consisting
+  /// of loops that are to be run on a GPU. These will be ignored.
+  SmallSet<Loop *, 8> ignore;
+  for (Loop *loop : li.getLoopsInPreorder())
+    if (isTopLevelTapirLoopForGPU(*loop))
+      for (Loop *subLoop : getAllSubLoops(*loop))
+        ignore.insert(subLoop);
+
+  for (Loop *loop : li.getLoopsInPreorder()) {
+    if (ignore.contains(loop))
       continue;
 
-    LoopInfo &li = fam.getResult<LoopAnalysis>(f);
-    ScalarEvolution &se = fam.getResult<ScalarEvolutionAnalysis>(f);
-
-    /// Find the subloops that are contained within a tapir loop nest consisting
-    /// of loops that are to be run on a GPU. These will be ignored.
-    SmallSet<Loop *, 8> ignore;
-    for (Loop *loop : li.getLoopsInPreorder())
-      if (isTopLevelTapirLoopForGPU(*loop))
-        for (Loop *subLoop : getAllSubLoops(*loop))
-          ignore.insert(subLoop);
-
-    for (Loop *loop : li.getLoopsInPreorder()) {
-      if (ignore.contains(loop))
-        continue;
-
-      if (isTopLevelTapirLoopForGPU(*loop))
-        annotateTapirLoopsForGPU(*loop, se);
-      else if (isTapirLoop(*loop))
-        addLoweringEnabledAttr(*loop);
-    }
+    if (isTopLevelTapirLoopForGPU(*loop))
+      annotateTapirLoopsForGPU(*loop, se);
+    else if (isTapirLoop(*loop))
+      addLoweringEnabledAttr(*loop);
   }
 
   // At best, this pass will only change the metadata on existing loops and the

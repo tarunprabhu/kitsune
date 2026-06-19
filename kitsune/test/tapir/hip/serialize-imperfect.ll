@@ -55,7 +55,7 @@
 ;     forall (k ...)
 ;       forall (l ...)
 ;
-define dso_local void @f(i64 %m, i64 %n, i64 %p, i64 %q) {
+define dso_local void @f(i64 %m, i64 %n, i64 %p, i64 %q) !kit.func !10 {
 entry:
   %syncreg.i = tail call token @llvm.syncregion.start()
   br label %for.i.header
@@ -180,8 +180,6 @@ for2.i.end:
 
 }
 
-!kit.module = !{!10}
-
 !0 = distinct !{!0, !1}
 !1 = !{!"tapir.loop.target", i32 4}
 !2 = distinct !{!2}
@@ -193,4 +191,4 @@ for2.i.end:
 !8 = !{!"tapir.loop.perfect.depth", i32 1}
 !9 = !{!"tapir.loop.perfect.level", i32 1}
 !10 = distinct !{!10, !11}
-!11 = !{!"kit.module.pre.lower.annotate.pass"}
+!11 = !{!"kit.func.pre.lower.annotate.pass"}
