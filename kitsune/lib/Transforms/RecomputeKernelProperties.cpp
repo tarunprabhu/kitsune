@@ -21,7 +21,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Transforms/RecomputeKernelProperties.h"
-#include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/GVAttrs.h"
 #include "kitsune/Core/KernelProperties.h"
@@ -35,12 +34,6 @@ using namespace llvm;
 
 PreservedAnalyses
 RecomputeKernelPropertiesPass::run(Module &m, ModuleAnalysisManager &mam) {
-  // If no primary tapir target has been set, the tapir target options will
-  // not have been set, so there is nothing that we can do.
-  const TTObjects &ttObjs = mam.getResult<TTObjectsAnalysis>(m);
-  if (not ttObjs.hasTTID())
-    return PreservedAnalyses::all();
-
   Expected<EmbModulesMapTy> embMsOrErr = getEmbModules(m);
   if (not embMsOrErr)
     exitOnError(embMsOrErr.takeError());
