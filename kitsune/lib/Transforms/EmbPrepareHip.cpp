@@ -15,6 +15,7 @@
 #include "kitsune/Core/AddrSpace.h"
 #include "kitsune/Core/FuncAttrs.h"
 #include "kitsune/Core/TTOptions.h"
+#include "kitsune/Core/ValueUtils.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/IRBuilder.h"
@@ -63,10 +64,8 @@ private:
       if (not hasKernelAttr(f))
         continue;
 
-      // If none of the function arguments are pointers, move on.
-      if (std::none_of(f.arg_begin(), f.arg_end(), [](Argument &arg) -> bool {
-            return isa<PointerType>(arg.getType());
-          }))
+      auto isPtr = [](const Argument &a) -> bool { return isPointer(a); };
+      if (std::none_of(f.arg_begin(), f.arg_end(), isPtr))
         continue;
 
       // We need to create an instruction that casts away the address space
