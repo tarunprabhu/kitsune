@@ -1,8 +1,5 @@
 //===- memory.cpp - Kitsune runtime memory allocation/free support --------===//
 //
-// TODO:
-//     - Need to update LANL/Triad Copyright notice.
-//
 // Copyright (c) 2023, Los Alamos National Security, LLC.
 // All rights reserved.
 //
@@ -60,6 +57,24 @@
 
 #define LABEL "kitrt"
 
+template <typename T> static constexpr const char *getTypeName();
+template <> constexpr const char *getTypeName<bool>() { return "bool"; }
+template <> constexpr const char *getTypeName<int8_t>() { return "int8_t"; }
+template <> constexpr const char *getTypeName<int16_t>() { return "int16_t"; }
+template <> constexpr const char *getTypeName<int32_t>() { return "int32_t"; }
+template <> constexpr const char *getTypeName<int64_t>() { return "int64_t"; }
+template <> constexpr const char *getTypeName<float>() { return "float"; }
+template <> constexpr const char *getTypeName<double>() { return "double"; }
+
+template <typename T> static constexpr const char *getTypeFmt();
+template <> constexpr const char *getTypeFmt<bool>() { return "%d"; }
+template <> constexpr const char *getTypeFmt<int8_t>() { return "%d"; }
+template <> constexpr const char *getTypeFmt<int16_t>() { return "%d"; }
+template <> constexpr const char *getTypeFmt<int32_t>() { return "%d"; }
+template <> constexpr const char *getTypeFmt<int64_t>() { return "%ld"; }
+template <> constexpr const char *getTypeFmt<float>() { return "%f"; }
+template <> constexpr const char *getTypeFmt<double>() { return "%g"; }
+
 extern "C" [[gnu::malloc]] void *[[kitsune::mobile]]
 __kitrt_default_mem_alloc(size_t bytes) {
   void *[[kitsune::mobile]] ptr = __kitsune_mobile_cast_unsafe(malloc(bytes));
@@ -78,6 +93,10 @@ template <typename T,
           std::enable_if_t<std::is_integral_v<T> || std::is_floating_point_v<T>,
                            int> = 0>
 static void mobileInitScalar(T *[[kitsune::mobile]] buf, size_t n, T v) {
+  __kitrt_message_noflush(
+      LABEL, "Setting %ld elements of mobile buffer with type %s to ", n,
+      getTypeName<T>());
+  __kitrt_message(nullptr, getTypeFmt<T>(), v);
   for (size_t i = 0; i < n; ++i)
     buf[i] = v;
 }
@@ -86,7 +105,7 @@ static void mobileInitScalar(T *[[kitsune::mobile]] buf, size_t n, T v) {
  * Initialize a mobile buffer from a pointer to a value. This is most useful
  * when the buffer \p buf is a contiguous array of \p n \p size-byte objects.
  * This function will copy the object pointed to by \p v into each element of
- \p buf.
+ * \p buf.
  *
  * WARNING: This is a _shallow_ copy. For non-scalar types, this should only be
  * used with POD (Plain Old Data) types.
