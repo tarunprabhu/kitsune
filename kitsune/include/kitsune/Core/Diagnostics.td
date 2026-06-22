@@ -198,7 +198,7 @@ def ErrTapirLoopIVUsedOutsideLoop
   : Error<"tapir loop induction variable used outside tapir loop">;
 
 def ErrTapirLoopIVUsesInLatch
-  : Error<"tapir loop induction variable must have exactly one use in latch">;
+  : Error<"tapir loop induction variable must have at most one use in latch">;
 
 def ErrTapirLoopIVNotUpdatedInLatch
   : Error<"tapir loop induction variable not updated in latch">;
@@ -275,16 +275,19 @@ def ErrKitIntrNoTTID
 def ErrKitIntrWrongTTID
   : Error<"TTID argument in call must be '{}'">;
 
-def ErrSecondaryIVType
+def ErrSecIVType
   : Error<"secondary induction variable has unsupported type '{}'">;
 
-def ErrSecondaryIVNotBinOp
+def ErrSecIVPtr
+  : Error<"secondary induction variable has unsupported pointer induction">;
+
+def ErrSecIVNotBinOp
   : Error<"secondary induction variable has unsupported incoming value '{}'">;
 
-def ErrSecondaryIVOperator
+def ErrSecIVOperator
   : Error<"secondary induction variable has unsupported operator '{}'">;
 
-def ErrSecondaryIVNonConstStep
+def ErrSecIVNonConstStep
   : Error<"secondary induction variable has non-constant step">;
 
 // Generic errors that can be used to emit any error message.
