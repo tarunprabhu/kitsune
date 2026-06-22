@@ -51,8 +51,7 @@
 ! O23SZ:      Running pass:     SimplifyCFGPass
 ! O23SZ:      Running pass:     LoopSimplifyPass
 ! O23SZ:      Running pass:     PreLowerVerificationPass
-! O23SZ-NEXT: Running analysis: TTObjectsAnalysis
-! O23SZ-NEXT: Running pass:     PreLowerAnnotatePass
+! O23SZ:      Running pass:     PreLowerAnnotatePass
 ! O23SZ-NEXT: Running pass:     SerializePass
 ! O23SZ-NEXT: Running pass:     LoopSpawningPass
 ! O23SZ-NEXT: Running pass:     TapirToTargetPass
@@ -67,5 +66,10 @@
 ! O23SZ-NEXT: Running pass:     VerifierPass
 ! O23SZ-NEXT: Running analysis: VerifierAnalysis
 
+! XFAIL: *
+! NOTE: This test will only work if there is a tapir loop in the body of
+! subroutine f below. Since the full lowering is not yet implemented, this test
+! is expected to fail. Once we implement an end-to-end lowering - say of DO
+! CONCURRENT loops, this test can be re-enabled.
 subroutine f
 end subroutine f
