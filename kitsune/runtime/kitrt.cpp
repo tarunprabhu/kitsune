@@ -80,7 +80,11 @@ extern "C" void __kitrt_set_verbose_mode(bool enable) {
 
 extern "C" void __kitrt_initialize() {
   (void)__kitrt_get_env_value("KITRT_VERBOSE", _kitrt_verbose_mode);
-  __kitrt_message("kitrt", "verbose mode enabled from environment variable");
+  if (!_kitrt_verbose_mode)
+    (void)__kitrt_get_env_value("KIT_VERBOSE", _kitrt_verbose_mode);
+
+  // This message will only be printed if verbose mode is actually set.
+  __kitrt_message(LABEL, "verbose mode enabled from environment variable");
 }
 
 // Write a message to stderr. \p category is optional. If \p is a format string,
