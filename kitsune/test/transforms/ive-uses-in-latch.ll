@@ -1,8 +1,8 @@
-; The secondary induction variable must have exactly one use in the loop latch.
+; The secondary induction variable must have at most one use in the loop latch.
 ;
 ; RUN: not opt -passes='kit-ive' -S %s 2>&1 | FileCheck %s
 ;
-; CHECK: tapir loop induction variable must have exactly one use in latch
+; CHECK: tapir loop induction variable must have at most one use in latch
 
 define void @f(i64 %n) {
 entry:

@@ -46,6 +46,9 @@ private:
   LoopInfo &li;
 
 private:
+  bool checkIntOrFPInduction(PHINode &iv, Loop &loop);
+  bool checkPtrInduction(PHINode &iv, Loop &loop);
+  bool checkInductionType(PHINode &iv, Loop &loop);
   bool check(Loop &loop);
 
   bool eliminate(PHINode &iv, Value *repl, Loop &loop);
@@ -67,6 +70,8 @@ private:
   bool tryToEliminateIntLShr(PHINode &secIV, Constant *step, Loop &loop);
   bool tryToEliminateIntAShr(PHINode &secIV, Constant *step, Loop &loop);
 
+  bool tryToEliminateIntOrFPIV(PHINode &secIV, Loop &loop);
+  bool tryToEliminatePtrIV(PHINode &secIV, Loop &loop);
   bool tryToEliminate(PHINode &secIV, Loop &loop);
 
 public:
@@ -443,10 +448,8 @@ bool SecondaryIVElimination::tryToEliminateIntAShr(PHINode &secIV,
   return eliminate(secIV, repl, loop);
 }
 
-bool SecondaryIVElimination::tryToEliminate(PHINode &secIV, Loop &loop) {
-  LLVM_DEBUG(dbgs() << "SecIVE:   Found secondary induction '" << getName(secIV)
-                    << "'\n");
-
+bool SecondaryIVElimination::tryToEliminateIntOrFPIV(PHINode &secIV,
+                                                     Loop &loop) {
   // Don't need to check anything here because everything has been validated
   // in check(). The loop is in simplify form, so a preheader and unique latch
   // are guaranteed to exist.
@@ -479,11 +482,54 @@ bool SecondaryIVElimination::tryToEliminate(PHINode &secIV, Loop &loop) {
   case BinaryOperator::FDiv:
     return tryToEliminateFPDiv(secIV, step, loop);
   default:
-    llvm_unreachable("tryToEliminate: BinaryOperator not handled");
+    llvm_unreachable("tryToEliminateIntOrFPIV: BinaryOperator not handled");
   }
 }
 
-bool SecondaryIVElimination::check(Loop &loop) {
+bool SecondaryIVElimination::tryToEliminatePtrIV(PHINode &secIV,
+                                                 Loop &loop) {
+  // Currently, we only support the following case:
+  //
+  //     %obj = load ptr, ptr %p
+  //
+  //   header:
+  //     %secIV = phi ptr [ %obj, %entry ], [ %next.obj, %latch ]
+  //     ...
+  //
+  //   latch:
+  //     %next.obj = load ptr, ptr %p
+  //
+  // The semantics of tapir loops require that all loads from %p in the loop
+  // return the same value, and that value must be the same as the %obj. We can,
+  // therefore, replace all uses of both %secIV and %next.obj with %obj.
+
+  BasicBlock *ph = loop.getLoopPreheader();
+  BasicBlock *latch = loop.getLoopLatch();
+  LoadInst *init = cast<LoadInst>(secIV.getIncomingValueForBlock(ph));
+  LoadInst *next = cast<LoadInst>(secIV.getIncomingValueForBlock(latch));
+
+  secIV.replaceAllUsesWith(init);
+  next->replaceAllUsesWith(init);
+  next->eraseFromParent();
+  secIV.eraseFromParent();
+
+  return true;
+}
+
+bool SecondaryIVElimination::tryToEliminate(PHINode &secIV, Loop &loop) {
+  LLVM_DEBUG(dbgs() << "SecIVE:   Found secondary induction '" << getName(secIV)
+                    << "'\n");
+
+  Type *ivTy = secIV.getType();
+  if (ivTy->isIntegerTy() || ivTy->isFloatingPointTy())
+    return tryToEliminateIntOrFPIV(secIV, loop);
+  else if (ivTy->isPointerTy())
+    return tryToEliminatePtrIV(secIV, loop);
+  else
+    llvm_unreachable("tryToEliminate: type not handled");
+}
+
+bool SecondaryIVElimination::checkIntOrFPInduction(PHINode &iv, Loop &loop) {
   auto isSupportedBinOp = [](unsigned op) -> bool {
     switch (op) {
     case BinaryOperator::Add:
@@ -538,6 +584,98 @@ bool SecondaryIVElimination::check(Loop &loop) {
     return false;
   };
 
+  BasicBlock *latch = loop.getLoopLatch();
+
+  // We currently only support eliminating secondary arithmetic inductions of
+  // the form
+  //
+  //     x = x OP c
+  //
+  // where OP must be a supported binary operator and c must be a compile-time
+  // constant. In principle, c only needs to be a pure function, but there is
+  // no way to reliably determine that at this time. But we probably ought to
+  // support arithmetic expressions as the right-hand side of OP. It is not
+  // clear, though, if that is actually relevant for us.
+  //
+  Value *upd = iv.getIncomingValueForBlock(latch);
+  BinaryOperator *binOp = dyn_cast<BinaryOperator>(upd);
+  if (!binOp)
+    return complain(iv, DiagID::ErrSecIVNotBinOp, *upd);
+  else if (!hasConstantStep(*binOp, iv))
+    return complain(iv, DiagID::ErrSecIVNonConstStep);
+
+  unsigned opcode = binOp->getOpcode();
+  if (!isSupportedBinOp(opcode))
+    return complain(iv, DiagID::ErrSecIVOperator, getBinOpName(opcode));
+
+  // The only uses of the secondary IV in the loop latch must be the increment
+  // that flows back to the loop header. If that is not the case, we may not
+  // be able to safely eliminate the IV.
+  SmallVector<Value *, 1> usesInLatch;
+  for (Use &u : iv.uses())
+    if (isUseInBlock(u, *latch))
+      usesInLatch.push_back(u.getUser());
+
+  if (usesInLatch.size() != 1)
+    return complain(iv, DiagID::ErrTapirLoopIVUsesInLatch);
+  else if (iv.getIncomingValueForBlock(latch) != usesInLatch[0])
+    return complain(iv, DiagID::ErrTapirLoopIVNotUpdatedInLatch);
+
+  return true;
+}
+
+bool SecondaryIVElimination::checkPtrInduction(PHINode &iv, Loop &loop) {
+  // Currently, we only support a limited form of pointer induction. Currently,
+  // we only support the following case:
+  //
+  //     %obj = load ptr, ptr %p
+  //
+  //   header:
+  //     %secIV = phi ptr [ %obj, %entry ], [ %next.obj, %latch ]
+  //     ...
+  //
+  //   latch:
+  //     %next.obj = load ptr, ptr %p
+  //
+  // Here, the value of the ptr pointer induction variable is determined by
+  // loading from the location pointed to by %p. The returned value may be
+  // different if the contents of %p has changed at some point during the
+  // execution of the loop body.
+  //
+  // Since this is a tapir loop, there are guaranteed to be no loop-carried
+  // dependencies. This implies that all loads from %p must return the same
+  // value. In addition, that returned value must be the same as the value
+  // loaded just before the loop was entered, in this case, %obj.
+  //
+  // If, at some iteration i, the value loaded from %p were to be different from
+  // %obj, it implies that the memory location pointed to by %p was modified in
+  // iteration i. Some subsequent iteration j, where j > i, would then depend on
+  // i, since the result of the load from %p in iteration j would depend on
+  // whether j ran before or after i. This violates the semantics of the tapir
+  // loop that allows iterations to be run out of order.
+  //
+  BasicBlock *ph = loop.getLoopPreheader();
+  BasicBlock *latch = loop.getLoopLatch();
+  LoadInst *init = dyn_cast<LoadInst>(iv.getIncomingValueForBlock(ph));
+  LoadInst *next = dyn_cast<LoadInst>(iv.getIncomingValueForBlock(latch));
+  if (!init || !next || init->getPointerOperand() != next->getPointerOperand())
+    return complain(iv, DiagID::ErrSecIVPtr);
+
+  return true;
+}
+
+bool SecondaryIVElimination::checkInductionType(PHINode &iv, Loop &loop) {
+  Type *ivTy = iv.getType();
+  if (ivTy->isIntegerTy() || ivTy->isFloatingPointTy())
+    return checkIntOrFPInduction(iv, loop);
+  else if (ivTy->isPointerTy())
+    return checkPtrInduction(iv, loop);
+  else
+    return complain(iv, DiagID::ErrSecIVType, *ivTy);
+}
+
+bool SecondaryIVElimination::check(Loop &loop) {
+
   // We have to ensure that there are no non-phi instructions in the header.
   // This is strictly enforced for tapir loops just loop-spawning, but we have
   // to do so here as well. The code to compute the secondary IV from the
@@ -567,58 +705,15 @@ bool SecondaryIVElimination::check(Loop &loop) {
   if (!loop.isLoopSimplifyForm())
     return complain(loop, DiagID::ErrLoopNotSimplifyForm);
 
-  BasicBlock *latch = loop.getLoopLatch();
-
   for (PHINode &iv : loop.getHeader()->phis()) {
     if (&iv == primIV)
       continue;
 
-    // We only support eliminating certain forms of secondary inductions. If the
-    // type is one that we do not support, don't bother checking anything else,
-    // just bail.
-    //
-    // NOTE: In principle, pointer inductions in parallel loops can be handled,
-    // and it might actually be interesting to do so. But we don't support that
-    // at this time.
-    Type *ivTy = iv.getType();
-    if (!ivTy->isIntegerTy() && !ivTy->isFloatingPointTy())
-      return complain(iv, DiagID::ErrSecondaryIVType, *ivTy);
+    if (!checkInductionType(iv, loop))
+      return false;
 
     if (isUsedOutsideLoop(iv, loop, li))
       return complain(iv, DiagID::ErrTapirLoopIVUsedOutsideLoop);
-
-    // We currently only support eliminating secondary inductions of the form
-    //
-    //     x = x OP c
-    //
-    // where OP must be a supported binary operator and c must be a compile-time
-    // constant. In principle, c only needs to be a pure function, but there is
-    // no way to reliably determine that at this time. But we probably ought to
-    // support arithmetic expressions as the right-hand side of OP. It is not
-    // clear, though, if that is actually relevant for us.
-    Value *upd = iv.getIncomingValueForBlock(latch);
-    BinaryOperator *binOp = dyn_cast<BinaryOperator>(upd);
-    if (!binOp)
-      return complain(iv, DiagID::ErrSecondaryIVNotBinOp, *upd);
-    else if (!hasConstantStep(*binOp, iv))
-      return complain(iv, DiagID::ErrSecondaryIVNonConstStep);
-
-    unsigned opcode = binOp->getOpcode();
-    if (!isSupportedBinOp(opcode))
-      return complain(iv, DiagID::ErrSecondaryIVOperator, getBinOpName(opcode));
-
-    // The only uses of the secondary IV in the loop latch must be the increment
-    // that flows back to the loop header. If that is not the case, we may not
-    // be able to safely eliminate the IV.
-    SmallVector<Value *, 1> usesInLatch;
-    for (Use &u : iv.uses())
-      if (isUseInBlock(u, *latch))
-        usesInLatch.push_back(u.getUser());
-
-    if (usesInLatch.size() != 1)
-      return complain(iv, DiagID::ErrTapirLoopIVUsesInLatch);
-    else if (iv.getIncomingValueForBlock(latch) != usesInLatch[0])
-      return complain(iv, DiagID::ErrTapirLoopIVNotUpdatedInLatch);
   }
 
   return true;
