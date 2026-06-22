@@ -1772,13 +1772,13 @@ PreservedAnalyses PrepareReductionLoopsPass::run(Function &f,
     // order. This is roughly what we want because it *might* reduce the chances
     // of making a mess of the analysis objects.
     Loop &loop = *wl.pop_back_val();
-    LLVM_DEBUG(dbgs() << "PrepareReduction: Found loop '" << getName(loop)
-                      << "'\n");
-
     bool shouldTransform = isTapirLoop(loop) && hasReductionAttr(loop) &&
                            !hasReductionPreparedAttr(loop);
-    if (shouldTransform)
+    if (shouldTransform) {
+      LLVM_DEBUG(dbgs() << "PrepareReduction: Found reduction loop '"
+                        << getName(loop) << "'\n");
       changed |= prepare(loop, dt, li, mssa, ore, se, ti);
+    }
   }
 
   if (!changed)
