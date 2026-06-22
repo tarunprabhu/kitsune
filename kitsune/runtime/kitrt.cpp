@@ -85,7 +85,7 @@ extern "C" void __kitrt_initialize() {
 
 // Write a message to stderr. \p category is optional. If \p is a format string,
 // the variable list of arguments \p args must be of the appropriate types.
-static void __kitrt_log(const char *label, const char *category,
+static void __kitrt_log(const char *label, const char *category, bool newline,
                         const char *msg, va_list args) {
   static std::mutex mtx;
   std::lock_guard<std::mutex> guard(mtx);
@@ -96,20 +96,21 @@ static void __kitrt_log(const char *label, const char *category,
   if (category)
     fprintf(stderr, "%s: ", category);
   vfprintf(stderr, msg, args);
-  fprintf(stderr, "\n");
+  if (newline)
+    fprintf(stderr, "\n");
 }
 
-static void __kitrt_log(const char *label, const char *msg, ...) {
+static void __kitrt_log(const char *label, bool newline, const char *msg, ...) {
   va_list args;
   va_start(args, msg);
-  __kitrt_log(label, nullptr, msg, args);
+  __kitrt_log(label, nullptr, newline, msg, args);
   va_end(args);
 }
 
 [[noreturn]] void __kitrt_fatal(const char *label, const char *msg, ...) {
   va_list args;
   va_start(args, msg);
-  __kitrt_log(label, "ERROR", msg, args);
+  __kitrt_log(label, "ERROR", true, msg, args);
   va_end(args);
 
   std::exit(EXIT_FAILURE);
@@ -118,14 +119,14 @@ static void __kitrt_log(const char *label, const char *msg, ...) {
 void __kitrt_error(const char *label, const char *msg, ...) {
   va_list args;
   va_start(args, msg);
-  __kitrt_log(label, "ERROR", msg, args);
+  __kitrt_log(label, "ERROR", true, msg, args);
   va_end(args);
 }
 
 void __kitrt_warn(const char *label, const char *msg, ...) {
   va_list args;
   va_start(args, msg);
-  __kitrt_log(label, "WARNING", msg, args);
+  __kitrt_log(label, "WARNING", true, msg, args);
   va_end(args);
 }
 
@@ -133,7 +134,16 @@ void __kitrt_message(const char *label, const char *msg, ...) {
   if (__kitrt_verbose_mode()) {
     va_list args;
     va_start(args, msg);
-    __kitrt_log(label, nullptr, msg, args);
+    __kitrt_log(label, nullptr, true, msg, args);
+    va_end(args);
+  }
+}
+
+void __kitrt_message_noflush(const char *label, const char *msg, ...) {
+  if (__kitrt_verbose_mode()) {
+    va_list args;
+    va_start(args, msg);
+    __kitrt_log(label, nullptr, false, msg, args);
     va_end(args);
   }
 }
@@ -143,10 +153,10 @@ extern "C" void __kitrt_print_stack_trace(void) {
   void *trace[depth];
   int size = backtrace(trace, depth);
   if (char **strings = backtrace_symbols(trace, size)) {
-    __kitrt_log("kitrt", "stack trace (%d frames)", size);
+    __kitrt_log("kitrt", true, "stack trace (%d frames)", size);
     for (int i = 0; i < size; i++)
-      __kitrt_log("kitrt", "  %s", strings[i]);
-    __kitrt_log("kitrt", "end stack trace");
+      __kitrt_log("kitrt", true, "  %s", strings[i]);
+    __kitrt_log("kitrt", true, "end stack trace");
     free(strings);
   }
 }

@@ -144,6 +144,14 @@ void __kitrt_warn(const char *label, const char *msg, ...);
 void __kitrt_message(const char *label, const char *msg, ...);
 
 /**
+ * Print an error message to stderr if verbose mode has been enabled. \p msg may
+ * be a printf-compatible format string. In that case, any optional arguments
+ * must be of the appropriate types. This doe not add a trailing newline after
+ * printing the message.
+ */
+void __kitrt_message_noflush(const char *label, const char *msg, ...);
+
+/**
  * Get the nearest power of 2 that is less than or equal to \p n.
  */
 unsigned nearestPowerOf2LE(unsigned n);
