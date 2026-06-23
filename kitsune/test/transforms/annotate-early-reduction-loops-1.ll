@@ -45,7 +45,7 @@ for.i.exit:
   ret void
 }
 
-; The tapir loop calls @llvm.kit.accumulate. It should be annotated.
+; The tapir loop calls @llvm.kit.reduce. It should be annotated.
 ;
 ; CHECK-LABEL: @acc
 ; CHECK: !llvm.loop ![[ACC_J:[0-9]+]]
