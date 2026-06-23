@@ -1,5 +1,5 @@
 /*
- * ===- kithip.cpp - Kitsune runtime HIP support    ---------------------===//
+ * ===- kithip.cpp - Kitsune runtime HIP support --------------------------===//
  *
  * Copyright (c) 2021, 2023 Los Alamos National Security, LLC.
  * All rights reserved.
@@ -48,7 +48,7 @@
  *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  *  POSSIBILITY OF SUCH DAMAGE.
  *
- *===----------------------------------------------------------------------===
+ *===----------------------------------------------------------------------===//
  */
 
 // TODO: Add support for roctracer (see https://github.com/ROCm/roctracer)
@@ -75,6 +75,8 @@
 namespace kithip_rt {
 kithip_rt_info_t rt_info;
 }
+
+#define LABEL "kithip"
 
 #ifdef KITHIP_ENABLE_ROCTX
 #error "rocTX is not yet supported."
@@ -122,17 +124,18 @@ bool __kithip_is_initialized() {
 }
 
 bool __kithip_initialize() {
-
   using namespace kithip_rt;
+
+  // Initialize the components of kitsune's runtime that are shared by the
+  // tapir-target-specific components.
+  __kitrt_initialize();
+  __kitrt_message(LABEL, "Initializing Kitsune runtime (hip)");
 
   if (isInitialized()) {
     fprintf(stderr,
             "kitrt[hip]: warning, mutliple initialization attempts...\n");
     return true;
   }
-
-  // initialize common runtime data structures and settings.
-  __kitrt_initialize();
 
   // AMD's documentation suggests that there is no need to explicilty
   // call hipInit() as all API entry points will initialize when
@@ -177,6 +180,8 @@ bool __kithip_initialize() {
 
   // We should be good to go...
   setInitialized(true);
+  __kitrt_message(LABEL, "Initialized Kitsune runtime (hip)");
+
   return isInitialized();
 }
 
@@ -184,10 +189,19 @@ void __kithip_destroy() {
   using namespace kithip_rt;
   if (not isInitialized())
     return;
+
+  __kitrt_message(LABEL, "Finalizing Kitsune runtime (hip)");
+
   __kithip_destroy_thread_streams();
   __kitrt_destroy_memory_map(__kithip_mem_destroy);
   HIP_SAFE_CALL(hipDeviceReset());
   setInitialized(false);
+
+  __kitrt_message(LABEL, "Finalized Kitsune runtime (hip)");
+
+  // Finalize the components of Kitsune's runtime that are shared by the
+  // tapir-target-specific components.
+  __kitrt_finalize();
 }
 
 /// The number of partial reductions to perform in parallel.

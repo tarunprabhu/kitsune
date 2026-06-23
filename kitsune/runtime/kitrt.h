@@ -70,6 +70,13 @@ extern "C" {
 void __kitrt_initialize();
 
 /**
+ * Finalize Kitsune's runtime. This is typically called from the global
+ * destructors for individual runtimes such as kitcuda, or kitomp. This can be
+ * safely called multiple times.
+ */
+void __kitrt_finalize();
+
+/**
  * Set the runtime system to operate in verbose mode.
  */
 void __kitrt_enable_verbose_mode();

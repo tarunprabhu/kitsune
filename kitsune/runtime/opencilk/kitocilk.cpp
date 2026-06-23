@@ -69,9 +69,7 @@ extern "C" void __cilkrts_internal_set_nworkers(unsigned nworkers);
 /// Get the number of parallel workers that are available. Generally, this
 /// function should be used when this must be queried instead of calling
 /// `qthread_num_workers()`.
-static unsigned __kitocilk_num_threads() {
-  return __cilkrts_get_nworkers();
-}
+static unsigned __kitocilk_num_threads() { return __cilkrts_get_nworkers(); }
 
 /// The number of partial reductions to perform in parallel.
 ///
@@ -94,7 +92,7 @@ extern "C" void __kitocilk_initialize(void) {
   // Initialize the components of kitsune's runtime that are shared by the
   // tapir-target-specific components.
   __kitrt_initialize();
-  __kitrt_message(LABEL, "Initializing Kitsune opencilk runtime");
+  __kitrt_message(LABEL, "Initializing Kitsune runtime (opencilk)");
 
   if (unsigned numThreads = __kitrt_num_threads_from_env()) {
     // Both of the lines below are required. __cilkrts_nproc is returned by
@@ -115,14 +113,18 @@ extern "C" void __kitocilk_initialize(void) {
   // The OpenCilk runtime does not have to be initialized.
 
   __kitrt_message(LABEL, "Number of workers = %d", __kitocilk_num_threads());
-  __kitrt_message(LABEL, "Initialized Kitsune opencilk runtime");
+  __kitrt_message(LABEL, "Initialized Kitsune runtime (opencilk)");
 }
 
 /// Finalize kitsune's OpenCilk runtime.
 extern "C" void __kitocilk_finalize(void) {
-  __kitrt_message(LABEL, "Finalizing Kitsune opencilk runtime");
+  __kitrt_message(LABEL, "Finalizing Kitsune runtime (opencilk)");
 
   // The OpenCilk runtime does not have to be finalized.
 
-  __kitrt_message(LABEL, "Finalized Kitsune opencilk runtime");
+  __kitrt_message(LABEL, "Finalized Kitsune runtime (opencilk)");
+
+  // Finalize the components of Kitsune's runtime that are shared by the
+  // tapir-target-specific components.
+  __kitrt_finalize();
 }

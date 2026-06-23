@@ -92,21 +92,23 @@ const int KIT_NVTX_MEM = 1;
 const int KIT_NVTX_STREAM = 2;
 const int KIT_NVTX_LAUNCH = 3;
 const int KIT_NVTX_CLEANUP = 4;
+#endif // KITCUDA_ENABLE_NVTX
 
-#endif
+#define LABEL "kitcuda"
 
 extern "C" {
 
 bool __kitcuda_initialize() {
+  // Initialize the shared components of the higher-level runtime.
+  __kitrt_initialize();
+  __kitrt_message(LABEL, "Initializing Kitsune runtime (cuda)");
+
   KIT_NVTX_PUSH("kitcuda: initialize", KIT_NVTX_INIT);
   if (_kitcuda_initialized) {
     if (__kitrt_verbose_mode())
       fprintf(stderr, "kitcuda: warning, multiple initialization calls!\n");
     return true;
   }
-
-  // Initialize the shared components of the higher-level runtime.
-  __kitrt_initialize();
 
   if (not __kitcuda_load_symbols()) {
     // TODO: This error block is repetative in the runtime...  Probably best
@@ -218,12 +220,17 @@ bool __kitcuda_initialize() {
     __kitcuda_enable_launch_refinement(false);
 
   KIT_NVTX_POP();
+
+  __kitrt_message(LABEL, "Initialized Kitsune runtime (cuda)");
+
   return _kitcuda_initialized;
 }
 
 void __kitcuda_destroy() {
   if (not _kitcuda_initialized)
     return;
+
+  __kitrt_message(LABEL, "Finalizing Kitsune runtime (cuda)");
 
   KIT_NVTX_PUSH("kitcuda:destroy", KIT_NVTX_CLEANUP);
   __kitcuda_destroy_thread_streams();
@@ -232,6 +239,12 @@ void __kitcuda_destroy() {
   CU_SAFE_CALL(cuDevicePrimaryCtxReset_v2_p(_kitcuda_device));
   _kitcuda_initialized = false;
   KIT_NVTX_POP();
+
+  __kitrt_message(LABEL, "Finalized Kitsune runtime (cuda)");
+
+  // Finalize the components of Kitsune's runtime that are shared by the
+  // tapir-target-specific components.
+  __kitrt_finalize();
 }
 
 /// The number of partial reductions to perform in parallel.

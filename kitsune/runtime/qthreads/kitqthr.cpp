@@ -198,7 +198,7 @@ extern "C" void __kitqthr_initialize(void) {
   // Initialize the components of kitsune's runtime that are shared by the
   // tapir-target-specific components.
   __kitrt_initialize();
-  __kitrt_message(LABEL, "Initializing Kitsune qthreads runtime");
+  __kitrt_message(LABEL, "Initializing Kitsune runtime (qthreads)");
 
   if (__kitrt_num_threads_from_env()) {
     // It seems that, by default, one shepherd is used, so if we are setting
@@ -218,16 +218,20 @@ extern "C" void __kitqthr_initialize(void) {
   __kitrt_message(LABEL, "Number of shepherds = %d", qthread_num_shepherds());
   __kitrt_message(LABEL, "Number of workers = %d", qthread_num_workers());
 
-  __kitrt_message(LABEL, "Initialized Kitsune qthreads runtime");
+  __kitrt_message(LABEL, "Initialized Kitsune runtime (qthreads)");
 }
 
 /// Finalize kitsune's qthreads runtime, as well as qthreads runtime.
 extern "C" void __kitqthr_finalize(void) {
-  __kitrt_message(LABEL, "Finalizing Kitsune qthreads runtime");
+  __kitrt_message(LABEL, "Finalizing Kitsune runtime (qthreads)");
 
   __kitrt_message(LABEL, "Finalizing Qthreads runtime");
   qthread_finalize();
   __kitrt_message(LABEL, "Finalized Qthreads runtime");
 
-  __kitrt_message(LABEL, "Finalized Kitsune qthreads runtime");
+  __kitrt_message(LABEL, "Finalized Kitsune runtime (qthreads)");
+
+  // Finalize the components of Kitsune's runtime that are shared by the
+  // tapir-target-specific components.
+  __kitrt_finalize();
 }
