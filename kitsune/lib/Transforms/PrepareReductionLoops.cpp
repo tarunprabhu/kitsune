@@ -1547,7 +1547,8 @@ static bool complain(const Loop &loop, DiagID diag, Args &&...args) {
 // relaxed in the future. Returns false if any of the preconditions are not
 // satisfied.
 static bool check(TapirLoopInfo &tapirLoop, DominatorTree &dt, LoopInfo &li,
-                  PredicatedScalarEvolution &pse) {
+                  PredicatedScalarEvolution &pse,
+                  OptimizationRemarkEmitter &ore) {
   auto anyPredecessorDoesNotReattach = [](const BasicBlock &latch) -> bool {
     return llvm::any_of(predecessors(&latch), [](const BasicBlock *bb) {
       return isa<ReattachInst>(bb->getTerminator());
@@ -1618,7 +1619,10 @@ static bool check(TapirLoopInfo &tapirLoop, DominatorTree &dt, LoopInfo &li,
     return complain(loop, DiagID::ErrTapirLoopBlockTerminator, "latch",
                     "conditional branch");
 
-  if (!tapirLoop.getTripCount())
+  // We will have attempted to compute the trip count already. But we cannot
+  // just call tapirLoop.getTripCount() here because that will result in an
+  // assertion failure if a trip count was not already computed.
+  if (!tapirLoop.getOrCreateTripCount(pse, DEBUG_TYPE, &ore))
     return complain(loop, DiagID::ErrTapirLoopNoFiniteTripCount);
 
   // Only loops with a computable trip count can be transformed. The trip count
@@ -1742,7 +1746,7 @@ static bool prepare(Loop &loop, DominatorTree &dt, LoopInfo &li,
   // can be performed. Given this objective, it makes more sense to fail if a
   // transformation could not be performed, rather than produce working, albeit
   // slow, code.
-  if (!check(tapirLoop, dt, li, pse))
+  if (!check(tapirLoop, dt, li, pse, ore))
     exitOnError();
 
   TTID tt = *getTargetAttr(loop);

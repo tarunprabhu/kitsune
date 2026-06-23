@@ -1,19 +1,8 @@
 ; Tapir reduction loops must have a computable finite trip count.
 ;
-; NOTE: In assert builds, an assertion failure will occur. We don't bother
-; checking for the specific message since that is not important. For non-assert
-; builds, we check for the actual error since that is what a user will see.
+; RUN: not opt -passes='kit-reductions' -S %s 2>&1 | FileCheck %s
 ;
-; RUN: %if asserts %{ \
-; RUN:   not --crash opt -passes='kit-reductions' -S %s 2>&1 \
-; RUN:       | FileCheck %s --check-prefix ASSERT \
-; RUN: %} %else %{ \
-; RUN:   not opt -passes='kit-reductions' -S %s 2>&1 \
-; RUN:       | FileCheck %s --check-prefix ERRORs \
-; RUN: %}
-;
-; ASSERT: Assertion {{.+}} failed
-; ERROR: tapir reduction loop header has its address taken
+; CHECK: tapir loop trip count is not finite
 
 declare void @sum(ptr %res, i64 %v)
 
