@@ -64,8 +64,11 @@
 
 #define LABEL "kitrt"
 
-// FIXME: Combine these global variables into a single struct. This should
-// also be private. However, we expose it because it is examined often by
+// FIXME: Combine all global variables here into a single struct.
+static bool __kitrt_initialized = false;
+static bool __kitrt_finalized = false;
+
+// This should be private. However, we expose it because it is examined often by
 // most runtimes to determine whether to print informational messages. Wrapping
 // it in a function may be expensive.
 bool _kitrt_verbose_mode = false;
@@ -79,12 +82,37 @@ extern "C" void __kitrt_set_verbose_mode(bool enable) {
 }
 
 extern "C" void __kitrt_initialize() {
+  if (__kitrt_initialized)
+    return;
+
   (void)__kitrt_get_env_value("KITRT_VERBOSE", _kitrt_verbose_mode);
   if (!_kitrt_verbose_mode)
     (void)__kitrt_get_env_value("KIT_VERBOSE", _kitrt_verbose_mode);
 
+  // This really ought to be the first thing in this function, but if we move
+  // it before the KIT_VERBOSE environment variable is read, it may not be
+  // printed. It may be confusing for users if they see the
+  // "initializing ... initialized" pattern everywhere, except for the common
+  // initialization.
+  __kitrt_message(LABEL, "Initializing Kitsune runtime (common)");
+
   // This message will only be printed if verbose mode is actually set.
-  __kitrt_message(LABEL, "verbose mode enabled from environment variable");
+  __kitrt_message(LABEL, "Verbose mode enabled");
+
+  __kitrt_initialized = true;
+  __kitrt_message(LABEL, "Initialized Kitsune runtime (common)");
+}
+
+extern "C" void __kitrt_finalize() {
+  if (__kitrt_finalized)
+    return;
+
+  __kitrt_message(LABEL, "Finalizing Kitsune runtime (common)");
+
+  // Nothing to be done at this time.
+
+  __kitrt_finalized = true;
+  __kitrt_message(LABEL, "Finalized Kitsune runtime (common)");
 }
 
 // Write a message to stderr. \p category is optional. If \p is a format string,

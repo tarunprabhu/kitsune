@@ -308,7 +308,7 @@ extern "C" void __kitpthr_initialize(void) {
   // Initialize the components of kitsune's runtime that are shared by the
   // tapir-target-specific components.
   __kitrt_initialize();
-  __kitrt_message(LABEL, "Initializing Kitsune pthreads runtime");
+  __kitrt_message(LABEL, "Initializing Kitsune runtime (pthreads)");
 
   // pthreads does not need to be initialized.
   if (unsigned numThreads = __kitrt_num_threads_from_env())
@@ -320,16 +320,20 @@ extern "C" void __kitpthr_initialize(void) {
 
   __kitrt_message(LABEL, "Number of threads = %d", __kitpthr_num_threads());
 
-  __kitrt_message(LABEL, "Initialized Kitsune pthreads runtime");
+  __kitrt_message(LABEL, "Initialized Kitsune runtime (pthreads)");
 }
 
 /// Finalize kitsune's pthreads runtime. This is only present for symmetry with
 /// \ref __kitpthr_initialize. Since the runtime does not maintain any global
 /// state of its own, this does nothing.
 extern "C" void __kitpthr_finalize(void) {
-  __kitrt_message(LABEL, "Finalizing Kitsune pthreads runtime");
+  __kitrt_message(LABEL, "Finalizing Kitsune runtime (pthreads)");
 
   // pthreads does not need to be finalized.
 
-  __kitrt_message(LABEL, "Finalized Kitsune pthreads runtime");
+  __kitrt_message(LABEL, "Finalized Kitsune runtime (pthreads)");
+
+  // Finalize the components of Kitsune's runtime that are shared by the
+  // tapir-target-specific components.
+  __kitrt_finalize();
 }
