@@ -22,7 +22,7 @@
 using namespace llvm;
 
 static bool isReductionLoop(const Loop &loop) {
-  for (const BasicBlock *bb : getBlocksNotInSubLoops(loop))
+  for (const BasicBlock *bb : loop.getBlocks())
     for (const Instruction &inst : *bb)
       if (const auto *call = dyn_cast<CallBase>(&inst))
         if (call->getIntrinsicID() == Intrinsic::kit_reduce_0)
