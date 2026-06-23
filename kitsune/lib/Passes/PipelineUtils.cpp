@@ -38,6 +38,7 @@
 #include "llvm/Transforms/Scalar/DeadStoreElimination.h"
 #include "llvm/Transforms/Scalar/EarlyCSE.h"
 #include "llvm/Transforms/Scalar/IndVarSimplify.h"
+#include "llvm/Transforms/Scalar/LICM.h"
 #include "llvm/Transforms/Scalar/LoopRotation.h"
 #include "llvm/Transforms/Scalar/SCCP.h"
 #include "llvm/Transforms/Scalar/SimplifyCFG.h"
@@ -102,12 +103,13 @@ static void addFunctionPass(ModulePassManager &mpm, Args &&...args) {
 }
 
 template <typename Pass, typename... Args>
-static void addLoopPass(ModulePassManager &mpm, Args &&...args) {
+static void addLoopPass(ModulePassManager &mpm, bool useMemorySSA,
+                        Args &&...args) {
   LoopPassManager lpm;
   FunctionPassManager fpm;
 
   lpm.addPass(Pass(args...));
-  fpm.addPass(createFunctionToLoopPassAdaptor(std::move(lpm)));
+  fpm.addPass(createFunctionToLoopPassAdaptor(std::move(lpm), useMemorySSA));
   mpm.addPass(createModuleToFunctionPassAdaptor(std::move(fpm)));
 }
 
@@ -127,7 +129,8 @@ llvm::populateKitPreTapirPasses(PassBuilder &pb, OptimizationLevel optLevel,
   return mpm;
 }
 
-static void populateSimplifyPasses(ModulePassManager &mpm) {
+static void populateSimplifyPasses(ModulePassManager &mpm,
+                                   const PipelineTuningOptions &pto) {
   // the kit-reductions pass may not leave the IR in as clean a state as we
   // would like. All these passes are probably overkill, but we definitely
   // need at least indvars and simplifycfg.
@@ -138,7 +141,10 @@ static void populateSimplifyPasses(ModulePassManager &mpm) {
   // approach, so it is not clear how many of these are actually needed.
   //
   addFunctionPass<EarlyCSEPass>(mpm, /*UseMemorySSA=*/true);
-  addLoopPass<IndVarSimplifyPass>(mpm);
+  addLoopPass<IndVarSimplifyPass>(mpm, /*UseMemorySSA=*/false);
+  addLoopPass<LICMPass>(mpm, /*UseMemorySSA=*/true, pto.LicmMssaOptCap,
+                        pto.LicmMssaNoAccForPromotionCap,
+                        /*AllowSpeculation=*/true);
   addFunctionPass<SimplifyCFGPass>(mpm);
   addFunctionPass<InstCombinePass>(mpm);
   addFunctionPass<SCCPPass>(mpm);
@@ -157,12 +163,15 @@ ModulePassManager llvm::populateKitPreLoopSpawningPasses(
   // point in running the other Kitsune-specific passes.
   if (optLevel.getSpeedupLevel() > 0) {
     addFunctionPass<LoopSimplifyPass>(mpm);
-    addLoopPass<LoopRotatePass>(mpm);
-    addLoopPass<PreLowerPreparePass>(mpm);
-    addLoopPass<SecondaryIVEliminationPass>(mpm);
+    addLoopPass<LoopRotatePass>(mpm, /*UseMemorySSA=*/false);
+    addLoopPass<PreLowerPreparePass>(mpm, /*UseMemorySSA=*/false);
+    addLoopPass<SecondaryIVEliminationPass>(mpm, /*UseMemorySSA=*/false);
 
-    // SecondaryIVElimination will preserve the loop-simplify and loop-rotate
-    // nature of the loop. It is not clear why we need to recompute LCSSA.
+    // The elimination of secondary pointer inductions may have created the
+    // potential for LICM and other optimizations.
+    populateSimplifyPasses(mpm, pto);
+
+    addFunctionPass<LoopSimplifyPass>(mpm);
     addFunctionPass<LCSSAPass>(mpm);
     addFunctionPass<PrepareReductionLoopsPass>(mpm);
     addFunctionPass<LowerKitReduceIntrinsicsPass>(mpm);
@@ -173,7 +182,7 @@ ModulePassManager llvm::populateKitPreLoopSpawningPasses(
 
     // After preparing the loop for parallel reductions, we run the module
     // inliner. Between those two passes, the IR should be cleaned up.
-    populateSimplifyPasses(mpm);
+    populateSimplifyPasses(mpm, pto);
 
     // It is not clear if we really need to run loop-simplify here, but DeLICM
     // requires it, so we might as well.
