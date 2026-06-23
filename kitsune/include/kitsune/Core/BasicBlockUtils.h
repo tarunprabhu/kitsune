@@ -46,15 +46,15 @@ bool isDisconnected(const BasicBlock &bb);
 /// have any successors. See also \ref isDisconnected
 bool isOrphaned(const BasicBlock &bb);
 
-/// Return true if BOTH the following conditions hold:
+/// Return true if the basic block \p bb is a dead-end. \p bb is a dead-end if
+/// either of the following is true:
 ///
-///   - The basic block \p bb contains exactly one instruction
-///   - That instruction is an UnreachableInst
+///   - The terminator of \p bb is an UnreachableInst.
 ///
-/// NOTE: Despite what the name suggests, this DOES NOT have anything to do
-/// with reachability. The predecessors of this basic block are not examined.
-/// See also \ref isDisconnected and \ref isOrphaned.
-bool isUnreachable(const BasicBlock &bb);
+///   - The terminator of \p bb is an unconditional branch, and the sole
+///     successor of \p bb is a dead-end.
+///
+bool isDeadEnd(const BasicBlock &bb);
 
 /// @}
 
