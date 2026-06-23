@@ -96,6 +96,11 @@ BasicBlock *getUniqueBackEdge(const Loop &loop);
 /// the `tapir.loop.target` attribute.
 bool isTapirLoop(const Loop &loop);
 
+/// Return true if any of the ancestors of a loop are tapir loops. The given
+/// loop is not required to be a tapir loop. If the given loop is a top-level
+/// loop, return false.
+bool isAnyAncestorTapirLoop(const Loop &loop);
+
 /// Returns true if the loop is a tapir loop and ANY of the following conditions
 /// hold:
 ///
@@ -122,6 +127,11 @@ bool isTapirLoopForGPU(const Loop &loop);
 /// returns true for the loop. See the documentation for isTapirLoopForGPU for
 /// more details.
 bool isTopLevelTapirLoopForGPU(const Loop &loop);
+
+/// Get the nearest tapir loop that is an ancestor of \p loop. \p loop need not
+/// be a tapir loop. The returned value is guaranteed to be distinct from
+/// \p loop. Return nullptr if no such loop was found.
+const Loop *getNearestAncestorTapirLoop(const Loop &loop);
 
 /// Get the roots of all tapir loop nests in a function.
 SmallVector<Loop *, 4> getTopLevelTapirLoops(LoopInfo &li);

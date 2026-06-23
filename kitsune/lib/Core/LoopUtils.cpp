@@ -149,17 +149,8 @@ BasicBlock *llvm::getUniqueBackEdge(const Loop &loop) {
 
 bool llvm::isTapirLoop(const Loop &loop) { return hasTargetAttr(loop); }
 
-// Return true if any of the ancestors of a loop are tapir loops. The given
-// loop is not required to be a tapir loop. If the given loop is a top-level
-// loop, return false.
-static bool isAnyAncestorTapirLoop(const Loop &loop) {
-  Loop *parentLoop = loop.getParentLoop();
-  if (!parentLoop)
-    return false;
-  else if (isTapirLoop(*parentLoop))
-    return true;
-  else
-    return isAnyAncestorTapirLoop(*parentLoop);
+bool llvm::isAnyAncestorTapirLoop(const Loop &loop) {
+  return getNearestAncestorTapirLoop(loop);
 }
 
 bool llvm::isTopLevelTapirLoop(const Loop &loop) {
@@ -184,6 +175,16 @@ bool llvm::isTapirLoopForGPU(const Loop &loop) {
 
 bool llvm::isTopLevelTapirLoopForGPU(const Loop &loop) {
   return isTopLevelTapirLoop(loop) && isTapirLoopForGPU(loop);
+}
+
+const Loop* llvm::getNearestAncestorTapirLoop(const Loop &loop) {
+  Loop *parentLoop = loop.getParentLoop();
+  if (!parentLoop)
+    return nullptr;
+  else if (isTapirLoop(*parentLoop))
+    return parentLoop;
+  else
+    return getNearestAncestorTapirLoop(*parentLoop);
 }
 
 SmallVector<Loop *, 4> llvm::getTopLevelTapirLoops(LoopInfo &li) {
