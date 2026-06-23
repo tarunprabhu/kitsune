@@ -43,7 +43,8 @@
 ! RUN:     -Xflang -fdebug-pass-manager 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix O123S
 !
-! The EarlyAnnotatePass runs early in the pass pipeline.
+! The Early* passes run early in the pass pipeline.
+! O123S:      Running pass:     EarlyVerificationPass
 ! O123S:      Running pass:     EarlyAnnotatePass
 !
 ! <KIT-PRE-TAPIR>

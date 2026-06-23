@@ -193,6 +193,7 @@ MODULE_PASS("kit-ctors", GenerateCtorsPass())
 MODULE_PASS("kit-kernel-properties", RecomputeKernelPropertiesPass())
 MODULE_PASS("kit-prefetch", PrefetchForDevicePass())
 MODULE_PASS("kit-strip-addrspaces", StripKitAddrSpacesPass())
+MODULE_PASS("kit-verify-early", EarlyVerificationPass(/*exitIfError=*/true))
 MODULE_PASS("kit-verify-prelower",
             PreLowerVerificationPass(/*exitIfError=*/true))
 

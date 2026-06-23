@@ -34,6 +34,7 @@
 ;
 ; -----------------------------------------------------------------------------
 ;
+; O23S-NOT:   Running pass:      EarlyVerificationPass
 ; O23S-NOT:   Running pass:      EarlyAnnotatePass
 ;
 ; O23S:       Running pass:      PreLowerPreparePass

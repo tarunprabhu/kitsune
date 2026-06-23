@@ -15,6 +15,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Passes/PipelineUtils.h"
+#include "kitsune/Analysis/EarlyVerification.h"
 #include "kitsune/Transforms/EarlyAnnotate.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AliasAnalysis.h"
@@ -1193,6 +1194,12 @@ PassBuilder::buildModuleSimplificationPipeline(OptimizationLevel Level,
     MPM.addPass(createModuleToFunctionPassAdaptor(
         std::move(EarlyFPM), PTO.EagerlyInvalidateAnalyses));
   }
+
+  // This is the earliest that we can run Kitsune-specific verification passes
+  // because we need some of the function simplification passes to have run
+  // first.
+  if (runKitNonLoweringPasses(Phase, PTO))
+    MPM.addPass(EarlyVerificationPass());
 
   if (LoadSampleProfile) {
     // Annotate sample profile right after early FPM to ensure freshness of
