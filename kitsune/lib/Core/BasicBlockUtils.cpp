@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/BasicBlockUtils.h"
+#include "kitsune/Core/InstUtils.h"
 #include "kitsune/Core/ValueUtils.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/CFG.h"
@@ -47,6 +48,12 @@ bool llvm::isDisconnected(const BasicBlock &bb) {
 
 bool llvm::isOrphaned(const BasicBlock &bb) { return pred_size(&bb) == 0; }
 
-bool llvm::isUnreachable(const BasicBlock &bb) {
-  return bb.size() == 1 && isa<UnreachableInst>(bb.front());
+bool llvm::isDeadEnd(const BasicBlock &bb) {
+  if (const Instruction *term = bb.getTerminator()) {
+    if (isa<UnreachableInst>(term))
+      return true;
+    else if (isUncondBr(*term))
+      return isDeadEnd(**succ_begin(&bb));
+  }
+  return false;
 }

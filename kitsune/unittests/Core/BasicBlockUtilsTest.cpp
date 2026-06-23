@@ -105,37 +105,48 @@ TEST(KitBasicBlockUtils, isOrphaned) {
   EXPECT_FALSE(isOrphaned(*bbNoSuccs));
 }
 
-TEST(KitBasicBlockUtils, isUnreachable) {
+TEST(KitBasicBlockUtils, isDeadEnd) {
   LLVMContext ctx;
-  Type *i32 = Type::getInt32Ty(ctx);
 
-  BasicBlock *bbEmpty = BasicBlock::Create(ctx);
-
-  Constant *c0 = ConstantInt::get(i32, 0);
-  Constant *c1 = ConstantInt::get(i32, 1);
-
-  // Empty basic blocks cannot be unreachable.
-  EXPECT_FALSE(isUnreachable(*bbEmpty));
-
-  // Basic block has a single instruction, but does not contain an unreachable
-  // instruction.
-  BasicBlock *bbBranches = BasicBlock::Create(ctx);
-  BranchInst::Create(bbEmpty, bbBranches);
-  EXPECT_FALSE(isUnreachable(*bbBranches));
-
-  // Basic block contains an unreachable instruction, but it is not the only
-  // instruction in the basic block.
-  BasicBlock *bbNotU = BasicBlock::Create(ctx);
-  (void)BinaryOperator::Create(Instruction::Add, c0, c1, "",
-                               bbNotU->getFirstInsertionPt());
-  (void)new UnreachableInst(ctx, bbNotU->end());
-  EXPECT_FALSE(isUnreachable(*bbNotU));
-
-  // Basic block contains nothing but an unreachable instruction. It is
-  // unreachable.
+  // Empty basic blocks are not dead-ends.
   BasicBlock *bbU = BasicBlock::Create(ctx);
+  EXPECT_FALSE(isDeadEnd(*bbU));
+
+  // Terminator of the basic block is an unconditional branch, but the sole
+  // successor of the block is not a dead-end.
+  //
+  //   bb1 -> bbU
+  //
+  BasicBlock *bb1 = BasicBlock::Create(ctx);
+  BranchInst::Create(bbU, bb1);
+  EXPECT_FALSE(isDeadEnd(*bb1));
+
+  // Basic block now contains an unreachable instruction. It is a dead-end.
   (void)new UnreachableInst(ctx, bbU->getFirstInsertionPt());
-  EXPECT_TRUE(isUnreachable(*bbU));
+  EXPECT_TRUE(isDeadEnd(*bbU));
+
+  // Terminator of the basic block is an unconditional branch. The sole
+  // successor of the block is a dead-end.
+  EXPECT_TRUE(isDeadEnd(*bb1));
+
+  // Traverse multiple unconditional branches to determine if it is a dead-end.
+  //
+  //   bb2 -> bb3 -> bbU
+  //
+  BasicBlock *bb2 = BasicBlock::Create(ctx);
+  BasicBlock *bb3 = BasicBlock::Create(ctx);
+  BranchInst::Create(bb3, bb2);
+  BranchInst::Create(bbU, bb3);
+  EXPECT_TRUE(isDeadEnd(*bb2));
+  EXPECT_TRUE(isDeadEnd(*bb3));
+
+  // Even if both branches of a conditional branch are dead-ends, the block
+  // itself will not be a dead-end.
+  Constant *cond = ConstantInt::getTrue(ctx);
+  BasicBlock *bb4 = BasicBlock::Create(ctx);
+  BranchInst::Create(bbU, bbU, cond, bb4);
+
+  EXPECT_FALSE(isDeadEnd(*bb4));
 }
 
 } // namespace

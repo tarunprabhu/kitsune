@@ -398,12 +398,9 @@ private:
     // failure. In the CFG, therefore, there can be no path from there to a sync
     // instruction.
     const SyncInst *syncInst = *syncInsts.begin();
-    SmallVector<BasicBlock *, 4> exits;
-    loop.getUniqueExitBlocks(exits);
-    for (BasicBlock *exit : exits)
-      if (!isUnreachable(*exit))
-        if (!pdt.dominates(syncInst, &exit->front()))
-          return emitDiag(loop, DiagID::ErrTapirLoopSyncMustPostDominate);
+    for (BasicBlock *exit : getUniqueExitBlocks(loop))
+      if (!isDeadEnd(*exit) && !pdt.dominates(syncInst, &exit->front()))
+        return emitDiag(loop, DiagID::ErrTapirLoopSyncMustPostDominate);
 
     checkSyncRegionDefn(*detachInst);
     checkSyncRegionDefn(*reattachInst);
