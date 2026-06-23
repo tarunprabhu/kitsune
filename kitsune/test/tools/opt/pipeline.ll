@@ -74,8 +74,9 @@
 ; RUN: opt -Oz --tapir=serial -debug-pass-manager %s -o /dev/null 2>&1 \
 ; RUN:     | FileCheck -check-prefix O123SZ %s
 ;
-; The EarlyAnnotatePass runs early in the pass pipeline.
-; O123SZ:      Running pass:     EarlyAnnotatePass
+; The Early* passes run early in the pass pipeline.
+; O123S:       Running pass:     EarlyVerificationPass
+; O123S:       Running pass:     EarlyAnnotatePass
 ;
 ; <KIT-PRE-TAPIR>
 ; There are no standard pre-tapir passes at this time

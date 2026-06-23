@@ -26,6 +26,7 @@
 !
 ! -----------------------------------------------------------------------------
 !
+! CHECK:      Running pass:      EarlyVerificationPass
 ! CHECK:      Running pass:      EarlyAnnotatePass
 !
 ! CHECK-NOT:  Running pass:      PreLowerPreparePass

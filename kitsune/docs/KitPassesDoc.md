@@ -242,3 +242,36 @@ embedded bitcode modules. This is done because several
 [back-ends](glossary-back-end) cannot handle Kitsune-specific address spaces.
 This pass is typically added to the codegen pass pipeline, by which time, there
 is no need for the Kitsune-specific address spaces.
+
+
+(passes-kitsune-verification)=
+## Verification Passes
+
+This section describes Kitsune's verification passes. These perform
+Kitsune-specific verification that requires LLVM's (and Kitsune's) standard
+analysis passes. Since these analyses are not available to the standard LLVM
+verifier, these passes complement the standard verifier (which has already been
+extended to perform both Tapir, and Kitsune-specific checks).
+
+
+(passes-kit-verify-early)=
+### kit-verify-early
+
+This is run as early as possible in the optimization pipeline. It catches issues
+that ought to be caught by the frontends, but are not, for whatever reason. It
+is run as part of the optimization pipeline - typically after some function
+simplification passes have been run - because it may query LLVM's standard
+analyses that typically require some optimizations (such as `mem2reg`) to have
+been run. This also provides a secondary safety net in case Kitsune is used in
+situations where there is no "reasonable" frontend - such as in a JIT (Just In
+Time) compilation context.
+
+
+(passes-kit-verify-prelower)=
+### kit-verify-prelower
+
+This is run just before the [loop-spawning](passes-loop-spawning) pass is run.
+This ensures that all constraints imposed by Kitsune are satisfied. These
+constraints are a superset of those required by `loop-spawning`. The intention
+is to have the compiler fail gracefully when these constraints are violated
+instead of triggering an assertion failure in `loop-spawning`.

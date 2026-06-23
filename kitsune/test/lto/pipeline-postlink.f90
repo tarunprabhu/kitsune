@@ -32,6 +32,7 @@
 !
 ! -----------------------------------------------------------------------------
 !
+! O23SZ-NOT:  Running pass:     EarlyVerificationPass
 ! O23SZ-NOT:  Running pass:     EarlyAnnotatePass
 !
 ! O23SZ:      Running pass:     PreLowerPreparePass
