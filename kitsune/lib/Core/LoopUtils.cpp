@@ -177,7 +177,7 @@ bool llvm::isTopLevelTapirLoopForGPU(const Loop &loop) {
   return isTopLevelTapirLoop(loop) && isTapirLoopForGPU(loop);
 }
 
-const Loop* llvm::getNearestAncestorTapirLoop(const Loop &loop) {
+const Loop *llvm::getNearestAncestorTapirLoop(const Loop &loop) {
   Loop *parentLoop = loop.getParentLoop();
   if (!parentLoop)
     return nullptr;
@@ -282,6 +282,18 @@ bool llvm::isUsedOutsideLoop(const PHINode &iv, const Loop &loop,
       return true;
   }
   return false;
+}
+
+SmallVector<BasicBlock *, 2> llvm::getExitingBlocks(const Loop &loop) {
+  SmallVector<BasicBlock *, 2> blocks;
+  loop.getExitingBlocks(blocks);
+  return blocks;
+}
+
+SmallVector<BasicBlock *, 2> llvm::getUniqueExitBlocks(const Loop &loop) {
+  SmallVector<BasicBlock *, 2> blocks;
+  loop.getUniqueExitBlocks(blocks);
+  return blocks;
 }
 
 BasicBlock *llvm::getTapirLoopDetachedBlock(Loop &loop) {
