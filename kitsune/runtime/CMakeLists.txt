@@ -40,6 +40,7 @@ set(KITSUNE_OBJLIB ${KITSUNE_LIBNAME}_objlib)
 
 add_library(${KITSUNE_OBJLIB} OBJECT
   kitrt.cpp
+  kittimer.cpp
   memory.cpp
   memory_map.cpp)
 
