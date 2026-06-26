@@ -51,6 +51,8 @@
 #ifndef __KITRT_H__
 #define __KITRT_H__
 
+#include "kitpapi.h"
+
 #include <cassert>
 #include <cstdint>
 
@@ -144,17 +146,31 @@ void __kitrt_error(const char *label, const char *msg, ...);
 void __kitrt_warn(const char *label, const char *msg, ...);
 
 /**
- * Print an error message to stderr if verbose mode has been enabled. \p msg may
- * be a printf-compatible format string. In that case, any optional arguments
- * must be of the appropriate types.
+ * Print a message to stderr if verbose mode has been enabled. \p msg may be a
+ * printf-compatible format string. In that case, any optional arguments must be
+ * of the appropriate types.
  */
 void __kitrt_message(const char *label, const char *msg, ...);
 
 /**
- * Print an error message to stderr if verbose mode has been enabled. \p msg may
- * be a printf-compatible format string. In that case, any optional arguments
- * must be of the appropriate types. This doe not add a trailing newline after
- * printing the message.
+ * Print an error message to stderr. \p msg may be a printf-compatible format
+ * string. In that case, any optional arguments must be of the appropriate
+ * types. This does not add a trailing newline after printing the message.
+ */
+void __kitrt_error_noflush(const char *label, const char *msg, ...);
+
+/**
+ * Print a warning message to stderr. \p msg may be a printf-compatible format
+ * string. In that case, any optional arguments must be of the appropriate
+ * types. This does not add a trailing newline after printing the message.
+ */
+void __kitrt_warn_noflush(const char *label, const char *msg, ...);
+
+/**
+ * Print a message to stderr if verbose mode has been enabled. \p msg may be a
+ * printf-compatible format string. In that case, any optional arguments must be
+ * of the appropriate types. This does not add a trailing newline after printing
+ * the message.
  */
 void __kitrt_message_noflush(const char *label, const char *msg, ...);
 

@@ -63,7 +63,8 @@
 
 /// Declare functions from the opencilk runtime that are used here.
 extern unsigned __cilkrts_nproc;
-extern "C" unsigned __cilkrts_get_nworkers();
+extern "C" unsigned __cilkrts_get_worker_number(void);
+extern "C" unsigned __cilkrts_get_nworkers(void);
 extern "C" void __cilkrts_internal_set_nworkers(unsigned nworkers);
 
 /// Get the number of parallel workers that are available. Generally, this
@@ -92,6 +93,11 @@ extern "C" void __kitocilk_initialize(void) {
   // Initialize the components of kitsune's runtime that are shared by the
   // tapir-target-specific components.
   __kitrt_initialize();
+
+#ifdef KITRT_PAPI_ENABLED
+  __kitpapi_initialize_threading((void *)__cilkrts_get_worker_number);
+#endif // KITRT_PAPI_ENABLED
+
   __kitrt_message(LABEL, "Initializing Kitsune runtime (opencilk)");
 
   if (unsigned numThreads = __kitrt_num_threads_from_env()) {

@@ -61,6 +61,23 @@ target_include_directories(${KITSUNE_OBJLIB} PUBLIC
   ${LLVM_MONOREPO_SOURCE_DIR}/openmp/runtime/src
   ${KITSUNE_OPENMP_BINARY_DIR}/openmp/runtime/src)
 
+if (KITSUNE_PAPI_ENABLED)
+  target_sources(${KITSUNE_OBJLIB} PUBLIC
+    kitpapi.cpp)
+
+  target_compile_definitions(${KITSUNE_OBJLIB} PUBLIC
+    KITRT_PAPI_ENABLED)
+
+  target_include_directories(${KITSUNE_OBJLIB} PUBLIC
+    ${KITSUNE_PAPI_INC_DIRS})
+
+  target_link_directories(${KITSUNE_OBJLIB} PUBLIC
+    ${KITSUNE_PAPI_LIB_DIRS})
+
+  target_link_libraries(${KITSUNE_OBJLIB} PUBLIC
+    ${KITSUNE_PAPI_LIB_LIBS})
+endif ()
+
 if (KITSUNE_CUDA_ENABLED)
   target_sources(${KITSUNE_OBJLIB} PUBLIC
     cuda/kitcuda.cpp

@@ -60,6 +60,11 @@
 
 #define LABEL "kitomp"
 
+// Since we have included kmp.h, the implementation header for OpenMP, we cannot
+// also include omp.h. Therefore, we have to redeclare the functions from omp.h
+// that we use.
+extern "C" unsigned omp_get_thread_num(void);
+
 // Not all functions are exposed in the internal header kmp.h. These are used by
 // clang when generating LLVM-IR, so it is "reasonable" to use these here.
 // For consistency, we may want to forward declare everything that we need from
@@ -225,6 +230,11 @@ extern "C" void __kitomp_initialize(void) {
   // Initialize the components of kitsune's runtime that are shared by the
   // tapir-target-specific components.
   __kitrt_initialize();
+
+#ifdef KITRT_PAPI_ENABLED
+  __kitpapi_initialize_threading((void *)omp_get_thread_num);
+#endif // KITRT_PAPI_ENABLED
+
   __kitrt_message(LABEL, "Initializing Kitsune runtime (openmp)");
 
   if (unsigned numThreads = __kitrt_num_threads_from_env()) {
