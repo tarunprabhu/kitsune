@@ -99,6 +99,10 @@ extern "C" void __kitrt_initialize() {
   // This message will only be printed if verbose mode is actually set.
   __kitrt_message(LABEL, "Verbose mode enabled");
 
+#ifdef KITRT_PAPI_ENABLED
+  __kitpapi_initialize();
+#endif // KITRT_PAPI_ENABLED
+
   __kitrt_initialized = true;
   __kitrt_message(LABEL, "Initialized Kitsune runtime (common)");
 }
@@ -109,7 +113,9 @@ extern "C" void __kitrt_finalize() {
 
   __kitrt_message(LABEL, "Finalizing Kitsune runtime (common)");
 
-  // Nothing to be done at this time.
+#ifdef KITRT_PAPI_ENABLED
+  __kitpapi_finalize();
+#endif // KITRT_PAPI_ENABLED
 
   __kitrt_finalized = true;
   __kitrt_message(LABEL, "Finalized Kitsune runtime (common)");
@@ -169,6 +175,20 @@ void __kitrt_message(const char *label, const char *msg, ...) {
     __kitrt_log(label, nullptr, true, msg, args);
     va_end(args);
   }
+}
+
+void __kitrt_error_noflush(const char *label, const char *msg, ...) {
+  va_list args;
+  va_start(args, msg);
+  __kitrt_log(label, "ERROR", false, msg, args);
+  va_end(args);
+}
+
+void __kitrt_warn_noflush(const char *label, const char *msg, ...) {
+  va_list args;
+  va_start(args, msg);
+  __kitrt_log(label, "WARNING", false, msg, args);
+  va_end(args);
 }
 
 void __kitrt_message_noflush(const char *label, const char *msg, ...) {

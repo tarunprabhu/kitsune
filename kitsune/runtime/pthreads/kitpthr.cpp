@@ -164,8 +164,6 @@ static unsigned __kitpthr_num_threads() { return __kitpthr_num_threads_v; }
 static KitPthrContext *runOnMainThread(KitPthrThrdFn f, int64_t start,
                                        int64_t end, int64_t grainSize,
                                        void *args) {
-  __kitrt_warn(LABEL, "Running on main thread");
-
   f(start, end, grainSize, args);
 
   return new KitPthrContext;
@@ -308,6 +306,11 @@ extern "C" void __kitpthr_initialize(void) {
   // Initialize the components of kitsune's runtime that are shared by the
   // tapir-target-specific components.
   __kitrt_initialize();
+
+#ifdef KITRT_PAPI_ENABLED
+  __kitpapi_initialize_threading((void *)pthread_self);
+#endif // KITRT_PAPI_ENABLED
+
   __kitrt_message(LABEL, "Initializing Kitsune runtime (pthreads)");
 
   // pthreads does not need to be initialized.

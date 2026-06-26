@@ -198,6 +198,11 @@ extern "C" void __kitqthr_initialize(void) {
   // Initialize the components of kitsune's runtime that are shared by the
   // tapir-target-specific components.
   __kitrt_initialize();
+
+#ifdef KITRT_PAPI_ENABLED
+  __kitpapi_initialize_threading((void *)qthread_id);
+#endif // KITRT_PAPI_ENABLED
+
   __kitrt_message(LABEL, "Initializing Kitsune runtime (qthreads)");
 
   if (__kitrt_num_threads_from_env()) {
