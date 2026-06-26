@@ -99,6 +99,7 @@ extern "C" void __kitrt_initialize() {
   // This message will only be printed if verbose mode is actually set.
   __kitrt_message(LABEL, "Verbose mode enabled");
 
+  __kittimer_initialize();
 #ifdef KITRT_PAPI_ENABLED
   __kitpapi_initialize();
 #endif // KITRT_PAPI_ENABLED
@@ -116,6 +117,7 @@ extern "C" void __kitrt_finalize() {
 #ifdef KITRT_PAPI_ENABLED
   __kitpapi_finalize();
 #endif // KITRT_PAPI_ENABLED
+  __kittimer_finalize();
 
   __kitrt_finalized = true;
   __kitrt_message(LABEL, "Finalized Kitsune runtime (common)");

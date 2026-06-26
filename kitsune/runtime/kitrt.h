@@ -52,6 +52,7 @@
 #define __KITRT_H__
 
 #include "kitpapi.h"
+#include "kittimer.h"
 
 #include <cassert>
 #include <cstdint>
