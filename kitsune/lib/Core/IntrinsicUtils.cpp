@@ -22,12 +22,26 @@ bool llvm::isKitIntrinsic(Intrinsic::ID id) {
 }
 
 bool llvm::isKitIntrinsicAsync(Intrinsic::ID id) {
-  assert(isKitIntrinsic(id) && "Must be a kitsune intrinsic");
+  assert(isKitIntrinsic(id) && "Must be a Kitsune intrinsic");
   return Intrinsic::getBaseName(id).starts_with("llvm.kit.async.");
 }
 
 bool llvm::isKitIntrinsicBlocking(Intrinsic::ID id) {
   return not isKitIntrinsicAsync(id);
+}
+
+bool llvm::isKitIntrinsicCPU(Intrinsic::ID id) {
+  assert(isKitIntrinsic(id) && "Must be a Kitsune intrinsic");
+  StringRef baseName = Intrinsic::getBaseName(id);
+  return baseName.starts_with("llvm.kit.async.cpu") ||
+         baseName.starts_with("llvm.kit.cpu");
+}
+
+bool llvm::isKitIntrinsicGPU(Intrinsic::ID id) {
+  assert(isKitIntrinsic(id) && "Must be a Kitsune intrinsic");
+  StringRef baseName = Intrinsic::getBaseName(id);
+  return baseName.starts_with("llvm.kit.async.gpu") ||
+         baseName.starts_with("llvm.kit.gpu");
 }
 
 Value *llvm::getStreamFromLaunch(const CallBase &call) {

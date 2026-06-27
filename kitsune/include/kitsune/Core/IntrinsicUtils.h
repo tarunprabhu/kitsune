@@ -39,6 +39,20 @@ bool isKitIntrinsicAsync(Intrinsic::ID id);
 /// to call this function with an intrinsic that is not a Kitsune intrinsic.
 bool isKitIntrinsicBlocking(Intrinsic::ID id);
 
+/// Check if the given Kitsune intrinsic is CPU-centric i.e. it only applies to
+/// the tapir targets that generate multi-threaded CPU code. Note that the
+/// 'serial' tapir target is not considered to be CPU-centric since it does not
+/// generate parallel code. This will return false for intrinsics that apply to
+/// both CPU-centric and GPU-centric tapir targets as well as those that are
+/// primarily related to the runtime.
+bool isKitIntrinsicCPU(Intrinsic::ID id);
+
+/// Check if the given Kitsune intrinsic is GPU-centric i.e. it only applies to
+/// the tapir targets that generate GPU code. This will return false for
+/// intrinsics that apply to both CPU-centric and GPU-centric tapir targets as
+/// well as those that are primarily related to the runtime.
+bool isKitIntrinsicGPU(Intrinsic::ID id);
+
 /// Get the stream from the given call to Kitsune's kernel launch intrinsic.
 Value *getStreamFromLaunch(const CallBase &call);
 
