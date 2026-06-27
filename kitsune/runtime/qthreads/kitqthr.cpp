@@ -85,7 +85,7 @@ struct KitQthrThrdArgs {
 /// Get the number of parallel workers that are available. Generally, this
 /// function should be used when this must be queried instead of calling
 /// `qthread_num_workers()`.
-static unsigned __kitqthr_num_threads() { return qthread_num_workers(); }
+extern "C" unsigned __kitqthr_num_workers() { return qthread_num_workers(); }
 
 /// The function that is launched by each thread. This simply finds the "actual"
 /// function that is to be run in \p thrdArgs and calls it. The arguments to the
@@ -121,7 +121,7 @@ extern "C" void __kitqthr_launch(KitQthrThrdFn f, int64_t start, int64_t end,
   // This is the number of threads that *may* be launched. However, there may
   // not be enough for work for all threads, so the actual number of threads
   // that are launched may be smaller than this.
-  const unsigned availThrds = __kitqthr_num_threads();
+  const unsigned availThrds = __kitqthr_num_workers();
   __kitrt_message(LABEL, "Available threads: %d", availThrds);
 
   // On some systems, int64_t maps to long while on others it is long long.
@@ -185,7 +185,7 @@ extern "C" int64_t __kitqthr_reduce_num_partials(int64_t n) {
   // There might be something smarter that can be done once we support a proper
   // reduction tree, but since we only support a reduction tree of depth 1, this
   // will do.
-  unsigned numPartials = __kitqthr_num_threads();
+  unsigned numPartials = __kitqthr_num_workers();
 
   __kitrt_message(LABEL, "Number of partial reductions: %d", numPartials);
 

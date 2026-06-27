@@ -21,8 +21,13 @@
 //   since analyses may make incorrect assumptions about the available of the
 //   data being operated on by these asynchronous intrinsics.
 //
+// - Intrinsics that are specific to the CPU-centric tapir targets must start
+//   with `kit_cpu` or `kit_async_cpu`. Intrinsics that are specific to the
+//   GPU-centric tapir targets must start with `kit_gpu` or `kit_async_gpu`.
+//
 // - The first argument of Kitsune's intrinsics must be a TTID. This must be a
-//   32-bit integer and a compile-time constant.
+//   32-bit integer and a compile-time constant, i.e. it must have the ImmArg
+//   attribute.
 //
 // - Boolean arguments must have type i8, not i1. This is to simplify lowering
 //   since, in the runtime, booleans are always 8-bit.
@@ -87,6 +92,12 @@ def int_kit_cpu_threads_launch
                     NonNull<ArgIndex<1>>,
                     NonNull<ArgIndex<5>>]> {
   let Doc = KitLaunchThreadsDoc;
+}
+
+// Get the number of parallel CPU threads available.
+def int_kit_cpu_num_threads
+    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty], [ImmArg<ArgIndex<0>>]> {
+  let Doc = KitCPUNumThreadsDoc;
 }
 
 // Sync the threads launched by an earlier call to

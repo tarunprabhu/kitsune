@@ -186,6 +186,22 @@ Enable/disable verbose mode in Kitsune's runtime.
 }];
 }
 
+def KitCPUNumThreadsDoc : KitDocIntrinsic {
+  let Category = KitDocCatThreading;
+  let ParamDocs = [
+      KitDocParam<"tt", "The ID of the tapir target calling the intrinsic">
+  ];
+  let Descr = [{
+Get the number of CPU threads available on the system. This will return the same
+value every time it is called. The actual value that is returned will depend on
+the tapir target in use.
+
+In the future, this intrinsic could be modified to take one or more arguments
+that would return a number of threads that is most suitable for the loop that
+will be executed in parallel.
+}];
+}
+
 def KitLaunchThreadsDoc : KitDocIntrinsic {
   let Category = KitDocCatThreading;
   let ParamDocs = [

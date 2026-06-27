@@ -17,6 +17,7 @@ target triple = "x86_64-pc-linux-gnu"
 ; CHECK-NEXT: call void @__kitrt_enable_verbose_mode()
 ; CHECK-NEXT: %[[CTX:[0-9]+]] = call ptr @__kitpthr_launch(ptr @f, i64 0, i64 128, i64 1, ptr @gbuf)
 ; CHECK-NEXT: call void @__kitpthr_sync(ptr %[[CTX]])
+; CHECK-NEXT: call i32 @__kitpthr_num_threads()
 ; CHECK-NEXT: call i64 @__kitpthr_reduce_num_partials(i64 %[[N]])
 ; CHECK-NEXT: call void @__kitpthr_finalize()
 
@@ -26,7 +27,8 @@ define void @f(ptr %buf, i64 %n) {
   call void @llvm.kit.runtime.set.verbose(i32 2, i8 0)
   %1 = call ptr @llvm.kit.async.cpu.threads.launch(i32 1024, ptr @f, i64 0, i64 128, i64 1, ptr @gbuf)
   call void @llvm.kit.cpu.threads.sync(i32 1024, ptr %1)
-  %2 = call i64 @llvm.kit.reduce.num.partials(i32 1024, i64 %n)
+  %numThreads = call i32 @llvm.kit.cpu.num.threads(i32 1024)
+  %numPartials = call i64 @llvm.kit.reduce.num.partials(i32 1024, i64 %n)
   call void @llvm.kit.runtime.finalize(i32 1024)
   ret void
 }

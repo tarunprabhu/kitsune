@@ -87,6 +87,7 @@ static const KitRTFuncMap kitHipFuncs = {
 
 /// Kitsune runtime functions for the opencilk tapir target.
 static const KitRTFuncMap kitOpenCilkFuncs = {
+    {Intrinsic::kit_cpu_num_threads, LibFunc_kitocilk_num_workers},
     {Intrinsic::kit_mobile_alloc, LibFunc_malloc},
     {Intrinsic::kit_mobile_free, LibFunc_free},
     {Intrinsic::kit_reduce_num_partials, LibFunc_kitocilk_reduce_num_partials},
@@ -96,9 +97,10 @@ static const KitRTFuncMap kitOpenCilkFuncs = {
 
 /// Kitsune runtime functions for the openmp tapir target.
 static const KitRTFuncMap kitOpenMPFuncs = {
+    {Intrinsic::kit_cpu_num_threads, LibFunc_kitomp_num_threads},
+    {Intrinsic::kit_cpu_threads_launch, LibFunc_kitomp_launch},
     {Intrinsic::kit_mobile_alloc, LibFunc_malloc},
     {Intrinsic::kit_mobile_free, LibFunc_free},
-    {Intrinsic::kit_cpu_threads_launch, LibFunc_kitomp_launch},
     {Intrinsic::kit_reduce_num_partials, LibFunc_kitomp_reduce_num_partials},
     {Intrinsic::kit_runtime_finalize, LibFunc_kitomp_finalize},
     {Intrinsic::kit_runtime_initialize, LibFunc_kitomp_initialize},
@@ -107,6 +109,7 @@ static const KitRTFuncMap kitOpenMPFuncs = {
 /// Kitsune runtime functions for the pthreads tapir target.
 static const KitRTFuncMap kitPthreadsFuncs = {
     {Intrinsic::kit_async_cpu_threads_launch, LibFunc_kitpthr_launch},
+    {Intrinsic::kit_cpu_num_threads, LibFunc_kitpthr_num_threads},
     {Intrinsic::kit_cpu_threads_sync, LibFunc_kitpthr_sync},
     {Intrinsic::kit_mobile_alloc, LibFunc_malloc},
     {Intrinsic::kit_mobile_free, LibFunc_free},
@@ -117,6 +120,7 @@ static const KitRTFuncMap kitPthreadsFuncs = {
 
 /// Kitsune runtime functions for the qthreads tapir target.
 static const KitRTFuncMap kitQthreadsFuncs = {
+    {Intrinsic::kit_cpu_num_threads, LibFunc_kitqthr_num_workers},
     {Intrinsic::kit_cpu_threads_launch, LibFunc_kitqthr_launch},
     // There may be some benefit to using the memory allocation functions
     // provided by qthreads. Those use memory pools and it is not yet clear if
@@ -167,6 +171,7 @@ static const SmallDenseMap<TTID, KitRTFuncMap> kitTTFuncs = {
 /// handled with a custom lowering function.
 static const KitRTFuncArgMap kitRTArgMap = {
     {Intrinsic::kit_async_cpu_threads_launch, {1, 2, 3, 4, 5}},
+    {Intrinsic::kit_cpu_num_threads, {}},
     {Intrinsic::kit_cpu_threads_launch, {1, 2, 3, 4, 5}},
     {Intrinsic::kit_cpu_threads_sync, {1}},
     {Intrinsic::kit_async_gpu_memcpy_dtoh, {1, 2, 3, 4}},
