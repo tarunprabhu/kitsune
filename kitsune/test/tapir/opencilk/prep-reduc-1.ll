@@ -102,7 +102,7 @@
 ;
 ; CHECK-DAG: ![[TARGET:.+]] = !{!"tapir.loop.target", i32 8}
 ; CHECK-DAG: ![[REDUCTION:.+]] = !{!"tapir.loop.reduction"}
-; CHECK-DAG: ![[PREPARED:.+]] = !{!"tapir.loop.reduction.prepared"}
+; CHECK-DAG: ![[PREPARED:.+]] = !{!"tapir.loop.prepared"}
 ; CHECK-DAG: ![[LOOP_I]] = distinct !{![[LOOP_I]]}
 ; CHECK-DAG: ![[LOOP_O]] = distinct !{![[LOOP_O]], ![[REDUCTION]], ![[TARGET]], ![[PREPARED]]}
 

@@ -1,6 +1,6 @@
 ; Check that a simple reduction loop of depth 1 is prepared as expected. In
-; this case, nothing is changed in the loop body. Only the
-; tapir.loop.reduction.prepared attribute is added to the tapir reduction loop.
+; this case, nothing is changed in the loop body. Only the tapir.loop.prepared
+; attribute is added to the tapir reduction loop.
 ;
 ; RUN: opt --tapir=serial -passes='kit-reductions' -S %s \
 ; RUN:     | FileCheck %s
@@ -39,7 +39,7 @@
 ;
 ; CHECK-DAG: ![[TARGET:.+]] = !{!"tapir.loop.target", i32 1}
 ; CHECK-DAG: ![[REDUCTION:.+]] = !{!"tapir.loop.reduction"}
-; CHECK-DAG: ![[PREPARED:.+]] = !{!"tapir.loop.reduction.prepared"}
+; CHECK-DAG: ![[PREPARED:.+]] = !{!"tapir.loop.prepared"}
 ; CHECK-DAG: ![[LOOP]] = distinct !{![[LOOP]], ![[REDUCTION]], ![[TARGET]], ![[PREPARED]]}
 
 declare void @sum(ptr %res, i64 %v)

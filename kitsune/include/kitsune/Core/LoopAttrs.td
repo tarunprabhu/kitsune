@@ -95,15 +95,14 @@ def PerfectLevel : LoopAttr<U32Ty> {
   let Documentation = KitLoopPerfectLevelDoc;
 }
 
+// Flag indicating that a tapir loop has been prepared for parallel execution.
+def Prepared : LoopAttr<> {
+  let Documentation = KitLoopPreparedDoc;
+}
+
 // Flag indicating that the loop performs one or more reductions.
 def Reduction : LoopAttr<> {
   let Documentation = KitLoopReductionDoc;
-}
-
-// Flag indicating that a tapir reduction loop has already been transformed
-// for parallel execution.
-def ReductionPrepared : LoopAttr<> {
-  let Documentation = KitLoopReductionPreparedDoc;
 }
 
 // Flag indicating that the loop is a serialized tapir loop.

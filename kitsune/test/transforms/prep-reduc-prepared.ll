@@ -1,5 +1,5 @@
-; If a tapir reduction loop has the tapir.loop.reduction.prepared flag, it
-; should not be transformed.
+; If a tapir reduction loop has the tapir.loop.prepared flag, it should not be
+; transformed.
 ;
 ; RUN: opt -passes=kit-reductions -S %s | FileCheck %s
 ;
@@ -37,7 +37,7 @@
 ;
 ; CHECK-DAG: ![[TARGET:.+]] = !{!"tapir.loop.target", i32 1024}
 ; CHECK-DAG: ![[REDUCTION:.+]] = !{!"tapir.loop.reduction"}
-; CHECK-DAG: ![[PREPARED:.+]] = !{!"tapir.loop.reduction.prepared"}
+; CHECK-DAG: ![[PREPARED:.+]] = !{!"tapir.loop.prepared"}
 ; CHECK-DAG: ![[LOOP]] = distinct !{![[LOOP]], ![[TARGET]], ![[REDUCTION]], ![[PREPARED]]}
 
 declare void @sum(ptr %res, i64 %v)
@@ -70,5 +70,5 @@ for.j.end:
 
 !0 = !{!"tapir.loop.target", i32 1024}
 !1 = !{!"tapir.loop.reduction"}
-!2 = !{!"tapir.loop.reduction.prepared"}
+!2 = !{!"tapir.loop.prepared"}
 !3 = distinct !{!3, !0, !1, !2}

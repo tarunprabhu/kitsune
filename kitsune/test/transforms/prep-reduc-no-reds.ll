@@ -1,10 +1,10 @@
 ; If a tapir loop has the tapir.loop.reduction attribute, but does not contain
 ; any calls Kitsune's reduce intrinsics, the loop should not be changed, but
-; the tapir.loop.reduction.prepared attribute must be added.
+; the tapir.loop.prepared attribute must be added.
 ;
 ; RUN: opt -passes=kit-reductions -S %s | FileCheck %s
 ;
-; CHECK-NOT: tapir.loop.reduction.prepared
+; CHECK-NOT: tapir.loop.prepared
 ;
 ; CHECK-LABEL: @f
 ; CHECK-SAME: i64 %[[N:[^)]+]]
@@ -33,7 +33,7 @@
 ;
 ; CHECK-DAG: ![[TARGET:.+]] = !{!"tapir.loop.target", i32 1024}
 ; CHECK-DAG: ![[REDUCTION:.+]] = !{!"tapir.loop.reduction"}
-; CHECK-DAG: ![[PREPARED:.+]] = !{!"tapir.loop.reduction.prepared"}
+; CHECK-DAG: ![[PREPARED:.+]] = !{!"tapir.loop.prepared"}
 ; CHECK-DAG: ![[LOOP]] = distinct !{![[LOOP]], ![[TARGET]], ![[REDUCTION]], ![[PREPARED]]}
 
 declare void @sum(ptr %res, i64 %v)
