@@ -272,6 +272,12 @@ def ErrReducerNumParams
 def ErrKitIntrNoTTID
   : Error<"first argument to call is not a valid TTID">;
 
+def ErrKitIntrTTIDNotCPU
+  : Error<"TTID argument in call is not CPU-centric">;
+
+def ErrKitIntrTTIDNotGPU
+  : Error<"TTID argument in call is not GPU-centric">;
+
 def ErrKitIntrWrongTTID
   : Error<"TTID argument in call must be '{}'">;
 

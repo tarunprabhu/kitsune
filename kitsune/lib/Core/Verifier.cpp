@@ -21,6 +21,7 @@
 #include "VerifierImpl.h"
 #include "kitsune/Core/Attrs.h"
 #include "kitsune/Core/IntrinsicUtils.h"
+#include "kitsune/Core/TTUtils.h"
 #include "kitsune/Core/ValueUtils.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/Analysis/LoopInfo.h"
@@ -190,8 +191,15 @@ KitVerifier &KitVerifier::verifyIntrReduce1(const CallBase &call) {
 
 KitVerifier &KitVerifier::verify(const CallBase &call) {
   Intrinsic::ID id = call.getIntrinsicID();
-  if (isKitIntrinsic(id))
-    check(getTTIDFromKitIntrCall(call).has_value(), DiagID::ErrKitIntrNoTTID);
+  if (isKitIntrinsic(id)) {
+    std::optional<TTID> tt = getTTIDFromKitIntrCall(call);
+    if (!tt.has_value())
+      check(false, DiagID::ErrKitIntrNoTTID);
+    else if (isKitIntrinsicCPU(id))
+      check(isCPUTT(*tt), DiagID::ErrKitIntrTTIDNotCPU);
+    else if (isKitIntrinsicGPU(id))
+      check(isGPUTT(*tt), DiagID::ErrKitIntrTTIDNotGPU);
+  }
 
   switch (call.getIntrinsicID()) {
   case Intrinsic::kit_mobile_init:
