@@ -67,10 +67,12 @@ extern "C" unsigned __cilkrts_get_worker_number(void);
 extern "C" unsigned __cilkrts_get_nworkers(void);
 extern "C" void __cilkrts_internal_set_nworkers(unsigned nworkers);
 
-/// Get the number of parallel workers that are available. Generally, this
+/// Get the number of workers available for parallel work. Generally, this
 /// function should be used when this must be queried instead of calling
-/// `qthread_num_workers()`.
-static unsigned __kitocilk_num_threads() { return __cilkrts_get_nworkers(); }
+/// `__cilkrts_get_nworkers()`.
+extern "C" unsigned __kitocilk_num_workers() {
+  return __cilkrts_get_nworkers();
+}
 
 /// The number of partial reductions to perform in parallel.
 ///
@@ -80,8 +82,8 @@ extern "C" int64_t __kitocilk_reduce_num_partials(int64_t n) {
 
   // There might be something smarter that can be done once we support a proper
   // reduction tree, but since we only support a reduction tree of depth 1, we
-  // just return the number of CPU's on the system.
-  unsigned numPartials = __kitocilk_num_threads();
+  // just return the number of available workers.
+  unsigned numPartials = __kitocilk_num_workers();
 
   __kitrt_message(LABEL, "Number of partial reductions: %d", numPartials);
 
@@ -118,7 +120,7 @@ extern "C" void __kitocilk_initialize(void) {
 
   // The OpenCilk runtime does not have to be initialized.
 
-  __kitrt_message(LABEL, "Number of workers = %d", __kitocilk_num_threads());
+  __kitrt_message(LABEL, "Number of workers = %d", __kitocilk_num_workers());
   __kitrt_message(LABEL, "Initialized Kitsune runtime (opencilk)");
 }
 

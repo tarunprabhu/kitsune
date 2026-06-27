@@ -154,10 +154,8 @@ public:
 /// get this value.
 static unsigned __kitpthr_num_threads_v = 1;
 
-/// Get the number of parallel workers that are available. Generally, this
-/// function should be used when this must be queried instead of calling
-/// `qthread_num_workers()`.
-static unsigned __kitpthr_num_threads() { return __kitpthr_num_threads_v; }
+/// Get the number of threads available for parallel work.
+extern "C" unsigned __kitpthr_num_threads() { return __kitpthr_num_threads_v; }
 
 /// Run \p f on the main thread. Block until f completes. Always return nullptr.
 /// \p start, \p end and \p args are passed to \p f.

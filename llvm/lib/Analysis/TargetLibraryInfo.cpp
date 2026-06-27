@@ -965,19 +965,23 @@ static void initializeLibCalls(TargetLibraryInfoImpl &TLI, const Triple &T,
     TLI.setUnavailable(LibFunc_kithip_sync_stream);
     TLI.setUnavailable(LibFunc_kitocilk_finalize);
     TLI.setUnavailable(LibFunc_kitocilk_initialize);
+    TLI.setUnavailable(LibFunc_kitocilk_num_workers);
     TLI.setUnavailable(LibFunc_kitocilk_reduce_num_partials);
     TLI.setUnavailable(LibFunc_kitomp_finalize);
     TLI.setUnavailable(LibFunc_kitomp_initialize);
     TLI.setUnavailable(LibFunc_kitomp_launch);
+    TLI.setUnavailable(LibFunc_kitomp_num_threads);
     TLI.setUnavailable(LibFunc_kitomp_reduce_num_partials);
     TLI.setUnavailable(LibFunc_kitpthr_finalize);
     TLI.setUnavailable(LibFunc_kitpthr_initialize);
     TLI.setUnavailable(LibFunc_kitpthr_launch);
+    TLI.setUnavailable(LibFunc_kitpthr_num_threads);
     TLI.setUnavailable(LibFunc_kitpthr_reduce_num_partials);
     TLI.setUnavailable(LibFunc_kitpthr_sync);
     TLI.setUnavailable(LibFunc_kitqthr_finalize);
     TLI.setUnavailable(LibFunc_kitqthr_initialize);
     TLI.setUnavailable(LibFunc_kitqthr_launch);
+    TLI.setUnavailable(LibFunc_kitqthr_num_workers);
     TLI.setUnavailable(LibFunc_kitqthr_reduce_num_partials);
 
     TLI.setUnavailable(LibFunc_cuda_register_fat_binary);
