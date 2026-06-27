@@ -194,7 +194,7 @@ public:
 // has been changed by the caller in any way. Otherwise, it should be false.
 // Returns \p hasChanged.
 static bool annotateLoopAsPrepared(Loop &loop, bool hasChanged) {
-  addReductionPreparedAttr(loop);
+  addPreparedAttr(loop);
   return hasChanged;
 }
 
@@ -815,10 +815,10 @@ void PrepareReductionLoop::serializeInnerLoop(Loop &loop) {
 #endif // NDEBUG
 }
 
-// Transform a tapir reduction loop. Add the tapir.loop.reduction.prepared
-// attribute to the loop and return true if anything other than this attribute
-// was changed. For example, if the loop does not perform any actual reductions,
-// the attribute will be added to the loop, but no other transformations will be
+// Transform a tapir reduction loop. Add the tapir.loop.prepared attribute to
+// the loop and return true if anything other than this attribute was changed.
+// For example, if the loop does not perform any actual reductions, the
+// attribute will be added to the loop, but no other transformations will be
 // performed. In such cases, simply return false.
 bool PrepareReductionLoop::run(TapirLoopInfo &tapirLoop) {
   auto sanityCheck = [](const TapirLoopInfo &tapirLoop) {
@@ -831,7 +831,7 @@ bool PrepareReductionLoop::run(TapirLoopInfo &tapirLoop) {
            "Loop with reduction attribute is a tapir loop");
     assert(hasReductionAttr(loop) &&
            "Loop is expected to have the reduction attribute");
-    assert(!hasReductionPreparedAttr(loop) &&
+    assert(!hasPreparedAttr(loop) &&
            "Tapir reduction loop has not been prepared");
   };
 
@@ -1200,8 +1200,8 @@ PreservedAnalyses PrepareReductionLoopsPass::run(Function &f,
     // order. This is roughly what we want because it *might* reduce the chances
     // of making a mess of the analysis objects.
     Loop &loop = *wl.pop_back_val();
-    bool shouldTransform = isTapirLoop(loop) && hasReductionAttr(loop) &&
-                           !hasReductionPreparedAttr(loop);
+    bool shouldTransform =
+        isTapirLoop(loop) && hasReductionAttr(loop) && !hasPreparedAttr(loop);
     if (shouldTransform) {
       LLVM_DEBUG(dbgs() << "PrepareReduction: Found reduction loop '"
                         << getName(loop) << "'\n");

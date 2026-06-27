@@ -159,20 +159,20 @@ which the tapir loop is a part.
 }];
 }
 
+def KitLoopPreparedDoc : KitDocAttr {
+  let Documentation = [{
+The presence of this attribute indicates that the tapir loop has been
+transformed for parallel execution. This is used to ensure that a tapir loop is
+not processed twice when doing so may result in severely degraded performance,
+or even incorrect execution.
+}];
+}
+
 def KitLoopReductionDoc : KitDocAttr {
   let Documentation = [{
 The presence of this attribute indicates that the loop performs one or more
 reductions. Although not strictly required, this attribute is only really useful
 (and used) when the loop is a tapir loop.
-}];
-}
-
-def KitLoopReductionPreparedDoc : KitDocAttr {
-  let Documentation = [{
-The presence of this attribute indicates that the tapir reduction loop has been
-transformed for parallel execution. This is used to ensure that a tapir loop is
-not processed twice when doing so may result in severely degraded performance,
-or even incorrect execution.
 }];
 }
 

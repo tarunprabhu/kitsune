@@ -3,7 +3,7 @@
 ;
 ; RUN: opt -passes=kit-reductions -S %s | FileCheck %s
 ;
-; CHECK-NOT: tapir.loop.reduction.prepared
+; CHECK-NOT: tapir.loop.prepared
 ;
 ; CHECK-LABEL: @f
 ; CHECK-SAME: i64 %[[N:[^)]+]]
