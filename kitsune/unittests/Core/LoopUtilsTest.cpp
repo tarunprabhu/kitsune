@@ -866,4 +866,11 @@ TEST_F(KitLoopUtils, getTapirLoopDetachedBlock) {
   EXPECT_EQ(getTapirLoopDetachedBlock(*loop)->getName(), "for.i.body");
 }
 
+TEST_F(KitLoopUtils, getTapirLoopSyncRegion) {
+  setup(simpleTapirLoop, "f");
+  Loop *loop = *li->begin();
+
+  EXPECT_EQ(getTapirLoopSyncRegion(*loop)->getName(), "syncreg");
+}
+
 } // namespace

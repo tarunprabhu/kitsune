@@ -146,8 +146,6 @@ struct ReductionInfo {
 };
 
 /// Base class to transform tapir reduction loops for parallel execution.
-/// Specializations of this class will transform the loop for the CPU and GPU
-/// respectively.
 class PrepareReductionLoop {
 private:
   DominatorTree &dt;
@@ -321,7 +319,8 @@ BasicBlock *PrepareReductionLoop::genFreePartialsBlock(Loop &outerLoop) {
 
 // Insert code to calculate the number of partial reductions to use. This
 // simply inserts a call to Kitsune's kit.reduce.num.partials intrinsic that
-// performs the actual. The intrinsic will be lowered in a later pass.
+// performs the actual calculation. The intrinsic will be lowered in a later
+// pass.
 //
 //      prduc.numPartials = call @llvm.kit.reduce.num.partials(i64 %n)
 //
@@ -753,18 +752,10 @@ void PrepareReductionLoop::parallelizeOuterLoop(Loop &outerLoop, Loop &loop) {
            "Inner loop not recognized as a tapir loop");
   };
 
-  auto getSyncRegion = [](Loop &loop) -> Value * {
-    for (BasicBlock *bb : getBlocksNotInSubLoops(loop))
-      for (Instruction &inst : *bb)
-        if (auto *detach = dyn_cast<DetachInst>(&inst))
-          return detach->getSyncRegion();
-    llvm_unreachable("Could not get syncregion for tapir reduction loop");
-  };
-
   LLVM_DEBUG(dbgs() << "PrepareReduction: Parallelize outer loop\n");
   sanityCheck(outerLoop, loop, ti);
 
-  Value *syncRegion = getSyncRegion(loop);
+  Value *syncRegion = getTapirLoopSyncRegion(loop);
 
   BasicBlock *latch = outerLoop.getLoopLatch();
   BasicBlock *reattach = *pred_begin(latch);

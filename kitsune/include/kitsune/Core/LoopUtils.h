@@ -176,6 +176,12 @@ bool isInLoop(const Instruction &inst, const Loop &loop, LoopInfo &li,
 /// \p loop.
 bool isUsedOutsideLoop(const PHINode &iv, const Loop &loop, LoopInfo &li);
 
+/// Get the sync region for the tapir loop. This simply looks at the terminator
+/// of the tapir loop header, which is expected to be a detach instruction and
+/// returns the syncregion associated with that instruction. It is an error if
+/// the terminator of the loop header is not a detach instruction.
+Value *getTapirLoopSyncRegion(Loop &loop);
+
 /// Get the "entry block" of the tapir loop body. This is the block that is
 /// detached from the tapir loop header. For instance, for the tapir loop below,
 /// this will return the basic block named "body".

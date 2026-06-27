@@ -296,8 +296,8 @@ SmallVector<BasicBlock *, 2> llvm::getUniqueExitBlocks(const Loop &loop) {
   return blocks;
 }
 
-BasicBlock *llvm::getTapirLoopDetachedBlock(Loop &loop) {
-  assert(isTapirLoop(loop) && "Cannot detached block of a regular loop");
+static DetachInst* getTapirLoopDetachInst(Loop &loop) {
+  assert(isTapirLoop(loop) && "Cannot get detached block of a regular loop");
 
   BasicBlock *header = loop.getHeader();
   assert(header && "Tapir loop must have a header");
@@ -306,5 +306,17 @@ BasicBlock *llvm::getTapirLoopDetachedBlock(Loop &loop) {
   assert(detach &&
          "Terminator of tapir loop header must be a detach instruction");
 
-  return detach->getDetached();
+  return detach;
+}
+
+Value *llvm::getTapirLoopSyncRegion(Loop &loop) {
+  if (DetachInst *detach = getTapirLoopDetachInst(loop))
+    return detach->getSyncRegion();
+  llvm_unreachable("Cannot get tapir loop sync region");
+}
+
+BasicBlock *llvm::getTapirLoopDetachedBlock(Loop &loop) {
+  if (DetachInst *detach = getTapirLoopDetachInst(loop))
+    return detach->getDetached();
+  llvm_unreachable("Cannot get tapir loop detached block");
 }
