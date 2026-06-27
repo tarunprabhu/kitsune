@@ -77,6 +77,32 @@ TEST(KitIntrinsicUtils, isKitIntrinsicBlocking) {
   EXPECT_TRUE(isKitIntrinsicBlocking(Intrinsic::kit_runtime_set_verbose));
 }
 
+TEST(KitIntrinsicUtils, isKitIntrinsicCPU) {
+  // This is not a comprehensive list. It's mainly here to ensure some measure
+  // of sanity.
+  EXPECT_TRUE(isKitIntrinsicCPU(Intrinsic::kit_async_cpu_threads_launch));
+  EXPECT_TRUE(isKitIntrinsicCPU(Intrinsic::kit_cpu_threads_launch));
+
+  EXPECT_FALSE(isKitIntrinsicCPU(Intrinsic::kit_async_gpu_kernel_launch));
+  EXPECT_FALSE(isKitIntrinsicCPU(Intrinsic::kit_gpu_thread_id_x));
+  EXPECT_FALSE(isKitIntrinsicCPU(Intrinsic::kit_mobile_alloc));
+  EXPECT_FALSE(isKitIntrinsicCPU(Intrinsic::kit_reduce_0));
+  EXPECT_FALSE(isKitIntrinsicCPU(Intrinsic::kit_runtime_initialize));
+}
+
+TEST(KitIntrinsicUtils, isKitIntrinsicGPU) {
+  // This is not a comprehensive list. It's mainly here to ensure some measure
+  // of sanity.
+  EXPECT_TRUE(isKitIntrinsicGPU(Intrinsic::kit_async_gpu_kernel_launch));
+  EXPECT_TRUE(isKitIntrinsicGPU(Intrinsic::kit_gpu_thread_id_x));
+
+  EXPECT_FALSE(isKitIntrinsicGPU(Intrinsic::kit_async_cpu_threads_launch));
+  EXPECT_FALSE(isKitIntrinsicGPU(Intrinsic::kit_cpu_threads_launch));
+  EXPECT_FALSE(isKitIntrinsicGPU(Intrinsic::kit_mobile_alloc));
+  EXPECT_FALSE(isKitIntrinsicGPU(Intrinsic::kit_reduce_0));
+  EXPECT_FALSE(isKitIntrinsicGPU(Intrinsic::kit_runtime_initialize));
+}
+
 TEST(KitIntrinsicUtils, getKernelArgumentsFromLaunch) {
   LLVMContext ctx;
   Module m("", ctx);
