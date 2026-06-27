@@ -32,6 +32,32 @@ TEST(KitTTUtils, isGPUTT) {
     EXPECT_EQ(isGPUTT(tt), knownGPUTTs.contains(tt));
 }
 
+TEST(KitTTUtils, isCPUTT) {
+  for (TTID tt : kitKnownTTs()) {
+    switch (tt) {
+    case TTID::Nolo:
+    case TTID::Serial:
+    case TTID::Cuda:
+    case TTID::Hip:
+    case TTID::Custom:
+      EXPECT_FALSE(isCPUTT(tt));
+      continue;
+    case TTID::OpenCilk:
+    case TTID::OpenMP:
+    case TTID::Pthreads:
+    case TTID::Qthreads:
+      EXPECT_TRUE(isCPUTT(tt));
+      continue;
+    case TTID::Lambda:
+    case TTID::OMPTask:
+    case TTID::Realm:
+      EXPECT_DEATH(isCPUTT(tt), "isCPUTT: TTID not handled");
+      continue;
+    }
+    FAIL() << "TTID not handled in test switch";
+  }
+}
+
 TEST(KitTTUtils, getSpawnStrategy) {
   // TTID::Nolo will never be in the known TT's list.
   EXPECT_EQ(getSpawnStrategyFor(TTID::Nolo), TapirSpawnStrategy::Sequential);
