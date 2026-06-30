@@ -1,7 +1,6 @@
 ; Check that a simple reduction loop of depth 1 is prepared as expected.
 ;
-; RUN: opt --tapir=hip --passes=kit-reductions -S %s \
-; RUN:     | FileCheck %s
+; RUN: opt --tapir=hip --passes=kit-prepare -S %s | FileCheck %s
 ;
 ; CHECK-LABEL: @f
 ; CHECK-SAME: i64 %[[N:[^)]+]]

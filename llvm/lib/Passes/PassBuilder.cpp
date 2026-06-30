@@ -36,7 +36,7 @@
 #include "kitsune/Transforms/PreLowerAnnotate.h"
 #include "kitsune/Transforms/PreLowerPrepare.h"
 #include "kitsune/Transforms/PrefetchForDevice.h"
-#include "kitsune/Transforms/PrepareReductionLoops.h"
+#include "kitsune/Transforms/PrepareTapirLoops.h"
 #include "kitsune/Transforms/RecomputeKernelProperties.h"
 #include "kitsune/Transforms/SecondaryIVElimination.h"
 #include "kitsune/Transforms/Serialize.h"

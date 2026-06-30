@@ -36,20 +36,11 @@
 //
 // O23S-NOT:  Running pass:     EarlyVerificationPass
 // O23S-NOT:  Running pass:     EarlyAnnotatePass
+// O23S-NOT:  Running pass:     PrepareTapirLoopsPass
+// O23S-NOT:  Running pass:     LowerKitReduceIntrinsicsPass
 //
 // O23S:      Running pass:     PreLowerPreparePass
 // O23S:      Running pass:     SecondaryIVEliminationPass
-// O23S:      Running pass:     PrepareReductionLoopsPass
-// O23S:      Running pass:     LowerKitReduceIntrinsicsPass
-// O23S:      Running pass:     ModuleInlinerPass
-// O23S:      Running pass:     EarlyCSEPass
-// O23S:      Running pass:     SimplifyCFGPass
-// O23S:      Running pass:     InstCombinePass
-// O23S:      Running pass:     SCCPPass
-// O23S:      Running pass:     BDCEPass
-// O23S:      Running pass:     InstCombinePass
-// O23S:      Running pass:     DSEPass
-// O23S:      Running pass:     ADCEPass
 // O23S:      Running pass:     DeLICMPass
 // O23S:      Running pass:     SimplifyCFGPass
 // O23S:      Running pass:     LoopSimplifyPass

@@ -847,7 +847,7 @@ Only the pointer to the result and the value to be reduced are used here. The
 `size` and `unit` arguments are not used. Those arguments are used when the
 intrinsic is used in a tapir loop. In this case, the tapir loop and the
 intrinsic call are used to transform the loop for parallel execution. See the
-documentation for the `kit-reductions` pass for details.
+documentation for the `kit-prepare` pass for details.
 }];
 }
 
@@ -926,9 +926,8 @@ A straightforward lowering of this intrinsic might be as shown below.
       mul(&res, array[i]);
   }
 
-This intrinsic is generally used by the
-:ref:`kit-reductions <passes-kit-reductions>` pass to reduce the
-array of partial reductions that were computed when a
+This intrinsic is used by the :ref:`kit-prepare <passes-kit-prepare>` pass to
+reduce the array of partial reductions that are computed when a
 :ref:`tapir reduction loop <glossary-tapir-reduction-loop>` is transformed for
 parallel execution.
 }];

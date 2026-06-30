@@ -17,6 +17,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "LoopWrapping.h"
+#include "kitsune/Core/BasicBlockUtils.h"
+#include "kitsune/Core/Diagnostics.h"
+#include "kitsune/Core/InstUtils.h"
 #include "kitsune/Core/LoopUtils.h"
 #include "kitsune/Core/TapirLoopUtils.h"
 #include "llvm/Analysis/DomTreeUpdater.h"
@@ -490,6 +493,15 @@ Loop *LoopWrapImpl::genOuterLoopObject(
            "Predecessor of outer loop exit must be outer loop latch");
   };
 
+  auto addBlockToLoop = [](Loop &loop, BasicBlock &bb, LoopInfo &li) {
+    if (loop.getParentLoop()) {
+      li.changeLoopFor(&bb, &loop);
+      loop.addBlockEntry(&bb);
+    } else {
+      loop.addBasicBlockToLoop(&bb, li);
+    }
+  };
+
   LLVM_DEBUG(dbgs() << "LoopWrap:   Create loop object\n");
   sanityCheck(loop, outerHeader, outerReattach, outerLatch, outerExit,
               innerGuard, innerEnd);
@@ -501,23 +513,20 @@ Loop *LoopWrapImpl::genOuterLoopObject(
     li.changeTopLevelLoop(&loop, outerLoop);
   outerLoop->addChildLoop(&loop);
 
-  BasicBlock *ph = loop.getLoopPreheader();
-  BasicBlock *exit = loop.getExitBlock();
-
   // Add blocks to the outer loop. We add them in roughly the same order as the
   // figure above just to keep things somewhat organized. The blocks in the
   // inner loop must also be added to the new outer loop. These don't have to be
   // added to the parents of the outer loop (if any) since they should already
   // be present there, so we just use addBlockEntry().
-  outerLoop->addBasicBlockToLoop(&outerHeader, li);
-  outerLoop->addBasicBlockToLoop(&innerGuard, li);
-  outerLoop->addBasicBlockToLoop(ph, li);
+  addBlockToLoop(*outerLoop, outerHeader, li);
+  addBlockToLoop(*outerLoop, innerGuard, li);
+  addBlockToLoop(*outerLoop, *loop.getLoopPreheader(), li);
   for (BasicBlock *bb : loop.getBlocks())
     outerLoop->addBlockEntry(bb);
-  outerLoop->addBasicBlockToLoop(exit, li);
-  outerLoop->addBasicBlockToLoop(&innerEnd, li);
-  outerLoop->addBasicBlockToLoop(&outerReattach, li);
-  outerLoop->addBasicBlockToLoop(&outerLatch, li);
+  addBlockToLoop(*outerLoop, *loop.getExitBlock(), li);
+  addBlockToLoop(*outerLoop, innerEnd, li);
+  addBlockToLoop(*outerLoop, outerReattach, li);
+  addBlockToLoop(*outerLoop, outerLatch, li);
 
   assert(loop.isLoopSimplifyForm() &&
          "Inner loop must be maintained in loop-simplify form");
@@ -621,7 +630,120 @@ Loop *LoopWrapImpl::runOn(const TapirLoopInfo &tapirLoop) {
   return outerLoop;
 }
 
+template <typename... Args>
+static bool complain(const Loop &loop, DiagID diag, Args &&...args) {
+  emitDiagnostic(loop, diag, args...);
+  return false;
+}
+
+bool llvm::checkTapirLoopSafeToWrap(TapirLoopInfo &tapirLoop, DominatorTree &dt,
+                                    LoopInfo &li) {
+  auto anyPredecessorDoesNotReattach = [](const BasicBlock &latch) -> bool {
+    return llvm::any_of(predecessors(&latch), [](const BasicBlock *bb) {
+      return isa<ReattachInst>(bb->getTerminator());
+    });
+  };
+
+  auto getConvergentOpIfAny = [](const Loop &loop) -> Instruction * {
+    for (BasicBlock *bb : loop.getBlocks())
+      for (Instruction &inst : *bb)
+        if (auto *call = dyn_cast<CallBase>(&inst))
+          if (call->isConvergent())
+            return &inst;
+    return nullptr;
+  };
+
+  const Loop &loop = *tapirLoop.getLoop();
+  Task &task = *tapirLoop.getTask();
+
+  if (!loop.isLoopSimplifyForm())
+    return complain(loop, DiagID::ErrLoopNotSimplifyForm);
+
+  // It is not clear if we strictly require this, but we do tend to run the
+  // LCSSA pass before tapir loop transformation passes, so we check for it.
+  if (!loop.isLCSSAForm(dt))
+    return complain(loop, DiagID::ErrLoopNotLCSSAForm);
+
+  if (getNumIndVars(loop) > 1)
+    return complain(loop, DiagID::ErrTapirLoopIVMultiple);
+
+  if (!loop.getCanonicalInductionVariable())
+    return complain(loop, DiagID::ErrTapirLoopIVNotCanonical);
+
+  for (auto &[iv, ivDescr] : *tapirLoop.getInductionVars()) {
+    for (User *user : iv->users())
+      if (!isa<Instruction>(user))
+        return complain(loop, DiagID::ErrTapirLoopIVUseNotInst);
+
+    if (isUsedOutsideLoop(*iv, loop, li))
+      return complain(loop, DiagID::ErrTapirLoopIVUsedOutsideLoop);
+  }
+
+  // TODO:? It is not clear why this is an issue. It was "inherited" from the
+  // implementation of the tapir strip-mining pass.
+  if (loop.getHeader()->hasAddressTaken())
+    return complain(loop, DiagID::ErrTapirLoopHeaderAddressTaken);
+
+  // Since the loop is guaranteed to be in loop-simplify form, a unique latch
+  // is guaranteed to exist.
+  BasicBlock *latch = loop.getLoopLatch();
+  if (!anyPredecessorDoesNotReattach(*latch))
+    return complain(loop, DiagID::ErrTapirLoopBodyDoesNotReattach);
+
+  // Most transformation passes except that the terminator of the tapir loop
+  // latch is a conditional branch.
+  if (!isCondBr(*latch->getTerminator()))
+    return complain(loop, DiagID::ErrTapirLoopBlockTerminator, "latch",
+                    "conditional branch");
+
+  // Loop-simplify form does not imply a unique exiting block, only a unique
+  // latch. The presence of more than one exiting block implies an early
+  // (usually conditional) exit. These are not currently supported in tapir
+  // loops.
+  if (!loop.getExitingBlock())
+    return complain(loop, DiagID::ErrTapirLoopNoUniqueExitingBlock);
+
+  // We check this late because one reason for the failure to compute a finite
+  // trip count is that the terminator of the loop latch is not a conditional
+  // branch. By allowing that error to be emitted, we have a better idea of why
+  // this check failed.
+  if (!tapirLoop.hasTripCount())
+    return complain(loop, DiagID::ErrTapirLoopNoFiniteTripCount);
+
+  if (!loop.isSafeToClone())
+    return complain(loop, DiagID::ErrTapirLoopNotSafeToClone);
+
+  if (Instruction *inst = getConvergentOpIfAny(loop))
+    return complain(loop, DiagID::ErrTapirLoopConvergent, *inst);
+
+  const DetachInst *di = getUniqueInstInLoopOnly<DetachInst>(loop);
+  if (!di)
+    return complain(loop, DiagID::ErrTapirLoopNoUniqueDetachInst);
+  else if (di->getDetached() != task.getEntry())
+    return complain(loop, DiagID::ErrTapirLoopTaskEntryMismatch);
+
+  SmallVector<Instruction *, 1> reattaches;
+  SmallVector<BasicBlock *, 4> ehBlocksToClone;
+  SmallPtrSet<BasicBlock *, 4> ehBlockPreds;
+  SmallPtrSet<LandingPadInst *, 1> inlinedLPads;
+  SmallVector<Instruction *, 1> detachedRethrows;
+
+  AnalyzeTaskForSerialization(&task, reattaches, ehBlocksToClone, ehBlockPreds,
+                              inlinedLPads, detachedRethrows);
+
+  // We currently do not support exceptions within tapir loops.
+  if (di->hasUnwindDest() || !ehBlocksToClone.empty() ||
+      !ehBlockPreds.empty() || !inlinedLPads.empty() ||
+      !detachedRethrows.empty())
+    return complain(loop, DiagID::ErrTapirLoopThrowsException);
+
+  if (reattaches.size() != 1)
+    return complain(loop, DiagID::ErrTapirLoopNoUniqueReattachInst);
+
+  return true;
+}
+
 Loop *llvm::wrapWithTapirLoop(TapirLoopInfo &tapirLoop, DominatorTree &dt,
-                          LoopInfo &li, MemorySSA &mssa) {
+                              LoopInfo &li, MemorySSA &mssa) {
   return LoopWrapImpl(dt, li, mssa).runOn(tapirLoop);
 }

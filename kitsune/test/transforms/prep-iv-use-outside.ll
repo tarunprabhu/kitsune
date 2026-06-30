@@ -1,10 +1,8 @@
-; Branch of tapir loop must be a conditional branch.
+; All uses of the induction variable of a tapir loop must be within the loop.
 ;
-; RUN: not opt -passes='kit-reductions' -S %s 2>&1 | FileCheck %s
+; RUN: not opt -passes='kit-prepare' -S %s 2>&1 | FileCheck %s
 ;
 ; CHECK: tapir loop induction variable used outside tapir loop
-
-declare void @sum(ptr %res, i64 %v)
 
 define void @acc(i64 %n) {
 entry:
@@ -17,13 +15,12 @@ for.j.header:
   detach within %syncreg, label %for.j.body, label %for.j.latch
 
 for.j.body:
-  call void(i32, ptr, i32, i64, i64, ptr, ...) @llvm.kit.reduce.0(i32 1024, ptr %result, i32 8, i64 %j, i64 0, ptr @sum)
   reattach within %syncreg, label %for.j.latch
 
 for.j.latch:
   %inc.j = add i64 %j, 1
   %cmp.j = icmp eq i64 %inc.j, %n
-  br i1 %cmp.j, label %for.j.exit, label %for.j.header, !llvm.loop !2
+  br i1 %cmp.j, label %for.j.exit, label %for.j.header, !llvm.loop !1
 
 for.j.exit:
   %tmp = phi i64 [ %j, %for.j.latch ]
@@ -34,5 +31,4 @@ for.j.end:
 }
 
 !0 = !{!"tapir.loop.target", i32 1024}
-!1 = !{!"tapir.loop.reduction"}
-!2 = distinct !{!2, !0, !1}
+!1 = distinct !{!1, !0}

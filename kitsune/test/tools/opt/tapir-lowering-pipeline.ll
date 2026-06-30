@@ -47,17 +47,6 @@
 ;
 ; O123S:      Running pass:     PreLowerPreparePass
 ; O123S:      Running pass:     SecondaryIVEliminationPass
-; O123S:      Running pass:     PrepareReductionLoopsPass
-; O123S:      Running pass:     LowerKitReduceIntrinsicsPass
-; O123S:      Running pass:     ModuleInlinerPass
-; O123S:      Running pass:     EarlyCSEPass
-; O123S:      Running pass:     SimplifyCFGPass
-; O123S:      Running pass:     InstCombinePass
-; O123S:      Running pass:     SCCPPass
-; O123S:      Running pass:     BDCEPass
-; O123S:      Running pass:     InstCombinePass
-; O123S:      Running pass:     DSEPass
-; O123S:      Running pass:     ADCEPass
 ; O123S:      Running pass:     DeLICMPass
 ; O123S:      Running pass:     SimplifyCFGPass
 ; O123S:      Running pass:     LoopSimplifyPass

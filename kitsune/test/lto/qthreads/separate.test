@@ -34,21 +34,30 @@
 # LOWERED-SAME: {{[^%]*}}%[[B:[^,]+]],
 # LOWERED-SAME: i64 {{[^%]*}}%[[N:[^,]+]])
 # LOWERED: %[[PACK:.+]] = alloca
+# LOWERED-SAME: i64
+# LOWERED-SAME: i64
 # LOWERED-SAME: ptr addrspace(67)
 # LOWERED-SAME: ptr addrspace(67)
 # LOWERED-SAME: ptr addrspace(67)
 # LOWERED-SAME: {{[}]}}
-# LOWERED: %[[ARGA:[0-9]+]] = getelementptr {{.*}}, ptr %[[PACK]]
-# LOWERED: store ptr {{.*}}%[[A]], ptr %[[ARGA]]
-# LOWERED: %[[ARGB:[0-9]+]] = getelementptr {{.*}}, ptr %[[PACK]]
-# LOWERED: store ptr {{.*}}%[[B]], ptr %[[ARGB]]
-# LOWERED: %[[ARGC:[0-9]+]] = getelementptr {{.*}}, ptr %[[PACK]]
-# LOWERED: store ptr {{.*}}%[[C]], ptr %[[ARGC]]
+# LOWERED: %[[THRDS32:.+]] = tail call i32 @llvm.kit.cpu.num.threads(i32 32)
+# LOWERED: %[[NUM_THREADS:.+]] = sext i32 %[[THRDS32]] to i64
+# LOWERED: %[[PER_THREAD:.+]] = udiv i64 {{.+}}, %[[NUM_THREADS]]
+# LOWERED-NEXT: %[[ARGPERTHRD:[0-9]+]] = getelementptr {{.*}}, ptr %[[PACK]]
+# LOWERED-NEXT: store i64 %[[PER_THREAD]], ptr %[[ARGPERTHRD]]
+# LOWERED-NEXT: %[[ARGN:[0-9]+]] = getelementptr {{.*}}, ptr %[[PACK]]
+# LOWERED-NEXT: store i64 %[[N]], ptr %[[ARGN]]
+# LOWERED-NEXT: %[[ARGA:[0-9]+]] = getelementptr {{.*}}, ptr %[[PACK]]
+# LOWERED-NEXT: store ptr {{.*}}%[[A]], ptr %[[ARGA]]
+# LOWERED-NEXT: %[[ARGB:[0-9]+]] = getelementptr {{.*}}, ptr %[[PACK]]
+# LOWERED-NEXT: store ptr {{.*}}%[[B]], ptr %[[ARGB]]
+# LOWERED-NEXT: %[[ARGC:[0-9]+]] = getelementptr {{.*}}, ptr %[[PACK]]
+# LOWERED-NEXT: store ptr {{.*}}%[[C]], ptr %[[ARGC]]
 # LOWERED: call void @llvm.kit.cpu.threads.launch(
 # LOWERED-SANE: i32 32,
 # LOWERED-SAME: ptr @[[OUTLINED:_Z6vecadd[^,]+]],
 # LOWERED-SAME: i64 0,
-# LOWERED-SAME: i64 %[[N]],
+# LOWERED-SAME: i64 %[[NUM_THREADS]],
 # LOWERED-SAME: i64 0,
 # LOWERED-SAME: ptr %[[PACK]])
 # LOWERED: ret void
@@ -60,15 +69,19 @@
 # LOWERED: br label %[[BODY:.+]]
 # LOWERED: [[BODY]]:
 # LOWERED: %[[I:[0-9]+]] = phi i64
-# LOWERED: %[[ARGA:.+]] = getelementptr {{.*}}, ptr %[[ARGS]], i32 0, i32 0
+# LOWERED: %[[ARGPERTHRD:.+]] = getelementptr {{.*}}, ptr %[[ARGS]], i32 0, i32 0
+# LOWERED: %[[PERTHRD:.+]] = load i64, ptr %[[ARGPERTHRD]]
+# LOWERED: %[[ARGN:.+]] = getelementptr {{.*}}, ptr %[[ARGS]], i32 0, i32 1
+# LOWERED: %[[N:.+]] = load i64, ptr %[[ARGN]]
+# LOWERED: %[[ARGA:.+]] = getelementptr {{.*}}, ptr %[[ARGS]], i32 0, i32 2
 # LOWERED: %[[PTRA:.+]] = load ptr addrspace(67), ptr %[[ARGA]]
-# LOWERED: %[[ARGB:.+]] = getelementptr {{.*}}, ptr %[[ARGS]], i32 0, i32 1
+# LOWERED: %[[ARGB:.+]] = getelementptr {{.*}}, ptr %[[ARGS]], i32 0, i32 3
 # LOWERED: %[[PTRB:.+]] = load ptr addrspace(67), ptr %[[ARGB]]
-# LOWERED: %[[ARGC:.+]] = getelementptr {{.*}}, ptr %[[ARGS]], i32 0, i32 2
+# LOWERED: %[[ARGC:.+]] = getelementptr {{.*}}, ptr %[[ARGS]], i32 0, i32 4
 # LOWERED: %[[PTRC:.+]] = load ptr addrspace(67), ptr %[[ARGC]]
-# LOWERED: %[[IDXA:.+]] = {{.*}}call
+# LOWERED: %[[IDXA:.+]] = {{.*}}call {{.+}} ptr @
 # LOWERED: %[[VA:.+]] = load double, ptr %[[IDXA]]
-# LOWERED: %[[IDXB:.+]] = {{.*}}call
+# LOWERED: %[[IDXB:.+]] = {{.*}}call {{.+}} ptr @
 # LOWERED: %[[VB:.+]] = load double, ptr %[[IDXB]]
 # LOWERED: %[[SUM:.+]] = fadd double %[[VA]], %[[VB]]
 # LOWERED: %[[IDXC:.+]] = {{.*}}call

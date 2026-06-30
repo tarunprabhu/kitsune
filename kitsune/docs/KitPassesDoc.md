@@ -208,14 +208,14 @@ Unlike the other intrinsic lowering passes, this is run as part of the
 middle-end in the pre-tapir lowering pipeline.
 
 
-(passes-kit-reductions)=
-### kit-reductions
+(passes-kit-prepare)=
+### kit-prepare
 
-Transform a [tapir reduction loop](glossary-tapir-reduction-loop) to a form
-suitable for parallel execution on CPU's and GPU's. This only carries out the
-transformation on a loop and adds some supporting code - typically calls to
-other Kitsune-specific intrinsics. For a complete transformation, these
-intrinsics must be lowered. This is done in several different passes such as
+Transform a [tapir loop](glossary-tapir-loop) to a form suitable for parallel
+execution on CPU's and GPU's. This only carries out the transformation on the
+loop and adds some supporting code - typically calls to other Kitsune-specific
+intrinsics. For a complete transformation, these intrinsics must be lowered.
+This is done in several different passes such as
 [kit-lower-reduce-intrinsics](passes-kit-lower-reduce-intrinsics) and
 [kit-lower-intrinsics](passes-kit-lower-intrinsics).
 

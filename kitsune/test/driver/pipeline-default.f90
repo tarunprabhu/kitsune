@@ -12,7 +12,7 @@
 ! RUN:     | FileCheck %s -check-prefix O0
 !
 ! O0-NOT:     Running pass:     SecondaryIVEliminationPass
-! O0-NOT:     Running pass:     PrepareReductionLoopsPass
+! O0-NOT:     Running pass:     PrepareTapirLoopsPass
 ! O0-NOT:     Running pass:     LowerKitReduceIntrinsicsPass
 ! O0-NOT:     Running pass:     DeLICMPass
 ! O0-NOT:     Running pass:     PreLowerPreparePass
@@ -59,17 +59,8 @@
 ! if they are ever removed from the pipeline.
 ! O123S:      Running pass:     PreLowerPreparePass
 ! O123S:      Running pass:     SecondaryIVEliminationPass
-! O123S:      Running pass:     PrepareReductionLoopsPass
+! O123S:      Running pass:     PrepareTapirLoopsPass
 ! O123S:      Running pass:     LowerKitReduceIntrinsicsPass
-! O123S:      Running pass:     ModuleInlinerPass
-! O123S:      Running pass:     EarlyCSEPass
-! O123S:      Running pass:     SimplifyCFGPass
-! O123S:      Running pass:     InstCombinePass
-! O123S:      Running pass:     SCCPPass
-! O123S:      Running pass:     BDCEPass
-! O123S:      Running pass:     InstCombinePass
-! O123S:      Running pass:     DSEPass
-! O123S:      Running pass:     ADCEPass
 ! O123S:      Running pass:     DeLICMPass
 ! O123S:      Running pass:     SimplifyCFGPass
 ! O123S:      Running pass:     LoopSimplifyPass

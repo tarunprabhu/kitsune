@@ -1,0 +1,57 @@
+; Check that the default lowering of a simple tapir loop produces vectorized
+; code.
+;
+; RUN: %if x86-registered-target %{ \
+; RUN:   opt -mtriple=x86_64-pc-linux --tapir=qthreads -O3 -S %s \
+; RUN:       | FileCheck %s \
+; RUN: %}
+;
+; RUN: %if aarch64-registered-target %{ \
+; RUN:   opt -mtriple=aarch64-linux-gnu -mattr=+sve --tapir=qthreads -O3 -S %s \
+; RUN:       | FileCheck %s \
+; RUN: %}
+;
+; CHECK-LABEL: define {{.*}}void @f.outline{{[^ ]+}}.ls1(
+; CHECK: %[[A1:.+]] = load <4 x float>
+; CHECK: %[[A2:.+]] = load <4 x float>
+; CHECK: %[[B1:.+]] = load <4 x float>
+; CHECK: %[[B2:.+]] = load <4 x float>
+; CHECK: %[[SUM1:.+]] = fadd <4 x float> %[[A1]], %[[B1]]
+; CHECK: %[[SUM2:.+]] = fadd <4 x float> %[[A2]], %[[B2]]
+; CHECK: store <4 x float> %[[SUM1]]
+; CHECK: store <4 x float> %[[SUM2]]
+
+define void @f(ptr %a, ptr %b, ptr %c, i64 %n) {
+entry:
+  %syncreg = tail call token @llvm.syncregion.start()
+  br label %for.i.header
+
+for.i.header:
+  %i = phi i64 [ 0, %entry ], [ %inc.i, %for.i.latch ]
+  detach within %syncreg, label %for.i.body, label %for.i.latch
+
+for.i.body:
+  %aidx = getelementptr float, ptr %a, i64 %i
+  %aelem = load float, ptr %aidx
+  %bidx = getelementptr float, ptr %b, i64 %i
+  %belem = load float, ptr %bidx
+  %sum = fadd float %aelem, %belem
+  %cidx = getelementptr float, ptr %c, i64 %i
+  store float %sum, ptr %cidx
+  reattach within %syncreg, label %for.i.latch
+
+for.i.latch:
+  %inc.i = add i64 %i, 1
+  %cmp.i = icmp eq i64 %inc.i, %n
+  br i1 %cmp.i, label %for.i.exit, label %for.i.header, !llvm.loop !0
+
+for.i.exit:
+  sync within %syncreg, label %for.i.end
+
+for.i.end:
+  ret void
+}
+
+!0 = distinct !{!0, !1, !2}
+!1 = !{!"tapir.loop.target", i32 32}
+!2 = !{!"tapir.loop.spawn.strategy", i32 4}

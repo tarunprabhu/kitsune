@@ -37,17 +37,8 @@
 !
 ! O23SZ:      Running pass:     PreLowerPreparePass
 ! O23SZ:      Running pass:     SecondaryIVEliminationPass
-! O23SZ:      Running pass:     PrepareReductionLoopsPass
+! O23SZ:      Running pass:     PrepareTapirLoopsPass
 ! O23SZ:      Running pass:     LowerKitReduceIntrinsicsPass
-! O23SZ:      Running pass:     ModuleInlinerPass
-! O23SZ:      Running pass:     EarlyCSEPass
-! O23SZ:      Running pass:     SimplifyCFGPass
-! O23SZ:      Running pass:     InstCombinePass
-! O23SZ:      Running pass:     SCCPPass
-! O23SZ:      Running pass:     BDCEPass
-! O23SZ:      Running pass:     InstCombinePass
-! O23SZ:      Running pass:     DSEPass
-! O23SZ:      Running pass:     ADCEPass
 ! O23SZ:      Running pass:     DeLICMPass
 ! O23SZ:      Running pass:     SimplifyCFGPass
 ! O23SZ:      Running pass:     LoopSimplifyPass
