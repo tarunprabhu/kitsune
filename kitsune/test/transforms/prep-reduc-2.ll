@@ -1,8 +1,7 @@
-; Check that the kit-reductions pass exits with an error if a tapir reduction
+; Check that the kit-prepare pass exits with an error if a tapir reduction
 ; loop is nested within another tapir loop.
 ;
-; RUN: not opt -passes="kit-reductions" -S %s 2>&1 \
-; RUN:     | FileCheck %s
+; RUN: not opt -passes="kit-prepare" -S %s 2>&1 | FileCheck %s
 ;
 ; CHECK: tapir reduction loop must be a top-level loop
 ; CHECK-NEXT: from loop 'nested-tapir-loop'

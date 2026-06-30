@@ -27,6 +27,18 @@ class LoopInfo;
 class MemorySSA;
 class TapirLoopInfo;
 
+/// Check that the given tapir loop can be wrapped in another loop. The checks
+/// here are fairly strict. There are two main reasons for this:
+///
+///   - We want to simplify the wrapping functions
+///   - It becomes difficult to check that the CFG of the wrapped loop is
+///     correct if some of the conditions checked here are violated.
+///
+/// This will emit an error message and return false if at least one error was
+/// found, true otherwise.
+bool checkTapirLoopSafeToWrap(TapirLoopInfo &tapirLoop, DominatorTree &dt,
+                              LoopInfo &li);
+
 /// Wrap the tapir loop \p loop with a serial loop.
 ///
 /// The CFG of \p loop structure is expected to be as shown below. LoopPreheader

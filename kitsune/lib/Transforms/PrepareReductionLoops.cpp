@@ -91,7 +91,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Transforms/PrepareReductionLoops.h"
+#include "PrepareReductionLoops.h"
 #include "LoopWrapping.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/Diagnostics.h"
@@ -115,7 +115,7 @@
 #include "llvm/Transforms/Utils/LoopUtils.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
 
-#define DEBUG_TYPE "kit-reductions"
+#define DEBUG_TYPE "kit-prepare"
 
 using namespace llvm;
 
@@ -189,14 +189,6 @@ public:
 };
 
 } // namespace
-
-// Mark the loop as having been prepared. \p hasChanged must be true if the loop
-// has been changed by the caller in any way. Otherwise, it should be false.
-// Returns \p hasChanged.
-static bool annotateLoopAsPrepared(Loop &loop, bool hasChanged) {
-  addPreparedAttr(loop);
-  return hasChanged;
-}
 
 // Collect the reduction intrinsics called in the loop being transformed,
 // \p loop.
@@ -850,8 +842,10 @@ bool PrepareReductionLoop::run(TapirLoopInfo &tapirLoop) {
   // If the loop does not perform any actual reductions, mark it as prepared,
   // but return false because only the metadata will have changed.
   SmallVector<ReductionInfo, 1> reductions = collectReductions(loop);
-  if (reductions.empty())
-    return annotateLoopAsPrepared(loop, /*hasChanged=*/false);
+  if (reductions.empty()) {
+    addPreparedAttr(loop);
+    return false;
+  }
 
   // Generate the outer loop including all blocks. The analysis objects will
   // have been updated.
@@ -957,160 +951,14 @@ bool PrepareReductionLoop::run(TapirLoopInfo &tapirLoop) {
 
   // Mark the loop as having been prepared to ensure that we don't accidentally
   // attempt to process it more than once.
-  return annotateLoopAsPrepared(*outerLoop, /*hasChanged=*/true);
+  addPreparedAttr(*outerLoop);
+  return true;
 }
 
 template <typename... Args>
 static bool complain(const Loop &loop, DiagID diag, Args &&...args) {
   emitDiagnostic(loop, diag, args...);
   return false;
-}
-
-// Check that the reduction loop can be transformed. We require it to be in a
-// very specific form. Some of the constraints here could, potentially, be
-// relaxed in the future. Returns false if any of the preconditions are not
-// satisfied.
-static bool check(TapirLoopInfo &tapirLoop, DominatorTree &dt, LoopInfo &li,
-                  PredicatedScalarEvolution &pse,
-                  OptimizationRemarkEmitter &ore) {
-  auto anyPredecessorDoesNotReattach = [](const BasicBlock &latch) -> bool {
-    return llvm::any_of(predecessors(&latch), [](const BasicBlock *bb) {
-      return isa<ReattachInst>(bb->getTerminator());
-    });
-  };
-
-  auto getConvergentOpIfAny = [](const Loop &loop) -> Instruction * {
-    for (BasicBlock *bb : loop.getBlocks())
-      for (Instruction &inst : *bb)
-        if (auto *call = dyn_cast<CallBase>(&inst))
-          if (call->isConvergent())
-            return &inst;
-    return nullptr;
-  };
-
-  const Loop &loop = *tapirLoop.getLoop();
-  Task &task = *tapirLoop.getTask();
-
-  // This is an intentional repeat of the conditional already checked by the
-  // assertion above. But it is critical enough that we want this to fail even
-  // on non-assert builds. While it is unlikely that this pass will ever be part
-  // of a full-blown production compiler that will be built without assertions,
-  // we keep it around anyway.
-  if (!loop.isLoopSimplifyForm())
-    return complain(loop, DiagID::ErrLoopNotSimplifyForm);
-
-  // It is not clear if we strictly require this, but we do tend to run
-  // formLCSSA recursively before tapir loop transformations, so it is probably
-  // worth requiring.
-  if (!loop.isLCSSAForm(dt))
-    return complain(loop, DiagID::ErrLoopNotLCSSAForm);
-
-  if (getNumIndVars(loop) > 1)
-    return complain(loop, DiagID::ErrTapirLoopIVMultiple);
-
-  if (!loop.getCanonicalInductionVariable())
-    return complain(loop, DiagID::ErrTapirLoopIVNotCanonical);
-
-  for (auto &[iv, ivDescr] : *tapirLoop.getInductionVars()) {
-    for (User *user : iv->users())
-      if (!isa<Instruction>(user))
-        return complain(
-            loop, DiagID::ErrGeneric,
-            "Use of tapir loop induction variable is not an instruction");
-
-    if (isUsedOutsideLoop(*iv, loop, li))
-      return complain(loop, DiagID::ErrTapirLoopIVUsedOutsideLoop);
-  }
-
-  // TODO:? It is not clear why this is an issue. It was "inherited" from the
-  // implementation of the tapir strip-mining pass.
-  if (loop.getHeader()->hasAddressTaken())
-    return complain(loop, DiagID::ErrGeneric,
-                    "tapir reduction loop header has its address taken");
-
-  // Since the loop is guaranteed to be in loop-simplify form, a unique latch
-  // is guaranteed to exist.
-  BasicBlock *latch = loop.getLoopLatch();
-  if (!anyPredecessorDoesNotReattach(*latch))
-    return complain(loop, DiagID::ErrGeneric,
-                    "tapir reduction loop body does not reattach");
-
-  // TODO?: It is not clear why we need the check on the terminator of the
-  // loop latch. We should either remove the check if it is not needed, or
-  // ensure that it can never happen - perhaps by running the loop-rotate pass -
-  // then remove this comment.
-  if (!isCondBr(*latch->getTerminator()))
-    return complain(loop, DiagID::ErrTapirLoopBlockTerminator, "latch",
-                    "conditional branch");
-
-  // We will have attempted to compute the trip count already. But we cannot
-  // just call tapirLoop.getTripCount() here because that will result in an
-  // assertion failure if a trip count was not already computed.
-  if (!tapirLoop.getOrCreateTripCount(pse, DEBUG_TYPE, &ore))
-    return complain(loop, DiagID::ErrTapirLoopNoFiniteTripCount);
-
-  // Only loops with a computable trip count can be transformed. The trip count
-  // must be an integer - it is not clear if we can support non-integer trip
-  // counts in the future.
-  const SCEV *scevBC = tapirLoop.getBackedgeTakenCount(pse);
-  if (isa<SCEVCouldNotCompute>(scevBC) || !scevBC->getType()->isIntegerTy())
-    return complain(loop, DiagID::ErrGeneric,
-                    "could not compute SCEV for backedge count");
-
-  const SCEV *scevTC = tapirLoop.getExitCount(scevBC, pse);
-  if (isa<SCEVCouldNotCompute>(scevTC))
-    return complain(loop, DiagID::ErrGeneric,
-                    "could not compute SCEV for trip count");
-
-  // Loop-simplify form does not imply a unique exiting block, only a unique
-  // latch. We currently do not support conditional exits in parallel reduction
-  // loops.
-  if (!loop.getExitingBlock())
-    return complain(loop, DiagID::ErrGeneric,
-                    "tapir reduction loop does not have unique exiting block");
-
-  if (!loop.isSafeToClone())
-    return complain(loop, DiagID::ErrTapirLoopNotSafeToClone);
-
-  if (Instruction *inst = getConvergentOpIfAny(loop))
-    return complain(loop, DiagID::ErrTapirLoopConvergent, *inst);
-
-  const DetachInst *di = getUniqueInstInLoopOnly<DetachInst>(loop);
-  if (!di)
-    return complain(loop, DiagID::ErrTapirLoopNoUniqueDetachInst);
-  else if (di->getDetached() != task.getEntry())
-    return complain(loop, DiagID::ErrGeneric,
-                    "tapir reduction loop task entry does not match block "
-                    "detached from header");
-
-  SmallVector<Instruction *, 1> reattaches;
-  SmallVector<BasicBlock *, 4> ehBlocksToClone;
-  SmallPtrSet<BasicBlock *, 4> ehBlockPreds;
-  SmallPtrSet<LandingPadInst *, 1> inlinedLPads;
-  SmallVector<Instruction *, 1> detachedRethrows;
-
-  AnalyzeTaskForSerialization(&task, reattaches, ehBlocksToClone, ehBlockPreds,
-                              inlinedLPads, detachedRethrows);
-
-  // We currently do not support exceptions within reduction loops.
-  if (di->hasUnwindDest() || !ehBlocksToClone.empty() ||
-      !ehBlockPreds.empty() || !inlinedLPads.empty() ||
-      !detachedRethrows.empty())
-    return complain(loop, DiagID::ErrTapirLoopThrowsException);
-
-  if (reattaches.size() != 1)
-    return complain(
-        loop, DiagID::ErrGeneric,
-        "tapir reduction loop must have a single reattach instruction");
-
-  // If this is not a top-level tapir loop, it is nested within another tapir
-  // loop.
-  // FIXME: Add support for reductions in nested tapir loops.
-  if (!isTopLevelTapirLoop(loop))
-    return complain(loop, DiagID::ErrGeneric,
-                    "tapir reduction loop must be a top-level loop");
-
-  return true;
 }
 
 static bool prepareForCPU(TapirLoopInfo &tapirLoop, DominatorTree &dt,
@@ -1127,89 +975,39 @@ static bool prepareForGPU(TapirLoopInfo &tapirLoop, DominatorTree &dt,
 
 static bool prepareForSerial(TapirLoopInfo &tapirLoop) {
   // There is nothing to be done to prepare a tapir reduction loop for the
-  // serial tapir target. Calls to the Kitsune reduce intrinsics will be
-  // lowered in a separate pass.
-  Loop &loop = *tapirLoop.getLoop();
-  return annotateLoopAsPrepared(loop, /*hasChanged=*/false);
+  // serial tapir target. Calls to Kitsune's reduce intrinsics will be lowered
+  // in a separate pass.
+  addPreparedAttr(*tapirLoop.getLoop());
+  return false;
 }
 
-static bool prepare(Loop &loop, DominatorTree &dt, LoopInfo &li,
-                    MemorySSA &mssa, OptimizationRemarkEmitter &ore,
-                    ScalarEvolution &se, TaskInfo &ti) {
-  LLVM_DEBUG(dbgs() << "PrepareReduction: Preparing loop '" << getName(loop)
-                    << "'\n");
-
-  // Even if the loop is recognized as a tapir loop, if it does not have the
-  // correct structure, the transformation that must be performed by this pass
-  // will be difficult, if not impossible to perform. Therefore, check this
-  // early, and fail immediately. See the comment above the call to check() for
-  // a discussion on why we choose to fail instead of producing working, even if
-  // slow, code in such cases.
-  Task *task = getTaskIfTapirLoopStructure(&loop, &ti);
-  if (!task) {
-    complain(loop, DiagID::ErrTapirLoopNoTask);
-    exitOnError();
-  }
-
-  PredicatedScalarEvolution pse(se, loop);
-  TapirLoopInfo tapirLoop(&loop, task);
-
-  // Setup the tapir loop object. These must be done before we check if the
-  // tapir loop can be transformed, otherwise, the check will definitely fail
-  // with spurious errors. We do this early to separate the tasks of setting up
-  // the object and checking the loop rather than having the two be
-  // interspersed.
-  tapirLoop.collectIVs(pse, DEBUG_TYPE, &ore);
-  tapirLoop.getOrCreateTripCount(pse, DEBUG_TYPE, &ore);
-
-  // If the tapir loop is such that it cannot be transformed for parallel
-  // execution, the entire compilation should fail. At the time of writing this,
-  // Kitsune is very much a research prototype, not a production-quality
-  // compiler (or even remotely close to it). The goal is not to always produce
-  // code that runs, but to push the envelope on the kinds of optimizations that
-  // can be performed. Given this objective, it makes more sense to fail if a
-  // transformation could not be performed, rather than produce working, albeit
-  // slow, code.
-  if (!check(tapirLoop, dt, li, pse, ore))
-    exitOnError();
-
+bool llvm::prepareReductionLoop(TapirLoopInfo &tapirLoop, DominatorTree &dt,
+                                LoopInfo &li, MemorySSA &mssa,
+                                ScalarEvolution &se, TaskInfo &ti) {
+  Loop &loop = *tapirLoop.getLoop();
   TTID tt = *getTargetAttr(loop);
   if (tt == TTID::Serial)
     return prepareForSerial(tapirLoop);
+  else if (isCPUTT(tt))
+    return prepareForCPU(tapirLoop, dt, li, mssa, se, ti);
   else if (isGPUTT(tt))
     return prepareForGPU(tapirLoop, dt, li, mssa, se, ti);
   else
-    return prepareForCPU(tapirLoop, dt, li, mssa, se, ti);
+    return false;
 }
 
-PreservedAnalyses PrepareReductionLoopsPass::run(Function &f,
-                                                 FunctionAnalysisManager &am) {
-  DominatorTree &dt = am.getResult<DominatorTreeAnalysis>(f);
-  LoopInfo &li = am.getResult<LoopAnalysis>(f);
-  MemorySSA &mssa = am.getResult<MemorySSAAnalysis>(f).getMSSA();
-  OptimizationRemarkEmitter &ore =
-      am.getResult<OptimizationRemarkEmitterAnalysis>(f);
-  ScalarEvolution &se = am.getResult<ScalarEvolutionAnalysis>(f);
-  TaskInfo &ti = am.getResult<TaskAnalysis>(f);
+bool llvm::checkReductionLoop(TapirLoopInfo &tapirLoop, DominatorTree &dt,
+                              LoopInfo &li) {
+  if (!checkTapirLoopSafeToWrap(tapirLoop, dt, li))
+    return false;
 
-  bool changed = false;
-  SmallVector<Loop *, 4> wl = li.getLoopsInPreorder();
-  while (!wl.empty()) {
-    // `wl` contains loops in preorder with siblings in forward program order.
-    // By popping from the back, we will visit the siblings in reverse program
-    // order. This is roughly what we want because it *might* reduce the chances
-    // of making a mess of the analysis objects.
-    Loop &loop = *wl.pop_back_val();
-    bool shouldTransform =
-        isTapirLoop(loop) && hasReductionAttr(loop) && !hasPreparedAttr(loop);
-    if (shouldTransform) {
-      LLVM_DEBUG(dbgs() << "PrepareReduction: Found reduction loop '"
-                        << getName(loop) << "'\n");
-      changed |= prepare(loop, dt, li, mssa, ore, se, ti);
-    }
-  }
+  // If this is not a top-level tapir loop, it is nested within another tapir
+  // loop.
+  // FIXME: Add support for reductions in nested tapir loops.
+  const Loop &loop = *tapirLoop.getLoop();
+  if (!isTopLevelTapirLoop(loop))
+    return complain(loop, DiagID::ErrGeneric,
+                    "tapir reduction loop must be a top-level loop");
 
-  if (!changed)
-    return PreservedAnalyses::all();
-  return getLoopPassPreservedAnalyses();
+  return true;
 }

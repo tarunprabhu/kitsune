@@ -2,7 +2,7 @@
 ; any calls Kitsune's reduce intrinsics, the loop should not be changed, but
 ; the tapir.loop.prepared attribute must be added.
 ;
-; RUN: opt -passes=kit-reductions -S %s | FileCheck %s
+; RUN: opt -passes=kit-prepare -S %s | FileCheck %s
 ;
 ; CHECK-NOT: tapir.loop.prepared
 ;

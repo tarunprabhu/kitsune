@@ -194,6 +194,9 @@ def ErrTapirLoopIVMultiple
 def ErrTapirLoopIVNotCanonical
   : Error<"tapir loop does not have a canonical induction variable">;
 
+def ErrTapirLoopIVUseNotInst
+  : Error<"use of tapir loop induction variable is not an instruction">;
+
 def ErrTapirLoopIVUsedOutsideLoop
   : Error<"tapir loop induction variable used outside tapir loop">;
 
@@ -232,6 +235,18 @@ def ErrTapirLoopThrowsException
 // 'conditional branch', or 'unconditional branch'.
 def ErrTapirLoopBlockTerminator
   : Error<"tapir loop {} must be terminated by a {}">;
+
+def ErrTapirLoopNoUniqueExitingBlock
+  : Error<"tapir loop does not contain a unique exiting block">;
+
+def ErrTapirLoopHeaderAddressTaken
+  : Error<"tapir loop header has its address taken">;
+
+def ErrTapirLoopBodyDoesNotReattach
+  : Error<"at least one path in tapir loop body does not reattach">;
+
+def ErrTapirLoopTaskEntryMismatch
+  : Error<"tapir loop task entry does not match detached block">;
 
 def ErrTapirNestBoundsVariantGPU
   : Error<"bounds of GPU loop must be invariant in the nest">;

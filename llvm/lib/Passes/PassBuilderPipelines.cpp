@@ -15,8 +15,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Passes/PipelineUtils.h"
-#include "kitsune/Analysis/EarlyVerification.h"
-#include "kitsune/Transforms/EarlyAnnotate.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/BasicAliasAnalysis.h"
@@ -493,8 +491,8 @@ PassBuilder::buildO1FunctionSimplificationPipeline(OptimizationLevel Level,
   // scalars.
   FPM.addPass(SROAPass(SROAOptions::ModifyCFG));
 
-  if (runKitNonLoweringPasses(Phase, PTO))
-    FPM.addPass(EarlyAnnotatePass());
+  if (runKitPreparePasses(Phase, PTO))
+    FPM.addPass(populateKitEarlyPasses(*this, Level, Phase, PTO));
 
   // Catch trivial redundancies
   FPM.addPass(EarlyCSEPass(true /* Enable mem-ssa. */));
@@ -643,8 +641,8 @@ PassBuilder::buildFunctionSimplificationPipeline(OptimizationLevel Level,
   // scalars.
   FPM.addPass(SROAPass(SROAOptions::ModifyCFG));
 
-  if (runKitNonLoweringPasses(Phase, PTO))
-    FPM.addPass(EarlyAnnotatePass());
+  if (runKitPreparePasses(Phase, PTO))
+    FPM.addPass(populateKitEarlyPasses(*this, Level, Phase, PTO));
 
   // Catch trivial redundancies
   FPM.addPass(EarlyCSEPass(true /* Enable mem-ssa. */));
@@ -1198,8 +1196,8 @@ PassBuilder::buildModuleSimplificationPipeline(OptimizationLevel Level,
   // This is the earliest that we can run Kitsune-specific verification passes
   // because we need some of the function simplification passes to have run
   // first.
-  if (runKitNonLoweringPasses(Phase, PTO))
-    MPM.addPass(EarlyVerificationPass());
+  if (runKitEarlyVerificationPasses(Phase, PTO))
+    MPM.addPass(populateKitEarlyVerificationPasses(*this, Level, Phase, PTO));
 
   if (LoadSampleProfile) {
     // Annotate sample profile right after early FPM to ensure freshness of
@@ -1606,6 +1604,12 @@ PassBuilder::buildModuleOptimizationPipeline(OptimizationLevel Level,
 
   // FIXME: We need to run some loop optimizations to re-rotate loops after
   // simplifycfg and others undo their rotation.
+
+  // Run the passes to prepare tapir loops before the vectorizer is run. Some
+  // of the transformations performed on the tapir loops are specifically to
+  // enable vectorization.
+  if (runKitPreparePasses(LTOPhase, PTO))
+    MPM.addPass(populateKitPreparePasses(*this, Level, LTOPhase, PTO));
 
   // Optimize the loop execution. These passes operate on entire loop nests
   // rather than on each loop in an inside-out manner, and so they are actually

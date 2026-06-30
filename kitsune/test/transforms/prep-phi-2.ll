@@ -1,13 +1,11 @@
 ; Check that the correct diagnostic is emitted when a tapir reduction loop has
 ; more than one induction variable.
 ;
-; RUN: not opt --tapir=serial -passes='kit-reductions' %s 2>&1 \
+; RUN: not opt --tapir=serial -passes='kit-prepare' %s 2>&1 \
 ; RUN:     -disable-output \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: tapir loop must have at most one induction variable
-
-declare void @mul(ptr, i32)
 
 define void @f1(ptr %r, i64 %n) {
 entry:
@@ -20,7 +18,6 @@ for.i.header:
   detach within %syncreg, label %for.i.body, label %for.i.latch
 
 for.i.body:
-  call void(i32, ptr, i32, i32, i32, ptr, ...) @llvm.kit.reduce.0(i32 1, ptr %r, i32 4, i32 %i.2, i32 1, ptr @mul)
   reattach within %syncreg, label %for.i.latch
 
 for.i.latch:
@@ -36,7 +33,6 @@ exit:
   ret void
 }
 
-!0 = distinct !{!0, !1, !2, !3}
+!0 = distinct !{!0, !1, !2}
 !1 = !{!"tapir.loop.target", i32 1}
 !2 = !{!"loop.name", !"f1.loop.i"}
-!3 = !{!"tapir.loop.reduction"}

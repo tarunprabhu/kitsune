@@ -2,8 +2,7 @@
 ; this case, nothing is changed in the loop body. Only the tapir.loop.prepared
 ; attribute is added to the tapir reduction loop.
 ;
-; RUN: opt --tapir=serial -passes='kit-reductions' -S %s \
-; RUN:     | FileCheck %s
+; RUN: opt --tapir=serial -passes='kit-prepare' -S %s | FileCheck %s
 ;
 ; CHECK-LABEL: @f
 ; CHECK-SAME: i64 %[[N:[^)]+]]

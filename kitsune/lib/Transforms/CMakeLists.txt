@@ -22,7 +22,9 @@ add_llvm_component_library(LLVMKitTransforms
   PreLowerAnnotate.cpp
   PreLowerPrepare.cpp
   PrefetchForDevice.cpp
+  PrepareParallelLoops.cpp
   PrepareReductionLoops.cpp
+  PrepareTapirLoops.cpp
   RecomputeKernelProperties.cpp
   SecondaryIVElimination.cpp
   Serialize.cpp

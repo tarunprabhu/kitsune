@@ -74,7 +74,7 @@
 // destinations of the reductions and the sources are disjoint. However, this
 // pass does not check that this is actually the case, and fuses the calls
 // unconditionally. This is generally safe only because we expect the
-// kit.reduce.1 intrinsics to have been inserted by the kit-reductions pass
+// kit.reduce.1 intrinsics to have been inserted by the kit-prepare pass
 // when lowering tapir reduction loops. In those cases, we are guaranteed to be
 // alias-free. If there are aliases, the semantics of tapir reduction loops will
 // have been violated - in which case, we are absolved of the guilt for this

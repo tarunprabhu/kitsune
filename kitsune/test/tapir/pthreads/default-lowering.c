@@ -7,17 +7,21 @@
 // RUN:     | FileCheck %s
 //
 // CHECK-LABEL: @f
-// CHECK-SAME: ptr {{.*}}%[[A:[^,]+]],
 // CHECK-SAME: i64 {{.*}}%[[N:[^)]+]])
 // CHECK: [[ENTRY:.+]]:
-// CHECK: %[[ARGS:.+]] = alloca { ptr }
+// CHECK: %[[ARGS:.+]] = alloca { i64, i64 }
 // CHECK: [[BODY:.+]]:
-// CHECK: store ptr %[[A]], ptr %[[ARGS]]
+// CHECK: %[[THRDS32:.+]] = tail call i32 @llvm.kit.cpu.num.threads(i32 1024)
+// CHECK: %[[NUM_THREADS:.+]] = sext i32 %[[THRDS32]] to i64
+// CHECK: %[[PER_THREAD:.+]] = udiv i64 {{.+}}, %[[NUM_THREADS]]
+// CHECK: store i64 %[[PER_THREAD]], ptr %[[ARGS]]
+// CHECK: %[[ARGPOS1:.+]] = getelementptr {{.*}}, ptr %[[ARGS]], i64 8
+// CHECK: store i64 %[[N]], ptr %[[ARGPOS1]]
 // CHECK: %[[CTX:.+]] = call ptr @llvm.kit.async.cpu.threads.launch(
 // CHECK-SAME: i32 1024,
 // CHECK-SAME: ptr @[[OUTLINED:[^,]+]],
 // CHECK-SAME: i64 0,
-// CHECK-SAME: i64 %[[N]],
+// CHECK-SAME: i64 %[[NUM_THREADS]],
 // CHECK-SAME: i64 0,
 // CHECK-SAME: ptr %[[ARGS]])
 // CHECK: call void @llvm.kit.cpu.threads.sync(i32 1024, ptr %[[CTX]])
@@ -30,20 +34,20 @@
 // CHECK-SAME: i64 %[[END:[^,]+]],
 // CHECK-SAME: i64 %[[GRAINSIZE:[^,]+]],
 // CHECK-SAME: ptr {{.*}}%[[ARGS:[^)]+]])
-// CHECK: [[ENTRY:.+]]:
-// CHECK: [[HEADER:.+]]:
+// CHECK: %[[OUTER:.+]] = phi i64
 // CHECK: %[[I:.+]] = phi i64
-// CHECK: %[[IDX:.+]] = getelementptr {{.*}}i64, ptr {{.+}}, i64 %[[I]]
-// CHECK: store i64 %[[I]], ptr %[[IDX]]
+// CHECK: call void @ext({{.*}} %[[I]])
 // CHECK: add {{.*}}i64 %[[I]], 1
-// CHECK: br {{.+}}, label %[[END:.+]], label %[[HEADER]]
+// CHECK: br {{.+}}, label %{{.+}}, label {{.+}}
 
 #include <kitsune.h>
 
-void f(size_t *a, size_t n) {
+void ext(size_t);
+
+void f(size_t n) {
   // clang-format off
   forall (size_t i = 0; i < n; ++i) {
-    a[i] = i;
+    ext(i);
   }
   // clang-format on
 }

@@ -10,11 +10,11 @@
 ;     so we may as well check for it)
 ;
 ; NOTE: The loop here has the pthreads tapir target set on it. This is only
-; because we need to set a non-serial tapir target on the loop. We don't test
-; separately for the GPU tapir targets because this part of the code is
-; identical for both CPU and GPU.
+; because we need to set a non-serial tapir target on the loop. We need to test
+; the GPU tapir targets separately because the transformations needed for those
+; will be different.
 ;
-; RUN: opt -passes=kit-reductions -S %s | FileCheck %s
+; RUN: opt -passes=kit-prepare -S %s | FileCheck %s
 ;
 ; CHECK-LABEL: @f
 ; CHECK-SAME: i64 %[[N:[^)]+]]

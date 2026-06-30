@@ -625,7 +625,7 @@ FUNCTION_PASS("kit-annotate-prelower", PreLowerAnnotatePass())
 FUNCTION_PASS("kit-delicm", DeLICMPass())
 FUNCTION_PASS("kit-lower-intrinsics", LowerKitIntrinsicsPass())
 FUNCTION_PASS("kit-lower-reduce-intrinsics", LowerKitReduceIntrinsicsPass())
-FUNCTION_PASS("kit-reductions", PrepareReductionLoopsPass())
+FUNCTION_PASS("kit-prepare", PrepareTapirLoopsPass())
 FUNCTION_PASS("kit-serialize", SerializePass())
 
 #undef FUNCTION_PASS

@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Passes/PipelineUtils.h"
+#include "kitsune/Analysis/EarlyVerification.h"
 #include "kitsune/Analysis/PreLowerVerification.h"
 #include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/CodeGen/CodeGenFatBinaries.h"
@@ -18,6 +19,7 @@
 #include "kitsune/CodeGen/LowerKitIntrinsics.h"
 #include "kitsune/CodeGen/StripKitAddrSpaces.h"
 #include "kitsune/Transforms/DeLICM.h"
+#include "kitsune/Transforms/EarlyAnnotate.h"
 #include "kitsune/Transforms/EmbLinkLibDeviceBitcode.h"
 #include "kitsune/Transforms/EmbLowerKitIntrinsicsEarly.h"
 #include "kitsune/Transforms/EmbOptimize.h"
@@ -28,7 +30,7 @@
 #include "kitsune/Transforms/PreLowerAnnotate.h"
 #include "kitsune/Transforms/PreLowerPrepare.h"
 #include "kitsune/Transforms/PrefetchForDevice.h"
-#include "kitsune/Transforms/PrepareReductionLoops.h"
+#include "kitsune/Transforms/PrepareTapirLoops.h"
 #include "kitsune/Transforms/RecomputeKernelProperties.h"
 #include "kitsune/Transforms/SecondaryIVElimination.h"
 #include "kitsune/Transforms/Serialize.h"
@@ -40,10 +42,12 @@
 #include "llvm/Transforms/Scalar/IndVarSimplify.h"
 #include "llvm/Transforms/Scalar/LICM.h"
 #include "llvm/Transforms/Scalar/LoopRotation.h"
+#include "llvm/Transforms/Scalar/LoopSimplifyCFG.h"
 #include "llvm/Transforms/Scalar/SCCP.h"
 #include "llvm/Transforms/Scalar/SimplifyCFG.h"
 #include "llvm/Transforms/Utils/LCSSA.h"
 #include "llvm/Transforms/Utils/LoopSimplify.h"
+#include "llvm/Transforms/Utils/TaskSimplify.h"
 
 using namespace llvm;
 
@@ -58,14 +62,24 @@ bool llvm::isKitsuneOrTapirPipelineAlias(StringRef name) {
          baseName == "tapir-lowering-loops";
 }
 
-bool llvm::runKitNonLoweringPasses(ThinOrFullLTOPhase phase,
-                                   const PipelineTuningOptions &pto) {
-  // For now, we always run the passes not related to tapir-lowering as long as
-  // a valid tapir target has been provided. When using LTO, this will run both
-  // before and after the bitcode has been linked. It is possible that we only
-  // need to run such passes during the prelink phase, but there is no harm in
-  // running them both times.
+bool llvm::runKitEarlyVerificationPasses(ThinOrFullLTOPhase phase,
+                                         const PipelineTuningOptions &pto) {
   return pto.TTOpts.has_value();
+}
+
+bool llvm::runKitPreparePasses(ThinOrFullLTOPhase phase,
+                               const PipelineTuningOptions &pto) {
+  // Kitsune's early transform passes should only be run during the pre-link
+  // LTO phase since these passes generally prepare tapir loops for lowering,
+  // but do not perform the actual lowering.
+  if (not pto.TTOpts.has_value())
+    return false;
+  else if (phase == ThinOrFullLTOPhase::None or
+           phase == ThinOrFullLTOPhase::FullLTOPreLink or
+           phase == ThinOrFullLTOPhase::ThinLTOPreLink)
+    return true;
+  else
+    return false;
 }
 
 bool llvm::runTapirLoweringPasses(ThinOrFullLTOPhase phase,
@@ -78,7 +92,7 @@ bool llvm::runTapirLoweringPasses(ThinOrFullLTOPhase phase,
   // different translation unit have to be added to the embedded bitcode modules
   // before it is compiled to GPU code.
   //
-  if (not pto.TTOpts)
+  if (not pto.TTOpts.has_value())
     return false;
   else if (pto.TTOpts->getTTID() == TTID::Nolo)
     return false;
@@ -103,13 +117,24 @@ static void addFunctionPass(ModulePassManager &mpm, Args &&...args) {
 }
 
 template <typename Pass, typename... Args>
-static void addLoopPass(ModulePassManager &mpm, bool useMemorySSA,
-                        Args &&...args) {
+static void addLoopPass(ModulePassManager &mpm, Args &&...args) {
   LoopPassManager lpm;
   FunctionPassManager fpm;
 
   lpm.addPass(Pass(args...));
-  fpm.addPass(createFunctionToLoopPassAdaptor(std::move(lpm), useMemorySSA));
+  fpm.addPass(
+      createFunctionToLoopPassAdaptor(std::move(lpm), /*useMemorySSA=*/false));
+  mpm.addPass(createModuleToFunctionPassAdaptor(std::move(fpm)));
+}
+
+template <typename Pass, typename... Args>
+static void addLoopPassMSSA(ModulePassManager &mpm, Args &&...args) {
+  LoopPassManager lpm;
+  FunctionPassManager fpm;
+
+  lpm.addPass(Pass(args...));
+  fpm.addPass(
+      createFunctionToLoopPassAdaptor(std::move(lpm), /*useMemorySSA=*/true));
   mpm.addPass(createModuleToFunctionPassAdaptor(std::move(fpm)));
 }
 
@@ -131,9 +156,8 @@ llvm::populateKitPreTapirPasses(PassBuilder &pb, OptimizationLevel optLevel,
 
 static void populateSimplifyPasses(ModulePassManager &mpm,
                                    const PipelineTuningOptions &pto) {
-  // the kit-reductions pass may not leave the IR in as clean a state as we
-  // would like. All these passes are probably overkill, but we definitely
-  // need at least indvars and simplifycfg.
+  // The kit-prepare pass may not leave the IR in as clean a state as we would
+  // like.
   //
   // FIXME: Some of these passes were added because an initial cut of the
   // implementation used Tapir's loop stripmining pass, and comments in the code
@@ -141,10 +165,8 @@ static void populateSimplifyPasses(ModulePassManager &mpm,
   // approach, so it is not clear how many of these are actually needed.
   //
   addFunctionPass<EarlyCSEPass>(mpm, /*UseMemorySSA=*/true);
-  addLoopPass<IndVarSimplifyPass>(mpm, /*UseMemorySSA=*/false);
-  addLoopPass<LICMPass>(mpm, /*UseMemorySSA=*/true, pto.LicmMssaOptCap,
-                        pto.LicmMssaNoAccForPromotionCap,
-                        /*AllowSpeculation=*/true);
+  addLoopPass<IndVarSimplifyPass>(mpm);
+  addLoopPass<LoopSimplifyCFGPass>(mpm);
   addFunctionPass<SimplifyCFGPass>(mpm);
   addFunctionPass<InstCombinePass>(mpm);
   addFunctionPass<SCCPPass>(mpm);
@@ -152,6 +174,70 @@ static void populateSimplifyPasses(ModulePassManager &mpm,
   addFunctionPass<InstCombinePass>(mpm);
   addFunctionPass<DSEPass>(mpm);
   addFunctionPass<ADCEPass>(mpm);
+  addLoopPassMSSA<LICMPass>(mpm, pto.LicmMssaOptCap,
+                            pto.LicmMssaNoAccForPromotionCap,
+                            /*AllowSpeculation=*/true);
+}
+
+FunctionPassManager
+llvm::populateKitEarlyPasses(PassBuilder &pb, OptimizationLevel optLevel,
+                             ThinOrFullLTOPhase ltoPhase,
+                             const PipelineTuningOptions &pto) {
+  FunctionPassManager fpm;
+
+  if (optLevel.getSpeedupLevel() > 0) {
+    // TODO: Add a pipeline extension point to add passes early and late in
+    // this pipeline.
+    fpm.addPass(EarlyAnnotatePass());
+  }
+
+  return fpm;
+}
+
+ModulePassManager llvm::populateKitEarlyVerificationPasses(
+    PassBuilder &pb, OptimizationLevel optLevel, ThinOrFullLTOPhase ltoPhase,
+    const PipelineTuningOptions &pto) {
+  ModulePassManager mpm;
+
+  if (optLevel.getSpeedupLevel() > 0) {
+    // TODO: Do we want to add custom pipeline extension points here?
+    addModulePass<EarlyVerificationPass>(mpm);
+  }
+
+  return mpm;
+}
+
+ModulePassManager
+llvm::populateKitPreparePasses(PassBuilder &pb, OptimizationLevel optLevel,
+                               ThinOrFullLTOPhase ltoPhase,
+                               const PipelineTuningOptions &pto) {
+  ModulePassManager mpm;
+
+  if (optLevel.getSpeedupLevel() > 0) {
+    addFunctionPass<LoopSimplifyPass>(mpm);
+    addLoopPass<LoopRotatePass>(mpm);
+    addLoopPass<IndVarSimplifyPass>(mpm, /*WidenIndVars=*/true,
+                                    /*TapirLoopsOnly=*/true);
+    addFunctionPass<TaskSimplifyPass>(mpm);
+    // FIXME: Rename the PreLowerPreparePass to NormalizeLoopControlBlocks.
+    addLoopPass<PreLowerPreparePass>(mpm);
+    addLoopPass<SecondaryIVEliminationPass>(mpm);
+
+    populateSimplifyPasses(mpm, pto);
+
+    addFunctionPass<LoopSimplifyPass>(mpm);
+    addFunctionPass<LCSSAPass>(mpm);
+    addFunctionPass<PrepareTapirLoopsPass>(mpm);
+    addFunctionPass<LowerKitReduceIntrinsicsPass>(mpm);
+
+    // We must run the module inliner because the reducer function should be
+    // inlined after the loop has been prepared. The IR may also need to be
+    // cleaned up.
+    addModulePass<ModuleInlinerPass>(mpm);
+    populateSimplifyPasses(mpm, pto);
+  }
+
+  return mpm;
 }
 
 ModulePassManager llvm::populateKitPreLoopSpawningPasses(
@@ -163,25 +249,11 @@ ModulePassManager llvm::populateKitPreLoopSpawningPasses(
   // point in running the other Kitsune-specific passes.
   if (optLevel.getSpeedupLevel() > 0) {
     addFunctionPass<LoopSimplifyPass>(mpm);
-    addLoopPass<LoopRotatePass>(mpm, /*UseMemorySSA=*/false);
-    addLoopPass<PreLowerPreparePass>(mpm, /*UseMemorySSA=*/false);
-    addLoopPass<SecondaryIVEliminationPass>(mpm, /*UseMemorySSA=*/false);
+    addLoopPass<LoopRotatePass>(mpm);
+    // FIXME: Rename the PreLowerPreparePass to NormalizeLoopControlBlocks.
+    addLoopPass<PreLowerPreparePass>(mpm);
+    addLoopPass<SecondaryIVEliminationPass>(mpm);
 
-    // The elimination of secondary pointer inductions may have created the
-    // potential for LICM and other optimizations.
-    populateSimplifyPasses(mpm, pto);
-
-    addFunctionPass<LoopSimplifyPass>(mpm);
-    addFunctionPass<LCSSAPass>(mpm);
-    addFunctionPass<PrepareReductionLoopsPass>(mpm);
-    addFunctionPass<LowerKitReduceIntrinsicsPass>(mpm);
-
-    // We must run the module inliner because the reducer function should be
-    // inlined after the loop has been prepared.
-    addModulePass<ModuleInlinerPass>(mpm);
-
-    // After preparing the loop for parallel reductions, we run the module
-    // inliner. Between those two passes, the IR should be cleaned up.
     populateSimplifyPasses(mpm, pto);
 
     // It is not clear if we really need to run loop-simplify here, but DeLICM
@@ -190,12 +262,8 @@ ModulePassManager llvm::populateKitPreLoopSpawningPasses(
     addFunctionPass<DeLICMPass>(mpm);
 
     // Run simplifycfg after the DeLICM pass since it may leave empty basic
-    // blocks around.
+    // blocks around. This may require re-simplifying the loop.
     addFunctionPass<SimplifyCFGPass>(mpm);
-
-    // Running simplifycfg may require the loop to be simplified again.
-    // The PreLowerVerification pass requires the tapir loops to be in simplify
-    // form.
     addFunctionPass<LoopSimplifyPass>(mpm);
     addModulePass<PreLowerVerificationPass>(mpm);
 

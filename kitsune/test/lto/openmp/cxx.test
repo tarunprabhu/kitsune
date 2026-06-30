@@ -14,11 +14,20 @@
 # CHECK-SAME: ptr {{[^%]*}}%[[B:[^,]+]],
 # CHECK-SAME: i64 {{[^%]*}}%[[N:[^,]+]])
 # CHECK: %[[PACK:.+]] = alloca {{[{]}}
+# CHECK-SAME: i64
+# CHECK-SAME: i64
 # CHECK-SAME: ptr addrspace(67)
 # CHECK-SAME: ptr addrspace(67)
 # CHECK-SAME: ptr addrspace(67)
 # CHECK-SAME: {{[}]}}
+# CHECK: %[[THRDS32:.+]] = tail call i32 @llvm.kit.cpu.num.threads(i32 512)
+# CHECK: %[[NUM_THREADS:.+]] = sext i32 %[[THRDS32]] to i64
+# CHECK: %[[PER_THREAD:.+]] = udiv i64 {{.+}}, %[[NUM_THREADS]]
 # CHECK: %[[GS:[0-9]+]] = call i64 @llvm.tapir.loop.grainsize
+# CHECK-NEXT: %[[ARGPERTHRD:[0-9]+]] = getelementptr {{.*}}, ptr %[[PACK]]
+# CHECK-NEXT: store i64 %[[PER_THREAD]], ptr %[[ARGPERTHRD]]
+# CHECK-NEXT: %[[ARGN:[0-9]+]] = getelementptr {{.*}}, ptr %[[PACK]]
+# CHECK-NEXT: store i64 %[[N]], ptr %[[ARGN]]
 # CHECK-NEXT: %[[ARGA:[0-9]+]] = getelementptr {{.*}}, ptr %[[PACK]]
 # CHECK-NEXT: store ptr {{.*}}%[[A]], ptr %[[ARGA]]
 # CHECK-NEXT: %[[ARGB:[0-9]+]] = getelementptr {{.*}}, ptr %[[PACK]]
@@ -29,7 +38,7 @@
 # CHECK-SAME: i32 512,
 # CHECK-SAME: ptr @[[OUTLINED:[^,]+]],
 # CHECK-SAME: i64 0,
-# CHECK-SAME: i64 %[[N]],
+# CHECK-SAME: i64 %[[NUM_THREADS]],
 # CHECK-SAME: i64 %[[GS]],
 # CHECK-SAME: ptr %[[PACK]])
 # CHECK: ret void
@@ -42,15 +51,19 @@
 # CHECK: br label %[[BODY:.+]]
 # CHECK: [[BODY]]:
 # CHECK: %[[I:[0-9]+]] = phi i64
-# CHECK: %[[ARGA:.+]] = getelementptr {{.*}}, ptr %[[ARGS]], i32 0, i32 0
+# CHECK: %[[ARGPERTHRD:.+]] = getelementptr {{.*}}, ptr %[[ARGS]], i32 0, i32 0
+# CHECK: %[[PERTHRD:.+]] = load i64, ptr %[[ARGPERTHRD]]
+# CHECK: %[[ARGN:.+]] = getelementptr {{.*}}, ptr %[[ARGS]], i32 0, i32 1
+# CHECK: %[[N:.+]] = load i64, ptr %[[ARGN]]
+# CHECK: %[[ARGA:.+]] = getelementptr {{.*}}, ptr %[[ARGS]], i32 0, i32 2
 # CHECK: %[[PTRA:.+]] = load ptr addrspace(67), ptr %[[ARGA]]
-# CHECK: %[[ARGB:.+]] = getelementptr {{.*}}, ptr %[[ARGS]], i32 0, i32 1
+# CHECK: %[[ARGB:.+]] = getelementptr {{.*}}, ptr %[[ARGS]], i32 0, i32 3
 # CHECK: %[[PTRB:.+]] = load ptr addrspace(67), ptr %[[ARGB]]
-# CHECK: %[[ARGC:.+]] = getelementptr {{.*}}, ptr %[[ARGS]], i32 0, i32 2
+# CHECK: %[[ARGC:.+]] = getelementptr {{.*}}, ptr %[[ARGS]], i32 0, i32 4
 # CHECK: %[[PTRC:.+]] = load ptr addrspace(67), ptr %[[ARGC]]
-# CHECK: %[[IDXA:.+]] = {{.*}}call
+# CHECK: %[[IDXA:.+]] = {{.*}}call {{.+}} ptr @
 # CHECK: %[[VA:.+]] = load double, ptr %[[IDXA]]
-# CHECK: %[[IDXB:.+]] = {{.*}}call
+# CHECK: %[[IDXB:.+]] = {{.*}}call {{.+}} ptr @
 # CHECK: %[[VB:.+]] = load double, ptr %[[IDXB]]
 # CHECK: %[[SUM:.+]] = fadd double %[[VA]], %[[VB]]
 # CHECK: %[[IDXC:.+]] = {{.*}}call

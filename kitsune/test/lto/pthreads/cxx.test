@@ -12,15 +12,20 @@
 # CHECK-SAME: ptr {{[^%]*}}%[[B:[^,]+]],
 # CHECK-SAME: i64 {{[^%]*}}%[[N:[^,]+]])
 # CHECK: %[[PACK:.+]] = alloca {{[{]}}
+# CHECK-SAME: i64
+# CHECK-SAME: i64
 # CHECK-SAME: ptr addrspace(67)
 # CHECK-SAME: ptr addrspace(67)
 # CHECK-SAME: ptr addrspace(67)
 # CHECK-SAME: {{[}]}}
+# CHECK: %[[THRDS32:.+]] = {{.*}}call i32 @llvm.kit.cpu.num.threads(i32 1024)
+# CHECK: %[[NUM_THREADS:.+]] = sext i32 %[[THRDS32]] to i64
+# CHECK: %[[PER_THREAD:.+]] = udiv i64 {{.+}}, %[[NUM_THREADS]]
 # CHECK: %[[CTX:.+]] = call ptr @llvm.kit.async.cpu.threads.launch(
 # CHECK-SANE: i32 1024,
 # CHECK-SAME: ptr @[[OUTLINED:_Z6vecadd[^,]+]],
 # CHECK-SAME: i64 0,
-# CHECK-SAME: i64 %[[N]],
+# CHECK-SAME: i64 %[[NUM_THREADS]],
 # CHECK-SAME: i64 0,
 # CHECK-SAME: ptr %[[PACK]])
 # CHECK: call void @llvm.kit.cpu.threads.sync(i32 1024, ptr %[[CTX]])
@@ -31,17 +36,21 @@
 # CHECK-SAME: i64 %[[END:[^,]+]],
 # CHECK-SAME: i64 %[[GRAINSIZE:[^,]+]],
 # CHECK-SAME: ptr {{.*}}%[[ARGS:[^)]+]])
-# CHECK: %[[ARGB:.+]] = getelementptr i8, ptr %[[ARGS]], i64 8
-# CHECK: %[[ARGC:.+]] = getelementptr i8, ptr %[[ARGS]], i64 16
+# CHECK: %[[ARGN:.+]] = getelementptr i8, ptr %[[ARGS]], i64 8
+# CHECK: %[[ARGA:.+]] = getelementptr i8, ptr %[[ARGS]], i64 16
+# CHECK: %[[ARGB:.+]] = getelementptr i8, ptr %[[ARGS]], i64 24
+# CHECK: %[[ARGC:.+]] = getelementptr i8, ptr %[[ARGS]], i64 32
 # CHECK: br label %[[BODY:.+]]
 # CHECK: [[BODY:.+]]:
 # CHECK: %[[I:.+]] = phi i64
-# CHECK: %[[PTRA:.+]] = load ptr addrspace(67), ptr %[[ARGS]]
+# CHECK: %[[PERTHRD:.+]] = load i64, ptr %[[ARGS]]
+# CHECK: %[[N:.+]] = load i64, ptr %[[ARGN]]
+# CHECK: %[[PTRA:.+]] = load ptr addrspace(67), ptr %[[ARGA]]
 # CHECK: %[[PTRB:.+]] = load ptr addrspace(67), ptr %[[ARGB]]
 # CHECK: %[[PTRC:.+]] = load ptr addrspace(67), ptr %[[ARGC]]
-# CHECK: %[[IDXA:.+]] = {{.*}}call
+# CHECK: %[[IDXA:.+]] = {{.*}}call {{.+}} ptr @
 # CHECK: %[[VA:.+]] = load double, ptr %[[IDXA]]
-# CHECK: %[[IDXB:.+]] = {{.*}}call
+# CHECK: %[[IDXB:.+]] = {{.*}}call {{.+}} ptr @
 # CHECK: %[[VB:.+]] = load double, ptr %[[IDXB]]
 # CHECK: %[[SUM:.+]] = fadd double %[[VA]], %[[VB]]
 # CHECK: %[[IDXC:.+]] = {{.*}}call

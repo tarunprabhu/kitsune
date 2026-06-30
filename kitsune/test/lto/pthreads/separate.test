@@ -30,15 +30,20 @@
 # LOWERED-SAME: {{[^%]*}}%[[B:[^,]+]],
 # LOWERED-SAME: i64 {{[^%]*}}%[[N:[^,]+]])
 # LOWERED: %[[PACK:.+]] = alloca
+# LOWERED-SAME: i64
+# LOWERED-SAME: i64
 # LOWERED-SAME: ptr addrspace(67)
 # LOWERED-SAME: ptr addrspace(67)
 # LOWERED-SAME: ptr addrspace(67)
 # LOWERED-SAME: {{[}]}}
+# LOWERED: %[[THRDS32:.+]] = {{.*}}call i32 @llvm.kit.cpu.num.threads(i32 1024)
+# LOWERED: %[[NUM_THREADS:.+]] = sext i32 %[[THRDS32]] to i64
+# LOWERED: %[[PER_THREAD:.+]] = udiv i64 {{.+}}, %[[NUM_THREADS]]
 # LOWERED: %[[CTX:.+]] = call ptr @llvm.kit.async.cpu.threads.launch(
 # LOWERED-SANE: i32 1024,
 # LOWERED-SAME: ptr @[[OUTLINED:_Z6vecadd[^,]+]],
 # LOWERED-SAME: i64 0,
-# LOWERED-SAME: i64 %[[N]],
+# LOWERED-SAME: i64 %[[NUM_THREADS]],
 # LOWERED-SAME: i64 0,
 # LOWERED-SAME: ptr %[[PACK]])
 # LOWERED: call void @llvm.kit.cpu.threads.sync(i32 1024, ptr %[[CTX]])
@@ -49,17 +54,21 @@
 # LOWERED-SAME: i64 %[[END:[^,]+]],
 # LOWERED-SAME: i64 %[[GRAINSIZE:[^,]+]],
 # LOWERED-SAME: ptr {{.*}}%[[ARGS:[^)]+]])
-# LOWERED: %[[ARGB:.+]] = getelementptr i8, ptr %[[ARGS]], i64 8
-# LOWERED: %[[ARGC:.+]] = getelementptr i8, ptr %[[ARGS]], i64 16
+# LOWERED: %[[ARGN:.+]] = getelementptr i8, ptr %[[ARGS]], i64 8
+# LOWERED: %[[ARGA:.+]] = getelementptr i8, ptr %[[ARGS]], i64 16
+# LOWERED: %[[ARGB:.+]] = getelementptr i8, ptr %[[ARGS]], i64 24
+# LOWERED: %[[ARGC:.+]] = getelementptr i8, ptr %[[ARGS]], i64 32
 # LOWERED: br label %[[BODY:.+]]
 # LOWERED: [[BODY:.+]]:
 # LOWERED: %[[I:.+]] = phi i64
-# LOWERED: %[[PTRA:.+]] = load ptr addrspace(67), ptr %[[ARGS]]
+# LOWERED: %[[PERTHRD:.+]] = load i64, ptr %[[ARGS]]
+# LOWERED: %[[N:.+]] = load i64, ptr %[[ARGN]]
+# LOWERED: %[[PTRA:.+]] = load ptr addrspace(67), ptr %[[ARGA]]
 # LOWERED: %[[PTRB:.+]] = load ptr addrspace(67), ptr %[[ARGB]]
 # LOWERED: %[[PTRC:.+]] = load ptr addrspace(67), ptr %[[ARGC]]
-# LOWERED: %[[IDXA:.+]] = {{.*}}call
+# LOWERED: %[[IDXA:.+]] = {{.*}}call {{.+}} ptr @
 # LOWERED: %[[VA:.+]] = load double, ptr %[[IDXA]]
-# LOWERED: %[[IDXB:.+]] = {{.*}}call
+# LOWERED: %[[IDXB:.+]] = {{.*}}call {{.+}} ptr @
 # LOWERED: %[[VB:.+]] = load double, ptr %[[IDXB]]
 # LOWERED: %[[SUM:.+]] = fadd double %[[VA]], %[[VB]]
 # LOWERED: %[[IDXC:.+]] = {{.*}}call

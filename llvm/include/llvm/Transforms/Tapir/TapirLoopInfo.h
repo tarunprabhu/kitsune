@@ -129,6 +129,14 @@ public:
     return TripCount;
   }
 
+  /// Check if the trip loop has a known finite trip count.
+  /// NOTE: While this is intended to check if the loop has a finite trip count,
+  /// it will also return false if it is called before the first call to
+  /// getOrCreateTripCount.
+  bool hasTripCount() const {
+    return TripCount;
+  }
+
   /// Returns the original loop condition, if it has been computed.
   ICmpInst *getCondition() const { return Condition; }
 

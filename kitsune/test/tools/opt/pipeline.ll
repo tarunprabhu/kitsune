@@ -22,7 +22,7 @@
 ;
 ; DEFAULT-NOT: Running pass:     PreLowerPreparePass
 ; DEFAULT-NOT: Running pass:     SecondaryIVEliminationPass
-; DEFAULT-NOT: Running pass:     PrepareReductionLoopsPass
+; DEFAULT-NOT: Running pass:     PrepareTapirLoopsPass
 ; DEFAULT-NOT: Running pass:     LowerKitReduceIntrinsicsPass
 ; DEFAULT-NOT: Running pass:     DeLICMPass
 ; DEFAULT-NOT: Running pass:     PreLowerAnnotatePass
@@ -90,17 +90,8 @@
 ; if they are ever removed from the pipeline.
 ; O123SZ:      Running pass:     PreLowerPreparePass
 ; O123SZ:      Running pass:     SecondaryIVEliminationPass
-; O123SZ:      Running pass:     PrepareReductionLoopsPass
+; O123SZ:      Running pass:     PrepareTapirLoopsPass
 ; O123SZ:      Running pass:     LowerKitReduceIntrinsicsPass
-; O123SZ:      Running pass:     ModuleInlinerPass
-; O123SZ:      Running pass:     EarlyCSEPass
-; O123SZ:      Running pass:     SimplifyCFGPass
-; O123SZ:      Running pass:     InstCombinePass
-; O123SZ:      Running pass:     SCCPPass
-; O123SZ:      Running pass:     BDCEPass
-; O123SZ:      Running pass:     InstCombinePass
-; O123SZ:      Running pass:     DSEPass
-; O123SZ:      Running pass:     ADCEPass
 ; O123SZ:      Running pass:     DeLICMPass
 ; O123SZ:      Running pass:     SimplifyCFGPass
 ; O123SZ:      Running pass:     LoopSimplifyPass
