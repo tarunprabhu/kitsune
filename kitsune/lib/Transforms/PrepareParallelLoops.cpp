@@ -74,9 +74,11 @@ using namespace llvm;
 
 namespace {
 
-/// Class to transform tapir loops for parallel execution. This is only used
-/// to transform tapir loops that are to be executed on a CPU.
-class PrepareParallelLoop {
+/// Base class to transform tapir loops for parallel execution. The default
+/// implementation is suitable for Kitsune's CPU-centric parallel tapir targets,
+/// such as openmp, pthreads, and qthreads. It may also be used with opencilk.
+/// Other tapir targets may need to specialize this.
+class PrepareParallelLoopBase {
 private:
   DominatorTree &dt;
   LoopInfo &li;
@@ -88,20 +90,47 @@ private:
   MemorySSAUpdater mssau;
 
 private:
-  Value *computeNumCPUThreads(BasicBlock &bb, const TapirLoopInfo &loop);
   void updateOuterLoopIV(Loop &outerLoop, Value *numThreads);
   void updateInnerLoopIV(Loop &outerLoop, Loop &innerLoop, Value *numThreads);
   void updateInnerLoopGuardCondition(Loop &innerLoop);
   void parallelizeOuterLoop(Loop &outerLoop, Loop &loop);
   void serializeInnerLoop(Loop &loop);
 
-public:
-  PrepareParallelLoop(DominatorTree &dt, LoopInfo &li, MemorySSA &mssa,
-                      ScalarEvolution &se, TaskInfo &ti)
+protected:
+  virtual Value *computeNumCPUThreads(BasicBlock &bb,
+                                      const TapirLoopInfo &loop);
+
+  PrepareParallelLoopBase(DominatorTree &dt, LoopInfo &li, MemorySSA &mssa,
+                          ScalarEvolution &se, TaskInfo &ti)
       : dt(dt), li(li), mssa(mssa), se(se), ti(ti),
         dtu(dt, DomTreeUpdater::UpdateStrategy::Eager), mssau(&mssa) {}
 
+public:
   bool run(TapirLoopInfo &tapirLoop);
+  virtual ~PrepareParallelLoopBase() = default;
+};
+
+/// Class to transform non-reduction tapir loops for parallel execution for
+/// Kitsune's CPU-centric parallel runtimes.
+class PrepareParallelLoopCPU : public PrepareParallelLoopBase {
+public:
+  PrepareParallelLoopCPU(DominatorTree &dt, LoopInfo &li, MemorySSA &mssa,
+                         ScalarEvolution &se, TaskInfo &ti)
+      : PrepareParallelLoopBase(dt, li, mssa, se, ti) {}
+  virtual ~PrepareParallelLoopCPU() = default;
+};
+
+/// Class to transform non-reduction tapir loops with the serial tapir target.
+class PrepareParallelLoopSerial : public PrepareParallelLoopBase {
+protected:
+  virtual Value *computeNumCPUThreads(BasicBlock &bb,
+                                      const TapirLoopInfo &loop) override;
+
+public:
+  PrepareParallelLoopSerial(DominatorTree &dt, LoopInfo &li, MemorySSA &mssa,
+                            ScalarEvolution &se, TaskInfo &ti)
+      : PrepareParallelLoopBase(dt, li, mssa, se, ti) {}
+  virtual ~PrepareParallelLoopSerial() = default;
 };
 
 } // namespace
@@ -113,8 +142,8 @@ public:
 //      numThreads = call @llvm.kit.cpu.num.threads()
 //
 Value *
-PrepareParallelLoop::computeNumCPUThreads(BasicBlock &bb,
-                                          const TapirLoopInfo &tapirLoop) {
+PrepareParallelLoopBase::computeNumCPUThreads(BasicBlock &bb,
+                                              const TapirLoopInfo &tapirLoop) {
   auto sanityCheck = [](const TapirLoopInfo &tapirLoop) {
     assert(hasTargetAttr(*tapirLoop.getLoop()) &&
            "Outer loop must have tapir target attribute");
@@ -145,8 +174,8 @@ PrepareParallelLoop::computeNumCPUThreads(BasicBlock &bb,
 // loop being transformed. This must be changed so the range of the IV is [0,
 // numThreads] where numThreads is the number of CPU threads available. The step
 // will remain 1.
-void PrepareParallelLoop::updateOuterLoopIV(Loop &outerLoop,
-                                            Value *numThreads) {
+void PrepareParallelLoopBase::updateOuterLoopIV(Loop &outerLoop,
+                                                Value *numThreads) {
   auto sanityCheck = [](const Loop &outerLoop, ScalarEvolution &se) {
     assert(outerLoop.isLoopSimplifyForm() &&
            "Outer loop must be in loop-simplify form");
@@ -198,8 +227,9 @@ void PrepareParallelLoop::updateOuterLoopIV(Loop &outerLoop,
 //
 // This function only changes the lower bound, upper bound and step of the
 // inner loop.
-void PrepareParallelLoop::updateInnerLoopIV(Loop &outerLoop, Loop &innerLoop,
-                                            Value *numThreads) {
+void PrepareParallelLoopBase::updateInnerLoopIV(Loop &outerLoop,
+                                                Loop &innerLoop,
+                                                Value *numThreads) {
   auto sanityCheck = [](const Loop &outerLoop, const Loop &innerLoop,
                         ScalarEvolution &se) {
     assert(outerLoop.getInductionVariable(se) &&
@@ -257,7 +287,7 @@ void PrepareParallelLoop::updateInnerLoopIV(Loop &outerLoop, Loop &innerLoop,
 #endif // NDEBUG
 }
 
-void PrepareParallelLoop::updateInnerLoopGuardCondition(Loop &loop) {
+void PrepareParallelLoopBase::updateInnerLoopGuardCondition(Loop &loop) {
   auto sanityCheck = [](Loop &loop, ScalarEvolution &se) {
     BranchInst *br = loop.getLoopGuardBranch();
     assert(br && "Inner loop must have a guard block");
@@ -288,7 +318,8 @@ void PrepareParallelLoop::updateInnerLoopGuardCondition(Loop &loop) {
 #endif // NDEBUG
 }
 
-void PrepareParallelLoop::parallelizeOuterLoop(Loop &outerLoop, Loop &loop) {
+void PrepareParallelLoopBase::parallelizeOuterLoop(Loop &outerLoop,
+                                                   Loop &loop) {
   auto sanityCheck = [](const Loop &outerLoop, const Loop &loop, TaskInfo &ti) {
     BasicBlock *innerPh = loop.getLoopPreheader();
     BasicBlock *innerExit = loop.getExitBlock();
@@ -367,7 +398,7 @@ void PrepareParallelLoop::parallelizeOuterLoop(Loop &outerLoop, Loop &loop) {
 #endif // NDEBUG
 }
 
-void PrepareParallelLoop::serializeInnerLoop(Loop &loop) {
+void PrepareParallelLoopBase::serializeInnerLoop(Loop &loop) {
   assert(loop.isLoopSimplifyForm() &&
          "Inner loop must be in loop-simplify form");
 
@@ -391,7 +422,7 @@ void PrepareParallelLoop::serializeInnerLoop(Loop &loop) {
 
 // Transform a tapir loop. Add the tapir.loop.prepared attribute to the loop and
 // return true if anything other than this attribute was changed.
-bool PrepareParallelLoop::run(TapirLoopInfo &tapirLoop) {
+bool PrepareParallelLoopBase::run(TapirLoopInfo &tapirLoop) {
   auto sanityCheck = [](const TapirLoopInfo &tapirLoop) {
     const Loop &loop = *tapirLoop.getLoop();
 
@@ -492,10 +523,15 @@ bool PrepareParallelLoop::run(TapirLoopInfo &tapirLoop) {
   return true;
 }
 
+Value *PrepareParallelLoopSerial::computeNumCPUThreads(BasicBlock &bb,
+                                                       const TapirLoopInfo &) {
+  return toConstant(1L, bb.getContext());
+}
+
 static bool prepareForCPU(TapirLoopInfo &tapirLoop, DominatorTree &dt,
                           LoopInfo &li, MemorySSA &mssa, ScalarEvolution &se,
                           TaskInfo &ti) {
-  return PrepareParallelLoop(dt, li, mssa, se, ti).run(tapirLoop);
+  return PrepareParallelLoopCPU(dt, li, mssa, se, ti).run(tapirLoop);
 }
 
 static bool prepareForGPU(TapirLoopInfo &tapirLoop, DominatorTree &dt,
@@ -510,12 +546,14 @@ static bool prepareForGPU(TapirLoopInfo &tapirLoop, DominatorTree &dt,
   return false;
 }
 
-static bool prepareForSerial(TapirLoopInfo &tapirLoop) {
-  // There is nothing to be done to prepare a tapir loop for the serial tapir
-  // target. Calls to the Kitsune's intrinsics will be lowered in a separate
-  // pass.
-  addPreparedAttr(*tapirLoop.getLoop());
-  return false;
+static bool prepareForSerial(TapirLoopInfo &tapirLoop, DominatorTree &dt,
+                             LoopInfo &li, MemorySSA &mssa, ScalarEvolution &se,
+                             TaskInfo &ti) {
+  // We could just serialize the loop since that will have the same effect.
+  // We perform a comparable transformation because, we may develop a "serial
+  // runtime" to enable Kitsune's instrumentation for loops with the serial
+  // tapir target.
+  return PrepareParallelLoopSerial(dt, li, mssa, se, ti).run(tapirLoop);
 }
 
 bool llvm::prepareParallelLoop(TapirLoopInfo &tapirLoop, DominatorTree &dt,
@@ -524,7 +562,7 @@ bool llvm::prepareParallelLoop(TapirLoopInfo &tapirLoop, DominatorTree &dt,
   Loop &loop = *tapirLoop.getLoop();
   TTID tt = *getTargetAttr(loop);
   if (tt == TTID::Serial)
-    return prepareForSerial(tapirLoop);
+    return prepareForSerial(tapirLoop, dt, li, mssa, se, ti);
   else if (isCPUTT(tt))
     return prepareForCPU(tapirLoop, dt, li, mssa, se, ti);
   else if (isGPUTT(tt))
