@@ -171,12 +171,12 @@ public:
 // intended to be thread-local.
 static KitTimerContext *gTimerCtx = nullptr;
 
-extern "C" void __kittimer_tick(TimerID timer, ThreadID thrd,
+extern "C" void __kittimer_start(TimerID timer, ThreadID thrd,
                                 const char *name) {
   gTimerCtx->get(timer, thrd, name).tick();
 }
 
-extern "C" void __kittimer_tock(TimerID timer, ThreadID thrd) {
+extern "C" void __kittimer_stop(TimerID timer, ThreadID thrd) {
   gTimerCtx->get(timer, thrd).tock();
 }
 

@@ -77,10 +77,10 @@ void __kittimer_finalize(void);
 /// ID. This is useful when measuring the times for individual threads launched,
 /// for instance, when a parallel loop is lowered using a CPU-centric tapir
 /// target.
-void __kittimer_tick(TimerID timer, ThreadID thrd, const char *name);
+void __kittimer_start(TimerID timer, ThreadID thrd, const char *name);
 
 /// Stop the timer \p timer running on a thread with ID \p thrd.
-void __kittimer_tock(TimerID timre, ThreadID thrd);
+void __kittimer_stop(TimerID timer, ThreadID thrd);
 
 #ifdef __cplusplus
 } // extern "C"

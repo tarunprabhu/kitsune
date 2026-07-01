@@ -59,6 +59,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <pthread.h>
+#include <vector>
 
 #define LABEL "kitpthr"
 
@@ -76,13 +77,12 @@ using KitPthrThrdFn = void (*)(int64_t start, int64_t end, int64_t gs,
 
 /// Metadata for each thread. This is passed to the thread launch function and
 /// also contains the arguments to be passed to the "actual" thread function.
-struct KitPthrThrdInfo {
+struct KitPthrThread {
   KitPthrThrdFn f;
-  int64_t start;
-  int64_t end;
+  int64_t tid;
   int64_t grainSize;
   void *args;
-  pthread_t id;
+  pthread_t pthr;
   pthread_attr_t attr;
 };
 
@@ -90,28 +90,27 @@ struct KitPthrThrdInfo {
 /// \ref __kitpthr_launch. This should be passed to __kitpthr_join where it
 /// will be deleted.
 struct KitPthrContext {
-  /// The thread id's that were launched when this context was created.
-  KitPthrThrdInfo *thrdInfo = nullptr;
-
-  /// The number of threads that were launched.
-  int64_t thrds = 0;
+  std::vector<KitPthrThread> thrds;
 
 public:
   KitPthrContext() = default;
-  KitPthrContext(int64_t thrds) {
-    __kitrt_message(LABEL, "New context: %ld threads", thrds);
-    this->thrdInfo = new KitPthrThrdInfo[thrds];
-    this->thrds = thrds;
-  }
-
-  ~KitPthrContext() {
-    __kitrt_message(LABEL, "Delete context");
-    delete[] thrdInfo;
+  KitPthrContext(size_t numThreads) : thrds(numThreads) {
+    for (size_t t = 0; t < numThreads; ++t)
+      thrds[t].tid = t;
   }
 
   KitPthrContext(const KitPthrContext &) = delete;
   KitPthrContext(KitPthrContext &&) = delete;
   KitPthrContext &operator=(const KitPthrContext &) = delete;
+
+  KitPthrThread &operator[](size_t i) { return thrds.at(i); }
+  const KitPthrThread &operator[](size_t i) const { return thrds.at(i); }
+  size_t size() const { return thrds.size(); }
+
+  decltype(thrds)::iterator begin() { return thrds.begin(); }
+  decltype(thrds)::const_iterator begin() const { return thrds.begin(); }
+  decltype(thrds)::iterator end() { return thrds.end(); }
+  decltype(thrds)::const_iterator end() const { return thrds.end(); }
 };
 
 } // namespace
@@ -157,41 +156,55 @@ static unsigned __kitpthr_num_threads_v = 1;
 /// Get the number of threads available for parallel work.
 extern "C" unsigned __kitpthr_num_threads() { return __kitpthr_num_threads_v; }
 
-/// Run \p f on the main thread. Block until f completes. Always return nullptr.
-/// \p start, \p end and \p args are passed to \p f.
-static KitPthrContext *runOnMainThread(KitPthrThrdFn f, int64_t start,
-                                       int64_t end, int64_t grainSize,
-                                       void *args) {
-  f(start, end, grainSize, args);
+/// The number of partial reductions to perform in parallel.
+///
+/// \param n The trip count of the parallel loop containing a reduction
+extern "C" int64_t __kitpthr_reduce_num_partials(int64_t n) {
+  __kitrt_message(LABEL, "Calculating number of partial reductions");
 
-  return new KitPthrContext;
+  // There might be something smarter that can be done once we support a proper
+  // reduction tree, but since we only support a reduction tree of depth 1, we
+  // just use as many partials as there are CPU's on the system.
+  unsigned numPartials = __kitpthr_num_threads();
+
+  __kitrt_message(LABEL, "Number of partial reductions: %d", numPartials);
+
+  return numPartials;
 }
 
 /// The function that is launched by each thread. This simply finds the "actual"
 /// function that is to be run in \p thrdInfo and calls it. The arguments to the
 /// actual function are also present in \p thrdInfo. Always returns 0.
-static void *kitpthrThrdStartFn(KitPthrThrdInfo *thrdInfo) {
-  KitPthrThrdFn f = thrdInfo->f;
-  int64_t start = thrdInfo->start;
-  int64_t end = thrdInfo->end;
-  int64_t grainSize = thrdInfo->grainSize;
-  void *args = thrdInfo->args;
+static void *kitpthrThrdStartFn(KitPthrThread *thread) {
+  KitPthrThrdFn f = thread->f;
+  int64_t tid = thread->tid;
+  int64_t grainSize = thread->grainSize;
+  void *args = thread->args;
 
-  f(start, end, grainSize, args);
+  f(tid, tid + 1, grainSize, args);
 
   return nullptr;
 }
 
 /// Launch some number of threads each of which will execute some number of
-/// iterations in the space [\ref start, \ref end). Terminates the program with
-/// a fatal error if any thread could not be launched. The number of threads to
-/// launch is determined by the value of the KIT_NUM_THREADS environment
-/// variable, if it is present and set to a valid positive integer, or the
-/// number of CPU's on the system if either the environment variable is not set,
-/// or if it is set to a positive integer. If the number of CPU's could not be
-/// determined, or if only a single CPU is available, no threads are launched.
-/// Instead, the \p f is run on the main thread, which will block until \p f
-/// completes.
+/// iterations in the space [\p start, \p end). This blocks until all threads
+/// have completed. The compiler will transform all tapir loops so they are of
+/// the following form:
+///
+///     unsigned numThreads = __kitomp_num_threads();
+///     size_t itersPerThread = (numThreads + n - 1) / numThreads
+///     forall (unsigned t = 0; t < numThrds; ++t) {
+///       size_t start = t * itersPerThread;
+///       size_t end = std::min(start + itersPerThread, n);
+///       for (size_t i = start; i < end; ++i)
+///         ...
+///     }
+///
+/// This function, therefore, will launch exactly `end - start - 1` threads,
+/// each of which will execute exactly one iteration. The main thread will
+/// execute the remaining iteration. It will, therefore, block until that
+/// iteration has completed. In the future, `end - start` may be less than the
+/// number of threads available.
 ///
 /// \param f The function to execute on each thread
 /// \param start The start index of the iteration space
@@ -206,62 +219,26 @@ static void *kitpthrThrdStartFn(KitPthrThrdInfo *thrdInfo) {
 extern "C" KitPthrContext *__kitpthr_launch(KitPthrThrdFn f, int64_t start,
                                             int64_t end, int64_t grainSize,
                                             void *args) {
-  __kitrt_message(LABEL, "Launching multithreaded loop: [%ld, %ld)", start,
-                  end);
+  assert(start == 0 && end == __kitpthr_num_threads() &&
+         "__kitpthr_launch expects loop iterations in range [0,NUM_THREADS)");
+  __kitrt_message(LABEL, "Launching multithreaded loop: [%ld,%ld)", start, end);
 
-  // This is the number of threads that *may* be launched. However, there may
-  // not be enough for work for all threads, so the actual number of threads
-  // that are launched may be smaller than this.
-  const unsigned availThrds = __kitpthr_num_threads();
-  __kitrt_message(LABEL, "Available threads: %ld", availThrds);
+  unsigned numThreads = __kitpthr_num_threads();
+  KitPthrContext *ctx = new KitPthrContext(numThreads - 1);
+  for (KitPthrThread &thrd : *ctx) {
+    thrd.f = f;
+    thrd.grainSize = grainSize;
+    thrd.args = args;
 
-  // If only a single thread is to be used, don't launch any threads. Run f on
-  // the main thread and block until it finishes. Return nullptr as the thread
-  // context.
-  if (availThrds == 1)
-    return runOnMainThread(f, start, end, grainSize, args);
-
-  // On some systems, int64_t maps to long while on others it is long long.
-  // Adding the literal to the call to std::max results in a compile time error
-  // on one or another platform. Setting to a constant avoids the conditional
-  // compilation directives that would other wise be needed here.
-  constexpr int64_t one = 1;
-
-  // Adding `availThrds - 1` handles the case where the range of iterations is
-  // not an integer multiple of `availThrds`.
-  const int64_t thrdSpan =
-      std::max((end - start + availThrds - 1) / availThrds, one);
-  __kitrt_message(LABEL, "Iterations per thread: %ld", thrdSpan);
-
-  // The actual number of threads that are to be launched. Adding `thrdSpan - 1`
-  // to `end` nicely deals with the case where the range of iterations is not an
-  // integer multiple of thrdSpan. We could have used a conditional statement to
-  // handle the two cases separately, but this is a fairly standard way of doing
-  // such things.
-  const int64_t thrds = (end + thrdSpan - 1 - start) / thrdSpan;
-  __kitrt_message(LABEL, "Launching %ld threads", thrds);
-  assert(thrds <= availThrds &&
-         "Cannot launch more threads than the number that are available");
-
-  KitPthrContext *ctx = new KitPthrContext(thrds);
-  for (int64_t i = 0, beg = start; beg < end; beg += thrdSpan, ++i) {
-    KitPthrThrdInfo &info = ctx->thrdInfo[i];
-    info.f = f;
-    info.start = beg;
-    info.end = std::min(beg + thrdSpan, end);
-    info.grainSize = grainSize;
-    info.args = args;
-
-    if (pthread_attr_init(&info.attr))
+    if (pthread_attr_init(&thrd.attr))
       __kitrt_fatal(LABEL, "Error initializing thread attributes");
 
-    __kitrt_message(LABEL, "Fork thread %ld: [%ld, %ld)", i, info.start,
-                    info.end);
-    if (int err = pthread_create(&info.id, &info.attr,
-                                 (pthread_start_t)kitpthrThrdStartFn,
-                                 &ctx->thrdInfo[i]))
+    if (int err = pthread_create(&thrd.pthr, &thrd.attr,
+                                 (pthread_start_t)kitpthrThrdStartFn, &thrd))
       kitpthrHandleCreateError(err);
+    __kitrt_message(LABEL, "Fork thread %ld (%ld)", thrd.tid, thrd.pthr);
   }
+  f(numThreads - 1, numThreads, grainSize, args);
 
   return ctx;
 }
@@ -270,31 +247,15 @@ extern "C" KitPthrContext *__kitpthr_launch(KitPthrThrdFn f, int64_t start,
 /// \p ctx is the context returned by that call. \p ctx may be nullptr, in which
 /// case, this function does nothing.
 extern "C" void __kitpthr_sync(KitPthrContext *ctx) {
-  __kitrt_message(LABEL, "Joining %ld threads", ctx->thrds);
-  for (size_t i = 0; i < ctx->thrds; ++i) {
-    if (int err = pthread_join(ctx->thrdInfo[i].id, nullptr))
+  __kitrt_message(LABEL, "Joining %ld threads", ctx->size());
+  for (KitPthrThread &thrd : *ctx) {
+    if (int err = pthread_join(thrd.pthr, nullptr))
       kitpthrHandleJoinError(err);
-    if (int err = pthread_attr_destroy(&ctx->thrdInfo[i].attr))
+    if (int err = pthread_attr_destroy(&thrd.attr))
       __kitrt_fatal(LABEL, "Error destroying thread attributes");
-    __kitrt_message(LABEL, "Joined thread %ld", i);
+    __kitrt_message(LABEL, "Joined thread %ld (%ld)", thrd.tid, thrd.pthr);
   }
   delete ctx;
-}
-
-/// The number of partial reductions to perform in parallel.
-///
-/// \param n The trip count of the parallel loop in containing a reduction
-extern "C" int64_t __kitpthr_reduce_num_partials(int64_t n) {
-  __kitrt_message(LABEL, "Calculating number of partial reductions");
-
-  // There might be something smarter that can be done once we support a proper
-  // reduction tree, but since we only support a reduction tree of depth 1, we
-  // just use as many partials as there are CPU's on the system.
-  unsigned numPartials = __kitpthr_num_threads();
-
-  __kitrt_message(LABEL, "Number of partial reductions: %d", numPartials);
-
-  return numPartials;
 }
 
 /// Initialize kitsune's pthreads runtime. Currently, this only sets some
@@ -311,11 +272,7 @@ extern "C" void __kitpthr_initialize(void) {
 
   __kitrt_message(LABEL, "Initializing Kitsune runtime (pthreads)");
 
-  // pthreads does not need to be initialized.
-  if (unsigned numThreads = __kitrt_num_threads_from_env())
-    __kitpthr_num_threads_v = numThreads;
-  else
-    __kitpthr_num_threads_v = __kitrt_num_cpus();
+  __kitpthr_num_threads_v = __kitrt_num_threads(nullptr);
 
   // pthreads does not have to be initialized.
 

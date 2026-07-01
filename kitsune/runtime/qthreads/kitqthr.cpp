@@ -74,8 +74,7 @@ using KitQthrThrdFn = void (*)(uint64_t start, uint64_t end, void *args);
 /// executing.
 struct KitQthrThrdArgs {
   KitQthrThrdFn f;
-  uint64_t start;
-  uint64_t end;
+  int64_t tid;
   void *args;
   qt_barrier_t *barrier;
 };
@@ -87,98 +86,9 @@ struct KitQthrThrdArgs {
 /// `qthread_num_workers()`.
 extern "C" unsigned __kitqthr_num_workers() { return qthread_num_workers(); }
 
-/// The function that is launched by each thread. This simply finds the "actual"
-/// function that is to be run in \p thrdArgs and calls it. The arguments to the
-/// actual function are also present in \p thrdArgs. Always returns 0.
-static unsigned long kitqthrThrdLaunchFn(KitQthrThrdArgs *thrdArgs) {
-  KitQthrThrdFn f = thrdArgs->f;
-  int64_t start = thrdArgs->start;
-  int64_t end = thrdArgs->end;
-  void *args = thrdArgs->args;
-  qt_barrier_t *barrier = thrdArgs->barrier;
-
-  f(start, end, args);
-  qt_barrier_enter(barrier);
-
-  return 0;
-}
-
-/// Launch some number of threads each of which will execute some number of
-/// iterations in the space [\ref start, \ref end). Terminates the program with
-/// a fatal error if any thread could not be launched. This blocks until all
-/// threads have completed.
-///
-/// \param f The function to execute on each thread
-/// \param start The start index of the iteration space
-/// \param end The value one greater than the last index of the iteration space
-/// \param grainSize The grainSize
-/// \param args A struct containing data to be passed to \p f
-extern "C" void __kitqthr_launch(KitQthrThrdFn f, int64_t start, int64_t end,
-                                 int64_t grainSize, void *args) {
-  __kitrt_message(LABEL, "Launching multithreaded loop: [%ld, %ld)", start,
-                  end);
-
-  // This is the number of threads that *may* be launched. However, there may
-  // not be enough for work for all threads, so the actual number of threads
-  // that are launched may be smaller than this.
-  const unsigned availThrds = __kitqthr_num_workers();
-  __kitrt_message(LABEL, "Available threads: %d", availThrds);
-
-  // On some systems, int64_t maps to long while on others it is long long.
-  // Adding the literal to the call to std::max results in a compile time error
-  // on one or another platform. Setting to a constant avoids the conditional
-  // compilation directives that would other wise be needed here.
-  constexpr int64_t one = 1;
-
-  // Adding `availThrds - 1` handles the case where the range of iterations is
-  // not an integer multiple of `availThrds`.
-  const int64_t thrdSpan =
-      std::max((end - start + availThrds - 1) / availThrds, one);
-  __kitrt_message(LABEL, "Iterations per thread: %ld", thrdSpan);
-
-  // The actual number of threads that are to be launched. Adding `thrdSpan - 1`
-  // to `end` nicely deals with the case where the range of iterations is not an
-  // integer multiple of thrdSpan. We could have used a conditional statement to
-  // handle the two cases separately, but this is a fairly standard way of doing
-  // such things.
-  const int64_t numThrds = (end - start + thrdSpan - 1) / thrdSpan;
-  __kitrt_message(LABEL, "Launching %ld threads", numThrds);
-  assert(numThrds <= availThrds &&
-         "Cannot launch more threads than the number that are available");
-
-  // We need the main thread to block until all spawned threads finish. This is
-  // implemented by setting up the barrier to block until it is entered by all
-  // `n` spawned threads, as well as the main thread.
-  qt_barrier_t *barrier = qt_barrier_create(numThrds + 1, REGION_BARRIER);
-  if (!barrier)
-    __kitrt_fatal(LABEL, "Could not create barrier");
-
-  std::vector<KitQthrThrdArgs> thrds(numThrds);
-  for (int64_t i = 0, beg = start; beg < end; beg += thrdSpan, ++i) {
-    KitQthrThrdArgs &thrdArgs = thrds[i];
-    thrdArgs.f = f;
-    thrdArgs.start = beg;
-    thrdArgs.end = std::min(beg + thrdSpan, end);
-    thrdArgs.args = args;
-    thrdArgs.barrier = barrier;
-
-    __kitrt_message(LABEL, "Fork thread %d: [%ld, %ld)", i, thrdArgs.start,
-                    thrdArgs.end);
-    if (qthread_fork((qthread_f)kitqthrThrdLaunchFn, &thrdArgs, nullptr))
-      __kitrt_fatal(LABEL, "Could not fork thread");
-  }
-
-  // The main thread must also enter the barrier. Once the main thread has
-  // entered, it will block until all spawned threads enter before continuing.
-  qt_barrier_enter(barrier);
-  qt_barrier_destroy(barrier);
-
-  __kitrt_message(LABEL, "Finished multithreaded loop");
-}
-
 /// The number of partial reductions to perform in parallel.
 ///
-/// \param n The trip count of the parallel loop in containing a reduction
+/// \param n The trip count of the parallel loop containing a reduction
 extern "C" int64_t __kitqthr_reduce_num_partials(int64_t n) {
   __kitrt_message(LABEL, "Calculating number of partial reductions");
 
@@ -190,6 +100,89 @@ extern "C" int64_t __kitqthr_reduce_num_partials(int64_t n) {
   __kitrt_message(LABEL, "Number of partial reductions: %d", numPartials);
 
   return numPartials;
+}
+
+/// The function that is launched by each thread. This simply finds the "actual"
+/// function that is to be run in \p thrdArgs and calls it. The arguments to the
+/// actual function are also present in \p thrdArgs. Always returns 0.
+static unsigned long kitqthrThrdLaunchFn(KitQthrThrdArgs *thrdArgs) {
+  KitQthrThrdFn f = thrdArgs->f;
+  int64_t tid = thrdArgs->tid;
+  void *args = thrdArgs->args;
+  qt_barrier_t *barrier = thrdArgs->barrier;
+
+  f(tid, tid + 1, args);
+
+  __kitrt_message(LABEL, "Thread entering barrier: %d", tid);
+  qt_barrier_enter(barrier);
+
+  return 0;
+}
+
+/// Launch some number of threads each of which will execute some number of
+/// iterations in the space [\p start, \p end). This blocks until all threads
+/// have completed. The compiler will transform all tapir loops so they are of
+/// the following form:
+///
+///     unsigned numThreads = __kitomp_num_threads();
+///     size_t itersPerThread = (numThreads + n - 1) / numThreads
+///     forall (unsigned t = 0; t < numThrds; ++t) {
+///       size_t start = t * itersPerThread;
+///       size_t end = std::min(start + itersPerThread, n);
+///       for (size_t i = start; i < end; ++i)
+///         ...
+///     }
+///
+/// This function, therefore, will launch exactly `end - start` threads, each of
+/// which will execute exactly one iteration. In the future, `end - start` may
+/// be less than the number of threads available.
+///
+/// \param f The function to execute on each thread
+/// \param start The start index of the iteration space
+/// \param end The value one greater than the last index of the iteration space
+/// \param grainSize The grainSize. This is not currently used
+/// \param args A struct containing data to be passed to \p f
+extern "C" void __kitqthr_launch(KitQthrThrdFn f, int64_t start, int64_t end,
+                                 int64_t grainSize, void *args) {
+  assert(start == 0 && end == __kitqthr_num_workers() &&
+         "__kitqthr_launch expects loop iterations in range [0,NUM_THREADS)");
+  __kitrt_message(LABEL, "Launching multithreaded loop: [%ld,%ld)", start,
+                  end);
+
+  unsigned numThrds = __kitqthr_num_workers();
+
+  // If only a single worker is available, take the quick way out.
+  if (numThrds == 1) {
+    f(0, 1, args);
+    return;
+  }
+
+  // We need the main thread to block until all spawned threads finish. This is
+  // implemented by setting up the barrier to block until it is entered by all
+  // `n` spawned threads, as well as the main thread.
+  qt_barrier_t *barrier = qt_barrier_create(numThrds + 1, REGION_BARRIER);
+  if (!barrier)
+    __kitrt_fatal(LABEL, "Could not create barrier");
+
+  std::vector<KitQthrThrdArgs> thrds(numThrds);
+  for (int64_t t = 0; t < numThrds; ++t) {
+    KitQthrThrdArgs &thrdArgs = thrds[t];
+    thrdArgs.f = f;
+    thrdArgs.tid = t;
+    thrdArgs.args = args;
+    thrdArgs.barrier = barrier;
+
+    __kitrt_message(LABEL, "Fork thread %d", t);
+    if (qthread_fork((qthread_f)kitqthrThrdLaunchFn, &thrdArgs, nullptr))
+      __kitrt_fatal(LABEL, "Could not fork thread");
+  }
+
+  // The main thread must also enter the barrier. Once the main thread has
+  // entered, it will block until all spawned threads enter before continuing.
+  qt_barrier_enter(barrier);
+  qt_barrier_destroy(barrier);
+
+  __kitrt_message(LABEL, "Finished multithreaded loop");
 }
 
 /// Initialize kitsune's qthreads runtime as well as the actual qthreads
@@ -205,15 +198,10 @@ extern "C" void __kitqthr_initialize(void) {
 
   __kitrt_message(LABEL, "Initializing Kitsune runtime (qthreads)");
 
-  if (__kitrt_num_threads_from_env()) {
-    // It seems that, by default, one shepherd is used, so if we are setting
-    // the number of workers, force the number of shepherds as well.
-    const char *s = getenv(__kitrt_envname_num_threads);
-    __kitrt_message(LABEL, "Setting QT_NUM_SHEPHERDS=1");
-    __kitrt_set_env("QT_NUM_SHEPHERDS", "1");
-    __kitrt_message(LABEL, "Setting QT_NUM_WORKERS_PER_SHEPHERD=%s", s);
-    __kitrt_set_env("QT_NUM_WORKERS_PER_SHEPHERD", s);
-  }
+  unsigned numThreads = __kitrt_num_threads(nullptr);
+
+  __kitrt_set_env_u("QT_NUM_SHEPHERDS", numThreads);
+  __kitrt_set_env_u("QT_NUM_WORKERS_PER_SHEPHERD", 1);
 
   __kitrt_message(LABEL, "Initializing Qthreads runtime");
   if (qthread_initialize())

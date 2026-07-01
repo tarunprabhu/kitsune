@@ -67,16 +67,16 @@ extern "C" unsigned __cilkrts_get_worker_number(void);
 extern "C" unsigned __cilkrts_get_nworkers(void);
 extern "C" void __cilkrts_internal_set_nworkers(unsigned nworkers);
 
-/// Get the number of workers available for parallel work. Generally, this
+/// Get the number of workers available for parallel work. For consistency, this
 /// function should be used when this must be queried instead of calling
-/// `__cilkrts_get_nworkers()`.
+/// `__cilkrts_get_nworkers` directly.
 extern "C" unsigned __kitocilk_num_workers() {
   return __cilkrts_get_nworkers();
 }
 
 /// The number of partial reductions to perform in parallel.
 ///
-/// \param n The trip count of the parallel loop in containing a reduction
+/// \param n The trip count of the parallel loop containing a reduction
 extern "C" int64_t __kitocilk_reduce_num_partials(int64_t n) {
   __kitrt_message(LABEL, "Calculating number of partial reductions");
 
@@ -102,21 +102,17 @@ extern "C" void __kitocilk_initialize(void) {
 
   __kitrt_message(LABEL, "Initializing Kitsune runtime (opencilk)");
 
-  if (unsigned numThreads = __kitrt_num_threads_from_env()) {
-    // Both of the lines below are required. __cilkrts_nproc is returned by
-    // __cilkrts_nworkers, but does not get set by
-    // __cilkrts_internal_set_nworkers. If we only call set_nworkers, parallel
-    // for loops will use the correct number of threads, but reductions will
-    // not. If we only set __cilkrts_nproc, reductions will perform the correct
-    // number of parallel reductions, but parallel for loops will not use the
-    // correct number of threads.
-    __cilkrts_internal_set_nworkers(numThreads);
-    __cilkrts_nproc = numThreads;
+  unsigned numThreads = __kitrt_num_threads("CILK_NWORKERS");
 
-    const char *s = getenv(__kitrt_envname_num_threads);
-    __kitrt_message(LABEL, "Setting CILK_NWORKERS=%s", s);
-    __kitrt_set_env("CILK_NWORKERS", s);
-  }
+  // Both of the lines below are required. __cilkrts_nproc is returned by
+  // __cilkrts_nworkers. But it is not set by __cilkrts_internal_set_nworkers.
+  // If we only call set_nworkers, parallel for loops will use the correct
+  // number of threads, but reductions will not. If we only set __cilkrts_nproc,
+  // reductions will perform the correct number of parallel reductions, but
+  // parallel for loops will not use the correct number of threads.
+  __cilkrts_internal_set_nworkers(numThreads);
+  __cilkrts_nproc = numThreads;
+  __kitrt_set_env_u("CILK_NWORKERS", numThreads);
 
   // The OpenCilk runtime does not have to be initialized.
 

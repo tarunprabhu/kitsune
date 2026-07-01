@@ -218,14 +218,28 @@ extern "C" void __kitrt_print_stack_trace(void) {
 extern "C" void __kitrt_set_env(const char *varname, const char *value) {
   assert(varname && "Missing variable name");
   assert(value && "Missing value destination");
+  __kitrt_message(LABEL, "Setting in environment: %s=%s", varname, value);
   if (setenv(varname, value, 0))
-    __kitrt_warn("kitrt", "could not set environment variable '%s'", varname);
+    __kitrt_warn(LABEL, "Could not set environment variable '%s'", varname);
+}
+
+extern "C" void __kitrt_set_env_i(const char *varname, int64_t value) {
+  char buf[32];
+  snprintf(buf, 32, "%ld", value);
+  __kitrt_set_env(varname, buf);
+}
+
+extern "C" void __kitrt_set_env_u(const char *varname, uint64_t value) {
+  char buf[32];
+  snprintf(buf, 32, "%lu", value);
+  __kitrt_set_env(varname, buf);
 }
 
 extern "C" void __kitrt_unset_env(const char *varname) {
   assert(varname && "Missing variable name");
+  __kitrt_message(LABEL, "Unsetting in environment: %s", varname);
   if (unsetenv(varname))
-    __kitrt_warn("kitrt", "could not unset environment variable '%s'", varname);
+    __kitrt_warn(LABEL, "Could not unset environment variable '%s'", varname);
 }
 
 unsigned nearestPowerOf2LE(unsigned n) {
@@ -245,17 +259,16 @@ static bool parseInto(V &out, const std::string &vstr, const char *vname,
       out = tmp;
       return true;
     }
-    __kitrt_warn("kitrt",
-                 "ignoring environment variable '%s'. Values contains unparsed "
+    __kitrt_warn(LABEL,
+                 "Ignoring environment variable '%s'. Values contains unparsed "
                  "characters",
                  vname);
   } catch (std::invalid_argument) {
-    __kitrt_warn("kitrt",
-                 "ignoring environment variable '%s'. Value is not valid",
-                 vname);
+    __kitrt_warn(
+        LABEL, "Ignoring environment variable '%s'. Value is not valid", vname);
   } catch (std::out_of_range) {
-    __kitrt_warn("kitrt",
-                 "ignoring environment variable '%s'. Value is not in range",
+    __kitrt_warn(LABEL,
+                 "Ignoring environment variable '%s'. Value is not in range",
                  vname);
   }
   return false;
@@ -280,8 +293,8 @@ bool parseInto(bool &v, const std::string &vstr, const char *vname) {
   } else {
     // FIXME: We should be more strict and reject this, but for now, we are
     // permissive.
-    __kitrt_warn("kitrt",
-                 "environment variable '%s' not set to 'true' or 'false'. "
+    __kitrt_warn(LABEL,
+                 "Environment variable '%s' not set to 'true' or 'false'. "
                  "Assuming 'true'",
                  vname);
     v = true;
@@ -347,7 +360,7 @@ template <typename V> bool __kitrt_get_env_value(const char *vname, V &v) {
 
 // It is unlikely that we will ever want to parse a non-primitive type from
 // an environment variable. To keep things clean, explicitly initialize all the
-// types that we might care about.
+// types that we might need.
 template bool __kitrt_get_env_value(const char *var, bool &);
 template bool __kitrt_get_env_value(const char *var, int &);
 template bool __kitrt_get_env_value(const char *var, unsigned &);
@@ -358,42 +371,29 @@ template bool __kitrt_get_env_value(const char *var, unsigned long long &);
 template bool __kitrt_get_env_value(const char *var, float &);
 template bool __kitrt_get_env_value(const char *var, double &);
 
-extern "C" unsigned __kitrt_num_threads_from_env() {
-  const char *envNumThreads = getenv(__kitrt_envname_num_threads);
-  if (!envNumThreads) {
-    __kitrt_message(LABEL, "Environment variable '%s' not set",
-                    __kitrt_envname_num_threads);
-    return 0;
+extern "C" unsigned __kitrt_num_threads(const char *alternate) {
+  const char *primary = "KIT_NUM_THREADS";
+  unsigned numThreads = 0;
+
+  if (__kitrt_get_env_value(primary, numThreads)) {
+    __kitrt_message(LABEL, "Environment contains %s=%d", primary, numThreads);
+    return numThreads;
   }
 
-  __kitrt_message(LABEL, "Environment variable %s=%s",
-                  __kitrt_envname_num_threads, envNumThreads);
-  char *end = nullptr;
-  long numThreads = strtol(envNumThreads, &end, 10);
-
-  // If *end is not '\0', either there are additional non-numeric characters in
-  // the environment variable, or the environment variable cannot be parsed to a
-  // signed integer. In this case, ignore the environment variable. If the value
-  // value of the environment variable is a valid integer, it may yet be out of
-  // range, in which case errno will be set to ERANGE.
-  bool error = *end != '\0' || errno == ERANGE || numThreads < 0 ||
-               numThreads > std::numeric_limits<int>::max();
-  if (error) {
-    __kitrt_warn(LABEL, "Invalid number of threads in %s",
-                 __kitrt_envname_num_threads);
-    return 0;
+  if (alternate && __kitrt_get_env_value(alternate, numThreads)) {
+    __kitrt_message(LABEL, "Environment contains %s=%d", alternate, numThreads);
+    return numThreads;
   }
 
-  __kitrt_message(LABEL, "Number of threads = %d", numThreads);
-  return numThreads;
+  return __kitrt_num_cpus();
 }
 
 extern "C" unsigned __kitrt_num_cpus() {
   __kitrt_message(LABEL, "Determining number of CPUs");
 
-  // TODO: Does this work as expected on all platforms? It seems to for the
-  // platforms that we care about, but it may be better to use something more
-  // reliable instead.
+  // The standard says that std::thread::hardware_concurrency() should only be
+  // considered a hint. But it seems to work on the platforms that we care
+  // about. Still, it might be worth using a more reliable method.
   unsigned cpus = std::thread::hardware_concurrency();
   if (cpus == 0) {
     __kitrt_warn(LABEL, "Could not determine number of CPUs");
