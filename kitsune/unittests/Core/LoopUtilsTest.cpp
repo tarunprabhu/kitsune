@@ -873,4 +873,55 @@ TEST_F(KitLoopUtils, getTapirLoopSyncRegion) {
   EXPECT_EQ(getTapirLoopSyncRegion(*loop)->getName(), "syncreg");
 }
 
+static constexpr StringRef deadends = R"(
+define void @f(i64 %m, i64 %n) {
+entry:
+  br label %header
+
+header:
+  %i = phi i64 [ 0, %entry ], [ %inc.i, %latch ]
+  br label %assert
+
+assert:
+  %chk = icmp eq i64 %i, %m
+  br i1 %chk, label %whoops, label %latch
+
+latch:
+  %inc.i = add i64 %i, 1
+  %cmp.i = icmp eq i64 %inc.i, %n
+  br i1 %cmp.i, label %exit, label %header, !llvm.loop !0
+
+whoops:
+  br label %unreachable
+
+unreachable:
+  unreachable
+
+exit:
+  ret void
+}
+
+!0 = distinct !{!0}
+)";
+
+TEST_F(KitLoopUtils, getUniqueNonDeadEndExitBlocks) {
+  setup(deadends, "f");
+  Loop *loop = *li->begin();
+
+  BasicBlock *exitBlock = getUniqueNonDeadEndExitBlock(*loop);
+  EXPECT_FALSE(loop->getExitBlock());
+  EXPECT_TRUE(exitBlock);
+  EXPECT_EQ(exitBlock->getName(), StringRef("exit"));
+}
+
+TEST_F(KitLoopUtils, getUniqueNonDeadEndExitingBlocks) {
+  setup(deadends, "f");
+  Loop *loop = *li->begin();
+
+  BasicBlock *exitBlock = getUniqueNonDeadEndExitingBlock(*loop);
+  EXPECT_FALSE(loop->getExitingBlock());
+  EXPECT_TRUE(exitBlock);
+  EXPECT_EQ(exitBlock->getName(), StringRef("latch"));
+}
+
 } // namespace

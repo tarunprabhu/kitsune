@@ -198,9 +198,18 @@ BasicBlock *getTapirLoopDetachedBlock(Loop &loop);
 /// Get all blocks inside the loop that have successors outside the loop.
 SmallVector<BasicBlock *, 2> getExitingBlocks(const Loop &loop);
 
+/// If \p loop has exactly one exit block that is not a dead-end, return its
+/// corresponding exiting block. If no such exiting block exists, return
+/// nullptr.
+BasicBlock *getUniqueNonDeadEndExitingBlock(const Loop &loop);
+
 /// Get the unique exit (successor) block of a loop. These are blocks outside
 /// the loop that are branched to from within the loop.
 SmallVector<BasicBlock *, 2> getUniqueExitBlocks(const Loop &loop);
+
+/// If \p loop has a unique exit block that is not a dead-end, return it,
+/// otherwise, return nullptr.
+BasicBlock *getUniqueNonDeadEndExitBlock(const Loop &loop);
 
 /// Get a unique instruction of type \tparam InstType in a loop, or nullptr if
 /// one does not exist. This will *not* look for such an instruction in any

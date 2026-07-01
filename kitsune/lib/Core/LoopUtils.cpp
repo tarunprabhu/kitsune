@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/LoopUtils.h"
+#include "kitsune/Core/BasicBlockUtils.h"
 #include "kitsune/Core/DIUtils.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "llvm/Analysis/LoopInfo.h"
@@ -290,13 +291,34 @@ SmallVector<BasicBlock *, 2> llvm::getExitingBlocks(const Loop &loop) {
   return blocks;
 }
 
+BasicBlock *llvm::getUniqueNonDeadEndExitingBlock(const Loop &loop) {
+  SmallPtrSet<BasicBlock *, 1> exitingBlocks;
+  for (BasicBlock *bb : getExitingBlocks(loop))
+    for (BasicBlock *succ : successors(bb))
+      if (!loop.contains(succ) && !isDeadEnd(*succ))
+        exitingBlocks.insert(bb);
+  if (exitingBlocks.size() == 1)
+    return *exitingBlocks.begin();
+  return nullptr;
+}
+
 SmallVector<BasicBlock *, 2> llvm::getUniqueExitBlocks(const Loop &loop) {
   SmallVector<BasicBlock *, 2> blocks;
   loop.getUniqueExitBlocks(blocks);
   return blocks;
 }
 
-static DetachInst* getTapirLoopDetachInst(Loop &loop) {
+BasicBlock *llvm::getUniqueNonDeadEndExitBlock(const Loop &loop) {
+  SmallPtrSet<BasicBlock *, 1> exitBlocks;
+  for (BasicBlock *bb : getUniqueExitBlocks(loop))
+    if (!isDeadEnd(*bb))
+      exitBlocks.insert(bb);
+  if (exitBlocks.size() == 1)
+    return *exitBlocks.begin();
+  return nullptr;
+}
+
+static DetachInst *getTapirLoopDetachInst(Loop &loop) {
   assert(isTapirLoop(loop) && "Cannot get detached block of a regular loop");
 
   BasicBlock *header = loop.getHeader();
