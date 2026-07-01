@@ -119,6 +119,18 @@ void __kitrt_print_stack_trace();
 void __kitrt_set_env(const char *varname, const char *value);
 
 /**
+ * Set a variable in the environment. If the variable has already been set, the
+ * value will be overridden.
+ */
+void __kitrt_set_env_i(const char *varname, int64_t value);
+
+/**
+ * Set a variable in the environment. If the variable has already been set, the
+ * value will be overridden.
+ */
+void __kitrt_set_env_u(const char *varname, uint64_t value);
+
+/**
  * Unset the value of an environment variable.
  * NOTE: This is only available on POSIX systems, but those are the only ones
  * that we support currently.
@@ -199,18 +211,22 @@ typedef struct _kitrt_inst_mix_info {
 } KitRTInstMix;
 
 /**
- * Get the number of threads to use for parallel work from the environment
- * variable named KIT_NUM_THREADS. Returns 0 if any of the following is true:
+ * Get the number of parallel execution threads to use. This is determined as
+ * follows:
  *
- *  - `KIT_NUM_THREADS` is not set in the environment
- *  - `KIT_NUM_THREADS` is set, but the value is not a positive, decimal integer
- *  - The value of `KIT_NUM_THREADS` is a positive, decimal integer, but its
- *    value is greater than 2^31 - 1
+ *   - If KIT_NUM_THREADS was set in the environment to a valid value, return
+ *     that.
  *
- * Otherwise, returns the value of the environment variable parsed into a 32-bit
- * unsigned integer.
+ *   - Otherwise, if \p alternate is not NULL, and it is set in the environment
+ *     to a valid value, return that.
+ *
+ *   - Otherwise, return the value obtained by calling `__kitrt_num_cpus`. This
+ *     is guaranteed to be at least 1.
+ *
+ * A value is valid if it is a positive, base 10 integer, whose value is at most
+ * 2^31 - 1.
  */
-unsigned __kitrt_num_threads_from_env();
+unsigned __kitrt_num_threads(const char *alternate);
 
 /**
  * Get the number of CPU cores on the system. If the number could not be
@@ -221,15 +237,6 @@ unsigned __kitrt_num_cpus();
 #ifdef __cplusplus
 } // extern "C"
 #endif
-
-/**
- * The environment variable that can be used to control the degree of CPU
- * parallelism. This must be set to a positive, decimal integer that specifies
- * the number of threads/workers to use. In most cases, this environment
- * variable will be queried in a global constructor and an appropriate mechanism
- * will be used to control the behavior of the underlying runtime.
- */
-static constexpr const char *__kitrt_envname_num_threads = "KIT_NUM_THREADS";
 
 /**
  * Read the value of an environment variable. If the variable does not exist in
