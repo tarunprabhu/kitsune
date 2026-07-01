@@ -206,7 +206,7 @@ extern "C" void __kitomp_initialize(void) {
   __kitrt_message(LABEL, "Initializing Kitsune runtime (openmp)");
 
   unsigned numThreads = __kitrt_num_threads("OMP_NUM_THREADS");
-  __kitrt_set_env_u("OMP_NUM_THREADS", numThreads);
+  __kitrt_env_set("OMP_NUM_THREADS", numThreads);
 
   // The second argument in the call to __kmpc_begin is currently unused, per
   // the 10-year old documentation that seems to be the only kind that is

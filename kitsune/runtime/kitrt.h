@@ -112,32 +112,6 @@ inline bool __kitrt_verbose_mode() {
 void __kitrt_print_stack_trace();
 
 /**
- * Set a variable to the given value in the environment. If the variable has
- * already been set in the environment, the value will be overridden. If any
- * part of the runtime has read the old value, that value will not be changed.
- */
-void __kitrt_set_env(const char *varname, const char *value);
-
-/**
- * Set a variable in the environment. If the variable has already been set, the
- * value will be overridden.
- */
-void __kitrt_set_env_i(const char *varname, int64_t value);
-
-/**
- * Set a variable in the environment. If the variable has already been set, the
- * value will be overridden.
- */
-void __kitrt_set_env_u(const char *varname, uint64_t value);
-
-/**
- * Unset the value of an environment variable.
- * NOTE: This is only available on POSIX systems, but those are the only ones
- * that we support currently.
- */
-void __kitrt_unset_env(const char *varname);
-
-/**
  * Print an error message to stderr and terminate the process with an exit code.
  * \p msg may be a printf-compatible format string. In that case, any optional
  * arguments must be of the appropriate types.
@@ -234,16 +208,36 @@ unsigned __kitrt_num_threads(const char *alternate);
  */
 unsigned __kitrt_num_cpus();
 
+/**
+ * Unset the value of an environment variable.
+ * NOTE: This is only available on POSIX systems, but those are the only ones
+ * that we support currently.
+ */
+void __kitrt_env_unset(const char *varname);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
 
 /**
- * Read the value of an environment variable. If the variable does not exist in
- * the environment return `false`. Otherwise, return `true` and populate
- * \p value with the parsed value of the environment variable.
+ * Set a variable to the given value in the environment. If the variable has
+ * already been set in the environment, the value will be overridden. Note that
+ * if the value of the environment variable has already been read by some other
+ * part of the runtime, that value will be unaffected.
+ *
+ * NOTE: This is only available on POSIX systems, but those are the only ones
+ * that we currently support.
  */
 template <typename ValueType>
-bool __kitrt_get_env_value(const char *varname, ValueType &value);
+void __kitrt_env_set(const char *varname, const ValueType &value);
+
+/**
+ * Read the value of the environment variable \p varname which is expected to be
+ * of type \p ValueType. If the variable does not exist in the environment, or
+ * if it cannot be parsed as a \p ValueType, return `false`. Otherwise, return
+ * `true` and populate \p value with the parsed value.
+ */
+template <typename ValueType>
+bool __kitrt_env_lookup(const char *varname, ValueType &value);
 
 #endif // __KITRT_H__

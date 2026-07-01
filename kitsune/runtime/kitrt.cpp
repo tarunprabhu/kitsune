@@ -85,9 +85,9 @@ extern "C" void __kitrt_initialize() {
   if (__kitrt_initialized)
     return;
 
-  (void)__kitrt_get_env_value("KITRT_VERBOSE", _kitrt_verbose_mode);
+  (void)__kitrt_env_lookup("KITRT_VERBOSE", _kitrt_verbose_mode);
   if (!_kitrt_verbose_mode)
-    (void)__kitrt_get_env_value("KIT_VERBOSE", _kitrt_verbose_mode);
+    (void)__kitrt_env_lookup("KIT_VERBOSE", _kitrt_verbose_mode);
 
   // This really ought to be the first thing in this function, but if we move
   // it before the KIT_VERBOSE environment variable is read, it may not be
@@ -215,38 +215,39 @@ extern "C" void __kitrt_print_stack_trace(void) {
   }
 }
 
-extern "C" void __kitrt_set_env(const char *varname, const char *value) {
-  assert(varname && "Missing variable name");
-  assert(value && "Missing value destination");
-  __kitrt_message(LABEL, "Setting in environment: %s=%s", varname, value);
-  if (setenv(varname, value, 0))
-    __kitrt_warn(LABEL, "Could not set environment variable '%s'", varname);
-}
-
-extern "C" void __kitrt_set_env_i(const char *varname, int64_t value) {
-  char buf[32];
-  snprintf(buf, 32, "%ld", value);
-  __kitrt_set_env(varname, buf);
-}
-
-extern "C" void __kitrt_set_env_u(const char *varname, uint64_t value) {
-  char buf[32];
-  snprintf(buf, 32, "%lu", value);
-  __kitrt_set_env(varname, buf);
-}
-
-extern "C" void __kitrt_unset_env(const char *varname) {
-  assert(varname && "Missing variable name");
-  __kitrt_message(LABEL, "Unsetting in environment: %s", varname);
-  if (unsetenv(varname))
-    __kitrt_warn(LABEL, "Could not unset environment variable '%s'", varname);
-}
-
 unsigned nearestPowerOf2LE(unsigned n) {
   unsigned p = 1;
   while (p <= n)
     p <<= 1;
   return p >> 1;
+}
+
+template <typename ValueType>
+void __kitrt_env_set(const char *varname, const ValueType &value) {
+  assert(varname && "Missing variable name");
+
+  std::string s = std::to_string(value);
+
+  __kitrt_message(LABEL, "Setting in environment: %s=%s", varname, s.c_str());
+  if (setenv(varname, s.c_str(), 0))
+    __kitrt_warn(LABEL, "Could not set environment variable '%s'", varname);
+}
+
+template void __kitrt_env_set(const char *var, const bool &);
+template void __kitrt_env_set(const char *var, const int &);
+template void __kitrt_env_set(const char *var, const unsigned &);
+template void __kitrt_env_set(const char *var, const long &);
+template void __kitrt_env_set(const char *var, const unsigned long &);
+template void __kitrt_env_set(const char *var, const long long &);
+template void __kitrt_env_set(const char *var, const unsigned long long &);
+template void __kitrt_env_set(const char *var, const float &);
+template void __kitrt_env_set(const char *var, const double &);
+
+extern "C" void __kitrt_env_unset(const char *varname) {
+  assert(varname && "Missing variable name");
+  __kitrt_message(LABEL, "Unsetting in environment: %s", varname);
+  if (unsetenv(varname))
+    __kitrt_warn(LABEL, "Could not unset environment variable '%s'", varname);
 }
 
 template <typename F, typename V, typename... Args>
@@ -350,7 +351,7 @@ bool parseInto(double &v, const std::string &vstr, const char *vname) {
   return parseInto(v, vstr, vname, (Converter *)&std::stod);
 }
 
-template <typename V> bool __kitrt_get_env_value(const char *vname, V &v) {
+template <typename V> bool __kitrt_env_lookup(const char *vname, V &v) {
   assert(vname && "Expected variable name");
 
   if (char *vstr = getenv(vname))
@@ -361,26 +362,26 @@ template <typename V> bool __kitrt_get_env_value(const char *vname, V &v) {
 // It is unlikely that we will ever want to parse a non-primitive type from
 // an environment variable. To keep things clean, explicitly initialize all the
 // types that we might need.
-template bool __kitrt_get_env_value(const char *var, bool &);
-template bool __kitrt_get_env_value(const char *var, int &);
-template bool __kitrt_get_env_value(const char *var, unsigned &);
-template bool __kitrt_get_env_value(const char *var, long &);
-template bool __kitrt_get_env_value(const char *var, unsigned long &);
-template bool __kitrt_get_env_value(const char *var, long long &);
-template bool __kitrt_get_env_value(const char *var, unsigned long long &);
-template bool __kitrt_get_env_value(const char *var, float &);
-template bool __kitrt_get_env_value(const char *var, double &);
+template bool __kitrt_env_lookup(const char *var, bool &);
+template bool __kitrt_env_lookup(const char *var, int &);
+template bool __kitrt_env_lookup(const char *var, unsigned &);
+template bool __kitrt_env_lookup(const char *var, long &);
+template bool __kitrt_env_lookup(const char *var, unsigned long &);
+template bool __kitrt_env_lookup(const char *var, long long &);
+template bool __kitrt_env_lookup(const char *var, unsigned long long &);
+template bool __kitrt_env_lookup(const char *var, float &);
+template bool __kitrt_env_lookup(const char *var, double &);
 
 extern "C" unsigned __kitrt_num_threads(const char *alternate) {
   const char *primary = "KIT_NUM_THREADS";
   unsigned numThreads = 0;
 
-  if (__kitrt_get_env_value(primary, numThreads)) {
+  if (__kitrt_env_lookup(primary, numThreads)) {
     __kitrt_message(LABEL, "Environment contains %s=%d", primary, numThreads);
     return numThreads;
   }
 
-  if (alternate && __kitrt_get_env_value(alternate, numThreads)) {
+  if (alternate && __kitrt_env_lookup(alternate, numThreads)) {
     __kitrt_message(LABEL, "Environment contains %s=%d", alternate, numThreads);
     return numThreads;
   }

@@ -157,7 +157,7 @@ bool __kithip_initialize() {
   // regressions have tripped us up on multi-gpu systems. To help
   // out in these cases we provide a path to pick the device id via
   // the environment.
-  if (not __kitrt_get_env_value("KITHIP_DEVICE_ID", rt_info.device_id)) {
+  if (not __kitrt_env_lookup("KITHIP_DEVICE_ID", rt_info.device_id)) {
     setDeviceID(0); // Default is always the first device.
   } else {
     assert(deviceID() < deviceCount() && deviceID() >= 0 &&

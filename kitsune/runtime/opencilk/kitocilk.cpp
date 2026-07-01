@@ -112,7 +112,7 @@ extern "C" void __kitocilk_initialize(void) {
   // parallel for loops will not use the correct number of threads.
   __cilkrts_internal_set_nworkers(numThreads);
   __cilkrts_nproc = numThreads;
-  __kitrt_set_env_u("CILK_NWORKERS", numThreads);
+  __kitrt_env_set("CILK_NWORKERS", numThreads);
 
   // The OpenCilk runtime does not have to be initialized.
 
