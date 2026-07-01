@@ -5,24 +5,23 @@
 #
 # RUN: mkdir -p %t
 #
-# RUN: %kitxx -flto --tapir=qthreads -fno-inline -fno-stripmine -O2 %sysroot \
+# RUN: %kitxx -flto --tapir=qthreads -fno-inline -O2 %sysroot \
 # RUN:     -c -o %t/add.o  %S/../input/add.cpp
-#
 # RUN: llvm-dis -o - %t/add.o | FileCheck %s --check-prefix TAPIR
 #
 # TAPIR: detach within
 # TAPIR: reattach within
 # TAPIR: sync within
 #
-# RUN: %kitxx -flto --tapir=qthreads -fno-inline -fno-stripmine -O2 %sysroot \
-# RUN:     -c -o %t/main.o %S/../input/main.cpp \
-# RUN:     -fno-stripmine
 #
+# RUN: %kitxx -flto --tapir=qthreads -fno-inline -O2 %sysroot \
+# RUN:     -c -o %t/main.o %S/../input/main.cpp
 # RUN: llvm-dis -o - %t/main.o | FileCheck %s --check-prefix MAIN
 #
 # MAIN: call void @_Z6vecadd
 #
-# RUN: %kitxx -flto --tapir=qthreads -fno-inline -fno-stripmine -O2 %sysroot \
+#
+# RUN: %kitxx -flto --tapir=qthreads -fno-inline -O2 %sysroot \
 # RUN:     -Wl,--lto-emit-llvm -o /dev/null \
 # RUN:     -Wl,-mllvm -Wl,--print-after=loop-spawning \
 # RUN:     %t/main.o %t/add.o 2>&1 \
