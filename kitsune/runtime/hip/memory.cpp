@@ -133,7 +133,7 @@ bool __kithip_xnack_env_check() {
   using namespace kithip_rt;
 
   int use_xnack;
-  if (not __kitrt_get_env_value("HSA_XNACK", use_xnack))
+  if (not __kitrt_env_lookup("HSA_XNACK", use_xnack))
     use_xnack = 0;
   return (use_xnack == 1);
 }
@@ -145,11 +145,11 @@ void __kithip_enable_xnack() {
   using namespace kithip_rt;
 
   int set_xnack;
-  if (not __kitrt_get_env_value("HSA_XNACK", set_xnack)) {
+  if (not __kitrt_env_lookup("HSA_XNACK", set_xnack)) {
     // We are looking to enable XNACK but there is not a supporting
     // environment variable...  For correct low-level behavior from
     // rocm (and perhaps even the kernel) we need to set "HAS_XNACK".
-    __kitrt_set_env("HSA_XNACK", std::to_string(1).c_str());
+    __kitrt_env_set("HSA_XNACK", 1);
     if (__kitrt_verbose_mode())
       fprintf(stderr, "kitrt[hip]: auto-set HAS_XNACK=1\n");
   }

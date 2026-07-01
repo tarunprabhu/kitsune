@@ -106,7 +106,7 @@ static bool _kitcuda_refine_launches = true;
 
 void __kitcuda_enable_launch_refinement(bool enable) {
   int threads_per_block = 0;
-  if (__kitrt_get_env_value("KITCUDA_THREADS_PER_BLOCK", threads_per_block)) {
+  if (__kitrt_env_lookup("KITCUDA_THREADS_PER_BLOCK", threads_per_block)) {
     if (enable) {
       fprintf(stderr, "kitcuda: note, setting 'KITCUDA_THREADS_PER_BLOCK' "
                       "will override refinement of launch parameters.\n");
