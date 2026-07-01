@@ -19,6 +19,8 @@
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/IR/Intrinsics.h"
 
+#define DEBUG_TYPE "kit-annotate-early"
+
 using namespace llvm;
 
 static bool isReductionLoop(const Loop &loop) {
@@ -36,6 +38,8 @@ PreservedAnalyses EarlyAnnotatePass::run(Function &f,
 
   for (Loop *loop : li.getLoopsInPreorder()) {
     if (isTapirLoop(*loop)) {
+      LLVM_DEBUG(dbgs() << "EarlyAnnotate: Annotating tapir loop '"
+                        << getName(*loop) << "'\n");
       addMandatoryLLVMLoopAttrs(*loop);
       if (isReductionLoop(*loop))
         addReductionAttr(*loop);
