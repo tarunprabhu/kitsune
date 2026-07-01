@@ -2,23 +2,35 @@
 ; code.
 ;
 ; RUN: %if x86-registered-target %{ \
-; RUN:   opt -mtriple=x86_64-pc-linux --tapir=serial -O3 -S %s | FileCheck %s \
+; RUN:   opt -mtriple=x86_64-pc-linux --tapir=serial -O3 -S %s \
+; RUN:       | FileCheck %s --check-prefix=X86 \
 ; RUN: %}
+;
+; X86-LABEL: define {{.*}}void @f(
+; X86: %[[A1:.+]] = load <4 x float>
+; X86: %[[A2:.+]] = load <4 x float>
+; X86: %[[B1:.+]] = load <4 x float>
+; X86: %[[B2:.+]] = load <4 x float>
+; X86: %[[SUM1:.+]] = fadd <4 x float> %[[A1]], %[[B1]]
+; X86: %[[SUM2:.+]] = fadd <4 x float> %[[A2]], %[[B2]]
+; X86: store <4 x float> %[[SUM1]]
+; X86: store <4 x float> %[[SUM2]]
+;
 ;
 ; RUN: %if aarch64-registered-target %{ \
 ; RUN:   opt -mtriple=aarch64-linux-gnu -mattr=+sve --tapir=serial -O3 -S %s \
-; RUN:       | FileCheck %s \
+; RUN:       | FileCheck %s --check-prefix=AARCH64 \
 ; RUN: %}
 ;
-; CHECK-LABEL: define {{.*}}void @f(
-; CHECK: %[[A1:.+]] = load <4 x float>
-; CHECK: %[[A2:.+]] = load <4 x float>
-; CHECK: %[[B1:.+]] = load <4 x float>
-; CHECK: %[[B2:.+]] = load <4 x float>
-; CHECK: %[[SUM1:.+]] = fadd <4 x float> %[[A1]], %[[B1]]
-; CHECK: %[[SUM2:.+]] = fadd <4 x float> %[[A2]], %[[B2]]
-; CHECK: store <4 x float> %[[SUM1]]
-; CHECK: store <4 x float> %[[SUM2]]
+; AARCH64-LABEL: define {{.*}}void @f(
+; AARCH64: %[[A1:.+]] = load <vscale x 4 x float>
+; AARCH64: %[[A2:.+]] = load <vscale x 4 x float>
+; AARCH64: %[[B1:.+]] = load <vscale x 4 x float>
+; AARCH64: %[[B2:.+]] = load <vscale x 4 x float>
+; AARCH64: %[[SUM1:.+]] = fadd <vscale x 4 x float> %[[A1]], %[[B1]]
+; AARCH64: %[[SUM2:.+]] = fadd <vscale x 4 x float> %[[A2]], %[[B2]]
+; AARCH64: store <vscale x 4 x float> %[[SUM1]]
+; AARCH64: store <vscale x 4 x float> %[[SUM2]]
 
 define void @f(ptr %a, ptr %b, ptr %c, i64 %n) {
 entry:
