@@ -18,9 +18,11 @@
 # RUN: llvm-dis -o - %t/main.o | FileCheck %s --check-prefix MAIN
 # RUN: llvm-dis -o - %t/a.bc | FileCheck %s --check-prefix LOWERED
 #
-# TAPIR: detach within
-# TAPIR: reattach within
-# TAPIR: sync within
+# The prepare passes for the serial tapir target will have effectively
+# serialized the tapir loop.
+# TAPIR-NOT: detach within
+# TAPIR-NOT: reattach within
+# TAPIR-NOT: sync within
 #
 # MAIN: call void @_Z6vecadd
 #
