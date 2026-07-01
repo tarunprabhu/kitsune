@@ -5,18 +5,22 @@
 #
 # RUN: %kitxx -c -flto -O2 -o %t/add.o %S/../input/add.cpp \
 # RUN:      --tapir=hip --tapir-hip-arch=gfx1103
+# RUN: llvm-dis -o - %t/add.o | FileCheck %s --check-prefix NO-LAUNCH
+#
+# NO-LAUNCH-NOT: @llvm.kit.async.gpu.kernel.launch
+#
 #
 # RUN: %kitxx -c -flto -O2 -o %t/main.o %S/../input/main.cpp \
 # RUN:      --tapir=hip --tapir-hip-arch=gfx1103
-#
-# RUN: %kitxx -flto -O2 %t/main.o %t/add.o -o %t/a.bc %sysroot \
-# RUN:     --tapir=hip --tapir-hip-arch=gfx90a \
-# RUN:     -Wl,--lto-emit-llvm
-#
-# RUN: llvm-dis -o - %t/add.o | FileCheck %s --check-prefix NO-LAUNCH
 # RUN: llvm-dis -o - %t/main.o | FileCheck %s --check-prefix MAIN
-# RUN: llvm-dis -o - %t/a.bc | FileCheck %s --check-prefix LAUNCH
 #
-# NO-LAUNCH-NOT: @llvm.kit.async.gpu.kernel.launch
 # MAIN: call void @_Z6vecaddN7kitsune
+#
+#
+# RUN: %kitxx -flto -O2 %t/main.o %t/add.o %sysroot \
+# RUN:     --tapir=hip --tapir-hip-arch=gfx90a \
+# RUN:     -Wl,--lto-emit-llvm -o - \
+# RUN:     | llvm-dis -o - \
+# RUN:     | FileCheck %s --check-prefix LAUNCH
+#
 # LAUNCH: call {{.+}} @llvm.kit.async.gpu.kernel.launch(i32 4,

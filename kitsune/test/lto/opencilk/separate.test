@@ -5,20 +5,24 @@
 #
 # RUN: %kitxx -c -flto --tapir=opencilk -O2 %sysroot \
 # RUN:     -o %t/add.o %S/../input/add.cpp
-#
-# RUN: %kitxx -c -flto --tapir=opencilk -O2 %sysroot \
-# RUN:     -o %t/main.o %S/../input/main.cpp
-#
-# RUN: %kitxx -flto --tapir=opencilk -O2 %sysroot \
-# RUN:     -o %t/a.bc %t/main.o %t/add.o \
-# RUN:     -Wl,--lto-emit-llvm
-#
 # RUN: llvm-dis -o - %t/add.o | FileCheck %s --check-prefix TAPIR
-# RUN: llvm-dis -o - %t/main.o | FileCheck %s --check-prefix MAIN
-# RUN: llvm-dis -o - %t/a.bc | FileCheck %s --check-prefix CILKRTS
 #
 # TAPIR: detach within
 # TAPIR: reattach within
 # TAPIR: sync within
+#
+#
+# RUN: %kitxx -c -flto --tapir=opencilk -O2 %sysroot \
+# RUN:     -o %t/main.o %S/../input/main.cpp
+# RUN: llvm-dis -o - %t/main.o | FileCheck %s --check-prefix MAIN
+#
 # MAIN: call void @_Z6vecaddN7kitsune
+#
+#
+# RUN: %kitxx -flto --tapir=opencilk -O2 %sysroot \
+# RUN:     %t/main.o %t/add.o \
+# RUN:     -Wl,--lto-emit-llvm -o - \
+# RUN:     | llvm-dis -o - \
+# RUN:     | FileCheck %s --check-prefix CILKRTS
+#
 # CILKRTS: call void @__cilkrts_sync
