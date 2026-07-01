@@ -486,8 +486,7 @@ bool SecondaryIVElimination::tryToEliminateIntOrFPIV(PHINode &secIV,
   }
 }
 
-bool SecondaryIVElimination::tryToEliminatePtrIV(PHINode &secIV,
-                                                 Loop &loop) {
+bool SecondaryIVElimination::tryToEliminatePtrIV(PHINode &secIV, Loop &loop) {
   // Currently, we only support the following case:
   //
   //     %obj = load ptr, ptr %p
@@ -675,7 +674,6 @@ bool SecondaryIVElimination::checkInductionType(PHINode &iv, Loop &loop) {
 }
 
 bool SecondaryIVElimination::check(Loop &loop) {
-
   // We have to ensure that there are no non-phi instructions in the header.
   // This is strictly enforced for tapir loops just loop-spawning, but we have
   // to do so here as well. The code to compute the secondary IV from the
