@@ -17,6 +17,7 @@
 
 namespace llvm {
 
+class BasicBlock;
 class BinaryOperator;
 class Instruction;
 class LLVMContext;
@@ -73,6 +74,11 @@ bool replaceMatchingOperands(Instruction &inst, Value *match, Value *v);
 /// Get the operand in the instruction \p inst that is not equal to \p match.
 /// If neither operand matches \p match, return \p nullptr.
 Value *getNonMatchingOperand(BinaryOperator &binOp, Value *match);
+
+/// Get the successor of the instruction that does not match the given basic
+/// block. If the instruction does not have exactly two successors, returns
+/// nullptr.
+BasicBlock *getNonMatchingSuccessor(Instruction &inst, BasicBlock *bb);
 
 /// Is the given instruction a conditional branch.
 bool isCondBr(const Instruction &inst);

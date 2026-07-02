@@ -107,7 +107,7 @@ bool llvm::replaceNonMatchingOperands(Instruction &inst, Value *match,
                                       Value *v) {
   // For now, we limit this to instructions where we know that this is safe.
   assert(canReplaceOperands(inst) &&
-         "replaceOtherOperands not tested with instrution type");
+         "replaceOtherOperands not tested with instruction type");
 
   bool changed = false;
   for (unsigned i = 0; i < inst.getNumOperands(); ++i)
@@ -119,7 +119,7 @@ bool llvm::replaceNonMatchingOperands(Instruction &inst, Value *match,
 bool llvm::replaceMatchingOperands(Instruction &inst, Value *match, Value *v) {
   // For now, we limit this to instructions where we know that this is safe.
   assert(canReplaceOperands(inst) &&
-         "replaceOtherOperands not tested with instrution type");
+         "replaceOtherOperands not tested with instruction type");
 
   bool changed = false;
   for (unsigned i = 0; i < inst.getNumOperands(); ++i)
@@ -136,6 +136,15 @@ Value *llvm::getNonMatchingOperand(BinaryOperator &binOp, Value *match) {
   else if (op1 == match && op0 != match)
     return op0;
   return nullptr;
+}
+
+BasicBlock *llvm::getNonMatchingSuccessor(Instruction &inst, BasicBlock *bb) {
+  if (!inst.isTerminator() || inst.getNumSuccessors() != 2)
+    return nullptr;
+  else if (inst.getSuccessor(0) == bb)
+    return inst.getSuccessor(1);
+  else
+    return inst.getSuccessor(0);
 }
 
 bool llvm::isCondBr(const Instruction &inst) {
