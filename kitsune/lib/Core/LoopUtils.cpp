@@ -13,6 +13,7 @@
 #include "kitsune/Core/LoopUtils.h"
 #include "kitsune/Core/BasicBlockUtils.h"
 #include "kitsune/Core/DIUtils.h"
+#include "kitsune/Core/InstUtils.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
@@ -315,6 +316,13 @@ BasicBlock *llvm::getUniqueNonDeadEndExitBlock(const Loop &loop) {
       exitBlocks.insert(bb);
   if (exitBlocks.size() == 1)
     return *exitBlocks.begin();
+  return nullptr;
+}
+
+BasicBlock *llvm::getExitBlockFromLatch(const Loop &loop) {
+  assert(loop.getHeader());
+  if (BasicBlock *latch = loop.getLoopLatch())
+    return getNonMatchingSuccessor(*latch->getTerminator(), loop.getHeader());
   return nullptr;
 }
 
