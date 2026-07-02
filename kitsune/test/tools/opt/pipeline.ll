@@ -20,7 +20,7 @@
 ; RUN: opt -Oz -debug-pass-manager %s -disable-output 2>&1 \
 ; RUN:     | FileCheck -check-prefix DEFAULT %s
 ;
-; DEFAULT-NOT: Running pass:     PreLowerPreparePass
+; DEFAULT-NOT: Running pass:     NormalizeLoopControlBlocksPass
 ; DEFAULT-NOT: Running pass:     SecondaryIVEliminationPass
 ; DEFAULT-NOT: Running pass:     PrepareTapirLoopsPass
 ; DEFAULT-NOT: Running pass:     LowerKitReduceIntrinsicsPass
@@ -88,7 +88,7 @@
 ; match runs of the pass from earlier in the pipeline. PrepareReductionLoops
 ; will fail if any of these are not run, so something will at least catch it
 ; if they are ever removed from the pipeline.
-; O123SZ:      Running pass:     PreLowerPreparePass
+; O123SZ:      Running pass:     NormalizeLoopControlBlocksPass
 ; O123SZ:      Running pass:     SecondaryIVEliminationPass
 ; O123SZ:      Running pass:     PrepareTapirLoopsPass
 ; O123SZ:      Running pass:     LowerKitReduceIntrinsicsPass

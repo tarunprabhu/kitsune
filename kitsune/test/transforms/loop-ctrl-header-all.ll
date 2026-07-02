@@ -1,7 +1,7 @@
-; If at least one of the non-PHI instructions in the loop header is not safe to
-; sink, none will be sunk.
+; If all the non-PHI instructions in the loop header are safe to sink, all must
+; be sunk.
 ;
-; RUN: opt -passes=kit-prepare-prelower -S %s | FileCheck %s
+; RUN: opt -passes=kit-loop-ctrl -S %s | FileCheck %s
 ;
 ; CHECK-LABEL: @f
 ; CHECK-NEXT: [[ENTRY:.+]]:
@@ -10,11 +10,12 @@
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[HEADER]]:
 ; CHECK-NEXT: %[[IV:.+]] = phi i64
-; CHECK-NEXT: %[[TRUNC:.+]] = trunc i64 %[[IV]] to i32
-; CHECK-NEXT: call void @ext(i32 %[[TRUNC]])
 ; CHECK-NEXT: detach within %[[SYNCREG]], label %[[BODY:.+]], label %[[LATCH:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[BODY]]:
+; CHECK-NEXT: %[[TRUNC:.+]] = trunc i64 %[[IV]] to i32
+; CHECK-NEXT: %[[PREV:.+]] = sub i32 %[[TRUNC]], 1
+; CHECK-NEXT: call void @ext(i32 %[[PREV]])
 ; CHECK-NEXT: reattach within %[[SYNCREG]]
 
 define void @f(i64 %n) {
@@ -25,10 +26,11 @@ entry:
 header:
   %i = phi i64 [ 0, %entry ], [ %inc.i, %latch ]
   %trunc.i = trunc i64 %i to i32
-  call void @ext(i32 %trunc.i)
+  %prev.i = sub i32 %trunc.i, 1
   detach within %syncreg, label %body, label %latch
 
 body:
+  call void @ext(i32 %prev.i)
   reattach within %syncreg, label %latch
 
 latch:

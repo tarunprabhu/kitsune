@@ -1,4 +1,4 @@
-//===- PreLowerPrepare.h - Prepare tapir loops for lowering -----*- C++ -*-===//
+//=- NormalizeLoopControlBlocks.h - Normalize loops pre-lowering --*- C++ -*-=//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,13 +6,12 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Miscellaneous collection of transformations to prepare tapir loops for
-// lowering.
+// Normalize the control blocks of tapir loops.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef KITSUNE_TRANSFORMS_PRE_LOWER_PREPARE_H
-#define KITSUNE_TRANSFORMS_PRE_LOWER_PREPARE_H
+#ifndef KITSUNE_TRANSFORMS_NORMALIZE_LOOP_CONTROL_BLOCKS_H
+#define KITSUNE_TRANSFORMS_NORMALIZE_LOOP_CONTROL_BLOCKS_H
 
 #include "llvm/Analysis/LoopAnalysisManager.h"
 #include "llvm/IR/PassManager.h"
@@ -22,9 +21,9 @@ namespace llvm {
 class LPMUpdater;
 
 /// \ingroup kitsune
-/// A miscellaneous collection of transformations to prepare tapir loops for
-/// lowering.
-class PreLowerPreparePass : public PassInfoMixin<PreLowerPreparePass> {
+/// Normalize the control blocks of tapir loops prior to lowering.
+class NormalizeLoopControlBlocksPass
+    : public PassInfoMixin<NormalizeLoopControlBlocksPass> {
 public:
   PreservedAnalyses run(Loop &loop, LoopAnalysisManager &am,
                         LoopStandardAnalysisResults &ar, LPMUpdater &updater);
@@ -32,4 +31,4 @@ public:
 
 } // namespace llvm
 
-#endif // KITSUNE_TRANSFORMS_PRE_LOWER_PREPARE_H
+#endif // KITSUNE_TRANSFORMS_NORMALIZE_LOOP_CONTROL_BLOCKS_H

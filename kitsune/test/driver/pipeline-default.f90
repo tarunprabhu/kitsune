@@ -15,7 +15,7 @@
 ! O0-NOT:     Running pass:     PrepareTapirLoopsPass
 ! O0-NOT:     Running pass:     LowerKitReduceIntrinsicsPass
 ! O0-NOT:     Running pass:     DeLICMPass
-! O0-NOT:     Running pass:     PreLowerPreparePass
+! O0-NOT:     Running pass:     NormalizeLoopControlBlocksPass
 ! O0-NOT:     Running pass:     PreLowerAnnotatePass
 ! O0-NOT:     Running pass:     LoopSpawningPass
 ! O0-NOT:     Running pass:     TapirToTargetPass
