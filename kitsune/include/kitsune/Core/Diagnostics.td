@@ -236,8 +236,8 @@ def ErrTapirLoopThrowsException
 def ErrTapirLoopBlockTerminator
   : Error<"tapir loop {} must be terminated by a {}">;
 
-def ErrTapirLoopNoUniqueExitingBlock
-  : Error<"tapir loop does not contain a unique exiting block">;
+def ErrTapirLoopNoUniqueNonDeadEndExitBlock
+  : Error<"tapir loop does not contain a unique non-dead-end exit block">;
 
 def ErrTapirLoopHeaderAddressTaken
   : Error<"tapir loop header has its address taken">;

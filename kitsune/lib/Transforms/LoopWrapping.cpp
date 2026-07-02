@@ -179,7 +179,7 @@ BasicBlock *LoopWrapImpl::genOuterReattachBlock(Loop &loop) {
   // returned from SplitBlock(), will be an empty block corresponding to
   // LoopExitNew in the figure above. LoopExit will remain essentially
   // unchanged.
-  BasicBlock *loopExit = loop.getExitBlock();
+  BasicBlock *loopExit = getExitBlockFromLatch(loop);
   (void)SplitBlock(loopExit, loopExit->begin(), &dtu, &li, &mssau,
                    "wrap.inner.exit.new", /*Before=*/true);
 
@@ -440,7 +440,7 @@ Loop *LoopWrapImpl::genOuterLoopObject(
                         BasicBlock &outerExit, BasicBlock &innerGuard,
                         BasicBlock &innerEnd) {
     BasicBlock *ph = loop.getLoopPreheader();
-    BasicBlock *exit = loop.getExitBlock();
+    BasicBlock *exit = getExitBlockFromLatch(loop);
 
     assert(ph && "Inner loop must have a preheader");
     assert(exit && "Inner loop must have a unique exit block");
@@ -455,7 +455,7 @@ Loop *LoopWrapImpl::genOuterLoopObject(
     assert(br->getNumSuccessors() == 2 &&
            "Inner loop guard must have exactly two successors");
     assert(br->getSuccessor(0) == &innerEnd &&
-           "First sucessor of inner loop guard must be loop end block");
+           "First successor of inner loop guard must be loop end block");
     assert(br->getSuccessor(1) == ph &&
            "Second successor of inner loop guard must be the loop preheader");
 
@@ -523,7 +523,7 @@ Loop *LoopWrapImpl::genOuterLoopObject(
   addBlockToLoop(*outerLoop, *loop.getLoopPreheader(), li);
   for (BasicBlock *bb : loop.getBlocks())
     outerLoop->addBlockEntry(bb);
-  addBlockToLoop(*outerLoop, *loop.getExitBlock(), li);
+  addBlockToLoop(*outerLoop, *getExitBlockFromLatch(loop), li);
   addBlockToLoop(*outerLoop, innerEnd, li);
   addBlockToLoop(*outerLoop, outerReattach, li);
   addBlockToLoop(*outerLoop, outerLatch, li);
@@ -664,6 +664,14 @@ bool llvm::checkTapirLoopSafeToWrap(TapirLoopInfo &tapirLoop, DominatorTree &dt,
   if (!loop.isLCSSAForm(dt))
     return complain(loop, DiagID::ErrLoopNotLCSSAForm);
 
+  // We don't allow early termination in parallel loops. One would, therefore,
+  // expect that tapir loops would have a unique exit block. However, some
+  // transformation passes may result in the code having non-unique exit blocks.
+  // This is only ok if those exit blocks are dead-ends i.e. blocks where
+  // all paths out of the block will lead to an unreachable instruction.
+  if (!getUniqueNonDeadEndExitBlock(loop))
+    return complain(loop, DiagID::ErrTapirLoopNoUniqueNonDeadEndExitBlock);
+
   if (getNumIndVars(loop) > 1)
     return complain(loop, DiagID::ErrTapirLoopIVMultiple);
 
@@ -695,13 +703,6 @@ bool llvm::checkTapirLoopSafeToWrap(TapirLoopInfo &tapirLoop, DominatorTree &dt,
   if (!isCondBr(*latch->getTerminator()))
     return complain(loop, DiagID::ErrTapirLoopBlockTerminator, "latch",
                     "conditional branch");
-
-  // Loop-simplify form does not imply a unique exiting block, only a unique
-  // latch. The presence of more than one exiting block implies an early
-  // (usually conditional) exit. These are not currently supported in tapir
-  // loops.
-  if (!loop.getExitingBlock())
-    return complain(loop, DiagID::ErrTapirLoopNoUniqueExitingBlock);
 
   // We check this late because one reason for the failure to compute a finite
   // trip count is that the terminator of the loop latch is not a conditional
@@ -746,4 +747,14 @@ bool llvm::checkTapirLoopSafeToWrap(TapirLoopInfo &tapirLoop, DominatorTree &dt,
 Loop *llvm::wrapWithTapirLoop(TapirLoopInfo &tapirLoop, DominatorTree &dt,
                               LoopInfo &li, MemorySSA &mssa) {
   return LoopWrapImpl(dt, li, mssa).runOn(tapirLoop);
+}
+
+BranchInst *llvm::getWrappedLoopGuardBranch(Loop &loop) {
+  BasicBlock *ph = loop.getLoopPreheader();
+  assert(ph && "Wrapped loop must have a preheader");
+
+  BasicBlock *guard = ph->getUniquePredecessor();
+  assert(guard && "Wrapped loop preheader must have a unique predecessor");
+
+  return dyn_cast<BranchInst>(guard->getTerminator());
 }

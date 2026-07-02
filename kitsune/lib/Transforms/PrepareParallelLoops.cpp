@@ -240,13 +240,14 @@ void PrepareParallelLoopBase::updateInnerLoopIV(Loop &outerLoop,
            "Inner loop must have a canonical induction variable");
     assert(innerLoop.getBounds(se).has_value() &&
            "Inner loop must have computable loop bounds");
+    assert(innerLoop.getLoopPreheader() && "Inner loop must have a preheader");
+    assert(getExitBlockFromLatch(innerLoop) &&
+           "Inner loop must have a unique non-dead-end exit block");
 
     assert(pred_size(innerLoop.getLoopPreheader()) == 1 &&
            "Inner loop preheader must have a single predecessor");
-    assert(succ_size(innerLoop.getExitBlock()) == 1 &&
+    assert(succ_size(getExitBlockFromLatch(innerLoop)) == 1 &&
            "Inner loop exit block must have a single successor");
-
-    assert(innerLoop.getLoopGuardBranch() && "Inner loop must have a guard");
   };
 
   LLVM_DEBUG(
@@ -288,27 +289,24 @@ void PrepareParallelLoopBase::updateInnerLoopIV(Loop &outerLoop,
 }
 
 void PrepareParallelLoopBase::updateInnerLoopGuardCondition(Loop &loop) {
-  auto sanityCheck = [](Loop &loop, ScalarEvolution &se) {
-    BranchInst *br = loop.getLoopGuardBranch();
+  auto sanityCheck = [](Loop &loop, BranchInst *br, ScalarEvolution &se) {
     assert(br && "Inner loop must have a guard block");
-
     assert(isFalse(br->getCondition()) &&
-           "Temporary condition of inner loop guard branch must be `false`");
+           "Placeholder condition of inner loop guard branch must be `false`");
 
     assert(loop.getBounds(se).has_value() &&
            "Inner loop must have finite bounds");
   };
 
   LLVM_DEBUG(dbgs() << "PrepareParallel: Update inner loop guard condition\n");
-  sanityCheck(loop, se);
+  sanityCheck(loop, getWrappedLoopGuardBranch(loop), se);
 
   Loop::LoopBounds bounds = *loop.getBounds(se);
   Value *start = &bounds.getInitialIVValue();
   Value *end = &bounds.getFinalIVValue();
 
-  BranchInst *br = loop.getLoopGuardBranch();
+  BranchInst *br = getWrappedLoopGuardBranch(loop);
   Value *cmp = new ICmpInst(br->getIterator(), ICmpInst::ICMP_UGE, start, end);
-
   br->setCondition(cmp);
 
   se.forgetValue(br);
@@ -322,7 +320,7 @@ void PrepareParallelLoopBase::parallelizeOuterLoop(Loop &outerLoop,
                                                    Loop &loop) {
   auto sanityCheck = [](const Loop &outerLoop, const Loop &loop, TaskInfo &ti) {
     BasicBlock *innerPh = loop.getLoopPreheader();
-    BasicBlock *innerExit = loop.getExitBlock();
+    BasicBlock *innerExit = getExitBlockFromLatch(loop);
     BasicBlock *outerHeader = outerLoop.getHeader();
     BasicBlock *outerLatch = outerLoop.getLoopLatch();
 
@@ -392,15 +390,19 @@ void PrepareParallelLoopBase::parallelizeOuterLoop(Loop &outerLoop,
   // should be recognized as parallel here.
   assert(getTaskIfTapirLoop(&outerLoop, &ti) &&
          "Outer loop recognized as tapir loop after parallelization");
-  assert(getTaskIfTapirLoop(&loop, &ti) &&
-         "Inner loop not recognized as tapir loop after outer loop was "
-         "parallalized");
+  assert(
+      getTaskIfTapirLoop(&loop, &ti) &&
+      "Inner loop recognized as tapir loop after outer loop was parallelized");
 #endif // NDEBUG
 }
 
 void PrepareParallelLoopBase::serializeInnerLoop(Loop &loop) {
-  assert(loop.isLoopSimplifyForm() &&
-         "Inner loop must be in loop-simplify form");
+  auto sanityCheck = [](Loop &loop, TaskInfo &ti) {
+    assert(getTaskIfTapirLoop(&loop, &ti) && "Getting task from tapir loop");
+  };
+
+  LLVM_DEBUG(dbgs() << "PrepareParallel: Serialize inner loop\n");
+  sanityCheck(loop, ti);
 
   Task *task = getTaskIfTapirLoop(&loop, &ti);
   serializeTapirLoop(loop, *task, &dt, &ti);
@@ -416,7 +418,7 @@ void PrepareParallelLoopBase::serializeInnerLoop(Loop &loop) {
 #ifndef DEBUG
   ti.verify(dt);
   assert(!getTaskIfTapirLoop(&loop, &ti) &&
-         "Inner loop recognized as tapir loop after serialization");
+         "Inner loop not recognized as tapir loop after serialization");
 #endif // NDEBUG
 }
 
@@ -495,11 +497,11 @@ bool PrepareParallelLoopBase::run(TapirLoopInfo &tapirLoop) {
 
   // The inner loop may not have had a guard. But one will have been added as
   // part of this transformation. Make sure that it was added correctly.
-  BranchInst *br = loop.getLoopGuardBranch();
+  BranchInst *br = getWrappedLoopGuardBranch(loop);
   assert(br && "Inner loop must have a guard");
   assert(br->getNumSuccessors() == 2 &&
          "Inner loop guard must have two successors");
-  assert(br->getSuccessor(0) == *succ_begin(loop.getExitBlock()) &&
+  assert(br->getSuccessor(0) == *succ_begin(getExitBlockFromLatch(loop)) &&
          "First successor of inner loop guard must be inner loop end");
   assert(br->getSuccessor(1) == loop.getLoopPreheader() &&
          "Second successor of inner loop guard must be inner loop preheader");

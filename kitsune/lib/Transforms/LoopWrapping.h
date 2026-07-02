@@ -21,6 +21,7 @@
 
 namespace llvm {
 
+class BranchInst;
 class DominatorTree;
 class Loop;
 class LoopInfo;
@@ -85,6 +86,16 @@ bool checkTapirLoopSafeToWrap(TapirLoopInfo &tapirLoop, DominatorTree &dt,
 ///
 Loop *wrapWithTapirLoop(TapirLoopInfo &tapirLoop, DominatorTree &dt,
                         LoopInfo &li, MemorySSA &mssa);
+
+/// After being wrapped with an outer loop, \p loop will have a guard block.
+/// However, we cannot use `Loop::getLoopGuardBranch` to get the terminator of
+/// that guard because the \p loop may not have a unique exit block - a
+/// property that is required by Loop::getLoopGuardBranch. This helper will
+/// return that guard branch.
+///
+/// WARNING: This must *ONLY* be used to get the guard branch of a loop that was
+/// wrapped using \ref wrapWithTapirLoop.
+BranchInst *getWrappedLoopGuardBranch(Loop &loop);
 
 } // namespace llvm
 
