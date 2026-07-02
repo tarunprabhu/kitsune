@@ -52,7 +52,7 @@ void checkKitOptions(const llvm::opt::ArgList &args, bool isKitsuneFrontend,
                      unsigned amdgpuCodeObjectVersion,
                      DiagnosticsEngine &diags);
 
-/// Get the optimzation speedup level as an integer. This is not as
+/// Get the optimization speedup level as an integer. This is not as
 /// straightforward as it might appear since clang and flang use different
 /// defaults when no optimization level is provided and we have to handle
 /// flags such as -Ofast and the rather infuriating -O. We need this

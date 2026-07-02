@@ -34,7 +34,7 @@
 //
 //   call void kit.reduce.1(i32 1, ptr %r, i32 8, ptr %a, i64 %n, i64 0, ptr @f)
 //
-// The following high-level psuedocode shows the first stage of this lowering.
+// The following high-level pseudocode shows the first stage of this lowering.
 //
 //   for (size_t i = 0; i < %n; ++i) {
 //       %v = %a[%i]
@@ -303,7 +303,7 @@ void LowerReduce1::replaceCalls(BasicBlock &bb, const ReductionGroup &group) {
     assert(isa<PHINode>(bb.front()) &&
            "Reduction group block must start with a phi node");
     assert(group.front()->getParent() == &bb &&
-           "Replacement calls for reduction group must be insered into the "
+           "Replacement calls for reduction group must be inserted into the "
            "same group");
   };
 
