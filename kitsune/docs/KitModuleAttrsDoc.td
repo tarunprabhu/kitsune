@@ -36,10 +36,9 @@ These appear as named metadata nodes in the module. Each attribute may take some
 number of values. For a given attribute, the number of values and their types
 are fixed. These values may be integers, strings or enums.
 
-In the example below, two attributes are added to the module,
-:ref:`kit.module.device.module.flags <module-attr-device-module-flags>`, and
-:ref:`kit.module.pre.lower.annotate.pass <module-attr-pre-lower-annotate-pass>`.
-The first of these has a number of values, while the other has no values.
+In the example below, the
+:ref:`kit.module.device.module.flags <module-attr-device-module-flags>`
+attribute has been added to the module. This attribute takes a number of values.
 
 .. code :: kitll
 
@@ -47,7 +46,6 @@ The first of these has a number of values, while the other has no values.
   target triple = "riscv64-pc-freebsd"
 
   !kit.module.device.metadata.flags = !{!0, !1}
-  !kit.module.pre.lower.annotate.pass = !{}
 
   !0 = !{i32 2}
   !1 = !{!"loughborough"}
