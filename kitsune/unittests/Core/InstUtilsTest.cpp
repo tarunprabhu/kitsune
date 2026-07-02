@@ -210,6 +210,34 @@ TEST(KitInstUtils, getNonMatchingOperand) {
   EXPECT_FALSE(getNonMatchingOperand(*fop, cf));
 }
 
+TEST(KitInstUtils, getNonMatchingSuccessor) {
+  LLVMContext ctx;
+  Type *i32 = Type::getInt32Ty(ctx);
+
+  BasicBlock *def = BasicBlock::Create(ctx);
+  BasicBlock *bt = BasicBlock::Create(ctx);
+  BasicBlock *bf = BasicBlock::Create(ctx);
+
+  ConstantInt *c1 = cast<ConstantInt>(ConstantInt::get(i32, 1));
+  ConstantInt *c2 = cast<ConstantInt>(ConstantInt::get(i32, 2));
+  ConstantInt *c3 = cast<ConstantInt>(ConstantInt::get(i32, 3));
+
+  BinaryOperator *binOp = BinaryOperator::Create(Instruction::Add, c1, c2);
+  BranchInst *uncondBr = BranchInst::Create(def);
+  BranchInst *condBr = BranchInst::Create(bt, bf, ConstantInt::getTrue(ctx));
+  SwitchInst *swch = SwitchInst::Create(c3, def, 2);
+  swch->addCase(c1, bt);
+  swch->addCase(c2, bf);
+
+  EXPECT_FALSE(getNonMatchingSuccessor(*binOp, def));
+  EXPECT_FALSE(getNonMatchingSuccessor(*uncondBr, def));
+  EXPECT_FALSE(getNonMatchingSuccessor(*swch, def));
+  EXPECT_FALSE(getNonMatchingSuccessor(*swch, bf));
+  EXPECT_FALSE(getNonMatchingSuccessor(*swch, bt));
+  EXPECT_EQ(getNonMatchingSuccessor(*condBr, bt), bf);
+  EXPECT_EQ(getNonMatchingSuccessor(*condBr, bf), bt);
+}
+
 TEST(KitInstUtils, isCondBr) {
   LLVMContext ctx;
   BasicBlock *bt = BasicBlock::Create(ctx);
