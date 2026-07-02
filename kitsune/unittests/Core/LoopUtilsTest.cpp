@@ -924,4 +924,13 @@ TEST_F(KitLoopUtils, getUniqueNonDeadEndExitingBlocks) {
   EXPECT_EQ(exitBlock->getName(), StringRef("latch"));
 }
 
+TEST_F(KitLoopUtils, getExitBlockFromLatch) {
+  setup(deadends, "f");
+  Loop *loop = *li->begin();
+
+  BasicBlock *exit = getExitBlockFromLatch(*loop);
+  EXPECT_TRUE(exit);
+  EXPECT_EQ(exit->getName(), StringRef("exit"));
+}
+
 } // namespace

@@ -211,6 +211,17 @@ SmallVector<BasicBlock *, 2> getUniqueExitBlocks(const Loop &loop);
 /// otherwise, return nullptr.
 BasicBlock *getUniqueNonDeadEndExitBlock(const Loop &loop);
 
+/// Get the exit block of the loop that is the immediate successor of the loop
+/// latch. This exit block may, or may not, be the unique loop exit block. In
+/// general, the use of this function should be avoided in favor of
+/// `Loop::getExitBlock()`, and should only be used when one knows that \p loop
+/// does not have a unique exit block, but it does have a unique non-dead-end
+/// exit block. One could use \ref getUniqueNonDeadEndExitBlock in such cases,
+/// but this function is more efficient. If \p loop does not have a unique
+/// latch, or if the terminator of the latch has more than two successors,
+/// return nullptr.
+BasicBlock *getExitBlockFromLatch(const Loop &loop);
+
 /// Get a unique instruction of type \tparam InstType in a loop, or nullptr if
 /// one does not exist. This will *not* look for such an instruction in any
 /// subloops.
