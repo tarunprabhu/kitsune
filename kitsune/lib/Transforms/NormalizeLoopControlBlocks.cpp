@@ -1,4 +1,4 @@
-//===- PreLowerPrepare.cpp - Prepare tapir loops for lowering -------------===//
+//===- NormalizeLoopControlBlocks.cpp - Normalize loops pre-lowering ------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,16 +6,24 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Miscellaneous collection of transformations to prepare tapir loops for
-// lowering.
+// Normalize the control blocks of tapir loops.
+//
+// This pass ensures that the loop header does not contain any instructions
+// other than the PHI node and the terminating detach. Any instructions that
+// are safe to sink into the loop body are sunk.
+//
+// In principle, the same should be done for instructions in the loop latch that
+// are not directly related to computing the next value of the canonical loop
+// induction variable. However, this has not yet been implemented because it is
+// not clear if it is safe to raise such code into the loop body.
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Transforms/PreLowerPrepare.h"
+#include "kitsune/Transforms/NormalizeLoopControlBlocks.h"
 #include "kitsune/Core/LoopUtils.h"
 #include "llvm/IR/Instructions.h"
 
-#define DEBUG_TYPE "kit-prelower-prepare"
+#define DEBUG_TYPE "kit-loop-ctrl"
 
 using namespace llvm;
 
@@ -43,7 +51,7 @@ static bool sinkHeaderInsts(Loop &loop) {
     BasicBlock *body = getTapirLoopDetachedBlock(loop);
     BasicBlock::iterator insertPt = body->getFirstNonPHIOrDbg();
     for (Instruction *inst : insts) {
-      LLVM_DEBUG(dbgs() << "prelower-prepare: " << *inst << "\n");
+      LLVM_DEBUG(dbgs() << "NormalizeLoopControl: Sinking " << *inst << "\n");
       inst->moveBefore(insertPt);
     }
     return true;
@@ -59,13 +67,14 @@ static bool raiseLatchInsts(Loop &loop) {
   return false;
 }
 
-PreservedAnalyses PreLowerPreparePass::run(Loop &loop, LoopAnalysisManager &am,
-                                           LoopStandardAnalysisResults &ar,
-                                           LPMUpdater &updater) {
+PreservedAnalyses
+NormalizeLoopControlBlocksPass::run(Loop &loop, LoopAnalysisManager &am,
+                                    LoopStandardAnalysisResults &ar,
+                                    LPMUpdater &updater) {
   bool changed = false;
 
   if (isTapirLoop(loop)) {
-    LLVM_DEBUG(dbgs() << "prelower-prepare: preparing loop '" << getName(loop)
+    LLVM_DEBUG(dbgs() << "NormalizeLoopControl: Found loop '" << getName(loop)
                       << "'\n");
     changed |= sinkHeaderInsts(loop);
     changed |= raiseLatchInsts(loop);

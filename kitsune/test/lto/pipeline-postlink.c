@@ -39,7 +39,7 @@
 // O23S-NOT:  Running pass:     PrepareTapirLoopsPass
 // O23S-NOT:  Running pass:     LowerKitReduceIntrinsicsPass
 //
-// O23S:      Running pass:     PreLowerPreparePass
+// O23S:      Running pass:     NormalizeLoopControlBlocksPass
 // O23S:      Running pass:     SecondaryIVEliminationPass
 // O23S:      Running pass:     DeLICMPass
 // O23S:      Running pass:     SimplifyCFGPass

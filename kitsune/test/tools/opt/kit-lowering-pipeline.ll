@@ -55,7 +55,7 @@
 ; match runs of the pass from earlier in the pipeline. PrepareReductionLoops
 ; will fail if any of these are not run, so something will at least catch it
 ; if they are ever removed from the pipeline.
-; O123S:      Running pass:     PreLowerPreparePass
+; O123S:      Running pass:     NormalizeLoopControlBlocksPass
 ; O123S:      Running pass:     SecondaryIVEliminationPass
 ; O123S:      Running pass:     DeLICMPass
 ; O123S:      Running pass:     SimplifyCFGPass

@@ -35,7 +35,7 @@
 ! O23SZ-NOT:  Running pass:     EarlyVerificationPass
 ! O23SZ-NOT:  Running pass:     EarlyAnnotatePass
 !
-! O23SZ:      Running pass:     PreLowerPreparePass
+! O23SZ:      Running pass:     NormalizeLoopControlBlocksPass
 ! O23SZ:      Running pass:     SecondaryIVEliminationPass
 ! O23SZ:      Running pass:     PrepareTapirLoopsPass
 ! O23SZ:      Running pass:     LowerKitReduceIntrinsicsPass

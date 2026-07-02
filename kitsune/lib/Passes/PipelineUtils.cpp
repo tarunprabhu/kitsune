@@ -27,8 +27,8 @@
 #include "kitsune/Transforms/EmbResolveLibDeviceCalls.h"
 #include "kitsune/Transforms/GenerateCtors.h"
 #include "kitsune/Transforms/LowerKitReduceIntrinsics.h"
+#include "kitsune/Transforms/NormalizeLoopControlBlocks.h"
 #include "kitsune/Transforms/PreLowerAnnotate.h"
-#include "kitsune/Transforms/PreLowerPrepare.h"
 #include "kitsune/Transforms/PrefetchForDevice.h"
 #include "kitsune/Transforms/PrepareTapirLoops.h"
 #include "kitsune/Transforms/RecomputeKernelProperties.h"
@@ -219,8 +219,7 @@ llvm::populateKitPreparePasses(PassBuilder &pb, OptimizationLevel optLevel,
     addLoopPass<IndVarSimplifyPass>(mpm, /*WidenIndVars=*/true,
                                     /*TapirLoopsOnly=*/true);
     addFunctionPass<TaskSimplifyPass>(mpm);
-    // FIXME: Rename the PreLowerPreparePass to NormalizeLoopControlBlocks.
-    addLoopPass<PreLowerPreparePass>(mpm);
+    addLoopPass<NormalizeLoopControlBlocksPass>(mpm);
     addLoopPass<SecondaryIVEliminationPass>(mpm);
 
     populateSimplifyPasses(mpm, pto);
@@ -250,8 +249,7 @@ ModulePassManager llvm::populateKitPreLoopSpawningPasses(
   if (optLevel.getSpeedupLevel() > 0) {
     addFunctionPass<LoopSimplifyPass>(mpm);
     addLoopPass<LoopRotatePass>(mpm);
-    // FIXME: Rename the PreLowerPreparePass to NormalizeLoopControlBlocks.
-    addLoopPass<PreLowerPreparePass>(mpm);
+    addLoopPass<NormalizeLoopControlBlocksPass>(mpm);
     addLoopPass<SecondaryIVEliminationPass>(mpm);
 
     populateSimplifyPasses(mpm, pto);

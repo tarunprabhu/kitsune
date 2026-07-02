@@ -45,7 +45,7 @@
 ;
 ; ERROR: unsupported optimization level '-Oz'
 ;
-; O123S:      Running pass:     PreLowerPreparePass
+; O123S:      Running pass:     NormalizeLoopControlBlocksPass
 ; O123S:      Running pass:     SecondaryIVEliminationPass
 ; O123S:      Running pass:     DeLICMPass
 ; O123S:      Running pass:     SimplifyCFGPass

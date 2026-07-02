@@ -19,8 +19,8 @@ add_llvm_component_library(LLVMKitTransforms
   GenerateCtorQthreads.cpp
   LoopWrapping.cpp
   LowerKitReduceIntrinsics.cpp
+  NormalizeLoopControlBlocks.cpp
   PreLowerAnnotate.cpp
-  PreLowerPrepare.cpp
   PrefetchForDevice.cpp
   PrepareParallelLoops.cpp
   PrepareReductionLoops.cpp
