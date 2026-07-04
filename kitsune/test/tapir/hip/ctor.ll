@@ -25,7 +25,8 @@
 ; should be once the issue is fixed.
 ;
 ; DEFAULT: define {{.*}} @[[DTOR:[.]kithip[.]dtor.*]]{{[ ]*}}(
-; DEFAULT: call {{.+}} @__hipUnregisterFatBinary
+; DEFAULT: %[[HD:.+]] = load ptr, ptr @[[HANDLE]]
+; DEFAULT: call {{.+}} @llvm.kit.gpu.unregister.devcode(i32 4, ptr %[[HD]])
 ; DEFAULT-NOT: call {{.+}} @llvm.kit.runtime.finalize(i32 4)
 ;
 ; DEFAULT: define {{.+}} @[[CTOR]]
@@ -35,7 +36,7 @@
 ; DEFAULT: call {{.+}} @llvm.kit.runtime.set.y.axis.kernel.launch(i32 4, i8 0)
 ; DEFAULT-NOT: call {{.+}} @llvm.kit.runtime.set.fixed.tpb(i32 4,
 ; DEFAULT: call {{.+}} @llvm.kit.runtime.set.max.tpb(i32 4, i32 1024)
-; DEFAULT-DAG: %[[HC:.+]] = call {{.+}}__hipRegisterFatBinary(ptr @[[BUNDLE]])
+; DEFAULT-DAG: %[[HC:.+]] = call {{.+}}@llvm.kit.gpu.register.devcode(i32 4, ptr @[[BUNDLE]])
 ; DEFAULT: store ptr %[[HC]], ptr @[[HANDLE]]
 ; DEFAULT: call {{.+}}atexit(ptr @[[DTOR]])
 ; DEFAULT: }

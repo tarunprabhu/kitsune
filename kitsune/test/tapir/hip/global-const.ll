@@ -13,8 +13,8 @@
 ; CHECK-NOT: llvm.kit.gpu.symbol.memcpy.dtoh
 ;
 ; CHECK: define {{.+}} @.kithip.ctor{{[^(]*}}
-; CHECK: call {{.+}} @__hipRegisterFatBinary
-; CHECK-NOT: call {{.+}} @__hipRegisterVar
+; CHECK: call {{.+}} @llvm.kit.gpu.register.devcode
+; CHECK-NOT: call {{.+}} @llvm.kit.gpu.register.global
 ;
 ; CHECK-DAG: ![[MD]] = distinct !{![[MD]], ![[DC:[0-9]+]]}
 ; CHECK-DAG: ![[DC]] = !{!"kit.gv.device.code", i32 4}

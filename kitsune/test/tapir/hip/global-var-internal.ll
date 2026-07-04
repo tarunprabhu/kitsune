@@ -25,8 +25,8 @@
 ; CHECK-NEXT: }
 ;
 ; CHECK: define {{.+}} @.kithip.ctor{{[^(]*}}
-; CHECK: %[[HANDLE:.+]] = call ptr @__hipRegisterFatBinary
-; CHECK: call {{.+}} @__hipRegisterVar(ptr %[[HANDLE]], ptr @[[HOSTVAR]], ptr @[[VARNAME]]
+; CHECK: %[[HANDLE:.+]] = call ptr @llvm.kit.gpu.register.devcode
+; CHECK: call {{.+}} @llvm.kit.gpu.register.global(i32 4, ptr %[[HANDLE]], ptr @[[HOSTVAR]], ptr @[[VARNAME]], ptr @[[VARNAME]], i64 4, i32 0, i32 0)
 ;
 ; CHECK-DAG: ![[MD]] = distinct !{![[MD]], ![[DC:[0-9]+]]}
 ; CHECK-DAG: ![[DC]] = !{!"kit.gv.device.code", i32 4}

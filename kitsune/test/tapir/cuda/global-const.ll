@@ -13,9 +13,9 @@
 ; CHECK-NOT: llvm.kit.gpu.symbol.memcpy.dtoh
 ;
 ; CHECK: define {{.+}} @.kitcuda.ctor{{[^(]*}}
-; CHECK: call {{.+}} @__cudaRegisterFatBinary
-; CHECK-NOT: call {{.+}} @__cudaRegisterVar
-; CHECK: call {{.+}} @__cudaRegisterFatBinaryEnd
+; CHECK: call {{.+}} @llvm.kit.gpu.register.devcode
+; CHECK-NOT: call {{.+}} @llvm.kit.gpu.register.global
+; CHECK: call {{.+}} @llvm.kit.gpu.register.devcode.end
 ;
 ; CHECK-DAG: ![[MD]] = distinct !{![[MD]], ![[DC:[0-9]+]]}
 ; CHECK-DAG: ![[DC]] = !{!"kit.gv.device.code", i32 2}

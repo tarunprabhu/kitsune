@@ -1393,12 +1393,17 @@ bool llvm::inferNonMandatoryLibFuncAttrs(Function &F,
   case LibFunc_kitcuda_prefetch_dtoh:
   case LibFunc_kitcuda_prefetch_htod:
   case LibFunc_kitcuda_reduce_num_partials:
+  case LibFunc_kitcuda_register_devcode:
+  case LibFunc_kitcuda_register_devcode_end:
+  case LibFunc_kitcuda_register_global:
+  case LibFunc_kitcuda_register_global_managed:
   case LibFunc_kitcuda_set_fixed_tpb:
   case LibFunc_kitcuda_set_max_tpb:
   case LibFunc_kitcuda_symbol_device_ptr:
   case LibFunc_kitcuda_symbol_memcpy_dtoh:
   case LibFunc_kitcuda_symbol_memcpy_htod:
   case LibFunc_kitcuda_sync_stream:
+  case LibFunc_kitcuda_unregister_devcode:
   case LibFunc_kithip_enable_xnack:
   case LibFunc_kithip_enable_y_axis_launches:
   case LibFunc_kithip_finalize:
@@ -1408,12 +1413,16 @@ bool llvm::inferNonMandatoryLibFuncAttrs(Function &F,
   case LibFunc_kithip_prefetch_dtoh:
   case LibFunc_kithip_prefetch_htod:
   case LibFunc_kithip_reduce_num_partials:
+  case LibFunc_kithip_register_devcode:
+  case LibFunc_kithip_register_global:
+  case LibFunc_kithip_register_global_managed:
   case LibFunc_kithip_set_fixed_tpb:
   case LibFunc_kithip_set_max_tpb:
   case LibFunc_kithip_symbol_device_ptr:
   case LibFunc_kithip_symbol_memcpy_dtoh:
   case LibFunc_kithip_symbol_memcpy_htod:
   case LibFunc_kithip_sync_stream:
+  case LibFunc_kithip_unregister_devcode:
   case LibFunc_kitomp_launch:
   case LibFunc_kitomp_reduce_num_partials:
   case LibFunc_kitpthr_launch:
@@ -1597,16 +1606,19 @@ FunctionCallee llvm::getOrInsertLibFunc(Module *M, const TargetLibraryInfo &TLI,
     setArgExtAttr(*F, 4, TLI);
     break;
 
-  case LibFunc_cuda_register_managed_var:
-  case LibFunc_cuda_register_var:
-  case LibFunc_hip_register_var:
+  case LibFunc_kitcuda_register_global:
+  case LibFunc_kithip_register_global:
     setArgExtAttr(*F, 4, TLI);
+    setArgExtAttr(*F, 5, TLI);
     setArgExtAttr(*F, 6, TLI);
-    setArgExtAttr(*F, 7, TLI);
     break;
 
-  case LibFunc_hip_register_managed_var:
+  case LibFunc_kitcuda_register_global_managed:
+  case LibFunc_kithip_register_global_managed:
+    setArgExtAttr(*F, 4, TLI);
     setArgExtAttr(*F, 5, TLI);
+    setArgExtAttr(*F, 6, TLI);
+    setArgExtAttr(*F, 7, TLI);
     break;
 
   default:
