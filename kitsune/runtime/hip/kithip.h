@@ -95,7 +95,7 @@ extern "C" {
  *      supports a single GPU and this will default to the first GPU
  *      in the system if left unset.
  *
- * Applications should call `__kithip_destroy()` at program exit.
+ * Applications should call `__kithip_finalize()` at program exit.
  *
  **/
 extern bool __kithip_initialize();
@@ -129,7 +129,7 @@ extern bool __kithip_load_dlsyms();
  *
  * This call is not thread safe.
  */
-extern void __kithip_destroy();
+extern void __kithip_finalize();
 
 /**
  * Return `true` if the provided pointer has been allocated as a

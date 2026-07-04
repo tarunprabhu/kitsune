@@ -181,7 +181,7 @@ extern "C" bool __kithip_initialize() {
   return isInitialized();
 }
 
-extern "C" void __kithip_destroy() {
+extern "C" void __kithip_finalize() {
   using namespace kithip_rt;
   if (not isInitialized())
     return;

@@ -39,12 +39,12 @@
 ; CHECK-NEXT: call void @__kithip_register_global(ptr %handle, ptr @gbuf, ptr @.gname, ptr @.gname, i64 28, i32 1, i32 0)
 ; CHECK-NEXT: call void @__kithip_register_global_managed(ptr %handle, ptr %guvm, ptr @gbuf, ptr @.gname, i64 28, i32 16, i32 1, i32 0)
 ; CHECK-NEXT: call void @__kithip_unregister_devcode(ptr %handle)
-; CHECK-NEXT: call void @__kithip_destroy()
+; CHECK-NEXT: call void @__kithip_finalize()
 ; CHECK-NEXT: ret void
 ;
-; CHECK-DAG: void @__kithip_destroy() #[[ATTRS:[0-9]+]]
-; CHECK-DAG: void @__kithip_enable_xnack() #[[ATTRS]]
+; CHECK-DAG: void @__kithip_enable_xnack() #[[ATTRS:[0-9]+]]
 ; CHECK-DAG: void @__kithip_enable_ylaunch() #[[ATTRS]]
+; CHECK-DAG: void @__kithip_finalize() #[[ATTRS]]
 ; CHECK-DAG: ptr @__kithip_get_global_symbol(ptr, ptr) #[[ATTRS]]
 ; CHECK-DAG: void @__kithip_initialize() #[[ATTRS]]
 ; CHECK-DAG: ptr @__kithip_launch_kernel(ptr, ptr, ptr, i64, i64, i64, i32, ptr, ptr) #[[ATTRS]]

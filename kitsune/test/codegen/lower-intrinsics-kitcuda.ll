@@ -38,11 +38,11 @@
 ; CHECK-NEXT: call void @__kitcuda_register_global(ptr %[[HANDLE]], ptr @gbuf, ptr @.gname, ptr @.gname, i64 28, i32 1, i32 0)
 ; CHECK-NEXT: call void @__kitcuda_register_global_managed(ptr %[[HANDLE]], ptr %guvm, ptr @gbuf, ptr @.gname, i64 28, i32 16, i32 1, i32 0)
 ; CHECK-NEXT: call void @__kitcuda_unregister_devcode(ptr %[[HANDLE]])
-; CHECK-NEXT: call void @__kitcuda_destroy()
+; CHECK-NEXT: call void @__kitcuda_finalize()
 ; CHECK-NEXT: ret void
 ;
-; CHECK-DAG: void @__kitcuda_destroy() #[[ATTRS:[0-9]+]]
-; CHECK-DAG: void @__kitcuda_enable_launch_refinement(i8) #[[ATTRS]]
+; CHECK-DAG: void @__kitcuda_enable_launch_refinement(i8) #[[ATTRS:[0-9]+]]
+; CHECK-DAG: void @__kitcuda_finalize() #[[ATTRS]]
 ; CHECK-DAG: ptr @__kitcuda_get_global_symbol(ptr, ptr) #[[ATTRS]]
 ; CHECK-DAG: ptr @__kitcuda_get_thread_stream() #[[ATTRS]]
 ; CHECK-DAG: void @__kitcuda_initialize() #[[ATTRS]]

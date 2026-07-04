@@ -19,9 +19,9 @@
 ; DEFAULT: @llvm.global_ctors = appending global
 ; DEFAULT-SAME: { i32 65536, ptr @[[CTOR:[.]kithip[.]ctor.*]], ptr null }
 ;
-; FIXME: There is a bug where calling __kithip_destroy raises a segmentation
+; FIXME: There is a bug where calling __kithip_finalize raises a segmentation
 ; fault or some other error which looks like memory corruption bug. As a
-; temporary workaround, __kithip_destroy is not called, but it eventually
+; temporary workaround, __kithip_finalize is not called, but it eventually
 ; should be once the issue is fixed.
 ;
 ; DEFAULT: define {{.*}} @[[DTOR:[.]kithip[.]dtor.*]]{{[ ]*}}(
