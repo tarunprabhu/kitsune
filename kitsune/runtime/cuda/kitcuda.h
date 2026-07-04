@@ -93,7 +93,7 @@ extern "C" {
  *      supports a single GPU and this will default to the first GPU
  *      in the system if left unset.
  *
- * Applications should call `__kitcuda_destroy()` at program exit.
+ * Applications should call `__kitcuda_finalize()` at program exit.
  *
  **/
 extern bool __kitcuda_initialize();
@@ -114,7 +114,7 @@ extern bool __kitcuda_load_dlsyms();
  *
  * This call is not thread safe.
  */
-extern void __kitcuda_destroy();
+extern void __kitcuda_finalize();
 
 /**
  * Return `true` if the provided pointer has been allocated as a

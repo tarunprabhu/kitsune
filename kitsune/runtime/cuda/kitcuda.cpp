@@ -227,13 +227,13 @@ bool __kitcuda_initialize() {
   return _kitcuda_initialized;
 }
 
-void __kitcuda_destroy() {
+void __kitcuda_finalize() {
   if (not _kitcuda_initialized)
     return;
 
   __kitrt_message(LABEL, "Finalizing Kitsune runtime (cuda)");
 
-  KIT_NVTX_PUSH("kitcuda:destroy", KIT_NVTX_CLEANUP);
+  KIT_NVTX_PUSH("kitcuda:finalize", KIT_NVTX_CLEANUP);
   __kitcuda_destroy_thread_streams();
   __kitrt_destroy_memory_map(__kitcuda_mem_destroy);
   // Note that all resources associated with the context will be destroyed.
