@@ -137,7 +137,6 @@ Function *GenerateCtorHip::createCtor(Module &m, const Module &devM,
   // get a value of the correct type.
   Constant *cVerbose = toConstant(uint8_t(tto.getKitrtVerbose()), ctx);
   Constant *ctt = toConstant(TTID::Hip, ctx);
-  Constant *czero = toConstant(0U, ctx);
 
   FunctionType *ctorTy = FunctionType::get(voidTy, ptrTy, false);
   Function *ctor = Function::Create(ctorTy, GlobalValue::InternalLinkage,
@@ -183,15 +182,12 @@ Function *GenerateCtorHip::createCtor(Module &m, const Module &devM,
   Constant *cTPB = toConstant(maxTPB, ctx);
   builder.CreateIntrinsic(Intrinsic::kit_runtime_set_max_tpb, {ctt, cTPB});
 
-  FunctionCallee hipRegisterFatBinary =
-      getOrInsertLibFunc(&m, tli, LibFunc_hip_register_fat_binary);
-  Value *bundleHandle = builder.CreateCall(hipRegisterFatBinary, gBundle);
+  Value *bundleHandle = builder.CreateIntrinsic(
+      Intrinsic::kit_gpu_register_devcode, {ctt, gBundle});
   builder.CreateAlignedStore(bundleHandle, gBundleHandle, alignPtr);
 
   // Register any non-constant global variables used in the kernel module. Each
   // of these should have a corresponding global in the host.
-  FunctionCallee hipRegisterVar =
-      getOrInsertLibFunc(&m, tli, LibFunc_hip_register_var);
   for (const GlobalVariable &devG : devM.globals()) {
     if (devG.isConstant())
       continue;
@@ -200,7 +196,7 @@ Function *GenerateCtorHip::createCtor(Module &m, const Module &devM,
                                                 /*AllowInternal=*/true);
     assert(hostG && "Could not find corresponding global on host");
 
-    uint64_t size = dl.getTypeAllocSize(hostG->getType());
+    uint64_t size = dl.getTypeAllocSize(hostG->getValueType());
 
     GlobalVariable *gName = createConstString(hostG->getName(), m);
     Constant *gSize = ConstantInt::get(sizeTTy, size);
@@ -214,14 +210,11 @@ Function *GenerateCtorHip::createCtor(Module &m, const Module &devM,
     // not implemented something?
     Constant *gExt = ConstantInt::get(i32Ty, 0);
 
-    // Per the documentation, The last argument to hipRegisterVar() must always
-    // be zero.
-    Value *args[] = {bundleHandle, hostG, gName,  gName,
-                     gExt,         gSize, gConst, czero};
-
     LLVM_DEBUG(dbgs() << "\t\t\tregister global '" << hostG->getName()
                       << "' via ctor runtime call.\n");
-    builder.CreateCall(hipRegisterVar, args);
+    builder.CreateIntrinsic(
+        Intrinsic::kit_gpu_register_global,
+        {ctt, bundleHandle, hostG, gName, gName, gSize, gExt, gConst});
   }
 
   // Now add the dtor to help us clean up at program exit.
@@ -241,17 +234,15 @@ Function *GenerateCtorHip::createDtor(Module &m,
   Type *voidTy = Type::getVoidTy(ctx);
   PointerType *ptrTy = PointerType::getUnqual(ctx);
 
+  Constant *ctt = toConstant(TTID::Hip, ctx);
   FunctionType *dtorTy = FunctionType::get(voidTy, ptrTy, false);
   Function *dtor = Function::Create(dtorTy, GlobalValue::InternalLinkage,
                                     ".kithip.dtor", &m);
 
-  TargetLibraryInfo &tli = getTLI(*dtor);
   IRBuilder<> builder(BasicBlock::Create(ctx, "entry", dtor));
   Value *handle = builder.CreateAlignedLoad(ptrTy, gBundleHandle, alignPtr);
 
-  FunctionCallee hipUnregisterFatBinary =
-      getOrInsertLibFunc(&m, tli, LibFunc_hip_unregister_fat_binary);
-  builder.CreateCall(hipUnregisterFatBinary, handle);
+  builder.CreateIntrinsic(Intrinsic::kit_gpu_unregister_devcode, {ctt, handle});
 
   // FIXME: There is a bug here which seems to cause use-after-free errors in
   // Kitsune's runtime. It is not entirely clear where exactly the problem is.

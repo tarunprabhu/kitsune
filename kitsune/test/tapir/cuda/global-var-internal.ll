@@ -25,9 +25,9 @@
 ; CHECK-NEXT: }
 ;
 ; CHECK: define {{.+}} @.kitcuda.ctor{{[^(]*}}
-; CHECK: %[[HANDLE:.+]] = call ptr @__cudaRegisterFatBinary
-; CHECK: call {{.+}} @__cudaRegisterVar(ptr %[[HANDLE]], ptr @[[HOSTVAR]], ptr @[[VARNAME]]
-; CHECK: call {{.+}} @__cudaRegisterFatBinaryEnd
+; CHECK: %[[HANDLE:.+]] = call ptr @llvm.kit.gpu.register.devcode
+; CHECK: call {{.+}} @llvm.kit.gpu.register.global(i32 2, ptr %[[HANDLE]], ptr @[[HOSTVAR]], ptr @[[VARNAME]], ptr @[[VARNAME]], i64 4, i32 0, i32 0)
+; CHECK: call {{.+}} @llvm.kit.gpu.register.devcode.end
 ;
 ; CHECK-DAG: ![[MD]] = distinct !{![[MD]], ![[DC:[0-9]+]]}
 ; CHECK-DAG: ![[DC]] = !{!"kit.gv.device.code", i32 2}

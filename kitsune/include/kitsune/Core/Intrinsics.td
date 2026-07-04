@@ -311,6 +311,68 @@ def int_kit_gpu_symbol_memcpy_htod
                  llvm_i64_ty], // number of bytes to copy
                 [ImmArg<ArgIndex<0>>]>;
 
+// Register device code with the runtime.
+def int_kit_gpu_register_devcode
+    : KitIntrinsic<[llvm_ptr_ty], // A handle to be used for other registrations
+                   [llvm_i32_ty,  // TTID
+                    llvm_ptr_ty], // pointer to the device code
+                   [ImmArg<ArgIndex<0>>]> {
+  let Doc = KitGPURegisterDevCodeDoc;
+}
+
+// Signal that all global variables in device code have been registered. This
+// is only needed by the cuda runtime.
+def int_kit_gpu_register_devcode_end
+    : KitIntrinsic<[], [llvm_i32_ty, llvm_ptr_ty], [ImmArg<ArgIndex<0>>]> {
+  let Doc = KitGPURegisterDevCodeEndDoc;
+}
+
+// Unregister device code that was previously registered with
+// int_kit_gpu_register_devcode.
+def int_kit_gpu_unregister_devcode
+    : KitIntrinsic<[], [llvm_i32_ty, llvm_ptr_ty], [ImmArg<ArgIndex<0>>]> {
+  let Doc = KitGPUUnregisterDevCodeDoc;
+}
+
+// Register a "normal" (non-UVM) global variable used in device code.
+def int_kit_gpu_register_global
+    : KitIntrinsic<[],
+                   [llvm_i32_ty,  // TTID
+                    llvm_ptr_ty,  // Handle returned by gpu.register.device.code
+                    llvm_ptr_ty,  // Out pointer to get host address of global
+                    llvm_ptr_ty,  // Name of the global in host code
+                    llvm_ptr_ty,  // Name of the global in device code
+                    llvm_i64_ty,  // Size of the global
+                    llvm_i32_ty,  // Is the global external
+                    llvm_i32_ty], // Is the global constant
+                   [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<5>>,
+                    ImmArg<ArgIndex<6>>, ImmArg<ArgIndex<7>>,
+                    NonNull<ArgIndex<1>>, NonNull<ArgIndex<2>>,
+                    NonNull<ArgIndex<3>>, NonNull<ArgIndex<4>>]> {
+  let Doc = KitGPURegisterGlobalDoc;
+}
+
+// Register a global variable, used in device code, that is to be allocated in
+// managed memory (UVM).
+def int_kit_gpu_register_global_managed
+    : KitIntrinsic<[],
+                   [llvm_i32_ty,  // TTID
+                    llvm_ptr_ty,  // Handle returned by gpu.register.device.code
+                    llvm_ptr_ty,  // Out pointer for UVM allocated address
+                    llvm_ptr_ty,  // Address of global on the device
+                    llvm_ptr_ty,  // Name of the global
+                    llvm_i64_ty,  // Size of the global
+                    llvm_i32_ty,  // Alignment of the global
+                    llvm_i32_ty,  // Is the global external
+                    llvm_i32_ty], // Is the global constant
+                   [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<5>>,
+                    ImmArg<ArgIndex<6>>, ImmArg<ArgIndex<7>>,
+                    ImmArg<ArgIndex<8>>, NonNull<ArgIndex<1>>,
+                    NonNull<ArgIndex<2>>, NonNull<ArgIndex<3>>,
+                    NonNull<ArgIndex<4>>]> {
+  let Doc = KitGPURegisterGlobalManagedDoc;
+}
+
 //------------------------------------------------------------------------------
 // Intrinsics for mobile buffers
 

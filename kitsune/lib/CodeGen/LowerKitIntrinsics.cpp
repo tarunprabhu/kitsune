@@ -52,6 +52,13 @@ static const KitRTFuncMap kitCudaFuncs = {
     {Intrinsic::kit_gpu_symbol_address, LibFunc_kitcuda_symbol_device_ptr},
     {Intrinsic::kit_gpu_symbol_memcpy_dtoh, LibFunc_kitcuda_symbol_memcpy_dtoh},
     {Intrinsic::kit_gpu_symbol_memcpy_htod, LibFunc_kitcuda_symbol_memcpy_htod},
+    {Intrinsic::kit_gpu_register_devcode, LibFunc_kitcuda_register_devcode},
+    {Intrinsic::kit_gpu_register_devcode_end,
+     LibFunc_kitcuda_register_devcode_end},
+    {Intrinsic::kit_gpu_register_global, LibFunc_kitcuda_register_global},
+    {Intrinsic::kit_gpu_register_global_managed,
+     LibFunc_kitcuda_register_global_managed},
+    {Intrinsic::kit_gpu_unregister_devcode, LibFunc_kitcuda_unregister_devcode},
     {Intrinsic::kit_mobile_alloc, LibFunc_kitcuda_managed_malloc},
     {Intrinsic::kit_mobile_free, LibFunc_kitcuda_managed_free},
     {Intrinsic::kit_reduce_num_partials, LibFunc_kitcuda_reduce_num_partials},
@@ -73,6 +80,11 @@ static const KitRTFuncMap kitHipFuncs = {
     {Intrinsic::kit_gpu_symbol_address, LibFunc_kithip_symbol_device_ptr},
     {Intrinsic::kit_gpu_symbol_memcpy_dtoh, LibFunc_kithip_symbol_memcpy_dtoh},
     {Intrinsic::kit_gpu_symbol_memcpy_htod, LibFunc_kithip_symbol_memcpy_htod},
+    {Intrinsic::kit_gpu_register_devcode, LibFunc_kithip_register_devcode},
+    {Intrinsic::kit_gpu_register_global, LibFunc_kithip_register_global},
+    {Intrinsic::kit_gpu_register_global_managed,
+     LibFunc_kithip_register_global_managed},
+    {Intrinsic::kit_gpu_unregister_devcode, LibFunc_kithip_unregister_devcode},
     {Intrinsic::kit_mobile_alloc, LibFunc_kithip_managed_malloc},
     {Intrinsic::kit_mobile_free, LibFunc_kithip_managed_free},
     {Intrinsic::kit_reduce_num_partials, LibFunc_kithip_reduce_num_partials},
@@ -185,6 +197,11 @@ static const KitRTFuncArgMap kitRTArgMap = {
     {Intrinsic::kit_gpu_symbol_address, {1, 2}},
     {Intrinsic::kit_gpu_symbol_memcpy_dtoh, {2, 1, 3}},
     {Intrinsic::kit_gpu_symbol_memcpy_htod, {2, 1, 3}},
+    {Intrinsic::kit_gpu_register_devcode, {1}},
+    {Intrinsic::kit_gpu_register_devcode_end, {1}},
+    {Intrinsic::kit_gpu_register_global, {1, 2, 3, 4, 5, 6, 7}},
+    {Intrinsic::kit_gpu_register_global_managed, {1, 2, 3, 4, 5, 6, 7, 8}},
+    {Intrinsic::kit_gpu_unregister_devcode, {1}},
     {Intrinsic::kit_reduce_num_partials, {1}},
     {Intrinsic::kit_runtime_finalize, {}},
     {Intrinsic::kit_runtime_initialize, {}},
@@ -414,6 +431,7 @@ private:
     newCall->cloneDebugInfoFrom(&call);
     newCall->copyMetadata(call);
     newCall->setCallingConv(call.getCallingConv());
+    newCall->takeName(&call);
 
     // Because the result of the lowered intrinsic may be cast to a different
     // type (typically this will be an address space cast), tail calls cannot be
@@ -578,8 +596,8 @@ private:
         call.getArgOperand(8), // stream
     };
     CallInst *newCall = createNewCallFor(call, rtFunc, args);
-
     newCall->setAttributes(attrs);
+
     call.replaceAllUsesWith(newCall);
     call.eraseFromParent();
 

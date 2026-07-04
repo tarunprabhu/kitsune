@@ -21,7 +21,7 @@
 ;
 ; DEFAULT: define {{.*}} @[[DTOR:[.]kitcuda[.]dtor.*]]{{[ ]*}}(
 ; DEFAULT: %[[HD:.+]] = load ptr, ptr @[[HANDLE]]
-; DEFAULT: call {{.+}} @__cudaUnregisterFatBinary(ptr %[[HD]])
+; DEFAULT: call {{.+}} @llvm.kit.gpu.unregister.devcode(i32 2, ptr %[[HD]])
 ; DEFAULT: call {{.+}} @llvm.kit.runtime.finalize(i32 2)
 ;
 ; DEFAULT: define {{.+}} @[[CTOR]]
@@ -30,9 +30,9 @@
 ; DEFAULT-NOT: call {{.+}} @llvm.kit.runtime.set.fixed.tpb(i32 2,
 ; DEFAULT: call {{.+}} @llvm.kit.runtime.set.max.tpb(i32 2, i32 1024)
 ; DEFAULT-DAG: call {{.+}} @llvm.kit.runtime.set.kernel.launch.refinement(i32 2, i8 1)
-; DEFAULT-DAG: %[[HC:.+]] = call {{.+}}__cudaRegisterFatBinary(ptr @[[BUNDLE]])
+; DEFAULT-DAG: %[[HC:.+]] = call {{.+}}@llvm.kit.gpu.register.devcode(i32 2, ptr @[[BUNDLE]])
 ; DEFAULT: store ptr %[[HC]], ptr @[[HANDLE]]
-; DEFAULT: call void @__cudaRegisterFatBinaryEnd(ptr %[[HC]])
+; DEFAULT: call void @llvm.kit.gpu.register.devcode.end(i32 2, ptr %[[HC]])
 ; DEFAULT: call {{.+}}atexit(ptr @[[DTOR]])
 ; DEFAULT: }
 ;

@@ -265,4 +265,125 @@ extern "C" int64_t __kitcuda_reduce_num_partials(int64_t n) {
   return numPartials;
 }
 
+// These are declarations from cuda's "internal" headers (internal in the sense
+// that they are in headers that are part of the cuda installation, but they
+// don't look like they are intended for the average user)
+extern "C" void **__cudaRegisterFatBinary(void *fatCubin);
+extern "C" void __cudaRegisterFatBinaryEnd(void **fatCubinHandle);
+extern "C" void __cudaUnregisterFatBinary(void **fatCubinHandle);
+extern "C" void __cudaRegisterVar(void **fatCubinHandle, char *hostVar,
+                                  char *deviceAddress, const char *deviceName,
+                                  int ext, size_t size, int constant,
+                                  int global);
+extern "C" void __cudaRegisterManagedVar(void **fatCubinHandle,
+                                         void **hostVarPtrAddress,
+                                         char *deviceAddress,
+                                         const char *deviceName, int ext,
+                                         size_t size, int constant, int global);
+
+/// Register a global variable containing device code. We intentionally do not
+/// refer to this as a "fat binary" because, at the time of writing, the code is
+/// for a single device architecture. This will nearly always be called in the
+/// global constructor for Kitsune's runtime.
+///
+/// \param data Pointer to the global containing the device code.
+/// \returns An opaque handle that should be used to register global variables
+///          used in the device, and potentially other things.
+extern "C" void *__kitcuda_register_devcode(void *data) {
+  return __cudaRegisterFatBinary(data);
+}
+
+/// Call indicating that all global variables in the device code have been
+/// registered. This will nearly always be called in a global constructor for
+/// Kitsune's runtime.
+/// TODO: Check if calling this is actually necessary. If it is not, remove this
+/// function altogether and have Kitsune stop emitting a call to it.
+///
+/// \param handle An opaque handle returned by __kitcuda_register_devcode.
+extern "C" void __kitcuda_register_devcode_end(void **handle) {
+  return __cudaRegisterFatBinaryEnd(handle);
+}
+
+/// Unregister all device code that was previously registered in a call to
+/// __kitcuda_register_devcode.
+///
+/// \param handle An opaque handle returned by __kitcuda_register_devcode.
+extern "C" void __kitcuda_unregister_devcode(void **handle) {
+  return __cudaUnregisterFatBinary(handle);
+}
+
+/// Register a global variable that is present in the device code that was
+/// previously registered with a call to __kitcuda_register_devcode. This will
+/// nearly always be called from a global constructor for Kitsune's runtime.
+///
+/// \param handle An opaque handle returned by __kitcuda_register_devcode.
+/// \param hostAddr The address of the global on the host. The device-side
+///                 global will be initialized with the value on the host.
+/// \param hostName Name of the global variable in host code.
+/// \param deviceName Name of the global variable in device code.
+/// \param size Size, in the bytes, of the global variable.
+/// \param isExternal Is the global variable externally visible.
+/// \param isConstant Is the global variable constant.
+extern "C" void __kitcuda_register_global(void **handle, void *hostAddr,
+                                          char *hostName,
+                                          const char *deviceName, size_t size,
+                                          int isExternal, int isConstant) {
+  // In the declaration for __cudaRegisterVar, the third argument is named
+  // "deviceAddr". However, in clang, the name of the global variable is passed.
+  // Kitsune does the same thing without any adverse consequences - so far, at
+  // least. Maybe there is a definitive source somewhere that will explain what
+  // that argument is intended to be, but if it is good enough for clang, it is
+  // good enough for us.
+  //
+  // Per the documentation, the last argument must always be zero.
+  return __cudaRegisterVar(handle, (char *)hostAddr, hostName, deviceName,
+                           isExternal, size, isConstant, /*global=*/0);
+}
+
+/// Register a global variable that is present in the device code that was
+/// previously registered with a call to __kitcuda_register_devcode. This will
+/// allocate space for the global variable in UVM and return a pointer to that
+/// allocated memory via the \p newAddr out variable. This will nearly always
+/// be called from a global constructor for Kitsune's runtime.
+///
+/// NOTE: This function is not currently used.
+///
+/// \param handle An opaque handle returned by __kitcuda_register_devcode.
+/// \param newAddr Out variable that will eventually contain the address, in
+///                UVM, for the global variable that will be allocated by this
+///                function.
+/// \param hostAddr The address of the global in host code.
+/// \param deviceName Name of the global variable in the device code.
+/// \param size Size, in bytes, of the global variable.
+/// \param align The requested alignment of the global variable. This is not
+///              currently used, but it is present to keep the signatures of
+///              this function and that of the corresponding hip function
+///              consistent.
+/// \param isExternal Is the global variable externally visible.
+/// \param isConstant Is The global variable constant.
+extern "C" void
+__kitcuda_register_global_managed(void **handle, void **newAddr, void *hostAddr,
+                                  const char *deviceName, size_t size,
+                                  int align, int isExternal, int isConstant) {
+  // In the declaration for __cudaRegisterManagedVar, the third argument is
+  // named deviceAddr. But from what we can tell in clang, and from the
+  // corresponding function in hip (which generally mirrors Cuda's API), the
+  // argument is actually the address of the global variable on the host. Hip's
+  // documentation requires it to be the "initial value" for the newly allocated
+  // variable, which one would expect to be simply a pointer to the global on
+  // the host since it would contain the initial value. The type of the
+  // parameter is char*. This is most unhelpful - while it suggests that the
+  // variable likely contains a string, it could just as easily be a pointer to
+  // arbitrary bytes. For now, we assume that that argument should be a host
+  // pointer.
+  __kitrt_fatal(
+      LABEL, "TODO: Check __kitcuda_register_global_managed for correctness");
+
+  // FIXME?: Is it correct for the last argument to be zero? This is the case
+  // when registering normal (those that are not allocated in managed memory)
+  // globals.
+  return __cudaRegisterManagedVar(handle, newAddr, (char *)hostAddr, deviceName,
+                                  isExternal, size, isConstant, /*global=*/0);
+}
+
 } // extern "C"

@@ -202,6 +202,10 @@ KitVerifier &KitVerifier::verify(const CallBase &call) {
   }
 
   switch (call.getIntrinsicID()) {
+  case Intrinsic::kit_gpu_register_devcode_end:
+    if (std::optional<TTID> tt = getTTIDFromKitIntrCall(call))
+      check(*tt == TTID::Cuda, DiagID::ErrKitIntrWrongTTID, TTID::Cuda);
+    return *this;
   case Intrinsic::kit_mobile_init:
     return verifyIntrMobileInit(call);
   case Intrinsic::kit_reduce_0:
