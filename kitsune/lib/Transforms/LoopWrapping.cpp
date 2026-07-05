@@ -142,10 +142,9 @@ BasicBlock *LoopWrapImpl::genOuterHeaderBlock(Loop &loop, BasicBlock &outerPh) {
 
   // Add a phi node to this header. This will be the primary induction variable
   // of the outer loop.
-  LLVMContext &ctx = getContext(loop);
-  Type *i64 = Type::getInt64Ty(ctx);
-  PHINode *iv = PHINode::Create(i64, /*NumReserved=*/2, "wrap.iv", bb->begin());
-  Constant *zero = ConstantInt::getSigned(i64, 0);
+  Type *ivTy = loop.getCanonicalInductionVariable()->getType();
+  PHINode *iv = PHINode::Create(ivTy, /*NumReserved=*/2, "wrap.iv", bb->begin());
+  Constant *zero = ConstantInt::getSigned(ivTy, 0);
   iv->addIncoming(zero, &outerPh);
 
   return bb;
