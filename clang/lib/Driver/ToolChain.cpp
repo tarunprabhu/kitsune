@@ -2246,36 +2246,12 @@ void ToolChain::AddKitsuneHipCommonArgs(const ArgList &Args,
   AddKitsuneGPUCommonArgs(Args, CmdArgs, MLLVM);
 }
 
-void ToolChain::AddKitsuneLambdaCommonArgs(const ArgList &Args,
-                                           ArgStringList &CmdArgs,
-                                           bool MLLVM) const {
-  // Don't hit unreachable if an error has already occurred
-  if (!getDriver().getDiags().getNumErrors())
-    llvm_unreachable("NOT IMPLEMENTED: ToolChain::AddKitsuneLambdaCommonArgs");
-}
-
-void ToolChain::AddKitsuneOMPTaskCommonArgs(const ArgList &Args,
-                                            ArgStringList &CmdArgs,
-                                            bool MLLVM) const {
-  // Don't hit unreachable if an error has already occurred
-  if (!getDriver().getDiags().getNumErrors())
-    llvm_unreachable("NOT IMPLEMENTED: ToolChain::AddKitsuneOMPTaskCommonArgs");
-}
-
 void ToolChain::AddKitsuneOpenCilkCommonArgs(const ArgList &Args,
                                              ArgStringList &CmdArgs,
                                              bool MLLVM) const {
   if (std::optional<std::string> BC = getOpenCilkABIBitcodeFile(Args))
     PushArg(CmdArgs, Args, MLLVM, options::OPT_tapir_opencilk_runtime_bc_EQ,
             *BC);
-}
-
-void ToolChain::AddKitsuneRealmCommonArgs(const ArgList &Args,
-                                          ArgStringList &CmdArgs,
-                                          bool MLLVM) const {
-  // Don't hit unreachable if an error has already occurred
-  if (!getDriver().getDiags().getNumErrors())
-    llvm_unreachable("NOT IMPLEMENTED: ToolChain::AddKitsuneRealmCommonArgs");
 }
 
 void ToolChain::AddKitsunePreprocessorArgs(const ArgList &Args,
@@ -2285,13 +2261,15 @@ void ToolChain::AddKitsunePreprocessorArgs(const ArgList &Args,
                   Args.hasArg(options::OPT_kokkos, options::OPT_kokkos_no_init);
 
   if (IsKokkos) {
-    std::string InclDir = concat(D.ResourceDir, "include", "kokkos");
-    CmdArgs.push_back(Args.MakeArgString(join_items("", "-I", InclDir)));
+    std::string InclDir = concat(D.ResourceDir, "kokkos", "include");
+    CmdArgs.push_back("-isystem");
+    CmdArgs.push_back(Args.MakeArgString(InclDir));
   }
 
   if (TT or IsKokkos) {
     std::string InclDir = concat(D.ResourceDir, "include");
-    CmdArgs.push_back(Args.MakeArgString(join_items("", "-I", InclDir)));
+    CmdArgs.push_back("-isystem");
+    CmdArgs.push_back(Args.MakeArgString(InclDir));
   }
 }
 
@@ -2300,30 +2278,25 @@ void ToolChain::AddKitsuneCompilerArgs(const ArgList &Args,
   auto AddTTArgs = [&](TTID TT, const ArgList &Args,
                        ArgStringList &CmdArgs) -> void {
     switch (TT) {
-    case TTID::Nolo:
-      return;
     case TTID::Cuda:
       return AddKitsuneCudaCommonArgs(Args, CmdArgs);
     case TTID::Custom:
       return AddKitsuneCustomCommonArgs(Args, CmdArgs);
     case TTID::Hip:
       return AddKitsuneHipCommonArgs(Args, CmdArgs);
-    case TTID::Lambda:
-      return AddKitsuneLambdaCommonArgs(Args, CmdArgs);
-    case TTID::OMPTask:
-      return AddKitsuneOMPTaskCommonArgs(Args, CmdArgs);
     case TTID::OpenCilk:
       return AddKitsuneOpenCilkCommonArgs(Args, CmdArgs);
+    case TTID::Nolo:
     case TTID::OpenMP:
     case TTID::Pthreads:
     case TTID::Qthreads:
-      // There are no options specific to these tapir targets that must be
-      // handled
-      return;
-    case TTID::Realm:
-      return AddKitsuneRealmCommonArgs(Args, CmdArgs);
     case TTID::Serial:
+      // There tapir targets do not require special compiler options.
       return;
+    case TTID::Lambda:
+    case TTID::OMPTask:
+    case TTID::Realm:
+      break;
     }
     llvm_unreachable("AddKitsuneCompilerArgs: TTID not handled");
   };
@@ -2333,10 +2306,6 @@ void ToolChain::AddKitsuneCompilerArgs(const ArgList &Args,
   if (IsKokkos) {
     Args.AddLastArg(CmdArgs, options::OPT_kokkos);
     Args.AddLastArg(CmdArgs, options::OPT_kokkos_no_init);
-
-    CmdArgs.push_back("-isystem");
-    CmdArgs.push_back(
-        Args.MakeArgString(concat(D.ResourceDir, "kokkos/include")));
   }
 
   if (std::optional<TTID> TT = parseTTIfValid(Args)) {
@@ -2372,34 +2341,6 @@ static StringRef getArchNameForOpenCilkRTLib(const ToolChain &TC,
   return getArchNameForCompilerRTLib(TC, Args);
 }
 
-static void addDirsFromString(StringRef Str, const ArgList &Args,
-                              ArgStringList &CmdArgs) {
-  SmallVector<StringRef> Dirs;
-  Str.split(Dirs, "|");
-  for (StringRef Dir : Dirs) {
-    CmdArgs.push_back("-L");
-    CmdArgs.push_back(Args.MakeArgString(Dir));
-    CmdArgs.push_back("-rpath");
-    CmdArgs.push_back(Args.MakeArgString(Dir));
-  }
-}
-
-static void addLibsFromString(StringRef Str, const ArgList &Args,
-                              ArgStringList &CmdArgs) {
-  SmallVector<StringRef> Libs;
-  Str.split(Libs, "|");
-  for (StringRef Lib : Libs)
-    CmdArgs.push_back(Args.MakeArgString(Twine("-l") + Lib));
-}
-
-void ToolChain::AddKitsuneCudaLinkerArgs(const ArgList &Args,
-                                         ArgStringList &CmdArgs) const {
-  // Nothing to do here for now. At some point, we will fix the issue of
-  // libkitrt requiring dependencies of all tapir target instead of just those
-  // actually being used. When that happens, the libraries required by the
-  // cuda tapir target can be linked here.
-}
-
 void ToolChain::AddKitsuneCustomLinkerArgs(const ArgList &Args,
                                            ArgStringList &CmdArgs) const {
   // TODO: We really should just load the plugin once and reuse it as needed.
@@ -2414,78 +2355,25 @@ void ToolChain::AddKitsuneCustomLinkerArgs(const ArgList &Args,
   }
 }
 
-void ToolChain::AddKitsuneHipLinkerArgs(const ArgList &Args,
-                                        ArgStringList &CmdArgs) const {
-  // Nothing to do here for now. At some point, we will fix the issue of
-  // libkitrt requiring dependencies of all tapir target instead of just those
-  // actually being used. When that happens, the libraries required by the hip
-  // tapir target can be linked here.
-}
-
-void ToolChain::AddKitsuneLambdaLinkerArgs(const ArgList &Args,
-                                           ArgStringList &CmdArgs) const {
-  // Don't hit unreachable if an error has already occurred
-  if (!getDriver().getDiags().getNumErrors())
-    llvm_unreachable("NOT IMPLEMENTED: ToolChain::AddKitsuneLambdaLinkerArgs");
-}
-
-void ToolChain::AddKitsuneOMPTaskLinkerArgs(const ArgList &Args,
-                                            ArgStringList &CmdArgs) const {
-  // Don't hit unreachable if an error has already occurred
-  if (!getDriver().getDiags().getNumErrors())
-    llvm_unreachable("NOT IMPLEMENTED: ToolChain::AddKitsuneOMPTaskLinkerArgs");
-}
-
 void ToolChain::AddKitsuneOpenCilkLinkerArgs(const ArgList &Args,
                                              ArgStringList &CmdArgs) const {
   bool IsStatic = Args.hasArg(options::OPT_static);
   FileType FT = IsStatic ? ToolChain::FT_Static : ToolChain::FT_Shared;
 
   // Link the correct OpenCilk personality function.
+  // FIXME: Do we need personality functions if we don't use exceptions?
   std::string Personality = getOpenCilkPersonalityName(Args, FT);
   CmdArgs.push_back(Args.MakeArgString(getOpenCilkRT(Args, Personality, FT)));
 
-  // Since the OpenCilk runtime is required by Kitsune's runtime, the former
-  // must be linked after the latter. Therefore, we do not add those linker
-  // arguments here.
-}
-
-void ToolChain::AddKitsuneOpenMPLinkerArgs(const ArgList &Args,
-                                           ArgStringList &CmdArgs) const {
-  // Nothing to do here for now. At some point, we will fix the issue of
-  // libkitrt requiring dependencies of all tapir target instead of just those
-  // actually being used. When that happens, libraries required by the qthreads
-  // tapir target can be linked here.
-}
-
-void ToolChain::AddKitsuneQthreadsLinkerArgs(const ArgList &Args,
-                                             ArgStringList &CmdArgs) const {
-  // Nothing to do here for now. At some point, we will fix the issue of
-  // libkitrt requiring dependencies of all tapir target instead of just those
-  // actually being used. When that happens, libraries required by the qthreads
-  // tapir target can be linked here.
-}
-
-void ToolChain::AddKitsuneRealmLinkerArgs(const ArgList &Args,
-                                          ArgStringList &CmdArgs) const {
-  // TODO: Fix this when (if) the realm tapir target is ever resurrected.
-  //
-  // It is not clear whether the realm libraries need to be linked to the
-  // executable being built. If Kitsune's runtime does not already link them in,
-  // then we will need to link them here. What is below is what was originally
-  // in a cmake file somewhere. It's repeated here for reference but obviously,
-  // we should do the right thing. There is absolutely no need to stick to
-  // exactly these if it doesn't make sense.
-  //
-  // "-L${Realm_LIBRARY_DIR} -L${Realm_WRAPPER_LIBRARY_DIR}
-  // -lrealm-abi -lrealm"
-  //
-  // The unconditional failure is to ensure that we don't forget to do this
-  // when the target is resurrected.
-  //
-  // Don't hit unreachable if an error has already occurred
-  if (!getDriver().getDiags().getNumErrors())
-    llvm_unreachable("NOT IMPLEMENTED: ToolChain::AddKitsuneRealmLinkerArgs");
+  // The opencilk tapir target directly adds calls to libopencilk functions when
+  // lowering tapir loops. Therefore, we must link libopencilk directly.
+  std::string Path = *getRuntimePath();
+  const char *RuntimeDir = Args.MakeArgString(Path);
+  CmdArgs.push_back("-L");
+  CmdArgs.push_back(RuntimeDir);
+  CmdArgs.push_back("-rpath");
+  CmdArgs.push_back(RuntimeDir);
+  CmdArgs.push_back("-lopencilk");
 }
 
 void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
@@ -2493,33 +2381,25 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
   auto AddTTArgs = [&](TTID TT, const ArgList &Args,
                        ArgStringList &CmdArgs) -> void {
     switch (TT) {
-    case TTID::Nolo:
-      return;
-    case TTID::Cuda:
-      return AddKitsuneCudaLinkerArgs(Args, CmdArgs);
     case TTID::Custom:
       return AddKitsuneCustomLinkerArgs(Args, CmdArgs);
-    case TTID::Hip:
-      return AddKitsuneHipLinkerArgs(Args, CmdArgs);
-    case TTID::Lambda:
-      return AddKitsuneLambdaLinkerArgs(Args, CmdArgs);
-    case TTID::OMPTask:
-      return AddKitsuneOMPTaskLinkerArgs(Args, CmdArgs);
     case TTID::OpenCilk:
       return AddKitsuneOpenCilkLinkerArgs(Args, CmdArgs);
+    case TTID::Nolo:
+    case TTID::Cuda:
+    case TTID::Hip:
     case TTID::OpenMP:
-      return AddKitsuneOpenMPLinkerArgs(Args, CmdArgs);
     case TTID::Pthreads:
-      // libpthread is always added as part of the dependencies for Kitsune's
-      // runtime, libkitrt. Other than this, nothing else is required.
-      return;
     case TTID::Qthreads:
-      return AddKitsuneQthreadsLinkerArgs(Args, CmdArgs);
-    case TTID::Realm:
-      return AddKitsuneRealmLinkerArgs(Args, CmdArgs);
     case TTID::Serial:
-      // The serial tapir target does not require special linker options.
+      // These tapir targets do not require special linker options.
       return;
+    case TTID::Lambda:
+    case TTID::OMPTask:
+    case TTID::Realm:
+      // These tapir targets are not yet fully supported, so they should raise
+      // a catastrophic error.
+      break;
     }
     llvm_unreachable("AddKitsuneLinkerArgs: TTID not handled");
   };
@@ -2531,8 +2411,12 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
   bool IsKokkos = D.CCCIsCXX() &&
                   Args.hasArg(options::OPT_kokkos, options::OPT_kokkos_no_init);
   if (IsKokkos) {
-    const char *LibDir =
-        Args.MakeArgString(concat(D.ResourceDir, kitKokkosLibDir()));
+    // The Kokkos libraries will be installed to a directory with the same name
+    // as the directory containing Kitsune's runtime. Yes, this is a crappy way
+    // of doing things, but I have precisely zero interest in supporting Kokkos
+    // mode properly.
+    std::string Path = concat(D.ResourceDir, "kokkos", kitRuntimeLibDir());
+    const char *LibDir = Args.MakeArgString(Path);
     CmdArgs.push_back("-L");
     CmdArgs.push_back(LibDir);
     CmdArgs.push_back("-rpath");
@@ -2540,13 +2424,12 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
     CmdArgs.push_back("-lkokkoscore");
   }
 
-  // We always link in libkitrt if a tapir target or special Kokkos handling has
+  // We always link libkitrt if a tapir target or special Kokkos handling has
   // been specified.
   if (IsKokkos || (TT && *TT != TTID::Nolo)) {
-    const char *LibDir = Args.MakeArgString(concat(D.ResourceDir, "lib"));
+    std::string Path = concat(D.ResourceDir, kitRuntimeLibDir());
+    const char *LibDir = Args.MakeArgString(Path);
     CmdArgs.push_back("-L");
-    CmdArgs.push_back(LibDir);
-    CmdArgs.push_back("-rpath");
     CmdArgs.push_back(LibDir);
 
     if (Args.hasArg(options::OPT_static)) {
@@ -2556,65 +2439,9 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
       CmdArgs.push_back(Args.MakeArgString("-l" + kitRuntimeStaticLibName()));
       CmdArgs.push_back("-Bdynamic");
     } else {
+      CmdArgs.push_back("-rpath");
+      CmdArgs.push_back(LibDir);
       CmdArgs.push_back(Args.MakeArgString("-l" + kitRuntimeDSOLibName()));
-    }
-
-    addDirsFromString(kitCommonLibDirs(), Args, CmdArgs);
-    addLibsFromString(kitCommonLibNames(), Args, CmdArgs);
-
-    // libkitrt links against libcuda if the cuda target is enabled and
-    // libamdhip64 if the hip target is enabled. The libraries may not be where
-    // the dynamic linker will find them, so the paths need to be set correctly
-    // here if libkitrt.so will be linked, regardless of the Tapir target being
-    // used.
-    //
-    // FIXME: This really should be fixed. Currently, all the runtimes are
-    // combined into a single shared library, libkitrt. Regardless of the
-    // tapir target in use, then, the dependencies of all must be added when
-    // linking the final executable. A better approach would be to split
-    // libkitrt into separate runtimes for each tapir target. We could then
-    // link only the kitsune runtime and dependencies for the appropriate tapir
-    // target.
-    if constexpr (kitHipEnabled()) {
-      addDirsFromString(kitHipLibDirs(), Args, CmdArgs);
-      addLibsFromString(kitHipLibNames(), Args, CmdArgs);
-    }
-
-    if constexpr (kitCudaEnabled()) {
-      addDirsFromString(kitCudaLibDirs(), Args, CmdArgs);
-      addLibsFromString(kitCudaLibNames(), Args, CmdArgs);
-    }
-
-    // These should be linked after libkitrt. At some point, we may have a
-    // static archives for some of these libraries. In that case, they would
-    // have to be linked before uses of the methods in the library in libkitrt.
-    if constexpr (kitOpenCilkEnabled()) {
-      std::string Path = *getRuntimePath();
-      const char *RuntimeDir = Args.MakeArgString(Path);
-      CmdArgs.push_back("-L");
-      CmdArgs.push_back(RuntimeDir);
-      CmdArgs.push_back("-rpath");
-      CmdArgs.push_back(RuntimeDir);
-      CmdArgs.push_back("-lopencilk");
-    }
-
-    if constexpr (kitOpenMPEnabled()) {
-      const char *LibDir = Args.MakeArgString(concat(D.ResourceDir, "lib"));
-      CmdArgs.push_back("-L");
-      CmdArgs.push_back(LibDir);
-      CmdArgs.push_back("-rpath");
-      CmdArgs.push_back(LibDir);
-      CmdArgs.push_back("-lomp");
-    }
-
-    if constexpr (kitQthreadsEnabled()) {
-      const char *LibDir =
-          Args.MakeArgString(concat(D.ResourceDir, kitQthreadsLibDir()));
-      CmdArgs.push_back("-L");
-      CmdArgs.push_back(LibDir);
-      CmdArgs.push_back("-rpath");
-      CmdArgs.push_back(LibDir);
-      CmdArgs.push_back("-lqthread");
     }
   }
 }
@@ -2624,28 +2451,27 @@ void ToolChain::AddKitsuneLTOArgs(const ArgList &Args,
   auto AddTTArgs = [&](TTID TT, const ArgList &Args,
                        ArgStringList &CmdArgs) -> void {
     switch (TT) {
-    case TTID::Nolo:
-      return;
     case TTID::Cuda:
       return AddKitsuneCudaCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
     case TTID::Custom:
       return AddKitsuneCustomCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
     case TTID::Hip:
       return AddKitsuneHipCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
-    case TTID::Lambda:
-      return AddKitsuneLambdaCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
-    case llvm::TTID::OMPTask:
-      return AddKitsuneOMPTaskCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
     case TTID::OpenCilk:
       return AddKitsuneOpenCilkCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
+    case TTID::Nolo:
     case TTID::OpenMP:
     case TTID::Pthreads:
     case TTID::Qthreads:
-      return;
-    case TTID::Realm:
-      return AddKitsuneRealmCommonArgs(Args, CmdArgs, /*MLLVM=*/true);
     case TTID::Serial:
+      // There tapir targets do not require special compiler options for LTO.
       return;
+    case TTID::Lambda:
+    case TTID::OMPTask:
+    case TTID::Realm:
+      // These tapir targets are not yet fully supported, so if we get this far,
+      // fail catastrophically.
+      break;
     }
     llvm_unreachable("AddKitsuneLTOArgs: TTID not handled");
   };

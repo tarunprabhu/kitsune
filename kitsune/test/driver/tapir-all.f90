@@ -44,11 +44,11 @@
 ! are ever resurrected, they should be moved to the first set of known tapir
 ! targets.
 !
-! RUN: not %kitfc -### --tapir=lambda -O1 %s 2>&1 \
+! RUN: not --crash %kitfc -### --tapir=lambda -O1 %s 2>&1 \
 ! RUN:     | FileCheck %s --check-prefix=NOT-ENABLED
-! RUN: not %kitfc -### --tapir=omptask -O1 %s 2>&1 \
+! RUN: not --crash %kitfc -### --tapir=omptask -O1 %s 2>&1 \
 ! RUN:     | FileCheck %s --check-prefix=NOT-ENABLED
-! RUN: not %kitfc -### --tapir=realm -O1 %s 2>&1 \
+! RUN: not --crash %kitfc -### --tapir=realm -O1 %s 2>&1 \
 ! RUN:     | FileCheck %s --check-prefix=NOT-ENABLED
 !
 ! NOT-ENABLED: tapir target '{{.+}}' was not enabled

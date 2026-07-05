@@ -21,12 +21,18 @@
 !
 ! CHECK-NOT: -fstripmine
 !
+! We check for the absence of certain libraries that used to be linked
+! explicitly in the past, but are not any longer. Calls to functions provided
+! by these libraries should not be added directly by any lowering passes.
+! Instead, a wrapper should be provided in libkitrt, and that should be called.
+!
+! CHECK-NOT: -lamdhip64
+!
 ! The next line is expected to be the linker invocation. Since it is difficult
 ! to reliably check the name of the linker executable, just check for the
 ! expected linker flags.
 !
 ! CHECK-NEXT: -lkitrt
-! CHECK-SAME: -lamdhip64
 !
 ! ------------------------------------------------------------------------------
 ! Check that the stripmine pass is disabled by default. This checks that the

@@ -14,6 +14,7 @@
 // expected linker flags.
 //
 // CHECK-NEXT: -lkitrt
+// CHECK-NOT: -l{{.*}}c++
 //
 // -----------------------------------------------------------------------------
 // Check that the stripmine pass is disabled by default. This checks that the

@@ -18,25 +18,14 @@
 #define KITSUNE_VERSION_PATCH @KITSUNE_VERSION_PATCH@
 #define KITSUNE_PACKAGE_VERSION "@KITSUNE_PACKAGE_VERSION@"
 
-// -----------------------------------------------------------------------------
-
-#define KITRT_DSO "@KITRT@"
-#define KITRT_STATIC "@KITRT_STATIC@"
+//------------------------------------------------------------------------------
 
 // The default GCC installation directory to use. If this is non-null, Kitsune
 // will not scan for a GCC installation. This value can be overridden by passing
 // --gcc-install-dir on the command line.
 #define KITSUNE_GCC_INSTALL_DIR "@KITSUNE_GCC_INSTALL_DIR@"
 
-// A semicolon-separated list of library names that should always be linked when
-// linking with Kitsune.
-#define KITSUNE_COMMON_LIB_NAMES "@KITSUNE_COMMON_LIB_NAMES@"
-
-// A semicolon-separated list of directories that should always be added to the
-// linker library search paths and the rpath.
-#define KITSUNE_COMMON_LIBDIRS "@KITSUNE_COMMON_LIBDIRS@"
-
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 // The names of the Kitsune frontends.
 #define KITSUNE_C_FRONTEND "@KITSUNE_C_FRONTEND@"
@@ -54,7 +43,7 @@
 // A space-separate dstring of all enabled languages.
 #define KITSUNE_ENABLED_LANGS "@KITSUNE_ENABLED_LANGS_STR@"
 
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 // A space-separated string of all known tapir targets, including those that
 // have not been enabled.
@@ -101,16 +90,26 @@
 // This is *NOT* a string. It can only be used within an initializer list.
 #define KITSUNE_UNIVERSAL_TTIDS @KITSUNE_UNIVERSAL_TTIDS@
 
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+
+// The basename of the dynamic library containing Kitsune's runtime. This does
+// not contain any platform-specific prefixes or extensions.
+#define KITRT_DSO "@KITRT@"
+
+// The basename of the static archive containing Kitsune's runtime. This does
+// not contain any platform-specific prefixes or extensions.
+#define KITRT_STATIC "@KITRT_STATIC@"
+
+// The names of the directory that will contain the libraries for Kitsune's
+// runtime.
+#define KITRT_LIBDIR "@CMAKE_INSTALL_LIBDIR@"
+
+//------------------------------------------------------------------------------
 
 // Has kokkos support been enabled.
 #cmakedefine01 KITSUNE_KOKKOS_ENABLED
 
-// The directory containing the Kokkos libraries. This is a path that must be
-// appended to clang's base resource directory to get the full path.
-#define KITSUNE_KOKKOS_LIBDIR "kokkos/@CMAKE_INSTALL_LIBDIR@"
-
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 // Has the cuda tapir target been enabled.
 #cmakedefine01 KITSUNE_CUDA_ENABLED
@@ -124,24 +123,15 @@
 #define KITSUNE_CUDA_FATBINARY "@KITSUNE_CUDA_FATBINARY@"
 #define KITSUNE_CUDA_ARCH_DEFAULT "@KITSUNE_CUDA_ARCH_DEFAULT@"
 
-// A semicolon-separated list of library names that should be linked when the
-// cuda tapir target is specified.
-#define KITSUNE_CUDA_LIB_NAMES "@KITSUNE_CUDA_LIB_NAMES@"
-
-// A semicolon-separated list of directories that should be added to the
-// linker's library search and the rpath when the cuda tapir target is
-// specified.
-#define KITSUNE_CUDA_LIBDIRS "@KITSUNE_CUDA_LIBDIRS@"
-
 // The name of the symbol containing the cuda device code (the fat binary).
 #define KITSUNE_CUDA_FATBIN_NAME "__kitsune_fatbin_cuda"
 
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 // Has the custom tapir target been enabled.
 #cmakedefine01 KITSUNE_CUSTOM_ENABLED
 
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 // Has the hip tapir target been enabled.
 #cmakedefine01 KITSUNE_HIP_ENABLED
@@ -154,62 +144,49 @@
 #define KITSUNE_HIP_BITCODE_DIR "@KITSUNE_HIP_BITCODE_DIR@"
 #define KITSUNE_HIP_ARCH_DEFAULT "@KITSUNE_HIP_ARCH_DEFAULT@"
 
-// A semicolon-separated list of library names that should be linked when the
-// hip tapir target is specified.
-#define KITSUNE_HIP_LIB_NAMES "@KITSUNE_HIP_LIB_NAMES@"
-
-// A semicolon-separated list of directories that should be added to the
-// linker's library search and the rpath when the cuda tapir target is
-// specified.
-#define KITSUNE_HIP_LIBDIRS "@KITSUNE_HIP_LIBDIRS@"
-
 // The name of the symbol containing the hip device code (the fat binary).
 #define KITSUNE_HIP_FATBIN_NAME "__kitsune_fatbin_hip"
 
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 // Has the lambda tapir target been enabled.
 #cmakedefine01 KITSUNE_LAMBDA_ENABLED
 
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 // Has the omptask tapir target been enabled.
 #cmakedefine01 KITSUNE_OMPTASK_ENABLED
 
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 // Has the opencilk tapir target been enabled.
 #cmakedefine01 KITSUNE_OPENCILK_ENABLED
 
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 // Has the openmp tapir target been enabled.
 #cmakedefine01 KITSUNE_OPENMP_ENABLED
 
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 // Has the pthreads tapir target been enabled.
 #cmakedefine01 KITSUNE_PTHREADS_ENABLED
 
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 // Has the qthreads tapir target been enabled.
 #cmakedefine01 KITSUNE_QTHREADS_ENABLED
 
-// The name of the directory to which libqthread will be installed. This is
-// lib or lib64 depending on the platform.
-#define KITSUNE_QTHREADS_LIBDIR "@KITSUNE_QTHREADS_LIBDIR@"
-
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 // Has the realm tapir target been enabled.
 #cmakedefine01 KITSUNE_REALM_ENABLED
 
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 // Has the serial tapir target been enabled.
 #cmakedefine01 KITSUNE_SERIAL_ENABLED
 
-// -----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 #endif // KITSUNE_CONFIG_H

@@ -33,8 +33,6 @@
 ! CUSTOM-SAME: "-Wcuda_compiler_flag"
 ! CUSTOM-NEXT: "-cuda_linker_flag"
 ! CUSTOM-SAME: -lkitrt
-! CUSTOM-SAME: -lcuda
-! CUSTOM-SAME: -lcudart_static
 !
 ! -----------------------------------------------------------------------------
 ! If configuration files for both the driver and the tapir target are present,
@@ -68,5 +66,3 @@
 ! BOTH-NEXT: "-cuda_driver_linker_flag"
 ! BOTH-SAME: "-cuda_custom_linker_flag"
 ! BOTH-SAME: -lkitrt
-! BOTH-SAME: -lcuda
-! BOTH-SAME: -lcudart_static

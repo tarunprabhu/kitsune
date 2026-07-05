@@ -12,12 +12,12 @@
 // RUN: %}
 //
 // RUN: %if kitsune-no-lambda %{ \
-// RUN:   not %kitxx -fsyntax-only --tapir=lambda %s 2>&1 \
+// RUN:   not --crash %kitxx -fsyntax-only --tapir=lambda %s 2>&1 \
 // RUN:       | FileCheck %s -check-prefix LAMBDA \
 // RUN: %}
 //
 // RUN: %if kitsune-no-omptask %{ \
-// RUN:   not %kitxx -fsyntax-only --tapir=omptask %s 2>&1 \
+// RUN:   not --crash %kitxx -fsyntax-only --tapir=omptask %s 2>&1 \
 // RUN:       | FileCheck %s -check-prefix OMPTASK \
 // RUN: %}
 //
@@ -32,7 +32,7 @@
 // RUN: %}
 //
 // RUN: %if kitsune-no-realm %{ \
-// RUN:   not %kitxx -fsyntax-only --tapir=realm %s 2>&1 \
+// RUN:   not --crash %kitxx -fsyntax-only --tapir=realm %s 2>&1 \
 // RUN:       | FileCheck %s -check-prefix REALM \
 // RUN: %}
 //

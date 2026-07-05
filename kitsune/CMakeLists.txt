@@ -49,17 +49,6 @@ include(GetClangResourceDir)
 #
 # ------------------------------------------------------------------------------
 
-# Lookup the unique directories containing the libraries in LIBS and add them
-# to the list OUT.
-macro(populate_unique_parents LIBS OUT)
-  foreach (LIB IN LISTS ${LIBS})
-    get_filename_component(DIR ${LIB} DIRECTORY)
-    if (NOT DIR IN_LIST ${OUT})
-      list(APPEND ${OUT} ${DIR})
-    endif ()
-  endforeach ()
-endmacro ()
-
 # Prepare the variable OUT for use in an ExternalProject command. INP is a list
 # of compiler/linker options. All elements of INP will be copied to OUT. In
 # addition to this, the --sysroot= option will be added to OUT if
@@ -130,12 +119,7 @@ get_clang_resource_dir(CLANG_RESOURCE_INSTALL_LIBDIR
   SUBDIR ${CMAKE_INSTALL_LIBDIR})
 
 find_library(LIB_DL dl REQUIRED)
-list(APPEND KITSUNE_COMMON_LIB_NAMES dl)
 list(APPEND KITSUNE_COMMON_LIBS ${LIB_DL})
-
-find_library(LIB_M m REQUIRED)
-list(APPEND KITSUNE_COMMON_LIB_NAMES m)
-list(APPEND KITSUNE_COMMON_LIBS ${LIB_M})
 
 # The pthread functions are now part of libc. libpthread was removed from glibc
 # 2.34. There is no need to explicitly link this in unless we have older
@@ -146,7 +130,6 @@ list(APPEND KITSUNE_COMMON_LIBS ${LIB_M})
 # https://developers.redhat.com/articles/2021/12/17/why-glibc-234-removed-libpthread
 #
 find_library(LIB_PTHREAD pthread REQUIRED)
-list(APPEND KITSUNE_COMMON_LIB_NAMES pthread)
 list(APPEND KITSUNE_COMMON_LIBS ${LIB_PTHREAD})
 
 # The librt functions are part of glibc as of v2.34. There is no need to link
@@ -154,14 +137,12 @@ list(APPEND KITSUNE_COMMON_LIBS ${LIB_PTHREAD})
 # suppport HPC clusters with old libc installations, so this might have to be
 # around for some time yet.
 find_library(LIB_RT rt REQUIRED)
-list(APPEND KITSUNE_COMMON_LIB_NAMES rt)
 list(APPEND KITSUNE_COMMON_LIBS ${LIB_RT})
 
 # On FreeBSD, the backtrace-related functions are defined in libexecinfo. On
 # other systems, they are part of libc.
 if (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
   find_library(LIB_EXECINFO execinfo REQUIRED)
-  list(APPEND KITSUNE_COMMON_LIB_NAMES execinfo)
   list(APPEND KITSUNE_COMMON_LIBS ${LIB_EXECINFO})
 endif()
 
@@ -429,16 +410,14 @@ if (KITSUNE_CUDA_ENABLED)
   message(STATUS "  Cuda include dirs: ${CUDAToolkit_INCLUDE_DIRS}")
   message(STATUS "  Cuda library dirs: ${CUDAToolkit_LIBRARY_DIR}")
 
-  # This should almost always be the libcuda that is installed on the system,
-  # so look for it in the "usual" places.
+  # This is expected to be installed on the system, so look for it in the usual
+  # places.
   find_library(KITSUNE_CUDA_LIB_CUDA cuda REQUIRED)
-  list(APPEND KITSUNE_CUDA_LIB_NAMES cuda)
   list(APPEND KITSUNE_CUDA_LIBS ${KITSUNE_CUDA_LIB_CUDA})
 
   find_library(KITSUNE_CUDA_LIB_CUDART_STATIC cudart_static REQUIRED
     PATHS ${CUDAToolkit_LIBRARY_DIR}
     NO_DEFAULT_PATH)
-  list(APPEND KITSUNE_CUDA_LIB_NAMES cudart_static)
   list(APPEND KITSUNE_CUDA_LIBS ${KITSUNE_CUDA_LIB_CUDART_STATIC})
 
   find_program(KITSUNE_CUDA_PTXAS ptxas REQUIRED
@@ -450,22 +429,12 @@ if (KITSUNE_CUDA_ENABLED)
     NO_DEFAULT_PATH)
 
   if (KITCUDA_ENABLE_NVTX)
-    find_library(KITSUNE_CUDA_LIB_NVTOOLS_EXT nvToolsExt REQUIRED
-      PATHS ${KITSUNE_CUDA_LIBDIRS}
-      NO_DEFAULT_PATH)
-    list(APPEND KITSUNE_CUDA_LIB_NAMES nvToolsExt)
-    list(APPEND KITSUNE_CUDA_LIBS ${KITSUNE_CUDA_LIB_NVTOOLS_EXT})
-
     set(KITSUNE_CUDA_DEFNS KITCUDA_ENABLE_NVTX)
   endif()
 
-  populate_unique_parents(KITSUNE_CUDA_LIBS KITSUNE_CUDA_LIBDIRS)
   string(REPLACE ";" "|" KITSUNE_CUDA_DEFNS "${KITSUNE_CUDA_DEFNS}")
-  string(REPLACE ";" "|" KITSUNE_CUDA_LIB_NAMES "${KITSUNE_CUDA_LIB_NAMES}")
   string(REPLACE ";" "|" KITSUNE_CUDA_LIBS "${KITSUNE_CUDA_LIBS}")
-  string(REPLACE ";" "|" KITSUNE_CUDA_LIBDIRS "${KITSUNE_CUDA_LIBDIRS}")
   string(REPLACE ";" "|" KITSUNE_CUDA_INCDIRS "${CUDAToolkit_INCLUDE_DIRS}")
-  string(REPLACE ";" "|" KITSUNE_CUDA_BIN_DIRS "${CUDAToolkit_BIN_DIR}")
 
   set(KITSUNE_CUDA_ARCH_DEFAULT "sm_80"
     CACHE STRING
@@ -527,13 +496,9 @@ if (KITSUNE_HIP_ENABLED)
   find_library(KITSUNE_HIP_LIB_AMDHIP64 amdhip64 REQUIRED
     PATHS ${HIP_LIB_INSTALL_DIR}
     NO_DEFAULT_PATH)
-  list(APPEND KITSUNE_HIP_LIB_NAMES amdhip64)
   list(APPEND KITSUNE_HIP_LIBS ${KITSUNE_HIP_LIB_AMDHIP64})
 
-  populate_unique_parents(KITSUNE_HIP_LIBS KITSUNE_HIP_LIBDIRS)
-  string(REPLACE ";" "|" KITSUNE_HIP_LIB_NAMES "${KITSUNE_HIP_LIB_NAMES}")
   string(REPLACE ";" "|" KITSUNE_HIP_LIBS "${KITSUNE_HIP_LIBS}")
-  string(REPLACE ";" "|" KITSUNE_HIP_LIBDIRS "${KITSUNE_HIP_LIBDIRS}")
   string(REPLACE ";" "|" KITSUNE_HIP_INCDIRS "${HIP_INCLUDE_DIR}")
 
   set(KITSUNE_HIP_ARCH_DEFAULT "gfx90a"
@@ -996,10 +961,7 @@ endif()
 # the corresponding External_Project commands, the LIST_SEPARATOR option is used
 # to inform cmake that the pipe symbol is actually a list separator.
 #
-populate_unique_parents(KITSUNE_COMMON_LIBS KITSUNE_COMMON_LIBDIRS)
-string(REPLACE ";" "|" KITSUNE_COMMON_LIB_NAMES "${KITSUNE_COMMON_LIB_NAMES}")
 string(REPLACE ";" "|" KITSUNE_COMMON_LIBS "${KITSUNE_COMMON_LIBS}")
-string(REPLACE ";" "|" KITSUNE_COMMON_LIBDIRS "${KITSUNE_COMMON_LIBDIRS}")
 
 set(KITRT_BUILD_CONFIGURE_FLAGS ""
   CACHE STRING
@@ -1065,8 +1027,6 @@ set(KITRT_CONFIGURE_ARGS
   -DLLVM_DEFAULT_TARGET_TRIPLE=${LLVM_DEFAULT_TARGET_TRIPLE}
   -DKITSUNE_SOURCE_DIR=${KITSUNE_SOURCE_DIR}
   -DKITSUNE_BINARY_DIR=${KITSUNE_BINARY_DIR}
-  -DKITSUNE_COMMON_LIB_NAMES=${KITSUNE_COMMON_LIB_NAMES}
-  -DKITSUNE_COMMON_LIBDIRS=${KITSUNE_COMMON_LIBDIRS}
   -DKITSUNE_COMMON_LIBS=${KITSUNE_COMMON_LIBS}
   -DKITRT=${KITRT}
   -DKITRT_STATIC=${KITRT_STATIC})
@@ -1092,16 +1052,12 @@ if (KITSUNE_CUDA_ENABLED)
   list(APPEND KITRT_CONFIGURE_ARGS
     -DKITSUNE_CUDA_DEFNS=${KITSUNE_CUDA_DEFNS}
     -DKITSUNE_CUDA_INCDIRS=${KITSUNE_CUDA_INCDIRS}
-    -DKITSUNE_CUDA_LIB_NAMES=${KITSUNE_CUDA_LIB_NAMES}
-    -DKITSUNE_CUDA_LIBDIRS=${KITSUNE_CUDA_LIBDIRS}
     -DKITSUNE_CUDA_LIBS=${KITSUNE_CUDA_LIBS})
 endif()
 
 if (KITSUNE_HIP_ENABLED)
   list(APPEND KITRT_CONFIGURE_ARGS
     -DKITSUNE_HIP_INCDIRS=${KITSUNE_HIP_INCDIRS}
-    -DKITSUNE_HIP_LIB_NAMES=${KITSUNE_HIP_LIB_NAMES}
-    -DKITSUNE_HIP_LIBDIRS=${KITSUNE_HIP_LIBDIRS}
     -DKITSUNE_HIP_LIBS=${KITSUNE_HIP_LIBS})
 endif()
 
