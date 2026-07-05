@@ -75,24 +75,23 @@ template <> constexpr const char *getTypeFmt<int64_t>() { return "%ld"; }
 template <> constexpr const char *getTypeFmt<float>() { return "%f"; }
 template <> constexpr const char *getTypeFmt<double>() { return "%g"; }
 
-extern "C" [[gnu::malloc]] void *[[kitsune::mobile]]
-__kitrt_default_mem_alloc(size_t bytes) {
-  void *[[kitsune::mobile]] ptr = __kitsune_mobile_cast_unsafe(malloc(bytes));
+extern "C" [[gnu::malloc]] void *__kitrt_default_mem_alloc(size_t bytes) {
+  void *ptr = malloc(bytes);
   __kitrt_register_mem_alloc(ptr, bytes);
   return ptr;
 }
 
-extern "C" void __kitrt_default_mem_free(void *[[kitsune::mobile]] ptr) {
+extern "C" void __kitrt_default_mem_free(void *ptr) {
   bool ro, wo;
-  if (__kitrt_get_mem_alloc_size((void *)ptr, &ro, &wo) > 0)
+  if (__kitrt_get_mem_alloc_size(ptr, &ro, &wo) > 0)
     __kitrt_unregister_mem_alloc(ptr);
-  free((void *)ptr);
+  free(ptr);
 }
 
 template <typename T,
           std::enable_if_t<std::is_integral_v<T> || std::is_floating_point_v<T>,
                            int> = 0>
-static void mobileInitScalar(T *[[kitsune::mobile]] buf, size_t n, T v) {
+static void mobileInitScalar(T *buf, size_t n, T v) {
   __kitrt_message_noflush(
       LABEL, "Setting %ld elements of mobile buffer with type %s to ", n,
       getTypeName<T>());
@@ -114,8 +113,8 @@ static void mobileInitScalar(T *[[kitsune::mobile]] buf, size_t n, T v) {
  * may be more efficient to use one of the __kitrt_mobile_init_* functions
  * instead of this.
  */
-extern "C" void __kitrt_mobile_init_from(void *[[kitsune::mobile]] buf,
-                                         size_t n, void *v, unsigned size) {
+extern "C" void __kitrt_mobile_init_from(void *buf, size_t n, void *v,
+                                         unsigned size) {
   for (size_t i = 0; i < n; ++i) {
     memcpy(&((char *)buf)[i * size], v, size);
   }
@@ -126,8 +125,7 @@ extern "C" void __kitrt_mobile_init_from(void *[[kitsune::mobile]] buf,
  * contiguous array of \p n boolean values. This will initialize each element of
  * \p buf with \p v.
  */
-extern "C" void __kitrt_mobile_init_bool(bool *[[kitsune::mobile]] buf,
-                                         size_t n, bool v) {
+extern "C" void __kitrt_mobile_init_bool(bool *buf, size_t n, bool v) {
   return mobileInitScalar<bool>(buf, n, v);
 }
 
@@ -136,8 +134,7 @@ extern "C" void __kitrt_mobile_init_bool(bool *[[kitsune::mobile]] buf,
  * contiguous array of \p n 1-byte values. This will initialize each element of
  * \p buf with \p v.
  */
-extern "C" void __kitrt_mobile_init_i8(int8_t *[[kitsune::mobile]] buf,
-                                       size_t n, int8_t v) {
+extern "C" void __kitrt_mobile_init_i8(int8_t *buf, size_t n, int8_t v) {
   return mobileInitScalar<int8_t>(buf, n, v);
 }
 
@@ -146,8 +143,7 @@ extern "C" void __kitrt_mobile_init_i8(int8_t *[[kitsune::mobile]] buf,
  * contiguous array of \p n 2-byte values. This will initialize each element of
  * \p buf with \p v.
  */
-extern "C" void __kitrt_mobile_init_i16(int16_t *[[kitsune::mobile]] buf,
-                                        size_t n, int16_t v) {
+extern "C" void __kitrt_mobile_init_i16(int16_t *buf, size_t n, int16_t v) {
   return mobileInitScalar<int16_t>(buf, n, v);
 }
 
@@ -156,8 +152,7 @@ extern "C" void __kitrt_mobile_init_i16(int16_t *[[kitsune::mobile]] buf,
  * contiguous array of \p n 4-byte values. This will initialize each element of
  * \p buf with \p v.
  */
-extern "C" void __kitrt_mobile_init_i32(int32_t *[[kitsune::mobile]] buf,
-                                        size_t n, int32_t v) {
+extern "C" void __kitrt_mobile_init_i32(int32_t *buf, size_t n, int32_t v) {
   return mobileInitScalar<int32_t>(buf, n, v);
 }
 
@@ -166,8 +161,7 @@ extern "C" void __kitrt_mobile_init_i32(int32_t *[[kitsune::mobile]] buf,
  * contiguous array of \p n 8-byte values. This will initialize each element of
  * \p buf with \p v.
  */
-extern "C" void __kitrt_mobile_init_i64(int64_t *[[kitsune::mobile]] buf,
-                                        size_t n, int64_t v) {
+extern "C" void __kitrt_mobile_init_i64(int64_t *buf, size_t n, int64_t v) {
   return mobileInitScalar<int64_t>(buf, n, v);
 }
 
@@ -176,8 +170,7 @@ extern "C" void __kitrt_mobile_init_i64(int64_t *[[kitsune::mobile]] buf,
  * contiguous array of \p n 4-byte floats. This will initialize each element of
  * \p buf with \p v.
  */
-extern "C" void __kitrt_mobile_init_float(float *[[kitsune::mobile]] buf,
-                                          size_t n, float v) {
+extern "C" void __kitrt_mobile_init_float(float *buf, size_t n, float v) {
   return mobileInitScalar<float>(buf, n, v);
 }
 
@@ -186,7 +179,6 @@ extern "C" void __kitrt_mobile_init_float(float *[[kitsune::mobile]] buf,
  * contiguous array of \p n 8-byte doubles. This will initialize each element of
  * \p buf with \p v.
  */
-extern "C" void __kitrt_mobile_init_double(double *[[kitsune::mobile]] buf,
-                                           size_t n, double v) {
+extern "C" void __kitrt_mobile_init_double(double *buf, size_t n, double v) {
   return mobileInitScalar<double>(buf, n, v);
 }

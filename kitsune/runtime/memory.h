@@ -67,7 +67,7 @@ extern "C" {
 /// @brief Free memory that was previously allocated with
 /// @ref __kitrt_defaultMemAlloc.
 /// @param ptr The pointer to the memory to be freed.
-void __kitrt_defaultFree(void *[[kitsune::mobile]] ptr);
+void __kitrt_defaultFree(void *ptr);
 
 #ifdef __cplusplus
 } // extern "C"
