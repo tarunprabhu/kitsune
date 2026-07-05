@@ -39,12 +39,12 @@ static constexpr TTIDInitList universalTTs = {KITSUNE_UNIVERSAL_TTIDS};
 /// The base name of Kitsune's runtime library that is distributed as a dynamic
 /// shared object. This does not include any file extensions such as .so and
 /// .dll, nor any prefix such as "lib".
-constexpr StringRef kitRuntimeDSOLibName() { return KITSUNE_LIBNAME_DSO; }
+constexpr StringRef kitRuntimeDSOLibName() { return KITRT_DSO; }
 
 /// The base name of Kitsune's runtime library that is distributed as a static
 /// archive. This does not include any file extensions such as .a, nor any
 /// prefix such as "lib".
-constexpr StringRef kitRuntimeStaticLibName() { return KITSUNE_LIBNAME_STATIC; }
+constexpr StringRef kitRuntimeStaticLibName() { return KITRT_STATIC; }
 
 /// Get the name of the C frontend driver (unless this has been overridden at
 /// configure-time, this should always return kitcc).
@@ -135,12 +135,16 @@ constexpr StringRef kitCommonLibNames() { return KITSUNE_COMMON_LIB_NAMES; }
 
 /// A semicolon-separated list of directories that should always be added to the
 /// linker library search paths and the rpath.
-constexpr StringRef kitCommonLibDirs() { return KITSUNE_COMMON_LIB_DIRS; }
+constexpr StringRef kitCommonLibDirs() { return KITSUNE_COMMON_LIBDIRS; }
 
 //------------------------------------------------------------------------------
 
 /// Has Kokkos support been enabled.
 constexpr bool kitKokkosEnabled() { return KITSUNE_KOKKOS_ENABLED; }
+
+/// The directory containing the Kokkos libraries. This will be a path to be
+/// appended to clang's resource directory.
+constexpr StringRef kitKokkosLibDir() { return KITSUNE_KOKKOS_LIBDIR; }
 
 //------------------------------------------------------------------------------
 
@@ -179,7 +183,7 @@ constexpr StringRef kitCudaLibNames() { return KITSUNE_CUDA_LIB_NAMES; }
 
 /// A semicolon-separated list of directories that should be added to the
 /// linker's library search and the rpath when the cuda tapir target is used.
-constexpr StringRef kitCudaLibDirs() { return KITSUNE_CUDA_LIB_DIRS; }
+constexpr StringRef kitCudaLibDirs() { return KITSUNE_CUDA_LIBDIRS; }
 
 /// The name of the symbol that will eventually contain the NVIDIA GPU device
 /// code.
@@ -225,7 +229,7 @@ constexpr StringRef kitHipLibNames() { return KITSUNE_HIP_LIB_NAMES; }
 
 /// A semicolon-separated list of directories that should be added to the
 /// linker's library search and the rpath when the hip tapir target is used.
-constexpr StringRef kitHipLibDirs() { return KITSUNE_HIP_LIB_DIRS; }
+constexpr StringRef kitHipLibDirs() { return KITSUNE_HIP_LIBDIRS; }
 
 /// The name of the symbol that will eventually contain AMD GPU device code.
 constexpr StringRef kitHipFatbinName() { return KITSUNE_HIP_FATBIN_NAME; }

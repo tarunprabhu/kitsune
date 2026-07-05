@@ -20,8 +20,8 @@
 
 // -----------------------------------------------------------------------------
 
-#define KITSUNE_LIBNAME_DSO "@KITSUNE_LIBNAME@"
-#define KITSUNE_LIBNAME_STATIC "@KITSUNE_LIBNAME_STATIC@"
+#define KITRT_DSO "@KITRT@"
+#define KITRT_STATIC "@KITRT_STATIC@"
 
 // The default GCC installation directory to use. If this is non-null, Kitsune
 // will not scan for a GCC installation. This value can be overridden by passing
@@ -34,7 +34,7 @@
 
 // A semicolon-separated list of directories that should always be added to the
 // linker library search paths and the rpath.
-#define KITSUNE_COMMON_LIB_DIRS "@KITSUNE_COMMON_LIB_DIRS@"
+#define KITSUNE_COMMON_LIBDIRS "@KITSUNE_COMMON_LIBDIRS@"
 
 // -----------------------------------------------------------------------------
 
@@ -106,6 +106,10 @@
 // Has kokkos support been enabled.
 #cmakedefine01 KITSUNE_KOKKOS_ENABLED
 
+// The directory containing the Kokkos libraries. This is a path that must be
+// appended to clang's base resource directory to get the full path.
+#define KITSUNE_KOKKOS_LIBDIR "kokkos/@CMAKE_INSTALL_LIBDIR@"
+
 // -----------------------------------------------------------------------------
 
 // Has the cuda tapir target been enabled.
@@ -127,7 +131,7 @@
 // A semicolon-separated list of directories that should be added to the
 // linker's library search and the rpath when the cuda tapir target is
 // specified.
-#define KITSUNE_CUDA_LIB_DIRS "@KITSUNE_CUDA_LIB_DIRS@"
+#define KITSUNE_CUDA_LIBDIRS "@KITSUNE_CUDA_LIBDIRS@"
 
 // The name of the symbol containing the cuda device code (the fat binary).
 #define KITSUNE_CUDA_FATBIN_NAME "__kitsune_fatbin_cuda"
@@ -157,7 +161,7 @@
 // A semicolon-separated list of directories that should be added to the
 // linker's library search and the rpath when the cuda tapir target is
 // specified.
-#define KITSUNE_HIP_LIB_DIRS "@KITSUNE_HIP_LIB_DIRS@"
+#define KITSUNE_HIP_LIBDIRS "@KITSUNE_HIP_LIBDIRS@"
 
 // The name of the symbol containing the hip device code (the fat binary).
 #define KITSUNE_HIP_FATBIN_NAME "__kitsune_fatbin_hip"
