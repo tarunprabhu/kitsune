@@ -1758,9 +1758,19 @@ Compilation *Driver::BuildCompilation(ArrayRef<const char *> ArgList) {
 
   // This has to be done here at the latest because the line below moves Args
   // into UArgs.
+  auto getKitDriverMode = [](Driver &driver) -> KitDriverMode {
+    if (driver.CCCIsCC())
+      return KitDriverMode::C;
+    else if (driver.CCCIsCXX())
+      return KitDriverMode::CPlusPlus;
+    else if (driver.IsFlangMode())
+      return KitDriverMode::Fortran;
+    else
+      return KitDriverMode::Unknown;
+  };
   unsigned amdgpuCodeObjVer = tools::getAMDGPUCodeObjectVersion(*this, Args);
-  checkKitOptions(Args, IsKitsuneFrontend(), IsFlangMode(), isUsingLTO(),
-                  getTargetTriple(), amdgpuCodeObjVer, Diags);
+  checkKitOptions(Args, IsKitsuneFrontend(), getKitDriverMode(*this),
+                  isUsingLTO(), getTargetTriple(), amdgpuCodeObjVer, Diags);
 
   std::unique_ptr<llvm::opt::InputArgList> UArgs =
       std::make_unique<InputArgList>(std::move(Args));

@@ -2257,8 +2257,7 @@ void ToolChain::AddKitsuneOpenCilkCommonArgs(const ArgList &Args,
 void ToolChain::AddKitsunePreprocessorArgs(const ArgList &Args,
                                            ArgStringList &CmdArgs) const {
   std::optional<TTID> TT = parseTTIfValid(Args);
-  bool IsKokkos = D.CCCIsCXX() &&
-                  Args.hasArg(options::OPT_kokkos, options::OPT_kokkos_no_init);
+  bool IsKokkos = Args.hasArg(options::OPT_kokkos, options::OPT_kokkos_no_init);
 
   if (IsKokkos) {
     std::string InclDir = concat(D.ResourceDir, "kokkos", "include");
@@ -2266,7 +2265,7 @@ void ToolChain::AddKitsunePreprocessorArgs(const ArgList &Args,
     CmdArgs.push_back(Args.MakeArgString(InclDir));
   }
 
-  if (TT or IsKokkos) {
+  if (TT || IsKokkos) {
     std::string InclDir = concat(D.ResourceDir, "include");
     CmdArgs.push_back("-isystem");
     CmdArgs.push_back(Args.MakeArgString(InclDir));
@@ -2301,8 +2300,7 @@ void ToolChain::AddKitsuneCompilerArgs(const ArgList &Args,
     llvm_unreachable("AddKitsuneCompilerArgs: TTID not handled");
   };
 
-  bool IsKokkos = D.CCCIsCXX() &&
-                  Args.hasArg(options::OPT_kokkos, options::OPT_kokkos_no_init);
+  bool IsKokkos = Args.hasArg(options::OPT_kokkos, options::OPT_kokkos_no_init);
   if (IsKokkos) {
     Args.AddLastArg(CmdArgs, options::OPT_kokkos);
     Args.AddLastArg(CmdArgs, options::OPT_kokkos_no_init);
@@ -2408,8 +2406,7 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
   if (TT)
     AddTTArgs(*TT, Args, CmdArgs);
 
-  bool IsKokkos = D.CCCIsCXX() &&
-                  Args.hasArg(options::OPT_kokkos, options::OPT_kokkos_no_init);
+  bool IsKokkos = Args.hasArg(options::OPT_kokkos, options::OPT_kokkos_no_init);
   if (IsKokkos) {
     // The Kokkos libraries will be installed to a directory with the same name
     // as the directory containing Kitsune's runtime. Yes, this is a crappy way

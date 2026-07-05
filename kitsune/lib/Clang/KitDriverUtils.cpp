@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Clang/KitDriverUtils.h"
+#include "kitsune/Config/Config.h"
 #include "kitsune/Core/KitOptions.h"
 #include "kitsune/Core/TTPlugin.h"
 #include "kitsune/Core/TTUtils.h"
@@ -88,7 +89,7 @@ static void checkThreadsPerBlock(const Arg &a, const ArgList &args,
 }
 
 void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
-                                    bool isFlangMode, bool isUsingLTO,
+                                    KitDriverMode driverMode, bool isUsingLTO,
                                     StringRef tripleStr,
                                     unsigned amdgpuCodeObjectVersion,
                                     DiagnosticsEngine &diags) {
@@ -105,7 +106,7 @@ void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
   // If this is a Kitsune frontend, some options have a different range of
   // allowed values.
   if (isKitsuneFrontend) {
-    if (isFlangMode) {
+    if (driverMode == KitDriverMode::Fortran) {
       if (Arg *a = args.getLastArg(options::OPT_ffp_contract)) {
         StringRef fpContract = a->getValue();
         if (fpContract == "on" || fpContract == "fast-honor-pragmas") {
@@ -126,16 +127,27 @@ void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
   bool isKokkos = args.hasArg(options::OPT_kokkos);
   bool isKokkosNoInit = args.hasArg(options::OPT_kokkos_no_init);
   if (isKokkos || isKokkosNoInit) {
+    auto getKokkosArgSpelling = [](const ArgList &args) -> StringRef {
+      return args.getLastArg(options::OPT_kokkos, options::OPT_kokkos_no_init)
+          ->getSpelling();
+    };
+
     if constexpr (!llvm::kitKokkosEnabled()) {
       diags.Report(diag::err_drv_kit_kokkos_disabled);
+      return;
+    }
+
+    // Kokkos-mode is only allowed with the C++ frontend.
+    if (driverMode != KitDriverMode::CPlusPlus) {
+      diags.Report(diag::err_drv_kit_frontend_badopt)
+          << getKokkosArgSpelling(args) << kitCXXFrontend();
       return;
     }
 
     // If --kokkos is provided, then a tapir target must also be provided.
     if (!args.hasArg(options::OPT_tapir_EQ)) {
       diags.Report(diag::err_drv_kit_tapir_required)
-          << args.getLastArg(options::OPT_kokkos, options::OPT_kokkos_no_init)
-                 ->getSpelling();
+          << getKokkosArgSpelling(args);
       return;
     }
   }
