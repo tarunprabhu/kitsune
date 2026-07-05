@@ -142,8 +142,7 @@ extern bool __kitcuda_is_mem_managed(void *vp);
  * This call will return NULL on failure or a pointer to the allocated
  * managed memory pointer on success.
  */
-[[gnu::malloc]] extern void *[[kitsune::mobile]]
-__kitcuda_mem_alloc_managed(size_t num_bytes);
+[[gnu::malloc]] extern void *__kitcuda_mem_alloc_managed(size_t num_bytes);
 
 /**
  * Allocate the given number of bytes of managed heap memory.  This
@@ -162,8 +161,8 @@ __kitcuda_mem_alloc_managed(size_t num_bytes);
  *
  * @todo Make a path for device-side initialization.
  */
-[[gnu::malloc]] extern void *[[kitsune::mobile]]
-__kitcuda_mem_calloc_managed(size_t count, size_t elemsize);
+[[gnu::malloc]] extern void *__kitcuda_mem_calloc_managed(size_t count,
+                                                          size_t elemsize);
 
 /**
  * Change the size of an existing managed memory allocation (a la
@@ -189,8 +188,8 @@ __kitcuda_mem_calloc_managed(size_t count, size_t elemsize);
  *
  * @todo Look at thread safe implementation.
  */
-[[gnu::malloc]] extern void *[[kitsune::mobile]] __kitcuda_mem_realloc_managed(
-    void *[[kitsune::mobile]] ptr, size_t size);
+[[gnu::malloc]] extern void *__kitcuda_mem_realloc_managed(void *ptr,
+                                                           size_t size);
 
 /**
  * Free the given managed memory allocation.  The allocation
@@ -207,7 +206,7 @@ __kitcuda_mem_calloc_managed(size_t count, size_t elemsize);
  *
  * @todo Look at thread safe implementation.
  */
-extern void __kitcuda_mem_free(void *[[kitsune::mobile]] ptr);
+extern void __kitcuda_mem_free(void *ptr);
 
 /**
  * Free only the CUDA portion of the given managed memory allocation.
