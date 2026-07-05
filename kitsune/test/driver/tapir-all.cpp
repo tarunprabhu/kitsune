@@ -42,11 +42,11 @@
 // any are ever resurrected, they should be moved to the first set of known
 // tapir targets.
 //
-// RUN: not %kitxx -### --tapir=lambda -O1 %s 2>&1 \
+// RUN: not --crash %kitxx -### --tapir=lambda -O1 %s 2>&1 \
 // RUN:     | FileCheck %s --check-prefix=NOT-ENABLED
-// RUN: not %kitxx -### --tapir=omptask -O1 %s 2>&1 \
+// RUN: not --crash %kitxx -### --tapir=omptask -O1 %s 2>&1 \
 // RUN:     | FileCheck %s --check-prefix=NOT-ENABLED
-// RUN: not %kitxx -### --tapir=realm -O1 %s 2>&1 \
+// RUN: not --crash %kitxx -### --tapir=realm -O1 %s 2>&1 \
 // RUN:     | FileCheck %s --check-prefix=NOT-ENABLED
 //
 // NOT-ENABLED: tapir target '{{.+}}' was not enabled

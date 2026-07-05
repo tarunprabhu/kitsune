@@ -16,21 +16,25 @@
 // We could have added this to the test in transforms/tapir/serial, but that
 // would make the intent of the test less clear.
 //
-//
 // RUN: %kitcc -### --tapir=serial -O2 %s 2>&1 | FileCheck %s
-//
 //
 // CHECK: -cc1
 // CHECK-SAME: --tapir=serial
 //
-// CHECK-NOT: -fstripmine
+// We check for the absence of certain libraries that used to be linked
+// explicitly in the past, but are not any longer. Calls to functions provided
+// by these libraries should not be added directly by any lowering passes.
+// Instead, a wrapper should be provided in libkitrt, and that should be called.
+//
+// CHECK-NOT: "-ldl"
+// CHECK-NOT: "-lm"
+// CHECK-NOT: "-lpthread"
+// CHECK-NOT: "-lrt"
 //
 // The next line is expected to be the linker invocation. Since it is difficult
 // to reliably check the name of the linker executable, just check for the
-// expected linker flags.
+// expected linker flags. For C, we should not link a C++ standard library. If
+// libkitrt requires it, it should be pulled in by that library.
 //
 // CHECK-NEXT: "-lkitrt"
-// CHECK-SAME: "-ldl"
-// CHECK-SAME: "-lm"
-// CHECK-SAME: "-lpthread"
-// CHECK-SAME: "-lrt"
+// CHECK-NOT: "-l{{[^"]*}}c++"

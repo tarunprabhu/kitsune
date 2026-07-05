@@ -4,7 +4,8 @@
 // RUN: %kitxx -### --kokkos-no-init --tapir=nolo %s 2>&1 | FileCheck %s
 //
 // CHECK: "-cc1"
-// CHECK-SAME: -I{{[^ ]*}}/include/kokkos
+// CHECK-SAME: "-isystem"
+// CHECK-SAME: /kokkos/include"
 //
 // The next line is expected to be the linker invocation. Since it is difficult
 // to reliably check the name of the linker executable, just check for the

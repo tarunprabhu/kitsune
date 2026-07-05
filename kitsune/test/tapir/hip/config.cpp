@@ -30,7 +30,6 @@
 // CUSTOM-SAME: "-Whip_compiler_flag"
 // CUSTOM-NEXT: "-hip_linker_flag"
 // CUSTOM-SAME: -lkitrt
-// CUSTOM-SAME: "-lamdhip64"
 //
 // -----------------------------------------------------------------------------
 // If configuration files for both the driver and the tapir target are present,
@@ -64,4 +63,3 @@
 // BOTH-NEXT: "-hip_driver_linker_flag"
 // BOTH-SAME: "-hip_custom_linker_flag"
 // BOTH-SAME: -lkitrt
-// BOTH-SAME: -lamdhip64
