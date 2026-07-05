@@ -19,6 +19,9 @@
 
 #include <optional>
 
+/// \ingroup kitsune
+/// \@{
+
 namespace llvm {
 
 namespace driver {
@@ -37,6 +40,17 @@ namespace clang {
 
 namespace driver {
 
+/// The driver language mode. This is not necessarily the same as the source
+/// language that is being compiled, but it nearly always is. At some point,
+/// we might make Kitsune's frontends very strict at which point, this will be
+/// the same. For ki
+enum class KitDriverMode {
+  Unknown,   ///< Unknown driver mode
+  C,         ///< C (implies kitcc)
+  CPlusPlus, ///< C++ (implies kit++)
+  Fortran,   ///< Fortran - including both F77 and F90+ (implies kitfc)
+};
+
 /// Is \p progName the name of a Kitsune frontend.
 bool isKitsuneFrontend(StringRef progName);
 
@@ -48,8 +62,8 @@ bool isKitsuneFrontend(StringRef progName);
 /// so we pass in certain values that we would otherwise have looked up in the
 /// Driver object.
 void checkKitOptions(const llvm::opt::ArgList &args, bool isKitsuneFrontend,
-                     bool isFlangMode, bool isUsingLTO, StringRef triple,
-                     unsigned amdgpuCodeObjectVersion,
+                     KitDriverMode driverMode, bool isUsingLTO,
+                     StringRef triple, unsigned amdgpuCodeObjectVersion,
                      DiagnosticsEngine &diags);
 
 /// Get the optimization speedup level as an integer. This is not as
@@ -96,5 +110,7 @@ bool parseKitsuneArgs(llvm::driver::KitOptions &kitOpts, const char *argv0,
 } // namespace driver
 
 } // namespace clang
+
+/// @}
 
 #endif // KITSUNE_CLANG_KIT_DRIVER_UTILS_H

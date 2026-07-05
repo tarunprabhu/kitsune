@@ -94,3 +94,7 @@ def err_drv_kit_target_not_enabled: Error<
 
 def err_drv_kit_frontend_only: Error<
   "option '%0' must be used with a Kitsune frontend">;
+
+// Here, %1 must be the name of the frontend to use, i.e. kitcc, kitfc etc.
+def err_drv_kit_frontend_badopt: Error<
+  "option '%0' can only be used with %1">;
