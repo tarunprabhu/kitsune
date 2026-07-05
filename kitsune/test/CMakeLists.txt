@@ -84,13 +84,13 @@ set(KITSUNE_TEST_PARAMS
 )
 
 list(APPEND KITSUNE_TEST_DEPS
-  ${KITSUNE_LIBNAME}
+  ${KITRT}
   KitsuneUnitTests
   kit-config
   kit-enc
   kit-mbc
   kit-sort
-  kitsune-resource-headers
+  kitsune-installed-headers
   clang
   clang-offload-bundler
   count
@@ -103,7 +103,6 @@ list(APPEND KITSUNE_TEST_DEPS
   not
   opt
 )
-list(APPEND KITSUNE_TEST_DEPS openmp-copy-to-build-dir)
 if (KITSUNE_C_ENABLED)
   list(APPEND KITSUNE_TEST_DEPS ${KITSUNE_C_FRONTEND})
 endif()
@@ -115,28 +114,16 @@ if (KITSUNE_Fortran_ENABLED)
   list(APPEND KITSUNE_TEST_DEPS flang-rt)
   list(APPEND KITSUNE_TEST_DEPS ${KITSUNE_Fortran_FRONTEND})
 endif()
-if (KITSUNE_KOKKOS_ENABLED)
-  list(APPEND KITSUNE_TEST_DEPS kokkos-copy-to-build-dir)
-endif()
-if (KITSUNE_OPENCILK_ENABLED)
-  list(APPEND KITSUNE_TEST_DEPS cheetah-copy-to-build-dir)
-endif()
-if (KITSUNE_QTHREADS_ENABLED)
-  list(APPEND KITSUNE_TEST_DEPS qthreads-copy-to-build-dir)
-endif()
-if (KITSUNE_REALM_ENABLED)
-  list(APPEND KITSUNE_TEST_DEPS realm-copy-to-build-dir)
-endif()
-
-if(TARGET llvm-lto)
-  list(APPEND KITSUNE_TEST_DEPS llvm-lto)
-endif()
 
 if (KITSUNE_BUILD_EXAMPLES)
   list(APPEND KITSUNE_TEST_DEPS kit-emb-pass-plugin-demo)
   list(APPEND KITSUNE_TEST_DEPS kit-pass-plugin-demo)
   list(APPEND KITSUNE_TEST_DEPS kit-tt-plugin-demo)
 endif ()
+
+if(TARGET llvm-lto)
+  list(APPEND KITSUNE_TEST_DEPS llvm-lto)
+endif()
 
 add_custom_target(kitsune-test-depends DEPENDS ${KITSUNE_TEST_DEPS})
 set_target_properties(kitsune-test-depends PROPERTIES FOLDER "Kitsune tests")

@@ -10,25 +10,28 @@ add_custom_target(kitsune_generated)
 add_subdirectory(Config)
 add_subdirectory(Core)
 
-get_clang_resource_dir(CLANG_RESOURCE_INCDIR
-  PREFIX ${LLVM_LIBRARY_OUTPUT_INTDIR}/..
-  SUBDIR include
-)
+get_clang_resource_dir(CLANG_RESOURCE_INT_INCDIR
+  PREFIX ${CMAKE_BINARY_DIR}
+  SUBDIR include)
 
-# Add a target to copy kitsune.h into clang's resource directory within the
-# build directory. This is needed to run Kitsune from the build directory, most
-# crucially to run the core tests.
-add_custom_command(OUTPUT ${CLANG_RESOURCE_INCDIR}/kitsune.h
+get_clang_resource_dir(CLANG_RESOURCE_INSTALL_INCDIR
+  PREFIX ${CMAKE_INSTALL_PREFIX}
+  SUBDIR include)
+
+add_custom_command(
+  OUTPUT ${CLANG_RESOURCE_INT_INCDIR}/kitsune.h
   COMMAND ${CMAKE_COMMAND} -E copy_if_different
-  ${CMAKE_CURRENT_SOURCE_DIR}/kitsune.h ${CLANG_RESOURCE_INCDIR}/kitsune.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/kitsune.h
+  ${CLANG_RESOURCE_INT_INCDIR}/kitsune.h
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/kitsune.h
   VERBATIM USES_TERMINAL)
 
-add_custom_target(kitsune-resource-headers ALL
-  DEPENDS ${CLANG_RESOURCE_INCDIR}/kitsune.h)
+# Add a target to copy kitsune.h into clang's resource directory within the
+# build directory. This is needed to run Kitsune from the build directory.
+add_custom_target(kitsune-installed-headers ALL
+  DEPENDS ${CLANG_RESOURCE_INT_INCDIR}/kitsune.h)
 
 # kitsune.h should always be installed since it is needed by applications that
 # are compiled with kitsune.
-install(FILES kitsune.h
-  DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/clang/${LLVM_VERSION_MAJOR}/include
-  COMPONENT kitsune-resource-headers)
+install(FILES ${CLANG_RESOURCE_INT_INCDIR}/kitsune.h
+  DESTINATION ${CLANG_RESOURCE_INSTALL_INCDIR})

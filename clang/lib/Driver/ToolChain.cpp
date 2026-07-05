@@ -2333,6 +2333,10 @@ void ToolChain::AddKitsuneCompilerArgs(const ArgList &Args,
   if (IsKokkos) {
     Args.AddLastArg(CmdArgs, options::OPT_kokkos);
     Args.AddLastArg(CmdArgs, options::OPT_kokkos_no_init);
+
+    CmdArgs.push_back("-isystem");
+    CmdArgs.push_back(
+        Args.MakeArgString(concat(D.ResourceDir, "kokkos/include")));
   }
 
   if (std::optional<TTID> TT = parseTTIfValid(Args)) {
@@ -2527,7 +2531,8 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
   bool IsKokkos = D.CCCIsCXX() &&
                   Args.hasArg(options::OPT_kokkos, options::OPT_kokkos_no_init);
   if (IsKokkos) {
-    const char *LibDir = Args.MakeArgString(concat(D.ResourceDir, "lib64"));
+    const char *LibDir =
+        Args.MakeArgString(concat(D.ResourceDir, kitKokkosLibDir()));
     CmdArgs.push_back("-L");
     CmdArgs.push_back(LibDir);
     CmdArgs.push_back("-rpath");
