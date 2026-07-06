@@ -695,18 +695,6 @@ public:
   void AppendPlatformPrefix(SmallString<128> &Path,
                             const llvm::Triple &T) const override;
 
-  std::optional<std::string>
-  getOpenCilkRuntimePath(const llvm::opt::ArgList &Args) const override;
-
-  std::optional<std::string>
-  getOpenCilkABIBitcodeFile(const llvm::opt::ArgList &Args) const override;
-
-  std::string getOpenCilkPersonalityName(const llvm::opt::ArgList &Args,
-                                         FileType FT) const override;
-
-  std::string getOpenCilkRuntimeName(const llvm::opt::ArgList &Args,
-                                     FileType) const override;
-
   unsigned GetDefaultDwarfVersion() const override;
   // Until dtrace (via CTF) and LLDB can deal with distributed debug info,
   // Darwin defaults to standalone/full debug info.
@@ -718,6 +706,18 @@ public:
   bool getDefaultDebugSimpleTemplateNames() const override;
 
   /// }
+
+  std::optional<std::string>
+  getOpenCilkRuntimePath(const llvm::opt::ArgList &Args) const override;
+
+  std::string
+  getOpenCilkBCFileName(const llvm::opt::ArgList &Args) const override;
+
+  std::string getOpenCilkPersonalityBaseName(const llvm::opt::ArgList &Args,
+                                             FileType FT) const override;
+
+  std::string getOpenCilkRuntimeBaseName(const llvm::opt::ArgList &Args,
+                                         FileType) const override;
 
 private:
   void AddLinkSanitizerLibArgs(const llvm::opt::ArgList &Args,

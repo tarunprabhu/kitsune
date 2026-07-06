@@ -131,9 +131,6 @@ constexpr StringRef kitRuntimeDSOLibName() { return KITRT_DSO; }
 /// prefix such as "lib".
 constexpr StringRef kitRuntimeStaticLibName() { return KITRT_STATIC; }
 
-/// The name of the directory containing Kitsune's runtime libraries.
-constexpr StringRef kitRuntimeLibDir() { return KITRT_LIBDIR; }
-
 //------------------------------------------------------------------------------
 
 /// Has Kokkos support been enabled.

@@ -287,7 +287,13 @@ Driver::Driver(StringRef DriverExecutable, StringRef TargetTriple,
   // Compute the path to the resource directory.
   ResourceDir = GetResourcesPath(DriverExecutable);
 
-  KitsuneFrontend = isKitsuneFrontend(DriverExecutable);
+  if (isKitsuneFrontend(DriverExecutable)) {
+    StringRef BinDir = llvm::sys::path::parent_path(ClangExecutable);
+    SmallString<128> P = llvm::sys::path::parent_path(BinDir);
+    llvm::sys::path::append(P, CLANG_INSTALL_LIBDIR_BASENAME, "kitsune",
+                            CLANG_VERSION_MAJOR_STRING);
+    KitResourceDir = P.str();
+  }
 }
 
 void Driver::setDriverMode(StringRef Value) {

@@ -100,10 +100,6 @@
 // not contain any platform-specific prefixes or extensions.
 #define KITRT_STATIC "@KITRT_STATIC@"
 
-// The names of the directory that will contain the libraries for Kitsune's
-// runtime.
-#define KITRT_LIBDIR "@CMAKE_INSTALL_LIBDIR@"
-
 //------------------------------------------------------------------------------
 
 // Has kokkos support been enabled.

@@ -5,37 +5,7 @@
 # license.
 #
 
-cmake_minimum_required(VERSION 3.20.0)
-project(kitrt C CXX)
-
-# ----------------------------------- NOTES -----------------------------------
-#
-# This file cannot use any LLVM_* or CLANG_* or KITSUNE_* variables because this
-# project is built as an external project and does not have access to variables
-# set in the main LLVM project. Everything needed here, including any
-# configure-time options must be passed explicitly via the ExternalProject_Add
-# command in the top-level kitsune/CMakeLists.txt file.
-#
-# -----------------------------------------------------------------------------
-
-# Since this is built as an external project, we have to explicitly find
-# libLLVM. This is guaranteed to have been built, but we need to be careful that
-# we don't pick up anything from the system.
-#
-# NOTE: We have removed the dependence on libLLVM for now, but we keep this
-# here for now. There is a lot of unused code in the runtime, most of which
-# should probably be deleted but is still kept around in case we decide to
-# resurrect something. If we do, some of it might require libLLVM.
-find_library(LIB_LLVM REQUIRED
-  NAMES
-  LLVM
-  LLVM-${LLVM_VERSION_MAJOR}
-  LLVM-${LLVM_VERSION_MAJOR}.${LLVM_VERSION_MINOR}
-  PATHS ${LLVM_LIBRARY_OUTPUT_INTDIR}
-  NO_DEFAULT_PATH)
-
-# ${KITRT} is passed in by cmake when the runtime is configured.
-set(KITRT_OBJLIB ${KITRT}_objlib)
+set(KITRT_OBJLIB "${KITRT}_objlib")
 
 add_library(${KITRT_OBJLIB} OBJECT
   kitrt.cpp
@@ -43,11 +13,7 @@ add_library(${KITRT_OBJLIB} OBJECT
   memory.cpp
   memory_map.cpp)
 
-# These runtimes are always enabled since their corresponding tapir targets are
-# always built.
-target_sources(${KITRT_OBJLIB} PUBLIC
-  openmp/kitomp.cpp
-  pthreads/kitpthr.cpp)
+add_dependencies(${KITRT_OBJLIB} ${KITRT_DEPENDS})
 
 # Here, ${LLVM_MAIN_INCLUDE_DIR} points to llvm/include in the source directory.
 # ${LLVM_INCLUDE_DIR} points to include/ in the directory where cmake was run
@@ -63,16 +29,15 @@ target_include_directories(${KITRT_OBJLIB} PUBLIC
   ${LLVM_INCLUDE_DIR}
   ${KITSUNE_SOURCE_DIR}/include
   ${KITSUNE_BINARY_DIR}/include
-  ${CMAKE_CURRENT_SOURCE_DIR}
-  ${KITSUNE_OPENMP_INCDIRS})
+  ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_link_libraries(${KITRT_OBJLIB} PUBLIC
-  ${KITSUNE_COMMON_LIBS}
-  ${KITSUNE_OPENMP_LIBS})
+  ${KITSUNE_COMMON_LIBS})
 
 if (LLVM_ENABLE_ASSERTIONS)
-  # The runtime is built with Kitsune, so it is safe to use options here that
-  # are known to Kitsune.
+  # TODO: Is it always safe to use -UNDEBUG here? The odds are that this will be
+  # compiled with GCC or Clang, so it probably is, but is there a better way to
+  # do this?
   target_compile_options(${KITRT_OBJLIB} PUBLIC
     -UNDEBUG)
 endif()
@@ -84,7 +49,7 @@ if (KITSUNE_PAPI_ENABLED)
   target_compile_definitions(${KITRT_OBJLIB} PUBLIC
     KITRT_PAPI_ENABLED)
 
-  target_include_directories(${KITRT_OBJLIB} PUBLIC
+  target_include_directories(${KITRT_OBJLIB} SYSTEM PUBLIC
     ${KITSUNE_PAPI_INCDIRS})
 
   target_link_libraries(${KITRT_OBJLIB} PUBLIC
@@ -99,16 +64,8 @@ if (KITSUNE_CUDA_ENABLED)
     cuda/memory.cpp
     cuda/streams.cpp)
 
-  # FIXME: The only use of KITRT_CUDA_ENABLED seem to be some runtime
-  # initialization code that is probably obsolete.
-  target_compile_definitions(${KITRT_OBJLIB} PUBLIC
-    KITRT_CUDA_ENABLED ${KITSUNE_CUDA_DEFNS})
-
   target_include_directories(${KITRT_OBJLIB} SYSTEM PUBLIC
     ${KITSUNE_CUDA_INCDIRS})
-
-  target_include_directories(${KITRT_OBJLIB} PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/cuda)
 
   target_link_libraries(${KITRT_OBJLIB} PUBLIC
     ${KITSUNE_CUDA_LIBS})
@@ -123,17 +80,13 @@ if (KITSUNE_HIP_ENABLED)
     hip/streams.cpp)
 
   target_compile_definitions(${KITRT_OBJLIB} PUBLIC
-    # FIXME: The only use of KITRT_HIP_ENABLED seem to be some runtime
-    # initialization code that is probably obsolete.
-    KITRT_HIP_ENABLED
-
     # FIXME: It looks like __HIP_PLATFORM_AMD__ is defined in the kitsune
     # runtime headers for hip. This is probably unnecessary. Alternatively, we
     # could remove it from those headers and only include it here if is required
     # to be defined before any hip headers are included.
     __HIP_PLATFORM_AMD__)
 
-  target_include_directories(${KITRT_OBJLIB} PUBLIC
+  target_include_directories(${KITRT_OBJLIB} SYSTEM PUBLIC
     ${KITSUNE_HIP_INCDIRS})
 
   target_link_libraries(${KITRT_OBJLIB} PUBLIC
@@ -148,23 +101,51 @@ if (KITSUNE_OPENCILK_ENABLED)
     ${KITSUNE_OPENCILK_LIBS})
 endif ()
 
+if (KITSUNE_OPENMP_ENABLED)
+  target_sources(${KITRT_OBJLIB} PUBLIC
+    openmp/kitomp.cpp)
+
+  target_include_directories(${KITRT_OBJLIB} SYSTEM PUBLIC
+    ${KITSUNE_OPENMP_INCDIRS})
+
+  target_link_libraries(${KITRT_OBJLIB} PUBLIC
+    ${KITSUNE_OPENMP_LIBS})
+endif ()
+
+if (KITSUNE_PTHREADS_ENABLED)
+  target_sources(${KITRT_OBJLIB} PUBLIC
+    pthreads/kitpthr.cpp)
+endif ()
+
 if (KITSUNE_QTHREADS_ENABLED)
   target_sources(${KITRT_OBJLIB} PUBLIC
     qthreads/kitqthr.cpp)
 
-  target_include_directories(${KITRT_OBJLIB} PUBLIC
+  target_include_directories(${KITRT_OBJLIB} SYSTEM PUBLIC
     ${KITSUNE_QTHREADS_INCDIRS})
 
   target_link_libraries(${KITRT_OBJLIB} PUBLIC
     ${KITSUNE_QTHREADS_LIBS})
 endif ()
 
-add_library(${KITRT_STATIC} STATIC
-  $<TARGET_OBJECTS:${KITRT_OBJLIB}>)
-
 add_library(${KITRT} SHARED
   $<TARGET_OBJECTS:${KITRT_OBJLIB}>)
 
+add_library(${KITRT_STATIC} STATIC
+  $<TARGET_OBJECTS:${KITRT_OBJLIB}>)
+
+# We have to set the output directory explicitly, otherwise these will go to the
+# main lib/ directory that also contains LLVM. But we actually want this in
+# clang's resource directory because all Kitsune-specific headers and libraries
+# are intentionally kept "private" to the compiler.
+set_target_properties(${KITRT} PROPERTIES
+  LIBRARY_OUTPUT_DIRECTORY ${KITSUNE_RESOURCE_INTDIR}/lib)
+
+set_target_properties(${KITRT_STATIC} PROPERTIES
+  ARCHIVE_OUTPUT_DIRECTORY ${KITSUNE_RESOURCE_INTDIR}/lib)
+
+# We have added libraries ${KITRT_OBJLIB}. We need all of those for the actual
+# Kitsune shared library.
 get_target_property(KITRT_LINK_LIBRARIES ${KITRT_OBJLIB} LINK_LIBRARIES)
 foreach (LIB IN LISTS KITRT_LINK_LIBRARIES)
   target_link_libraries(${KITRT} PUBLIC ${LIB})
@@ -179,3 +160,6 @@ set_property(TARGET ${KITRT} APPEND
   PROPERTY BUILD_RPATH "${RPATH_RELATIVE_TO_ORIGIN}")
 set_property(TARGET ${KITRT} APPEND
   PROPERTY INSTALL_RPATH "${RPATH_RELATIVE_TO_ORIGIN}")
+
+install(TARGETS ${KITRT} ${KITRT_STATIC}
+  DESTINATION ${KITSUNE_RESOURCE_DIR}/lib/)
