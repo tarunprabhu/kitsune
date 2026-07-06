@@ -188,6 +188,10 @@ public:
   /// The path to the compiler resource directory.
   std::string ResourceDir;
 
+  /// The path to Kitsune's resource directory. This will only be a non-empty
+  /// string if the driver is a Kitsune frontend.
+  std::string KitResourceDir;
+
   /// System directory for config files.
   std::string SystemConfigDir;
 
@@ -254,11 +258,7 @@ public:
   bool IsDXCMode() const { return Mode == DXCMode; }
 
   /// Whether the driver should follow Kitsune's behavior.
-  bool IsKitsuneFrontend() const { return KitsuneFrontend; }
-
-  /// Is this a Kitsune frontend.
-  LLVM_PREFERRED_TYPE(bool)
-  unsigned KitsuneFrontend : 1;
+  bool IsKitsuneFrontend() const { return !KitResourceDir.empty(); }
 
   /// Only print tool bindings, don't build any jobs.
   LLVM_PREFERRED_TYPE(bool)

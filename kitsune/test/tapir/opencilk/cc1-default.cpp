@@ -15,22 +15,16 @@
 // ALL-SAME: --tapir-opencilk-runtime-bc
 // ALL-SAME: -fstripmine
 //
-// We check for the absence of certain libraries that used to be linked
-// explicitly in the past, but are not any longer. Calls to functions provided
-// by these libraries should not be added directly by any lowering passes.
-// Instead, a wrapper should be provided in libkitrt, and that should be called.
-//
-// X86-NOT: "-lopencilk"
-// DARWIN-NOT: "-lopencilk_osx_dynamic"
-//
 // The next line is expected to be the linker invocation. Since it is difficult
 // to reliably check the name of the linker executable, just check for the
 // expected linker flags.
 //
-// DARWIN-NEXT: "-lopencilk-personality-cpp_osx_dynamic"
-// DARWIN-SAME: "-lopencilk_osx_dynamic"
+// DARWIN-NEXT: "-lopencilk_osx_dynamic"
+// DARWIN-SAME: "-lopencilk-personality-cpp_osx_dynamic"
 //
-// X86-NEXT: "-lopencilk-personality-cpp"
+// X86-NEXT: "-lopencilk"
+// X86-SAME: "-lopencilk-personality-cpp"
+//
 // ALL-SAME: "-lkitrt"
 //
 // -----------------------------------------------------------------------------

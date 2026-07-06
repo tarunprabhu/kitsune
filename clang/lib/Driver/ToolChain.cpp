@@ -1021,6 +1021,19 @@ std::optional<std::string> ToolChain::getRuntimePath() const {
   return std::string(P);
 }
 
+std::optional<std::string> ToolChain::getKitRuntimePath() const {
+  SmallString<128> P(D.KitResourceDir);
+  llvm::sys::path::append(P, "lib");
+  if (auto Ret = getTargetSubDirPath(P))
+    return Ret;
+  // Darwin does not use per-target runtime directory.
+  if (Triple.isOSDarwin())
+    return {};
+
+  llvm::sys::path::append(P, Triple.str());
+  return std::string(P);
+}
+
 std::optional<std::string> ToolChain::getStdlibPath() const {
   SmallString<128> P(D.Dir);
   llvm::sys::path::append(P, "..", "lib");
@@ -1919,20 +1932,6 @@ void ToolChain::PushLastArg(ArgStringList &CmdArgs, const ArgList &Args,
   Args.AddLastArg(CmdArgs, Opt);
 }
 
-/// The string produced by CMake configuration parameters for multiple
-/// libraries (e.g. "-lkokkos -ldl -lrt") do not work well for direct use as
-/// arguments. This helper extracts them into individal arguments.
-void ToolChain::ExtractArgsFromString(const char *S, ArgStringList &CmdArgs,
-                                      const ArgList &Args,
-                                      const char Delimiter) const {
-  std::string ArgString(S);
-  std::string Token;
-  std::istringstream TokenStream(ArgString);
-  while (std::getline(TokenStream, Token, Delimiter)) {
-    CmdArgs.push_back(Args.MakeArgStringRef(Token));
-  }
-}
-
 /// Detect the unique GPU architecture on the system. If no GPU's were found, or
 /// if more than one GPU was found, the provided default will be returned.
 static std::string GetUniqueSystemGPUOrDefault(const Driver &D,
@@ -2249,9 +2248,18 @@ void ToolChain::AddKitsuneHipCommonArgs(const ArgList &Args,
 void ToolChain::AddKitsuneOpenCilkCommonArgs(const ArgList &Args,
                                              ArgStringList &CmdArgs,
                                              bool MLLVM) const {
-  if (std::optional<std::string> BC = getOpenCilkABIBitcodeFile(Args))
+  if (Arg *A = Args.getLastArg(options::OPT_tapir_opencilk_runtime_bc_EQ)) {
     PushArg(CmdArgs, Args, MLLVM, options::OPT_tapir_opencilk_runtime_bc_EQ,
-            *BC);
+            A->getValue());
+  } else if (std::optional<std::string> Path = getOpenCilkRuntimePath(Args)) {
+    llvm::SmallString<128> BCPath(*Path);
+    llvm::sys::path::append(BCPath, getOpenCilkBCFileName(Args));
+    PushArg(CmdArgs, Args, MLLVM, options::OPT_tapir_opencilk_runtime_bc_EQ,
+            BCPath.str());
+  } else {
+    // FIXME: Should we error out more gracefully here?
+    llvm_unreachable("Could not find opencilk bitcode file");
+  }
 }
 
 void ToolChain::AddKitsunePreprocessorArgs(const ArgList &Args,
@@ -2260,13 +2268,13 @@ void ToolChain::AddKitsunePreprocessorArgs(const ArgList &Args,
   bool IsKokkos = Args.hasArg(options::OPT_kokkos, options::OPT_kokkos_no_init);
 
   if (IsKokkos) {
-    std::string InclDir = concat(D.ResourceDir, "kokkos", "include");
+    std::string InclDir = concat(D.KitResourceDir, "kokkos", "include");
     CmdArgs.push_back("-isystem");
     CmdArgs.push_back(Args.MakeArgString(InclDir));
   }
 
   if (TT || IsKokkos) {
-    std::string InclDir = concat(D.ResourceDir, "include");
+    std::string InclDir = concat(D.KitResourceDir, "include");
     CmdArgs.push_back("-isystem");
     CmdArgs.push_back(Args.MakeArgString(InclDir));
   }
@@ -2328,17 +2336,6 @@ void ToolChain::AddKitsuneCompilerArgs(const ArgList &Args,
   }
 }
 
-static StringRef getArchNameForOpenCilkRTLib(const ToolChain &TC,
-                                             const ArgList &Args) {
-  // Cheetah's installs the bitcode file with the arm64 suffix on MacOSX with
-  // Apple silicon. The usual arch name on this architecture is aarch64. Without
-  // this workaround, the bitcode file will not be found.
-  Triple Triple = TC.getTriple();
-  if (Triple.getArch() == Triple::aarch64 && Triple.isOSDarwin())
-    return "arm64";
-  return getArchNameForCompilerRTLib(TC, Args);
-}
-
 void ToolChain::AddKitsuneCustomLinkerArgs(const ArgList &Args,
                                            ArgStringList &CmdArgs) const {
   // TODO: We really should just load the plugin once and reuse it as needed.
@@ -2358,20 +2355,34 @@ void ToolChain::AddKitsuneOpenCilkLinkerArgs(const ArgList &Args,
   bool IsStatic = Args.hasArg(options::OPT_static);
   FileType FT = IsStatic ? ToolChain::FT_Static : ToolChain::FT_Shared;
 
-  // Link the correct OpenCilk personality function.
-  // FIXME: Do we need personality functions if we don't use exceptions?
-  std::string Personality = getOpenCilkPersonalityName(Args, FT);
-  CmdArgs.push_back(Args.MakeArgString(getOpenCilkRT(Args, Personality, FT)));
-
   // The opencilk tapir target directly adds calls to libopencilk functions when
   // lowering tapir loops. Therefore, we must link libopencilk directly.
-  std::string Path = *getRuntimePath();
-  const char *RuntimeDir = Args.MakeArgString(Path);
-  CmdArgs.push_back("-L");
-  CmdArgs.push_back(RuntimeDir);
-  CmdArgs.push_back("-rpath");
-  CmdArgs.push_back(RuntimeDir);
-  CmdArgs.push_back("-lopencilk");
+  //
+  // FIXME?: Do we need the personality functions if we don't use exceptions?
+  // FIXME?: Is the order in which the runtime and personality libraries being
+  // linked correct for static linking?
+  const char *LibOpenCilk =
+      Args.MakeArgString("-l" + getOpenCilkRuntimeBaseName(Args, FT));
+  const char *LibPersonality =
+      Args.MakeArgString("-l" + getOpenCilkPersonalityBaseName(Args, FT));
+
+  if (Args.hasArg(options::OPT_static)) {
+    CmdArgs.push_back(LibOpenCilk);
+    CmdArgs.push_back(LibPersonality);
+  } else if (Args.hasArg(options::OPT_static_libkitrt)) {
+    CmdArgs.push_back("-Bstatic");
+    CmdArgs.push_back(LibOpenCilk);
+    CmdArgs.push_back(LibPersonality);
+    CmdArgs.push_back("-Bdynamic");
+  } else {
+    const char *RuntimeDir = Args.MakeArgString(*getKitRuntimePath());
+    CmdArgs.push_back("-L");
+    CmdArgs.push_back(RuntimeDir);
+    CmdArgs.push_back("-rpath");
+    CmdArgs.push_back(RuntimeDir);
+    CmdArgs.push_back(LibOpenCilk);
+    CmdArgs.push_back(LibPersonality);
+  }
 }
 
 void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
@@ -2412,7 +2423,7 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
     // as the directory containing Kitsune's runtime. Yes, this is a crappy way
     // of doing things, but I have precisely zero interest in supporting Kokkos
     // mode properly.
-    std::string Path = concat(D.ResourceDir, "kokkos", kitRuntimeLibDir());
+    std::string Path = concat(D.KitResourceDir, "kokkos", "lib");
     const char *LibDir = Args.MakeArgString(Path);
     CmdArgs.push_back("-L");
     CmdArgs.push_back(LibDir);
@@ -2424,7 +2435,7 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
   // We always link libkitrt if a tapir target or special Kokkos handling has
   // been specified.
   if (IsKokkos || (TT && *TT != TTID::Nolo)) {
-    std::string Path = concat(D.ResourceDir, kitRuntimeLibDir());
+    std::string Path = concat(D.KitResourceDir, "lib");
     const char *LibDir = Args.MakeArgString(Path);
     CmdArgs.push_back("-L");
     CmdArgs.push_back(LibDir);
@@ -2497,123 +2508,23 @@ void ToolChain::AddKitsuneLTOArgs(const ArgList &Args,
   }
 }
 
-std::optional<std::string>
-ToolChain::getOpenCilkABIBitcodeFile(const ArgList &Args) const {
-  if (Arg *A = Args.getLastArg(options::OPT_tapir_opencilk_runtime_bc_EQ))
-    return A->getValue();
-  return getOpenCilkBC(Args, "opencilk-abi");
+std::string ToolChain::getOpenCilkBCFileName(const ArgList &Args) const {
+  return "libopencilk-abi.bc";
 }
 
-std::string ToolChain::getOpenCilkPersonalityName(const ArgList &Args,
-                                                  FileType FT) const {
-  const Driver &D = getDriver();
-  if (D.CCCIsCXX())
+std::string ToolChain::getOpenCilkPersonalityBaseName(const ArgList &Args,
+                                                      FileType FT) const {
+  if (getDriver().CCCIsCXX())
     return "opencilk-personality-cpp";
   return "opencilk-personality-c";
 }
 
-std::string ToolChain::getOpenCilkRuntimeName(const ArgList &Args,
-                                              FileType FT) const {
+std::string ToolChain::getOpenCilkRuntimeBaseName(const ArgList &Args,
+                                                  FileType FT) const {
   return "opencilk";
 }
 
 std::optional<std::string>
 ToolChain::getOpenCilkRuntimePath(const ArgList &Args) const {
-  return getRuntimePath();
-}
-
-std::string ToolChain::getOpenCilkBCBasename(const ArgList &Args,
-                                             StringRef Component,
-                                             bool AddArch) const {
-  const llvm::Triple &Triple = getTriple();
-  StringRef Prefix = "lib";
-  StringRef Suffix = ".bc";
-  std::string ArchAndEnv;
-  if (AddArch) {
-    StringRef Arch = getArchNameForOpenCilkRTLib(*this, Args);
-    StringRef Env = Triple.isAndroid() ? "-android" : "";
-    ArchAndEnv = join_items("", "-", Arch, Env);
-  }
-  return join_items("", Prefix, Component, ArchAndEnv, Suffix);
-}
-
-std::optional<std::string> ToolChain::getOpenCilkBC(const ArgList &Args,
-                                                    StringRef Component) const {
-  // Check for runtime files without the architecture first.
-  std::string BCBasename =
-      getOpenCilkBCBasename(Args, Component, /*AddArch=*/false);
-  if (std::optional<std::string> RuntimePath = getOpenCilkRuntimePath(Args)) {
-    SmallString<128> P(*RuntimePath);
-    llvm::sys::path::append(P, BCBasename);
-    if (getVFS().exists(P))
-      return P.c_str();
-  }
-
-  // Fall back to the OpenCilk name with the arch if the no-arch version does
-  // not exist.
-  BCBasename = getOpenCilkBCBasename(Args, Component, /*AddArch=*/true);
-  if (std::optional<std::string> RuntimePath = getOpenCilkRuntimePath(Args)) {
-    SmallString<128> P(*RuntimePath);
-    llvm::sys::path::append(P, BCBasename);
-    if (getVFS().exists(P))
-      return P.c_str();
-  }
-
-  return std::nullopt;
-}
-
-std::string ToolChain::getOpenCilkRTBasename(const ArgList &Args,
-                                             StringRef Component, FileType Type,
-                                             bool AddArch) const {
-  const llvm::Triple &Triple = getTriple();
-  StringRef Prefix = "lib";
-  StringRef Suffix;
-  switch (Type) {
-  case ToolChain::FT_Object:
-    Suffix = ".o";
-    break;
-  case ToolChain::FT_Static:
-    Suffix = ".a";
-    break;
-  case ToolChain::FT_Shared:
-    if (Triple.isOSDarwin())
-      Suffix = ".dylib";
-    else
-      Suffix = ".so";
-    break;
-  }
-  std::string ArchAndEnv;
-  if (AddArch) {
-    StringRef Arch = getArchNameForOpenCilkRTLib(*this, Args);
-    StringRef Env = Triple.isAndroid() ? "-android" : "";
-    ArchAndEnv = join_items("", "-", Arch, Env);
-  }
-  return join_items("", Prefix, Component, ArchAndEnv, Suffix);
-}
-
-std::string ToolChain::getOpenCilkRT(const ArgList &Args, StringRef Component,
-                                     FileType Type) const {
-  // Check for runtime files without the architecture first.
-  std::string RTBasename =
-      getOpenCilkRTBasename(Args, Component, Type, /*AddArch=*/false);
-  for (const std::string &LibPath : getLibraryPaths()) {
-    SmallString<128> P(LibPath);
-    llvm::sys::path::append(P, RTBasename);
-    if (getVFS().exists(P))
-      // If we found the library in LibraryPaths, let the linker resolve it.
-      return join_items("", "-l", Component);
-  }
-
-  // Fall back to the OpenCilk name with the arch if the no-arch version does
-  // not exist.
-  RTBasename = getOpenCilkRTBasename(Args, Component, Type, /*AddArch=*/true);
-  if (std::optional<std::string> RuntimePath = getOpenCilkRuntimePath(Args)) {
-    SmallString<128> P(*RuntimePath);
-    llvm::sys::path::append(P, RTBasename);
-    if (getVFS().exists(P))
-      return P.c_str();
-  }
-
-  // Otherwise, trust the linker to find the library on the system.
-  return join_items("", "-l", Component);
+  return getKitRuntimePath();
 }

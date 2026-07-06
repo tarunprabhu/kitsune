@@ -3796,22 +3796,17 @@ void AppleMachO::printVerboseInfo(raw_ostream &OS) const {
 
 std::optional<std::string>
 DarwinClang::getOpenCilkRuntimePath(const ArgList &Args) const {
-  SmallString<128> P(getDriver().ResourceDir);
+  SmallString<128> P(getDriver().KitResourceDir);
   llvm::sys::path::append(P, "lib",  "darwin");
   return std::string(P);
 }
 
-std::optional<std::string>
-DarwinClang::getOpenCilkABIBitcodeFile(const ArgList &Args) const {
-  SmallString<128> BitcodeFilename("opencilk-abi");
-  BitcodeFilename += "_";
-  BitcodeFilename += getOSLibraryNameSuffix();
-
-  return getOpenCilkBC(Args, BitcodeFilename);
+std::string DarwinClang::getOpenCilkBCFileName(const ArgList &Args) const {
+  return Twine("opencilk-abi_" + getOSLibraryNameSuffix()).str();
 }
 
-std::string DarwinClang::getOpenCilkRuntimeName(const ArgList &Args,
-                                                FileType FT) const {
+std::string DarwinClang::getOpenCilkRuntimeBaseName(const ArgList &Args,
+                                                    FileType FT) const {
   SmallString<32> Runtime("opencilk_");
   Runtime += getOSLibraryNameSuffix();
   if (FT == ToolChain::FT_Shared)
@@ -3819,8 +3814,8 @@ std::string DarwinClang::getOpenCilkRuntimeName(const ArgList &Args,
   return Runtime.c_str();
 }
 
-std::string DarwinClang::getOpenCilkPersonalityName(const ArgList &Args,
-                                                    FileType FT) const {
+std::string DarwinClang::getOpenCilkPersonalityBaseName(const ArgList &Args,
+                                                        FileType FT) const {
   const Driver &D = getDriver();
   SmallString<32> Personality;
   if (D.CCCIsCXX())

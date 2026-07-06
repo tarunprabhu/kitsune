@@ -545,6 +545,9 @@ public:
   // Returns the target specific runtime path if it exists.
   std::optional<std::string> getRuntimePath() const;
 
+  // Returns the target specific runtime path for Kitsune if it exists.
+  std::optional<std::string> getKitRuntimePath() const;
+
   // Returns target specific standard library path if it exists.
   std::optional<std::string> getStdlibPath() const;
 
@@ -851,13 +854,6 @@ public:
   }
 
 private:
-  /// Some of our command line arguments come in via cmake as a single string.
-  /// We use this to extract each argument from the string and push it onto the
-  /// argument list.
-  void ExtractArgsFromString(const char *s, llvm::opt::ArgStringList &CmdArgs,
-                             const llvm::opt::ArgList &Args,
-                             const char delimiter = ' ') const;
-
   /// Add the option set to the given value to the command line. If MLLVM is
   /// true, add -mllvm to the command line before adding the option.
   void PushArg(llvm::opt::ArgStringList &CmdArgs,
@@ -935,41 +931,22 @@ public:
   virtual std::optional<std::string>
   getOpenCilkRuntimePath(const llvm::opt::ArgList &Args) const;
 
-  virtual std::string getOpenCilkBCBasename(const llvm::opt::ArgList &Args,
-                                            StringRef Component,
-                                            bool AddArch) const;
-
-  virtual std::string getOpenCilkRTBasename(const llvm::opt::ArgList &Args,
-                                            StringRef Component, FileType Type,
-                                            bool AddArch) const;
-
-  virtual std::string getOpenCilkRT(const llvm::opt::ArgList &Args,
-                                    StringRef Component, FileType Type) const;
-
-  /// Get the path to the OpenCilk runtime bitcode file, if it exists.
-  virtual std::optional<std::string>
-  getOpenCilkBC(const llvm::opt::ArgList &Args, StringRef Component) const;
-
-  /// Get the path to the OpenCilk runtime bitcode file, if it exists. This will
-  /// first check if the path to the file has been provided using a
-  /// --tapir-opencilk-abi-bc command line argument. If it has, that will be
-  /// returned, otherwise, it will search for a suitable bitcode file in the
-  /// standard locations.
-  virtual std::optional<std::string>
-  getOpenCilkABIBitcodeFile(const llvm::opt::ArgList &Args) const;
-
-  /// Get the name of the personality library for opencilk. This is just the
-  /// name of the library, not the full path to it. This is suitable for use
-  /// in a -l linker option when constructing the linker command line.
+  /// Get the name of the bitcode file for opencilk. This is just the name of
+  /// the file, not the full path to it.
   virtual std::string
-  getOpenCilkPersonalityName(const llvm::opt::ArgList &Args,
-                             FileType FT) const;
+  getOpenCilkBCFileName(const llvm::opt::ArgList &Args) const;
 
-  /// Get the name of opencilk's runtime library. This is just the name of the
-  /// library, not the full path to it. It is suitable for use in a -l linker
-  /// option when constructing the linker command line.
-  virtual std::string getOpenCilkRuntimeName(const llvm::opt::ArgList &Args,
-                                             FileType FT) const;
+  /// Get the base name of the personality library for opencilk. This is
+  /// suitable for use in a -l linker option when constructing the linker
+  /// command line.
+  virtual std::string
+  getOpenCilkPersonalityBaseName(const llvm::opt::ArgList &Args,
+                                 FileType FT) const;
+
+  /// Get the name of opencilk's runtime library. is suitable for use in a -l
+  /// linker option when constructing the linker command line.
+  virtual std::string getOpenCilkRuntimeBaseName(const llvm::opt::ArgList &Args,
+                                                 FileType FT) const;
 };
 
 /// Set a ToolChain's effective triple. Reset it when the registration object
