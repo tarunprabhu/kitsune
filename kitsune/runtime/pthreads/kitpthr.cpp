@@ -251,7 +251,7 @@ extern "C" void __kitpthr_sync(KitPthrContext *ctx) {
   for (KitPthrThread &thrd : *ctx) {
     if (int err = pthread_join(thrd.pthr, nullptr))
       kitpthrHandleJoinError(err);
-    if (int err = pthread_attr_destroy(&thrd.attr))
+    if (pthread_attr_destroy(&thrd.attr))
       __kitrt_fatal(LABEL, "Error destroying thread attributes");
     __kitrt_message(LABEL, "Joined thread %ld (%ld)", thrd.tid, thrd.pthr);
   }
