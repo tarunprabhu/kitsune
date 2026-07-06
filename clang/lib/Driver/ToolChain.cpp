@@ -2273,7 +2273,9 @@ void ToolChain::AddKitsunePreprocessorArgs(const ArgList &Args,
     CmdArgs.push_back(Args.MakeArgString(InclDir));
   }
 
-  if (TT || IsKokkos) {
+  // Flang doesn't yet support -isystem, so don't add the argument if we are
+  // compiling Fortran. The argument is not even relevant for Fortran anyway.
+  if ((TT || IsKokkos) && (D.CCCIsCXX() || D.CCCIsCC())) {
     std::string InclDir = concat(D.KitResourceDir, "include");
     CmdArgs.push_back("-isystem");
     CmdArgs.push_back(Args.MakeArgString(InclDir));

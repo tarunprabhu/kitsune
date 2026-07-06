@@ -5,4 +5,4 @@
 ! RUN: not %kitfc -### --kokkos %s 2>&1 | FileCheck %s
 ! RUN: not %kitfc -### --kokkos-no-init %s 2>&1 | FileCheck %s
 !
-! CHECK: option '--kokkos{{.*}}' can only be used with kit++
+! CHECK: unknown argument '--kokkos{{.*}}'

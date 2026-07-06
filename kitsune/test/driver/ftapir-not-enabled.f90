@@ -14,12 +14,12 @@
 ! RUN: %}
 !
 ! RUN: %if kitsune-no-lambda %{ \
-! RUN:   not %kitfc -fsyntax-only --tapir=lambda %s 2>&1 \
+! RUN:   not --crash %kitfc -fsyntax-only --tapir=lambda %s 2>&1 \
 ! RUN:       | FileCheck %s -check-prefix LAMBDA \
 ! RUN: %}
 !
 ! RUN: %if kitsune-no-omptask %{ \
-! RUN:   not %kitfc -fsyntax-only --tapir=omptask %s 2>&1 \
+! RUN:   not --crash %kitfc -fsyntax-only --tapir=omptask %s 2>&1 \
 ! RUN:       | FileCheck %s -check-prefix OMPTASK \
 ! RUN: %}
 !
@@ -34,7 +34,7 @@
 ! RUN: %}
 !
 ! RUN: %if kitsune-no-realm %{ \
-! RUN:   not %kitfc -fsyntax-only --tapir=realm %s 2>&1 \
+! RUN:   not --crash %kitfc -fsyntax-only --tapir=realm %s 2>&1 \
 ! RUN:       | FileCheck %s -check-prefix REALM \
 ! RUN: %}
 !
