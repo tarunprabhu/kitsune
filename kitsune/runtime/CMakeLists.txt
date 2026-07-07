@@ -131,19 +131,6 @@ endif ()
 add_library(${KITRT} SHARED
   $<TARGET_OBJECTS:${KITRT_OBJLIB}>)
 
-add_library(${KITRT_STATIC} STATIC
-  $<TARGET_OBJECTS:${KITRT_OBJLIB}>)
-
-# We have to set the output directory explicitly, otherwise these will go to the
-# main lib/ directory that also contains LLVM. But we actually want this in
-# clang's resource directory because all Kitsune-specific headers and libraries
-# are intentionally kept "private" to the compiler.
-set_target_properties(${KITRT} PROPERTIES
-  LIBRARY_OUTPUT_DIRECTORY ${KITSUNE_RESOURCE_INTDIR}/lib)
-
-set_target_properties(${KITRT_STATIC} PROPERTIES
-  ARCHIVE_OUTPUT_DIRECTORY ${KITSUNE_RESOURCE_INTDIR}/lib)
-
 # We have added libraries ${KITRT_OBJLIB}. We need all of those for the actual
 # Kitsune shared library.
 get_target_property(KITRT_LINK_LIBRARIES ${KITRT_OBJLIB} LINK_LIBRARIES)
@@ -151,8 +138,28 @@ foreach (LIB IN LISTS KITRT_LINK_LIBRARIES)
   target_link_libraries(${KITRT} PUBLIC ${LIB})
 endforeach()
 
-# If we ever need to depend on libLLVM.so, add a path relative to $ORIGIN here.
-# It should be `\$ORIGIN/../../../`
+# We have to set the output directory explicitly, otherwise these will go to the
+# main lib/ directory that also contains LLVM. But we actually want this in
+# Kitsune's resource directory because all Kitsune-specific headers and
+# dependent libraries are intentionally kept "private" to the compiler.
+#
+# Setting INSTALL_RPATH_USE_LINK_PATH is not always safe since the binary may
+# be used on a different system where the required libraries may be (correctly)
+# obtained from a different path. We don't really support shipping libraries
+# across systems, and generally require that binaries built with Kitsune are
+# either run on the same, or a functionally equivalent system, where the
+# identical library versions are available at exactly the same locations. We may
+# want to consider doing something a bit more robust in the future, but for now,
+# this should be ok.
+set_target_properties(${KITRT} PROPERTIES
+  LIBRARY_OUTPUT_DIRECTORY ${KITSUNE_RESOURCE_INTDIR}/lib
+  INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+# libkitrt is installed alongside the libraries that it depends on such as
+# libqthread, libomp etc. in Kitsune's internal resource directory. Ensure that
+# these are always picked up, even after installation. The way we have
+# configured Cheetah, its libraries will be installed to a directory with the
+# name of the default target triple in the same directory.
 set(RPATH_RELATIVE_TO_ORIGIN
   "\$ORIGIN/"
   "\$ORIGIN/${LLVM_DEFAULT_TARGET_TRIPLE}/")
@@ -160,6 +167,12 @@ set_property(TARGET ${KITRT} APPEND
   PROPERTY BUILD_RPATH "${RPATH_RELATIVE_TO_ORIGIN}")
 set_property(TARGET ${KITRT} APPEND
   PROPERTY INSTALL_RPATH "${RPATH_RELATIVE_TO_ORIGIN}")
+
+add_library(${KITRT_STATIC} STATIC
+  $<TARGET_OBJECTS:${KITRT_OBJLIB}>)
+
+set_target_properties(${KITRT_STATIC} PROPERTIES
+  ARCHIVE_OUTPUT_DIRECTORY ${KITSUNE_RESOURCE_INTDIR}/lib)
 
 install(TARGETS ${KITRT} ${KITRT_STATIC}
   DESTINATION ${KITSUNE_RESOURCE_DIR}/lib/)
