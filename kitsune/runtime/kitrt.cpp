@@ -216,30 +216,30 @@ extern "C" void __kitrt_print_stack_trace(void) {
 }
 
 unsigned nearestPowerOf2LE(unsigned n) {
-  unsigned p = 1;
+  unsigned long p = 1;
   while (p <= n)
     p <<= 1;
   return p >> 1;
 }
 
-template <typename ValueType>
-void __kitrt_env_set(const char *varname, const ValueType &value) {
+void __kitrt_env_set(const char *varname, const std::string &s) {
   assert(varname && "Missing variable name");
 
-  std::string s = std::to_string(value);
-
   __kitrt_message(LABEL, "Setting in environment: %s=%s", varname, s.c_str());
-  if (setenv(varname, s.c_str(), 0))
+  if (setenv(varname, s.c_str(), 1))
     __kitrt_warn(LABEL, "Could not set environment variable '%s'", varname);
 }
 
+template <typename T, std::enable_if_t<std::is_scalar_v<T>, int>>
+void __kitrt_env_set(const char *varname, const T &value) {
+  ::__kitrt_env_set(varname, std::to_string(value));
+}
+
 template void __kitrt_env_set(const char *var, const bool &);
-template void __kitrt_env_set(const char *var, const int &);
-template void __kitrt_env_set(const char *var, const unsigned &);
-template void __kitrt_env_set(const char *var, const long &);
-template void __kitrt_env_set(const char *var, const unsigned long &);
-template void __kitrt_env_set(const char *var, const long long &);
-template void __kitrt_env_set(const char *var, const unsigned long long &);
+template void __kitrt_env_set(const char *var, const int32_t &);
+template void __kitrt_env_set(const char *var, const uint32_t &);
+template void __kitrt_env_set(const char *var, const int64_t &);
+template void __kitrt_env_set(const char *var, const uint64_t &);
 template void __kitrt_env_set(const char *var, const float &);
 template void __kitrt_env_set(const char *var, const double &);
 
@@ -303,40 +303,33 @@ bool parseInto(bool &v, const std::string &vstr, const char *vname) {
   return true;
 }
 
-template <> bool parseInto(int &v, const std::string &vstr, const char *vname) {
-  using Converter = int(const std::string &, std::size_t *, int);
+template <>
+bool parseInto(int32_t &v, const std::string &vstr, const char *vname) {
+  using Converter = int32_t(const std::string &, std::size_t *, int);
   return parseInto(v, vstr, vname, (Converter *)&std::stoi, /*base=*/10);
 }
 
 template <>
-bool parseInto(unsigned &v, const std::string &vstr, const char *vname) {
-  using Converter = int(const std::string &, std::size_t *, int);
-  return parseInto(v, vstr, vname, (Converter *)&std::stoi, /*base=*/10);
+bool parseInto(uint32_t &v, const std::string &vstr, const char *vname) {
+  using Converter = uint64_t(const std::string &, std::size_t *, int);
+  uint64_t tmp;
+  bool ok = parseInto(tmp, vstr, vname, (Converter *)&std::stoul, /*base=*/10);
+  if (!ok || tmp > std::numeric_limits<uint32_t>::max())
+    return false;
+  v = tmp;
+  return true;
 }
 
 template <>
-bool parseInto(long &v, const std::string &vstr, const char *vname) {
-  using Converter = long(const std::string &, std::size_t *, int);
+bool parseInto(int64_t &v, const std::string &vstr, const char *vname) {
+  using Converter = int64_t(const std::string &, std::size_t *, int);
   return parseInto(v, vstr, vname, (Converter *)&std::stol, /*base=*/10);
 }
 
 template <>
-bool parseInto(unsigned long &v, const std::string &vstr, const char *vname) {
-  using Converter = unsigned long(const std::string &, std::size_t *, int);
+bool parseInto(uint64_t &v, const std::string &vstr, const char *vname) {
+  using Converter = uint64_t(const std::string &, std::size_t *, int);
   return parseInto(v, vstr, vname, (Converter *)&std::stoul, /*base=*/10);
-}
-
-template <>
-bool parseInto(long long &v, const std::string &vstr, const char *vname) {
-  using Converter = long long(const std::string &, std::size_t *, int);
-  return parseInto(v, vstr, vname, (Converter *)&std::stoll, /*base=*/10);
-}
-
-template <>
-bool parseInto(unsigned long long &v, const std::string &vstr,
-               const char *vname) {
-  using Converter = unsigned long long(const std::string &, std::size_t *, int);
-  return parseInto(v, vstr, vname, (Converter *)&std::stoull, /*base=*/10);
 }
 
 template <>
@@ -363,12 +356,10 @@ template <typename V> bool __kitrt_env_lookup(const char *vname, V &v) {
 // an environment variable. To keep things clean, explicitly initialize all the
 // types that we might need.
 template bool __kitrt_env_lookup(const char *var, bool &);
-template bool __kitrt_env_lookup(const char *var, int &);
-template bool __kitrt_env_lookup(const char *var, unsigned &);
-template bool __kitrt_env_lookup(const char *var, long &);
-template bool __kitrt_env_lookup(const char *var, unsigned long &);
-template bool __kitrt_env_lookup(const char *var, long long &);
-template bool __kitrt_env_lookup(const char *var, unsigned long long &);
+template bool __kitrt_env_lookup(const char *var, int32_t &);
+template bool __kitrt_env_lookup(const char *var, uint32_t &);
+template bool __kitrt_env_lookup(const char *var, int64_t &);
+template bool __kitrt_env_lookup(const char *var, uint64_t &);
 template bool __kitrt_env_lookup(const char *var, float &);
 template bool __kitrt_env_lookup(const char *var, double &);
 

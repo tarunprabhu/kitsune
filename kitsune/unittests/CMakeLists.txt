@@ -1,5 +1,5 @@
 add_custom_target(KitsuneUnitTests)
-set_target_properties(KitsuneUnitTests PROPERTIES FOLDER "Kitsune/Tests")
+set_target_properties(KitsuneUnitTests PROPERTIES FOLDER "Kitsune/UnitTests")
 
 # Add a unittest with name TEST_NAME to the suite of Kitsune's unit tests.
 # This will create an executable named TEST_NAME that will be linked against

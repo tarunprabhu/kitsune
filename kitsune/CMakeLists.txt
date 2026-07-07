@@ -857,8 +857,10 @@ if (KITSUNE_ENABLE_SPHINX OR KITSUNE_ENABLE_DOXYGEN)
 endif ()
 
 if(LLVM_INCLUDE_TESTS AND KITSUNE_INCLUDE_TESTS)
-  add_subdirectory(test)
+  add_subdirectory(runtime/unittests)
+  add_subdirectory(runtime/test)
   add_subdirectory(unittests)
+  add_subdirectory(test)
 endif()
 
 if (KITSUNE_ENABLE_EXPERIMENTS)
