@@ -1,12 +1,9 @@
-add_custom_target(KitsuneUnitTests)
-set_target_properties(KitsuneUnitTests PROPERTIES FOLDER "Kitsune/UnitTests")
+# add_custom_target(KitrtUnitTests)
+# set_target_properties(KitrtUnitTests PROPERTIES FOLDER "Kitrt/UnitTests")
 
-# Add a unittest with name TEST_NAME to the suite of Kitsune's unit tests.
+# Add a unittest with name TEST_NAME to the suite of kitrt's unit tests.
 # This will create an executable named TEST_NAME that will be linked against
 # gtest. The code below shows how this function may be used.
-#
-#     set(LLVM_LINK_COMPONENTS L1 L2)
-#     set(CLANG_LINK_COMPONENTS C1 C2)
 #
 #     add_kitsune_unittest(ExecName
 #       Source1.cpp
@@ -21,18 +18,14 @@ set_target_properties(KitsuneUnitTests PROPERTIES FOLDER "Kitsune/UnitTests")
 # by '<other named arguments>' in the example above are passed as is to
 # `add_unittest` (defined in `AddLLVM.cmake`).
 #
-# Additional libraries to be linked into the executable can be provided by
-# setting the `LLVM_LINK_COMPONENTS` and `CLANG_LINK_COMPONENTS` variables.
-# In the example above, this will link libLLVML1, libLLVML2, libclangC1, and
-# libclangC2 into the executable ExecName. Note how a prefix is automatically
-# added depending on the variable containing the library.
-function(add_kitsune_unittest test_name)
-  add_unittest(KitsuneUnitTests ${test_name} ${ARGN} EXPORT_SYMBOLS)
+# The only library these should depend on is libkitrt. This will be added by
+# this function.
+function(add_kitrt_unittest test_name)
+  add_unittest(KitrtUnitTests ${test_name} ${ARGN} EXPORT_SYMBOLS)
 
-  list(TRANSFORM CLANG_LINK_COMPONENTS PREPEND "clang")
-  target_link_libraries(${test_name} PRIVATE ${CLANG_LINK_COMPONENTS})
-
+  target_include_directories(${test_name} PUBLIC ${KITSUNE_SOURCE_DIR}/runtime/)
   target_link_libraries(${test_name} PRIVATE LLVMTestingSupport)
+  target_link_libraries(${test_name} PUBLIC ${KITRT})
 endfunction()
 
 # gtest macros like EXPECT_TRUE are expanded to a single line multi-statement
@@ -53,9 +46,7 @@ if (CMAKE_COMPILER_IS_GNUCXX)
   list(APPEND LLVM_COMPILE_FLAGS "-Wno-dangling-else")
 endif ()
 
-add_subdirectory(Analysis)
-add_subdirectory(Clang)
-add_subdirectory(Config)
-add_subdirectory(Core)
-add_subdirectory(Passes)
-add_subdirectory(Support)
+add_kitrt_unittest(KitrtUnitTests
+  EnvVarUtilsTest.cpp
+  MiscUtilsTest.cpp
+)

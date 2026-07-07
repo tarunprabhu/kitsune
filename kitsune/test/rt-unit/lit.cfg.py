@@ -4,16 +4,16 @@ import subprocess
 import lit.formats
 
 # The name of this test suite.
-config.name = "Kitsune-Unit"
+config.name = "kitrt-Unit"
 
 # A list of file extensions to treat as test files.
 config.suffixes = []
 
-# The root path where tests should be run.
-config.test_exec_root = os.path.join(config.kitsune_obj_root, "unittests")
-
 # The root path where tests are located.
-config.test_source_root = config.test_exec_root
+config.test_source_root = os.path.join(config.kitrt_obj_root, "unittests")
+
+# The root path where tests should be run.
+config.test_exec_root = os.path.join(config.kitrt_obj_root, "unittests")
 
 # The test format to use to interpret tests.
 config.test_format = lit.formats.GoogleTest(config.llvm_build_mode, "Tests")

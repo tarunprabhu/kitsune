@@ -10,7 +10,7 @@ from lit.llvm import llvm_config
 from lit.llvm.subst import FindTool
 from lit.llvm.subst import ToolSubst
 
-# name: The name of this test suite.
+# The name of this test suite.
 config.name = "Kitsune"
 
 # The test format to use to interpret tests. The comment below was copied
@@ -50,10 +50,10 @@ config.excludes = [
     "input"
 ]
 
-# test_source_root: The root path where tests are located.
+# The root path where tests are located.
 config.test_source_root = os.path.dirname(__file__)
 
-# test_exec_root: The root path where tests should be run.
+# The root path where tests should be run.
 config.test_exec_root = os.path.join(config.kitsune_obj_root, "test")
 
 llvm_config.use_default_substitutions()

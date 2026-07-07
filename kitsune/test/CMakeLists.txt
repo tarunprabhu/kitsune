@@ -13,6 +13,7 @@ llvm_canonicalize_cmake_booleans(
   KITSUNE_OPENCILK_ENABLED
   KITSUNE_QTHREADS_ENABLED
   KITSUNE_REALM_ENABLED
+  KITSUNE_PAPI_ENABLED
   KITSUNE_BUILD_EXAMPLES
 )
 
@@ -65,19 +66,15 @@ configure_lit_site_cfg(
   "CMAKE_LIBRARY_OUTPUT_DIRECTORY"
 )
 
-configure_lit_site_cfg(
-  ${CMAKE_CURRENT_SOURCE_DIR}/unit/lit.site.cfg.py.in
-  ${CMAKE_CURRENT_BINARY_DIR}/unit/lit.site.cfg.py
-  MAIN_CONFIG
-  ${CMAKE_CURRENT_SOURCE_DIR}/unit/lit.cfg.py
-  PATHS
-  "LLVM_SOURCE_DIR"
-  "LLVM_BINARY_DIR"
-  "LLVM_TOOLS_DIR"
-  "SHLIBDIR"
-  "KITSUNE_BINARY_DIR"
-  "KITSUNE_SOURCE_DIR"
-)
+# These subdirectories contain lit files to configure other test suites. These
+# include Kitsune's core unit tests, and both lit and unit tests for Kitsune's
+# runtime. These are all configured as part of this step to ensure that the
+# `check-kitsune` target will run everything. If we configured these separately
+# they would be run as separate lit invocations. Not the worst, but this way
+# feels cleaner when testing.
+add_subdirectory(rt)
+add_subdirectory(rt-unit)
+add_subdirectory(unit)
 
 set(KITSUNE_TEST_PARAMS
   USE_Z3_SOLVER=0
@@ -85,6 +82,8 @@ set(KITSUNE_TEST_PARAMS
 
 list(APPEND KITSUNE_TEST_DEPS
   ${KITRT}
+  KitrtTests
+  KitrtUnitTests
   KitsuneUnitTests
   kit-config
   kit-enc
@@ -198,3 +197,19 @@ add_custom_target(check-kit-config DEPENDS check-kitsune-tools-kit-config)
 add_custom_target(check-kit-enc DEPENDS check-kitsune-tools-kit-enc)
 add_custom_target(check-kit-mbc DEPENDS check-kitsune-tools-kit-mbc)
 add_custom_target(check-kit-sort DEPENDS check-kitsune-tools-kit-sort)
+
+# Convenience targets for the system and unit tests for Kitsune's runtime.
+add_custom_target(check-kitrt-system DEPENDS check-kitsune-rt)
+add_custom_target(check-kitrt-unit DEPENDS check-kitsune-rt-unit)
+
+# This is a convenience target that runs both the unit, and system, tests for
+# Kitsune's runtime. Aesthetically, this is not the most pleasing, because,
+# unlike check-kitsune, it will not invoke lit just once, but twice; once for
+# the unit tests, and once for the system tests. In LLVM, the compiler and the
+# runtimes are tested separately, so it is probably reasonable to reorganize
+# the tests so check-kitsune runs only the compiler tests (both system and
+# unit), while check-kitrt runs only the runtime tests - again, both system and
+# unit. On balance, it is probably more convenient to have check-kitsune test
+# both the compiler and the runtime since the two are very closely tied to one
+# another.
+add_custom_target(check-kitrt DEPENDS check-kitrt-unit check-kitrt-system)

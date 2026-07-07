@@ -56,6 +56,7 @@
 
 #include <cassert>
 #include <cstdint>
+#include <string>
 
 #ifdef __cplusplus
 extern "C" {
@@ -221,6 +222,15 @@ void __kitrt_env_unset(const char *varname);
 
 /**
  * Set a variable to the given value in the environment. If the variable has
+ * already been set in the environment, the value will be overridden.
+ *
+ * NOTE: This is only available on POSIX systems, but those are the only ones
+ * that we currently support.
+ */
+void __kitrt_env_set(const char *varname, const std::string &s);
+
+/**
+ * Set a variable to the given value in the environment. If the variable has
  * already been set in the environment, the value will be overridden. Note that
  * if the value of the environment variable has already been read by some other
  * part of the runtime, that value will be unaffected.
@@ -228,8 +238,8 @@ void __kitrt_env_unset(const char *varname);
  * NOTE: This is only available on POSIX systems, but those are the only ones
  * that we currently support.
  */
-template <typename ValueType>
-void __kitrt_env_set(const char *varname, const ValueType &value);
+template <typename T, std::enable_if_t<std::is_scalar_v<T>, int> = 0>
+void __kitrt_env_set(const char *varname, const T &value);
 
 /**
  * Read the value of the environment variable \p varname which is expected to be
