@@ -1,4 +1,4 @@
-//==- kitocilk.cpp - Kitsune runtime targeting Cheetah, OpenCilk's runtime -==//
+//===- kitocilk.cpp - Runtime for Kitsune's opencilk tapir target ---------===//
 //
 // Copyright (c) 2021, 2023 Los Alamos National Security, LLC.
 // All rights reserved.
@@ -49,19 +49,20 @@
 //
 //===----------------------------------------------------------------------===//
 //
+// This targets Cheetah, the OpenCilk runtime.
+//
 // The opencilk tapir target does nearly all the work of interfacing with
 // Cheetah. Most of the functions here exist mainly to simplify the lowering of
 // Kitsune's intrinsics.
 //
 //===----------------------------------------------------------------------===//
 
+#include "kitocilk.h"
 #include "kitrt.h"
-
-#include <cstdlib>
 
 #define LABEL "kitocilk"
 
-/// Declare functions from the opencilk runtime that are used here.
+/// Declare functions and globals from the opencilk runtime that are used here.
 extern unsigned __cilkrts_nproc;
 extern "C" unsigned __cilkrts_get_worker_number(void);
 extern "C" unsigned __cilkrts_get_nworkers(void);
@@ -104,17 +105,33 @@ extern "C" void __kitocilk_initialize(void) {
 
   unsigned numThreads = __kitrt_num_threads("CILK_NWORKERS");
 
+  // If the OpenCilk runtime has already been initialized, the number of workers
+  // will have been set to the number of CPU's detected on the system. In that
+  // case, there is no way to increase the number of workers, though it is still
+  // possible to limit the number of workers to a value less than the number of
+  // CPU's. Since we cannot control the order in which the initializers are run,
+  // for consistency, we always disallow increasing the number of workers beyond
+  // the number of CPU's.
+  unsigned numCPUs = __kitrt_num_cpus();
+  if (numThreads > __kitrt_num_cpus())
+    __kitrt_fatal(
+        LABEL,
+        "Number of threads/workers (%d) cannot be greater than number of "
+        "detected CPUs (%d)",
+        numThreads, numCPUs);
+
   // Both of the lines below are required. __cilkrts_nproc is returned by
   // __cilkrts_nworkers. But it is not set by __cilkrts_internal_set_nworkers.
   // If we only call set_nworkers, parallel for loops will use the correct
   // number of threads, but reductions will not. If we only set __cilkrts_nproc,
   // reductions will perform the correct number of parallel reductions, but
   // parallel for loops will not use the correct number of threads.
-  __cilkrts_internal_set_nworkers(numThreads);
   __cilkrts_nproc = numThreads;
-  __kitrt_env_set("CILK_NWORKERS", numThreads);
+  __cilkrts_internal_set_nworkers(numThreads);
 
-  // The OpenCilk runtime does not have to be initialized.
+  // There is no way to initialize OpenCilk's runtime explicitly - it is
+  // initialized by its own private global constructor. We have no control over
+  // when that constructor is run relative to this one.
 
   __kitrt_message(LABEL, "Number of workers = %d", __kitocilk_num_workers());
   __kitrt_message(LABEL, "Initialized Kitsune runtime (opencilk)");
@@ -124,7 +141,9 @@ extern "C" void __kitocilk_initialize(void) {
 extern "C" void __kitocilk_finalize(void) {
   __kitrt_message(LABEL, "Finalizing Kitsune runtime (opencilk)");
 
-  // The OpenCilk runtime does not have to be finalized.
+  // There is no way to finalize OpenCilk's runtime explicitly - it is finalized
+  // by its own private global destructor. We have no control over when that
+  // destructor is run relative to this one.
 
   __kitrt_message(LABEL, "Finalized Kitsune runtime (opencilk)");
 

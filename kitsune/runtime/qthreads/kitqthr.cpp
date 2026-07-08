@@ -1,4 +1,4 @@
-//===- kitqthr.cpp - Kitsune runtime targeting qthreads -------------------===//
+//===- kitqthr.cpp - Runtime for Kitsune's qthreads tapir target ----------===//
 //
 // Copyright (c) 2021, 2023 Los Alamos National Security, LLC.
 // All rights reserved.
@@ -48,14 +48,17 @@
 //  SUCH DAMAGE.
 //
 //===----------------------------------------------------------------------===//
+//
+// This targets Qthreads.
+//
+//===----------------------------------------------------------------------===//
 
+#include "kitqthr.h"
 #include "kitrt.h"
 
 #include <qthread.h>
 #include <qthread/barrier.h>
 
-#include <cstdint>
-#include <cstdlib>
 #include <vector>
 
 #define LABEL "kitqthr"
@@ -146,8 +149,7 @@ extern "C" void __kitqthr_launch(KitQthrThrdFn f, int64_t start, int64_t end,
                                  int64_t grainSize, void *args) {
   assert(start == 0 && end == __kitqthr_num_workers() &&
          "__kitqthr_launch expects loop iterations in range [0,NUM_THREADS)");
-  __kitrt_message(LABEL, "Launching multithreaded loop: [%ld,%ld)", start,
-                  end);
+  __kitrt_message(LABEL, "Launching multithreaded loop: [%ld,%ld)", start, end);
 
   unsigned numThrds = __kitqthr_num_workers();
 

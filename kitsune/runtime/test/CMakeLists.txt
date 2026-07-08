@@ -20,6 +20,15 @@ function(add_kitrt_systest source)
 endfunction()
 
 add_subdirectory(openmp)
+add_subdirectory(pthreads)
+
+if (KITSUNE_OPENCILK_ENABLED)
+  add_subdirectory(opencilk)
+endif ()
+
+if (KITSUNE_QTHREADS_ENABLED)
+  add_subdirectory(qthreads)
+endif ()
 
 # We probably don't need to do this after the unit tests are configured, but we
 # might as well do it late, just in case.
