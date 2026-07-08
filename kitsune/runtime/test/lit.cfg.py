@@ -13,20 +13,14 @@ from lit.llvm.subst import ToolSubst
 # name: The name of this test suite.
 config.name = "Kitrt"
 
-# The test format to use to interpret tests. The comment below was copied
-# verbatim from clang's configuration. I have no idea what it means.
-#
-# For now we require '&&' between commands, until they get globally killed and
-# the test runner updated.
+# The test format to use to interpret tests.
 config.test_format = lit.formats.ShTest(not llvm_config.use_lit_shell)
 
-# A list of file extensions to treat as test files. We could probably reduce
-# this list somewhat and spread it out among the lit.local files since some of
-# these are only used in certain subdirectories.
+# A list of file extensions to treat as test files.
 config.suffixes = [".c", ".cpp", ".test"]
 
 # Exclude some files and directories. The top-level test/ directory has a
-# CMakeLists.txt file which is needed. It looks like the README.md files are
+# CMakeLists.txt file which is not needed. It looks like the README.md files are
 # automatically ignored.
 config.excludes = [
     "CMakeLists.txt",
@@ -34,10 +28,10 @@ config.excludes = [
 ]
 
 # test_source_root: The root path where tests are located.
-config.test_source_root = os.path.join(config.kitrt_src_root, "test")
+config.test_source_root = os.path.join(config.kitrt_source_dir, "test")
 
 # test_exec_root: The root path where tests should be run.
-config.test_exec_root = os.path.join(config.kitrt_obj_root, "test")
+config.test_exec_root = os.path.join(config.kitrt_binary_dir, "test")
 
 llvm_config.use_default_substitutions()
 
@@ -51,21 +45,17 @@ llvm_config.use_default_substitutions()
 config.substitutions.append(
     ("%exe",
      f'{config.test_exec_root}/$(basename $(dirname %s))/$(basename %s).test'))
-config.substitutions.append(("%PATH%", config.environment["PATH"]))
 
-# For each occurrence of a clang tool name, replace it with the full path to
+# For each occurrence of an LLVM tool name, replace it with the full path to
 # the build directory holding that tool. We explicitly specify the directories
 # to search to ensure that we get the tools just built and not some random
 # tools that might happen to be in the user's PATH.
 tool_dirs = [config.llvm_tools_dir]
-
 tools = [ "not" ]
-
 llvm_config.add_tool_substitutions(tools, tool_dirs)
 
-# Features. We need the registered target features because some runtimes used by
-# the tapir targets will only run on certain architectures, so we need to
-# conditionally enable those tests.
+# Features. We need the registered target features because the underlying
+# runtimes used by certain tapir targets are only available on some platforms.
 def calculate_arch_features(arch_string):
     features = []
     for arch in arch_string.split():

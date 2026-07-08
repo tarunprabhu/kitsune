@@ -4,7 +4,7 @@ set(LLVM_LINK_COMPONENTS
   Support
 )
 
-add_kitsune_unittest(KitSupportTests
+add_kitsune_unittest(KitSupport
   FromIntTest.cpp
   FromStringTest.cpp
   MaybeBoolTest.cpp

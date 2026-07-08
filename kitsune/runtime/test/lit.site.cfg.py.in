@@ -2,14 +2,11 @@
 
 import sys
 
-config.lit_tools_dir = path(r"@LLVM_LIT_TOOLS_DIR@")
 config.llvm_external_lit = path(r"@LLVM_EXTERNAL_LIT@")
+config.lit_tools_dir = path(r"@LLVM_LIT_TOOLS_DIR@")
 config.llvm_tools_dir = path(r"@LLVM_TOOLS_DIR@")
-config.kitrt_obj_root = path(r"@KITRT_BINARY_DIR@")
-config.kitrt_src_root = path(r"@KITRT_SOURCE_DIR@")
-config.kitsune_lit_site_cfg = __file__
-config.kitsune_obj_root = path(r"@KITSUNE_BINARY_DIR@")
-config.kitsune_src_root = path(r"@KITSUNE_SOURCE_DIR@")
+config.kitrt_binary_dir = path(r"@KITRT_BINARY_DIR@")
+config.kitrt_source_dir = path(r"@KITRT_SOURCE_DIR@")
 config.kitsune_cuda_enabled = @KITSUNE_CUDA_ENABLED@
 config.kitsune_hip_enabled = @KITSUNE_HIP_ENABLED@
 config.kitsune_lambda_enabled = @KITSUNE_LAMBDA_ENABLED@
@@ -23,6 +20,6 @@ config.python_executable = "@Python3_EXECUTABLE@"
 import lit.llvm
 lit.llvm.initialize(lit_config, config)
 
-# Let the main config do the real work.
+# Load the main configuration file.
 lit_config.load_config(
-    config, os.path.join(config.kitsune_src_root, "test", "rt", "lit.cfg.py"))
+    config, os.path.join(config.kitrt_source_dir, "test", "lit.cfg.py"))

@@ -1,11 +1,9 @@
 # All unit tests are added as dependencies of this target. This target is itself
 # a dependency of the `check-kitsune` lit targets.
 add_custom_target(KitsuneUnitTests)
-set_target_properties(KitsuneUnitTests PROPERTIES FOLDER "Kitsune/UnitTests")
 
-# Add a unittest to the suite of Kitsune's unit tests. This will create an
-# executable named NAME that will be linked against gtest. The code below shows
-# how this function may be used.
+# Add a unittest to the suite of Kitsune's unit tests. The code below shows how
+# this function may be used.
 #
 #     set(LLVM_LINK_COMPONENTS L1 L2)
 #     set(CLANG_LINK_COMPONENTS C1 C2)
@@ -18,19 +16,25 @@ set_target_properties(KitsuneUnitTests PROPERTIES FOLDER "Kitsune/UnitTests")
 #       <other named arguments>
 #     )
 #
-# This will create an executable named ExecName using the source files
+# This will create an executable named ExecNameTests using the source files
 # Source1.cpp, Source2.cpp, and so on. Additional named arguments, indicated
 # by '<other named arguments>', are passed as is to `add_unittest` (defined in
-# `AddLLVM.cmake`).
+# `AddLLVM.cmake`). ExecNameTests will be linked against gtest.
 #
 # Additional libraries to be linked into the executable can be provided by
 # setting the `LLVM_LINK_COMPONENTS` and `CLANG_LINK_COMPONENTS` variables.
 # In the example above, this will link libLLVML1, libLLVML2, libclangC1, and
-# libclangC2 into the executable ExecName. Note how a prefix is automatically
-# added depending on the variable containing the library.
-function(add_kitsune_unittest name)
-  add_unittest(KitsuneUnitTests ${name} ${ARGN} EXPORT_SYMBOLS)
+# libclangC2 into ExecNameTests.
+function(add_kitsune_unittest basename)
+  # We suffix "Tests" to the base name because GoogleTest has been configured to
+  # expect all unit test executables to end with this string. See
+  # ${CMAKE_CURRENT_SOURCE_DIR}/lit.cfg.py.
+  set(name ${basename}Tests)
 
+  add_unittest(KitsuneUnitTests ${name} ${ARGN})
+
+  # We have to explicitly do this for clang. add_unittests will do the
+  # equivalent for the entries in ${LINK_LLVM_COMPONENTS}.
   list(TRANSFORM CLANG_LINK_COMPONENTS PREPEND "clang")
   target_link_libraries(${name} PRIVATE ${CLANG_LINK_COMPONENTS})
   target_link_libraries(${name} PRIVATE LLVMTestingSupport)
@@ -60,3 +64,19 @@ add_subdirectory(Config)
 add_subdirectory(Core)
 add_subdirectory(Passes)
 add_subdirectory(Support)
+
+# We probably don't need to do this after the unit tests are configured, but we
+# might as well do it late, just in case.
+configure_lit_site_cfg(
+  ${CMAKE_CURRENT_SOURCE_DIR}/lit.site.cfg.py.in
+  ${CMAKE_CURRENT_BINARY_DIR}/lit.site.cfg.py
+  MAIN_CONFIG
+  ${CMAKE_CURRENT_SOURCE_DIR}/lit.cfg.py
+  PATHS
+  "KITSUNE_BINARY_DIR"
+  "KITSUNE_SOURCE_DIR"
+)
+
+add_lit_testsuite(check-kitsune-unit "Running the Kitsune unit tests"
+  ${CMAKE_CURRENT_BINARY_DIR}
+  DEPENDS KitsuneUnitTests)
