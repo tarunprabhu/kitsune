@@ -45,7 +45,4 @@ if (CMAKE_COMPILER_IS_GNUCXX)
   list(APPEND LLVM_COMPILE_FLAGS "-Wno-dangling-else")
 endif ()
 
-add_kitrt_unittest(KitrtUtilsTests
-  EnvVarUtilsTest.cpp
-  MiscUtilsTest.cpp
-)
+add_subdirectory(common)
