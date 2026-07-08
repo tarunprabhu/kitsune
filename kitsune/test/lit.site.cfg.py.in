@@ -2,26 +2,11 @@
 
 import sys
 
-config.shlibext = "@SHLIBEXT@"
-config.llvm_src_root = path(r"@LLVM_SOURCE_DIR@")
-config.llvm_obj_root = path(r"@LLVM_BINARY_DIR@")
-config.llvm_tools_dir = lit_config.substitute(path(r"@LLVM_TOOLS_DIR@"))
-config.llvm_libs_dir = lit_config.substitute(path(r"@LLVM_LIBS_DIR@"))
-config.llvm_shlib_dir = lit_config.substitute(path(r"@SHLIBDIR@"))
-config.llvm_version_major = @LLVM_VERSION_MAJOR@
-config.llvm_version_minor = @LLVM_VERSION_MINOR@
-config.lit_tools_dir = path(r"@LLVM_LIT_TOOLS_DIR@")
-config.kitsune_lit_site_cfg = __file__
-config.kitsune_obj_root = path(r"@KITSUNE_BINARY_DIR@")
-config.kitsune_src_root = path(r"@KITSUNE_SOURCE_DIR@")
-config.clang_lib_dir = path(r"@CMAKE_LIBRARY_OUTPUT_DIRECTORY@")
-config.host_triple = "@LLVM_HOST_TRIPLE@"
-config.target_triple = "@LLVM_TARGET_TRIPLE@"
-config.host_cc = "@CMAKE_C_COMPILER@"
-config.host_cxx = "@CMAKE_CXX_COMPILER@"
-config.host_arch = "@HOST_ARCH@"
-config.python_executable = "@Python3_EXECUTABLE@"
-config.llvm_external_lit = path(r"@LLVM_EXTERNAL_LIT@")
+config.llvm_binary_dir = path(r"@LLVM_BINARY_DIR@")
+config.llvm_source_dir = path(r"@LLVM_SOURCE_DIR@")
+config.llvm_tools_dir = path(r"@LLVM_TOOLS_DIR@")
+config.kitsune_binary_dir = path(r"@KITSUNE_BINARY_DIR@")
+config.kitsune_source_dir = path(r"@KITSUNE_SOURCE_DIR@")
 config.kitsune_gcc_install_dir = r"@KITSUNE_GCC_INSTALL_DIR@"
 config.kitsune_sysroot = r"@KITSUNE_SYSROOT@"
 config.kitsune_c_enabled = @KITSUNE_C_ENABLED@
@@ -36,24 +21,21 @@ config.kitsune_opencilk_enabled = @KITSUNE_OPENCILK_ENABLED@
 config.kitsune_qthreads_enabled = @KITSUNE_QTHREADS_ENABLED@
 config.kitsune_realm_enabled = @KITSUNE_REALM_ENABLED@
 config.kitsune_examples = @KITSUNE_BUILD_EXAMPLES@
-config.kitsune_examples_obj_root = path(r"@KITSUNE_EXAMPLES_BINARY_DIR@")
 config.kitsune_emb_pass_plugin_demo = path(r"@KITSUNE_EMB_PASS_PLUGIN_DEMO_DYLIB@")
 config.kitsune_pass_plugin_demo = path(r"@KITSUNE_PASS_PLUGIN_DEMO_DYLIB@")
 config.kitsune_tt_plugin_demo = path(r"@KITSUNE_TT_PLUGIN_DEMO_DYLIB@")
+config.python_executable = r"@Python3_EXECUTABLE@"
+config.shlibext = "@SHLIBEXT@"
+
+# We have long had names for the Kitsune frontends as cmake variables, so might
+# as well use them, though we do not expect them to change from their defaults.
 config.kitcc = "@KITSUNE_C_FRONTEND@"
 config.kitxx = "@KITSUNE_CXX_FRONTEND@"
 config.kitfc = "@KITSUNE_Fortran_FRONTEND@"
 
-# These are currently hard-coded here, but if we ever decide that the names of
-# these utilities could be made configurable, we need only change them here.
-config.kit_config = "kit-config"
-config.kit_enc = "kit-enc"
-config.kit_mbc = "kit-mbc"
-config.kit_sort = "kit-sort"
-
 import lit.llvm
 lit.llvm.initialize(lit_config, config)
 
-# Let the main config do the real work.
+# Load the main configuration file.
 lit_config.load_config(
-    config, os.path.join(config.kitsune_src_root, "test", "lit.cfg.py"))
+    config, os.path.join(config.kitsune_source_dir, "test", "lit.cfg.py"))

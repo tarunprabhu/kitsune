@@ -3,14 +3,14 @@
 # Check that the values of the command line options used by the opencilk tapir
 # target are validated when passed to lld.
 #
-# RUN: not %lld -mllvm --tapir=opencilk \
+# RUN: not wasm-ld -mllvm --tapir=opencilk \
 # RUN:         -mllvm --tapir-opencilk-runtime-bc= \
 # RUN:         -m wasm64 --no-entry -o /dev/null %S/input/empty.o 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=BC
 #
 # BC: error: option '--tapir-opencilk-runtime-bc' has invalid value ''
 #
-# RUN: not %lld -mllvm --tapir=opencilk \
+# RUN: not wasm-ld -mllvm --tapir=opencilk \
 # RUN:         -mllvm --tapir-opencilk-runtime-bc=noexist \
 # RUN:         -m wasm64 --no-entry -o /dev/null %S/input/empty.o 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=BC-NOEXIST
@@ -19,7 +19,7 @@
 # BC-NOEXIST-SAME: Could not open input file
 # BC-NOEXIST-SAME: No such file or directory
 #
-# RUN: not %lld -mllvm --tapir=opencilk \
+# RUN: not wasm-ld -mllvm --tapir=opencilk \
 # RUN:         -mllvm --tapir-opencilk-runtime-bc=%S/input/bogus.ll \
 # RUN:         -m wasm64 --no-entry -o /dev/null %S/input/empty.o 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=BC-CONTENTS
