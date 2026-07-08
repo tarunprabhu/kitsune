@@ -2,8 +2,6 @@
 
 import sys
 
-config.llvm_external_lit = path(r"@LLVM_EXTERNAL_LIT@")
-config.lit_tools_dir = path(r"@LLVM_LIT_TOOLS_DIR@")
 config.llvm_tools_dir = path(r"@LLVM_TOOLS_DIR@")
 config.kitrt_binary_dir = path(r"@KITRT_BINARY_DIR@")
 config.kitrt_source_dir = path(r"@KITRT_SOURCE_DIR@")
@@ -15,7 +13,7 @@ config.kitsune_opencilk_enabled = @KITSUNE_OPENCILK_ENABLED@
 config.kitsune_qthreads_enabled = @KITSUNE_QTHREADS_ENABLED@
 config.kitsune_realm_enabled = @KITSUNE_REALM_ENABLED@
 config.kitsune_papi_enabled = @KITSUNE_PAPI_ENABLED@
-config.python_executable = "@Python3_EXECUTABLE@"
+config.python_executable = r"@Python3_EXECUTABLE@"
 
 import lit.llvm
 lit.llvm.initialize(lit_config, config)
