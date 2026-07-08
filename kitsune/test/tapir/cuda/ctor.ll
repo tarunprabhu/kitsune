@@ -17,7 +17,7 @@
 ; DEFAULT: @[[HANDLE:[.]kitcuda[.].+]] = internal global ptr null
 ;
 ; DEFAULT: @llvm.global_ctors = appending global
-; DEFAULT-SAME: { i32 65536, ptr @[[CTOR:[.]kitcuda[.]ctor.*]], ptr null }
+; DEFAULT-SAME: { i32 65535, ptr @[[CTOR:[.]kitcuda[.]ctor.*]], ptr null }
 ;
 ; DEFAULT: define {{.*}} @[[DTOR:[.]kitcuda[.]dtor.*]]{{[ ]*}}(
 ; DEFAULT: %[[HD:.+]] = load ptr, ptr @[[HANDLE]]

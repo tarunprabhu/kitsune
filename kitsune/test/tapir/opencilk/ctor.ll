@@ -26,7 +26,7 @@
 ;
 ; ------------------------------------------------------------------------------
 ; DEFAULT: @llvm.global_ctors = appending global
-; DEFAULT-SAME: { i32 65536, ptr @[[CTOR:[.]kitocilk[.]ctor.*]], ptr null }
+; DEFAULT-SAME: { i32 65535, ptr @[[CTOR:[.]kitocilk[.]ctor.*]], ptr null }
 ;
 ; DEFAULT: define {{.*}} @[[DTOR:[.]kitocilk[.]dtor.*]]{{[ ]*}}(
 ; DEFAULT: call {{.+}} @llvm.kit.runtime.finalize(i32 8)
