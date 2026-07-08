@@ -5,7 +5,7 @@
 ; RUN:     | FileCheck %s -check-prefix DEFAULT
 ;
 ; DEFAULT: @llvm.global_ctors = appending global
-; DEFAULT-SAME: { i32 65536, ptr @[[CTOR:[.]kitqthr[.]ctor.*]], ptr null }
+; DEFAULT-SAME: { i32 65535, ptr @[[CTOR:[.]kitqthr[.]ctor.*]], ptr null }
 ;
 ; DEFAULT: define {{.*}} @[[DTOR:[.]kitqthr[.]dtor.*]]{{[ ]*}}(
 ; DEFAULT: call {{.+}} @llvm.kit.runtime.finalize(i32 32)

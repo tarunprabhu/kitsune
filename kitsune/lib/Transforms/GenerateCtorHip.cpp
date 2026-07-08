@@ -277,9 +277,9 @@ void GenerateCtorHip::run(Module &m) {
   Function *dtor = createDtor(m, gBundleHandle);
   Function *ctor = createCtor(m, *devM, dtor, gBundle, gBundleHandle);
 
-  // Set the priority of this ctor to be very low so it is one of the last to
-  // run.
-  appendToGlobalCtors(m, ctor, 65536);
+  // The priority must be in the range [101,65535] with larger values having
+  // lower priority relative to other global constructors in @llvm.global_ctors.
+  appendToGlobalCtors(m, ctor, 65535);
 }
 
 void llvm::detail::genCtorHip(Module &m, detail::GetTLI getTLI,

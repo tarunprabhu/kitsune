@@ -17,7 +17,7 @@
 ; DEFAULT: @[[HANDLE:[.]kithip[.].+]] = internal global ptr null
 ;
 ; DEFAULT: @llvm.global_ctors = appending global
-; DEFAULT-SAME: { i32 65536, ptr @[[CTOR:[.]kithip[.]ctor.*]], ptr null }
+; DEFAULT-SAME: { i32 65535, ptr @[[CTOR:[.]kithip[.]ctor.*]], ptr null }
 ;
 ; FIXME: There is a bug where calling __kithip_finalize raises a segmentation
 ; fault or some other error which looks like memory corruption bug. As a

@@ -117,9 +117,9 @@ void GenerateCtorOpenMP::run(Module &m) {
   Function *dtor = createDtor(m);
   Function *ctor = createCtor(m, dtor);
 
-  // Set the priority of this ctor to be very low so it is one of the last to
-  // run.
-  appendToGlobalCtors(m, ctor, 65536);
+  // The priority must be in the range [101,65535] with larger values having
+  // lower priority relative to other global constructors in @llvm.global_ctors.
+  appendToGlobalCtors(m, ctor, 65535);
 }
 
 void llvm::detail::genCtorOpenMP(Module &m, detail::GetTLI getTLI,
