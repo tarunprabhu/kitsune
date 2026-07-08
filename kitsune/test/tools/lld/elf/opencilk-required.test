@@ -4,7 +4,7 @@
 # Check that an appropriate error is emitted when these options are not
 # provided.
 #
-# RUN: not %lld -mllvm --tapir=opencilk \
+# RUN: not ld.lld -mllvm --tapir=opencilk \
 # RUN:     -m elf_x86_64 -o /dev/null %S/input/empty.s 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=RUNTIME-BC
 #

@@ -4,7 +4,7 @@
 # Check that an appropriate error is emitted when these options are not
 # provided.
 #
-# RUN: not %lld -mllvm --tapir=opencilk \
+# RUN: not ld64.lld -mllvm --tapir=opencilk \
 # RUN:         -arch x86_64 -platform_version macos 10.4.0 10.4.0 \
 # RUN:         -o /dev/null %S/input/empty.a 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=RUNTIME-BC

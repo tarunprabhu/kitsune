@@ -3,11 +3,11 @@
 # When passing --tapir=hip to opt directly, some options are required. Check
 # that an appropriate error is emitted when these options are not provided.
 #
-# RUN: not %lld -mllvm --tapir=hip \
+# RUN: not ld.lld -mllvm --tapir=hip \
 # RUN:     -m elf_x86_64 -o /dev/null %S/input/empty.s 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=ARCH
 #
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
+# RUN: not ld.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
 # RUN:     -m elf_x86_64 -o /dev/null %S/input/empty.s 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=RUNTIME-BCS
 #

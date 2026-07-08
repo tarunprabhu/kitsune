@@ -2,7 +2,7 @@
 ; same as the input
 ;
 ; RUN: %kit-sort %s | FileCheck %s
-; RUN: cat %s | kit-sort %s | FileCheck %s
+; RUN: cat %s | %kit-sort %s | FileCheck %s
 ;
 ; CHECK-DAG: declare void @f1()
 ; CHECK-DAG: declare void @f2(i32)

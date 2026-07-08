@@ -4,7 +4,7 @@
 # target are validated when passed to lld.
 #
 # ------------------------------------------------------------------------------
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch= \
+# RUN: not ld.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch= \
 # RUN:         -mllvm --tapir-hip-runtime-bcs=%S/input/libdevice-amd.ll \
 # RUN:         -m elf_x86_64 -o /dev/null %S/input/empty.s 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=ARCH
@@ -12,25 +12,25 @@
 # ARCH: error: option '--tapir-hip-arch' has invalid value ''
 #
 # ------------------------------------------------------------------------------
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
+# RUN: not ld.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
 # RUN:         -mllvm --tapir-hip-runtime-bcs= \
 # RUN:         -m elf_x86_64 -o /dev/null %S/input/empty.s 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=BC
 #
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
+# RUN: not ld.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
 # RUN:         -mllvm --tapir-hip-runtime-bcs=,,, \
 # RUN:         -m elf_x86_64 -o /dev/null %S/input/empty.s 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=BC
 #
 # BC: error: option '--tapir-hip-runtime-bcs' requires at least one valid value
 #
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
+# RUN: not ld.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
 # RUN:         -mllvm --tapir-hip-runtime-bcs=noexist \
 # RUN:         -m elf_x86_64 -o /dev/null %S/input/empty.s 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=BC-NOEXIST
 #
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
-# RUN:         -mllvm --tapir-hip-runtime-bcs=%S/input/libdevice-amd.ll,noexist \
+# RUN: not ld.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
+# RUN:         -mllvm --tapir-hip-runtime-bcs=%S/input/non-existent.ll \
 # RUN:         -m elf_x86_64 -o /dev/null %S/input/empty.s 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=BC-NOEXIST
 #
@@ -38,7 +38,7 @@
 # BC-NOEXIST-SAME: Could not open input file
 # BC-NOEXIST-SAME: No such file or directory
 #
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
+# RUN: not ld.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
 # RUN:         -mllvm --tapir-hip-runtime-bcs=%S/input/bogus.ll \
 # RUN:         -m elf_x86_64 -o /dev/null %S/input/empty.s 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=BC-CONTENTS
@@ -47,7 +47,7 @@
 # BC-CONTENTS-SAME: expected top-level entity
 #
 # ------------------------------------------------------------------------------
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
+# RUN: not ld.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
 # RUN:         -mllvm --tapir-hip-runtime-bcs=%S/input/libdevice-amd.ll \
 # RUN:         -mllvm --tapir-hip-features= \
 # RUN:         -m elf_x86_64 -o /dev/null %S/input/empty.s 2>&1 \
@@ -56,13 +56,13 @@
 # FEATURES: error: option '--tapir-hip-features' has invalid value ''
 #
 # ------------------------------------------------------------------------------
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
+# RUN: not ld.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
 # RUN:         -mllvm --tapir-hip-runtime-bcs=%S/input/libdevice-amd.ll \
 # RUN:         -mllvm --tapir-hip-sramecc= \
 # RUN:         -m elf_x86_64 -o /dev/null %S/input/empty.s 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=SRAMECC
 #
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
+# RUN: not ld.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
 # RUN:         -mllvm --tapir-hip-runtime-bcs=%S/input/libdevice-amd.ll \
 # RUN:         -mllvm --tapir-hip-sramecc=1 \
 # RUN:         -m elf_x86_64 -o /dev/null %S/input/empty.s 2>&1 \
@@ -72,13 +72,13 @@
 # SRAMECC-SAME: Cannot find option named '{{.*}}'
 #
 # ------------------------------------------------------------------------------
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
+# RUN: not ld.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
 # RUN:         -mllvm --tapir-hip-runtime-bcs=%S/input/libdevice-amd.ll \
 # RUN:         -mllvm --tapir-hip-xnack= \
 # RUN:         -m elf_x86_64 -o /dev/null %S/input/empty.s 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=XNACK
 #
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
+# RUN: not ld.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
 # RUN:         -mllvm --tapir-hip-runtime-bcs=%S/input/libdevice-amd.ll \
 # RUN:         -mllvm --tapir-hip-xnack=1 \
 # RUN:         -m elf_x86_64 -o /dev/null %S/input/empty.s 2>&1 \
@@ -88,43 +88,43 @@
 # XNACK-SAME: Cannot find option named '{{.*}}'
 #
 # ------------------------------------------------------------------------------
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
+# RUN: not ld.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
 # RUN:         -mllvm --tapir-hip-runtime-bcs=%S/input/libdevice-amd.ll \
 # RUN:         -mllvm --tapir-gpu-tpb= \
 # RUN:         -m elf_x86_64 -o /dev/null %S/input/empty.s 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=TPB
 #
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
+# RUN: not ld.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
 # RUN:         -mllvm --tapir-hip-runtime-bcs=%S/input/libdevice-amd.ll \
 # RUN:         -mllvm --tapir-gpu-tpb=ten \
 # RUN:         -m elf_x86_64 -o /dev/null %S/input/empty.s 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=TPB
 #
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
+# RUN: not ld.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
 # RUN:         -mllvm --tapir-hip-runtime-bcs=%S/input/libdevice-amd.ll \
 # RUN:         -mllvm --tapir-gpu-tpb=0 \
 # RUN:         -m elf_x86_64 -o /dev/null %S/input/empty.s 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=RANGE
 #
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
+# RUN: not ld.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
 # RUN:         -mllvm --tapir-hip-runtime-bcs=%S/input/libdevice-amd.ll \
 # RUN:         -mllvm --tapir-gpu-tpb=1025 \
 # RUN:         -m elf_x86_64 -o /dev/null %S/input/empty.s 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=RANGE
 #
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
+# RUN: not ld.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
 # RUN:         -mllvm --tapir-hip-runtime-bcs=%S/input/libdevice-amd.ll \
 # RUN:         -mllvm --tapir-gpu-max-tpb= \
 # RUN:         -m elf_x86_64 -o /dev/null %S/input/empty.s 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=TPB
 #
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
+# RUN: not ld.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
 # RUN:         -mllvm --tapir-hip-runtime-bcs=%S/input/libdevice-amd.ll \
 # RUN:         -mllvm --tapir-gpu-max-tpb=0 \
 # RUN:         -m elf_x86_64 -o /dev/null %S/input/empty.s 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=RANGE
 #
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
+# RUN: not ld.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
 # RUN:         -mllvm --tapir-hip-runtime-bcs=%S/input/libdevice-amd.ll \
 # RUN:         -mllvm --tapir-gpu-max-tpb=1025 \
 # RUN:         -m elf_x86_64 -o /dev/null %S/input/empty.s 2>&1 \

@@ -3,12 +3,12 @@
 # When passing --tapir=cuda to lld directly, some options are required. Check
 # that an appropriate error is emitted when these options are not provided.
 #
-# RUN: not %lld -mllvm --tapir=cuda \
+# RUN: not ld64.lld -mllvm --tapir=cuda \
 # RUN:         -arch x86_64 -platform_version macos 10.4.0 10.4.0 \
 # RUN:         -o /dev/null %S/input/empty.a 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=ARCH
 #
-# RUN: not %lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
+# RUN: not ld64.lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
 # RUN:         -arch x86_64 -platform_version macos 10.4.0 10.4.0 \
 # RUN:         -o /dev/null %S/input/empty.a 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=RUNTIME-BC

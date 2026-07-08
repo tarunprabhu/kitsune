@@ -4,7 +4,7 @@
 # target are validated when passed to lld.
 #
 # ------------------------------------------------------------------------------
-# RUN: not %lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch= \
+# RUN: not ld.lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch= \
 # RUN:         -mllvm --tapir-cuda-runtime-bc=%S/input/libdevice-nv.ll \
 # RUN:         -m elf_x86_64 -o /dev/null %S/input/empty.s 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=ARCH
@@ -12,14 +12,14 @@
 # ARCH: error: option '--tapir-cuda-arch' has invalid value ''
 #
 # ------------------------------------------------------------------------------
-# RUN: not %lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
+# RUN: not ld.lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
 # RUN:         -mllvm --tapir-cuda-runtime-bc= \
 # RUN:         -m elf_x86_64 -o /dev/null %S/input/empty.s 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=BC
 #
 # BC: error: option '--tapir-cuda-runtime-bc' has invalid value ''
 #
-# RUN: not %lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
+# RUN: not ld.lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
 # RUN:         -mllvm --tapir-cuda-runtime-bc=noexist \
 # RUN:         -m elf_x86_64 -o /dev/null %S/input/empty.s 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=BC-NOEXIST
@@ -28,7 +28,7 @@
 # BC-NOEXIST-SAME: Could not open input file
 # BC-NOEXIST-SAME: No such file or directory
 #
-# RUN: not %lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
+# RUN: not ld.lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
 # RUN:         -mllvm --tapir-cuda-runtime-bc=%S/input/bogus.ll \
 # RUN:         -m elf_x86_64 -o /dev/null %S/input/empty.s 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=BC-CONTENTS
@@ -37,7 +37,7 @@
 # BC-CONTENTS-SAME: expected top-level entity
 #
 # ------------------------------------------------------------------------------
-# RUN: not %lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
+# RUN: not ld.lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
 # RUN:         -mllvm --tapir-cuda-runtime-bc=%S/input/libdevice-nv.ll \
 # RUN:         -mllvm --tapir-cuda-virt-arch= \
 # RUN:         -m elf_x86_64 -o /dev/null %S/input/empty.s 2>&1 \
@@ -46,7 +46,7 @@
 # VIRTARCH: error: option '--tapir-cuda-virt-arch' has invalid value ''
 #
 # ------------------------------------------------------------------------------
-# RUN: not %lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
+# RUN: not ld.lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
 # RUN:         -mllvm --tapir-cuda-runtime-bc=%S/input/libdevice-nv.ll \
 # RUN:         -mllvm --tapir-cuda-features= \
 # RUN:         -m elf_x86_64 -o /dev/null %S/input/empty.s 2>&1 \
@@ -55,43 +55,43 @@
 # FEATURES: error: option '--tapir-cuda-features' has invalid value ''
 #
 # ------------------------------------------------------------------------------
-# RUN: not %lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
+# RUN: not ld.lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
 # RUN:         -mllvm --tapir-cuda-runtime-bc=%S/input/libdevice-nv.ll \
 # RUN:         -mllvm --tapir-gpu-tpb= \
 # RUN:         -m elf_x86_64 -o /dev/null %S/input/empty.s 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=TPB
 #
-# RUN: not %lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
+# RUN: not ld.lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
 # RUN:         -mllvm --tapir-cuda-runtime-bc=%S/input/libdevice-nv.ll \
 # RUN:         -mllvm --tapir-gpu-tpb=ten \
 # RUN:         -m elf_x86_64 -o /dev/null %S/input/empty.s 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=TPB
 #
-# RUN: not %lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
+# RUN: not ld.lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
 # RUN:         -mllvm --tapir-cuda-runtime-bc=%S/input/libdevice-nv.ll \
 # RUN:         -mllvm --tapir-gpu-tpb=0 \
 # RUN:         -m elf_x86_64 -o /dev/null %S/input/empty.s 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=RANGE
 #
-# RUN: not %lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
+# RUN: not ld.lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
 # RUN:         -mllvm --tapir-cuda-runtime-bc=%S/input/libdevice-nv.ll \
 # RUN:         -mllvm --tapir-gpu-tpb=1025 \
 # RUN:         -m elf_x86_64 -o /dev/null %S/input/empty.s 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=RANGE
 #
-# RUN: not %lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
+# RUN: not ld.lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
 # RUN:         -mllvm --tapir-cuda-runtime-bc=%S/input/libdevice-nv.ll \
 # RUN:         -mllvm --tapir-gpu-max-tpb= \
 # RUN:         -m elf_x86_64 -o /dev/null %S/input/empty.s 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=TPB
 #
-# RUN: not %lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
+# RUN: not ld.lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
 # RUN:         -mllvm --tapir-cuda-runtime-bc=%S/input/libdevice-nv.ll \
 # RUN:         -mllvm --tapir-gpu-max-tpb=0 \
 # RUN:         -m elf_x86_64 -o /dev/null %S/input/empty.s 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=RANGE
 #
-# RUN: not %lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
+# RUN: not ld.lld -mllvm --tapir=cuda -mllvm --tapir-cuda-arch=sm_86 \
 # RUN:         -mllvm --tapir-cuda-runtime-bc=%S/input/libdevice-nv.ll \
 # RUN:         -mllvm --tapir-gpu-max-tpb=1025 \
 # RUN:         -m elf_x86_64 -o /dev/null %S/input/empty.s 2>&1 \

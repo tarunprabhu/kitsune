@@ -1,7 +1,7 @@
 # When passing --tapir=custom to opt directly, some options are required. Check
 # that an appropriate error is emitted when these options are not provided.
 #
-# RUN: not %lld -mllvm --tapir=custom \
+# RUN: not ld.lld -mllvm --tapir=custom \
 # RUN:     -m elf_x86_64 -o /dev/null %S/input/empty.s 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=PLUGIN
 #
