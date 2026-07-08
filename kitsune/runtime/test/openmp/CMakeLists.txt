@@ -1,1 +1,1 @@
-add_kitrt_systest(kitompNumThreadsTest.c)
+add_kitrt_systest(ompNumThreadsTest.c)
