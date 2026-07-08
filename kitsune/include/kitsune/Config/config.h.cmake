@@ -94,7 +94,7 @@
 
 // The basename of the dynamic library containing Kitsune's runtime. This does
 // not contain any platform-specific prefixes or extensions.
-#define KITRT_DSO "@KITRT@"
+#define KITRT_DSO "@KITRT_DSO@"
 
 // The basename of the static archive containing Kitsune's runtime. This does
 // not contain any platform-specific prefixes or extensions.

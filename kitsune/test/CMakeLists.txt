@@ -81,7 +81,7 @@ set(KITSUNE_TEST_PARAMS
 )
 
 list(APPEND KITSUNE_TEST_DEPS
-  ${KITRT}
+  ${KITRT_DSO}
   KitrtTests
   KitrtUnitTests
   KitsuneUnitTests

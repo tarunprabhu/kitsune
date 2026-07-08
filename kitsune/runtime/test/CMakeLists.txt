@@ -1,7 +1,6 @@
 # This target is only present so the system tests can be added as dependencies
-# to it. This target itself is a dependency for the main `check-kitsune` target
-# that will run all Kitsune tests. It is also a dependency for the `check-kitrt`
-# target that will only run the runtime tests.
+# to it. This target itself is a dependency for the `check-kitsune` and
+# `check-kitrt` lit targets.
 add_custom_target(KitrtTests)
 set_target_properties(KitrtTests PROPERTIES FOLDER "Kitrt/Tests")
 
@@ -11,15 +10,15 @@ set_target_properties(KitrtTests PROPERTIES FOLDER "Kitrt/Tests")
 # the executable is the same as the source file with the ".test" suffix
 # appended to it.
 function(add_kitrt_systest source)
-  set(test_name ${source}.test)
-  add_executable(${test_name} ${source})
+  set(name ${source}.test)
+  add_executable(${name} ${source})
 
-  target_include_directories(${test_name} PUBLIC ${KITSUNE_SOURCE_DIR}/runtime/)
-  target_link_libraries(${test_name} PUBLIC ${KITRT})
-  set_target_properties(${test_name} PROPERTIES
+  target_include_directories(${name} PUBLIC ${KITRT_SOURCE_DIR})
+  target_link_libraries(${name} PUBLIC ${KITRT_DSO})
+  set_target_properties(${name} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
-  add_dependencies(KitrtTests ${test_name})
+  add_dependencies(KitrtTests ${name})
 endfunction()
 
 add_subdirectory(openmp)

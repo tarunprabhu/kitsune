@@ -5,7 +5,7 @@
 # license.
 #
 
-set(KITRT_OBJLIB "${KITRT}_objlib")
+set(KITRT_OBJLIB "kitrt_objlib")
 
 add_library(${KITRT_OBJLIB} OBJECT
   kitrt.cpp
@@ -128,14 +128,14 @@ if (KITSUNE_QTHREADS_ENABLED)
     ${KITSUNE_QTHREADS_LIBS})
 endif ()
 
-add_library(${KITRT} SHARED
+add_library(${KITRT_DSO} SHARED
   $<TARGET_OBJECTS:${KITRT_OBJLIB}>)
 
 # We have added libraries ${KITRT_OBJLIB}. We need all of those for the actual
 # Kitsune shared library.
 get_target_property(KITRT_LINK_LIBRARIES ${KITRT_OBJLIB} LINK_LIBRARIES)
 foreach (LIB IN LISTS KITRT_LINK_LIBRARIES)
-  target_link_libraries(${KITRT} PUBLIC ${LIB})
+  target_link_libraries(${KITRT_DSO} PUBLIC ${LIB})
 endforeach()
 
 # We have to set the output directory explicitly, otherwise these will go to the
@@ -151,7 +151,7 @@ endforeach()
 # identical library versions are available at exactly the same locations. We may
 # want to consider doing something a bit more robust in the future, but for now,
 # this should be ok.
-set_target_properties(${KITRT} PROPERTIES
+set_target_properties(${KITRT_DSO} PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${KITSUNE_RESOURCE_INTDIR}/lib
   INSTALL_RPATH_USE_LINK_PATH TRUE)
 
@@ -163,9 +163,9 @@ set_target_properties(${KITRT} PROPERTIES
 set(RPATH_RELATIVE_TO_ORIGIN
   "\$ORIGIN/"
   "\$ORIGIN/${LLVM_DEFAULT_TARGET_TRIPLE}/")
-set_property(TARGET ${KITRT} APPEND
+set_property(TARGET ${KITRT_DSO} APPEND
   PROPERTY BUILD_RPATH "${RPATH_RELATIVE_TO_ORIGIN}")
-set_property(TARGET ${KITRT} APPEND
+set_property(TARGET ${KITRT_DSO} APPEND
   PROPERTY INSTALL_RPATH "${RPATH_RELATIVE_TO_ORIGIN}")
 
 add_library(${KITRT_STATIC} STATIC
@@ -174,5 +174,5 @@ add_library(${KITRT_STATIC} STATIC
 set_target_properties(${KITRT_STATIC} PROPERTIES
   ARCHIVE_OUTPUT_DIRECTORY ${KITSUNE_RESOURCE_INTDIR}/lib)
 
-install(TARGETS ${KITRT} ${KITRT_STATIC}
+install(TARGETS ${KITRT_DSO} ${KITRT_STATIC}
   DESTINATION ${KITSUNE_RESOURCE_DIR}/lib/)
