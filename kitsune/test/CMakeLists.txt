@@ -66,20 +66,6 @@ configure_lit_site_cfg(
   "CMAKE_LIBRARY_OUTPUT_DIRECTORY"
 )
 
-# These subdirectories contain lit files to configure other test suites. These
-# include Kitsune's core unit tests, and both lit and unit tests for Kitsune's
-# runtime. These are all configured as part of this step to ensure that the
-# `check-kitsune` target will run everything. If we configured these separately
-# they would be run as separate lit invocations. Not the worst, but this way
-# feels cleaner when testing.
-add_subdirectory(rt)
-add_subdirectory(rt-unit)
-add_subdirectory(unit)
-
-set(KITSUNE_TEST_PARAMS
-  USE_Z3_SOLVER=0
-)
-
 list(APPEND KITSUNE_TEST_DEPS
   ${KITRT_DSO}
   KitrtTests
@@ -113,40 +99,29 @@ if (KITSUNE_Fortran_ENABLED)
   list(APPEND KITSUNE_TEST_DEPS flang-rt)
   list(APPEND KITSUNE_TEST_DEPS ${KITSUNE_Fortran_FRONTEND})
 endif()
-
 if (KITSUNE_BUILD_EXAMPLES)
   list(APPEND KITSUNE_TEST_DEPS kit-emb-pass-plugin-demo)
   list(APPEND KITSUNE_TEST_DEPS kit-pass-plugin-demo)
   list(APPEND KITSUNE_TEST_DEPS kit-tt-plugin-demo)
 endif ()
-
 if(TARGET llvm-lto)
   list(APPEND KITSUNE_TEST_DEPS llvm-lto)
 endif()
-
-add_custom_target(kitsune-test-depends DEPENDS ${KITSUNE_TEST_DEPS})
-set_target_properties(kitsune-test-depends PROPERTIES FOLDER "Kitsune tests")
 
 # This will run all Kitsune's tests, including unit tests as well those of
 # Kitsune's runtime (again, including its unit tests).
 add_lit_testsuite(check-kitsune "Running the Kitsune regression tests"
   ${CMAKE_CURRENT_BINARY_DIR}
-  PARAMS ${KITSUNE_TEST_PARAMS}
+  ${KITSUNE_BINARY_DIR}/unittests
+  ${KITRT_BINARY_DIR}/unittests
+  ${KITRT_BINARY_DIR}/test
   DEPENDS ${KITSUNE_TEST_DEPS})
-set_target_properties(check-kitsune PROPERTIES FOLDER "Kitsune tests")
 
-# This will only run the system and unit tests for Kitsune's runtime.
-add_lit_testsuite(check-kitrt "Running Kitsune runtime regression tests"
-  ${CMAKE_CURRENT_BINARY_DIR}/rt
-  ${CMAKE_CURRENT_BINARY_DIR}/rt-unit
-  PARAMS ${KITSUNE_TEST_PARAMS}
-  DEPENDS ${KITSUNE_TEST_DEPS})
-set_target_properties(check-kitrt PROPERTIES FOLDER "Kitrt tests")
-
+# The first argument to `add_lit_testsuites` is the project name. In the rest
+# of LLVM, this is always passed in all-uppercase. It is not clear why, but we
+# follow the same convention.
 add_lit_testsuites(KITSUNE ${CMAKE_CURRENT_SOURCE_DIR}
-  PARAMS ${KITSUNE_TEST_PARAMS}
-  DEPENDS ${KITSUNE_TEST_DEPS}
-  FOLDER "Kitsune tests")
+  DEPENDS ${KITSUNE_TEST_DEPS})
 
 # Add a target that is used to run the tests for the LLVM projects that are
 # relevant for kitsune.
@@ -205,7 +180,3 @@ add_custom_target(check-kit-config DEPENDS check-kitsune-tools-kit-config)
 add_custom_target(check-kit-enc DEPENDS check-kitsune-tools-kit-enc)
 add_custom_target(check-kit-mbc DEPENDS check-kitsune-tools-kit-mbc)
 add_custom_target(check-kit-sort DEPENDS check-kitsune-tools-kit-sort)
-
-# Convenience targets for the system and unit tests for Kitsune's runtime.
-add_custom_target(check-kitrt-system DEPENDS check-kitsune-rt)
-add_custom_target(check-kitrt-unit DEPENDS check-kitsune-rt-unit)

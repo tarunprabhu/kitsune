@@ -2,13 +2,11 @@
 # to it. This target itself is a dependency for the `check-kitsune` and
 # `check-kitrt` lit targets.
 add_custom_target(KitrtTests)
-set_target_properties(KitrtTests PROPERTIES FOLDER "Kitrt/Tests")
 
-# Add a "system" test to the list of kitrt's system tests. These are
-# executables, linked against libkitrt, that will be invoked by kitrt's lit
-# tests. The single source file is compiled to form the executable. The name of
-# the executable is the same as the source file with the ".test" suffix
-# appended to it.
+# Add a "system" test to the list of kitrt's system tests. This will generate an
+# executable, linked against libkitrt, from the single source file, SOURCE. This
+# executable will be invoked from the RUN directives present in SOURCE. The name
+# of the resulting executable will be ${SOURCE}.test.
 function(add_kitrt_systest source)
   set(name ${source}.test)
   add_executable(${name} ${source})
@@ -22,3 +20,36 @@ function(add_kitrt_systest source)
 endfunction()
 
 add_subdirectory(openmp)
+
+# We probably don't need to do this after the unit tests are configured, but we
+# might as well do it late, just in case.
+llvm_canonicalize_cmake_booleans(
+  KITSUNE_KOKKOS_ENABLED
+  KITSUNE_CUDA_ENABLED
+  KITSUNE_HIP_ENABLED
+  KITSUNE_LAMBDA_ENABLED
+  KITSUNE_OMPTASK_ENABLED
+  KITSUNE_OPENCILK_ENABLED
+  KITSUNE_QTHREADS_ENABLED
+  KITSUNE_REALM_ENABLED
+  KITSUNE_PAPI_ENABLED
+)
+
+configure_lit_site_cfg(
+  ${CMAKE_CURRENT_SOURCE_DIR}/lit.site.cfg.py.in
+  ${CMAKE_CURRENT_BINARY_DIR}/lit.site.cfg.py
+  MAIN_CONFIG
+  ${CMAKE_CURRENT_SOURCE_DIR}/lit.cfg.py
+  PATHS
+  "LLVM_EXTERNAL_LIT"
+  "LLVM_LIT_TOOLS_DIR"
+  "LLVM_TOOLS_DIR"
+  "KITRT_BINARY_DIR"
+  "KITRT_SOURCE_DIR"
+)
+
+# We want the check-kitrt target to run both Kitrt's lit and unit tests.
+add_lit_testsuite(check-kitrt "Running the Kitrt regression tests"
+  ${CMAKE_CURRENT_BINARY_DIR}
+  ${KITRT_BINARY_DIR}/unittests
+  DEPENDS KitrtTests KitrtUnitTests)

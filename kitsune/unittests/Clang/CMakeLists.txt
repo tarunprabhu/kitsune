@@ -6,6 +6,6 @@ set(CLANG_LINK_COMPONENTS
   KitAST
 )
 
-add_kitsune_unittest(KitClangTests
+add_kitsune_unittest(KitClang
   ReductionUtilsTest.cpp
 )
