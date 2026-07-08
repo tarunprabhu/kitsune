@@ -4,7 +4,7 @@ set(LLVM_LINK_COMPONENTS
   Core
 )
 
-add_kitsune_unittest(KitCoreTests
+add_kitsune_unittest(KitCore
   ArgAttrsTest.cpp
   ArgUtilsTest.cpp
   AttrsImplTest.cpp

@@ -10,6 +10,6 @@ set(LLVM_LINK_COMPONENTS
   Passes
 )
 
-add_kitsune_unittest(KitPassesTests
+add_kitsune_unittest(KitPasses
   PipelineUtilsTest.cpp
 )

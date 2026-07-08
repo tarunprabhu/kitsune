@@ -11,7 +11,7 @@ set(LLVM_LINK_COMPONENTS
   KitCore
 )
 
-add_kitsune_unittest(KitAnalysisTests
+add_kitsune_unittest(KitAnalysis
   TTObjectsAnalysisTest.cpp
 )
 
