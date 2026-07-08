@@ -3,11 +3,10 @@
 import sys
 
 config.llvm_build_mode = lit_config.substitute("@LLVM_BUILD_MODE@")
+config.kitrt_obj_root = path(r"@KITRT_BINARY_DIR@")
+config.kitrt_src_root = path(r"@KITRT_SOURCE_DIR@")
 config.kitsune_obj_root = path(r"@KITSUNE_BINARY_DIR@")
 config.kitsune_src_root = path(r"@KITSUNE_SOURCE_DIR@")
-
-config.kitrt_obj_root = os.path.join(config.kitsune_obj_root, "runtime")
-config.kitrt_src_root = os.path.join(config.kitsune_src_root, "runtime")
 
 # Let the main config do the real work.
 lit_config.load_config(
