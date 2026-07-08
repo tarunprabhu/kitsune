@@ -10,7 +10,7 @@ from lit.llvm import llvm_config
 from lit.llvm.subst import FindTool
 from lit.llvm.subst import ToolSubst
 
-# name: The name of this test suite.
+# The name of this test suite.
 config.name = "Kitrt"
 
 # The test format to use to interpret tests.
@@ -27,10 +27,10 @@ config.excludes = [
     "input"
 ]
 
-# test_source_root: The root path where tests are located.
+# The root path where tests are located.
 config.test_source_root = os.path.join(config.kitrt_source_dir, "test")
 
-# test_exec_root: The root path where tests should be run.
+# The root path where tests should be run.
 config.test_exec_root = os.path.join(config.kitrt_binary_dir, "test")
 
 llvm_config.use_default_substitutions()
@@ -53,14 +53,6 @@ config.substitutions.append(
 tool_dirs = [config.llvm_tools_dir]
 tools = [ "not" ]
 llvm_config.add_tool_substitutions(tools, tool_dirs)
-
-# Features. We need the registered target features because the underlying
-# runtimes used by certain tapir targets are only available on some platforms.
-def calculate_arch_features(arch_string):
-    features = []
-    for arch in arch_string.split():
-        features.append(arch.lower() + "-registered-target")
-    return features
 
 if config.kitsune_papi_enabled:
     config.available_features.add("kitsune-papi")
