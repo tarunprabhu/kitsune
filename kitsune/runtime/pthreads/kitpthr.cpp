@@ -1,4 +1,4 @@
-//===- kitpthr.cpp - Kitsune runtime targeting POSIX threads (pthreads) ---===//
+//===- kitpthr.cpp - Runtime for Kitsune's pthreads tapir target ----------===//
 //
 // Copyright (c) 2021, 2023 Los Alamos National Security, LLC.
 // All rights reserved.
@@ -48,16 +48,14 @@
 //  SUCH DAMAGE.
 //
 //===----------------------------------------------------------------------===//
+//
+// This targets the POSIX threads (pthreads) library.
+//
+//===----------------------------------------------------------------------===//
 
+#include "kitpthr.h"
 #include "kitrt.h"
 
-#include <algorithm>
-#include <cstdarg>
-#include <cstdint>
-#include <cstdio>
-#include <cstdlib>
-#include <errno.h>
-#include <limits.h>
 #include <pthread.h>
 #include <vector>
 

@@ -1,0 +1,1 @@
+add_kitrt_systest(oclkNumThreadsTest.c)
