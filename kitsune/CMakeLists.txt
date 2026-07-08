@@ -832,8 +832,8 @@ endif()
 # The name of Kitsune's main runtime library. This is created here because it is
 # also used by the tests to ensure that check-kitsune does not run before the
 # runtime has been built.
-set(KITRT "kitrt")
-set(KITRT_STATIC "${KITRT}_static")
+set(KITRT_DSO "kitrt")
+set(KITRT_STATIC "kitrt_static")
 
 # Notes for the subdirectories below
 #
