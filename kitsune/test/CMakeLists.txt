@@ -127,18 +127,26 @@ endif()
 add_custom_target(kitsune-test-depends DEPENDS ${KITSUNE_TEST_DEPS})
 set_target_properties(kitsune-test-depends PROPERTIES FOLDER "Kitsune tests")
 
+# This will run all Kitsune's tests, including unit tests as well those of
+# Kitsune's runtime (again, including its unit tests).
 add_lit_testsuite(check-kitsune "Running the Kitsune regression tests"
   ${CMAKE_CURRENT_BINARY_DIR}
   PARAMS ${KITSUNE_TEST_PARAMS}
-  DEPENDS ${KITSUNE_TEST_DEPS}
-)
+  DEPENDS ${KITSUNE_TEST_DEPS})
 set_target_properties(check-kitsune PROPERTIES FOLDER "Kitsune tests")
+
+# This will only run the system and unit tests for Kitsune's runtime.
+add_lit_testsuite(check-kitrt "Running Kitsune runtime regression tests"
+  ${CMAKE_CURRENT_BINARY_DIR}/rt
+  ${CMAKE_CURRENT_BINARY_DIR}/rt-unit
+  PARAMS ${KITSUNE_TEST_PARAMS}
+  DEPENDS ${KITSUNE_TEST_DEPS})
+set_target_properties(check-kitrt PROPERTIES FOLDER "Kitrt tests")
 
 add_lit_testsuites(KITSUNE ${CMAKE_CURRENT_SOURCE_DIR}
   PARAMS ${KITSUNE_TEST_PARAMS}
   DEPENDS ${KITSUNE_TEST_DEPS}
-  FOLDER "Kitsune tests"
-)
+  FOLDER "Kitsune tests")
 
 # Add a target that is used to run the tests for the LLVM projects that are
 # relevant for kitsune.
@@ -201,15 +209,3 @@ add_custom_target(check-kit-sort DEPENDS check-kitsune-tools-kit-sort)
 # Convenience targets for the system and unit tests for Kitsune's runtime.
 add_custom_target(check-kitrt-system DEPENDS check-kitsune-rt)
 add_custom_target(check-kitrt-unit DEPENDS check-kitsune-rt-unit)
-
-# This is a convenience target that runs both the unit, and system, tests for
-# Kitsune's runtime. Aesthetically, this is not the most pleasing, because,
-# unlike check-kitsune, it will not invoke lit just once, but twice; once for
-# the unit tests, and once for the system tests. In LLVM, the compiler and the
-# runtimes are tested separately, so it is probably reasonable to reorganize
-# the tests so check-kitsune runs only the compiler tests (both system and
-# unit), while check-kitrt runs only the runtime tests - again, both system and
-# unit. On balance, it is probably more convenient to have check-kitsune test
-# both the compiler and the runtime since the two are very closely tied to one
-# another.
-add_custom_target(check-kitrt DEPENDS check-kitrt-unit check-kitrt-system)

@@ -41,9 +41,16 @@ config.test_exec_root = os.path.join(config.kitrt_obj_root, "test")
 
 llvm_config.use_default_substitutions()
 
-config.substitutions.append(("%b", os.path.join(config.kitrt_obj_root, "test")))
+# The %exe substitution computes the name of the executable from the name of the
+# source file it is contained in. The executable is always found in
+# `${KITSUNE_BINARY_DIR}/test/<subdir>/<filename>.test`. For instance, for the
+# file ${KITSUNE_SOURCE_DIR}/runtime/test/openmp/ompNumThreadsTest.cpp, %exe
+# must be ${KITSUNE_BINARY_DIR}/runtime/test/openmp/ompNumThreadsTest.cpp.test`.
+# The commands `basename` and `dirname` will only be available on POSIX-ish
+# systems, but those are the only systems that we currently support.
 config.substitutions.append(
-    ("%exe", f'{config.test_exec_root}/$(basename $(dirname %s))/$(basename %s).test'))
+    ("%exe",
+     f'{config.test_exec_root}/$(basename $(dirname %s))/$(basename %s).test'))
 config.substitutions.append(("%PATH%", config.environment["PATH"]))
 
 # For each occurrence of a clang tool name, replace it with the full path to
