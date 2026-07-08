@@ -4,7 +4,7 @@
 # target are validated when passed to lld.
 #
 # ------------------------------------------------------------------------------
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch= \
+# RUN: not ld64.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch= \
 # RUN:         -mllvm --tapir-hip-runtime-bcs=%S/input/libdevice-amd.ll \
 # RUN:         -arch x86_64 -platform_version macos 10.4.0 10.4.0 \
 # RUN:         -o /dev/null %S/input/empty.a 2>&1 \
@@ -13,13 +13,13 @@
 # ARCH: error: option '--tapir-hip-arch' has invalid value ''
 #
 # ------------------------------------------------------------------------------
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
+# RUN: not ld64.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
 # RUN:         -mllvm --tapir-hip-runtime-bcs= \
 # RUN:         -arch x86_64 -platform_version macos 10.4.0 10.4.0 \
 # RUN:         -o /dev/null %S/input/empty.a 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=BC
 #
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
+# RUN: not ld64.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
 # RUN:         -mllvm --tapir-hip-runtime-bcs=,,, \
 # RUN:         -arch x86_64 -platform_version macos 10.4.0 10.4.0 \
 # RUN:         -o /dev/null %S/input/empty.a 2>&1 \
@@ -27,14 +27,14 @@
 #
 # BC: error: option '--tapir-hip-runtime-bcs' requires at least one valid value
 #
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
+# RUN: not ld64.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
 # RUN:         -mllvm --tapir-hip-runtime-bcs=noexist \
 # RUN:         -arch x86_64 -platform_version macos 10.4.0 10.4.0 \
 # RUN:         -o /dev/null %S/input/empty.a 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=BC-NOEXIST
 #
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
-# RUN:         -mllvm --tapir-hip-runtime-bcs=%S/input/libdevice-amd.ll,noexist \
+# RUN: not ld64.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
+# RUN:         -mllvm --tapir-hip-runtime-bcs=%S/input/non-existent.ll \
 # RUN:         -arch x86_64 -platform_version macos 10.4.0 10.4.0 \
 # RUN:         -o /dev/null %S/input/empty.a 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=BC-NOEXIST
@@ -43,7 +43,7 @@
 # BC-NOEXIST-SAME: Could not open input file
 # BC-NOEXIST-SAME: No such file or directory
 #
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
+# RUN: not ld64.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
 # RUN:         -mllvm --tapir-hip-runtime-bcs=%S/input/bogus.ll \
 # RUN:         -arch x86_64 -platform_version macos 10.4.0 10.4.0 \
 # RUN:         -o /dev/null %S/input/empty.a 2>&1 \
@@ -53,7 +53,7 @@
 # BC-CONTENTS-SAME: expected top-level entity
 #
 # ------------------------------------------------------------------------------
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
+# RUN: not ld64.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
 # RUN:         -mllvm --tapir-hip-runtime-bcs=%S/input/libdevice-amd.ll \
 # RUN:         -mllvm --tapir-hip-features= \
 # RUN:         -arch x86_64 -platform_version macos 10.4.0 10.4.0 \
@@ -63,14 +63,14 @@
 # FEATURES: error: option '--tapir-hip-features' has invalid value ''
 #
 # ------------------------------------------------------------------------------
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
+# RUN: not ld64.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
 # RUN:         -mllvm --tapir-hip-runtime-bcs=%S/input/libdevice-amd.ll \
 # RUN:         -mllvm --tapir-hip-sramecc= \
 # RUN:         -arch x86_64 -platform_version macos 10.4.0 10.4.0 \
 # RUN:         -o /dev/null %S/input/empty.a 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=SRAMECC
 #
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
+# RUN: not ld64.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
 # RUN:         -mllvm --tapir-hip-runtime-bcs=%S/input/libdevice-amd.ll \
 # RUN:         -mllvm --tapir-hip-sramecc=1 \
 # RUN:         -arch x86_64 -platform_version macos 10.4.0 10.4.0 \
@@ -81,14 +81,14 @@
 # SRAMECC-SAME: Cannot find option named '{{.*}}'
 #
 # ------------------------------------------------------------------------------
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
+# RUN: not ld64.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
 # RUN:         -mllvm --tapir-hip-runtime-bcs=%S/input/libdevice-amd.ll \
 # RUN:         -mllvm --tapir-hip-xnack= \
 # RUN:         -arch x86_64 -platform_version macos 10.4.0 10.4.0 \
 # RUN:         -o /dev/null %S/input/empty.a 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=XNACK
 #
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
+# RUN: not ld64.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
 # RUN:         -mllvm --tapir-hip-runtime-bcs=%S/input/libdevice-amd.ll \
 # RUN:         -mllvm --tapir-hip-xnack=1 \
 # RUN:         -arch x86_64 -platform_version macos 10.4.0 10.4.0 \
@@ -99,49 +99,49 @@
 # XNACK-SAME: Cannot find option named '{{.*}}'
 #
 # ------------------------------------------------------------------------------
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
+# RUN: not ld64.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
 # RUN:         -mllvm --tapir-hip-runtime-bcs=%S/input/libdevice-amd.ll \
 # RUN:         -mllvm --tapir-gpu-tpb= \
 # RUN:         -arch x86_64 -platform_version macos 10.4.0 10.4.0 \
 # RUN:         -o /dev/null %S/input/empty.a 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=TPB
 #
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
+# RUN: not ld64.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
 # RUN:         -mllvm --tapir-hip-runtime-bcs=%S/input/libdevice-amd.ll \
 # RUN:         -mllvm --tapir-gpu-tpb=ten \
 # RUN:         -arch x86_64 -platform_version macos 10.4.0 10.4.0 \
 # RUN:         -o /dev/null %S/input/empty.a 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=TPB
 #
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
+# RUN: not ld64.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
 # RUN:         -mllvm --tapir-hip-runtime-bcs=%S/input/libdevice-amd.ll \
 # RUN:         -mllvm --tapir-gpu-tpb=0 \
 # RUN:         -arch x86_64 -platform_version macos 10.4.0 10.4.0 \
 # RUN:         -o /dev/null %S/input/empty.a 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=RANGE
 #
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
+# RUN: not ld64.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
 # RUN:         -mllvm --tapir-hip-runtime-bcs=%S/input/libdevice-amd.ll \
 # RUN:         -mllvm --tapir-gpu-tpb=1025 \
 # RUN:         -arch x86_64 -platform_version macos 10.4.0 10.4.0 \
 # RUN:         -o /dev/null %S/input/empty.a 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=RANGE
 #
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
+# RUN: not ld64.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
 # RUN:         -mllvm --tapir-hip-runtime-bcs=%S/input/libdevice-amd.ll \
 # RUN:         -mllvm --tapir-gpu-max-tpb= \
 # RUN:         -arch x86_64 -platform_version macos 10.4.0 10.4.0 \
 # RUN:         -o /dev/null %S/input/empty.a 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=TPB
 #
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
+# RUN: not ld64.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
 # RUN:         -mllvm --tapir-hip-runtime-bcs=%S/input/libdevice-amd.ll \
 # RUN:         -mllvm --tapir-gpu-max-tpb=0 \
 # RUN:         -arch x86_64 -platform_version macos 10.4.0 10.4.0 \
 # RUN:         -o /dev/null %S/input/empty.a 2>&1 \
 # RUN:     | FileCheck %s --check-prefix=RANGE
 #
-# RUN: not %lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
+# RUN: not ld64.lld -mllvm --tapir=hip -mllvm --tapir-hip-arch=gfx90c \
 # RUN:         -mllvm --tapir-hip-runtime-bcs=%S/input/libdevice-amd.ll \
 # RUN:         -mllvm --tapir-gpu-max-tpb=1025 \
 # RUN:         -arch x86_64 -platform_version macos 10.4.0 10.4.0 \

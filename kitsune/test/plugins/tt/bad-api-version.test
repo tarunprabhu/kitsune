@@ -10,8 +10,8 @@
 # RUN: rm -rf %t
 # RUN: mkdir %t
 #
-# RUN: %kitxx -I%kit_inc_dir -I%llvm_obj_inc_dir -I%llvm_src_inc_dir %sysroot \
-# RUN:     -fPIC -shared \
+# RUN: %kitxx -fPIC -shared %sysroot -I%kitsune_source_dir/include \
+# RUN:     -I%llvm_binary_dir/include -I%llvm_source_dir/include \
 # RUN:     %if system-darwin %{ -Xlinker -undefined -Xlinker suppress %} \
 # RUN:     -o %t/bad-api-version%shlibext %S/input/bad-api-version.cpp
 #
