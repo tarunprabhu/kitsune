@@ -118,7 +118,7 @@ static ident_t staticLoopLoc = {
 
 /// Get the number of threads available for parallel execution. For consistency,
 /// this should be used instead of directly calling omp_get_max_threads().
-extern "C" unsigned __kitomp_num_threads() { return omp_get_max_threads(); }
+extern "C" uint32_t __kitomp_num_threads() { return omp_get_max_threads(); }
 
 /// The number of partial reductions to perform in parallel.
 ///
@@ -129,7 +129,7 @@ extern "C" int64_t __kitomp_reduce_num_partials(int64_t n) {
   // There might be something smarter that can be done once we support a proper
   // reduction tree, but since we only support a reduction tree of depth 1, we
   // just return the number of CPU's on the system.
-  unsigned numPartials = __kitomp_num_threads();
+  uint32_t numPartials = __kitomp_num_threads();
 
   __kitrt_message(LABEL, "Number of partial reductions: %d", numPartials);
 
@@ -209,7 +209,7 @@ extern "C" void __kitomp_initialize(void) {
 
   __kitrt_message(LABEL, "Initializing Kitsune runtime (openmp)");
 
-  unsigned numThreads = __kitrt_num_threads("OMP_NUM_THREADS");
+  uint32_t numThreads = __kitrt_num_threads("OMP_NUM_THREADS");
   __kitrt_env_set("OMP_NUM_THREADS", numThreads);
 
   // The second argument in the call to __kmpc_begin is currently unused, per

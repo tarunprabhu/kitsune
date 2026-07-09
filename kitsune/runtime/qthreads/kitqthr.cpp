@@ -89,7 +89,7 @@ struct KitQthrThrdArgs {
 /// Get the number of parallel workers that are available. Generally, this
 /// function should be used when this must be queried instead of calling
 /// `qthread_num_workers()`.
-extern "C" unsigned __kitqthr_num_workers() { return qthread_num_workers(); }
+extern "C" uint32_t __kitqthr_num_workers() { return qthread_num_workers(); }
 
 /// The number of partial reductions to perform in parallel.
 ///
@@ -100,7 +100,7 @@ extern "C" int64_t __kitqthr_reduce_num_partials(int64_t n) {
   // There might be something smarter that can be done once we support a proper
   // reduction tree, but since we only support a reduction tree of depth 1, this
   // will do.
-  unsigned numPartials = __kitqthr_num_workers();
+  uint32_t numPartials = __kitqthr_num_workers();
 
   __kitrt_message(LABEL, "Number of partial reductions: %d", numPartials);
 
@@ -153,7 +153,7 @@ extern "C" void __kitqthr_launch(ThreadFunc f, int64_t start, int64_t end,
          "__kitqthr_launch expects loop iterations in range [0,NUM_THREADS)");
   __kitrt_message(LABEL, "Launching multithreaded loop: [%ld,%ld)", start, end);
 
-  unsigned numThrds = __kitqthr_num_workers();
+  uint32_t numThrds = __kitqthr_num_workers();
 
   // If only a single worker is available, take the quick way out.
   if (numThrds == 1) {
@@ -202,7 +202,7 @@ extern "C" void __kitqthr_initialize(void) {
 
   __kitrt_message(LABEL, "Initializing Kitsune runtime (qthreads)");
 
-  unsigned numThreads = __kitrt_num_threads(nullptr);
+  uint32_t numThreads = __kitrt_num_threads(nullptr);
 
   __kitrt_env_set("QT_NUM_SHEPHERDS", numThreads);
   __kitrt_env_set("QT_NUM_WORKERS_PER_SHEPHERD", 1);

@@ -70,7 +70,7 @@ extern "C" {
 
 void __kitocilk_finalize(void);
 void __kitocilk_initialize(void);
-unsigned __kitocilk_num_workers(void);
+uint32_t __kitocilk_num_workers(void);
 int64_t __kitocilk_reduce_num_partials(int64_t n);
 
 #ifdef __cplusplus
