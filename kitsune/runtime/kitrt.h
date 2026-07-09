@@ -54,7 +54,6 @@
 #include "kitpapi.h"
 #include "kittimer.h"
 
-#include <cassert>
 #include <cstdint>
 #include <string>
 

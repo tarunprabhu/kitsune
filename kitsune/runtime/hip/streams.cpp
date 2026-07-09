@@ -52,7 +52,9 @@
 
 #include "kithip.h"
 #include "kithip_rtinfo.h"
+
 #include <algorithm>
+#include <cassert>
 #include <deque>
 #include <mutex>
 #include <sys/syscall.h>
@@ -115,7 +117,7 @@ void *__kithip_get_thread_stream() {
 void __kithip_sync_thread_stream(void *opaque_stream) {
   assert(opaque_stream != nullptr && "kitrt[hip]: unexpected null stream!");
   using namespace kithip_rt;
-  
+
   hipStream_t hip_stream = (hipStream_t)opaque_stream;
   HIP_SAFE_CALL(hipStreamSynchronize(hip_stream));
 
