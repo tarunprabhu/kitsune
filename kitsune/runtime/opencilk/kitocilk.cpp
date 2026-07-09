@@ -73,7 +73,7 @@ extern "C" void __cilkrts_internal_set_nworkers(unsigned nworkers);
 /// Get the number of workers available for parallel work. For consistency, this
 /// function should be used when this must be queried instead of calling
 /// `__cilkrts_get_nworkers` directly.
-extern "C" unsigned __kitocilk_num_workers() {
+extern "C" uint32_t __kitocilk_num_workers() {
   return __cilkrts_get_nworkers();
 }
 
@@ -86,7 +86,7 @@ extern "C" int64_t __kitocilk_reduce_num_partials(int64_t n) {
   // There might be something smarter that can be done once we support a proper
   // reduction tree, but since we only support a reduction tree of depth 1, we
   // just return the number of available workers.
-  unsigned numPartials = __kitocilk_num_workers();
+  uint32_t numPartials = __kitocilk_num_workers();
 
   __kitrt_message(LABEL, "Number of partial reductions: %d", numPartials);
 
@@ -105,7 +105,7 @@ extern "C" void __kitocilk_initialize(void) {
 
   __kitrt_message(LABEL, "Initializing Kitsune runtime (opencilk)");
 
-  unsigned numThreads = __kitrt_num_threads("CILK_NWORKERS");
+  uint32_t numThreads = __kitrt_num_threads("CILK_NWORKERS");
 
   // If the OpenCilk runtime has already been initialized, the number of workers
   // will have been set to the number of CPU's detected on the system. In that
@@ -114,7 +114,7 @@ extern "C" void __kitocilk_initialize(void) {
   // CPU's. Since we cannot control the order in which the initializers are run,
   // for consistency, we always disallow increasing the number of workers beyond
   // the number of CPU's.
-  unsigned numCPUs = __kitrt_num_cpus();
+  uint32_t numCPUs = __kitrt_num_cpus();
   if (numThreads > __kitrt_num_cpus())
     __kitrt_fatal(
         LABEL,

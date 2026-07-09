@@ -134,14 +134,14 @@ extern "C" void __kitrt_print_stack_trace(void) {
   }
 }
 
-unsigned nearestPowerOf2LE(unsigned n) {
-  unsigned long p = 1;
+uint32_t nearestPowerOf2LE(uint32_t n) {
+  uint64_t p = 1;
   while (p <= n)
     p <<= 1;
   return p >> 1;
 }
 
-extern "C" unsigned __kitrt_num_threads(const char *alternate) {
+extern "C" uint32_t __kitrt_num_threads(const char *alternate) {
   const char *primary = "KIT_NUM_THREADS";
   unsigned numThreads = 0;
 
@@ -158,7 +158,7 @@ extern "C" unsigned __kitrt_num_threads(const char *alternate) {
   return __kitrt_num_cpus();
 }
 
-extern "C" unsigned __kitrt_num_cpus(void) {
+extern "C" uint32_t __kitrt_num_cpus(void) {
   __kitrt_message(LABEL, "Determining number of CPUs");
 
   // The standard says that std::thread::hardware_concurrency() should only be

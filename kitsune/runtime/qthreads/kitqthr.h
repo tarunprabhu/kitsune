@@ -72,7 +72,7 @@ typedef void (*KitQthrThrdFunc)(int64_t start, int64_t end, void *args);
 
 void __kitqthr_finalize(void);
 void __kitqthr_initialize(void);
-unsigned __kitqthr_num_workers(void);
+uint32_t __kitqthr_num_workers(void);
 void __kitqthr_launch_call(KitQthrThrdFunc f, int64_t start, int64_t end,
                            int64_t grainSize, void *args);
 int64_t __kitqthr_reduce_num_partials(int64_t n);

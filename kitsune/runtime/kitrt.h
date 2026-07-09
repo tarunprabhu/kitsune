@@ -113,7 +113,7 @@ void __kitrt_print_stack_trace(void);
 /**
  * Get the nearest power of 2 that is less than or equal to \p n.
  */
-unsigned nearestPowerOf2LE(unsigned n);
+uint32_t nearestPowerOf2LE(uint32_t n);
 
 /**
  * *** EXPERIMENTAL: This is a new interface between the compiler and
@@ -149,13 +149,13 @@ typedef struct _kitrt_inst_mix_info {
  * A value is valid if it is a positive, base 10 integer, whose value is at most
  * 2^31 - 1.
  */
-unsigned __kitrt_num_threads(const char *alternate);
+uint32_t __kitrt_num_threads(const char *alternate);
 
 /**
  * Get the number of CPU cores on the system. If this could not be determined,
  * return 1.
  */
-unsigned __kitrt_num_cpus(void);
+uint32_t __kitrt_num_cpus(void);
 
 #ifdef __cplusplus
 } // extern "C"
