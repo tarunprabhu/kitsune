@@ -1,4 +1,4 @@
-//===- kittimer.cpp - Utilities to collect timings ------------------------===//
+//===- timer.cpp - Utilities to collect timings ---------------------------===//
 //
 // Copyright (c) 2021, 2023 Los Alamos National Security, LLC.
 // All rights reserved.
@@ -60,13 +60,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kittimer.h"
+#include "common/timer.h"
 
 #include <algorithm>
 #include <ctime>
 #include <map>
 #include <mutex>
-#include <set>
 #include <string>
 #include <vector>
 
@@ -157,7 +156,8 @@ public:
   }
 
   const std::string &name(TimerID timer) const { return tnames.at(timer); }
-
+  bool empty() const { return tmap.empty(); }
+  size_t size() const { return tmap.size(); }
   Timers::const_iterator begin() const { return tmap.begin(); }
   Timers::const_iterator end() const { return tmap.end(); }
 };
@@ -172,7 +172,7 @@ public:
 static KitTimerContext *gTimerCtx = nullptr;
 
 extern "C" void __kittimer_start(TimerID timer, ThreadID thrd,
-                                const char *name) {
+                                 const char *name) {
   gTimerCtx->get(timer, thrd, name).tick();
 }
 
@@ -183,30 +183,65 @@ extern "C" void __kittimer_stop(TimerID timer, ThreadID thrd) {
 extern "C" void __kittimer_initialize(void) { gTimerCtx = new KitTimerContext; }
 
 extern "C" void __kittimer_finalize(void) {
-  std::vector<std::tuple<const char *, ThreadID, const Timer *>> timers;
-  for (const auto &[key, timer] : *gTimerCtx) {
-    TimerID timerID = key.first;
-    ThreadID thrd = key.second;
-    const std::string &name = gTimerCtx->name(timerID);
+  using ThreadIDs = std::vector<ThreadID>;
+  using IDs = std::vector<std::tuple<TimerID, ThreadIDs>>;
 
-    timers.emplace_back(name.c_str(), thrd, &timer);
-  }
-
-  std::set<std::string> seen;
-  std::sort(timers.begin(), timers.end());
-  printf("---\n");
-  for (const auto &[name, thrd, timer] : timers) {
-    if (seen.insert(name).second)
-      printf("\"%s\":\n", name);
-    printf("  %lu: [", thrd);
+  auto printTimes = [&](const Timer &timer) {
     bool comma = false;
-    for (TimeSpan t : *timer) {
+    for (TimeSpan t : timer) {
       if (comma)
         printf(", ");
       printf("%lu", t);
       comma = true;
     }
-    printf("]\n");
+  };
+
+  auto printThreads = [&printTimes](TimerID timerID, ThreadIDs &thrdIDs) {
+    std::sort(thrdIDs.begin(), thrdIDs.end());
+    bool comma = false;
+    for (ThreadID threadID : thrdIDs) {
+      if (comma)
+        printf(",");
+      printf("\n");
+      printf("    \"%ld\": [", threadID);
+      printTimes(gTimerCtx->get(timerID, threadID));
+      printf("]");
+      comma = true;
+    }
+  };
+
+  auto printTimers = [&printThreads](IDs &ids) {
+    bool comma = false;
+    for (auto &[timerID, thrdIDs] : ids) {
+      if (comma)
+        printf(",");
+      printf("\n");
+      printf("  \"%s\": {", gTimerCtx->name(timerID).c_str());
+      printThreads(timerID, thrdIDs);
+      printf("\n  }");
+      comma = true;
+    }
+  };
+
+  if (gTimerCtx->size()) {
+    std::vector<std::pair<TimerID, ThreadID>> ordered;
+    for (const auto &[key, _] : *gTimerCtx)
+      ordered.emplace_back(key.first, key.second);
+    std::sort(ordered.begin(), ordered.end(),
+              [](const auto &p1, const auto &p2) -> bool {
+                return gTimerCtx->name(p1.first) < gTimerCtx->name(p2.first);
+              });
+
+    IDs ids = {{ordered.front().first, {}}};
+    for (const auto &[timerID, thrdID] : ordered) {
+      if (timerID != std::get<TimerID>(ids.back()))
+        ids.emplace_back(timerID, ThreadIDs());
+      std::get<ThreadIDs>(ids.back()).push_back(thrdID);
+    }
+
+    printf("{");
+    printTimers(ids);
+    printf("\n}\n");
   }
 
   delete gTimerCtx;

@@ -9,9 +9,11 @@ set(KITRT_OBJLIB "kitrt_objlib")
 
 add_library(${KITRT_OBJLIB} OBJECT
   kitrt.cpp
-  kittimer.cpp
   memory.cpp
-  memory_map.cpp)
+  memory_map.cpp
+  common/env.cpp
+  common/logging.cpp
+  common/timer.cpp)
 
 add_dependencies(${KITRT_OBJLIB} ${KITRT_DEPENDS})
 
@@ -44,7 +46,7 @@ endif()
 
 if (KITSUNE_PAPI_ENABLED)
   target_sources(${KITRT_OBJLIB} PUBLIC
-    kitpapi.cpp)
+    common/kitpapi.cpp)
 
   target_compile_definitions(${KITRT_OBJLIB} PUBLIC
     KITRT_PAPI_ENABLED)

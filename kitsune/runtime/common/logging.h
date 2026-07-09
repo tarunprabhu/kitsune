@@ -1,4 +1,4 @@
-//===- kittimer.h - Utilities to collect timings ---------------*- C++ -*--===//
+//===- logging.h - Logging utilites for Kitsune's runtime -------*- C++ -*-===//
 //
 // Copyright (c) 2021, Los Alamos National Security, LLC.
 // All rights reserved.
@@ -47,43 +47,71 @@
 //  SUCH DAMAGE.
 //
 //===----------------------------------------------------------------------===//
+//
+// For now, these just write to stderr. We probably don't need anything more
+// sophisticated than this.
+//
+//===----------------------------------------------------------------------===//
 
-#ifndef KITRT_KITTIMER_H
-#define KITRT_KITTIMER_H
-
-#include <cstdint>
+#ifndef KITRT_COMMON_LOGGING_H
+#define KITRT_COMMON_LOGGING_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
 
-/// Unique identifier for a timer.
-using TimerID = uint64_t;
+/**
+ * Print an error message to stderr and terminate the process with an exit code.
+ * \p msg may be a printf-compatible format string. In that case, any optional
+ * arguments must be of the appropriate types.
+ */
+[[noreturn]] void __kitrt_fatal(const char *label, const char *msg, ...);
 
-/// The ID of the thread in which a timer is running.
-using ThreadID = uint64_t;
+/**
+ * Print an error message to stderr. \p msg may be a printf-compatible format
+ * string. In that case, any optional arguments must be of the appropriate
+ * types.
+ */
+void __kitrt_error(const char *label, const char *msg, ...);
 
-/// Initialize the Kitsune's timing context.
-void __kittimer_initialize(void);
+/**
+ * Print a warning message to stderr. \p msg may be a printf-compatible format
+ * string. In that case, any optional arguments must be of the appropriate
+ * types.
+ */
+void __kitrt_warn(const char *label, const char *msg, ...);
 
-/// Cleanup Kitsune's timing context. If any timings were collected, print them
-/// to stdout.
-void __kittimer_finalize(void);
+/**
+ * Print a message to stderr if verbose mode has been enabled. \p msg may be a
+ * printf-compatible format string. In that case, any optional arguments must be
+ * of the appropriate types.
+ */
+void __kitrt_message(const char *label, const char *msg, ...);
 
-/// Start the timer \p timer. \p thrd is the ID of the thread on which the
-/// timer is running. \p name is the name of the timer. The runtime will create
-/// a mapping between \p timer and \p name, but only if \p timer was not used
-/// in an earlier call to this function. Multiple threads can share the a timer
-/// ID. This is useful when measuring the times for individual threads launched,
-/// for instance, when a parallel loop is lowered using a CPU-centric tapir
-/// target.
-void __kittimer_start(TimerID timer, ThreadID thrd, const char *name);
+/**
+ * Print an error message to stderr. \p msg may be a printf-compatible format
+ * string. In that case, any optional arguments must be of the appropriate
+ * types. This does not add a trailing newline after printing the message.
+ */
+void __kitrt_error_noflush(const char *label, const char *msg, ...);
 
-/// Stop the timer \p timer running on a thread with ID \p thrd.
-void __kittimer_stop(TimerID timer, ThreadID thrd);
+/**
+ * Print a warning message to stderr. \p msg may be a printf-compatible format
+ * string. In that case, any optional arguments must be of the appropriate
+ * types. This does not add a trailing newline after printing the message.
+ */
+void __kitrt_warn_noflush(const char *label, const char *msg, ...);
+
+/**
+ * Print a message to stderr if verbose mode has been enabled. \p msg may be a
+ * printf-compatible format string. In that case, any optional arguments must be
+ * of the appropriate types. This does not add a trailing newline after printing
+ * the message.
+ */
+void __kitrt_message_noflush(const char *label, const char *msg, ...);
 
 #ifdef __cplusplus
 } // extern "C"
 #endif // __cplusplus
 
-#endif // KITRT_KITTIMER_H
+#endif // KITRT_COMMON_LOGGING_H

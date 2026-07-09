@@ -50,6 +50,7 @@
 
 #include "kitrt.h"
 #include "memory_map.h"
+#include "common/logging.h"
 
 #include <cstdlib>
 #include <cstring>

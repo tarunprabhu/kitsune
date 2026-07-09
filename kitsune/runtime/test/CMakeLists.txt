@@ -8,17 +8,27 @@ add_custom_target(KitrtTests)
 # executable will be invoked from the RUN directives present in SOURCE. The name
 # of the resulting executable will be ${SOURCE}.test.
 function(add_kitrt_systest source)
+  cmake_parse_arguments(ARG "" "" "INCDIRS;LIBS" ${ARGN})
+
   set(name ${source}.test)
   add_executable(${name} ${source})
 
   target_include_directories(${name} PUBLIC ${KITRT_SOURCE_DIR})
+  if (ARG_INCDIRS)
+    target_include_directories(${name} PUBLIC ${ARG_INCDIRS})
+  endif ()
+
   target_link_libraries(${name} PUBLIC ${KITRT_DSO})
   set_target_properties(${name} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  if (ARG_LIBS)
+    target_link_libraries(${name} PUBLIC ${ARG_LIBS})
+  endif ()
 
   add_dependencies(KitrtTests ${name})
 endfunction()
 
+add_subdirectory(common)
 add_subdirectory(openmp)
 add_subdirectory(pthreads)
 

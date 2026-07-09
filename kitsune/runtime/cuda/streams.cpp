@@ -50,6 +50,8 @@
 
 #include "kitcuda.h"
 #include "kitcuda_dylib.h"
+#include "common/logging.h"
+
 #include <mutex>
 #include <stdio.h>
 #include <sys/syscall.h>
@@ -58,7 +60,7 @@
 #include <algorithm>
 
 
-// Stream creation can be expensive.  We "recycle" them when possible. 
+// Stream creation can be expensive.  We "recycle" them when possible.
 typedef std::deque<CUstream> KitCudaStreamList;
 static KitCudaStreamList _kitcuda_streams;
 static std::mutex _kitcuda_stream_mutex;
@@ -79,11 +81,11 @@ void *__kitcuda_get_thread_stream() {
     cu_stream = _kitcuda_streams.front();
     _kitcuda_streams.pop_front();
     _kitcuda_stream_mutex.unlock();
-    // UNLOCK 
+    // UNLOCK
   } else {
     CU_SAFE_CALL(cuStreamCreate(&cu_stream, CU_STREAM_NON_BLOCKING));
   }
-  
+
   KIT_NVTX_POP();
   return (void *)cu_stream;
 }
@@ -91,7 +93,7 @@ void *__kitcuda_get_thread_stream() {
 void __kitcuda_sync_thread_stream(void *opaque_stream) {
   assert(opaque_stream != nullptr && "unexpected null stream pointer!");
   KIT_NVTX_PUSH("kitcuda:sync_thread_stream", KIT_NVTX_STREAM);
-  
+
   CUstream stream = (CUstream)opaque_stream;
   CU_SAFE_CALL(cuStreamSynchronize_p(stream));
 
@@ -100,13 +102,13 @@ void __kitcuda_sync_thread_stream(void *opaque_stream) {
   _kitcuda_streams.push_back(stream);
   _kitcuda_stream_mutex.unlock();
   // UNLOCK
-  
+
   KIT_NVTX_POP();
 }
 
 void __kitcuda_sync_context() {
   KIT_NVTX_PUSH("kitcuda:sync_context", KIT_NVTX_STREAM);
-  
+
   CUcontext ctx;
   // TODO: We have multiple calls to set the context for the calling
   // thread -- should probably wrap it in a function.
@@ -121,7 +123,7 @@ void __kitcuda_delete_thread_stream(void *opaque_stream) {
   KIT_NVTX_PUSH("kitrt:delete_thread_stream", KIT_NVTX_STREAM);
   CUstream stream = (CUstream)opaque_stream;
 
-  // LOCK 
+  // LOCK
   _kitcuda_stream_mutex.lock();
   auto sit = std::find(_kitcuda_streams.begin(), _kitcuda_streams.end(), stream);
   if (sit != _kitcuda_streams.end()) {
@@ -130,23 +132,23 @@ void __kitcuda_delete_thread_stream(void *opaque_stream) {
   CU_SAFE_CALL(cuStreamDestroy_v2_p(stream));
   _kitcuda_stream_mutex.unlock();
   // UNLOCK
-  
+
   KIT_NVTX_POP();
 }
 
 void __kitcuda_destroy_thread_streams() {
   KIT_NVTX_PUSH("kitrt:delete_thread_streams", KIT_NVTX_STREAM);
 
-  // LOCK 
+  // LOCK
   _kitcuda_stream_mutex.lock();
- 
+
   for (auto &entry : _kitcuda_streams)
     CU_SAFE_CALL(cuStreamDestroy_v2_p(entry));
   _kitcuda_streams.clear();
 
   _kitcuda_stream_mutex.unlock();
   // UNLOCK
-  
+
   KIT_NVTX_POP();
 }
 

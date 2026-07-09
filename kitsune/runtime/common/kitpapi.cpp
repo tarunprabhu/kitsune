@@ -48,9 +48,14 @@
 //  SUCH DAMAGE.
 //
 //===----------------------------------------------------------------------===//
+//
+// These utilities are a convenience wrapper to allow us to add quick
+// instrumentation to record hardware counters using PAPI.
+//
+//===----------------------------------------------------------------------===//
 
 #include "kitpapi.h"
-#include "kitrt.h"
+#include "common/logging.h"
 
 #include <papi.h>
 
