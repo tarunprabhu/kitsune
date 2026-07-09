@@ -7,6 +7,7 @@
 // RUN: env %exe | FileCheck %s --check-prefix=DEFAULT
 //
 // DEFAULT: Number of workers = [[N:[0-9]+]]
+// DEFAULT: Number of shepherds = [[N]]
 //
 // -----------------------------------------------------------------------------
 // Unlike some of the other runtimes. we cannot set the number of threads to a
@@ -18,11 +19,13 @@
 // RUN: env KIT_NUM_THREADS=7 %exe | FileCheck %s --check-prefix=KIT
 //
 // KIT: Number of workers = 7
+// KIT: Number of shepherds = 7
 //
 // -----------------------------------------------------------------------------
 
 #include "qthreads/kitqthr.h"
 
+#include <qthread.h>
 #include <stdio.h>
 
 __attribute__((constructor)) static void ctor(void) { __kitqthr_initialize(); }
@@ -30,14 +33,12 @@ __attribute__((constructor)) static void ctor(void) { __kitqthr_initialize(); }
 __attribute__((destructor)) static void dtor(void) { __kitqthr_finalize(); }
 
 int main(int argc, char *argv[]) {
+  printf("Number of workers = %d\n", __kitqthr_num_workers());
+
   // To make proper use of the cores available on the system, it seems that
   // qthreads must be set to use as many shepherds as there are cores with one
-  // worker per shepherd. Even if __kitqthr_num_workers returns the correct
-  // number of workers, if the number of shepherds is not correct, the
-  // performance of qthreads is generally much worse than, say, OpenMP.
-  //
-  // However, Kitsune's runtime does not expose this. To get that value, we
-  // would have to link against libqthread directly. It is
-  printf("Number of workers = %d\n", __kitqthr_num_workers());
+  // worker per shepherd. Check that we do set these correctly as well.
+  printf("Number of shepherds = %d\n", qthread_num_shepherds());
+
   return 0;
 }
