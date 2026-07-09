@@ -1,0 +1,5 @@
+add_kitrt_systest(timerEmpty.c)
+add_kitrt_systest(timerIterate.c)
+add_kitrt_systest(timerIterateThreads.c)
+add_kitrt_systest(timerPerThread.c)
+add_kitrt_systest(timerSingleThread.c)
