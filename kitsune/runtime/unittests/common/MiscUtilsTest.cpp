@@ -16,7 +16,7 @@ namespace {
 TEST(KitrtUtils, num_cpus) { EXPECT_GE(__kitrt_num_cpus(), 1U); }
 
 TEST(KitrtUtils, num_threads) {
-  unsigned cpus = __kitrt_num_cpus();
+  uint32_t cpus = __kitrt_num_cpus();
   EXPECT_EQ(__kitrt_num_threads(nullptr), cpus);
 
   __kitrt_env_set("KIT_NUM_THREADS", 41U);
@@ -42,7 +42,7 @@ TEST(KitrtUtils, num_threads) {
 }
 
 TEST(KitrtUtils, nearestPowerOf2LE) {
-  auto pow2 = [](unsigned exp) -> unsigned { return 1U << (exp - 1); };
+  auto pow2 = [](uint32_t exp) -> uint32_t { return 1U << (exp - 1); };
 
   EXPECT_EQ(nearestPowerOf2LE(0), 0U);
   EXPECT_EQ(nearestPowerOf2LE(1), 1U);

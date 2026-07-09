@@ -74,7 +74,7 @@ typedef void (*KitPthrThrdFunc)(int64_t start, int64_t end, int64_t grainSize,
 
 void __kitpthr_finalize(void);
 void __kitpthr_initialize(void);
-unsigned __kitpthr_num_threads(void);
+uint32_t __kitpthr_num_threads(void);
 KitPthrContext *__kitpthr_launch(KitPthrThrdFunc f, int64_t start, int64_t end,
                                  int64_t grainSize, void *args);
 int64_t __kitpthr_reduce_num_partials(int64_t n);

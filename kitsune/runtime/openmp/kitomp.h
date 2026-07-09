@@ -73,7 +73,7 @@ void __kitomp_initialize(void);
 void __kitomp_launch(void (*f)(int64_t start, int64_t end, int64_t grainSize,
                                void *args),
                      int64_t start, int64_t end, int64_t grainSize, void *args);
-unsigned __kitomp_num_threads(void);
+uint32_t __kitomp_num_threads(void);
 int64_t __kitomp_reduce_num_partials(int64_t n);
 
 #ifdef __cplusplus
