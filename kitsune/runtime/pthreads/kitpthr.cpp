@@ -56,6 +56,7 @@
 #include "kitpthr.h"
 #include "kitrt.h"
 
+#include <cassert>
 #include <pthread.h>
 #include <vector>
 
