@@ -56,6 +56,7 @@
 // to ${LLVM_MONOREPO_SOURCE_DIR}/openmp/runtime/src.
 #include "kmp.h"
 
+#include <cassert>
 #include <string_view>
 
 #define LABEL "kitomp"

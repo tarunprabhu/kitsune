@@ -54,6 +54,7 @@
 #include "kitrt.h"
 #include "memory_map.h"
 
+#include <cassert>
 #include <mutex>
 #include <string>
 

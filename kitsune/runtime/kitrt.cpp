@@ -51,6 +51,7 @@
 #include "kitrt.h"
 
 #include <algorithm>
+#include <cassert>
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>

@@ -52,6 +52,7 @@
 #include "kithip.h"
 #include "kithip_rtinfo.h"
 
+#include <cassert>
 #include <cmath>
 #include <mutex>
 #include <stdint.h>

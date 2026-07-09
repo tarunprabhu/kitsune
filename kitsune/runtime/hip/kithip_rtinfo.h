@@ -52,6 +52,8 @@
 #ifndef __KITHIP_RTINFO_H_
 #define __KITHIP_RTINFO_H_
 
+#include <assert.h>
+
 #define __HIP_DISABLE_CPP_FUNCTIONS__ // skip extra c++ cruft
 
 // we're only interested in AMD GPUs and HIP (no CUDA).
