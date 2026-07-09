@@ -47,9 +47,14 @@
 //  SUCH DAMAGE.
 //
 //===----------------------------------------------------------------------===//
+//
+// These utilities are a convenience wrapper to allow us to add quick
+// instrumentation to record hardware counters using PAPI.
+//
+//===----------------------------------------------------------------------===//
 
-#ifndef KITRT_KITPAPI_H
-#define KITRT_KITPAPI_H
+#ifndef KITRT_COMMON_KITPAPI_H
+#define KITRT_COMMON_KITPAPI_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -71,6 +76,7 @@ extern "C" {
 ///     __kitpapi_stop(ctx);
 ///
 struct KitPAPIContext;
+typedef struct KitPAPIContext KitPAPIContext;
 
 // The names of the PAPI events that we support. This is a subset of those
 // actually available in PAPI. This interface is intended for Kitsune's
@@ -149,4 +155,4 @@ void __kitpapi_stop(KitPAPIContext *ctx);
 } // extern "C"
 #endif // __cplusplus
 
-#endif // KITRT_KITPAPI_H
+#endif // KITRT_COMMON_KITPAPI_H

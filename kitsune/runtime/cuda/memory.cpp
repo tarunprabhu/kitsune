@@ -51,6 +51,7 @@
 #include "kitcuda.h"
 #include "kitcuda_dylib.h"
 #include "memory_map.h"
+#include "common/logging.h"
 
 #include "kitsune/Config/config.h"
 

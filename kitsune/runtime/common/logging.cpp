@@ -1,0 +1,134 @@
+//===- logging.cpp - Logging utilites for Kitsune's runtime ---------------===//
+//
+// Copyright (c) 2021, Los Alamos National Security, LLC.
+// All rights reserved.
+//
+//  Copyright 2021. Los Alamos National Security, LLC. This software was
+//  produced under U.S. Government contract DE-AC52-06NA25396 for Los
+//  Alamos National Laboratory (LANL), which is operated by Los Alamos
+//  National Security, LLC for the U.S. Department of Energy. The
+//  U.S. Government has rights to use, reproduce, and distribute this
+//  software.  NEITHER THE GOVERNMENT NOR LOS ALAMOS NATIONAL SECURITY,
+//  LLC MAKES ANY WARRANTY, EXPRESS OR IMPLIED, OR ASSUMES ANY LIABILITY
+//  FOR THE USE OF THIS SOFTWARE.  If software is modified to produce
+//  derivative works, such modified software should be clearly marked,
+//  so as not to confuse it with the version available from LANL.
+//
+//  Additionally, redistribution and use in source and binary forms,
+//  with or without modification, are permitted provided that the
+//  following conditions are met:
+//
+//    * Redistributions of source code must retain the above copyright
+//      notice, this list of conditions and the following disclaimer.
+//
+//    * Redistributions in binary form must reproduce the above
+//      copyright notice, this list of conditions and the following
+//      disclaimer in the documentation and/or other materials provided
+//      with the distribution.
+//
+//    * Neither the name of Los Alamos National Security, LLC, Los
+//      Alamos National Laboratory, LANL, the U.S. Government, nor the
+//      names of its contributors may be used to endorse or promote
+//      products derived from this software without specific prior
+//      written permission.
+//
+//  THIS SOFTWARE IS PROVIDED BY LOS ALAMOS NATIONAL SECURITY, LLC AND
+//  CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+//  INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+//  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+//  DISCLAIMED. IN NO EVENT SHALL LOS ALAMOS NATIONAL SECURITY, LLC OR
+//  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+//  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+//  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF
+//  USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+//  ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+//  OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+//  OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+//  SUCH DAMAGE.
+//
+//===----------------------------------------------------------------------===//
+//
+// For now, these just write to stderr. We probably don't need anything more
+// sophisticated than this.
+//
+//===----------------------------------------------------------------------===//
+
+#include "common/logging.h"
+#include "kitrt.h"
+
+#include <cstdarg>
+#include <cstdio>
+#include <cstdlib>
+#include <mutex>
+
+// Write a message to stderr. \p category is optional. If \p is a format string,
+// the variable list of arguments \p args must be of the appropriate types.
+static void __kitrt_log(const char *label, const char *category, bool newline,
+                        const char *msg, va_list args) {
+  static std::mutex mtx;
+  std::lock_guard<std::mutex> guard(mtx);
+
+  // TODO: It would be nice if we could colorize the label.
+  if (label)
+    fprintf(stderr, "%s: ", label);
+  if (category)
+    fprintf(stderr, "%s: ", category);
+  vfprintf(stderr, msg, args);
+  if (newline)
+    fprintf(stderr, "\n");
+}
+
+[[noreturn]] void __kitrt_fatal(const char *label, const char *msg, ...) {
+  va_list args;
+  va_start(args, msg);
+  __kitrt_log(label, "ERROR", true, msg, args);
+  va_end(args);
+
+  std::exit(EXIT_FAILURE);
+}
+
+void __kitrt_error(const char *label, const char *msg, ...) {
+  va_list args;
+  va_start(args, msg);
+  __kitrt_log(label, "ERROR", true, msg, args);
+  va_end(args);
+}
+
+void __kitrt_warn(const char *label, const char *msg, ...) {
+  va_list args;
+  va_start(args, msg);
+  __kitrt_log(label, "WARNING", true, msg, args);
+  va_end(args);
+}
+
+void __kitrt_message(const char *label, const char *msg, ...) {
+  if (__kitrt_verbose_mode()) {
+    va_list args;
+    va_start(args, msg);
+    __kitrt_log(label, nullptr, true, msg, args);
+    va_end(args);
+  }
+}
+
+void __kitrt_error_noflush(const char *label, const char *msg, ...) {
+  va_list args;
+  va_start(args, msg);
+  __kitrt_log(label, "ERROR", false, msg, args);
+  va_end(args);
+}
+
+void __kitrt_warn_noflush(const char *label, const char *msg, ...) {
+  va_list args;
+  va_start(args, msg);
+  __kitrt_log(label, "WARNING", false, msg, args);
+  va_end(args);
+}
+
+void __kitrt_message_noflush(const char *label, const char *msg, ...) {
+  if (__kitrt_verbose_mode()) {
+    va_list args;
+    va_start(args, msg);
+    __kitrt_log(label, nullptr, false, msg, args);
+    va_end(args);
+  }
+}

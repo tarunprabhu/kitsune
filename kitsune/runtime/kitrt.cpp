@@ -49,18 +49,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitrt.h"
+#include "common/env.h"
+#include "common/logging.h"
 
-#include <algorithm>
-#include <cassert>
-#include <cstdarg>
-#include <cstdio>
 #include <cstdlib>
-#include <cstring>
-#include <ctype.h>
 #include <execinfo.h>
-#include <mutex>
-#include <stdexcept>
-#include <string>
 #include <thread>
 
 #define LABEL "kitrt"
@@ -74,15 +67,19 @@ static bool __kitrt_finalized = false;
 // it in a function may be expensive.
 bool _kitrt_verbose_mode = false;
 
-extern "C" void __kitrt_enable_verbose_mode() { _kitrt_verbose_mode = true; }
+extern "C" void __kitrt_enable_verbose_mode(void) {
+  _kitrt_verbose_mode = true;
+}
 
-extern "C" void __kitrt_disable_verbose_mode() { _kitrt_verbose_mode = false; }
+extern "C" void __kitrt_disable_verbose_mode(void) {
+  _kitrt_verbose_mode = false;
+}
 
 extern "C" void __kitrt_set_verbose_mode(bool enable) {
   _kitrt_verbose_mode = enable;
 }
 
-extern "C" void __kitrt_initialize() {
+extern "C" void __kitrt_initialize(void) {
   if (__kitrt_initialized)
     return;
 
@@ -109,7 +106,7 @@ extern "C" void __kitrt_initialize() {
   __kitrt_message(LABEL, "Initialized Kitsune runtime (common)");
 }
 
-extern "C" void __kitrt_finalize() {
+extern "C" void __kitrt_finalize(void) {
   if (__kitrt_finalized)
     return;
 
@@ -124,94 +121,15 @@ extern "C" void __kitrt_finalize() {
   __kitrt_message(LABEL, "Finalized Kitsune runtime (common)");
 }
 
-// Write a message to stderr. \p category is optional. If \p is a format string,
-// the variable list of arguments \p args must be of the appropriate types.
-static void __kitrt_log(const char *label, const char *category, bool newline,
-                        const char *msg, va_list args) {
-  static std::mutex mtx;
-  std::lock_guard<std::mutex> guard(mtx);
-
-  // TODO: It would be nice if we could colorize the label.
-  if (label)
-    fprintf(stderr, "%s: ", label);
-  if (category)
-    fprintf(stderr, "%s: ", category);
-  vfprintf(stderr, msg, args);
-  if (newline)
-    fprintf(stderr, "\n");
-}
-
-static void __kitrt_log(const char *label, bool newline, const char *msg, ...) {
-  va_list args;
-  va_start(args, msg);
-  __kitrt_log(label, nullptr, newline, msg, args);
-  va_end(args);
-}
-
-[[noreturn]] void __kitrt_fatal(const char *label, const char *msg, ...) {
-  va_list args;
-  va_start(args, msg);
-  __kitrt_log(label, "ERROR", true, msg, args);
-  va_end(args);
-
-  std::exit(EXIT_FAILURE);
-}
-
-void __kitrt_error(const char *label, const char *msg, ...) {
-  va_list args;
-  va_start(args, msg);
-  __kitrt_log(label, "ERROR", true, msg, args);
-  va_end(args);
-}
-
-void __kitrt_warn(const char *label, const char *msg, ...) {
-  va_list args;
-  va_start(args, msg);
-  __kitrt_log(label, "WARNING", true, msg, args);
-  va_end(args);
-}
-
-void __kitrt_message(const char *label, const char *msg, ...) {
-  if (__kitrt_verbose_mode()) {
-    va_list args;
-    va_start(args, msg);
-    __kitrt_log(label, nullptr, true, msg, args);
-    va_end(args);
-  }
-}
-
-void __kitrt_error_noflush(const char *label, const char *msg, ...) {
-  va_list args;
-  va_start(args, msg);
-  __kitrt_log(label, "ERROR", false, msg, args);
-  va_end(args);
-}
-
-void __kitrt_warn_noflush(const char *label, const char *msg, ...) {
-  va_list args;
-  va_start(args, msg);
-  __kitrt_log(label, "WARNING", false, msg, args);
-  va_end(args);
-}
-
-void __kitrt_message_noflush(const char *label, const char *msg, ...) {
-  if (__kitrt_verbose_mode()) {
-    va_list args;
-    va_start(args, msg);
-    __kitrt_log(label, nullptr, false, msg, args);
-    va_end(args);
-  }
-}
-
 extern "C" void __kitrt_print_stack_trace(void) {
   const unsigned depth = 25;
   void *trace[depth];
   int size = backtrace(trace, depth);
   if (char **strings = backtrace_symbols(trace, size)) {
-    __kitrt_log("kitrt", true, "stack trace (%d frames)", size);
+    __kitrt_message(LABEL, "stack trace (%d frames)", size);
     for (int i = 0; i < size; i++)
-      __kitrt_log("kitrt", true, "  %s", strings[i]);
-    __kitrt_log("kitrt", true, "end stack trace");
+      __kitrt_message(LABEL, "  %s", strings[i]);
+    __kitrt_message(LABEL, "end stack trace");
     free(strings);
   }
 }
@@ -222,147 +140,6 @@ unsigned nearestPowerOf2LE(unsigned n) {
     p <<= 1;
   return p >> 1;
 }
-
-void __kitrt_env_set(const char *varname, const std::string &s) {
-  assert(varname && "Missing variable name");
-
-  __kitrt_message(LABEL, "Setting in environment: %s=%s", varname, s.c_str());
-  if (setenv(varname, s.c_str(), 1))
-    __kitrt_warn(LABEL, "Could not set environment variable '%s'", varname);
-}
-
-template <typename T, std::enable_if_t<std::is_scalar_v<T>, int>>
-void __kitrt_env_set(const char *varname, const T &value) {
-  ::__kitrt_env_set(varname, std::to_string(value));
-}
-
-template void __kitrt_env_set(const char *var, const bool &);
-template void __kitrt_env_set(const char *var, const int32_t &);
-template void __kitrt_env_set(const char *var, const uint32_t &);
-template void __kitrt_env_set(const char *var, const int64_t &);
-template void __kitrt_env_set(const char *var, const uint64_t &);
-template void __kitrt_env_set(const char *var, const float &);
-template void __kitrt_env_set(const char *var, const double &);
-
-extern "C" void __kitrt_env_unset(const char *varname) {
-  assert(varname && "Missing variable name");
-  __kitrt_message(LABEL, "Unsetting in environment: %s", varname);
-  if (unsetenv(varname))
-    __kitrt_warn(LABEL, "Could not unset environment variable '%s'", varname);
-}
-
-template <typename F, typename V, typename... Args>
-static bool parseInto(V &out, const std::string &vstr, const char *vname,
-                      F converter, Args &&...args) {
-  try {
-    std::size_t pos = 0;
-    auto tmp = converter(vstr, &pos, args...);
-    if (pos == vstr.size()) {
-      out = tmp;
-      return true;
-    }
-    __kitrt_warn(LABEL,
-                 "Ignoring environment variable '%s'. Values contains unparsed "
-                 "characters",
-                 vname);
-  } catch (std::invalid_argument) {
-    __kitrt_warn(
-        LABEL, "Ignoring environment variable '%s'. Value is not valid", vname);
-  } catch (std::out_of_range) {
-    __kitrt_warn(LABEL,
-                 "Ignoring environment variable '%s'. Value is not in range",
-                 vname);
-  }
-  return false;
-}
-
-template <typename V>
-static bool parseInto(V &v, const std::string &str, const char *vname);
-
-template <>
-bool parseInto(bool &v, const std::string &vstr, const char *vname) {
-  auto equals = [](const std::string &l, const std::string &r) -> bool {
-    return std::equal(l.begin(), l.end(), r.begin(),
-                      [](unsigned char cl, unsigned char cr) -> bool {
-                        return std::tolower(cl) == std::tolower(cr);
-                      });
-  };
-
-  if (equals(vstr, "true") || vstr == "1") {
-    v = true;
-  } else if (equals(vstr, "false") || vstr == "0") {
-    v = false;
-  } else {
-    // FIXME: We should be more strict and reject this, but for now, we are
-    // permissive.
-    __kitrt_warn(LABEL,
-                 "Environment variable '%s' not set to 'true' or 'false'. "
-                 "Assuming 'true'",
-                 vname);
-    v = true;
-  }
-  return true;
-}
-
-template <>
-bool parseInto(int32_t &v, const std::string &vstr, const char *vname) {
-  using Converter = int32_t(const std::string &, std::size_t *, int);
-  return parseInto(v, vstr, vname, (Converter *)&std::stoi, /*base=*/10);
-}
-
-template <>
-bool parseInto(uint32_t &v, const std::string &vstr, const char *vname) {
-  using Converter = uint64_t(const std::string &, std::size_t *, int);
-  uint64_t tmp;
-  bool ok = parseInto(tmp, vstr, vname, (Converter *)&std::stoul, /*base=*/10);
-  if (!ok || tmp > std::numeric_limits<uint32_t>::max())
-    return false;
-  v = tmp;
-  return true;
-}
-
-template <>
-bool parseInto(int64_t &v, const std::string &vstr, const char *vname) {
-  using Converter = int64_t(const std::string &, std::size_t *, int);
-  return parseInto(v, vstr, vname, (Converter *)&std::stol, /*base=*/10);
-}
-
-template <>
-bool parseInto(uint64_t &v, const std::string &vstr, const char *vname) {
-  using Converter = uint64_t(const std::string &, std::size_t *, int);
-  return parseInto(v, vstr, vname, (Converter *)&std::stoul, /*base=*/10);
-}
-
-template <>
-bool parseInto(float &v, const std::string &vstr, const char *vname) {
-  using Converter = float(const std::string &, std::size_t *);
-  return parseInto(v, vstr, vname, (Converter *)&std::stof);
-}
-
-template <>
-bool parseInto(double &v, const std::string &vstr, const char *vname) {
-  using Converter = double(const std::string &, std::size_t *);
-  return parseInto(v, vstr, vname, (Converter *)&std::stod);
-}
-
-template <typename V> bool __kitrt_env_lookup(const char *vname, V &v) {
-  assert(vname && "Expected variable name");
-
-  if (char *vstr = getenv(vname))
-    return parseInto<V>(v, vstr, vname);
-  return false;
-}
-
-// It is unlikely that we will ever want to parse a non-primitive type from
-// an environment variable. To keep things clean, explicitly initialize all the
-// types that we might need.
-template bool __kitrt_env_lookup(const char *var, bool &);
-template bool __kitrt_env_lookup(const char *var, int32_t &);
-template bool __kitrt_env_lookup(const char *var, uint32_t &);
-template bool __kitrt_env_lookup(const char *var, int64_t &);
-template bool __kitrt_env_lookup(const char *var, uint64_t &);
-template bool __kitrt_env_lookup(const char *var, float &);
-template bool __kitrt_env_lookup(const char *var, double &);
 
 extern "C" unsigned __kitrt_num_threads(const char *alternate) {
   const char *primary = "KIT_NUM_THREADS";
@@ -381,7 +158,7 @@ extern "C" unsigned __kitrt_num_threads(const char *alternate) {
   return __kitrt_num_cpus();
 }
 
-extern "C" unsigned __kitrt_num_cpus() {
+extern "C" unsigned __kitrt_num_cpus(void) {
   __kitrt_message(LABEL, "Determining number of CPUs");
 
   // The standard says that std::thread::hardware_concurrency() should only be
