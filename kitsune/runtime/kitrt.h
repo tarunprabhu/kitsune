@@ -51,11 +51,10 @@
 #ifndef __KITRT_H__
 #define __KITRT_H__
 
-#include "kitpapi.h"
-#include "kittimer.h"
+#include "common/kitpapi.h"
+#include "common/timer.h"
 
-#include <cstdint>
-#include <string>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -64,34 +63,34 @@ extern "C" {
 #endif
 
 /**
- * Initialize the core kitsune runtime components that are shared
- * across all the target runtimes.  Note that this call is typically
- * invoked by each specific runtime target (e.g., CUDA) vs. having
- * this call initialization each target runtime.  It can be called
- * multiple times as it is guarded to avoid repeated initialization.
+ * Initialize the core kitsune runtime components that are shared across all the
+ * tapir-target-specific runtimes. This is typically called in the global
+ * constructor for each target-specific runtime. It is safe to call this
+ * multiple times, thought this should be avoided.
  */
-void __kitrt_initialize();
+void __kitrt_initialize(void);
 
 /**
  * Finalize Kitsune's runtime. This is typically called from the global
  * destructors for individual runtimes such as kitcuda, or kitomp. This can be
  * safely called multiple times.
  */
-void __kitrt_finalize();
+void __kitrt_finalize(void);
 
 /**
- * Set the runtime system to operate in verbose mode.
+ * Enable verbose mode. This will cause logging messages to be written to
+ * standard error.
  */
-void __kitrt_enable_verbose_mode();
+void __kitrt_enable_verbose_mode(void);
 
 /**
- * Disable the runtime system's verbose reporting mode.
+ * Disable verbose mode.
  */
-void __kitrt_disable_verbose_mode();
+void __kitrt_disable_verbose_mode(void);
 
 /**
  * Enable/disable the runtime's verbose mode. __kitrt_initialize() reads the
- * value of the KITRT_VERBOSE environment variable. This should only be used
+ * value of the KIT_VERBOSE environment variable. This should only be used
  * if there is need to set that value after the runtime has been initialized.
  *
  * @param enable - if `true` enable verbose mode, disable if `false`.
@@ -101,7 +100,7 @@ void __kitrt_set_verbose_mode(bool enable);
 /**
  * Check if the verbose mode has been enabled in Kitsune's runtime.
  */
-inline bool __kitrt_verbose_mode() {
+inline bool __kitrt_verbose_mode(void) {
   extern bool _kitrt_verbose_mode;
   return _kitrt_verbose_mode;
 }
@@ -109,57 +108,7 @@ inline bool __kitrt_verbose_mode() {
 /**
  * Provide a backtrace to stderr to help track down runtime crashes.
  */
-void __kitrt_print_stack_trace();
-
-/**
- * Print an error message to stderr and terminate the process with an exit code.
- * \p msg may be a printf-compatible format string. In that case, any optional
- * arguments must be of the appropriate types.
- */
-[[noreturn]] void __kitrt_fatal(const char *label, const char *msg, ...);
-
-/**
- * Print an error message to stderr. \p msg may be a printf-compatible format
- * string. In that case, any optional arguments must be of the appropriate
- * types.
- */
-void __kitrt_error(const char *label, const char *msg, ...);
-
-/**
- * Print a warning message to stderr. \p msg may be a printf-compatible format
- * string. In that case, any optional arguments must be of the appropriate
- * types.
- */
-void __kitrt_warn(const char *label, const char *msg, ...);
-
-/**
- * Print a message to stderr if verbose mode has been enabled. \p msg may be a
- * printf-compatible format string. In that case, any optional arguments must be
- * of the appropriate types.
- */
-void __kitrt_message(const char *label, const char *msg, ...);
-
-/**
- * Print an error message to stderr. \p msg may be a printf-compatible format
- * string. In that case, any optional arguments must be of the appropriate
- * types. This does not add a trailing newline after printing the message.
- */
-void __kitrt_error_noflush(const char *label, const char *msg, ...);
-
-/**
- * Print a warning message to stderr. \p msg may be a printf-compatible format
- * string. In that case, any optional arguments must be of the appropriate
- * types. This does not add a trailing newline after printing the message.
- */
-void __kitrt_warn_noflush(const char *label, const char *msg, ...);
-
-/**
- * Print a message to stderr if verbose mode has been enabled. \p msg may be a
- * printf-compatible format string. In that case, any optional arguments must be
- * of the appropriate types. This does not add a trailing newline after printing
- * the message.
- */
-void __kitrt_message_noflush(const char *label, const char *msg, ...);
+void __kitrt_print_stack_trace(void);
 
 /**
  * Get the nearest power of 2 that is less than or equal to \p n.
@@ -203,50 +152,13 @@ typedef struct _kitrt_inst_mix_info {
 unsigned __kitrt_num_threads(const char *alternate);
 
 /**
- * Get the number of CPU cores on the system. If the number could not be
- * determined for any reason, returns 1.
+ * Get the number of CPU cores on the system. If this could not be determined,
+ * return 1.
  */
-unsigned __kitrt_num_cpus();
-
-/**
- * Unset the value of an environment variable.
- * NOTE: This is only available on POSIX systems, but those are the only ones
- * that we support currently.
- */
-void __kitrt_env_unset(const char *varname);
+unsigned __kitrt_num_cpus(void);
 
 #ifdef __cplusplus
 } // extern "C"
-#endif
-
-/**
- * Set a variable to the given value in the environment. If the variable has
- * already been set in the environment, the value will be overridden.
- *
- * NOTE: This is only available on POSIX systems, but those are the only ones
- * that we currently support.
- */
-void __kitrt_env_set(const char *varname, const std::string &s);
-
-/**
- * Set a variable to the given value in the environment. If the variable has
- * already been set in the environment, the value will be overridden. Note that
- * if the value of the environment variable has already been read by some other
- * part of the runtime, that value will be unaffected.
- *
- * NOTE: This is only available on POSIX systems, but those are the only ones
- * that we currently support.
- */
-template <typename T, std::enable_if_t<std::is_scalar_v<T>, int> = 0>
-void __kitrt_env_set(const char *varname, const T &value);
-
-/**
- * Read the value of the environment variable \p varname which is expected to be
- * of type \p ValueType. If the variable does not exist in the environment, or
- * if it cannot be parsed as a \p ValueType, return `false`. Otherwise, return
- * `true` and populate \p value with the parsed value.
- */
-template <typename ValueType>
-bool __kitrt_env_lookup(const char *varname, ValueType &value);
+#endif // __cplusplus
 
 #endif // __KITRT_H__

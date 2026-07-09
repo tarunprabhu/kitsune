@@ -49,6 +49,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "memory_map.h"
+#include "common/logging.h"
 #include "kitrt.h"
 
 #include <cassert>

@@ -6,6 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "common/env.h"
 #include "kitrt.h"
 
 #include "gtest/gtest.h"

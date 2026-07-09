@@ -51,6 +51,8 @@
 
 #include "kitcuda.h"
 #include "kitcuda_dylib.h"
+#include "common/env.h"
+#include "common/logging.h"
 
 #include <cmath>
 #include <mutex>

@@ -58,6 +58,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitocilk.h"
+#include "common/env.h"
+#include "common/logging.h"
 #include "kitrt.h"
 
 #define LABEL "kitocilk"

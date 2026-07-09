@@ -49,6 +49,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "common/env.h"
+#include "common/logging.h"
 #include "kithip.h"
 #include "kithip_rtinfo.h"
 #include "kitrt.h"

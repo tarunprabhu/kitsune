@@ -50,6 +50,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitomp.h"
+#include "common/env.h"
+#include "common/logging.h"
 #include "kitrt.h"
 
 // This is an internal header in LLVM's OpenMP runtime. The path is relative

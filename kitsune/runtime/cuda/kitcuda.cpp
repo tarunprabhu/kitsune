@@ -64,6 +64,8 @@
 #include <stdbool.h>
 #include <sys/syscall.h>
 
+#include "common/env.h"
+#include "common/logging.h"
 #include "kitcuda.h"
 #include "kitcuda_dylib.h"
 #include "kitrt.h"
