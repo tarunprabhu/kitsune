@@ -144,7 +144,9 @@ bool __kitcuda_initialize() {
   // On systems with multiple devices we can select one via the
   // environment.  This can be helpful when chasing issues related
   // to GPU location within a node (e.g. NUMA-ness).
-  if (!__kitrt_env_lookup("KITCUDA_DEVICE_ID", _kitcuda_device_id))
+  if (std::optional<int> id = kitrt::envLookup<int>("KITCUDA_DEVICE_ID"))
+    _kitcuda_device_id = *id;
+  else
     _kitcuda_device_id = 0;
 
   _kitcuda_mem_location.type = CU_MEM_LOCATION_TYPE_DEVICE;
@@ -209,18 +211,17 @@ bool __kitcuda_initialize() {
   // goes.  The remainder of the initialization checks to see if any
   // environment variables are set that tweak the runtime behavior.
 
-  int threads_per_block = 256;
-  if (__kitrt_env_lookup("KITCUDA_THREADS_PER_BLOCK", threads_per_block)) {
-    __kitcuda_set_default_threads_per_blk(threads_per_block);
+  if (std::optional<int> tpb =
+          kitrt::envLookup<int>("KITCUDA_THREADS_PER_BLOCK")) {
+    __kitcuda_set_default_threads_per_blk(*tpb);
     if (__kitrt_verbose_mode())
-      fprintf(stderr, "  kitcuda: threads/block: %d\n", threads_per_block);
+      fprintf(stderr, "  kitcuda: threads/block: %d\n", *tpb);
   }
 
-  bool disable_refined_launches;
-  __kitrt_env_lookup("KITCUDA_DISABLE_LAUNCH_REFINEMENT",
-                     disable_refined_launches);
-  if (disable_refined_launches)
-    __kitcuda_enable_launch_refinement(false);
+  if (std::optional<bool> disable_refined_launches =
+          kitrt::envLookup<bool>("KITCUDA_DISABLE_LAUNCH_REFINEMENT"))
+    if (*disable_refined_launches)
+      __kitcuda_enable_launch_refinement(false);
 
   KIT_NVTX_POP();
 

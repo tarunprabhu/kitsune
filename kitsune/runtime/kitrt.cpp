@@ -58,6 +58,8 @@
 
 #define LABEL "kitrt"
 
+using namespace kitrt;
+
 // FIXME: Combine all global variables here into a single struct.
 static bool __kitrt_initialized = false;
 static bool __kitrt_finalized = false;
@@ -83,9 +85,11 @@ extern "C" void __kitrt_initialize(void) {
   if (__kitrt_initialized)
     return;
 
-  (void)__kitrt_env_lookup("KITRT_VERBOSE", _kitrt_verbose_mode);
+  if (std::optional<bool> verbose = envLookup<bool>("KIT_VERBOSE"))
+    _kitrt_verbose_mode = *verbose;
   if (!_kitrt_verbose_mode)
-    (void)__kitrt_env_lookup("KIT_VERBOSE", _kitrt_verbose_mode);
+    if (std::optional<bool> verbose = envLookup<bool>("KITRT_VERBOSE"))
+      _kitrt_verbose_mode = *verbose;
 
   // This really ought to be the first thing in this function, but if we move
   // it before the KIT_VERBOSE environment variable is read, it may not be
@@ -143,16 +147,17 @@ uint32_t nearestPowerOf2LE(uint32_t n) {
 
 extern "C" uint32_t __kitrt_num_threads(const char *alternate) {
   const char *primary = "KIT_NUM_THREADS";
-  unsigned numThreads = 0;
 
-  if (__kitrt_env_lookup(primary, numThreads)) {
-    __kitrt_message(LABEL, "Environment contains %s=%d", primary, numThreads);
-    return numThreads;
+  if (std::optional<uint32_t> threads = envLookup<uint32_t>(primary)) {
+    __kitrt_message(LABEL, "Environment contains %s=%d", primary, *threads);
+    return *threads;
   }
 
-  if (alternate && __kitrt_env_lookup(alternate, numThreads)) {
-    __kitrt_message(LABEL, "Environment contains %s=%d", alternate, numThreads);
-    return numThreads;
+  if (alternate) {
+    if (std::optional<uint32_t> threads = envLookup<uint32_t>(alternate)) {
+      __kitrt_message(LABEL, "Environment contains %s=%d", alternate, *threads);
+      return *threads;
+    }
   }
 
   return __kitrt_num_cpus();

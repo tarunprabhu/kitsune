@@ -63,6 +63,8 @@
 
 #define LABEL "kitomp"
 
+using namespace kitrt;
+
 // Since we have included kmp.h, the implementation header for OpenMP, we cannot
 // also include omp.h. Therefore, we have to redeclare the functions from omp.h
 // that we use.
@@ -208,7 +210,7 @@ extern "C" void __kitomp_initialize(void) {
   __kitrt_message(LABEL, "Initializing Kitsune runtime (openmp)");
 
   uint32_t numThreads = __kitrt_num_threads("OMP_NUM_THREADS");
-  __kitrt_env_set("OMP_NUM_THREADS", numThreads);
+  envSet("OMP_NUM_THREADS", numThreads);
 
   // The second argument in the call to __kmpc_begin is currently unused, per
   // the 10-year old documentation that seems to be the only kind that is
