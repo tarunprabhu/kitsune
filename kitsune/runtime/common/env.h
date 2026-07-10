@@ -57,32 +57,40 @@
 #define KITRT_COMMON_ENV_H
 
 #include <optional>
+#include <string>
 
 namespace kitrt {
 
 /**
- * Check if an variable named \p varname has been set in the environment. The
+ * Check if an variable named \p var has been set in the environment. The
  * value of the variable is irrelevant.
  */
-bool envContains(const char *varname);
+bool envContains(const std::string &var);
 
 /**
- * Read the value of the environment variable \p varname which is expected to be
- * of type \p ValueType. If the variable does not exist in the environment, or
- * if it cannot be parsed as a \p ValueType, return `false`. Otherwise, return
- * `true` and populate \p value with the parsed value.
+ * Read the value of the environment variable \p var and return it as-is.. If
+ * the variable does not exist in the environment, return `std::nullopt`.
  */
-template <typename ValueType>
-std::optional<ValueType> envLookup(const char *varname);
+std::optional<std::string> envLookup(const std::string &var);
+
+/**
+ * Read the value of the environment variable \p var which is expected to be
+ * of type \p ValueType. If the variable does not exist in the environment, or
+ * if it cannot be parsed as a \p ValueType, return `std::nullopt`.
+ */
+template <typename T, std::enable_if_t<std::is_scalar_v<T>, int> = 0>
+std::optional<T> envLookup(const std::string &var);
 
 /**
  * Set a variable to the given value in the environment. If the variable has
- * already been set in the environment, the value will be overridden.
+ * already been set in the environment, the value will be overridden. Note that
+ * if the value of the environment variable has already been read by some other
+ * part of the runtime, that value will be unaffected.
  *
  * NOTE: This is only available on POSIX systems, but those are the only ones
  * that we currently support.
  */
-void envSet(const char *varname, const char *s);
+void envSet(const std::string &var, const std::string &s);
 
 /**
  * Set a variable to the given value in the environment. If the variable has
@@ -94,14 +102,14 @@ void envSet(const char *varname, const char *s);
  * that we currently support.
  */
 template <typename T, std::enable_if_t<std::is_scalar_v<T>, int> = 0>
-void envSet(const char *varname, const T &value);
+void envSet(const std::string &var, const T &value);
 
 /**
  * Unset the value of an environment variable.
  * NOTE: This is only available on POSIX systems, but those are the only ones
  * that we support currently.
  */
-void envUnset(const char *varname);
+void envUnset(const std::string &var);
 
 } // namespace kitrt
 

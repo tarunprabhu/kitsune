@@ -41,7 +41,7 @@ public:
 };
 
 template <typename T> class EnvBase : public ::testing::Test {
-private:
+protected:
   std::vector<VarSpec<T>> vars;
 
 private:
@@ -116,7 +116,7 @@ public:
     add("s$@K$J8", true);
   }
 };
-TEST_F(EnvBool, envLookup_bool) {
+TEST_F(EnvBool, envBool) {
   checkContains();
   checkLookup();
   checkSet(false);
@@ -137,7 +137,7 @@ public:
     add("3.14159");
   }
 };
-TEST_F(EnvI32, envLookup_i32) {
+TEST_F(EnvI32, envInt32) {
   checkContains();
   checkLookup();
   checkSet(0xbadc0de);
@@ -157,7 +157,7 @@ public:
     add("3.14159");
   }
 };
-TEST_F(EnvU32, envLookup_u32) {
+TEST_F(EnvU32, envUInt32) {
   checkContains();
   checkLookup();
   checkSet(0xbadc0de);
@@ -178,7 +178,7 @@ public:
     add("3.14159");
   }
 };
-TEST_F(EnvI64, envLookup_i64) {
+TEST_F(EnvI64, envInt64) {
   checkContains();
   checkLookup();
   checkSet(0xbadc0dedec0deL);
@@ -198,7 +198,7 @@ public:
     add("3.14159");
   }
 };
-TEST_F(EnvI64, envLookup_u64) {
+TEST_F(EnvI64, envUInt64) {
   checkContains();
   checkLookup();
   checkSet(0xbadc0dedec0deL);
@@ -216,7 +216,7 @@ public:
     add("3.14E+ab");
   }
 };
-TEST_F(EnvFloat, envLookup_f32) {
+TEST_F(EnvFloat, envFloat) {
   checkContains();
   checkLookup();
   checkSet(2.71828f);
@@ -234,11 +234,43 @@ public:
     add("3.14E+ab");
   }
 };
-TEST_F(EnvDouble, envLookup_f64) {
+TEST_F(EnvDouble, envDouble) {
   checkContains();
   checkLookup();
   checkSet(2.71828);
   checkUnset();
+}
+
+class EnvString : public EnvBase<std::string> {
+public:
+  EnvString() {
+    add("", "");
+    add("string", "string");
+  }
+};
+TEST_F(EnvString, envString) {
+  checkContains();
+
+  EXPECT_FALSE(envLookup("NONEXISTENT").has_value());
+  for (const VarSpec<std::string> &v : vars) {
+    EXPECT_TRUE(envLookup(v.name()).has_value());
+    EXPECT_EQ(*envLookup(v.name()), v.expected());
+  }
+
+  EXPECT_STREQ(getenv("TEST_0"), "");
+  envSet("TEST_0", "new-str");
+  EXPECT_TRUE(envLookup("TEST_0").has_value());
+  EXPECT_EQ(envLookup("TEST_0"), "new-str");
+
+  envUnset("TEST_0");
+  EXPECT_FALSE(getenv("TEST_0"));
+  EXPECT_FALSE(envContains("TEST_0"));
+  EXPECT_FALSE(envLookup("TEST_0").has_value());
+}
+
+TEST(Env, emptyVarname) {
+  EXPECT_FALSE(envContains(""));
+  EXPECT_FALSE(envLookup(""));
 }
 
 } // namespace
