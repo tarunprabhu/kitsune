@@ -52,45 +52,44 @@
 #include "common/logging.h"
 
 #include <algorithm>
-#include <cassert>
 #include <cstdint>
 #include <ctype.h>
 #include <limits>
 #include <stdexcept>
-#include <string>
 
 #define LABEL "kitrt"
 
 using namespace kitrt;
 
-bool kitrt::envContains(const char *varname) { return getenv(varname); }
+bool kitrt::envContains(const std::string &var) { return getenv(var.c_str()); }
 
 template <typename V, typename F, typename... Args>
-static std::optional<V> parseAs(const std::string &vstr, const char *vname,
+static std::optional<V> parseAs(const std::string &s, const std::string &var,
                                 F converter, Args &&...args) {
   try {
     std::size_t pos = 0;
-    auto tmp = converter(vstr, &pos, args...);
-    if (pos == vstr.size())
+    V tmp = converter(s, &pos, args...);
+    if (pos == s.size())
       return tmp;
     warn(LABEL,
          "Ignoring environment variable '%s'. Value contains unparsed "
          "characters",
-         vname);
+         var.c_str());
   } catch (std::invalid_argument) {
-    warn(LABEL, "Ignoring environment variable '%s'. Value not valid", vname);
+    warn(LABEL, "Ignoring environment variable '%s'. Value not valid",
+         var.c_str());
   } catch (std::out_of_range) {
     warn(LABEL, "Ignoring environment variable '%s'. Value not in range",
-         vname);
+         var.c_str());
   }
   return std::nullopt;
 }
 
 template <typename V>
-static std::optional<V> parseAs(const std::string &str, const char *vname);
+static std::optional<V> parseAs(const std::string &str, const std::string &var);
 
 template <>
-std::optional<bool> parseAs(const std::string &vstr, const char *vname) {
+std::optional<bool> parseAs(const std::string &s, const std::string &var) {
   auto equals = [](const std::string &l, const std::string &r) -> bool {
     return std::equal(l.begin(), l.end(), r.begin(),
                       [](unsigned char cl, unsigned char cr) -> bool {
@@ -98,103 +97,104 @@ std::optional<bool> parseAs(const std::string &vstr, const char *vname) {
                       });
   };
 
-  if (equals(vstr, "true") || vstr == "1")
+  if (equals(s, "true") || s == "1")
     return true;
-  else if (equals(vstr, "false") || vstr == "0")
+  else if (equals(s, "false") || s == "0")
     return false;
 
   // FIXME: We should be more strict and reject this, but for now, we are
   // permissive.
   warn(LABEL,
        "Environment variable '%s' not set to known boolean. Assuming 'true'",
-       vname);
+       var.c_str());
   return true;
 }
 
 template <>
-std::optional<int32_t> parseAs(const std::string &vstr, const char *vname) {
+std::optional<int32_t> parseAs(const std::string &s, const std::string &var) {
   using Converter = int32_t(const std::string &, std::size_t *, int);
-  return parseAs<int32_t>(vstr, vname, (Converter *)&std::stoi, /*base=*/10);
+  return parseAs<int32_t>(s, var, (Converter *)&std::stoi, /*base=*/10);
 }
 
 template <>
-std::optional<uint32_t> parseAs(const std::string &vstr, const char *vname) {
+std::optional<uint32_t> parseAs(const std::string &s, const std::string &var) {
   using Converter = uint64_t(const std::string &, std::size_t *, int);
   if (std::optional<uint64_t> tmp =
-          parseAs<uint64_t>(vstr, vname, (Converter *)&std::stoul, /*base=*/10))
+          parseAs<uint64_t>(s, var, (Converter *)&std::stoul, /*base=*/10))
     if (tmp <= std::numeric_limits<uint32_t>::max())
       return tmp;
   return std::nullopt;
 }
 
 template <>
-std::optional<int64_t> parseAs(const std::string &vstr, const char *vname) {
+std::optional<int64_t> parseAs(const std::string &s, const std::string &var) {
   using Converter = int64_t(const std::string &, std::size_t *, int);
-  return parseAs<int64_t>(vstr, vname, (Converter *)&std::stol, /*base=*/10);
+  return parseAs<int64_t>(s, var, (Converter *)&std::stol, /*base=*/10);
 }
 
 template <>
-std::optional<uint64_t> parseAs(const std::string &vstr, const char *vname) {
+std::optional<uint64_t> parseAs(const std::string &s, const std::string &var) {
   using Converter = uint64_t(const std::string &, std::size_t *, int);
-  return parseAs<uint64_t>(vstr, vname, (Converter *)&std::stoul, /*base=*/10);
+  return parseAs<uint64_t>(s, var, (Converter *)&std::stoul, /*base=*/10);
 }
 
 template <>
-std::optional<float> parseAs(const std::string &vstr, const char *vname) {
+std::optional<float> parseAs(const std::string &s, const std::string &var) {
   using Converter = float(const std::string &, std::size_t *);
-  return parseAs<float>(vstr, vname, (Converter *)&std::stof);
+  return parseAs<float>(s, var, (Converter *)&std::stof);
 }
 
 template <>
-std::optional<double> parseAs(const std::string &vstr, const char *vname) {
+std::optional<double> parseAs(const std::string &s, const std::string &var) {
   using Converter = double(const std::string &, std::size_t *);
-  return parseAs<double>(vstr, vname, (Converter *)&std::stod);
+  return parseAs<double>(s, var, (Converter *)&std::stod);
 }
 
-template <typename V> std::optional<V> kitrt::envLookup(const char *vname) {
-  assert(vname && "Expected variable name");
+std::optional<std::string> kitrt::envLookup(const std::string &var) {
+  if (char *s = getenv(var.c_str()))
+    return s;
+  return std::nullopt;
+}
 
-  if (char *vstr = getenv(vname))
-    return parseAs<V>(vstr, vname);
+template <typename T, std::enable_if_t<std::is_scalar_v<T>, int>>
+std::optional<T> kitrt::envLookup(const std::string &var) {
+  if (char *s = getenv(var.c_str()))
+    return parseAs<T>(s, var);
   return std::nullopt;
 }
 
 // It is unlikely that we will ever want to parse a non-primitive type from
 // an environment variable. To keep things clean, explicitly initialize all the
 // types that we might need.
-template std::optional<bool> kitrt::envLookup(const char *var);
-template std::optional<int32_t> kitrt::envLookup(const char *var);
-template std::optional<uint32_t> kitrt::envLookup(const char *var);
-template std::optional<int64_t> kitrt::envLookup(const char *var);
-template std::optional<uint64_t> kitrt::envLookup(const char *var);
-template std::optional<float> kitrt::envLookup(const char *var);
-template std::optional<double> kitrt::envLookup(const char *var);
+template std::optional<bool> kitrt::envLookup(const std::string &var);
+template std::optional<int32_t> kitrt::envLookup(const std::string &var);
+template std::optional<uint32_t> kitrt::envLookup(const std::string &var);
+template std::optional<int64_t> kitrt::envLookup(const std::string &var);
+template std::optional<uint64_t> kitrt::envLookup(const std::string &var);
+template std::optional<float> kitrt::envLookup(const std::string &var);
+template std::optional<double> kitrt::envLookup(const std::string &var);
 
-void kitrt::envSet(const char *varname, const char *s) {
-  assert(varname && "Missing variable name");
-
-  log(LABEL, "Setting in environment: %s=%s", varname, s);
-  if (setenv(varname, s, 1))
-    warn(LABEL, "Could not set environment variable '%s'", varname);
+void kitrt::envSet(const std::string &var, const std::string &val) {
+  log(LABEL, "Setting in environment: %s=%s", var.c_str(), val.c_str());
+  if (setenv(var.c_str(), val.c_str(), 1))
+    warn(LABEL, "Could not set environment variable '%s'", var.c_str());
 }
 
 template <typename T, std::enable_if_t<std::is_scalar_v<T>, int>>
-void kitrt::envSet(const char *varname, const T &value) {
-  std::string s = std::to_string(value);
-  ::envSet(varname, s.c_str());
+void kitrt::envSet(const std::string &var, const T &val) {
+  kitrt::envSet(var, std::to_string(val));
 }
 
-template void kitrt::envSet(const char *var, const bool &);
-template void kitrt::envSet(const char *var, const int32_t &);
-template void kitrt::envSet(const char *var, const uint32_t &);
-template void kitrt::envSet(const char *var, const int64_t &);
-template void kitrt::envSet(const char *var, const uint64_t &);
-template void kitrt::envSet(const char *var, const float &);
-template void kitrt::envSet(const char *var, const double &);
+template void kitrt::envSet(const std::string &var, const bool &);
+template void kitrt::envSet(const std::string &var, const int32_t &);
+template void kitrt::envSet(const std::string &var, const uint32_t &);
+template void kitrt::envSet(const std::string &var, const int64_t &);
+template void kitrt::envSet(const std::string &var, const uint64_t &);
+template void kitrt::envSet(const std::string &var, const float &);
+template void kitrt::envSet(const std::string &var, const double &);
 
-void kitrt::envUnset(const char *varname) {
-  assert(varname && "Missing variable name");
-  log(LABEL, "Unsetting in environment: %s", varname);
-  if (unsetenv(varname))
-    warn(LABEL, "Could not unset environment variable '%s'", varname);
+void kitrt::envUnset(const std::string &var) {
+  log(LABEL, "Unsetting in environment: %s", var.c_str());
+  if (unsetenv(var.c_str()))
+    warn(LABEL, "Could not unset environment variable '%s'", var.c_str());
 }
