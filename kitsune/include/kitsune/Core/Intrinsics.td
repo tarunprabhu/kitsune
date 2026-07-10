@@ -70,12 +70,9 @@ def int_kit_async_cpu_threads_launch
                     llvm_ptr_ty,  // thread function
                     llvm_i64_ty,  // start index
                     llvm_i64_ty,  // end index
-                    llvm_i64_ty,  // grain size
                     llvm_ptr_ty], // argument bundle
-                   [NonNull<RetIndex>, Dereferenceable<RetIndex, 16>,
-                    ImmArg<ArgIndex<0>>,
-                    NonNull<ArgIndex<1>>,
-                    NonNull<ArgIndex<5>>]> {
+                   [NonNull<RetIndex>, ImmArg<ArgIndex<0>>,
+                    NonNull<ArgIndex<1>>, NonNull<ArgIndex<4>>]> {
   let Doc = KitAsyncLaunchThreadsDoc;
 }
 
@@ -86,11 +83,9 @@ def int_kit_cpu_threads_launch
                     llvm_ptr_ty,  // thread function
                     llvm_i64_ty,  // start index
                     llvm_i64_ty,  // end index
-                    llvm_i64_ty,  // grain size
                     llvm_ptr_ty], // argument bundle
-                   [ImmArg<ArgIndex<0>>,
-                    NonNull<ArgIndex<1>>,
-                    NonNull<ArgIndex<5>>]> {
+                   [ImmArg<ArgIndex<0>>, NonNull<ArgIndex<1>>,
+                    NonNull<ArgIndex<4>>]> {
   let Doc = KitLaunchThreadsDoc;
 }
 
@@ -104,8 +99,7 @@ def int_kit_cpu_num_threads
 // llvm.kit.async.cpu.threads.launch.
 def int_kit_cpu_threads_sync
     : KitIntrinsic<[], [llvm_i32_ty, llvm_ptr_ty],
-                   [ImmArg<ArgIndex<0>>,
-                    NonNull<ArgIndex<1>>, Dereferenceable<ArgIndex<1>, 16>]> {
+                   [ImmArg<ArgIndex<0>>, NonNull<ArgIndex<1>>]> {
   let Doc = KitSyncThreadsDoc;
 }
 

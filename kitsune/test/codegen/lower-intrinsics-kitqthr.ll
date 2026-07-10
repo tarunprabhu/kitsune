@@ -4,31 +4,41 @@
 ; correctly. If more intrinsics are created, they should be added here to test
 ; basic intrinsic lowering.
 ;
+; We also check that any attributes attached to the arguments and the call
+; itself are also attached to the lowered call.
+;
 ; RUN: opt --tapir=qthreads -passes='kit-lower-intrinsics' -S %s \
 ; RUN:     | FileCheck %s
+;
+; CHECK-LABEL: @f
+; CHECK-SAME: ptr %[[BUF:[^,]+]]
+; CHECK-SAME: i64 %[[N:[^)]+]]
+; CHECK-NEXT: call void @__kitqthr_initialize() #[[INITIALIZE:[0-9]+]]
+; CHECK-NEXT: call void @__kitrt_enable_verbose_mode() #[[VERBOSE:[0-9]+]]
+; CHECK-NEXT: call void @__kitqthr_launch(ptr nonnull @f, i64 0, i64 128, ptr @gbuf) #[[LAUNCH:[0-9]+]]
+; CHECK-NEXT: call i32 @__kitqthr_num_workers() #[[WORKERS:[0-9]+]]
+; CHECK-NEXT: call i64 @__kitqthr_reduce_num_partials(i64 %[[N]]) #[[PARTIALS:[0-9]+]]
+; CHECK-NEXT: call void @__kitqthr_finalize() #[[FINALIZE:[0-9]+]]
 
 ; This needs a triple in order to correctly initialize the target library.
 target triple = "x86_64-pc-linux-gnu"
 
 @gbuf = external global [7 x float]
 
-; CHECK-LABEL: @f
-; CHECK-SAME: ptr %[[BUF:[^,]+]]
-; CHECK-SAME: i64 %[[N:[^)]+]]
-; CHECK-NEXT: call void @__kitqthr_initialize()
-; CHECK-NEXT: call void @__kitrt_enable_verbose_mode()
-; CHECK-NEXT: call void @__kitqthr_launch(ptr @f, i64 0, i64 128, i64 1, ptr @gbuf)
-; CHECK-NEXT: call i32 @__kitqthr_num_workers()
-; CHECK-NEXT: call i64 @__kitqthr_reduce_num_partials(i64 %[[N]])
-; CHECK-NEXT: call void @__kitqthr_finalize()
-
 define void @f(ptr %buf, i64 %n) {
-  call void @llvm.kit.runtime.initialize(i32 32)
-  call void @llvm.kit.runtime.set.verbose(i32 2, i8 1)
-  call void @llvm.kit.runtime.set.verbose(i32 2, i8 0)
-  call void @llvm.kit.cpu.threads.launch(i32 32, ptr @f, i64 0, i64 128, i64 1, ptr @gbuf)
-  %numThreads = call i32 @llvm.kit.cpu.num.threads(i32 32)
-  %numPartials = call i64 @llvm.kit.reduce.num.partials(i32 32, i64 %n)
-  call void @llvm.kit.runtime.finalize(i32 32)
+  call void @llvm.kit.runtime.initialize(i32 32) #0
+  call void @llvm.kit.runtime.set.verbose(i32 2, i8 1) #1
+  call void @llvm.kit.runtime.set.verbose(i32 2, i8 0) #1
+  call void @llvm.kit.cpu.threads.launch(i32 32, ptr nonnull @f, i64 0, i64 128, ptr @gbuf) #2
+  %numThreads = call i32 @llvm.kit.cpu.num.threads(i32 32) #3
+  %numPartials = call i64 @llvm.kit.reduce.num.partials(i32 32, i64 %n) #4
+  call void @llvm.kit.runtime.finalize(i32 32) #5
   ret void
 }
+
+attributes #0 = { "initialize" }
+attributes #1 = { "verbose" }
+attributes #2 = { "launch" }
+attributes #3 = { "workers" }
+attributes #4 = { "partials" }
+attributes #5 = { "finalize" }

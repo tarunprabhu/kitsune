@@ -26,7 +26,6 @@
 // CHECK-SAME: ptr @[[OUTLINED:[^,]+]],
 // CHECK-SAME: i64 0,
 // CHECK-SAME: i64 %[[NUM_THREADS]],
-// CHECK-SAME: i64 0,
 // CHECK-SAME: ptr %[[ARGS]])
 //
 // CHECK: define internal fastcc void @[[OUTLINED:[A-Za-z0-9._-]+]](
