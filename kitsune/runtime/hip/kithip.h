@@ -375,11 +375,11 @@ bool __kithip_is_initialized();
   {                                                                            \
     hipError_t hip_result = x;                                                 \
     if (hip_result != hipSuccess) {                                            \
-      __kitrt_error("kithip", "%s:%d", __FILE__, __LINE__);                    \
+      kitrt::error("kithip", "%s:%d", __FILE__, __LINE__);                     \
       __kitrt_print_stack_trace();                                             \
-      __kitrt_error("kithip", "%s failed ('%s')", #x,                          \
-                    hipGetErrorName(hip_result));                              \
-      __kitrt_fatal("kithip", hipGetErrorString(hip_result));                  \
+      kitrt::error("kithip", "%s failed ('%s')", #x,                           \
+                   hipGetErrorName(hip_result));                               \
+      kitrt::fatal("kithip", hipGetErrorString(hip_result));                   \
     }                                                                          \
   }
 

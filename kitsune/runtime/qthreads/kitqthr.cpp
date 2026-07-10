@@ -97,14 +97,14 @@ extern "C" uint32_t __kitqthr_num_workers() { return qthread_num_workers(); }
 ///
 /// \param n The trip count of the parallel loop containing a reduction
 extern "C" int64_t __kitqthr_reduce_num_partials(int64_t n) {
-  __kitrt_message(LABEL, "Calculating number of partial reductions");
+  log(LABEL, "Calculating number of partial reductions");
 
   // There might be something smarter that can be done once we support a proper
   // reduction tree, but since we only support a reduction tree of depth 1, this
   // will do.
   uint32_t numPartials = __kitqthr_num_workers();
 
-  __kitrt_message(LABEL, "Number of partial reductions: %d", numPartials);
+  log(LABEL, "Number of partial reductions: %d", numPartials);
 
   return numPartials;
 }
@@ -120,7 +120,7 @@ static unsigned long kitqthrThrdLaunchFn(KitQthrThrdArgs *thrdArgs) {
 
   f(tid, tid + 1, args);
 
-  __kitrt_message(LABEL, "Thread entering barrier: %d", tid);
+  log(LABEL, "Thread entering barrier: %d", tid);
   qt_barrier_enter(barrier);
 
   return 0;
@@ -152,7 +152,7 @@ extern "C" void __kitqthr_launch(ThreadFunc f, int64_t start, int64_t end,
                                  void *args) {
   assert(start == 0 && end == __kitqthr_num_workers() &&
          "__kitqthr_launch expects loop iterations in range [0,NUM_THREADS)");
-  __kitrt_message(LABEL, "Launching multithreaded loop: [%ld,%ld)", start, end);
+  log(LABEL, "Launching multithreaded loop: [%ld,%ld)", start, end);
 
   uint32_t numThrds = __kitqthr_num_workers();
 
@@ -167,7 +167,7 @@ extern "C" void __kitqthr_launch(ThreadFunc f, int64_t start, int64_t end,
   // `n` spawned threads, as well as the main thread.
   qt_barrier_t *barrier = qt_barrier_create(numThrds + 1, REGION_BARRIER);
   if (!barrier)
-    __kitrt_fatal(LABEL, "Could not create barrier");
+    fatal(LABEL, "Could not create barrier");
 
   std::vector<KitQthrThrdArgs> thrds(numThrds);
   for (int64_t t = 0; t < numThrds; ++t) {
@@ -177,9 +177,9 @@ extern "C" void __kitqthr_launch(ThreadFunc f, int64_t start, int64_t end,
     thrdArgs.args = args;
     thrdArgs.barrier = barrier;
 
-    __kitrt_message(LABEL, "Fork thread %d", t);
+    log(LABEL, "Fork thread %d", t);
     if (qthread_fork((qthread_f)kitqthrThrdLaunchFn, &thrdArgs, nullptr))
-      __kitrt_fatal(LABEL, "Could not fork thread");
+      fatal(LABEL, "Could not fork thread");
   }
 
   // The main thread must also enter the barrier. Once the main thread has
@@ -187,7 +187,7 @@ extern "C" void __kitqthr_launch(ThreadFunc f, int64_t start, int64_t end,
   qt_barrier_enter(barrier);
   qt_barrier_destroy(barrier);
 
-  __kitrt_message(LABEL, "Finished multithreaded loop");
+  log(LABEL, "Finished multithreaded loop");
 }
 
 /// Initialize kitsune's qthreads runtime as well as the actual qthreads
@@ -201,33 +201,33 @@ extern "C" void __kitqthr_initialize(void) {
   __kitpapi_initialize_threading((void *)qthread_id);
 #endif // KITRT_PAPI_ENABLED
 
-  __kitrt_message(LABEL, "Initializing Kitsune runtime (qthreads)");
+  log(LABEL, "Initializing Kitsune runtime (qthreads)");
 
   uint32_t numThreads = __kitrt_num_threads(nullptr);
 
   envSet("QT_NUM_SHEPHERDS", numThreads);
   envSet("QT_NUM_WORKERS_PER_SHEPHERD", 1);
 
-  __kitrt_message(LABEL, "Initializing Qthreads runtime");
+  log(LABEL, "Initializing Qthreads runtime");
   if (qthread_initialize())
-    __kitrt_fatal(LABEL, "Could not initialize Qthreads runtime");
-  __kitrt_message(LABEL, "Initialized Qthreads runtime");
+    fatal(LABEL, "Could not initialize Qthreads runtime");
+  log(LABEL, "Initialized Qthreads runtime");
 
-  __kitrt_message(LABEL, "Number of shepherds = %d", qthread_num_shepherds());
-  __kitrt_message(LABEL, "Number of workers = %d", qthread_num_workers());
+  log(LABEL, "Number of shepherds = %d", qthread_num_shepherds());
+  log(LABEL, "Number of workers = %d", qthread_num_workers());
 
-  __kitrt_message(LABEL, "Initialized Kitsune runtime (qthreads)");
+  log(LABEL, "Initialized Kitsune runtime (qthreads)");
 }
 
 /// Finalize kitsune's qthreads runtime, as well as qthreads runtime.
 extern "C" void __kitqthr_finalize(void) {
-  __kitrt_message(LABEL, "Finalizing Kitsune runtime (qthreads)");
+  log(LABEL, "Finalizing Kitsune runtime (qthreads)");
 
-  __kitrt_message(LABEL, "Finalizing Qthreads runtime");
+  log(LABEL, "Finalizing Qthreads runtime");
   qthread_finalize();
-  __kitrt_message(LABEL, "Finalized Qthreads runtime");
+  log(LABEL, "Finalized Qthreads runtime");
 
-  __kitrt_message(LABEL, "Finalized Kitsune runtime (qthreads)");
+  log(LABEL, "Finalized Kitsune runtime (qthreads)");
 
   // Finalize the components of Kitsune's runtime that are shared by the
   // tapir-target-specific components.

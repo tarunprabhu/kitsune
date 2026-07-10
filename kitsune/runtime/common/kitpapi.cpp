@@ -68,6 +68,8 @@
 
 #define LABEL "kitpapi"
 
+using namespace kitrt;
+
 // A PAPI event context. This contains an optional that can be useful to
 // identify the source of the counters when they are printed, and an event set
 // created by a call to PAPI_create_event_set. This is intentionally opaque to
@@ -92,7 +94,7 @@ public:
 };
 
 void __kitpapi_error(const char *what, int err) {
-  __kitrt_warn(LABEL, "%s. %s", what, PAPI_strerror(err));
+  warn(LABEL, "%s. %s", what, PAPI_strerror(err));
 }
 
 static std::string getEventSymbol(int evt) {
@@ -118,14 +120,13 @@ static void __kitpapi_add_event_impl(KitPAPIContext *ctx, const char *name,
   std::string evtSymbol = getEventSymbol(evt);
   std::string evtLabel = getEventLabel(evt);
   if (int err = PAPI_add_event(ctx->evtSet, evt))
-    return __kitrt_warn(
-        LABEL, "Could not add event '%s'. Mapped to %s (%s). %s", name,
-        evtSymbol.c_str(), evtLabel.c_str(), PAPI_strerror(err));
+    return warn(LABEL, "Could not add event '%s'. Mapped to %s (%s). %s", name,
+                evtSymbol.c_str(), evtLabel.c_str(), PAPI_strerror(err));
 
   ctx->evts.push_back(evt);
   ctx->values.push_back(0);
-  __kitrt_message(LABEL, "Added event '%s'. Mapped to %s (%s)", name,
-                  evtSymbol.c_str(), evtLabel.c_str());
+  log(LABEL, "Added event '%s'. Mapped to %s (%s)", name, evtSymbol.c_str(),
+      evtLabel.c_str());
 }
 
 #define MAYBE_ADD_EVENT(ctx, name, evtName, evtCode)                           \
@@ -139,7 +140,7 @@ extern "C" void __kitpapi_add_event(KitPAPIContext *ctx, const char *name) {
     return;
 
   if (!name) {
-    __kitrt_error(LABEL, "Event name cannot be null");
+    error(LABEL, "Event name cannot be null");
     return;
   }
 
@@ -163,7 +164,7 @@ extern "C" void __kitpapi_add_event(KitPAPIContext *ctx, const char *name) {
   MAYBE_ADD_EVENT(ctx, name, __kitpapi_tot_cyc, PAPI_TOT_CYC);
   MAYBE_ADD_EVENT(ctx, name, __kitpapi_ref_cyc, PAPI_REF_CYC);
 
-  __kitrt_warn(LABEL, "Ignoring unknown event '%s'", name);
+  warn(LABEL, "Ignoring unknown event '%s'", name);
 }
 
 static KitPAPIContext *__kitpapi_new_empty(const char *name) {
@@ -201,7 +202,7 @@ extern "C" void __kitpapi_start(KitPAPIContext *ctx) {
   if (!ctx)
     return;
 
-  __kitrt_message(LABEL, "Starting PAPI counters");
+  log(LABEL, "Starting PAPI counters");
   if (int err = PAPI_start(ctx->evtSet))
     return __kitpapi_error("Could not start PAPI counters", err);
 }
@@ -222,7 +223,7 @@ extern "C" void __kitpapi_stop(KitPAPIContext *ctx) {
     __kitpapi_error("Could not stop PAPI counters", err);
     return __kitpapi_delete(ctx);
   }
-  __kitrt_message(LABEL, "Stopped PAPI counters");
+  log(LABEL, "Stopped PAPI counters");
 
   static std::mutex mtx;
   std::lock_guard<std::mutex> guard(mtx);
@@ -241,22 +242,22 @@ extern "C" void __kitpapi_stop(KitPAPIContext *ctx) {
 }
 
 extern "C" void __kitpapi_initialize_threading(void *getThreadId) {
-  __kitrt_message(LABEL, "Initializing PAPI threading support");
+  log(LABEL, "Initializing PAPI threading support");
   if (int err = PAPI_thread_init((unsigned long (*)(void))getThreadId))
     return __kitpapi_error("Could not initialize PAPI threading support", err);
-  __kitrt_message(LABEL, "Initialized PAPI threading support");
+  log(LABEL, "Initialized PAPI threading support");
 }
 
 extern "C" void __kitpapi_initialize() {
-  __kitrt_message(LABEL, "Initializing PAPI library");
+  log(LABEL, "Initializing PAPI library");
   if (int rv = PAPI_library_init(PAPI_VER_CURRENT))
     if (rv != PAPI_VER_CURRENT)
       return __kitpapi_error("Could not initialize PAPI", rv);
-  __kitrt_message(LABEL, "Initialized PAPI library");
+  log(LABEL, "Initialized PAPI library");
 }
 
 extern "C" void __kitpapi_finalize() {
-  __kitrt_message(LABEL, "Finalizing PAPI library");
+  log(LABEL, "Finalizing PAPI library");
   PAPI_shutdown();
-  __kitrt_message(LABEL, "Finalized PAPI library");
+  log(LABEL, "Finalized PAPI library");
 }

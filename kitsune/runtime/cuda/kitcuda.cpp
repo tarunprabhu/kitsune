@@ -104,7 +104,7 @@ extern "C" {
 bool __kitcuda_initialize() {
   // Initialize the shared components of the higher-level runtime.
   __kitrt_initialize();
-  __kitrt_message(LABEL, "Initializing Kitsune runtime (cuda)");
+  kitrt::log(LABEL, "Initializing Kitsune runtime (cuda)");
 
   KIT_NVTX_PUSH("kitcuda: initialize", KIT_NVTX_INIT);
   if (_kitcuda_initialized) {
@@ -225,7 +225,7 @@ bool __kitcuda_initialize() {
 
   KIT_NVTX_POP();
 
-  __kitrt_message(LABEL, "Initialized Kitsune runtime (cuda)");
+  kitrt::log(LABEL, "Initialized Kitsune runtime (cuda)");
 
   return _kitcuda_initialized;
 }
@@ -234,7 +234,7 @@ void __kitcuda_finalize() {
   if (not _kitcuda_initialized)
     return;
 
-  __kitrt_message(LABEL, "Finalizing Kitsune runtime (cuda)");
+  kitrt::log(LABEL, "Finalizing Kitsune runtime (cuda)");
 
   KIT_NVTX_PUSH("kitcuda:finalize", KIT_NVTX_CLEANUP);
   __kitcuda_destroy_thread_streams();
@@ -244,7 +244,7 @@ void __kitcuda_finalize() {
   _kitcuda_initialized = false;
   KIT_NVTX_POP();
 
-  __kitrt_message(LABEL, "Finalized Kitsune runtime (cuda)");
+  kitrt::log(LABEL, "Finalized Kitsune runtime (cuda)");
 
   // Finalize the components of Kitsune's runtime that are shared by the
   // tapir-target-specific components.
@@ -255,15 +255,14 @@ void __kitcuda_finalize() {
 ///
 /// \param n The trip count of the parallel loop in containing a reduction
 extern "C" int64_t __kitcuda_reduce_num_partials(int64_t n) {
-  __kitrt_message("kitcuda", "Calculating number of partial reductions\n");
+  kitrt::log("kitcuda", "Calculating number of partial reductions\n");
 
   // FIXME: This is simply a placeholder to check that the rest of the
   // transformations work as expected. It is beyond terrible for performance, so
   // fix this is ASAP.
   int numPartials = 8;
 
-  __kitrt_message("kitcuda", "Number of partial reductions: %ld\n",
-                  numPartials);
+  kitrt::log("kitcuda", "Number of partial reductions: %ld\n", numPartials);
 
   return numPartials;
 }
@@ -379,8 +378,8 @@ __kitcuda_register_global_managed(void **handle, void **newAddr, void *hostAddr,
   // variable likely contains a string, it could just as easily be a pointer to
   // arbitrary bytes. For now, we assume that that argument should be a host
   // pointer.
-  __kitrt_fatal(
-      LABEL, "TODO: Check __kitcuda_register_global_managed for correctness");
+  kitrt::fatal(LABEL,
+               "TODO: Check __kitcuda_register_global_managed for correctness");
 
   // FIXME?: Is it correct for the last argument to be zero? This is the case
   // when registering normal (those that are not allocated in managed memory)
