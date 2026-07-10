@@ -13,89 +13,19 @@
 #ifndef KITSUNE_TARGETS_PTHREADS_TT_H
 #define KITSUNE_TARGETS_PTHREADS_TT_H
 
-#include "llvm/Transforms/Tapir/LoweringUtils.h"
+#include "CPUTTCommon.h"
 
 namespace llvm {
 
 class TTOptions;
 
+/// \ingroup kitsune
 /// Tapir target that splits the iterations of tapir loops across a number of
 /// POSIX threads.
-/// \ingroup kitsune
-class PthreadsTT : public TapirTarget {
+class PthreadsTT : public CPUTTBase {
 public:
   PthreadsTT(Module &m, const TTOptions &ttOpts);
   virtual ~PthreadsTT() = default;
-
-  /// Lower a call to the tapir.loop.grainsize intrinsic into a grainsize
-  /// (coarsening) value.
-  Value *lowerGrainsizeCall(CallInst *call) override final;
-
-  /// Lower a Tapir sync instruction \p si.
-  void lowerSync(SyncInst &si) override final;
-
-  /// Returns true if tasks in Function \p f should be outlined into their own
-  /// functions.
-  bool shouldDoOutlining(const Function &f) const override final;
-
-  /// Process function \p f before any function outlining is performed. This
-  /// routine should not modify the CFG structure, unless it processes all Tapir
-  /// instructions in \p f itself. Returns true if it modifies the CFG, false
-  /// otherwise.
-  bool preProcessFunction(Function &f, TaskInfo &ti,
-                          bool processingTapirLoops) override final {
-    return false;
-  }
-
-  /// Process function \p f at the end of the lowering process.
-  void postProcessFunction(Function &f,
-                           bool processingTapirLoops) override final {
-    // Nothing to be done here
-  }
-
-  /// Process a generated helper function \p f produced via outlining, at the
-  /// end of the lowering process.
-  void postProcessHelper(Function &f) override final {
-    // Nothing to be done here
-  }
-
-  /// Pre-process the function \p f that has just been outlined from a task.
-  /// This routine is executed on each outlined function by traversing in
-  /// post-order the tasks in the original function.
-  void preProcessOutlinedTask(Function &f, Instruction *detachPt,
-                              Instruction *tfCreate, bool isSpawner,
-                              BasicBlock *tfEntry) override final {
-    // Nothing to be done here
-  }
-
-  /// Post-process the function \p f that has just been outlined from a task.
-  /// This routine is executed on each outlined function by traversing in
-  /// post-order the tasks in the original function.
-  void postProcessOutlinedTask(Function &f, Instruction *detachPt,
-                               Instruction *tfCreate, bool isSpawner,
-                               BasicBlock *tfEntry) override final {
-    // Nothing to be done here
-  }
-
-  /// Pre-process the root function \p f as a function that can spawn subtasks.
-  void preProcessRootSpawner(Function &f, BasicBlock *tfEntry) override final {
-    // Nothing to do here because none of the functions processed by this tapir
-    // target can spawn subtasks.
-  }
-
-  /// Post-process the root Function \p f as a function that can spawn subtasks.
-  void postProcessRootSpawner(Function &f, BasicBlock *tfEntry) override final {
-    // Nothing to do here because none of the functions processed by this tapir
-    // target can spawn subtasks.
-  }
-
-  /// Process the invocation of a task for an outlined function. This routine
-  /// is invoked after processSpawner once for each child subtask.
-  void processSubTaskCall(TaskOutlineInfo &toi,
-                          DominatorTree &dt) override final {
-    // Nothing to do here since nothing handled by this tapir target spawns
-    // subtasks.
-  }
 
   /// Create a custom loop outline processor for this tapir target.
   LoopOutlineProcessor *

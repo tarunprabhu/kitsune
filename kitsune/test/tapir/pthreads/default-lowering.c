@@ -22,7 +22,6 @@
 // CHECK-SAME: ptr @[[OUTLINED:[^,]+]],
 // CHECK-SAME: i64 0,
 // CHECK-SAME: i64 %[[NUM_THREADS]],
-// CHECK-SAME: i64 0,
 // CHECK-SAME: ptr %[[ARGS]])
 // CHECK: call void @llvm.kit.cpu.threads.sync(i32 1024, ptr %[[CTX]])
 // CHECK: br label %[[END:.+]]
@@ -32,7 +31,6 @@
 // CHECK: define internal fastcc void @[[OUTLINED]](
 // CHECK-SAME: i64 %[[START:[^,]+]],
 // CHECK-SAME: i64 %[[END:[^,]+]],
-// CHECK-SAME: i64 %[[GRAINSIZE:[^,]+]],
 // CHECK-SAME: ptr {{.*}}%[[ARGS:[^)]+]])
 // CHECK: %[[OUTER:.+]] = phi i64
 // CHECK: %[[I:.+]] = phi i64

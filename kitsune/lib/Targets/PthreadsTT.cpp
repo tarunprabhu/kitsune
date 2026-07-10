@@ -11,12 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Targets/PthreadsTT.h"
-#include "kitsune/Core/ConstantUtils.h"
-#include "kitsune/Core/Tapir.h"
-#include "llvm/IR/Constants.h"
-#include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/Instructions.h"
-#include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "CPUTTLoop.h"
 
 #define DEBUG_TYPE "pthreadstt"
 
@@ -25,75 +20,18 @@ using namespace llvm;
 namespace {
 
 /// \ingroup kitsune
-class PthreadsLoop : public LoopOutlineProcessor {
+class PthreadsLoopProcessor : public CPUTTLoopProcessor {
 public:
-  PthreadsLoop(Module &m, const TTOptions &tto)
-      : LoopOutlineProcessor(m, m, tto,
-                             CloneFunctionChangeType::GlobalChanges) {}
-  virtual ~PthreadsLoop() = default;
-
-  /// Returns an ArgStructMode enum value describing how inputs to the
-  /// underlying task of a tapir loop should be passed to the task.
-  ArgStructMode getArgStructMode() const override final {
-    // TODO: We should look at the total size of the inputs to the helper
-    // function and use a dynamic struct if it is "large".
-    return PthreadsTT::ArgStructMode::Static;
-  }
-
-  /// Processes a call to an outlined helper function for a tapir loop \p tl.
-  void processOutlinedLoopCall(TapirLoopInfo &tl, TaskOutlineInfo &toi,
-                               DominatorTree &dt) override final {
-    LLVMContext &ctx = M.getContext();
-
-    Constant *ctt = toConstant(TTID::Pthreads, ctx);
-    Function *outlined = toi.Outline;
-    CallBase *replCall = cast<CallBase>(toi.ReplCall);
-    IRBuilder<> builder(replCall);
-
-    SmallVector<Value *, 16> launchArgs = {ctt, outlined};
-    for (Value *arg : replCall->args())
-      launchArgs.push_back(arg);
-    Value *thrdCtx = builder.CreateIntrinsic(
-        Intrinsic::kit_async_cpu_threads_launch, launchArgs);
-
-    Value *syncArgs[] = {ctt, thrdCtx};
-    (void)builder.CreateIntrinsic(Intrinsic::kit_cpu_threads_sync, syncArgs);
-
-    assert(replCall->getType() == Type::getVoidTy(ctx) &&
-           "The outlined function must not return a value");
-    assert(replCall->getNumUses() == 0 &&
-           "The outlined function must not have any uses");
-    replCall->eraseFromParent();
-  }
+  PthreadsLoopProcessor(Module &m, const TTOptions &tto)
+      : CPUTTLoopProcessor(TTID::Pthreads, tto, /*asyncLaunch=*/true, m) {}
+  virtual ~PthreadsLoopProcessor() = default;
 };
 
 } // namespace
 
-PthreadsTT::PthreadsTT(Module &m, const TTOptions &ttOpts)
-    : TapirTarget(m, ttOpts) {}
-
-bool PthreadsTT::shouldDoOutlining(const Function &f) const { return true; }
-
-Value *PthreadsTT::lowerGrainsizeCall(CallInst *call) {
-  // In this tapir target, we do not use a grain size, so always return 0.
-  // Otherwise, this will have to be a call to a function from the runtime that
-  // calculates the grainsize, or the results of the analysis on the loop that
-  // determines an appropriate grainsize value to use.
-  Value *zero = ConstantInt::get(call->getType(), 0);
-  call->replaceAllUsesWith(zero);
-  return zero;
-}
-
-void PthreadsTT::lowerSync(SyncInst &si) {
-  // This is only called from the TapirToTarget pass. However, after loop
-  // spawning, there will be nothing for that pass to do, so this is not
-  // expected to be called. In case it is, fail catastrophically since it would
-  // imply that something elsewhere has changed and this may have to be modified
-  // to keep up.
-  llvm_unreachable("PthreadsTT: Unexpected invocation of lowerSync() callback");
-}
+PthreadsTT::PthreadsTT(Module &m, const TTOptions &tto) : CPUTTBase(m, tto) {}
 
 LoopOutlineProcessor *
 PthreadsTT::getLoopOutlineProcessor(const TapirLoopInfo *tl) {
-  return new PthreadsLoop(M, this->getOptions());
+  return new PthreadsLoopProcessor(M, this->getOptions());
 }
