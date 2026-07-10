@@ -56,7 +56,15 @@
 #ifndef KITRT_COMMON_ENV_H
 #define KITRT_COMMON_ENV_H
 
-#include <type_traits>
+#include <optional>
+
+namespace kitrt {
+
+/**
+ * Check if an variable named \p varname has been set in the environment. The
+ * value of the variable is irrelevant.
+ */
+bool envContains(const char *varname);
 
 /**
  * Read the value of the environment variable \p varname which is expected to be
@@ -65,7 +73,7 @@
  * `true` and populate \p value with the parsed value.
  */
 template <typename ValueType>
-bool __kitrt_env_lookup(const char *varname, ValueType &value);
+std::optional<ValueType> envLookup(const char *varname);
 
 /**
  * Set a variable to the given value in the environment. If the variable has
@@ -74,7 +82,7 @@ bool __kitrt_env_lookup(const char *varname, ValueType &value);
  * NOTE: This is only available on POSIX systems, but those are the only ones
  * that we currently support.
  */
-void __kitrt_env_set(const char *varname, const char *s);
+void envSet(const char *varname, const char *s);
 
 /**
  * Set a variable to the given value in the environment. If the variable has
@@ -86,13 +94,15 @@ void __kitrt_env_set(const char *varname, const char *s);
  * that we currently support.
  */
 template <typename T, std::enable_if_t<std::is_scalar_v<T>, int> = 0>
-void __kitrt_env_set(const char *varname, const T &value);
+void envSet(const char *varname, const T &value);
 
 /**
  * Unset the value of an environment variable.
  * NOTE: This is only available on POSIX systems, but those are the only ones
  * that we support currently.
  */
-void __kitrt_env_unset(const char *varname);
+void envUnset(const char *varname);
+
+} // namespace kitrt
 
 #endif // KITRT_COMMON_ENV_H

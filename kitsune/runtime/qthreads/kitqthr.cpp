@@ -65,6 +65,8 @@
 
 #define LABEL "kitqthr"
 
+using namespace kitrt;
+
 namespace {
 
 /// The function that is run on each thread. The last argument is a pointer to
@@ -203,8 +205,8 @@ extern "C" void __kitqthr_initialize(void) {
 
   uint32_t numThreads = __kitrt_num_threads(nullptr);
 
-  __kitrt_env_set("QT_NUM_SHEPHERDS", numThreads);
-  __kitrt_env_set("QT_NUM_WORKERS_PER_SHEPHERD", 1);
+  envSet("QT_NUM_SHEPHERDS", numThreads);
+  envSet("QT_NUM_WORKERS_PER_SHEPHERD", 1);
 
   __kitrt_message(LABEL, "Initializing Qthreads runtime");
   if (qthread_initialize())

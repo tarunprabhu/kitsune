@@ -135,9 +135,9 @@ extern "C" bool __kithip_initialize() {
     return true;
   }
 
-  // AMD's documentation suggests that there is no need to explicilty
-  // call hipInit() as all API entry points will initialize when
-  // necessary.  For now, we'll just follow the more direct path.
+  // AMD's documentation suggests that there is no need to explicitly call
+  // hipInit() as all API entry points will initialize when necessary.  For now,
+  // we'll just follow the more direct path.
   HIP_SAFE_CALL(hipInit(0));
 
   HIP_SAFE_CALL(hipGetDeviceCount(&rt_info.device_count));
@@ -147,21 +147,20 @@ extern "C" bool __kithip_initialize() {
     abort();
   }
 
-  // TODO: We need to consider multi-gpu device support and use cases
-  // where multiple threads (parallel constructs) can drive multiple
-  // gpus.
+  // TODO: We need to consider multi-gpu device support and use cases where
+  // multiple threads (parallel constructs) can drive multiple gpus.
 
-  // There have been several cases where debugging and performance
-  // regressions have tripped us up on multi-gpu systems. To help
-  // out in these cases we provide a path to pick the device id via
-  // the environment.
-  if (not __kitrt_env_lookup("KITHIP_DEVICE_ID", rt_info.device_id)) {
-    setDeviceID(0); // Default is always the first device.
+  // There have been several cases where debugging and performance regressions
+  // have tripped us up on multi-gpu systems. To help out in these cases we
+  // provide a path to pick the device id via the environment.
+  if (std::optional<int> id = kitrt::envLookup<int>("KITHIP_DEVICE_ID")) {
+    assert(id >= 0 && "kitrt[hip]: KITHIP_DEVICE_ID is invalid");
+    assert(id < deviceCount() && "kitrt[hip]: KITHIP_DEVICE_ID is in range");
+    __kitrt_message(LABEL, "env override, using device: %d.\n", id);
+    setDeviceID(*id);
   } else {
-    assert(deviceID() < deviceCount() && deviceID() >= 0 &&
-           "kitrt[hip]: KITHIP_DEVICE_ID is out of range/invalid!");
-    fprintf(stderr, "kitrt[hip]: env override, using device: %d.\n",
-            deviceID());
+    __kitrt_message(LABEL, "using default device");
+    setDeviceID(0); // Default is always the first device.
   }
 
   HIP_SAFE_CALL(hipSetDevice(deviceID()));

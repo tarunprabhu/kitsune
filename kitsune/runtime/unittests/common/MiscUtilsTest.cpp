@@ -11,6 +11,8 @@
 
 #include "gtest/gtest.h"
 
+using namespace kitrt;
+
 namespace {
 
 TEST(KitrtUtils, num_cpus) { EXPECT_GE(__kitrt_num_cpus(), 1U); }
@@ -19,26 +21,26 @@ TEST(KitrtUtils, num_threads) {
   uint32_t cpus = __kitrt_num_cpus();
   EXPECT_EQ(__kitrt_num_threads(nullptr), cpus);
 
-  __kitrt_env_set("KIT_NUM_THREADS", 41U);
-  __kitrt_env_set("ALTERNATIVE", 97U);
+  envSet("KIT_NUM_THREADS", 41U);
+  envSet("ALTERNATIVE", 97U);
   EXPECT_EQ(__kitrt_num_threads(nullptr), 41U);
   EXPECT_EQ(__kitrt_num_threads("ALTERNATIVE"), 41U);
 
-  __kitrt_env_unset("KIT_NUM_THREADS");
+  envUnset("KIT_NUM_THREADS");
   EXPECT_EQ(__kitrt_num_threads(nullptr), cpus);
   EXPECT_EQ(__kitrt_num_threads("ALTERNATIVE"), 97U);
 
-  __kitrt_env_unset("ALTERNATIVE");
+  envUnset("ALTERNATIVE");
   EXPECT_EQ(__kitrt_num_threads("KIT_NUM_THREADS"), cpus);
   EXPECT_EQ(__kitrt_num_threads("ALTERNATIVE"), cpus);
 
-  __kitrt_env_set("KIT_NUM_THREADS", "forty-one");
-  __kitrt_env_set("ALTERNATIVE", "ninety-seven");
+  envSet("KIT_NUM_THREADS", "forty-one");
+  envSet("ALTERNATIVE", "ninety-seven");
   EXPECT_EQ(__kitrt_num_threads(nullptr), cpus);
   EXPECT_EQ(__kitrt_num_threads("ALTERNATIVE"), cpus);
 
-  __kitrt_env_unset("KIT_NUM_THREADS");
-  __kitrt_env_unset("ALTERNATIVE");
+  envUnset("KIT_NUM_THREADS");
+  envUnset("ALTERNATIVE");
 }
 
 TEST(KitrtUtils, nearestPowerOf2LE) {

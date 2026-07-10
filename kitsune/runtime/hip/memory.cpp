@@ -122,25 +122,14 @@ static std::mutex _kithip_mem_alloc_mutex;
 // This is the compiler's entry point for xnack support. At this level all that
 // is done is internal tracking and the setting of HSA_XNACK in the enviornment.
 extern "C" void __kithip_enable_xnack() {
-  int xnack;
-  if (not __kitrt_env_lookup("HSA_XNACK", xnack)) {
+  if (not kitrt::envContains("HSA_XNACK")) {
     // We are looking to enable XNACK but there is not a supporting environment
     // variable. For correct low-level behavior from ROCm (and perhaps even the
     // kernel) we need to set "HAS_XNACK".
-    __kitrt_env_set("HSA_XNACK", 1);
+    kitrt::envSet("HSA_XNACK", 1);
   }
 
   __kitrt_message(LABEL, "xnack enabled");
-}
-
-// Check for the xnack setting in the enviornment. In favor of avoiding more
-// environment variable clutter, we reuse the AMD HSA flag. Note that the
-// runtime will also set this variable if xnack is enabled via compiler flags.
-static bool __kithip_xnack_env_check() {
-  int use_xnack;
-  if (not __kitrt_env_lookup("HSA_XNACK", use_xnack))
-    use_xnack = 0;
-  return (use_xnack == 1);
 }
 
 // Enable/Disable the xnack operation. This setting is largely in the hands of
@@ -148,7 +137,7 @@ static bool __kithip_xnack_env_check() {
 /// the compiler can cause conflicts and potentially introduce errors. Care is
 /// recommended when mixing conflicting settings.
 extern "C" void __kithip_set_xnack(bool flag) {
-  bool xnack_env = __kithip_xnack_env_check();
+  bool xnack_env = kitrt::envContains("HSA_XNACK");
   if (xnack_env != flag) {
     __kitrt_warn(
         LABEL,
