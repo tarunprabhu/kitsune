@@ -12,6 +12,8 @@
 
 #include "gtest/gtest.h"
 
+using namespace kitrt;
+
 namespace {
 
 template <typename T> static T min() { return std::numeric_limits<T>::min(); }
@@ -64,32 +66,36 @@ protected:
     vars.emplace_back(getName(), val, expected);
   }
 
+  void checkContains() {
+    EXPECT_FALSE(envContains("NONEXISTENT"));
+    for (const VarSpec<T> &v : vars)
+      EXPECT_TRUE(envContains(v.name()));
+  }
+
   void checkLookup() {
+    EXPECT_FALSE(envLookup<T>("NONEXISTENT").has_value());
     for (const VarSpec<T> &v : vars) {
-      T val;
-      EXPECT_FALSE(__kitrt_env_lookup("NONEXISTENT", val));
       if (v.valid()) {
-        EXPECT_TRUE(__kitrt_env_lookup(v.name(), val));
-        EXPECT_EQ(val, v.expected());
+        EXPECT_TRUE(envLookup<T>(v.name()).has_value());
+        EXPECT_EQ(*envLookup<T>(v.name()), v.expected());
       } else {
-        EXPECT_FALSE(__kitrt_env_lookup(v.name(), val));
+        EXPECT_FALSE(envLookup<T>(v.name()).has_value());
       }
     }
   }
 
   void checkSet(T expected) {
-    T val;
     EXPECT_STREQ(getenv("TEST_0"), "");
-    __kitrt_env_set("TEST_0", expected);
-    EXPECT_TRUE(__kitrt_env_lookup("TEST_0", val));
-    EXPECT_EQ(val, expected);
+    envSet("TEST_0", expected);
+    EXPECT_TRUE(envLookup<T>("TEST_0").has_value());
+    EXPECT_EQ(envLookup<T>("TEST_0"), expected);
   }
 
   void checkUnset() {
-    T val;
-    __kitrt_env_unset("TEST_0");
+    envUnset("TEST_0");
     EXPECT_FALSE(getenv("TEST_0"));
-    EXPECT_FALSE(__kitrt_env_lookup("TEST_0", val));
+    EXPECT_FALSE(envContains("TEST_0"));
+    EXPECT_FALSE(envLookup<T>("TEST_0").has_value());
   }
 };
 
@@ -110,7 +116,8 @@ public:
     add("s$@K$J8", true);
   }
 };
-TEST_F(EnvBool, __kitrt_env_lookup_bool) {
+TEST_F(EnvBool, envLookup_bool) {
+  checkContains();
   checkLookup();
   checkSet(false);
   checkUnset();
@@ -130,7 +137,8 @@ public:
     add("3.14159");
   }
 };
-TEST_F(EnvI32, __kitrt_env_lookup_i32) {
+TEST_F(EnvI32, envLookup_i32) {
+  checkContains();
   checkLookup();
   checkSet(0xbadc0de);
   checkUnset();
@@ -149,7 +157,8 @@ public:
     add("3.14159");
   }
 };
-TEST_F(EnvU32, __kitrt_env_lookup_u32) {
+TEST_F(EnvU32, envLookup_u32) {
+  checkContains();
   checkLookup();
   checkSet(0xbadc0de);
   checkUnset();
@@ -169,7 +178,8 @@ public:
     add("3.14159");
   }
 };
-TEST_F(EnvI64, __kitrt_env_lookup_i64) {
+TEST_F(EnvI64, envLookup_i64) {
+  checkContains();
   checkLookup();
   checkSet(0xbadc0dedec0deL);
   checkUnset();
@@ -188,7 +198,8 @@ public:
     add("3.14159");
   }
 };
-TEST_F(EnvI64, __kitrt_env_lookup_u64) {
+TEST_F(EnvI64, envLookup_u64) {
+  checkContains();
   checkLookup();
   checkSet(0xbadc0dedec0deL);
   checkUnset();
@@ -205,7 +216,8 @@ public:
     add("3.14E+ab");
   }
 };
-TEST_F(EnvFloat, __kitrt_env_lookup_f32) {
+TEST_F(EnvFloat, envLookup_f32) {
+  checkContains();
   checkLookup();
   checkSet(2.71828f);
   checkUnset();
@@ -222,7 +234,8 @@ public:
     add("3.14E+ab");
   }
 };
-TEST_F(EnvDouble, __kitrt_env_lookup_f64) {
+TEST_F(EnvDouble, envLookup_f64) {
+  checkContains();
   checkLookup();
   checkSet(2.71828);
   checkUnset();
