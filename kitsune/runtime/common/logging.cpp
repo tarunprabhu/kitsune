@@ -63,8 +63,8 @@
 
 // Write a message to stderr. \p category is optional. If \p is a format string,
 // the variable list of arguments \p args must be of the appropriate types.
-static void __kitrt_log(const char *label, const char *category, bool newline,
-                        const char *msg, va_list args) {
+static void logImpl(const char *label, const char *category, bool newline,
+                    const char *msg, va_list args) {
   static std::mutex mtx;
   std::lock_guard<std::mutex> guard(mtx);
 
@@ -78,57 +78,57 @@ static void __kitrt_log(const char *label, const char *category, bool newline,
     fprintf(stderr, "\n");
 }
 
-[[noreturn]] void __kitrt_fatal(const char *label, const char *msg, ...) {
+[[noreturn]] void kitrt::fatal(const char *label, const char *msg, ...) {
   va_list args;
   va_start(args, msg);
-  __kitrt_log(label, "ERROR", true, msg, args);
+  logImpl(label, "ERROR", true, msg, args);
   va_end(args);
 
   std::exit(EXIT_FAILURE);
 }
 
-void __kitrt_error(const char *label, const char *msg, ...) {
+void kitrt::error(const char *label, const char *msg, ...) {
   va_list args;
   va_start(args, msg);
-  __kitrt_log(label, "ERROR", true, msg, args);
+  logImpl(label, "ERROR", true, msg, args);
   va_end(args);
 }
 
-void __kitrt_warn(const char *label, const char *msg, ...) {
+void kitrt::warn(const char *label, const char *msg, ...) {
   va_list args;
   va_start(args, msg);
-  __kitrt_log(label, "WARNING", true, msg, args);
+  logImpl(label, "WARNING", true, msg, args);
   va_end(args);
 }
 
-void __kitrt_message(const char *label, const char *msg, ...) {
+void kitrt::log(const char *label, const char *msg, ...) {
   if (__kitrt_verbose_mode()) {
     va_list args;
     va_start(args, msg);
-    __kitrt_log(label, nullptr, true, msg, args);
+    logImpl(label, nullptr, true, msg, args);
     va_end(args);
   }
 }
 
-void __kitrt_error_noflush(const char *label, const char *msg, ...) {
+void kitrt::errorNoEndl(const char *label, const char *msg, ...) {
   va_list args;
   va_start(args, msg);
-  __kitrt_log(label, "ERROR", false, msg, args);
+  logImpl(label, "ERROR", false, msg, args);
   va_end(args);
 }
 
-void __kitrt_warn_noflush(const char *label, const char *msg, ...) {
+void kitrt::warnNoEndl(const char *label, const char *msg, ...) {
   va_list args;
   va_start(args, msg);
-  __kitrt_log(label, "WARNING", false, msg, args);
+  logImpl(label, "WARNING", false, msg, args);
   va_end(args);
 }
 
-void __kitrt_message_noflush(const char *label, const char *msg, ...) {
+void kitrt::logNoEndl(const char *label, const char *msg, ...) {
   if (__kitrt_verbose_mode()) {
     va_list args;
     va_start(args, msg);
-    __kitrt_log(label, nullptr, false, msg, args);
+    logImpl(label, nullptr, false, msg, args);
     va_end(args);
   }
 }

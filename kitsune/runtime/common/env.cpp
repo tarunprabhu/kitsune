@@ -73,17 +73,15 @@ static std::optional<V> parseAs(const std::string &vstr, const char *vname,
     auto tmp = converter(vstr, &pos, args...);
     if (pos == vstr.size())
       return tmp;
-    __kitrt_warn(LABEL,
-                 "Ignoring environment variable '%s'. Value contains unparsed "
-                 "characters",
-                 vname);
+    warn(LABEL,
+         "Ignoring environment variable '%s'. Value contains unparsed "
+         "characters",
+         vname);
   } catch (std::invalid_argument) {
-    __kitrt_warn(
-        LABEL, "Ignoring environment variable '%s'. Value is not valid", vname);
+    warn(LABEL, "Ignoring environment variable '%s'. Value not valid", vname);
   } catch (std::out_of_range) {
-    __kitrt_warn(LABEL,
-                 "Ignoring environment variable '%s'. Value is not in range",
-                 vname);
+    warn(LABEL, "Ignoring environment variable '%s'. Value not in range",
+         vname);
   }
   return std::nullopt;
 }
@@ -107,10 +105,9 @@ std::optional<bool> parseAs(const std::string &vstr, const char *vname) {
 
   // FIXME: We should be more strict and reject this, but for now, we are
   // permissive.
-  __kitrt_warn(
-      LABEL,
-      "Environment variable '%s' not set to known boolean. Assuming 'true'",
-      vname);
+  warn(LABEL,
+       "Environment variable '%s' not set to known boolean. Assuming 'true'",
+       vname);
   return true;
 }
 
@@ -176,9 +173,9 @@ template std::optional<double> kitrt::envLookup(const char *var);
 void kitrt::envSet(const char *varname, const char *s) {
   assert(varname && "Missing variable name");
 
-  __kitrt_message(LABEL, "Setting in environment: %s=%s", varname, s);
+  log(LABEL, "Setting in environment: %s=%s", varname, s);
   if (setenv(varname, s, 1))
-    __kitrt_warn(LABEL, "Could not set environment variable '%s'", varname);
+    warn(LABEL, "Could not set environment variable '%s'", varname);
 }
 
 template <typename T, std::enable_if_t<std::is_scalar_v<T>, int>>
@@ -197,7 +194,7 @@ template void kitrt::envSet(const char *var, const double &);
 
 void kitrt::envUnset(const char *varname) {
   assert(varname && "Missing variable name");
-  __kitrt_message(LABEL, "Unsetting in environment: %s", varname);
+  log(LABEL, "Unsetting in environment: %s", varname);
   if (unsetenv(varname))
-    __kitrt_warn(LABEL, "Could not unset environment variable '%s'", varname);
+    warn(LABEL, "Could not unset environment variable '%s'", varname);
 }

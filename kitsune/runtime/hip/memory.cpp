@@ -129,7 +129,7 @@ extern "C" void __kithip_enable_xnack() {
     kitrt::envSet("HSA_XNACK", 1);
   }
 
-  __kitrt_message(LABEL, "xnack enabled");
+  kitrt::log(LABEL, "xnack enabled");
 }
 
 // Enable/Disable the xnack operation. This setting is largely in the hands of
@@ -139,17 +139,17 @@ extern "C" void __kithip_enable_xnack() {
 extern "C" void __kithip_set_xnack(bool flag) {
   bool xnack_env = kitrt::envContains("HSA_XNACK");
   if (xnack_env != flag) {
-    __kitrt_warn(
+    kitrt::warn(
         LABEL,
         "HSA_XNACK setting overriding/conflicting with runtime settings");
-    __kitrt_warn(LABEL, "Stability and/or correctness issues may occur");
+    kitrt::warn(LABEL, "Stability and/or correctness issues may occur");
     kithip_rt::setXnack(xnack_env);
   } else {
     kithip_rt::setXnack(flag);
   }
 
-  __kitrt_message(LABEL, "xnack mode is %s",
-                  kithip_rt::xnackEnabled() ? "enabled" : "disabled");
+  kitrt::log(LABEL, "xnack mode is %s",
+             kithip_rt::xnackEnabled() ? "enabled" : "disabled");
 }
 
 // Allocate a block of managed memory (UVM) of 'size' bytes.
@@ -172,7 +172,7 @@ extern "C" [[gnu::malloc]] void *__kithip_mem_alloc_managed(size_t size) {
 
   assert(alloced_ptr && "kitrt[hip]: unexpected null allocation!");
 
-  __kitrt_message(
+  kitrt::log(
       LABEL,
       "allocated and registered %ld bytes of managed memory (address = %p)",
       size, alloced_ptr);
@@ -301,8 +301,8 @@ extern "C" void *__kithip_mem_gpu_prefetch(void *vp, void *opaque_stream) {
     else
       hip_stream = (hipStream_t)__kithip_get_thread_stream();
 
-    __kitrt_message(LABEL, "issue prefetch(address=%p, size=%ld, stream=%p)",
-                    vp, size, (void *)hip_stream);
+    kitrt::log(LABEL, "issue prefetch(address=%p, size=%ld, stream=%p)", vp,
+               size, (void *)hip_stream);
 
     HIP_SAFE_CALL(
         hipMemPrefetchAsync(vp, size, kithip_rt::deviceID(), hip_stream));

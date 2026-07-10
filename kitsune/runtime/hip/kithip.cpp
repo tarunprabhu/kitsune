@@ -127,7 +127,7 @@ extern "C" bool __kithip_initialize() {
   // Initialize the components of kitsune's runtime that are shared by the
   // tapir-target-specific components.
   __kitrt_initialize();
-  __kitrt_message(LABEL, "Initializing Kitsune runtime (hip)");
+  kitrt::log(LABEL, "Initializing Kitsune runtime (hip)");
 
   if (isInitialized()) {
     fprintf(stderr,
@@ -156,10 +156,10 @@ extern "C" bool __kithip_initialize() {
   if (std::optional<int> id = kitrt::envLookup<int>("KITHIP_DEVICE_ID")) {
     assert(id >= 0 && "kitrt[hip]: KITHIP_DEVICE_ID is invalid");
     assert(id < deviceCount() && "kitrt[hip]: KITHIP_DEVICE_ID is in range");
-    __kitrt_message(LABEL, "env override, using device: %d.\n", id);
+    kitrt::log(LABEL, "env override, using device: %d.\n", id);
     setDeviceID(*id);
   } else {
-    __kitrt_message(LABEL, "using default device");
+    kitrt::log(LABEL, "using default device");
     setDeviceID(0); // Default is always the first device.
   }
 
@@ -177,7 +177,7 @@ extern "C" bool __kithip_initialize() {
 
   // We should be good to go...
   setInitialized(true);
-  __kitrt_message(LABEL, "Initialized Kitsune runtime (hip)");
+  kitrt::log(LABEL, "Initialized Kitsune runtime (hip)");
 
   return isInitialized();
 }
@@ -187,14 +187,14 @@ extern "C" void __kithip_finalize() {
   if (not isInitialized())
     return;
 
-  __kitrt_message(LABEL, "Finalizing Kitsune runtime (hip)");
+  kitrt::log(LABEL, "Finalizing Kitsune runtime (hip)");
 
   __kithip_destroy_thread_streams();
   __kitrt_destroy_memory_map(__kithip_mem_destroy);
   HIP_SAFE_CALL(hipDeviceReset());
   setInitialized(false);
 
-  __kitrt_message(LABEL, "Finalized Kitsune runtime (hip)");
+  kitrt::log(LABEL, "Finalized Kitsune runtime (hip)");
 
   // Finalize the components of Kitsune's runtime that are shared by the
   // tapir-target-specific components.
@@ -205,14 +205,14 @@ extern "C" void __kithip_finalize() {
 ///
 /// \param n The trip count of the parallel loop in containing a reduction
 extern "C" int64_t __kithip_reduce_num_partials(int64_t n) {
-  __kitrt_message("kithip", "Calculating number of partial reductions\n");
+  kitrt::log(LABEL, "Calculating number of partial reductions\n");
 
   // FIXME: This is simply a placeholder to check that the rest of the
   // transformations work as expected. It is beyond terrible for performance, so
   // fix this is ASAP.
   int numPartials = 8;
 
-  __kitrt_message("kithip", "Number of partial reductions: %ld\n", numPartials);
+  kitrt::log(LABEL, "Number of partial reductions: %ld\n", numPartials);
 
   return numPartials;
 }
@@ -299,8 +299,8 @@ __kithip_register_global_managed(void **handle, void **newAddr, void *hostAddr,
   // In the declaration for __hipRegisterManagedVar, the third argument is
   // named initial_value. One would expect to be simply a pointer to the global
   // on the host since it would contain the initial value.
-  __kitrt_fatal(LABEL,
-                "TODO: Check __kithip_register_global_managed for correctness");
+  kitrt::fatal(LABEL,
+               "TODO: Check __kithip_register_global_managed for correctness");
 
   // FIXME?: Is it correct for the last argument to be zero? This is the case
   // when registering normal (those that are not allocated in managed memory)

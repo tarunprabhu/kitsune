@@ -64,6 +64,8 @@
 
 #define LABEL "kitocilk"
 
+using namespace kitrt;
+
 /// Declare functions and globals from the opencilk runtime that are used here.
 extern unsigned __cilkrts_nproc;
 extern "C" unsigned __cilkrts_get_worker_number(void);
@@ -81,14 +83,14 @@ extern "C" uint32_t __kitocilk_num_workers() {
 ///
 /// \param n The trip count of the parallel loop containing a reduction
 extern "C" int64_t __kitocilk_reduce_num_partials(int64_t n) {
-  __kitrt_message(LABEL, "Calculating number of partial reductions");
+  log(LABEL, "Calculating number of partial reductions");
 
   // There might be something smarter that can be done once we support a proper
   // reduction tree, but since we only support a reduction tree of depth 1, we
   // just return the number of available workers.
   uint32_t numPartials = __kitocilk_num_workers();
 
-  __kitrt_message(LABEL, "Number of partial reductions: %d", numPartials);
+  log(LABEL, "Number of partial reductions: %d", numPartials);
 
   return numPartials;
 }
@@ -103,7 +105,7 @@ extern "C" void __kitocilk_initialize(void) {
   __kitpapi_initialize_threading((void *)__cilkrts_get_worker_number);
 #endif // KITRT_PAPI_ENABLED
 
-  __kitrt_message(LABEL, "Initializing Kitsune runtime (opencilk)");
+  log(LABEL, "Initializing Kitsune runtime (opencilk)");
 
   uint32_t numThreads = __kitrt_num_threads("CILK_NWORKERS");
 
@@ -116,11 +118,10 @@ extern "C" void __kitocilk_initialize(void) {
   // the number of CPU's.
   uint32_t numCPUs = __kitrt_num_cpus();
   if (numThreads > __kitrt_num_cpus())
-    __kitrt_fatal(
-        LABEL,
-        "Number of threads/workers (%d) cannot be greater than number of "
-        "detected CPUs (%d)",
-        numThreads, numCPUs);
+    fatal(LABEL,
+          "Number of threads/workers (%d) cannot be greater than number of "
+          "detected CPUs (%d)",
+          numThreads, numCPUs);
 
   // Both of the lines below are required. __cilkrts_nproc is returned by
   // __cilkrts_nworkers. But it is not set by __cilkrts_internal_set_nworkers.
@@ -135,19 +136,19 @@ extern "C" void __kitocilk_initialize(void) {
   // initialized by its own private global constructor. We have no control over
   // when that constructor is run relative to this one.
 
-  __kitrt_message(LABEL, "Number of workers = %d", __kitocilk_num_workers());
-  __kitrt_message(LABEL, "Initialized Kitsune runtime (opencilk)");
+  log(LABEL, "Number of workers = %d", __kitocilk_num_workers());
+  log(LABEL, "Initialized Kitsune runtime (opencilk)");
 }
 
 /// Finalize kitsune's OpenCilk runtime.
 extern "C" void __kitocilk_finalize(void) {
-  __kitrt_message(LABEL, "Finalizing Kitsune runtime (opencilk)");
+  log(LABEL, "Finalizing Kitsune runtime (opencilk)");
 
   // There is no way to finalize OpenCilk's runtime explicitly - it is finalized
   // by its own private global destructor. We have no control over when that
   // destructor is run relative to this one.
 
-  __kitrt_message(LABEL, "Finalized Kitsune runtime (opencilk)");
+  log(LABEL, "Finalized Kitsune runtime (opencilk)");
 
   // Finalize the components of Kitsune's runtime that are shared by the
   // tapir-target-specific components.
