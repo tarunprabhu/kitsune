@@ -71,8 +71,8 @@ void __kitrt_register_mem_alloc(void *addr, size_t size) {
   entry.read_only = false;
   entry.write_only = false;
   _kitrt_alloc_map[addr] = entry;
-  __kitrt_message(LABEL, "registered memory allocation (%p) of %ld bytes\n",
-                  addr, size);
+  kitrt::log(LABEL, "registered memory allocation (%p) of %ld bytes\n", addr,
+             size);
 }
 
 void __kitrt_set_mem_prefetch(void *addr, bool prefetched) {
@@ -81,9 +81,8 @@ void __kitrt_set_mem_prefetch(void *addr, bool prefetched) {
   KitRTAllocMap::iterator ait = _kitrt_alloc_map.find(addr);
   if (ait != _kitrt_alloc_map.end()) {
     ait->second.prefetched = prefetched;
-    __kitrt_message(LABEL, "marked memory at %p, size %ld, as '%s'.\n", addr,
-                    ait->second.size,
-                    prefetched ? "prefetched" : "not prefetched");
+    kitrt::log(LABEL, "marked memory at %p, size %ld, as '%s'.\n", addr,
+               ait->second.size, prefetched ? "prefetched" : "not prefetched");
   }
 
   // We could consider a diagnostic here reporting use of an unregistered

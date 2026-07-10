@@ -126,14 +126,14 @@ extern "C" uint32_t __kitomp_num_threads() { return omp_get_max_threads(); }
 ///
 /// \param n The trip count of the parallel loop containing a reduction
 extern "C" int64_t __kitomp_reduce_num_partials(int64_t n) {
-  __kitrt_message(LABEL, "Calculating number of partial reductions");
+  log(LABEL, "Calculating number of partial reductions");
 
   // There might be something smarter that can be done once we support a proper
   // reduction tree, but since we only support a reduction tree of depth 1, we
   // just return the number of CPU's on the system.
   uint32_t numPartials = __kitomp_num_threads();
 
-  __kitrt_message(LABEL, "Number of partial reductions: %d", numPartials);
+  log(LABEL, "Number of partial reductions: %d", numPartials);
 
   return numPartials;
 }
@@ -154,8 +154,8 @@ using ThreadFunc = void (*)(const int64_t start, const int64_t end, void *args);
 static void staticLoopWrapper(int32_t *globalTID, int32_t *localTID,
                               ThreadFunc f, int64_t start, int64_t end,
                               void *args) {
-  __kitrt_message(LABEL, "Running on thread %d of %d [global = %d]", *localTID,
-                  omp_get_num_threads(), *globalTID);
+  log(LABEL, "Running on thread %d of %d [global = %d]", *localTID,
+      omp_get_num_threads(), *globalTID);
 
   // Since each thread must run exactly one iteration, we can just use the
   // thread id to specify the range.
@@ -188,13 +188,13 @@ extern "C" void __kitomp_launch(ThreadFunc f, int64_t start, int64_t end,
                                 void *args) {
   assert(start == 0 && end == __kitomp_num_threads() &&
          "__kitomp_launch expects loop iterations in range [0,NUM_THREADS)");
-  __kitrt_message(LABEL, "Launching multithreaded loop: [%ld,%ld)", start, end);
+  log(LABEL, "Launching multithreaded loop: [%ld,%ld)", start, end);
 
   // This will launch `omp_get_max_threads()` threads.
   __kmpc_fork_call(&staticLoopLoc, 4, (kmpc_micro)&staticLoopWrapper, f, start,
                    end, args);
 
-  __kitrt_message(LABEL, "Finished multithreaded loop");
+  log(LABEL, "Finished multithreaded loop");
 }
 
 /// Initialize kitsune's OpenMP runtime as well as the actual OpenMP runtime.
@@ -207,7 +207,7 @@ extern "C" void __kitomp_initialize(void) {
   __kitpapi_initialize_threading((void *)omp_get_thread_num);
 #endif // KITRT_PAPI_ENABLED
 
-  __kitrt_message(LABEL, "Initializing Kitsune runtime (openmp)");
+  log(LABEL, "Initializing Kitsune runtime (openmp)");
 
   uint32_t numThreads = __kitrt_num_threads("OMP_NUM_THREADS");
   envSet("OMP_NUM_THREADS", numThreads);
@@ -215,25 +215,25 @@ extern "C" void __kitomp_initialize(void) {
   // The second argument in the call to __kmpc_begin is currently unused, per
   // the 10-year old documentation that seems to be the only kind that is
   // available.
-  __kitrt_message(LABEL, "Initializing OpenMP runtime");
+  log(LABEL, "Initializing OpenMP runtime");
   __kmpc_begin(&unknownLoc, /*flags=*/0);
-  __kitrt_message(LABEL, "Initialized OpenMP runtime");
+  log(LABEL, "Initialized OpenMP runtime");
 
-  __kitrt_message(LABEL, "Number of threads = %d", __kitomp_num_threads());
-  __kitrt_message(LABEL, "Initialized Kitsune runtime (openmp)");
+  log(LABEL, "Number of threads = %d", __kitomp_num_threads());
+  log(LABEL, "Initialized Kitsune runtime (openmp)");
 }
 
 /// Finalize kitsune's OpenMP runtime, as well as OpenMP runtime.
 extern "C" void __kitomp_finalize(void) {
-  __kitrt_message(LABEL, "Finalizing Kitsune runtime (openmp)");
+  log(LABEL, "Finalizing Kitsune runtime (openmp)");
 
   // This call is optional, but we use it anyway for consistency with the other
   // runtimes.
-  __kitrt_message(LABEL, "Finalizing OpenMP runtime");
+  log(LABEL, "Finalizing OpenMP runtime");
   __kmpc_end(&unknownLoc);
-  __kitrt_message(LABEL, "Finalized OpenMP runtime");
+  log(LABEL, "Finalized OpenMP runtime");
 
-  __kitrt_message(LABEL, "Finalized Kitsune runtime (openmp)");
+  log(LABEL, "Finalized Kitsune runtime (openmp)");
 
   // Finalize the components of Kitsune's runtime that are shared by the
   // tapir-target-specific components.

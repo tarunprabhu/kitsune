@@ -56,51 +56,49 @@
 #ifndef KITRT_COMMON_LOGGING_H
 #define KITRT_COMMON_LOGGING_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif // __cplusplus
+namespace kitrt {
 
 /**
  * Print an error message to stderr and terminate the process with an exit code.
  * \p msg may be a printf-compatible format string. In that case, any optional
  * arguments must be of the appropriate types.
  */
-[[noreturn]] void __kitrt_fatal(const char *label, const char *msg, ...);
+[[noreturn]] void fatal(const char *label, const char *msg, ...);
 
 /**
  * Print an error message to stderr. \p msg may be a printf-compatible format
  * string. In that case, any optional arguments must be of the appropriate
  * types.
  */
-void __kitrt_error(const char *label, const char *msg, ...);
+void error(const char *label, const char *msg, ...);
 
 /**
  * Print a warning message to stderr. \p msg may be a printf-compatible format
  * string. In that case, any optional arguments must be of the appropriate
  * types.
  */
-void __kitrt_warn(const char *label, const char *msg, ...);
+void warn(const char *label, const char *msg, ...);
 
 /**
  * Print a message to stderr if verbose mode has been enabled. \p msg may be a
  * printf-compatible format string. In that case, any optional arguments must be
  * of the appropriate types.
  */
-void __kitrt_message(const char *label, const char *msg, ...);
+void log(const char *label, const char *msg, ...);
 
 /**
  * Print an error message to stderr. \p msg may be a printf-compatible format
  * string. In that case, any optional arguments must be of the appropriate
  * types. This does not add a trailing newline after printing the message.
  */
-void __kitrt_error_noflush(const char *label, const char *msg, ...);
+void errorNoEndl(const char *label, const char *msg, ...);
 
 /**
  * Print a warning message to stderr. \p msg may be a printf-compatible format
  * string. In that case, any optional arguments must be of the appropriate
  * types. This does not add a trailing newline after printing the message.
  */
-void __kitrt_warn_noflush(const char *label, const char *msg, ...);
+void warnNoEndl(const char *label, const char *msg, ...);
 
 /**
  * Print a message to stderr if verbose mode has been enabled. \p msg may be a
@@ -108,10 +106,8 @@ void __kitrt_warn_noflush(const char *label, const char *msg, ...);
  * of the appropriate types. This does not add a trailing newline after printing
  * the message.
  */
-void __kitrt_message_noflush(const char *label, const char *msg, ...);
+void logNoEndl(const char *label, const char *msg, ...);
 
-#ifdef __cplusplus
-} // extern "C"
-#endif // __cplusplus
+} // namespace kitrt
 
 #endif // KITRT_COMMON_LOGGING_H

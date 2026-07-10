@@ -48,9 +48,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "common/logging.h"
 #include "kitrt.h"
 #include "memory_map.h"
-#include "common/logging.h"
 
 #include <cstdlib>
 #include <cstring>
@@ -93,10 +93,10 @@ template <typename T,
           std::enable_if_t<std::is_integral_v<T> || std::is_floating_point_v<T>,
                            int> = 0>
 static void mobileInitScalar(T *buf, size_t n, T v) {
-  __kitrt_message_noflush(
-      LABEL, "Setting %ld elements of mobile buffer with type %s to ", n,
-      getTypeName<T>());
-  __kitrt_message(nullptr, getTypeFmt<T>(), v);
+  kitrt::logNoEndl(LABEL,
+                   "Setting %ld elements of mobile buffer with type %s to ", n,
+                   getTypeName<T>());
+  kitrt::log(nullptr, getTypeFmt<T>(), v);
   for (size_t i = 0; i < n; ++i)
     buf[i] = v;
 }
