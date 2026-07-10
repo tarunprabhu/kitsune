@@ -27,7 +27,7 @@ __attribute__((constructor)) static void ctor(void) { __kitomp_initialize(); }
 
 __attribute__((destructor)) static void dtor(void) { __kitomp_finalize(); }
 
-static void thrdFn(int64_t start, int64_t stop, int64_t grainSize, void *args) {
+static void thrdFn(int64_t start, int64_t stop, void *args) {
   __kittimer_start(92, omp_get_thread_num(), "tine");
   __kittimer_stop(92, omp_get_thread_num());
 }
@@ -35,7 +35,7 @@ static void thrdFn(int64_t start, int64_t stop, int64_t grainSize, void *args) {
 int main(int argc, char *argv[]) {
   __kittimer_start(11, 0, "fork");
   for (unsigned i = 0; i < 3; ++i)
-    __kitomp_launch(thrdFn, 0, 3, 0, NULL);
+    __kitomp_launch(thrdFn, 0, 3, NULL);
   __kittimer_stop(11, 0);
 
   return 0;

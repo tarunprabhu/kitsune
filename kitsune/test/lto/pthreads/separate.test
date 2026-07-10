@@ -45,7 +45,6 @@
 # LOWERED-SAME: ptr @[[OUTLINED:_Z6vecadd[^,]+]],
 # LOWERED-SAME: i64 0,
 # LOWERED-SAME: i64 %[[NUM_THREADS]],
-# LOWERED-SAME: i64 0,
 # LOWERED-SAME: ptr %[[PACK]])
 # LOWERED: call void @llvm.kit.cpu.threads.sync(i32 1024, ptr %[[CTX]])
 # LOWERED: ret void
@@ -53,7 +52,6 @@
 # LOWERED: define internal fastcc void @[[OUTLINED]](
 # LOWERED-SAME: i64 %[[START:[^,]+]],
 # LOWERED-SAME: i64 %[[END:[^,]+]],
-# LOWERED-SAME: i64 %[[GRAINSIZE:[^,]+]],
 # LOWERED-SAME: ptr {{.*}}%[[ARGS:[^)]+]])
 # LOWERED: %[[ARGN:.+]] = getelementptr i8, ptr %[[ARGS]], i64 8
 # LOWERED: %[[ARGA:.+]] = getelementptr i8, ptr %[[ARGS]], i64 16

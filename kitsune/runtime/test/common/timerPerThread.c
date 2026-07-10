@@ -25,14 +25,14 @@ __attribute__((constructor)) static void ctor(void) { __kitpthr_initialize(); }
 
 __attribute__((destructor)) static void dtor(void) { __kitpthr_finalize(); }
 
-static void thrdFn(int64_t start, int64_t stop, int64_t grainSize, void *args) {
+static void thrdFn(int64_t start, int64_t end, void *args) {
   __kittimer_start(92, pthread_self(), "thrd");
   __kittimer_stop(92, pthread_self());
 }
 
 int main(int argc, char *argv[]) {
   __kittimer_start(11, 0, "main");
-  KitPthrContext *ctx = __kitpthr_launch(thrdFn, 0, 3, 0, NULL);
+  KitPthrContext *ctx = __kitpthr_launch(thrdFn, 0, 3, NULL);
   __kitpthr_sync(ctx);
   __kittimer_stop(11, 0);
 

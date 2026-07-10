@@ -17,7 +17,6 @@
 // CHECK: %[[THRDS32:.+]] = tail call i32 @llvm.kit.cpu.num.threads(i32 512)
 // CHECK: %[[NUM_THREADS:.+]] = sext i32 %[[THRDS32]] to i64
 // CHECK: %[[PER_THREAD:.+]] = udiv i64 {{.+}}, %[[NUM_THREADS]]
-// CHECK: %[[GS:[0-9]+]] = {{.*}}call i64 @llvm.tapir.loop.grainsize
 // CHECK: %[[ARGPOS0:.+]] = getelementptr {{.*}}, ptr %[[ARGS]], i32 0, i32 0
 // CHECK: store i64 %[[PER_THREAD]], ptr %[[ARGPOS0]]
 // CHECK: %[[ARGPOS1:.+]] = getelementptr {{.*}}, ptr %[[ARGS]], i32 0, i32 1
@@ -27,13 +26,11 @@
 // CHECK-SAME: ptr @[[OUTLINED:[^,]+]],
 // CHECK-SAME: i64 0,
 // CHECK-SAME: i64 %[[NUM_THREADS]],
-// CHECK-SAME: i64 %[[GS]],
 // CHECK-SAME: ptr %[[ARGS]])
 //
 // CHECK: define internal fastcc void @[[OUTLINED:[A-Za-z0-9._-]+]](
 // CHECK-SAME: i64 %[[START:[^,]+]],
 // CHECK-SAME: i64 %[[END:[^,]+]],
-// CHECK-SAME: i64 %[[GRAINSIZE:[^,]+]],
 // CHECK-SAME: ptr {{[^%]*}}%[[ARGS:[^)]+]])
 // CHECK: %[[OUTER:.+]] = phi i64
 // CHECK: %[[I:.+]] = phi i64

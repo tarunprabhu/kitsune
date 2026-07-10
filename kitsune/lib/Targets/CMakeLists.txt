@@ -1,4 +1,6 @@
 set(SOURCES
+  CPUTTCommon.cpp
+  CPUTTLoop.cpp
   GPUTTCommon.cpp
   GPUTTLoop.cpp
   OpenMPTT.cpp

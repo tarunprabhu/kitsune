@@ -3070,11 +3070,10 @@ TLI_DEFINE_SIG_INTERNAL(Void)
 /// void __kitomp_launch(void(*thread_f)(int64_t, int64_t, int64_t, void*),
 ///                      int64_t start,
 ///                      int64_t end,
-///                      int64_t grainSize,
 ///                      void* args);
 TLI_DEFINE_ENUM_INTERNAL(kitomp_launch)
 TLI_DEFINE_STRING_INTERNAL("__kitomp_launch")
-TLI_DEFINE_SIG_INTERNAL(Void, Ptr, Int64, Int64, Int64, Ptr)
+TLI_DEFINE_SIG_INTERNAL(Void, Ptr, Int64, Int64, Ptr)
 
 /// unsigned __kitomp_num_threads(void);
 TLI_DEFINE_ENUM_INTERNAL(kitomp_num_threads)
@@ -3104,11 +3103,10 @@ TLI_DEFINE_SIG_INTERNAL(Void)
 /// void* __kitpthr_launch(void(*thread_f)(int64_t, int64_t, void*),
 ///                        int64_t start,
 ///                        int64_t end,
-///                        int64_t grainSize,
 ///                        void* args);
 TLI_DEFINE_ENUM_INTERNAL(kitpthr_launch)
 TLI_DEFINE_STRING_INTERNAL("__kitpthr_launch")
-TLI_DEFINE_SIG_INTERNAL(Ptr, Ptr, Int64, Int64, Int64, Ptr)
+TLI_DEFINE_SIG_INTERNAL(Ptr, Ptr, Int64, Int64, Ptr)
 
 /// void __kitpthr_sync(const void* pthrCtxt);
 TLI_DEFINE_ENUM_INTERNAL(kitpthr_sync)
@@ -3143,11 +3141,10 @@ TLI_DEFINE_SIG_INTERNAL(Void)
 /// void* __kitqthr_launch(void(*thread_f)(int64_t, int64_t, void*),
 ///                        int64_t start,
 ///                        int64_t end,
-///                        int64_t grainSize,
 ///                        void* args);
 TLI_DEFINE_ENUM_INTERNAL(kitqthr_launch)
 TLI_DEFINE_STRING_INTERNAL("__kitqthr_launch")
-TLI_DEFINE_SIG_INTERNAL(Void, Ptr, Int64, Int64, Int64, Ptr)
+TLI_DEFINE_SIG_INTERNAL(Void, Ptr, Int64, Int64, Ptr)
 
 /// unsigned __kitqthr_num_workers(void);
 TLI_DEFINE_ENUM_INTERNAL(kitqthr_num_workers)

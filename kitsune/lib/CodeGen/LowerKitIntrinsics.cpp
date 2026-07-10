@@ -182,9 +182,9 @@ static const SmallDenseMap<TTID, KitRTFuncMap> kitTTFuncs = {
 /// modified before passing them to the runtime function, the lowering *MUST* be
 /// handled with a custom lowering function.
 static const KitRTFuncArgMap kitRTArgMap = {
-    {Intrinsic::kit_async_cpu_threads_launch, {1, 2, 3, 4, 5}},
+    {Intrinsic::kit_async_cpu_threads_launch, {1, 2, 3, 4}},
     {Intrinsic::kit_cpu_num_threads, {}},
-    {Intrinsic::kit_cpu_threads_launch, {1, 2, 3, 4, 5}},
+    {Intrinsic::kit_cpu_threads_launch, {1, 2, 3, 4}},
     {Intrinsic::kit_cpu_threads_sync, {1}},
     {Intrinsic::kit_async_gpu_memcpy_dtoh, {1, 2, 3, 4}},
     {Intrinsic::kit_async_gpu_memcpy_htod, {1, 2, 3, 4}},

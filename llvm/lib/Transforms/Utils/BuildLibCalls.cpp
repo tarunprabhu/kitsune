@@ -1557,10 +1557,9 @@ FunctionCallee llvm::getOrInsertLibFunc(Module *M, const TargetLibraryInfo &TLI,
 
   case LibFunc_kitomp_launch:
   case LibFunc_kitpthr_launch:
-  case LibFunc_kitpthr_sync:
   case LibFunc_kitqthr_launch:
-    setArgExtAttr(*F, 0, TLI);
     setArgExtAttr(*F, 1, TLI);
+    setArgExtAttr(*F, 2, TLI);
     break;
 
   case LibFunc_kitcuda_enable_refine_launches:

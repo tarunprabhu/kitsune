@@ -209,19 +209,18 @@ def KitLaunchThreadsDoc : KitDocIntrinsic {
       KitDocParam<"threadFunc", "The function executed on each thread">,
       KitDocParam<"beg", "Start value of the loop induction variable">,
       KitDocParam<"end", "Trip count of the loop">,
-      KitDocParam<"grainSize", "The grain size (currently unused)">,
       KitDocParam<"argBundle", "Argument bundle passed to `threadFunc`">
   ];
   let Descr = [{
 Launch a parallel loop on one or more CPU threads.
 
-Currently, `beg` must be 0. `grainSize` is not used and may be removed in the
-future. `threadFunc` runs on each thread and handles a subset of the loop
-iterations. The actual signature of the function will depend on the tapir target
-that calls this, but will generally take at least a start index, an end index
-and the `argBundle`. `argBundle` is a pointer to a struct containing values that
-will be used by `thrdFunc`. The struct is specific to a given parallel loop and
-will typically consist of the entities used in the body of the loop.
+Currently, `beg` must be 0. `threadFunc` runs on each thread and handles a
+subset of the loop iterations. The actual signature of the function will depend
+on the tapir target that calls this, but will generally take at least a start
+index, an end index and the `argBundle`. `argBundle` is a pointer to a struct
+containing values that will be used by `thrdFunc`. The struct is specific to a
+given parallel loop and will typically consist of the entities used in the body
+of the loop.
 
 .. code :: c++
 
@@ -244,7 +243,6 @@ def KitAsyncLaunchThreadsDoc : KitDocIntrinsic {
       KitDocParam<"threadFunc", "The function executed on each thread">,
       KitDocParam<"beg", "Start value of the loop induction variable">,
       KitDocParam<"end", "Trip count of the loop">,
-      KitDocParam<"grainSize", "The grain size (currently unused)">,
       KitDocParam<"argBundle", "Argument bundle passed to `threadFunc`">
   ];
   let Descr = [{
@@ -257,13 +255,13 @@ the caller's responsibility to ensure that any memory that is used by
 `threadFunc` is not used until after all threads launched here have finished
 executing i.e. after the threads have been synchronized.
 
-Currently, `beg` must be 0. `grainSize` is not used and may be removed in the
-future. `threadFunc` runs on each thread and handles a subset of the loop
-iterations. The actual signature of the function will depend on the tapir target
-that calls this, but will generally take at least a start index, an end index
-and the `argBundle`. `argBundle` is a pointer to a struct containing values that
-will be used by `thrdFunc`. The struct is specific to a given parallel loop and
-will typically consist of the entities used in the body of the loop.
+Currently, `beg` must be 0. `threadFunc` runs on each thread and handles a
+subset of the loop iterations. The actual signature of the function will depend
+on the tapir target that calls this, but will generally take at least a start
+index, an end index and the `argBundle`. `argBundle` is a pointer to a struct
+containing values that will be used by `thrdFunc`. The struct is specific to a
+given parallel loop and will typically consist of the entities used in the body
+of the loop.
 
 .. code :: c++
 
