@@ -99,22 +99,21 @@ tools.extend([
     ToolSubst("%clangxx", FindTool("clang++"), unresolved="fatal"),
     ToolSubst("%kitcc", FindTool(config.kitcc), unresolved="fatal"),
     ToolSubst("%kitxx", FindTool(config.kitxx), unresolved="fatal"),
-    ToolSubst("%kit-config", FindTool("kit-config"), unresolved="fatal"),
-    ToolSubst("%kit-enc", FindTool("kit-enc"), unresolved="fatal"),
-    ToolSubst("%kit-mbc", FindTool("kit-mbc"), unresolved="fatal"),
-    ToolSubst("%kit-sort", FindTool("kit-sort"), unresolved="fatal"),
 ])
 if config.kitsune_fortran_enabled:
     tools.extend([
         ToolSubst("%flang", FindTool("flang"), unresolved="fatal"),
         ToolSubst("%kitfc", FindTool(config.kitfc), unresolved="fatal"),
     ])
+for tool in config.kitsune_tools.split(';'):
+    tools.append(ToolSubst(f"%{tool}", FindTool(tool), unresolved="fatal"))
+
 llvm_config.add_tool_substitutions(tools, tool_dirs)
 
 if config.kitsune_gcc_install_dir:
     config.available_features.add("kitsune-gcc-install-dir")
 
-if config.kitsune_examples:
+if config.kitsune_build_examples:
     config.available_features.add("kitsune-examples")
 
 if config.kitsune_c_enabled:
