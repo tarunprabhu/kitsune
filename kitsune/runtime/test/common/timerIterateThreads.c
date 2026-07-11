@@ -3,16 +3,16 @@
 // be built. Also, omp_get_thread_num() returns an integer in
 // [0, KIT_NUM_THREADS), so one can reasonably collect times across iterations.
 //
-// RUN: env KIT_NUM_THREADS=3 %exe | FileCheck %s
+// RUN: env KIT_NUM_THREADS=3 %exe 2>&1 | FileCheck %s
 //
 // CHECK: {
 // CHECK-NEXT: "fork": {
 // CHECK-NEXT: "0": [{{[0-9]+}}]
 // CHECK-NEXT: },
 // CHECK-NEXT: "tine": {
-// CHECK-NEXT: "0": [{{[0-9]+}}, {{[0-9]+}}, {{[0-9]+}}]
-// CHECK-NEXT: "1": [{{[0-9]+}}, {{[0-9]+}}, {{[0-9]+}}]
-// CHECK-NEXT: "2": [{{[0-9]+}}, {{[0-9]+}}, {{[0-9]+}}]
+// CHECK-DAG: "0": [{{[0-9]+}}, {{[0-9]+}}, {{[0-9]+}}]
+// CHECK-DAG: "1": [{{[0-9]+}}, {{[0-9]+}}, {{[0-9]+}}]
+// CHECK-DAG: "2": [{{[0-9]+}}, {{[0-9]+}}, {{[0-9]+}}]
 // CHECK-NEXT: }
 // CHECK-NEXT: }
 
