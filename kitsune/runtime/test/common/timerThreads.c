@@ -2,7 +2,7 @@
 // as expected. We use Kitsune's pthreads runtime because it is guaranteed to be
 // built.
 //
-// RUN: env KIT_NUM_THREADS=3 %exe | FileCheck %s
+// RUN: env KIT_NUM_THREADS=3 %exe 2>&1 | FileCheck %s
 //
 // CHECK: {
 // CHECK-NEXT: "main": {

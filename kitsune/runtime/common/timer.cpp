@@ -61,6 +61,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "common/timer.h"
+#include "common/env.h"
+#include "common/logging.h"
 
 #include <algorithm>
 #include <ctime>
@@ -68,6 +70,10 @@
 #include <mutex>
 #include <string>
 #include <vector>
+
+#define LABEL "kitrt"
+
+using namespace kitrt;
 
 namespace {
 
@@ -186,44 +192,78 @@ extern "C" void __kittimer_finalize(void) {
   using ThreadIDs = std::vector<ThreadID>;
   using IDs = std::vector<std::tuple<TimerID, ThreadIDs>>;
 
-  auto printTimes = [&](const Timer &timer) {
+  auto printTimes = [](FILE *file, const Timer &timer) {
     bool comma = false;
+
+    fprintf(file, "[");
     for (TimeSpan t : timer) {
       if (comma)
-        printf(", ");
-      printf("%lu", t);
+        fprintf(file, ", ");
+      fprintf(file, "%lu", t);
       comma = true;
     }
+    fprintf(file, "]");
   };
 
-  auto printThreads = [&printTimes](TimerID timerID, ThreadIDs &thrdIDs) {
+  auto printThreads = [&](FILE *file, TimerID timerID, ThreadIDs &thrdIDs) {
     std::sort(thrdIDs.begin(), thrdIDs.end());
     bool comma = false;
+
+    fprintf(file, "{");
     for (ThreadID threadID : thrdIDs) {
       if (comma)
-        printf(",");
-      printf("\n");
-      printf("    \"%ld\": [", threadID);
-      printTimes(gTimerCtx->get(timerID, threadID));
-      printf("]");
+        fprintf(file, ",");
+      fprintf(file, "\n");
+      fprintf(file, "    \"%ld\": ", threadID);
+      printTimes(file, gTimerCtx->get(timerID, threadID));
       comma = true;
     }
+    fprintf(file, "\n  }");
   };
 
-  auto printTimers = [&printThreads](IDs &ids) {
+  auto printTimers = [&](FILE *file, IDs &ids) {
     bool comma = false;
+
+    fprintf(file, "{");
     for (auto &[timerID, thrdIDs] : ids) {
       if (comma)
-        printf(",");
-      printf("\n");
-      printf("  \"%s\": {", gTimerCtx->name(timerID).c_str());
-      printThreads(timerID, thrdIDs);
-      printf("\n  }");
+        fprintf(file, ",");
+      fprintf(file, "\n");
+      fprintf(file, "  \"%s\": ", gTimerCtx->name(timerID).c_str());
+      printThreads(file, timerID, thrdIDs);
       comma = true;
+    }
+    fprintf(file, "\n}\n");
+  };
+
+  auto getFile = []() -> FILE * {
+    if (std::optional<std::string> fname = envLookup("KIT_TIMING_FILE")) {
+      if (fname == "-")
+        return stdout;
+
+      log(LABEL, "Writing timings to file: %s", fname->c_str());
+      FILE *fp = fopen(fname->c_str(), "wt");
+      if (!fp)
+        warn(LABEL, "Could not open file for writing");
+      return fp;
+    } else {
+      return stderr;
     }
   };
 
   if (gTimerCtx->size()) {
+    // Sort the timers by name. At the end of this, the vector of pairs might
+    // look something like this:
+    //
+    //     [{57, 0},   // name = "main"
+    //      {9,  43},  // name = "timer1"
+    //      {9,  12},  // name = "timer1"
+    //      {9,  27},  // name = "timer1"
+    //      {98, 0}]   // name = "write"
+    //
+    // Note that the timers are sorted by their name, not the IDs. However, the
+    // threads within each timer may not be sorted.
+    //
     std::vector<std::pair<TimerID, ThreadID>> ordered;
     for (const auto &[key, _] : *gTimerCtx)
       ordered.emplace_back(key.first, key.second);
@@ -232,6 +272,13 @@ extern "C" void __kittimer_finalize(void) {
                 return gTimerCtx->name(p1.first) < gTimerCtx->name(p2.first);
               });
 
+    // Collect the thread id's for each timer. At the end of this, the `ids`
+    // variable will look like this:
+    //
+    //    [{57, [0]},
+    //     {9,  [43, 12, 27]},
+    //     {98, [0]}]
+    //
     IDs ids = {{ordered.front().first, {}}};
     for (const auto &[timerID, thrdID] : ordered) {
       if (timerID != std::get<TimerID>(ids.back()))
@@ -239,9 +286,18 @@ extern "C" void __kittimer_finalize(void) {
       std::get<ThreadIDs>(ids.back()).push_back(thrdID);
     }
 
-    printf("{");
-    printTimers(ids);
-    printf("\n}\n");
+    // If a timing file is not provided, write timings to stderr. If the name of
+    // the timings file is "-", write to stdout. Otherwise, try to write to the
+    // file.
+    //
+    // If the file could not be opened, fp will be nullptr.
+    if (FILE *fp = getFile()) {
+      printTimers(fp, ids);
+      if (fp != stdout && fp != stderr) {
+        fclose(fp);
+        log(LABEL, "Timings written to file");
+      }
+    }
   }
 
   delete gTimerCtx;

@@ -1,6 +1,6 @@
 // If nothing is timed, nothing should be printed.
 //
-// RUN: %exe | FileCheck %s --allow-empty
+// RUN: %exe 2>&1 | FileCheck %s --allow-empty
 //
 // CHECK-NOT: {{^.+$}}
 
