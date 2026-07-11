@@ -454,7 +454,7 @@ endif ()
 if (NOT "all" IN_LIST LLVM_ENABLE_PROJECTS AND
     NOT "kitsune" IN_LIST LLVM_ENABLE_PROJECTS)
   list(APPEND LLVM_ENABLE_PROJECTS "kitsune")
-  message(STATUS "enable kitsune project")
+  message(STATUS "Kitsune: enable kitsune project")
 endif ()
 
 # Enable dependencies if they were not explicitly set at configure time. clang
@@ -462,14 +462,14 @@ endif ()
 if (NOT "all" IN_LIST LLVM_ENABLE_PROJECTS AND
     NOT "clang" IN_LIST LLVM_ENABLE_PROJECTS)
   list(PREPEND LLVM_ENABLE_PROJECTS "clang")
-  message(STATUS "enable clang project")
+  message(STATUS "Kitsune: enable clang project")
 endif ()
 
 # lld is required for LTO support, so always enable it.
 if (NOT "all" IN_LIST LLVM_ENABLE_PROJECTS AND
     NOT "lld" IN_LIST LLVM_ENABLE_PROJECTS)
   list(APPEND LLVM_ENABLE_PROJECTS "lld")
-  message(STATUS "enable lld project")
+  message(STATUS "Kitsune: enable lld project")
 endif ()
 
 # Both KITSUNE_KNOWN_LANGS and KITSUNE_KNOWN_LANGS_STR must be updated when
@@ -523,19 +523,19 @@ foreach(l IN LISTS KITSUNE_ENABLED_LANGS)
   # clang is required by the C and C++ frontends. But that is guaranteed to be
   # built because the runtime requires it.
   if (lang STREQUAL "c")
-    message(STATUS "'${KITSUNE_C_FRONTEND}' frontend is enabled")
+    message(STATUS "Kitsune: ${KITSUNE_C_FRONTEND} is enabled")
     set(KITSUNE_C_ENABLED ON
       CACHE INTERNAL
       "Enable '${KITSUNE_C_FRONTEND}' frontend" FORCE)
     list(APPEND KITSUNE_ENABLED_LANGS_STR "C")
   elseif (lang STREQUAL "cxx")
-    message(STATUS "'${KITSUNE_CXX_FRONTEND}' frontend is enabled")
+    message(STATUS "Kitsune: ${KITSUNE_CXX_FRONTEND} frontend is enabled")
     set(KITSUNE_CXX_ENABLED ON
       CACHE INTERNAL
       "Enable '${KITSUNE_CXX_FRONTEND}' frontend" FORCE)
     list(APPEND KITSUNE_ENABLED_LANGS_STR "C++")
   elseif (lang STREQUAL "fortran")
-    message(STATUS "'${KITSUNE_Fortran_FRONTEND}' frontend is enabled")
+    message(STATUS "Kitsune: ${KITSUNE_Fortran_FRONTEND} frontend is enabled")
     set(KITSUNE_Fortran_ENABLED ON
       CACHE INTERNAL
       "Enable '${KITSUNE_Fortran_FRONTEND}' frontend" FORCE)
@@ -543,23 +543,23 @@ foreach(l IN LISTS KITSUNE_ENABLED_LANGS)
     if (NOT "all" IN_LIST LLVM_ENABLE_PROJECTS AND
         NOT "flang" IN_LIST LLVM_ENABLE_PROJECTS)
       list(APPEND LLVM_ENABLE_PROJECTS "flang")
-      message(STATUS "enable flang project")
+      message(STATUS "Kitsune: enable flang project")
     endif ()
 
     if (NOT "flang-rt" IN_LIST LLVM_ENABLE_RUNTIMES)
       list(APPEND LLVM_ENABLE_RUNTIMES "flang-rt")
-      message(STATUS "enable flang-rt runtime")
+      message(STATUS "Kitsune: enable flang-rt runtime")
     endif ()
 
     if (NOT "all" IN_LIST LLVM_ENABLE_PROJECTS AND
         NOT "mlir" IN_LIST LLVM_ENABLE_PROJECTS)
       list(APPEND LLVM_ENABLE_PROJECTS "mlir")
-      message(STATUS "enable mlir project")
+      message(STATUS "Kitsune: enable mlir project")
     endif ()
 
     if (NOT "compiler-rt" IN_LIST LLVM_ENABLE_RUNTIMES)
       list(APPEND LLVM_ENABLE_RUNTIMES "compiler-rt")
-      message(STATUS "enable compiler-rt runtime")
+      message(STATUS "Kitsune: enable compiler-rt runtime")
     endif ()
 
     # flang requires clang's driver. clang should have been enabled already, but
@@ -567,7 +567,7 @@ foreach(l IN LISTS KITSUNE_ENABLED_LANGS)
     if (NOT "all" IN_LIST LLVM_ENABLE_PROJECTS AND
         NOT "clang" IN_LIST LLVM_ENABLE_PROJECTS)
       list(APPEND LLVM_ENABLE_PROJECTS "clang")
-      message(STATUS "enable clang project")
+      message(STATUS "Kitsune: enable clang project")
     endif ()
 
     list(APPEND KITSUNE_ENABLED_LANGS_STR "Fortran")
@@ -652,7 +652,7 @@ endforeach ()
 set(KITSUNE_ENABLED_TAPIR_TARGETS_STR)
 foreach(target IN LISTS KITSUNE_ENABLED_TAPIR_TARGETS)
   if (target IN_LIST KITSUNE_KNOWN_TAPIR_TARGETS)
-    message(STATUS "'${target}' tapir target is enabled")
+    message(STATUS "Kitsune: ${target} tapir target is enabled")
     string(TOUPPER "${target}" upper)
     set(KITSUNE_${upper}_ENABLED ON CACHE INTERNAL
       "Enable '${target}' tapir target"
@@ -717,10 +717,10 @@ list(JOIN KITSUNE_KNOWN_TAPIR_TARGETS_STR " " KITSUNE_KNOWN_TAPIR_TARGETS_STR)
 # /usr/local/cuda.
 if (KITSUNE_CUDA_ENABLED)
   if (KITSUNE_CUDA_PREFIX)
-    message(STATUS "setting CUDAToolkit_ROOT from KITSUNE_CUDA_PREFIX")
+    message(STATUS "Kitsune: setting CUDAToolkit_ROOT from KITSUNE_CUDA_PREFIX")
     set(CUDAToolkit_ROOT "${KITSUNE_CUDA_PREFIX}")
   elseif (DEFINED ENV{CUDA_PATH})
-    message(STATUS "setting CUDAToolkit_ROOT from CUDA_PATH in environment")
+    message(STATUS "Kitsune::setting CUDAToolkit_ROOT from CUDA_PATH in environment")
     set(CUDAToolkit_ROOT "$ENV{CUDA_PATH}")
   elseif (CUDAToolkit_ROOT)
     message(WARNING
@@ -737,7 +737,7 @@ if (KITSUNE_CUDA_ENABLED)
       "Set KITSUNE_CUDA_PREFIX to the path of a supported cuda installation")
   endif ()
 endif()
-message(STATUS "using CUDAToolkit_ROOT: ${CUDAToolkit_ROOT}")
+message(STATUS "Kitsune: using CUDAToolkit_ROOT: ${CUDAToolkit_ROOT}")
 
 if (KITSUNE_CUDA_ENABLED AND
     NOT "all" IN_LIST LLVM_TARGETS_TO_BUILD AND
@@ -748,7 +748,7 @@ if (KITSUNE_CUDA_ENABLED AND
       "Semicolon-separated list of targets to build, or \"all\"."
       FORCE)
   endif ()
-  message(STATUS "enable NVPTX target")
+  message(STATUS "Kitsune: enable NVPTX target")
 endif ()
 
 # If KITSUNE_HIP_PREFIX has been provided, set ROCM_PATH before enabling the
@@ -761,24 +761,24 @@ endif ()
 # doing this since the installation directories are not consistent.
 if (KITSUNE_HIP_ENABLED)
   if (KITSUNE_HIP_PREFIX)
-    message(STATUS "setting ROCM_PATH from KITSUNE_HIP_PREFIX")
+    message(STATUS "Kitsune: setting ROCM_PATH from KITSUNE_HIP_PREFIX")
     set(ROCM_PATH "${KITSUNE_HIP_PREFIX}")
   elseif (DEFINED ENV{ROCM_PATH})
-    message(STATUS "using ROCM_PATH from environment")
+    message(STATUS "Kitsune: using ROCM_PATH from environment")
     set(ROCM_PATH "$ENV{ROCM_PATH}")
   elseif (ROCM_PATH)
     message(WARNING
       "DEPRECATED: Setting ROCM_PATH directly. "
       "Set KITSUNE_HIP_PREFIX to the path of a supported ROCm installation")
   else ()
-    message(STATUS "using default ROCm install path")
+    message(STATUS "Kitsune: using default ROCm install path")
     message(WARNING
       "DEPRECATED: Using default ROCm install location. "
       "Set KITSUNE_HIP_PREFIX to the path of a supported ROCm installation")
     set(ROCM_PATH "/opt/rocm")
   endif ()
 endif ()
-message(STATUS "using ROCM_PATH: ${ROCM_PATH}")
+message(STATUS "Kitsune: using ROCM_PATH: ${ROCM_PATH}")
 
 if (KITSUNE_HIP_ENABLED AND
     NOT "all" IN_LIST LLVM_TARGETS_TO_BUILD AND
@@ -789,7 +789,7 @@ if (KITSUNE_HIP_ENABLED AND
       "Semicolon-separated list of targets to build, or \"all\"."
       FORCE)
   endif ()
-  message(STATUS "enable AMDGPU target")
+  message(STATUS "Kitsune: enable AMDGPU target")
 endif ()
 
 # The option here is for use when configuring Kitsune. The spelling is kept
@@ -797,7 +797,7 @@ endif ()
 option(KITSUNE_ENABLE_KOKKOS "Enable special handling of Kokkos constructs" ON)
 set(KITSUNE_KOKKOS_ENABLED ${KITSUNE_ENABLE_KOKKOS} CACHE INTERNAL
   "Enable special handling of Kokkos constructs" FORCE)
-message(STATUS "enable Kokkos support")
+message(STATUS "Kitsune: Kokkos support: ${KITSUNE_KOKKOS_ENABLED}")
 
 # Should the kitsune/experiments directory be configured. Configuring the
 # directory results in a file being created in the source directory. This makes
@@ -809,14 +809,20 @@ message(STATUS "enable Kokkos support")
 # since that is the current behavior.
 option(KITSUNE_ENABLE_EXPERIMENTS "Enable Kitsune's experiments" ON)
 
+# Kitsune's has some support to instrument code with PAPI to gather hardware
+# counters. This is only available on certain platforms, so it is disabled by
+# default.
+option(KITSUNE_ENABLE_PAPI "Enable PAPI support in Kitsune" OFF)
+set(KITSUNE_PAPI_ENABLED ${KITSUNE_ENABLE_PAPI} CACHE INTERNAL
+  "Enable PAPI support" FORCE)
+message(STATUS "Kitsune: PAPI support: ${KITSUNE_PAPI_ENABLED}")
+
 # Should the examples be built. Unlike in LLVM, for Kitsune, this defaults to
 # ON. Building these requires full linker support and also requires a fairly
 # standard sysroot. Of the platforms that Kitsune supports, this is only likely
 # to happen on some HPC systems. If a build/test error occurs on such systems,
 # this should be turned off.
 option(KITSUNE_BUILD_EXAMPLES "Build kitsune's examples" ON)
-
-option(KITSUNE_INCLUDE_TESTS "Generate build targets for Kitsune's tests" ON)
 
 # Documentation options
 option(KITSUNE_BUILD_DOCS "Build all Kitsune documentation" OFF)
@@ -849,12 +855,14 @@ if (KITSUNE_ENABLE_LLVM_DOXYGEN AND NOT KITSUNE_ENABLE_DOXYGEN)
   message(WARNING "KITSUNE_ENABLE_LLVM_DOXYGEN has no effect because KITSUNE_ENABLE_DOXYGEN is disabled")
 endif ()
 
+option(KITSUNE_INCLUDE_TESTS "Generate build targets for Kitsune's tests" ON)
+
 # Kitsune's runtime, libkitrt, used to have a dependence on libLLVM, but it does
 # not any longer. However, we might re-introduce it, so for now, build libLLVM
 # anyway. However, we don't link to it unless the user asks for it explicitly.
 if (NOT LLVM_BUILD_LLVM_DYLIB)
   set(LLVM_BUILD_LLVM_DYLIB ON)
-  message(STATUS "enable libLLVM")
+  message(STATUS "Kitsune: enable libLLVM")
 endif ()
 
 # A circular dependence between the libraries in Kitsune exists that can only be
