@@ -42,6 +42,8 @@ if (KITSUNE_BUILD_EXAMPLES)
     "${KITSUNE_TT_PLUGIN_DIR}/${KITSUNE_TT_PLUGIN_NAME}${SHLIB_EXT}")
 endif ()
 
+get_property(KITSUNE_TOOLS GLOBAL PROPERTY KITSUNE_TOOLS)
+
 configure_lit_site_cfg(
   ${CMAKE_CURRENT_SOURCE_DIR}/lit.site.cfg.py.in
   ${CMAKE_CURRENT_BINARY_DIR}/lit.site.cfg.py
@@ -63,10 +65,7 @@ list(APPEND KITSUNE_TEST_DEPS
   KitrtTests
   KitrtUnitTests
   KitsuneUnitTests
-  kit-config
-  kit-enc
-  kit-mbc
-  kit-sort
+  ${KITSUNE_TOOLS}
   kitsune-installed-headers
   clang
   count
@@ -162,12 +161,14 @@ if (KITSUNE_KOKKOS_ENABLED)
   add_custom_target(check-kitsune-kokkos DEPENDS check-kitsune-frontend-kokkos)
 endif ()
 
+# Targets of the form `check-<tool>` where <tool> is the name of a Kitsune tool.
+# Examples include check-kit-config, check-kit-mbc, etc.
+foreach(TOOL IN LISTS KITSUNE_TOOLS)
+  add_custom_target(check-${TOOL} DEPENDS check-kitsune-tools-${TOOL})
+endforeach()
+
 add_custom_target(check-kitsune-pass-plugin DEPENDS check-kitsune-plugins-pass)
 add_custom_target(check-kitsune-tt-plugin DEPENDS check-kitsune-plugins-tt)
 add_custom_target(check-kitsune-llc DEPENDS check-kitsune-tools-llc)
 add_custom_target(check-kitsune-lld DEPENDS check-kitsune-tools-lld)
 add_custom_target(check-kitsune-opt DEPENDS check-kitsune-tools-opt)
-add_custom_target(check-kit-config DEPENDS check-kitsune-tools-kit-config)
-add_custom_target(check-kit-enc DEPENDS check-kitsune-tools-kit-enc)
-add_custom_target(check-kit-mbc DEPENDS check-kitsune-tools-kit-mbc)
-add_custom_target(check-kit-sort DEPENDS check-kitsune-tools-kit-sort)
