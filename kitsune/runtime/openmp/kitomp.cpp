@@ -206,7 +206,7 @@ extern "C" void __kitomp_initialize(void) {
   __kitrt_initialize();
 
 #ifdef KITRT_PAPI_ENABLED
-  __kitpapi_initialize_threading((void *)omp_get_thread_num);
+  __kitpapi_initialize((PAPIThreadIDFunc)omp_get_thread_num);
 #endif // KITRT_PAPI_ENABLED
 
   uint32_t numThreads = __kitrt_num_threads("OMP_NUM_THREADS");

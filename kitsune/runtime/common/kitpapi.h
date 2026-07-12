@@ -60,24 +60,6 @@
 extern "C" {
 #endif // __cplusplus
 
-/// An opaque structure containing the context for a single PAPI event set.
-/// The typical use of this object is as follows:
-///
-///     PAPIContext *ctx = __kitpapi_new("some-useful-name");
-///     __kitpapi_add_event(ctx, <event-name>);
-///
-///     // Add as many events as needed. Note that individual platforms will
-///     // have limits on how many events can be counted simultaneously.
-///
-///     __kitpapi_start(ctx);
-///
-///     <code for which hardware counters are desired>
-///
-///     __kitpapi_stop(ctx);
-///
-struct KitPAPIContext;
-typedef struct KitPAPIContext KitPAPIContext;
-
 // The names of the PAPI events that we support. This is a subset of those
 // actually available in PAPI. This interface is intended for Kitsune's
 // developers to do some quick instrumentation, so it is unlikely that this list
@@ -102,21 +84,34 @@ typedef struct KitPAPIContext KitPAPIContext;
 #define __kitpapi_tot_cyc "cyc"      // PAPI_TOT_CYC
 #define __kitpapi_ref_cyc "refcyc"   // PAPI_REF_CYC
 
-/// Initialize the PAPI library.
-void __kitpapi_initialize(void);
+/// An opaque structure containing the context for a single PAPI event set.
+/// The typical use of this object is as follows:
+///
+///     PAPIContext *ctx = __kitpapi_new("some-useful-name");
+///     __kitpapi_add_event(ctx, <event-name>);
+///
+///     // Add as many events as needed. Note that individual platforms will
+///     // have limits on how many events can be counted simultaneously.
+///
+///     __kitpapi_start(ctx);
+///
+///     <code for which hardware counters are desired>
+///
+///     __kitpapi_stop(ctx);
+///
+struct KitPAPIContext;
+typedef struct KitPAPIContext KitPAPIContext;
 
-/// Initialize threading support in PAPI. \p getThreadID is a pointer to a
-/// function that returns the ID of the thread from which it is called.
-void __kitpapi_initialize_threading(void *getThreadID);
+/// The type of the function that returns the ID of a thread.
+typedef unsigned long (*PAPIThreadIDFunc)(void);
+
+/// Initialize the PAPI library. \p getThreadID is an optional pointer to a
+/// function that returns the ID of the thread from which it is called. If
+/// \p getThreadID is not nullptr, this will be passed to `PAPI_thread_init`.
+void __kitpapi_initialize(PAPIThreadIDFunc getThreadID);
 
 /// Clean up the PAPI library.
 void __kitpapi_finalize(void);
-
-/// Handle an error returned by a call to a PAPI API function. This will print a
-/// warning message to stderr. \p what is an optional label to print before
-/// printing the actual PAPI error message. \p err is the error code returned
-/// by PAPI.
-void __kitpapi_error(const char *what, int err);
 
 /// Create a new PAPI context. \p name is a name for the context. \p name may be
 /// nullptr, but providing one is recommended. The optional arguments should

@@ -97,9 +97,6 @@ extern "C" void __kitrt_initialize(void) {
   log(LABEL, "Verbose mode enabled");
 
   __kittimer_initialize();
-#ifdef KITRT_PAPI_ENABLED
-  __kitpapi_initialize();
-#endif // KITRT_PAPI_ENABLED
 
   __kitrt_initialized = true;
   log(LABEL, "Initialized Kitsune runtime (common)");

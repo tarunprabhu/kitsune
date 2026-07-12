@@ -93,7 +93,11 @@ public:
   }
 };
 
-void __kitpapi_error(const char *what, int err) {
+/// Handle an error returned by a call to a PAPI API function. This will print a
+/// warning message to stderr. \p what is an optional label to print before
+/// printing the actual PAPI error message. \p err is the error code returned
+/// by PAPI.
+static void handleError(const char *what, int err) {
   warn(LABEL, "%s. %s", what, PAPI_strerror(err));
 }
 
@@ -102,7 +106,7 @@ static std::string getEventSymbol(int evt) {
   int err = PAPI_get_event_info(evt, &info);
   if (!err)
     return info.symbol;
-  __kitpapi_error("Could not get event info", err);
+  handleError("Could not get event info", err);
   return "<unknown>";
 }
 
@@ -111,7 +115,7 @@ static std::string getEventLabel(int evt) {
   int err = PAPI_get_event_info(evt, &info);
   if (!err)
     return info.short_descr;
-  __kitpapi_error("Could not get event info", err);
+  handleError("Could not get event info", err);
   return "<unknown>";
 }
 
@@ -167,21 +171,28 @@ extern "C" void __kitpapi_add_event(KitPAPIContext *ctx, const char *name) {
   warn(LABEL, "Ignoring unknown event '%s'", name);
 }
 
-static KitPAPIContext *__kitpapi_new_empty(const char *name) {
+static KitPAPIContext *newContext(const char *name) {
   int evtSet = PAPI_NULL;
-  int err = PAPI_create_eventset(&evtSet);
-  if (!err)
-    return new KitPAPIContext(name, evtSet);
+  if (int err = PAPI_create_eventset(&evtSet)) {
+    handleError("Could not create PAPI event set", err);
+    return nullptr;
+  }
+  return new KitPAPIContext(name, evtSet);
+}
 
-  __kitpapi_error("Could not create PAPI event set", err);
-  return nullptr;
+static void deleteContext(KitPAPIContext *ctx) {
+  if (int err = PAPI_cleanup_eventset(ctx->evtSet))
+    handleError("Could not cleanup event set", err);
+  if (int err = PAPI_destroy_eventset(&ctx->evtSet))
+    handleError("Could not destroy event set", err);
+  delete ctx;
 }
 
 extern "C" KitPAPIContext *__kitpapi_new(const char *name, ...) {
   if (!PAPI_is_initialized())
     return nullptr;
 
-  KitPAPIContext *ctx = __kitpapi_new_empty(name);
+  KitPAPIContext *ctx = newContext(name);
   if (!ctx)
     return nullptr;
 
@@ -204,15 +215,7 @@ extern "C" void __kitpapi_start(KitPAPIContext *ctx) {
 
   log(LABEL, "Starting PAPI counters");
   if (int err = PAPI_start(ctx->evtSet))
-    return __kitpapi_error("Could not start PAPI counters", err);
-}
-
-static void __kitpapi_delete(KitPAPIContext *ctx) {
-  if (int err = PAPI_cleanup_eventset(ctx->evtSet))
-    __kitpapi_error("Could not cleanup event set", err);
-  if (int err = PAPI_destroy_eventset(&ctx->evtSet))
-    __kitpapi_error("Could not destroy event set", err);
-  delete ctx;
+    return handleError("Could not start PAPI counters", err);
 }
 
 extern "C" void __kitpapi_stop(KitPAPIContext *ctx) {
@@ -220,11 +223,13 @@ extern "C" void __kitpapi_stop(KitPAPIContext *ctx) {
     return;
 
   if (int err = PAPI_stop(ctx->evtSet, ctx->values.data())) {
-    __kitpapi_error("Could not stop PAPI counters", err);
-    return __kitpapi_delete(ctx);
+    handleError("Could not stop PAPI counters", err);
+    return deleteContext(ctx);
   }
   log(LABEL, "Stopped PAPI counters");
 
+  // FIXME: Move this to the destructor after a global context has been set
+  // up that will live for the duration of the calling application.
   static std::mutex mtx;
   std::lock_guard<std::mutex> guard(mtx);
   fprintf(stderr, "PAPI event set '%s' on thread %ld\n", ctx->name.c_str(),
@@ -238,25 +243,26 @@ extern "C" void __kitpapi_stop(KitPAPIContext *ctx) {
     fprintf(stderr, "  %-32s  %lld\n", evtLabel.c_str(), ctx->values[i]);
   }
 
-  __kitpapi_delete(ctx);
+  deleteContext(ctx);
 }
 
-extern "C" void __kitpapi_initialize_threading(void *getThreadId) {
-  log(LABEL, "Initializing PAPI threading support");
-  if (int err = PAPI_thread_init((unsigned long (*)(void))getThreadId))
-    return __kitpapi_error("Could not initialize PAPI threading support", err);
-  log(LABEL, "Initialized PAPI threading support");
-}
-
-extern "C" void __kitpapi_initialize() {
+extern "C" void __kitpapi_initialize(PAPIThreadIDFunc getThreadID) {
   log(LABEL, "Initializing PAPI library");
-  if (int rv = PAPI_library_init(PAPI_VER_CURRENT))
+  if (int rv = PAPI_library_init(PAPI_VER_CURRENT)) {
     if (rv != PAPI_VER_CURRENT)
-      return __kitpapi_error("Could not initialize PAPI", rv);
+      return handleError("Could not initialize PAPI", rv);
+
+    if (getThreadID) {
+      log(LABEL, "Initializing PAPI threading support");
+      if (int err = PAPI_thread_init(getThreadID))
+        return handleError("Could not initialize PAPI threading support", err);
+      log(LABEL, "Initialized PAPI threading support");
+    }
+  }
   log(LABEL, "Initialized PAPI library");
 }
 
-extern "C" void __kitpapi_finalize() {
+extern "C" void __kitpapi_finalize(void) {
   log(LABEL, "Finalizing PAPI library");
   PAPI_shutdown();
   log(LABEL, "Finalized PAPI library");

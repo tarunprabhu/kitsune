@@ -268,7 +268,7 @@ extern "C" void __kitpthr_initialize(void) {
   __kitrt_initialize();
 
 #ifdef KITRT_PAPI_ENABLED
-  __kitpapi_initialize_threading((void *)pthread_self);
+  __kitpapi_initialize((PAPIThreadIDFunc)pthread_self);
 #endif // KITRT_PAPI_ENABLED
 
   __kitpthr_num_threads_v = __kitrt_num_threads(nullptr);
