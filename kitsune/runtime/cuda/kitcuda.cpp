@@ -102,9 +102,10 @@ const int KIT_NVTX_CLEANUP = 4;
 extern "C" {
 
 bool __kitcuda_initialize() {
+  kitrt::logEarly(LABEL, "Initializing Kitsune runtime (cuda)");
+
   // Initialize the shared components of the higher-level runtime.
   __kitrt_initialize();
-  kitrt::log(LABEL, "Initializing Kitsune runtime (cuda)");
 
   KIT_NVTX_PUSH("kitcuda: initialize", KIT_NVTX_INIT);
   if (_kitcuda_initialized) {
@@ -244,11 +245,11 @@ void __kitcuda_finalize() {
   _kitcuda_initialized = false;
   KIT_NVTX_POP();
 
-  kitrt::log(LABEL, "Finalized Kitsune runtime (cuda)");
-
   // Finalize the components of Kitsune's runtime that are shared by the
   // tapir-target-specific components.
   __kitrt_finalize();
+
+  kitrt::log(LABEL, "Finalized Kitsune runtime (cuda)");
 }
 
 /// The number of partial reductions to perform in parallel.

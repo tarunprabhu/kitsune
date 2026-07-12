@@ -77,3 +77,11 @@ if config.kitsune_qthreads_enabled:
 
 if config.kitsune_realm_enabled:
     config.available_features.add("kitsune-realm")
+
+nvptx_arch = os.path.join(config.llvm_tools_dir, 'nvptx-arch')
+if (len(subprocess.check_output([nvptx_arch]))):
+    config.available_features.add("nvidia-gpu")
+
+amdgpu_arch = os.path.join(config.llvm_tools_dir, 'amdgpu-arch')
+if (len(subprocess.check_output([amdgpu_arch]))):
+    config.available_features.add("amd-gpu")

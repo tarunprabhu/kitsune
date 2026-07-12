@@ -97,6 +97,8 @@ extern "C" int64_t __kitocilk_reduce_num_partials(int64_t n) {
 
 /// Initialize kitsune's OpenCilk runtime.
 extern "C" void __kitocilk_initialize(void) {
+  logEarly(LABEL, "Initializing Kitsune runtime (opencilk)");
+
   // Initialize the components of kitsune's runtime that are shared by the
   // tapir-target-specific components.
   __kitrt_initialize();
@@ -104,8 +106,6 @@ extern "C" void __kitocilk_initialize(void) {
 #ifdef KITRT_PAPI_ENABLED
   __kitpapi_initialize_threading((void *)__cilkrts_get_worker_number);
 #endif // KITRT_PAPI_ENABLED
-
-  log(LABEL, "Initializing Kitsune runtime (opencilk)");
 
   uint32_t numThreads = __kitrt_num_threads("CILK_NWORKERS");
 
@@ -148,9 +148,9 @@ extern "C" void __kitocilk_finalize(void) {
   // by its own private global destructor. We have no control over when that
   // destructor is run relative to this one.
 
-  log(LABEL, "Finalized Kitsune runtime (opencilk)");
-
   // Finalize the components of Kitsune's runtime that are shared by the
   // tapir-target-specific components.
   __kitrt_finalize();
+
+  log(LABEL, "Finalized Kitsune runtime (opencilk)");
 }

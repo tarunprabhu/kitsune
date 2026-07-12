@@ -85,18 +85,13 @@ extern "C" void __kitrt_initialize(void) {
   if (__kitrt_initialized)
     return;
 
+  logEarly(LABEL, "Initializing Kitsune runtime (common)");
+
   if (std::optional<bool> verbose = envLookup<bool>("KIT_VERBOSE"))
     _kitrt_verbose_mode = *verbose;
   if (!_kitrt_verbose_mode)
     if (std::optional<bool> verbose = envLookup<bool>("KITRT_VERBOSE"))
       _kitrt_verbose_mode = *verbose;
-
-  // This really ought to be the first thing in this function, but if we move
-  // it before the KIT_VERBOSE environment variable is read, it may not be
-  // printed. It may be confusing for users if they see the
-  // "initializing ... initialized" pattern everywhere, except for the common
-  // initialization.
-  log(LABEL, "Initializing Kitsune runtime (common)");
 
   // This message will only be printed if verbose mode is actually set.
   log(LABEL, "Verbose mode enabled");
