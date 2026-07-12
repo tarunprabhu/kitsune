@@ -1,7 +1,5 @@
 @LIT_SITE_CFG_IN_HEADER@
 
-import sys
-
 config.kitrt_binary_dir = path(r"@KITRT_BINARY_DIR@")
 config.kitrt_source_dir = path(r"@KITRT_SOURCE_DIR@")
 
