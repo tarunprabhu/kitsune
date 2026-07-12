@@ -1,1 +1,1 @@
-add_kitrt_systest(hipRTInitFini.c)
+add_kitrt_systest(RTInitFini.c)

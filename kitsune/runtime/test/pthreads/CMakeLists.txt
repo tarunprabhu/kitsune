@@ -1,2 +1,2 @@
-add_kitrt_systest(pthrNumThreadsTest.c)
-add_kitrt_systest(pthrRTInitFini.c)
+add_kitrt_systest(NumThreads.c)
+add_kitrt_systest(RTInitFini.c)

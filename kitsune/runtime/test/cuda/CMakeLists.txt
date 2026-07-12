@@ -1,1 +1,1 @@
-add_kitrt_systest(cudaRTInitFini.c)
+add_kitrt_systest(RTInitFini.c)
