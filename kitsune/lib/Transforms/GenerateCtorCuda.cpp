@@ -14,16 +14,10 @@
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/TTOptions.h"
-#include "kitsune/Core/Tapir.h"
 #include "kitsune/Support/ErrorHandling.h"
-#include "llvm/Analysis/TargetLibraryInfo.h"
-#include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
-#include "llvm/IR/Module.h"
-#include "llvm/Transforms/Utils/BuildLibCalls.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
 
 using namespace llvm;
@@ -66,7 +60,6 @@ private:
   static constexpr const char *controlSectionName = ".nvFatBinSegment";
 
 private:
-  detail::GetTLI getTLI;
   const TTOptions &tto;
   const detail::GenerateCtorOptions &genCtorOpts;
 
@@ -78,18 +71,14 @@ private:
   void genDtor(Module &m, GlobalVariable *gBundleHandle);
 
 public:
-  GenerateCtorCuda(detail::GetTLI getTLI, const TTOptions &tto,
-                   const detail::GenerateCtorOptions &genCtorOpts);
+  GenerateCtorCuda(const TTOptions &tto,
+                   const detail::GenerateCtorOptions &genCtorOpts)
+      : tto(tto), genCtorOpts(genCtorOpts) {}
 
   void run(Module &m);
 };
 
 } // namespace
-
-GenerateCtorCuda::GenerateCtorCuda(
-    detail::GetTLI getTLI, const TTOptions &tto,
-    const detail::GenerateCtorOptions &genCtorOpts)
-    : getTLI(getTLI), tto(tto), genCtorOpts(genCtorOpts) {}
 
 /// Create a global variable containing the fat binary "bundle". This
 /// consists of the fat binary and some metadata.
@@ -151,7 +140,6 @@ void GenerateCtorCuda::genCtor(Module &m, const Module &devM,
   LLVMContext &ctx = m.getContext();
 
   Type *voidTy = Type::getVoidTy(ctx);
-  Type *i32Ty = Type::getInt32Ty(ctx);
   FunctionType *ctorTy = FunctionType::get(voidTy, {}, false);
 
   // Booleans are always 8-bit integers. toConstant would, otherwise return an
@@ -165,9 +153,6 @@ void GenerateCtorCuda::genCtor(Module &m, const Module &devM,
   BasicBlock *bbEntry = BasicBlock::Create(ctx, "entry", ctor);
   BasicBlock *bbExit = BasicBlock::Create(ctx, "exit", ctor);
   IRBuilder<> builder(ctx);
-
-  TargetLibraryInfo &tli = getTLI(*ctor);
-  Type *sizeTTy = tli.getSizeTType(m);
 
   builder.SetInsertPoint(bbEntry);
   builder.CreateIntrinsic(Intrinsic::kit_runtime_initialize, ctt);
@@ -215,8 +200,8 @@ void GenerateCtorCuda::genCtor(Module &m, const Module &devM,
     uint64_t size = dl.getTypeAllocSize(hostG->getValueType());
 
     GlobalVariable *gName = createConstString(hostG->getName(), m);
-    Constant *gSize = ConstantInt::get(sizeTTy, size);
-    Constant *gConst = ConstantInt::get(i32Ty, hostG->isConstant());
+    Constant *gSize = toConstant(size, ctx);
+    Constant *gConst = toConstant(uint32_t(hostG->isConstant()), ctx);
     // FIXME?: Why is this always set to zero? The API is asking if this is
     // "external". Is this asking if it has external linkage? Or is it asking if
     // this is externally defined (as in C's extern)? In either case, why are we
@@ -224,7 +209,7 @@ void GenerateCtorCuda::genCtor(Module &m, const Module &devM,
     // just haven't yet encountered a situation where this should be non-zero?
     // Or does cuda require this to be zero currently because it is they who
     // have not implemented something?
-    Constant *gExt = ConstantInt::get(i32Ty, 0);
+    Constant *gExt = toConstant(0U, ctx);
 
     LLVM_DEBUG(dbgs() << "\t\t\tregister global '" << hostG->getName()
                       << "' via ctor runtime call.\n");
@@ -291,8 +276,7 @@ void GenerateCtorCuda::run(Module &m) {
   genDtor(m, gBundleHandle);
 }
 
-void llvm::detail::genCtorCuda(Module &m, detail::GetTLI getTLI,
-                               const TTOptions &tto,
+void llvm::detail::genCtorCuda(Module &m, const TTOptions &tto,
                                const detail::GenerateCtorOptions &genCtorOpts) {
-  GenerateCtorCuda(getTLI, tto, genCtorOpts).run(m);
+  GenerateCtorCuda(tto, genCtorOpts).run(m);
 }

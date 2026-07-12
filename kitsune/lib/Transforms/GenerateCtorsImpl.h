@@ -42,36 +42,32 @@ public:
   unsigned useYLaunch : 1;
 };
 
-/// Type of function that queries the TargetLibraryInfo analysis for an LLVM
-/// Function.
-using GetTLI = std::function<TargetLibraryInfo &(Function &)>;
-
 /// Type of the function that will generate a global ctor for some tapir target.
-using GenerateCtorImplFn = std::function<void(
-    Module &, GetTLI, const TTOptions &, GenerateCtorOptions &)>;
+using GenerateCtorImplFn =
+    std::function<void(Module &, const TTOptions &, GenerateCtorOptions &)>;
 
 /// Generate a global constructor and destructor for Kitsune's cuda runtime.
-void genCtorCuda(Module &m, GetTLI getTLI, const TTOptions &ttOpts,
+void genCtorCuda(Module &m, const TTOptions &ttOpts,
                  const GenerateCtorOptions &ctorOpts);
 
 /// Generate a global constructor and destructor for Kitsune's hip runtime.
-void genCtorHip(Module &m, GetTLI getTLI, const TTOptions &ttOpts,
+void genCtorHip(Module &m, const TTOptions &ttOpts,
                 const GenerateCtorOptions &ctorOpts);
 
 /// Generate a global constructor and destructor for Kitsune's opencilk runtime.
-void genCtorOpenCilk(Module &m, GetTLI getTLI, const TTOptions &ttOpts,
+void genCtorOpenCilk(Module &m, const TTOptions &ttOpts,
                      const GenerateCtorOptions &ctorOpts);
 
 /// Generate a global constructor and destructor for Kitsune's openmp runtime.
-void genCtorOpenMP(Module &m, GetTLI getTLI, const TTOptions &ttOpts,
+void genCtorOpenMP(Module &m, const TTOptions &ttOpts,
                    const GenerateCtorOptions &ctorOpts);
 
 /// Generate a global constructor and destructor for Kitsune's pthreads runtime.
-void genCtorPthreads(Module &m, GetTLI getTLI, const TTOptions &ttOpts,
+void genCtorPthreads(Module &m, const TTOptions &ttOpts,
                      const GenerateCtorOptions &ctorOpts);
 
 /// Generate a global constructor and destructor for Kitsune's pthreads runtime.
-void genCtorQthreads(Module &m, GetTLI getTLI, const TTOptions &ttOpts,
+void genCtorQthreads(Module &m, const TTOptions &ttOpts,
                      const GenerateCtorOptions &ctorOpts);
 
 } // namespace detail
