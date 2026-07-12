@@ -199,6 +199,8 @@ extern "C" void __kitomp_launch(ThreadFunc f, int64_t start, int64_t end,
 
 /// Initialize kitsune's OpenMP runtime as well as the actual OpenMP runtime.
 extern "C" void __kitomp_initialize(void) {
+  logEarly(LABEL, "Initializing Kitsune runtime (openmp)");
+
   // Initialize the components of kitsune's runtime that are shared by the
   // tapir-target-specific components.
   __kitrt_initialize();
@@ -206,8 +208,6 @@ extern "C" void __kitomp_initialize(void) {
 #ifdef KITRT_PAPI_ENABLED
   __kitpapi_initialize_threading((void *)omp_get_thread_num);
 #endif // KITRT_PAPI_ENABLED
-
-  log(LABEL, "Initializing Kitsune runtime (openmp)");
 
   uint32_t numThreads = __kitrt_num_threads("OMP_NUM_THREADS");
   envSet("OMP_NUM_THREADS", numThreads);
@@ -233,9 +233,9 @@ extern "C" void __kitomp_finalize(void) {
   __kmpc_end(&unknownLoc);
   log(LABEL, "Finalized OpenMP runtime");
 
-  log(LABEL, "Finalized Kitsune runtime (openmp)");
-
   // Finalize the components of Kitsune's runtime that are shared by the
   // tapir-target-specific components.
   __kitrt_finalize();
+
+  log(LABEL, "Finalized Kitsune runtime (openmp)");
 }

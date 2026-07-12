@@ -261,6 +261,8 @@ extern "C" void __kitpthr_sync(KitPthrContext *p) {
 /// global variables that enable verbose mode. This runtime is not intended to
 /// ever maintain any other state.
 extern "C" void __kitpthr_initialize(void) {
+  logEarly(LABEL, "Initializing Kitsune runtime (pthreads)");
+
   // Initialize the components of kitsune's runtime that are shared by the
   // tapir-target-specific components.
   __kitrt_initialize();
@@ -269,14 +271,11 @@ extern "C" void __kitpthr_initialize(void) {
   __kitpapi_initialize_threading((void *)pthread_self);
 #endif // KITRT_PAPI_ENABLED
 
-  log(LABEL, "Initializing Kitsune runtime (pthreads)");
-
   __kitpthr_num_threads_v = __kitrt_num_threads(nullptr);
 
   // pthreads does not have to be initialized.
 
   log(LABEL, "Number of threads = %d", __kitpthr_num_threads());
-
   log(LABEL, "Initialized Kitsune runtime (pthreads)");
 }
 
@@ -288,9 +287,9 @@ extern "C" void __kitpthr_finalize(void) {
 
   // pthreads does not need to be finalized.
 
-  log(LABEL, "Finalized Kitsune runtime (pthreads)");
-
   // Finalize the components of Kitsune's runtime that are shared by the
   // tapir-target-specific components.
   __kitrt_finalize();
+
+  log(LABEL, "Finalized Kitsune runtime (pthreads)");
 }

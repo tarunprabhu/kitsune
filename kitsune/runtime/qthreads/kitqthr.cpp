@@ -193,6 +193,8 @@ extern "C" void __kitqthr_launch(ThreadFunc f, int64_t start, int64_t end,
 /// Initialize kitsune's qthreads runtime as well as the actual qthreads
 /// runtime.
 extern "C" void __kitqthr_initialize(void) {
+  logEarly(LABEL, "Initializing Kitsune runtime (qthreads)");
+
   // Initialize the components of kitsune's runtime that are shared by the
   // tapir-target-specific components.
   __kitrt_initialize();
@@ -200,8 +202,6 @@ extern "C" void __kitqthr_initialize(void) {
 #ifdef KITRT_PAPI_ENABLED
   __kitpapi_initialize_threading((void *)qthread_id);
 #endif // KITRT_PAPI_ENABLED
-
-  log(LABEL, "Initializing Kitsune runtime (qthreads)");
 
   uint32_t numThreads = __kitrt_num_threads(nullptr);
 
@@ -215,7 +215,6 @@ extern "C" void __kitqthr_initialize(void) {
 
   log(LABEL, "Number of shepherds = %d", qthread_num_shepherds());
   log(LABEL, "Number of workers = %d", qthread_num_workers());
-
   log(LABEL, "Initialized Kitsune runtime (qthreads)");
 }
 
@@ -227,9 +226,9 @@ extern "C" void __kitqthr_finalize(void) {
   qthread_finalize();
   log(LABEL, "Finalized Qthreads runtime");
 
-  log(LABEL, "Finalized Kitsune runtime (qthreads)");
-
   // Finalize the components of Kitsune's runtime that are shared by the
   // tapir-target-specific components.
   __kitrt_finalize();
+
+  log(LABEL, "Finalized Kitsune runtime (qthreads)");
 }

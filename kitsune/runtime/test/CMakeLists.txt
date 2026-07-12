@@ -32,6 +32,14 @@ add_subdirectory(common)
 add_subdirectory(openmp)
 add_subdirectory(pthreads)
 
+if (KITSUNE_CUDA_ENABLED)
+  add_subdirectory(cuda)
+endif ()
+
+if (KITSUNE_HIP_ENABLED)
+  add_subdirectory(hip)
+endif ()
+
 if (KITSUNE_OPENCILK_ENABLED)
   add_subdirectory(opencilk)
 endif ()
@@ -70,3 +78,10 @@ add_lit_testsuite(check-kitrt "Running the Kitrt regression tests"
   ${CMAKE_CURRENT_BINARY_DIR}
   ${KITRT_BINARY_DIR}/unittests
   DEPENDS KitrtTests KitrtUnitTests)
+
+# The first argument to `add_lit_testsuites` is the project name. In the rest
+# of LLVM, this is always passed in all-uppercase. It is not clear why, but we
+# follow the same convention. This creates `check-kitrt-*` targets for each
+# subdirectory of ${CMAKE_CURRENT_SOURCE_DIR}
+add_lit_testsuites(KITRT ${CMAKE_CURRENT_SOURCE_DIR}
+  DEPENDS KitrtTests)

@@ -123,11 +123,11 @@ extern "C" bool __kithip_is_initialized() {
 
 extern "C" bool __kithip_initialize() {
   using namespace kithip_rt;
+  kitrt::logEarly(LABEL, "Initializing Kitsune runtime (hip)");
 
   // Initialize the components of kitsune's runtime that are shared by the
   // tapir-target-specific components.
   __kitrt_initialize();
-  kitrt::log(LABEL, "Initializing Kitsune runtime (hip)");
 
   if (isInitialized()) {
     fprintf(stderr,
@@ -177,6 +177,7 @@ extern "C" bool __kithip_initialize() {
 
   // We should be good to go...
   setInitialized(true);
+
   kitrt::log(LABEL, "Initialized Kitsune runtime (hip)");
 
   return isInitialized();
@@ -194,11 +195,11 @@ extern "C" void __kithip_finalize() {
   HIP_SAFE_CALL(hipDeviceReset());
   setInitialized(false);
 
-  kitrt::log(LABEL, "Finalized Kitsune runtime (hip)");
-
   // Finalize the components of Kitsune's runtime that are shared by the
   // tapir-target-specific components.
   __kitrt_finalize();
+
+  kitrt::log(LABEL, "Finalized Kitsune runtime (hip)");
 }
 
 /// The number of partial reductions to perform in parallel.
