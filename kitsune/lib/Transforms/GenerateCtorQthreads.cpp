@@ -12,17 +12,10 @@
 
 #include "GenerateCtorsImpl.h"
 #include "kitsune/Core/ConstantUtils.h"
-#include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/TTOptions.h"
-#include "kitsune/Core/Tapir.h"
-#include "llvm/Analysis/TargetLibraryInfo.h"
-#include "llvm/IR/Constants.h"
-#include "llvm/IR/DataLayout.h"
 #include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/Module.h"
-#include "llvm/Transforms/Utils/BuildLibCalls.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
 
 using namespace llvm;
@@ -33,7 +26,6 @@ namespace {
 /// qthreads tapir target).
 class GenerateCtorQthreads {
 private:
-  detail::GetTLI getTLI;
   const TTOptions &tto;
 
 private:
@@ -41,16 +33,12 @@ private:
   void genDtor(Module &m);
 
 public:
-  GenerateCtorQthreads(detail::GetTLI getTLI, const TTOptions &tto);
+  GenerateCtorQthreads(const TTOptions &tto) : tto(tto) {}
 
   void run(Module &m);
 };
 
 } // namespace
-
-GenerateCtorQthreads::GenerateCtorQthreads(detail::GetTLI getTLI,
-                                           const TTOptions &tto)
-    : getTLI(getTLI), tto(tto) {}
 
 void GenerateCtorQthreads::genCtor(Module &m) {
   LLVMContext &ctx = m.getContext();
@@ -110,8 +98,7 @@ void GenerateCtorQthreads::run(Module &m) {
   genDtor(m);
 }
 
-void llvm::detail::genCtorQthreads(Module &m, detail::GetTLI getTLI,
-                                   const TTOptions &tto,
+void llvm::detail::genCtorQthreads(Module &m, const TTOptions &tto,
                                    const detail::GenerateCtorOptions &) {
-  GenerateCtorQthreads(getTLI, tto).run(m);
+  GenerateCtorQthreads(tto).run(m);
 }

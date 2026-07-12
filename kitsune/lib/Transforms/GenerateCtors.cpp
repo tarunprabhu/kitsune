@@ -142,11 +142,6 @@ PreservedAnalyses GenerateCtorsPass::run(Module &m,
   if (not ttObjs.hasTTID())
     return PreservedAnalyses::all();
 
-  auto &fam = mam.getResult<FunctionAnalysisManagerModuleProxy>(m).getManager();
-  auto getTLI = [&](Function &f) -> TargetLibraryInfo & {
-    return fam.getResult<TargetLibraryAnalysis>(f);
-  };
-
   detail::GenerateCtorOptions genCtorOpts;
   if (&clRefineLaunches)
     genCtorOpts.refineLaunches = clRefineLaunches;
@@ -156,7 +151,7 @@ PreservedAnalyses GenerateCtorsPass::run(Module &m,
   const TTOptions &ttOpts = ttObjs.getOptions();
   for (const auto &[tt, genCtorFn] : genCtorFns)
     if (shouldGenerateCtor(m, tt))
-      genCtorFn(m, getTLI, ttOpts, genCtorOpts);
+      genCtorFn(m, ttOpts, genCtorOpts);
 
   // This never invalidates any analyses since, at most, only the initializer of
   // a global variable will have changed. The generated ctors will not be called

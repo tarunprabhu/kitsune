@@ -13,13 +13,9 @@
 #include "GenerateCtorsImpl.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/TTOptions.h"
-#include "kitsune/Core/Tapir.h"
-#include "llvm/IR/Constants.h"
 #include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/Module.h"
-#include "llvm/Transforms/Utils/BuildLibCalls.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
 
 using namespace llvm;
@@ -30,7 +26,6 @@ namespace {
 /// tapir target).
 class GenerateCtorOpenMP {
 private:
-  detail::GetTLI getTLI;
   const TTOptions &tto;
 
 private:
@@ -38,16 +33,12 @@ private:
   void genDtor(Module &m);
 
 public:
-  GenerateCtorOpenMP(detail::GetTLI getTLI, const TTOptions &tto);
+  GenerateCtorOpenMP(const TTOptions &tto) : tto(tto) {}
 
   void run(Module &m);
 };
 
 } // namespace
-
-GenerateCtorOpenMP::GenerateCtorOpenMP(detail::GetTLI getTLI,
-                                       const TTOptions &tto)
-    : getTLI(getTLI), tto(tto) {}
 
 void GenerateCtorOpenMP::genCtor(Module &m) {
   LLVMContext &ctx = m.getContext();
@@ -108,8 +99,7 @@ void GenerateCtorOpenMP::run(Module &m) {
   genDtor(m);
 }
 
-void llvm::detail::genCtorOpenMP(Module &m, detail::GetTLI getTLI,
-                                 const TTOptions &tto,
+void llvm::detail::genCtorOpenMP(Module &m, const TTOptions &tto,
                                  const detail::GenerateCtorOptions &) {
-  GenerateCtorOpenMP(getTLI, tto).run(m);
+  GenerateCtorOpenMP(tto).run(m);
 }
