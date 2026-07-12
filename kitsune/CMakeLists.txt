@@ -877,59 +877,63 @@ endif ()
 # this to *not* be named clang in order to determine whether we are compiling
 # with a kitsune frontend. To be consistent with clang, we do not create a
 # separate frontend for C++.
-set(KITCC_MAIN_FILENAME "${KITSUNE_C_FRONTEND}-${LLVM_VERSION_MAJOR}")
-set(KITCC_MAIN ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${KITCC_MAIN_FILENAME})
-add_custom_command(
-  OUTPUT ${KITCC_MAIN}
-  COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:clang> ${KITCC_MAIN}
-  DEPENDS clang
-  COMMENT "Creating ${KITCC_MAIN_FILENAME}"
-  VERBATIM USES_TERMINAL)
+#
+# CLONE is the name of the executable that will be created. This will be an
+# exact copy of the executable corresponding to the CMake target BASE. BASE will
+# be either clang, or flang.
+function(setup_frontend_main base clone)
+  set(MAIN "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${clone}")
 
-# Create a symlink kitcc -> kitcc-${LLVM_VERSION_MAJOR}
-set(KITCC ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${KITSUNE_C_FRONTEND})
-add_custom_command(
-  OUTPUT ${KITCC}
-  COMMAND ${CMAKE_COMMAND} -E create_symlink ${KITCC_MAIN_FILENAME} ${KITCC}
-  DEPENDS ${KITCC_MAIN}
-  COMMENT "Creating symlink ${KITSUNE_C_FRONTEND} to ${KITCC_MAIN_FILENAME}"
-  VERBATIM USES_TERMINAL)
-add_custom_target(kitcc ALL DEPENDS ${KITCC})
+  add_custom_command(
+    OUTPUT ${MAIN}
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:${base}> ${MAIN}
+    DEPENDS ${base}
+    COMMENT "Creating ${clone}"
+    VERBATIM USES_TERMINAL)
 
-# Create a symlink kit++ -> kitcc-${LLVM_VERSION_MAJOR}
-set(KITXX ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${KITSUNE_CXX_FRONTEND})
-add_custom_command(
-  OUTPUT ${KITXX}
-  COMMAND ${CMAKE_COMMAND} -E create_symlink ${KITCC_MAIN_FILENAME} ${KITXX}
-  DEPENDS ${KITCC_MAIN}
-  COMMENT "Creating symlink ${KITSUNE_CXX_FRONTEND} to ${KITCC_MAIN_FILENAME}"
-  VERBATIM USES_TERMINAL)
-add_custom_target(kit++ ALL DEPENDS ${KITXX})
+  install(PROGRAMS ${MAIN}
+    DESTINATION ${CMAKE_INSTALL_BINDIR})
+endfunction ()
 
-install(PROGRAMS ${KITCC_MAIN} ${KITCC} ${KITXX}
-  DESTINATION ${CMAKE_INSTALL_BINDIR})
+# Create a symlink to the main executable that was created by calling
+# `setup_frontend_main`. The symlink will be named NAME and live in the same
+# directory as the main executable, TARGET. CMAKE_TARGET is the name of the
+# custom target that will be created to drive the creation of the symlink. Other
+# entities will depend on CMAKE_TARGET, which will be added to ALL.
+function(setup_frontend_symlink name target cmake_target)
+  set(MAIN ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${target})
+  set(SYMLINK ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${name})
+
+  # We want the symlink to target the main executable that is known to live
+  # next to it. Therefore, we only use the name of the target in create_symlink
+  # command, not its full path. If we use the latter, the symlink will continue
+  # to point to the executable in the build directory even after installation.
+  add_custom_command(
+    OUTPUT ${SYMLINK}
+    COMMAND ${CMAKE_COMMAND} -E create_symlink ${target} ${SYMLINK}
+    DEPENDS ${MAIN}
+    COMMENT "Creating symlink ${name} to ${target}"
+    VERBATIM USES_TERMINAL)
+
+  install(PROGRAMS ${SYMLINK}
+    DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+  add_custom_target(${cmake_target} ALL DEPENDS ${SYMLINK})
+endfunction()
+
+# Create an executable named kitcc-${LLVM_VERSION_MAJOR} which is a copy of
+# clang-${LLVM_VERSION_MAJOR}. Then create symlinks to this executable named
+# ${KITSUNE_C_FRONTEND}, and ${KITSUNE_CXX_FRONTEND}.
+set(KITSUNE_CXX_COMPILER kitcc-${LLVM_VERSION_MAJOR})
+setup_frontend_main(clang ${KITSUNE_CXX_COMPILER})
+setup_frontend_symlink(${KITSUNE_C_FRONTEND} ${KITSUNE_CXX_COMPILER} kitcc)
+setup_frontend_symlink(${KITSUNE_CXX_FRONTEND} ${KITSUNE_CXX_COMPILER} kit++)
 
 if (KITSUNE_Fortran_ENABLED)
-  # Copy flang to kitfc-${LLVM_VERSION_MAJOR}
-  set(KITFC_MAIN_FILENAME "${KITSUNE_Fortran_FRONTEND}-${LLVM_VERSION_MAJOR}")
-  set(KITFC_MAIN ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${KITFC_MAIN_FILENAME})
-  add_custom_command(
-    OUTPUT ${KITFC_MAIN}
-    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:flang> ${KITFC_MAIN}
-    DEPENDS flang
-    COMMENT "Creating ${KITFC_MAIN_FILENAME}"
-    VERBATIM USES_TERMINAL)
-
-  # Create a symlink kitfc -> kitfc-${LLVM_VERSION_MAJOR}
-  set(KITFC ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${KITSUNE_Fortran_FRONTEND})
-  add_custom_command(
-    OUTPUT ${KITFC}
-    COMMAND ${CMAKE_COMMAND} -E create_symlink ${KITFC_MAIN_FILENAME} ${KITFC}
-    DEPENDS ${KITFC_MAIN}
-    COMMENT "Creating symlink ${KITSUNE_Fortran_FRONTEND} to ${KITFC_MAIN_FILENAME}"
-    VERBATIM USES_TERMINAL)
-  add_custom_target(kitfc ALL DEPENDS ${KITFC})
-
-  install(PROGRAMS ${KITFC_MAIN} ${KITFC}
-    DESTINATION ${CMAKE_INSTALL_BINDIR})
+  # Create an executable named kitfc-${LLVM_VERSION_MAJOR} which is a copy of
+  # flang-${LLVM_VERSION_MAJOR}. Then create a symlink to this executable named
+  # ${KITSUNE_Fortran_FRONTEND}.
+  set(KITSUNE_Fortran_COMPILER kitfc-${LLVM_VERSION_MAJOR})
+  setup_frontend_main(flang ${KITSUNE_Fortran_COMPILER})
+  setup_frontend_symlink(${KITSUNE_Fortran_FRONTEND} ${KITSUNE_Fortran_COMPILER} kitfc)
 endif()
