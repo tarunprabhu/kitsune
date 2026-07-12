@@ -4,17 +4,28 @@
 ; RUN: opt --tapir=qthreads -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s -check-prefix DEFAULT
 ;
-; DEFAULT: @llvm.global_ctors = appending global
+; DEFAULT-LABEL: @llvm.global_ctors = appending global
 ; DEFAULT-SAME: { i32 65535, ptr @[[CTOR:[.]kitqthr[.]ctor.*]], ptr null }
 ;
-; DEFAULT: define {{.*}} @[[DTOR:[.]kitqthr[.]dtor.*]]{{[ ]*}}()
-; DEFAULT: call {{.+}} @llvm.kit.runtime.finalize(i32 32)
+; DEFAULT-LABEL: @llvm.global_dtors = appending global
+; DEFAULT-SAME: { i32 65535, ptr @[[DTOR:[.]kitqthr[.]dtor.*]], ptr null }
 ;
 ; DEFAULT: define {{.+}} @[[CTOR]]()
 ; DEFAULT-NEXT: [[ENTRY:.+]]:
 ; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.initialize(i32 32)
 ; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.set.verbose(i32 32, i8 0)
-; DEFAULT-NEXT: call {{.+}}atexit(ptr @[[DTOR]])
+; DEFAULT-NEXT: br label %[[EXIT:.+]]
+; DEFAULT-EMPTY:
+; DEFAULT-NEXT: [[EXIT]]:
+; DEFAULT-NEXT: ret void
+; DEFAULT-NEXT: }
+;
+; DEFAULT: define {{.*}} @[[DTOR]]()
+; DEFAULT-NEXT: [[ENTRY:.+]]:
+; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.finalize(i32 32)
+; DEFAULT-NEXT: br label %[[EXIT:.+]]
+; DEFAULT-EMPTY:
+; DEFAULT-NEXT: [[EXIT]]:
 ; DEFAULT-NEXT: ret void
 ; DEFAULT-NEXT: }
 ;

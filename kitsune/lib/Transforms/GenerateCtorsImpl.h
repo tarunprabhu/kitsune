@@ -26,6 +26,12 @@ class TargetLibraryInfo;
 
 namespace detail {
 
+// The priority must be in the range [101,65535] with larger values having
+// lower priority relative to other global constructors in @llvm.global_ctors
+// (respectively destructors in @llvm.global_dtors).
+static constexpr unsigned kitCtorPriority = 65535;
+static constexpr unsigned kitDtorPriority = 65535;
+
 /// Options to generate global ctors for kitsune's runtime.
 struct GenerateCtorOptions {
 public:

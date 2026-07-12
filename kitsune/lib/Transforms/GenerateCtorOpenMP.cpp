@@ -34,8 +34,8 @@ private:
   const TTOptions &tto;
 
 private:
-  Function *createCtor(Module &m, Function *dtor);
-  Function *createDtor(Module &m);
+  void genCtor(Module &m);
+  void genDtor(Module &m);
 
 public:
   GenerateCtorOpenMP(detail::GetTLI getTLI, const TTOptions &tto);
@@ -49,11 +49,8 @@ GenerateCtorOpenMP::GenerateCtorOpenMP(detail::GetTLI getTLI,
                                        const TTOptions &tto)
     : getTLI(getTLI), tto(tto) {}
 
-Function *GenerateCtorOpenMP::createCtor(Module &m, Function *dtor) {
+void GenerateCtorOpenMP::genCtor(Module &m) {
   LLVMContext &ctx = m.getContext();
-  IRBuilder<> builder(ctx);
-
-  Type *voidTy = Type::getVoidTy(ctx);
 
   // Booleans are always 8-bit integers. toConstant would, otherwise return
   // an i1, but the intrinsic expects i8. Casting the boolean to i8 ensures
@@ -61,45 +58,40 @@ Function *GenerateCtorOpenMP::createCtor(Module &m, Function *dtor) {
   Constant *verbose = toConstant(uint8_t(tto.getKitrtVerbose()), ctx);
   Constant *tt = toConstant(TTID::OpenMP, ctx);
 
+  Type *voidTy = Type::getVoidTy(ctx);
   FunctionType *ctorTy = FunctionType::get(voidTy, {}, /*IsVarArg=*/false);
   Function *ctor = Function::Create(ctorTy, GlobalValue::InternalLinkage,
                                     ".kitomp.ctor", &m);
 
   BasicBlock *bbEntry = BasicBlock::Create(ctx, "entry", ctor);
   BasicBlock *bbExit = BasicBlock::Create(ctx, "exit", ctor);
-
-  builder.SetInsertPoint(bbEntry);
+  IRBuilder<> builder(ctx);
 
   // We can't enable verbose mode until after we call initialize.
+  builder.SetInsertPoint(bbEntry);
   builder.CreateIntrinsic(Intrinsic::kit_runtime_initialize, tt);
   builder.CreateIntrinsic(Intrinsic::kit_runtime_set_verbose, {tt, verbose});
-
-  // Now add the dtor to help us clean up at program exit.
-  TargetLibraryInfo &tli = getTLI(*ctor);
-  FunctionCallee atExit = getOrInsertLibFunc(&m, tli, LibFunc_atexit);
-  builder.CreateCall(atExit, dtor);
   builder.CreateBr(bbExit);
 
   builder.SetInsertPoint(bbExit);
   builder.CreateRetVoid();
 
-  return ctor;
+  appendToGlobalCtors(m, ctor, detail::kitCtorPriority);
 }
 
-Function *GenerateCtorOpenMP::createDtor(Module &m) {
+void GenerateCtorOpenMP::genDtor(Module &m) {
   LLVMContext &ctx = m.getContext();
-  IRBuilder<> builder(ctx);
-
-  Type *voidTy = Type::getVoidTy(ctx);
 
   Constant *tt = toConstant(TTID::OpenMP, ctx);
 
+  Type *voidTy = Type::getVoidTy(ctx);
   FunctionType *dtorTy = FunctionType::get(voidTy, {}, /*IsVarArg=*/false);
   Function *dtor = Function::Create(dtorTy, GlobalValue::InternalLinkage,
                                     ".kitomp.dtor", &m);
 
   BasicBlock *bbEntry = BasicBlock::Create(ctx, "entry", dtor);
   BasicBlock *bbExit = BasicBlock::Create(ctx, "exit", dtor);
+  IRBuilder<> builder(ctx);
 
   builder.SetInsertPoint(bbEntry);
   builder.CreateIntrinsic(Intrinsic::kit_runtime_finalize, {tt});
@@ -108,16 +100,12 @@ Function *GenerateCtorOpenMP::createDtor(Module &m) {
   builder.SetInsertPoint(bbExit);
   builder.CreateRetVoid();
 
-  return dtor;
+  appendToGlobalDtors(m, dtor, detail::kitDtorPriority);
 }
 
 void GenerateCtorOpenMP::run(Module &m) {
-  Function *dtor = createDtor(m);
-  Function *ctor = createCtor(m, dtor);
-
-  // The priority must be in the range [101,65535] with larger values having
-  // lower priority relative to other global constructors in @llvm.global_ctors.
-  appendToGlobalCtors(m, ctor, 65535);
+  genCtor(m);
+  genDtor(m);
 }
 
 void llvm::detail::genCtorOpenMP(Module &m, detail::GetTLI getTLI,

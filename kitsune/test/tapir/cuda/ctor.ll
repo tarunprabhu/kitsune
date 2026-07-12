@@ -16,25 +16,38 @@
 ;
 ; DEFAULT: @[[HANDLE:[.]kitcuda[.].+]] = internal global ptr null
 ;
-; DEFAULT: @llvm.global_ctors = appending global
+; DEFAULT-LABEL: @llvm.global_ctors = appending global
 ; DEFAULT-SAME: { i32 65535, ptr @[[CTOR:[.]kitcuda[.]ctor.*]], ptr null }
 ;
-; DEFAULT: define {{.*}} @[[DTOR:[.]kitcuda[.]dtor.*]]{{[ ]*}}()
-; DEFAULT: %[[HD:.+]] = load ptr, ptr @[[HANDLE]]
-; DEFAULT: call {{.+}} @llvm.kit.gpu.unregister.devcode(i32 2, ptr %[[HD]])
-; DEFAULT: call {{.+}} @llvm.kit.runtime.finalize(i32 2)
+; DEFAULT-LABEL: @llvm.global_dtors = appending global
+; DEFAULT-SAME: { i32 65535, ptr @[[DTOR:[.]kitcuda[.]dtor.*]], ptr null }
 ;
-; DEFAULT: define {{.+}} @[[CTOR]]()
-; DEFAULT: call {{.+}} @llvm.kit.runtime.initialize(i32 2)
-; DEFAULT: call {{.+}} @llvm.kit.runtime.set.verbose(i32 2, i8 0)
+; DEFAULT: define internal void @[[CTOR]]()
+; DEFAULT-NEXT: [[ENTRY:.+]]:
+; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.initialize(i32 2)
+; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.set.verbose(i32 2, i8 0)
 ; DEFAULT-NOT: call {{.+}} @llvm.kit.runtime.set.fixed.tpb(i32 2,
 ; DEFAULT: call {{.+}} @llvm.kit.runtime.set.max.tpb(i32 2, i32 1024)
 ; DEFAULT-DAG: call {{.+}} @llvm.kit.runtime.set.kernel.launch.refinement(i32 2, i8 1)
 ; DEFAULT-DAG: %[[HC:.+]] = call {{.+}}@llvm.kit.gpu.register.devcode(i32 2, ptr @[[BUNDLE]])
-; DEFAULT: store ptr %[[HC]], ptr @[[HANDLE]]
-; DEFAULT: call void @llvm.kit.gpu.register.devcode.end(i32 2, ptr %[[HC]])
-; DEFAULT: call {{.+}}atexit(ptr @[[DTOR]])
+; DEFAULT-NEXT: store ptr %[[HC]], ptr @[[HANDLE]]
+; DEFAULT-NEXT: call void @llvm.kit.gpu.register.devcode.end(i32 2, ptr %[[HC]])
+; DEFAULT-NEXT: br label %[[EXIT:.+]]
+; DEFAULT-EMPTY:
+; DEFAULT-NEXT: [[EXIT]]:
+; DEFAULT-NEXT: ret void
 ; DEFAULT: }
+;
+; DEFAULT: define internal void @[[DTOR]]()
+; DEFAULT-NEXT: [[ENTRY:.+]]:
+; DEFAULT-NEXT: %[[HD:.+]] = load ptr, ptr @[[HANDLE]]
+; DEFAULT-NEXT: call {{.+}} @llvm.kit.gpu.unregister.devcode(i32 2, ptr %[[HD]])
+; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.finalize(i32 2)
+; DEFAULT-NEXT: br label %[[EXIT:.+]]
+; DEFAULT-EMPTY:
+; DEFAULT-NEXT: [[EXIT]]:
+; DEFAULT-NEXT: ret void
+; DEFAULT-NEXT: }
 ;
 ; DEFAULT-DAG: ![[MD]] = distinct !{![[MD]], ![[DC:[0-9]+]]}
 ; DEFAULT-DAG: ![[DC]] = !{!"kit.gv.device.code", i32 2}

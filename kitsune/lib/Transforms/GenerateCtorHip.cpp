@@ -46,9 +46,9 @@ private:
 private:
   GlobalVariable *createBundleGV(Module &m, GlobalVariable *fatBin);
   GlobalVariable *createBundleHandleGV(Module &m);
-  Function *createCtor(Module &m, const Module &devM, Function *dtor,
-                       GlobalVariable *gBundle, GlobalVariable *gBundleHandle);
-  Function *createDtor(Module &m, GlobalVariable *gBundleHandle);
+  void genCtor(Module &m, const Module &devM, GlobalVariable *gBundle,
+               GlobalVariable *gBundleHandle);
+  void genDtor(Module &m, GlobalVariable *gBundleHandle);
 
 public:
   GenerateCtorHip(detail::GetTLI getTLI, const TTOptions &tto,
@@ -104,8 +104,6 @@ GlobalVariable *GenerateCtorHip::createBundleGV(Module &m,
 /// saved into this global and read from there by the global dtor and passed to
 /// __hipUnregisterFatBinary().
 GlobalVariable *GenerateCtorHip::createBundleHandleGV(Module &m) {
-  const DataLayout &dl = m.getDataLayout();
-
   LLVMContext &ctx = m.getContext();
   PointerType *ptrTy = PointerType::getUnqual(ctx);
 
@@ -114,22 +112,21 @@ GlobalVariable *GenerateCtorHip::createBundleHandleGV(Module &m) {
   GlobalVariable *g = new GlobalVariable(m, ptrTy, /*isConstant=*/false,
                                          GlobalValue::InternalLinkage,
                                          /*init=*/cnull, ".kithip.handle");
-  g->setAlignment(dl.getPointerABIAlignment(0));
+  g->setAlignment(m.getDataLayout().getPointerABIAlignment(0));
   g->setUnnamedAddr(GlobalValue::UnnamedAddr::None);
 
   return g;
 }
 
-Function *GenerateCtorHip::createCtor(Module &m, const Module &devM,
-                                      Function *dtor, GlobalVariable *gBundle,
-                                      GlobalVariable *gBundleHandle) {
+void GenerateCtorHip::genCtor(Module &m, const Module &devM,
+                              GlobalVariable *gBundle,
+                              GlobalVariable *gBundleHandle) {
   const DataLayout &dl = m.getDataLayout();
-  Align alignPtr = dl.getPointerABIAlignment(0);
-
   LLVMContext &ctx = m.getContext();
 
   Type *voidTy = Type::getVoidTy(ctx);
   Type *i32Ty = Type::getInt32Ty(ctx);
+  FunctionType *ctorTy = FunctionType::get(voidTy, {}, false);
 
   // Booleans are always 8-bit integers. toConstant would, otherwise return an
   // i1, but the intrinsic expects i8. Casting the boolean to i8 ensures that we
@@ -137,14 +134,16 @@ Function *GenerateCtorHip::createCtor(Module &m, const Module &devM,
   Constant *cVerbose = toConstant(uint8_t(tto.getKitrtVerbose()), ctx);
   Constant *ctt = toConstant(TTID::Hip, ctx);
 
-  FunctionType *ctorTy = FunctionType::get(voidTy, {}, false);
   Function *ctor = Function::Create(ctorTy, GlobalValue::InternalLinkage,
                                     ".kithip.ctor", &m);
+  BasicBlock *bbEntry = BasicBlock::Create(ctx, "entry", ctor);
+  BasicBlock *bbExit = BasicBlock::Create(ctx, "exit", ctor);
+  IRBuilder<> builder(ctx);
 
   TargetLibraryInfo &tli = getTLI(*ctor);
   Type *sizeTTy = tli.getSizeTType(m);
 
-  IRBuilder<> builder(BasicBlock::Create(ctx, "entry", ctor));
+  builder.SetInsertPoint(bbEntry);
   builder.CreateIntrinsic(Intrinsic::kit_runtime_initialize, ctt);
 
   // Enable verbose mode early in the constructor so all verbose statements are
@@ -183,6 +182,7 @@ Function *GenerateCtorHip::createCtor(Module &m, const Module &devM,
 
   Value *bundleHandle = builder.CreateIntrinsic(
       Intrinsic::kit_gpu_register_devcode, {ctt, gBundle});
+  Align alignPtr = dl.getPointerABIAlignment(0);
   builder.CreateAlignedStore(bundleHandle, gBundleHandle, alignPtr);
 
   // Register any non-constant global variables used in the kernel module. Each
@@ -216,47 +216,50 @@ Function *GenerateCtorHip::createCtor(Module &m, const Module &devM,
         {ctt, bundleHandle, hostG, gName, gName, gSize, gExt, gConst});
   }
 
-  // Now add the dtor to help us clean up at program exit.
-  FunctionCallee atExit = getOrInsertLibFunc(&m, tli, LibFunc_atexit);
-  builder.CreateCall(atExit, dtor);
+  builder.CreateBr(bbExit);
+
+  builder.SetInsertPoint(bbExit);
   builder.CreateRetVoid();
 
-  return ctor;
+  appendToGlobalCtors(m, ctor, detail::kitCtorPriority);
 }
 
-Function *GenerateCtorHip::createDtor(Module &m,
-                                      GlobalVariable *gBundleHandle) {
-  const DataLayout &dl = m.getDataLayout();
-  Align alignPtr = dl.getPointerABIAlignment(0);
-
+void GenerateCtorHip::genDtor(Module &m, GlobalVariable *gBundleHandle) {
   LLVMContext &ctx = m.getContext();
+
   Type *voidTy = Type::getVoidTy(ctx);
   PointerType *ptrTy = PointerType::getUnqual(ctx);
-
-  Constant *ctt = toConstant(TTID::Hip, ctx);
   FunctionType *dtorTy = FunctionType::get(voidTy, {}, false);
+
   Function *dtor = Function::Create(dtorTy, GlobalValue::InternalLinkage,
                                     ".kithip.dtor", &m);
+  Constant *tt = toConstant(TTID::Hip, ctx);
 
-  IRBuilder<> builder(BasicBlock::Create(ctx, "entry", dtor));
+  BasicBlock *bbEntry = BasicBlock::Create(ctx, "entry", dtor);
+  BasicBlock *bbExit = BasicBlock::Create(ctx, "exit", dtor);
+  IRBuilder<> builder(ctx);
+
+  builder.SetInsertPoint(bbEntry);
+  Align alignPtr = m.getDataLayout().getPointerABIAlignment(0);
   Value *handle = builder.CreateAlignedLoad(ptrTy, gBundleHandle, alignPtr);
+  builder.CreateIntrinsic(Intrinsic::kit_gpu_unregister_devcode, {tt, handle});
 
-  builder.CreateIntrinsic(Intrinsic::kit_gpu_unregister_devcode, {ctt, handle});
-
+#if 0
   // FIXME: There is a bug here which seems to cause use-after-free errors in
   // Kitsune's runtime. It is not entirely clear where exactly the problem is.
   // This causes the kitsune-test-suite to consistently fail. In the interest of
   // having the test suite actually be useful, don't generate the call to
   // finalize the runtime until we can figure out exactly what is going on
   // there.
-#if 0
-  Constant *ctt = toConstant(TTID::Hip, ctx);
-  builder.CreateCall(Intrinsic::kit_runtime_finalize, ctt);
+  builder.CreateCall(Intrinsic::kit_runtime_finalize, tt);
 #endif // 0
 
+  builder.CreateBr(bbExit);
+
+  builder.SetInsertPoint(bbExit);
   builder.CreateRetVoid();
 
-  return dtor;
+  appendToGlobalDtors(m, dtor, detail::kitDtorPriority);
 }
 
 void GenerateCtorHip::run(Module &m) {
@@ -273,12 +276,9 @@ void GenerateCtorHip::run(Module &m) {
   std::unique_ptr<Module> devM = std::move(devMOrErr.get());
   GlobalVariable *gBundle = createBundleGV(m, gFB);
   GlobalVariable *gBundleHandle = createBundleHandleGV(m);
-  Function *dtor = createDtor(m, gBundleHandle);
-  Function *ctor = createCtor(m, *devM, dtor, gBundle, gBundleHandle);
 
-  // The priority must be in the range [101,65535] with larger values having
-  // lower priority relative to other global constructors in @llvm.global_ctors.
-  appendToGlobalCtors(m, ctor, 65535);
+  genCtor(m, *devM, gBundle, gBundleHandle);
+  genDtor(m, gBundleHandle);
 }
 
 void llvm::detail::genCtorHip(Module &m, detail::GetTLI getTLI,

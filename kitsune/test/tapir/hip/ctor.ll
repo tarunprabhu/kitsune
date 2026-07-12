@@ -16,30 +16,43 @@
 ;
 ; DEFAULT: @[[HANDLE:[.]kithip[.].+]] = internal global ptr null
 ;
-; DEFAULT: @llvm.global_ctors = appending global
+; DEFAULT-LABEL: @llvm.global_ctors = appending global
 ; DEFAULT-SAME: { i32 65535, ptr @[[CTOR:[.]kithip[.]ctor.*]], ptr null }
+;
+; DEFAULT-LABEL: @llvm.global_dtors = appending global
+; DEFAULT-SAME: { i32 65535, ptr @[[DTOR:[.]kithip[.]dtor.*]], ptr null }
+;
+; DEFAULT: define internal void @[[CTOR]]()
+; DEFAULT-NEXT: [[ENTRY:.+]]:
+; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.initialize(i32 4)
+; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.set.verbose(i32 4, i8 0)
+; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.set.xnack(i32 4, i8 1)
+; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.set.y.axis.kernel.launch(i32 4, i8 0)
+; DEFAULT-NOT: call {{.+}} @llvm.kit.runtime.set.fixed.tpb(i32 4,
+; DEFAULT: call {{.+}} @llvm.kit.runtime.set.max.tpb(i32 4, i32 1024)
+; DEFAULT-DAG: %[[HC:.+]] = call {{.+}}@llvm.kit.gpu.register.devcode(i32 4, ptr @[[BUNDLE]])
+; DEFAULT-NEXT: store ptr %[[HC]], ptr @[[HANDLE]]
+; DEFAULT-NEXT: br label %[[EXIT:.+]]
+; DEFAULT-EMPTY:
+; DEFAULT-NEXT: [[EXIT]]:
+; DEFAULT-NEXT: ret void
+; DEFAULT: }
 ;
 ; FIXME: There is a bug where calling __kithip_finalize raises a segmentation
 ; fault or some other error which looks like memory corruption bug. As a
 ; temporary workaround, __kithip_finalize is not called, but it eventually
 ; should be once the issue is fixed.
 ;
-; DEFAULT: define{{.*}} void @[[DTOR:[.]kithip[.]dtor]]()
-; DEFAULT: %[[HD:.+]] = load ptr, ptr @[[HANDLE]]
-; DEFAULT: call {{.+}} @llvm.kit.gpu.unregister.devcode(i32 4, ptr %[[HD]])
+; DEFAULT: define internal void @[[DTOR]]()
+; DEFAULT-NEXT: [[ENTRY:.+]]:
+; DEFAULT-NEXT: %[[HD:.+]] = load ptr, ptr @[[HANDLE]]
+; DEFAULT-NEXT: call {{.+}} @llvm.kit.gpu.unregister.devcode(i32 4, ptr %[[HD]])
 ; DEFAULT-NOT: call {{.+}} @llvm.kit.runtime.finalize(i32 4)
-;
-; DEFAULT: define {{.+}} @[[CTOR]]()
-; DEFAULT: call {{.+}} @llvm.kit.runtime.initialize(i32 4)
-; DEFAULT: call {{.+}} @llvm.kit.runtime.set.verbose(i32 4, i8 0)
-; DEFAULT: call {{.+}} @llvm.kit.runtime.set.xnack(i32 4, i8 1)
-; DEFAULT: call {{.+}} @llvm.kit.runtime.set.y.axis.kernel.launch(i32 4, i8 0)
-; DEFAULT-NOT: call {{.+}} @llvm.kit.runtime.set.fixed.tpb(i32 4,
-; DEFAULT: call {{.+}} @llvm.kit.runtime.set.max.tpb(i32 4, i32 1024)
-; DEFAULT-DAG: %[[HC:.+]] = call {{.+}}@llvm.kit.gpu.register.devcode(i32 4, ptr @[[BUNDLE]])
-; DEFAULT: store ptr %[[HC]], ptr @[[HANDLE]]
-; DEFAULT: call {{.+}}atexit(ptr @[[DTOR]])
-; DEFAULT: }
+; DEFAULT-NEXT: br label %[[EXIT:.+]]
+; DEFAULT-EMPTY:
+; DEFAULT-NEXT: [[EXIT]]:
+; DEFAULT-NEXT: ret void
+; DEFAULT-NEXT: }
 ;
 ; DEFAULT-DAG: ![[MD]] = distinct !{![[MD]], ![[DC:[0-9]+]]}
 ; DEFAULT-DAG: ![[DC]] = !{!"kit.gv.device.code", i32 4}

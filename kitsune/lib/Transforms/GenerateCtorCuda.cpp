@@ -73,9 +73,9 @@ private:
 private:
   GlobalVariable *createBundleGV(Module &m, GlobalVariable *fatBin);
   GlobalVariable *createBundleHandleGV(Module &m);
-  Function *createCtor(Module &m, const Module &devM, Function *dtor,
-                       GlobalVariable *gBundle, GlobalVariable *gBundleHandle);
-  Function *createDtor(Module &m, GlobalVariable *gBundleHandle);
+  void genCtor(Module &m, const Module &devM, GlobalVariable *gBundle,
+               GlobalVariable *gBundleHandle);
+  void genDtor(Module &m, GlobalVariable *gBundleHandle);
 
 public:
   GenerateCtorCuda(detail::GetTLI getTLI, const TTOptions &tto,
@@ -130,8 +130,6 @@ GlobalVariable *GenerateCtorCuda::createBundleGV(Module &m,
 /// saved into this global and read from there by the global dtor and passed to
 /// to __cudaUnregisterFatBinary().
 GlobalVariable *GenerateCtorCuda::createBundleHandleGV(Module &m) {
-  const DataLayout &dl = m.getDataLayout();
-
   LLVMContext &ctx = m.getContext();
   PointerType *ptrTy = PointerType::getUnqual(ctx);
 
@@ -140,22 +138,21 @@ GlobalVariable *GenerateCtorCuda::createBundleHandleGV(Module &m) {
   GlobalVariable *g = new GlobalVariable(m, ptrTy, /*isConstant=*/false,
                                          GlobalValue::InternalLinkage,
                                          /*init=*/cnull, ".kitcuda.handle");
-  g->setAlignment(dl.getPointerABIAlignment(0));
+  g->setAlignment(m.getDataLayout().getPointerABIAlignment(0));
   g->setUnnamedAddr(GlobalValue::UnnamedAddr::None);
 
   return g;
 }
 
-Function *GenerateCtorCuda::createCtor(Module &m, const Module &devM,
-                                       Function *dtor, GlobalVariable *gBundle,
-                                       GlobalVariable *gBundleHandle) {
+void GenerateCtorCuda::genCtor(Module &m, const Module &devM,
+                               GlobalVariable *gBundle,
+                               GlobalVariable *gBundleHandle) {
   const DataLayout &dl = m.getDataLayout();
-  Align alignPtr = dl.getPointerABIAlignment(0);
-
   LLVMContext &ctx = m.getContext();
 
   Type *voidTy = Type::getVoidTy(ctx);
   Type *i32Ty = Type::getInt32Ty(ctx);
+  FunctionType *ctorTy = FunctionType::get(voidTy, {}, false);
 
   // Booleans are always 8-bit integers. toConstant would, otherwise return an
   // i1, but the intrinsic expects i8. Casting the boolean to i8 ensures that we
@@ -163,14 +160,16 @@ Function *GenerateCtorCuda::createCtor(Module &m, const Module &devM,
   Constant *cVerbose = toConstant(uint8_t(tto.getKitrtVerbose()), ctx);
   Constant *ctt = toConstant(TTID::Cuda, ctx);
 
-  FunctionType *ctorTy = FunctionType::get(voidTy, {}, false);
   Function *ctor = Function::Create(ctorTy, GlobalValue::InternalLinkage,
                                     ".kitcuda.ctor", &m);
+  BasicBlock *bbEntry = BasicBlock::Create(ctx, "entry", ctor);
+  BasicBlock *bbExit = BasicBlock::Create(ctx, "exit", ctor);
+  IRBuilder<> builder(ctx);
 
   TargetLibraryInfo &tli = getTLI(*ctor);
   Type *sizeTTy = tli.getSizeTType(m);
 
-  IRBuilder<> builder(BasicBlock::Create(ctx, "entry", ctor));
+  builder.SetInsertPoint(bbEntry);
   builder.CreateIntrinsic(Intrinsic::kit_runtime_initialize, ctt);
 
   // Enable verbose mode early in the constructor so all verbose statements are
@@ -200,6 +199,7 @@ Function *GenerateCtorCuda::createCtor(Module &m, const Module &devM,
 
   Value *bundleHandle = builder.CreateIntrinsic(
       Intrinsic::kit_gpu_register_devcode, {ctt, gBundle});
+  Align alignPtr = dl.getPointerABIAlignment(0);
   builder.CreateAlignedStore(bundleHandle, gBundleHandle, alignPtr);
 
   // Register any non-constant global variables used in the kernel module. Each
@@ -236,37 +236,40 @@ Function *GenerateCtorCuda::createCtor(Module &m, const Module &devM,
   // Wrap up fatbinary registration steps.
   builder.CreateIntrinsic(Intrinsic::kit_gpu_register_devcode_end,
                           {ctt, bundleHandle});
+  builder.CreateBr(bbExit);
 
-  // Now add the dtor to help us clean up at program exit.
-  FunctionCallee atExit = getOrInsertLibFunc(&m, tli, LibFunc_atexit);
-  builder.CreateCall(atExit, dtor);
+  builder.SetInsertPoint(bbExit);
   builder.CreateRetVoid();
 
-  return ctor;
+  appendToGlobalCtors(m, ctor, detail::kitCtorPriority);
 }
 
-Function *GenerateCtorCuda::createDtor(Module &m,
-                                       GlobalVariable *gBundleHandle) {
-  const DataLayout &dl = m.getDataLayout();
-  Align alignPtr = dl.getPointerABIAlignment(0);
-
+void GenerateCtorCuda::genDtor(Module &m, GlobalVariable *gBundleHandle) {
   LLVMContext &ctx = m.getContext();
+
   Type *voidTy = Type::getVoidTy(ctx);
   PointerType *ptrTy = PointerType::getUnqual(ctx);
-
-  Constant *ctt = toConstant(TTID::Cuda, ctx);
   FunctionType *dtorTy = FunctionType::get(voidTy, {}, false);
+
+  Constant *tt = toConstant(TTID::Cuda, ctx);
+
   Function *dtor = Function::Create(dtorTy, GlobalValue::InternalLinkage,
                                     ".kitcuda.dtor", &m);
+  BasicBlock *bbEntry = BasicBlock::Create(ctx, "entry", dtor);
+  BasicBlock *bbExit = BasicBlock::Create(ctx, "exit", dtor);
+  IRBuilder<> builder(bbEntry);
 
-  IRBuilder<> builder(BasicBlock::Create(ctx, "entry", dtor));
+  builder.SetInsertPoint(bbEntry);
+  Align alignPtr = m.getDataLayout().getPointerABIAlignment(0);
   Value *handle = builder.CreateAlignedLoad(ptrTy, gBundleHandle, alignPtr);
+  builder.CreateIntrinsic(Intrinsic::kit_gpu_unregister_devcode, {tt, handle});
+  builder.CreateIntrinsic(Intrinsic::kit_runtime_finalize, tt);
+  builder.CreateBr(bbExit);
 
-  builder.CreateIntrinsic(Intrinsic::kit_gpu_unregister_devcode, {ctt, handle});
-  builder.CreateIntrinsic(Intrinsic::kit_runtime_finalize, ctt);
-
+  builder.SetInsertPoint(bbExit);
   builder.CreateRetVoid();
-  return dtor;
+
+  appendToGlobalDtors(m, dtor, detail::kitDtorPriority);
 }
 
 void GenerateCtorCuda::run(Module &m) {
@@ -283,12 +286,9 @@ void GenerateCtorCuda::run(Module &m) {
   std::unique_ptr<Module> devM = std::move(devMOrErr.get());
   GlobalVariable *gBundle = createBundleGV(m, gFB);
   GlobalVariable *gBundleHandle = createBundleHandleGV(m);
-  Function *dtor = createDtor(m, gBundleHandle);
-  Function *ctor = createCtor(m, *devM, dtor, gBundle, gBundleHandle);
 
-  // The priority must be in the range [101,65535] with larger values having
-  // lower priority relative to other global constructors in @llvm.global_ctors.
-  appendToGlobalCtors(m, ctor, 65535);
+  genCtor(m, *devM, gBundle, gBundleHandle);
+  genDtor(m, gBundleHandle);
 }
 
 void llvm::detail::genCtorCuda(Module &m, detail::GetTLI getTLI,
