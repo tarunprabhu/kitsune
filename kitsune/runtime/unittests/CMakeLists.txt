@@ -24,7 +24,9 @@ function(add_kitrt_unittest basename)
   # ${CMAKE_CURRENT_SOURCE_DIR}/lit.cfg.py.
   set(name ${basename}Tests)
 
-  add_unittest(KitrtUnitTests ${name} ${ARGN})
+  # EXPORT_SYMBOLS here is required, otherwise, spurious failures can occur
+  # if LLVM_LINK_LLVM_DYLIB=ON
+  add_unittest(KitrtUnitTests ${name} ${ARGN} EXPORT_SYMBOLS)
 
   target_include_directories(${name} PUBLIC ${KITRT_SOURCE_DIR})
   target_link_libraries(${name} PRIVATE LLVMTestingSupport)
