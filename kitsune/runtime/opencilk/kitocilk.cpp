@@ -104,7 +104,7 @@ extern "C" void __kitocilk_initialize(void) {
   __kitrt_initialize();
 
 #ifdef KITRT_PAPI_ENABLED
-  __kitpapi_initialize_threading((void *)__cilkrts_get_worker_number);
+  __kitpapi_initialize((PAPIThreadIDFunc)__cilkrts_get_worker_number);
 #endif // KITRT_PAPI_ENABLED
 
   uint32_t numThreads = __kitrt_num_threads("CILK_NWORKERS");
