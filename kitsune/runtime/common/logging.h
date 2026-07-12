@@ -73,25 +73,18 @@ namespace kitrt {
 void error(const char *label, const char *msg, ...);
 
 /**
- * Print a warning message to stderr. \p msg may be a printf-compatible format
- * string. In that case, any optional arguments must be of the appropriate
- * types.
- */
-void warn(const char *label, const char *msg, ...);
-
-/**
- * Print a message to stderr if verbose mode has been enabled. \p msg may be a
- * printf-compatible format string. In that case, any optional arguments must be
- * of the appropriate types.
- */
-void log(const char *label, const char *msg, ...);
-
-/**
  * Print an error message to stderr. \p msg may be a printf-compatible format
  * string. In that case, any optional arguments must be of the appropriate
  * types. This does not add a trailing newline after printing the message.
  */
 void errorNoEndl(const char *label, const char *msg, ...);
+
+/**
+ * Print a warning message to stderr. \p msg may be a printf-compatible format
+ * string. In that case, any optional arguments must be of the appropriate
+ * types.
+ */
+void warn(const char *label, const char *msg, ...);
 
 /**
  * Print a warning message to stderr. \p msg may be a printf-compatible format
@@ -103,10 +96,25 @@ void warnNoEndl(const char *label, const char *msg, ...);
 /**
  * Print a message to stderr if verbose mode has been enabled. \p msg may be a
  * printf-compatible format string. In that case, any optional arguments must be
+ * of the appropriate types.
+ */
+void log(const char *label, const char *msg, ...);
+
+/**
+ * Print a message to stderr if verbose mode has been enabled. \p msg may be a
+ * printf-compatible format string. In that case, any optional arguments must be
  * of the appropriate types. This does not add a trailing newline after printing
  * the message.
  */
 void logNoEndl(const char *label, const char *msg, ...);
+
+/**
+ * Print a message to stderr if an environment variable named `KIT_VERBOSE` is
+ * set to a known "true-like" boolean value. This should only be used if a
+ * log message must be printed before __kitrt_initialize() is run. In nearly all
+ * cases, \ref log or \ref logNoEndl should be used.
+ */
+void logEarly(const char *label, const char *msg);
 
 } // namespace kitrt
 
