@@ -1,3 +1,8 @@
+add_kitrt_systest(logEarly.cpp)
+add_kitrt_systest(logError.cpp)
+add_kitrt_systest(logFatal.cpp)
+add_kitrt_systest(logNormal.cpp)
+add_kitrt_systest(logWarning.cpp)
 add_kitrt_systest(timerCannotWriteToFile.c)
 add_kitrt_systest(timerDefaultStderr.c)
 add_kitrt_systest(timerEmpty.c)

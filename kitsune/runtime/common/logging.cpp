@@ -53,6 +53,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "common/env.h"
 #include "common/logging.h"
 #include "kitrt.h"
 
@@ -60,6 +61,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <mutex>
+#include <optional>
 
 // Write a message to stderr. \p category is optional. If \p is a format string,
 // the variable list of arguments \p args must be of the appropriate types.
@@ -94,10 +96,24 @@ void kitrt::error(const char *label, const char *msg, ...) {
   va_end(args);
 }
 
+void kitrt::errorNoEndl(const char *label, const char *msg, ...) {
+  va_list args;
+  va_start(args, msg);
+  logImpl(label, "ERROR", false, msg, args);
+  va_end(args);
+}
+
 void kitrt::warn(const char *label, const char *msg, ...) {
   va_list args;
   va_start(args, msg);
   logImpl(label, "WARNING", true, msg, args);
+  va_end(args);
+}
+
+void kitrt::warnNoEndl(const char *label, const char *msg, ...) {
+  va_list args;
+  va_start(args, msg);
+  logImpl(label, "WARNING", false, msg, args);
   va_end(args);
 }
 
@@ -110,20 +126,6 @@ void kitrt::log(const char *label, const char *msg, ...) {
   }
 }
 
-void kitrt::errorNoEndl(const char *label, const char *msg, ...) {
-  va_list args;
-  va_start(args, msg);
-  logImpl(label, "ERROR", false, msg, args);
-  va_end(args);
-}
-
-void kitrt::warnNoEndl(const char *label, const char *msg, ...) {
-  va_list args;
-  va_start(args, msg);
-  logImpl(label, "WARNING", false, msg, args);
-  va_end(args);
-}
-
 void kitrt::logNoEndl(const char *label, const char *msg, ...) {
   if (__kitrt_verbose_mode()) {
     va_list args;
@@ -131,4 +133,18 @@ void kitrt::logNoEndl(const char *label, const char *msg, ...) {
     logImpl(label, nullptr, false, msg, args);
     va_end(args);
   }
+}
+
+void kitrt::logEarly(const char *label, const char *msg) {
+  auto isVerbose = []() -> bool {
+    if (std::optional<bool> verbose = envLookup<bool>("KIT_VERBOSE"))
+      if (*verbose)
+        return true;
+    if (std::optional<bool> verbose = envLookup<bool>("KITRT_VERBOSE"))
+      return *verbose;
+    return false;
+  };
+
+  if (isVerbose())
+    fprintf(stderr, "%s: %s\n", label, msg);
 }
