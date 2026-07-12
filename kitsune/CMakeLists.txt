@@ -664,12 +664,12 @@ if (KITSUNE_OPENMP_ENABLED)
   set(KITSUNE_OPENMP_BUILD_COMPILE_FLAGS ""
     CACHE STRING
     "Additional compiler flags needed to build the openmp runtime. These are
-    only used when building Cheetah as part of building Kitsune itself")
+    only used when building openmp as part of building Kitsune itself")
 
   set(KITSUNE_OPENMP_BUILD_LINK_FLAGS ""
     CACHE STRING
     "Additional linker flags needed to build the openmp runtime. These are only
-    used when building Cheetah as part of building Kitsune itself")
+    used when building openmp as part of building Kitsune itself")
 
   prepare_extproj_cmdline_opts("${KITSUNE_OPENMP_BUILD_COMPILE_FLAGS}"
     KITSUNE_OPENMP_C_FLAGS)
@@ -701,7 +701,7 @@ if (KITSUNE_OPENMP_ENABLED)
     -DCMAKE_EXE_LINKER_FLAGS=${KITSUNE_OPENMP_LINKER_FLAGS}
     -DCMAKE_SHARED_LINKER_FLAGS=${KITSUNE_OPENMP_LINKER_FLAGS}
     -DCMAKE_INSTALL_PREFIX=${KITSUNE_RESOURCE_INTDIR}
-    -DCMAKE_INSTALL_LIBDIR="lib"
+    -DCMAKE_INSTALL_LIBDIR=lib
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
     -DCMAKE_COLOR_DIAGNOSTICS=${CMAKE_COLOR_DIAGNOSTICS}
     -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
@@ -713,7 +713,8 @@ if (KITSUNE_OPENMP_ENABLED)
     -DOPENMP_ENABLE_LIBOMPTARGET=OFF
     -DOPENMP_ENABLE_LIBOMP_PROFILING=OFF
     -DOPENMP_ENABLE_OMPT_TOOLS=OFF
-    -DLIBOMP_OMPD_SUPPORT=OFF)
+    -DLIBOMP_OMPD_SUPPORT=OFF
+    ${KITSUNE_OPENMP_BUILD_CONFIGURE_FLAGS})
 
   # The openmp tests are not very cheap, so we don't run them before installing.
   # But we probably should.
@@ -756,18 +757,18 @@ if (KITSUNE_QTHREADS_ENABLED)
 
   set(KITSUNE_QTHREADS_BUILD_CONFIGURE_FLAGS ""
     CACHE STRING
-    "Additional options to be passed to CMake when configuring qthreads. These
-    are only used when building qthreads as part of building Kitsune itself")
+    "Additional options to be passed to CMake when configuring Qthreads. These
+    are only used when building Qthreads as part of building Kitsune itself")
 
   set(KITSUNE_QTHREADS_BUILD_COMPILE_FLAGS ""
     CACHE STRING
-    "Additional compiler flags needed to build qthreads. These are only used
-    when building qthreads as part of building Kitsune itself")
+    "Additional compiler flags needed to build Qthreads. These are only used
+    when building Qthreads as part of building Kitsune itself")
 
   set(KITSUNE_QTHREADS_BUILD_LINK_FLAGS ""
     CACHE STRING
-    "Additional linker flags needed to build qthreads. These are only used when
-    building qthreads as part of building Kitsune itself")
+    "Additional linker flags needed to build Qthreads. These are only used when
+    building Qthreads as part of building Kitsune itself")
 
   prepare_extproj_cmdline_opts("${KITSUNE_QTHREADS_BUILD_COMPILE_FLAGS}"
     KITSUNE_QTHREADS_C_FLAGS)
@@ -794,7 +795,8 @@ if (KITSUNE_QTHREADS_ENABLED)
     -DCMAKE_INSTALL_INCLUDEDIR=include/qthread
     -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
     -DQTHREADS_TOPOLOGY=hwloc
-    -DQTHREADS_SCHEDULER=distrib)
+    -DQTHREADS_SCHEDULER=distrib
+    ${KITSUNE_QTHREADS_BUILD_CONFIGURE_FLAGS})
 
   ExternalProject_Add(qthreads
     GIT_REPOSITORY          https://github.com/sandialabs/qthreads.git
