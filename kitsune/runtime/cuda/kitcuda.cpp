@@ -101,7 +101,7 @@ const int KIT_NVTX_CLEANUP = 4;
 
 extern "C" {
 
-bool __kitcuda_initialize() {
+void __kitcuda_initialize() {
   kitrt::logEarly(LABEL, "Initializing Kitsune runtime (cuda)");
 
   // Initialize the shared components of the higher-level runtime.
@@ -111,7 +111,7 @@ bool __kitcuda_initialize() {
   if (_kitcuda_initialized) {
     if (__kitrt_verbose_mode())
       fprintf(stderr, "kitcuda: warning, multiple initialization calls!\n");
-    return true;
+    return;
   }
 
   if (not __kitcuda_load_symbols()) {
@@ -227,8 +227,6 @@ bool __kitcuda_initialize() {
   KIT_NVTX_POP();
 
   kitrt::log(LABEL, "Initialized Kitsune runtime (cuda)");
-
-  return _kitcuda_initialized;
 }
 
 void __kitcuda_finalize() {

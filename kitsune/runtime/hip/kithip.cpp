@@ -1,4 +1,4 @@
-//===- kitocilk.cpp - Kitsune runtime HIP support -------------------------===//
+//===- kithip.cpp - Kitsune runtime HIP support ---------------------------===//
 //
 // Copyright (c) 2021, 2023 Los Alamos National Security, LLC.
 // All rights reserved.
@@ -121,7 +121,7 @@ extern "C" bool __kithip_is_initialized() {
   return rt_info.initialized;
 }
 
-extern "C" bool __kithip_initialize() {
+extern "C" void __kithip_initialize() {
   using namespace kithip_rt;
   kitrt::logEarly(LABEL, "Initializing Kitsune runtime (hip)");
 
@@ -132,7 +132,7 @@ extern "C" bool __kithip_initialize() {
   if (isInitialized()) {
     fprintf(stderr,
             "kitrt[hip]: warning, mutliple initialization attempts...\n");
-    return true;
+    return;
   }
 
   // AMD's documentation suggests that there is no need to explicitly call
@@ -179,8 +179,6 @@ extern "C" bool __kithip_initialize() {
   setInitialized(true);
 
   kitrt::log(LABEL, "Initialized Kitsune runtime (hip)");
-
-  return isInitialized();
 }
 
 extern "C" void __kithip_finalize() {
