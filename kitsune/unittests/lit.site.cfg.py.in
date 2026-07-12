@@ -1,7 +1,5 @@
 @LIT_SITE_CFG_IN_HEADER@
 
-import sys
-
 config.kitsune_source_dir = path(r"@KITSUNE_SOURCE_DIR@")
 config.kitsune_binary_dir = path(r"@KITSUNE_BINARY_DIR@")
 

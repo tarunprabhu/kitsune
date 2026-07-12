@@ -1,5 +1,4 @@
 import os
-import subprocess
 
 import lit.formats
 
