@@ -56,7 +56,6 @@ Function *GenerateCtorPthreads::createCtor(Module &m, Function *dtor) {
   LLVMContext &ctx = m.getContext();
 
   Type *voidTy = Type::getVoidTy(ctx);
-  PointerType *ptrTy = PointerType::getUnqual(ctx);
 
   // Booleans are always 8-bit integers. toConstant would, otherwise return an
   // i1, but the intrinsic expects i8. Casting the boolean to i8 ensures that we
@@ -64,7 +63,7 @@ Function *GenerateCtorPthreads::createCtor(Module &m, Function *dtor) {
   Constant *verbose = toConstant(uint8_t(tto.getKitrtVerbose()), ctx);
   Constant *tt = toConstant(TTID::Pthreads, ctx);
 
-  FunctionType *ctorTy = FunctionType::get(voidTy, ptrTy, false);
+  FunctionType *ctorTy = FunctionType::get(voidTy, {}, false);
   Function *ctor = Function::Create(ctorTy, GlobalValue::InternalLinkage,
                                     ".kitpthr.ctor", &m);
 
@@ -84,12 +83,12 @@ Function *GenerateCtorPthreads::createCtor(Module &m, Function *dtor) {
 
 Function *GenerateCtorPthreads::createDtor(Module &m) {
   LLVMContext &ctx = m.getContext();
+
   Type *voidTy = Type::getVoidTy(ctx);
-  PointerType *ptrTy = PointerType::getUnqual(ctx);
 
   Constant *tt = toConstant(TTID::Pthreads, ctx);
 
-  FunctionType *dtorTy = FunctionType::get(voidTy, ptrTy, false);
+  FunctionType *dtorTy = FunctionType::get(voidTy, {}, false);
   Function *dtor = Function::Create(dtorTy, GlobalValue::InternalLinkage,
                                     ".kitpthr.dtor", &m);
 

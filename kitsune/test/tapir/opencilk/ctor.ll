@@ -28,10 +28,10 @@
 ; DEFAULT: @llvm.global_ctors = appending global
 ; DEFAULT-SAME: { i32 65535, ptr @[[CTOR:[.]kitocilk[.]ctor.*]], ptr null }
 ;
-; DEFAULT: define {{.*}} @[[DTOR:[.]kitocilk[.]dtor.*]]{{[ ]*}}(
+; DEFAULT: define {{.*}} @[[DTOR:[.]kitocilk[.]dtor.*]]{{[ ]*}}()
 ; DEFAULT: call {{.+}} @llvm.kit.runtime.finalize(i32 8)
 ;
-; DEFAULT: define {{.+}} @[[CTOR]]
+; DEFAULT: define {{.+}} @[[CTOR]]()
 ; DEFAULT-NEXT: [[ENTRY:.+]]:
 ; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.initialize(i32 8)
 ; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.set.verbose(i32 8, i8 0)

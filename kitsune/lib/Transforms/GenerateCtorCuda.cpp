@@ -155,7 +155,6 @@ Function *GenerateCtorCuda::createCtor(Module &m, const Module &devM,
   LLVMContext &ctx = m.getContext();
 
   Type *voidTy = Type::getVoidTy(ctx);
-  PointerType *ptrTy = PointerType::getUnqual(ctx);
   Type *i32Ty = Type::getInt32Ty(ctx);
 
   // Booleans are always 8-bit integers. toConstant would, otherwise return an
@@ -164,7 +163,7 @@ Function *GenerateCtorCuda::createCtor(Module &m, const Module &devM,
   Constant *cVerbose = toConstant(uint8_t(tto.getKitrtVerbose()), ctx);
   Constant *ctt = toConstant(TTID::Cuda, ctx);
 
-  FunctionType *ctorTy = FunctionType::get(voidTy, ptrTy, false);
+  FunctionType *ctorTy = FunctionType::get(voidTy, {}, false);
   Function *ctor = Function::Create(ctorTy, GlobalValue::InternalLinkage,
                                     ".kitcuda.ctor", &m);
 
@@ -256,7 +255,7 @@ Function *GenerateCtorCuda::createDtor(Module &m,
   PointerType *ptrTy = PointerType::getUnqual(ctx);
 
   Constant *ctt = toConstant(TTID::Cuda, ctx);
-  FunctionType *dtorTy = FunctionType::get(voidTy, ptrTy, false);
+  FunctionType *dtorTy = FunctionType::get(voidTy, {}, false);
   Function *dtor = Function::Create(dtorTy, GlobalValue::InternalLinkage,
                                     ".kitcuda.dtor", &m);
 

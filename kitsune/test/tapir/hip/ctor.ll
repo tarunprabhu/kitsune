@@ -24,12 +24,12 @@
 ; temporary workaround, __kithip_finalize is not called, but it eventually
 ; should be once the issue is fixed.
 ;
-; DEFAULT: define {{.*}} @[[DTOR:[.]kithip[.]dtor.*]]{{[ ]*}}(
+; DEFAULT: define{{.*}} void @[[DTOR:[.]kithip[.]dtor]]()
 ; DEFAULT: %[[HD:.+]] = load ptr, ptr @[[HANDLE]]
 ; DEFAULT: call {{.+}} @llvm.kit.gpu.unregister.devcode(i32 4, ptr %[[HD]])
 ; DEFAULT-NOT: call {{.+}} @llvm.kit.runtime.finalize(i32 4)
 ;
-; DEFAULT: define {{.+}} @[[CTOR]]
+; DEFAULT: define {{.+}} @[[CTOR]]()
 ; DEFAULT: call {{.+}} @llvm.kit.runtime.initialize(i32 4)
 ; DEFAULT: call {{.+}} @llvm.kit.runtime.set.verbose(i32 4, i8 0)
 ; DEFAULT: call {{.+}} @llvm.kit.runtime.set.xnack(i32 4, i8 1)
