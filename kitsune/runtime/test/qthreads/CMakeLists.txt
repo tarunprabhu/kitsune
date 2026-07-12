@@ -5,3 +5,4 @@ function(add_systest source)
 endfunction ()
 
 add_systest(qthrNumThreadsTest.c)
+add_systest(qthrRTInitFini.c)

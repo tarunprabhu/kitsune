@@ -109,7 +109,8 @@ add_lit_testsuite(check-kitsune "Running the Kitsune regression tests"
 
 # The first argument to `add_lit_testsuites` is the project name. In the rest
 # of LLVM, this is always passed in all-uppercase. It is not clear why, but we
-# follow the same convention.
+# follow the same convention. This creates `check-kitsune-*` targets for each
+# subdirectory of ${CMAKE_CURRENT_SOURCE_DIR}
 add_lit_testsuites(KITSUNE ${CMAKE_CURRENT_SOURCE_DIR}
   DEPENDS ${KITSUNE_TEST_DEPS})
 
