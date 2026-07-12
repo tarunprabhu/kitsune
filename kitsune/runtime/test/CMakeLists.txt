@@ -5,27 +5,34 @@ add_custom_target(KitrtTests)
 
 # Add a "system" test to the list of kitrt's system tests. This will generate an
 # executable, linked against libkitrt, from the single source file, SOURCE. This
-# executable will be invoked from the RUN directives present in SOURCE. The name
-# of the resulting executable will be ${SOURCE}.test.
+# executable will be invoked from the RUN directives present in SOURCE.
 function(add_kitrt_systest source)
   cmake_parse_arguments(ARG "" "" "INCDIRS;LIBS" ${ARGN})
 
-  set(name ${source}.test)
-  add_executable(${name} ${source})
+  # CMake requires a globally unique target name. In several cases, there may be
+  # multiple test files with the same name. This is desirable - for instance,
+  # when we are testing the behavior of the __kit*_num_threads function exposed
+  # by different tapir-target-specific runtimes. Since these executables are
+  # only intended for internal use, we generate a name that contains the name
+  # of the tapir target in addition to a specific suffix.
+  get_filename_component(dir "${CMAKE_CURRENT_SOURCE_DIR}" NAME)
+  set(target ${dir}-${source}.test)
 
-  target_include_directories(${name} PUBLIC ${KITRT_SOURCE_DIR})
-  if (ARG_INCDIRS)
-    target_include_directories(${name} PUBLIC ${ARG_INCDIRS})
-  endif ()
-
-  target_link_libraries(${name} PUBLIC ${KITRT_DSO})
-  set_target_properties(${name} PROPERTIES
+  add_executable(${target} ${source})
+  set_target_properties(${target} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-  if (ARG_LIBS)
-    target_link_libraries(${name} PUBLIC ${ARG_LIBS})
+
+  target_include_directories(${target} PUBLIC ${KITRT_SOURCE_DIR})
+  if (ARG_INCDIRS)
+    target_include_directories(${target} PUBLIC ${ARG_INCDIRS})
   endif ()
 
-  add_dependencies(KitrtTests ${name})
+  target_link_libraries(${target} PUBLIC ${KITRT_DSO})
+  if (ARG_LIBS)
+    target_link_libraries(${target} PUBLIC ${ARG_LIBS})
+  endif ()
+
+  add_dependencies(KitrtTests ${target})
 endfunction()
 
 add_subdirectory(common)

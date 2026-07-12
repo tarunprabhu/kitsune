@@ -44,7 +44,7 @@ llvm_config.use_default_substitutions()
 # systems, but those are the only systems that we currently support.
 config.substitutions.append(
     ("%exe",
-     f'{config.test_exec_root}/$(basename $(dirname %s))/$(basename %s).test'))
+     f'{config.test_exec_root}/$(basename $(dirname %s))/$(basename $(dirname %s))-$(basename %s).test'))
 
 # For each occurrence of an LLVM tool name, replace it with the full path to
 # the build directory holding that tool. We explicitly specify the directories
