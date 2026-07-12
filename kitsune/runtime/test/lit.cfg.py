@@ -1,8 +1,4 @@
 import os
-import platform
-import re
-import subprocess
-import tempfile
 
 import lit.formats
 
