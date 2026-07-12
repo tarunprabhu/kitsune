@@ -19,12 +19,12 @@
 ; DEFAULT: @llvm.global_ctors = appending global
 ; DEFAULT-SAME: { i32 65535, ptr @[[CTOR:[.]kitcuda[.]ctor.*]], ptr null }
 ;
-; DEFAULT: define {{.*}} @[[DTOR:[.]kitcuda[.]dtor.*]]{{[ ]*}}(
+; DEFAULT: define {{.*}} @[[DTOR:[.]kitcuda[.]dtor.*]]{{[ ]*}}()
 ; DEFAULT: %[[HD:.+]] = load ptr, ptr @[[HANDLE]]
 ; DEFAULT: call {{.+}} @llvm.kit.gpu.unregister.devcode(i32 2, ptr %[[HD]])
 ; DEFAULT: call {{.+}} @llvm.kit.runtime.finalize(i32 2)
 ;
-; DEFAULT: define {{.+}} @[[CTOR]]
+; DEFAULT: define {{.+}} @[[CTOR]]()
 ; DEFAULT: call {{.+}} @llvm.kit.runtime.initialize(i32 2)
 ; DEFAULT: call {{.+}} @llvm.kit.runtime.set.verbose(i32 2, i8 0)
 ; DEFAULT-NOT: call {{.+}} @llvm.kit.runtime.set.fixed.tpb(i32 2,
