@@ -31,7 +31,9 @@ function(add_kitsune_unittest basename)
   # ${CMAKE_CURRENT_SOURCE_DIR}/lit.cfg.py.
   set(name ${basename}Tests)
 
-  add_unittest(KitsuneUnitTests ${name} ${ARGN})
+  # EXPORT_SYMBOLS here is required, otherwise, spurious failures can occur
+  # if LLVM_LINK_LLVM_DYLIB=ON
+  add_unittest(KitsuneUnitTests ${name} ${ARGN} EXPORT_SYMBOLS)
 
   # We have to explicitly do this for clang. add_unittests will do the
   # equivalent for the entries in ${LINK_LLVM_COMPONENTS}.
