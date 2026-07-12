@@ -54,7 +54,6 @@ Function *GenerateCtorOpenMP::createCtor(Module &m, Function *dtor) {
   IRBuilder<> builder(ctx);
 
   Type *voidTy = Type::getVoidTy(ctx);
-  PointerType *ptrTy = PointerType::getUnqual(ctx);
 
   // Booleans are always 8-bit integers. toConstant would, otherwise return
   // an i1, but the intrinsic expects i8. Casting the boolean to i8 ensures
@@ -62,7 +61,7 @@ Function *GenerateCtorOpenMP::createCtor(Module &m, Function *dtor) {
   Constant *verbose = toConstant(uint8_t(tto.getKitrtVerbose()), ctx);
   Constant *tt = toConstant(TTID::OpenMP, ctx);
 
-  FunctionType *ctorTy = FunctionType::get(voidTy, ptrTy, /*IsVarArg=*/false);
+  FunctionType *ctorTy = FunctionType::get(voidTy, {}, /*IsVarArg=*/false);
   Function *ctor = Function::Create(ctorTy, GlobalValue::InternalLinkage,
                                     ".kitomp.ctor", &m);
 
@@ -92,11 +91,10 @@ Function *GenerateCtorOpenMP::createDtor(Module &m) {
   IRBuilder<> builder(ctx);
 
   Type *voidTy = Type::getVoidTy(ctx);
-  PointerType *ptrTy = PointerType::getUnqual(ctx);
 
   Constant *tt = toConstant(TTID::OpenMP, ctx);
 
-  FunctionType *dtorTy = FunctionType::get(voidTy, ptrTy, /*IsVarArg=*/false);
+  FunctionType *dtorTy = FunctionType::get(voidTy, {}, /*IsVarArg=*/false);
   Function *dtor = Function::Create(dtorTy, GlobalValue::InternalLinkage,
                                     ".kitomp.dtor", &m);
 
