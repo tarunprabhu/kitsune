@@ -71,9 +71,7 @@ extern "C" {
  * initialization process will load a number of dynamic entry
  * points, implement core parts of the runtime that are independent
  * of CUDA, set an active CUDA device, retain the primary context
- * (see `cuDevicePrimaryCtxRetain()`), set the context.  If
- * initialization fails the call will return `false`; otherwise
- * initialization was successful and `true` will be returned.
+ * (see `cuDevicePrimaryCtxRetain()`), set the context.
  *
  * - Multiple calls to the function will guard against
  *   re-initialization if it was previously successful.
@@ -96,7 +94,7 @@ extern "C" {
  * Applications should call `__kitcuda_finalize()` at program exit.
  *
  **/
-extern bool __kitcuda_initialize();
+extern void __kitcuda_initialize();
 
 /**
  * Load the requried CUDA dynamic symbols for use by the runtime.
