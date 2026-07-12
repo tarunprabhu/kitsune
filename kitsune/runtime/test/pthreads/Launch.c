@@ -1,0 +1,30 @@
+// Check that __kitpthr_launch works as expected.
+//
+// RUN: KIT_NUM_THREADS=3 %exe | FileCheck %s
+//
+// CHECK-COUNT-3: From thread
+
+#include "pthreads/kitpthr.h"
+
+#include <pthread.h>
+#include <stdio.h>
+
+__attribute__((constructor)) static void ctor(void) { __kitpthr_initialize(); }
+
+__attribute__((destructor)) static void dtor(void) { __kitpthr_finalize(); }
+
+static pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
+
+static void thrdFunc(int64_t start, int64_t stop, void *args) {
+  pthread_mutex_lock(&mut);
+  printf("From thread\n");
+  pthread_mutex_unlock(&mut);
+}
+
+int main(int argc, char* argv[]) {
+  KitPthrContext *ctx = __kitpthr_launch(thrdFunc, 0, 3, NULL);
+  __kitpthr_sync(ctx);
+
+  pthread_mutex_destroy(&mut);
+  return 0;
+}
