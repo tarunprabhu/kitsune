@@ -35,6 +35,15 @@ function(add_kitrt_systest source)
   add_dependencies(KitrtTests ${target})
 endfunction()
 
+# Convenience function to add a number of system tests. TESTS is a list of
+# source files - with one tests created for each source file. Any additional
+# named arguments passed to this are forwarded as is to `add_kitrt_systest`.
+function(add_kitrt_systests tests)
+  foreach (test IN LISTS tests)
+    add_kitrt_systest(${test} ${ARGN})
+  endforeach()
+endfunction ()
+
 add_subdirectory(common)
 add_subdirectory(openmp)
 add_subdirectory(pthreads)

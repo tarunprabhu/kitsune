@@ -1,2 +1,5 @@
-add_kitrt_systest(NumThreads.c)
-add_kitrt_systest(RTInitFini.c)
+set(TESTS
+  NumThreads.c
+  RTInitFini.c)
+
+add_kitrt_systests(${TESTS})
