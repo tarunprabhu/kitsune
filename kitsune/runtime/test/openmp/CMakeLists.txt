@@ -1,4 +1,5 @@
 set(TESTS
+  Launch.c
   NumThreads.c
   RTInitFini.c)
 

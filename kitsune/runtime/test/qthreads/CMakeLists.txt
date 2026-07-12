@@ -1,4 +1,5 @@
 set(TESTS
+  Launch.c
   RTInitFini.c)
 
 set(TESTS_WITH_PAPI
