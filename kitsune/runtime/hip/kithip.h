@@ -73,8 +73,7 @@ extern "C" {
  * Initialize the HIP portion of the Kitsune runtime library. The
  * initialization process will load a number of dynamic entry points, implement
  * core parts of the runtime that are independent of HIP, set an active HIP
- * device, set the primary context set the context. Returns `false` if the
- * initialization failed, `true` otherwise.
+ * device, set the primary context set the context.
  *
  *   - Multiple calls to the function will guard against re-initialization if it
  *     was previously successful.
@@ -96,7 +95,7 @@ extern "C" {
  * Applications should call `__kithip_finalize()` at program exit.
  *
  **/
-bool __kithip_initialize();
+void __kithip_initialize();
 
 /**
  * Enable the use of XNACK for an executing program. This call should be made
