@@ -200,7 +200,7 @@ extern "C" void __kitqthr_initialize(void) {
   __kitrt_initialize();
 
 #ifdef KITRT_PAPI_ENABLED
-  __kitpapi_initialize_threading((void *)qthread_id);
+  __kitpapi_initialize((PAPIThreadIDFunc)qthread_id);
 #endif // KITRT_PAPI_ENABLED
 
   uint32_t numThreads = __kitrt_num_threads(nullptr);
