@@ -26,10 +26,10 @@
 ;
 ; ------------------------------------------------------------------------------
 ; DEFAULT-LABEL: @llvm.global_ctors = appending global
-; DEFAULT-SAME: { i32 65535, ptr @[[CTOR:[.]kitocilk[.]ctor.*]], ptr null }
+; DEFAULT-SAME: { i32 65535, ptr @[[CTOR:.+]], ptr null }
 ;
 ; DEFAULT-LABEL: @llvm.global_dtors = appending global
-; DEFAULT-SAME: { i32 65535, ptr @[[DTOR:[.]kitocilk[.]dtor.*]], ptr null }
+; DEFAULT-SAME: { i32 65535, ptr @[[DTOR:.+]], ptr null }
 ;
 ; DEFAULT: define internal void @[[CTOR]]()
 ; DEFAULT-NEXT: [[ENTRY:.+]]:
@@ -63,7 +63,7 @@
 ; RUN:     --kitrt-verbose \
 ; RUN:     | FileCheck %s -check-prefix VERBOSE
 ;
-; VERBOSE-LABEL: define {{.+}} @.kitocilk.ctor
+; VERBOSE-LABEL: define {{.+}} @.kit.opencilk.ctor
 ; VERBOSE: call {{.+}} @llvm.kit.runtime.set.verbose(i32 8, i8 1)
 ;
 ; ----------------------------------------------------------------------------

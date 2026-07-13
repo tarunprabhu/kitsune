@@ -5,10 +5,10 @@
 ; RUN:     | FileCheck %s -check-prefix DEFAULT
 ;
 ; DEFAULT-LABEL: @llvm.global_ctors = appending global
-; DEFAULT-SAME: { i32 65535, ptr @[[CTOR:[.]kitomp[.]ctor.*]], ptr null }
+; DEFAULT-SAME: { i32 65535, ptr @[[CTOR:.+]], ptr null }
 ;
 ; DEFAULT-LABEL: @llvm.global_dtors = appending global
-; DEFAULT-SAME: { i32 65535, ptr @[[DTOR:[.]kitomp[.]dtor.*]], ptr null }
+; DEFAULT-SAME: { i32 65535, ptr @[[DTOR:.+]], ptr null }
 ;
 ; DEFAULT: define internal void @[[CTOR]]()
 ; DEFAULT-NEXT: [[ENTRY:.+]]:
@@ -37,7 +37,7 @@
 ; RUN:     --kitrt-verbose \
 ; RUN:     | FileCheck %s -check-prefix VERBOSE
 ;
-; VERBOSE-LABEL: define {{.+}} @.kitomp.ctor
+; VERBOSE-LABEL: define {{.+}} @.kit.openmp.ctor
 ; VERBOSE: call {{.+}} @llvm.kit.runtime.set.verbose(i32 512, i8 1)
 ;
 ; ----------------------------------------------------------------------------

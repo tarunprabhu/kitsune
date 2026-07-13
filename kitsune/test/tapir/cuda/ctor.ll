@@ -14,13 +14,13 @@
 ; DEFAULT: @[[BUNDLE:.+]] = internal constant {{.+}} { i32 1180844977, i32 1, ptr @[[FB]], ptr null }
 ; DEFAULT-SAME: section ".nvFatBinSegment"
 ;
-; DEFAULT: @[[HANDLE:[.]kitcuda[.].+]] = internal global ptr null
+; DEFAULT: @[[HANDLE:.+]] = internal global ptr null
 ;
 ; DEFAULT-LABEL: @llvm.global_ctors = appending global
-; DEFAULT-SAME: { i32 65535, ptr @[[CTOR:[.]kitcuda[.]ctor.*]], ptr null }
+; DEFAULT-SAME: { i32 65535, ptr @[[CTOR:.+]], ptr null }
 ;
 ; DEFAULT-LABEL: @llvm.global_dtors = appending global
-; DEFAULT-SAME: { i32 65535, ptr @[[DTOR:[.]kitcuda[.]dtor.*]], ptr null }
+; DEFAULT-SAME: { i32 65535, ptr @[[DTOR:.+]], ptr null }
 ;
 ; DEFAULT: define internal void @[[CTOR]]()
 ; DEFAULT-NEXT: [[ENTRY:.+]]:
@@ -31,7 +31,8 @@
 ; DEFAULT-DAG: call {{.+}} @llvm.kit.runtime.set.kernel.launch.refinement(i32 2, i8 1)
 ; DEFAULT-DAG: %[[HC:.+]] = call {{.+}}@llvm.kit.gpu.register.devcode(i32 2, ptr @[[BUNDLE]])
 ; DEFAULT-NEXT: store ptr %[[HC]], ptr @[[HANDLE]]
-; DEFAULT-NEXT: call void @llvm.kit.gpu.register.devcode.end(i32 2, ptr %[[HC]])
+; DEFAULT-NEXT: %[[HC2:.+]] = load ptr, ptr @[[HANDLE]]
+; DEFAULT-NEXT: call void @llvm.kit.gpu.register.devcode.end(i32 2, ptr %[[HC2]])
 ; DEFAULT-NEXT: br label %[[EXIT:.+]]
 ; DEFAULT-EMPTY:
 ; DEFAULT-NEXT: [[EXIT]]:
@@ -58,7 +59,7 @@
 ; RUN:     --tapir-gpu-tpb=77 \
 ; RUN:     | FileCheck %s -check-prefix TPB
 ;
-; TPB-LABEL: define {{.+}} @.kitcuda.ctor
+; TPB-LABEL: define {{.+}} @.kit.cuda.ctor
 ; TPB: call {{.+}} @llvm.kit.runtime.set.fixed.tpb(i32 2, i32 77)
 ;
 ; ----------------------------------------------------------------------------
@@ -67,7 +68,7 @@
 ; RUN:     --tapir-gpu-max-tpb=29 \
 ; RUN:     | FileCheck %s -check-prefix MTPB
 ;
-; MTPB-LABEL: define {{.+}} @.kitcuda.ctor
+; MTPB-LABEL: define {{.+}} @.kit.cuda.ctor
 ; MTPB: call {{.+}} @llvm.kit.runtime.set.max.tpb(i32 2, i32 29)
 ;
 ; ----------------------------------------------------------------------------
@@ -80,7 +81,7 @@
 ; RUN:     -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s -check-prefix VERBOSE
 ;
-; VERBOSE-LABEL: define {{.+}} @.kitcuda.ctor
+; VERBOSE-LABEL: define {{.+}} @.kit.cuda.ctor
 ; VERBOSE: call {{.+}} @llvm.kit.runtime.set.verbose(i32 2, i8 1)
 ;
 ; ----------------------------------------------------------------------------
@@ -89,7 +90,7 @@
 ; RUN:     -cuabi-refine-launches=false \
 ; RUN:     | FileCheck %s -check-prefix NOREFINE
 ;
-; NOREFINE-LABEL: define {{.+}} @.kitcuda.ctor
+; NOREFINE-LABEL: define {{.+}} @.kit.cuda.ctor
 ; NOREFINE: call {{.+}} @llvm.kit.runtime.set.kernel.launch.refinement(i32 2, i8 0)
 ;
 ; ----------------------------------------------------------------------------

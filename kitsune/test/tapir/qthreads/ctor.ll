@@ -5,10 +5,10 @@
 ; RUN:     | FileCheck %s -check-prefix DEFAULT
 ;
 ; DEFAULT-LABEL: @llvm.global_ctors = appending global
-; DEFAULT-SAME: { i32 65535, ptr @[[CTOR:[.]kitqthr[.]ctor.*]], ptr null }
+; DEFAULT-SAME: { i32 65535, ptr @[[CTOR:.+]], ptr null }
 ;
 ; DEFAULT-LABEL: @llvm.global_dtors = appending global
-; DEFAULT-SAME: { i32 65535, ptr @[[DTOR:[.]kitqthr[.]dtor.*]], ptr null }
+; DEFAULT-SAME: { i32 65535, ptr @[[DTOR:.+]], ptr null }
 ;
 ; DEFAULT: define {{.+}} @[[CTOR]]()
 ; DEFAULT-NEXT: [[ENTRY:.+]]:
@@ -37,7 +37,7 @@
 ; RUN:     --kitrt-verbose \
 ; RUN:     | FileCheck %s -check-prefix VERBOSE
 ;
-; VERBOSE-LABEL: define {{.+}} @.kitqthr.ctor
+; VERBOSE-LABEL: define {{.+}} @.kit.qthreads.ctor
 ; VERBOSE: call {{.+}} @llvm.kit.runtime.set.verbose(i32 32, i8 1)
 ;
 ; ----------------------------------------------------------------------------

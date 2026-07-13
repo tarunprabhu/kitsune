@@ -12,7 +12,7 @@
 ; CHECK: %[[TS:.+]] = {{.*}}call {{.+}} @llvm.kit.async.gpu.kernel.launch(i32 2, ptr @[[FB]],
 ; CHECK-NOT: llvm.kit.gpu.symbol.memcpy.dtoh
 ;
-; CHECK: define {{.+}} @.kitcuda.ctor{{[^(]*}}
+; CHECK: define {{.+}} @.kit.cuda.ctor{{[^(]*}}
 ; CHECK: call {{.+}} @llvm.kit.gpu.register.devcode
 ; CHECK-NOT: call {{.+}} @llvm.kit.gpu.register.global
 ; CHECK: call {{.+}} @llvm.kit.gpu.register.devcode.end
