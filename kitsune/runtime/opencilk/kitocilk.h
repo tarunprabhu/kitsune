@@ -62,6 +62,7 @@
 #ifndef KITRT_OPENCILK_KITOCILK_H
 #define KITRT_OPENCILK_KITOCILK_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -70,6 +71,7 @@ extern "C" {
 
 void __kitocilk_finalize(void);
 void __kitocilk_initialize(void);
+bool __kitocilk_initialized(void);
 uint64_t __kitocilk_num_workers(void);
 uint64_t __kitocilk_reduce_num_partials(uint64_t n);
 
