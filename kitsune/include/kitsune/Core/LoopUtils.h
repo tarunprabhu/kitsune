@@ -157,9 +157,11 @@ void clearMandatoryLLVMLoopAttrs(Loop &loop);
 /// \param task The tapir task for \p loop
 /// \param dt An optional dominator tree that will be updated if provided
 /// \param ti An optional TaskInfo object that will be updated if provided
+/// \param addSerializedAttr If true, the "tapir.loop.serialized" attribute will
+///                          be added to the loop.
 /// \return Always returns true
-bool serializeTapirLoop(Loop &loop, Task &task, DominatorTree *dt = nullptr,
-                        TaskInfo *ti = nullptr);
+bool serializeTapirLoop(Loop &loop, Task &task, bool addSerializedAttr = true,
+                        DominatorTree *dt = nullptr, TaskInfo *ti = nullptr);
 
 /// Get the number of induction variables in the loop. This is the just the
 /// count of the number of PHI nodes in the loop header.
