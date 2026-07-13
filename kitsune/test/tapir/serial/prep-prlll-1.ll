@@ -71,8 +71,9 @@
 ;
 ; CHECK-DAG: ![[TARGET:.+]] = !{!"tapir.loop.target", i32 1}
 ; CHECK-DAG: ![[PREPARED:.+]] = !{!"tapir.loop.prepared"}
+; CHECK-DAG: ![[SERIALIZED:.+]] = !{!"tapir.loop.serialized"}
 ; CHECK-DAG: ![[LOOP_WRAP]] = distinct !{![[LOOP_WRAP]], ![[TARGET]], ![[PREPARED]]}
-; CHECK-DAG: ![[LOOP]] = distinct !{![[LOOP]]}
+; CHECK-DAG: ![[LOOP]] = distinct !{![[LOOP]], ![[SERIALIZED]]}
 
 define void @f(i64 %n) {
 entry:
