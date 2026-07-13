@@ -62,6 +62,8 @@
 #include "common/logging.h"
 #include "kitrt.h"
 
+#include <cassert>
+
 #define LABEL "kitocilk"
 
 using namespace kitrt;
@@ -72,10 +74,54 @@ extern "C" unsigned __cilkrts_get_worker_number(void);
 extern "C" unsigned __cilkrts_get_nworkers(void);
 extern "C" void __cilkrts_internal_set_nworkers(unsigned nworkers);
 
+namespace {
+
+class KitOCilkSingleton;
+
+static void newSingleton(void);
+static void delSingleton(void);
+static KitOCilkSingleton *getSingleton(void);
+
+/// Global state for this runtime. We intentionally keep the members public
+/// because it is not clear what advantage there is to hiding them.
+class KitOCilkSingleton {
+public:
+  // Currently, there are no members. This runtime only needs to know if it has
+  // been initialized. If the global singleton is not nullptr, then we know that
+  // the runtime has been initialized.
+
+private:
+  KitOCilkSingleton() = default;
+  ~KitOCilkSingleton() = default;
+
+public:
+  friend void newSingleton(void);
+  friend void delSingleton(void);
+};
+
+/// FIXME: This should eventually be folded into a single global state object
+/// for kitrt - whenever that happens. This will be created by
+/// __kitocilk_initialize and deleted by __kitocilk_finalize. This object should
+/// never be accessed directly. Instead, the *Singleton() functions should be
+/// used.
+static KitOCilkSingleton *gSingleton = nullptr;
+
+static void newSingleton(void) { gSingleton = new KitOCilkSingleton(); }
+
+static void delSingleton(void) {
+  delete gSingleton;
+  gSingleton = nullptr;
+}
+
+static KitOCilkSingleton *getSingleton(void) { return gSingleton; }
+
+} // namespace
+
 /// Get the number of workers available for parallel work. For consistency, this
 /// function should be used when this must be queried instead of calling
 /// `__cilkrts_get_nworkers` directly.
 extern "C" uint64_t __kitocilk_num_workers(void) {
+  assert(__kitocilk_initialized() && "kitocilk initialized");
   return __cilkrts_get_nworkers();
 }
 
@@ -83,6 +129,7 @@ extern "C" uint64_t __kitocilk_num_workers(void) {
 ///
 /// \param n The trip count of the parallel loop containing a reduction
 extern "C" uint64_t __kitocilk_reduce_num_partials(uint64_t n) {
+  assert(__kitocilk_initialized() && "kitocilk initialized");
   log(LABEL, "Calculating number of partial reductions");
 
   // There might be something smarter that can be done once we support a proper
@@ -95,6 +142,9 @@ extern "C" uint64_t __kitocilk_reduce_num_partials(uint64_t n) {
   return numPartials;
 }
 
+/// Check if this runtime has already been initialized.
+extern "C" bool __kitocilk_initialized(void) { return getSingleton(); }
+
 /// Get a thread ID suitable for use in PAPI.
 static unsigned long getThreadIDForPAPI(void) {
   return __cilkrts_get_worker_number();
@@ -102,7 +152,15 @@ static unsigned long getThreadIDForPAPI(void) {
 
 /// Initialize kitsune's OpenCilk runtime.
 extern "C" void __kitocilk_initialize(void) {
+  if (__kitocilk_initialized()) {
+    log(LABEL, "Runtime already initialized");
+    return;
+  }
+
   logEarly(LABEL, "Initializing Kitsune runtime (opencilk)");
+
+  // Create the global singleton object.
+  newSingleton();
 
   // Initialize the components of kitsune's runtime that are shared by the
   // tapir-target-specific components.
@@ -147,6 +205,11 @@ extern "C" void __kitocilk_initialize(void) {
 
 /// Finalize kitsune's OpenCilk runtime.
 extern "C" void __kitocilk_finalize(void) {
+  if (!__kitocilk_initialized()) {
+    log(LABEL, "Cannot finalize runtime. Not initialized");
+    return;
+  }
+
   log(LABEL, "Finalizing Kitsune runtime (opencilk)");
 
   // There is no way to finalize OpenCilk's runtime explicitly - it is finalized
@@ -156,6 +219,9 @@ extern "C" void __kitocilk_finalize(void) {
   // Finalize the components of Kitsune's runtime that are shared by the
   // tapir-target-specific components.
   __kitrt_finalize();
+
+  // Delete the global singleton object.
+  delSingleton();
 
   log(LABEL, "Finalized Kitsune runtime (opencilk)");
 }

@@ -1,4 +1,7 @@
 set(TESTS
+  Initialized.c
+  MultipleInit.c
+  MultipleFini.c
   NumPartials.c
   NumThreads.c
   RTInitFini.c)
