@@ -20,8 +20,7 @@
 # CHECK-SAME: ptr addrspace(67)
 # CHECK-SAME: ptr addrspace(67)
 # CHECK-SAME: {{[}]}}
-# CHECK: %[[THRDS32:.+]] = tail call i32 @llvm.kit.cpu.num.threads(i32 32)
-# CHECK: %[[NUM_THREADS:.+]] = sext i32 %[[THRDS32]] to i64
+# CHECK: %[[NUM_THREADS:.+]] = tail call i64 @llvm.kit.cpu.num.threads(i32 32)
 # CHECK: %[[PER_THREAD:.+]] = udiv i64 {{.+}}, %[[NUM_THREADS]]
 # CHECK-NEXT: %[[ARGPERTHRD:[0-9]+]] = getelementptr {{.*}}, ptr %[[PACK]]
 # CHECK-NEXT: store i64 %[[PER_THREAD]], ptr %[[ARGPERTHRD]]

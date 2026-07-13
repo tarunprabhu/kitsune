@@ -37,8 +37,7 @@
 # LOWERED-SAME: ptr addrspace(67)
 # LOWERED-SAME: ptr addrspace(67)
 # LOWERED-SAME: {{[}]}}
-# LOWERED: %[[THRDS32:.+]] = {{.*}}call i32 @llvm.kit.cpu.num.threads(i32 1024)
-# LOWERED: %[[NUM_THREADS:.+]] = sext i32 %[[THRDS32]] to i64
+# LOWERED: %[[NUM_THREADS:.+]] = {{.*}}call i64 @llvm.kit.cpu.num.threads(i32 1024)
 # LOWERED: %[[PER_THREAD:.+]] = udiv i64 {{.+}}, %[[NUM_THREADS]]
 # LOWERED: %[[CTX:.+]] = call ptr @llvm.kit.async.cpu.threads.launch(
 # LOWERED-SANE: i32 1024,

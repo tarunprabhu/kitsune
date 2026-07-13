@@ -16,7 +16,7 @@
 ; CHECK-NEXT: call void @__kitqthr_initialize() #[[INITIALIZE:[0-9]+]]
 ; CHECK-NEXT: call void @__kitrt_enable_verbose_mode() #[[VERBOSE:[0-9]+]]
 ; CHECK-NEXT: call void @__kitqthr_launch(ptr nonnull @f, i64 0, i64 128, ptr @gbuf) #[[LAUNCH:[0-9]+]]
-; CHECK-NEXT: call i32 @__kitqthr_num_workers() #[[WORKERS:[0-9]+]]
+; CHECK-NEXT: call i64 @__kitqthr_num_workers() #[[WORKERS:[0-9]+]]
 ; CHECK-NEXT: call i64 @__kitqthr_reduce_num_partials(i64 %[[N]]) #[[PARTIALS:[0-9]+]]
 ; CHECK-NEXT: call void @__kitqthr_finalize() #[[FINALIZE:[0-9]+]]
 
@@ -30,7 +30,7 @@ define void @f(ptr %buf, i64 %n) {
   call void @llvm.kit.runtime.set.verbose(i32 2, i8 1) #1
   call void @llvm.kit.runtime.set.verbose(i32 2, i8 0) #1
   call void @llvm.kit.cpu.threads.launch(i32 32, ptr nonnull @f, i64 0, i64 128, ptr @gbuf) #2
-  %numThreads = call i32 @llvm.kit.cpu.num.threads(i32 32) #3
+  %numThreads = call i64 @llvm.kit.cpu.num.threads(i32 32) #3
   %numPartials = call i64 @llvm.kit.reduce.num.partials(i32 32, i64 %n) #4
   call void @llvm.kit.runtime.finalize(i32 32) #5
   ret void

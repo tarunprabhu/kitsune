@@ -10,8 +10,7 @@
 ; CHECK-NEXT: br label %[[PH_WRAP_I:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[PH_WRAP_I]]:
-; CHECK-NEXT: %[[THRD32:.+]] = call i32 @llvm.kit.cpu.num.threads(i32 512)
-; CHECK-NEXT: %[[NUMTHRDS_I:.+]] = sext i32 %[[THRD32]] to i64
+; CHECK-NEXT: %[[NUMTHRDS_I:.+]] = call i64 @llvm.kit.cpu.num.threads(i32 512)
 ; CHECK-NEXT: br label %[[HEADER_WRAP_I:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[HEADER_WRAP_I]]:
@@ -42,8 +41,7 @@
 ; CHECK-NEXT: br label %[[PH_WRAP_J:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[PH_WRAP_J]]:
-; CHECK-NEXT: %[[THRD32:.+]] = call i32 @llvm.kit.cpu.num.threads(i32 512)
-; CHECK-NEXT: %[[NUMTHRDS_J:.+]] = sext i32 %[[THRD32]] to i64
+; CHECK-NEXT: %[[NUMTHRDS_J:.+]] = call i64 @llvm.kit.cpu.num.threads(i32 512)
 ; CHECK-NEXT: br label %[[HEADER_WRAP_J:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[HEADER_WRAP_J]]:
