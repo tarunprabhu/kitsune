@@ -40,6 +40,6 @@ __attribute__((constructor)) static void ctor(void) { __kitomp_initialize(); }
 __attribute__((destructor)) static void dtor(void) { __kitomp_finalize(); }
 
 int main(int argc, char *argv[]) {
-  printf("Number of threads = %d\n", __kitomp_num_threads());
+  printf("Number of threads = %ld\n", __kitomp_num_threads());
   return 0;
 }

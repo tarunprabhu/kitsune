@@ -57,6 +57,6 @@ __attribute__((constructor)) static void ctor(void) { __kitocilk_initialize(); }
 __attribute__((destructor)) static void dtor(void) { __kitocilk_finalize(); }
 
 int main(int argc, char *argv[]) {
-  printf("Number of workers = %d\n", __kitocilk_num_workers());
+  printf("Number of workers = %ld\n", __kitocilk_num_workers());
   return 0;
 }

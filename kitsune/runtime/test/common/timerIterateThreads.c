@@ -27,7 +27,7 @@ __attribute__((constructor)) static void ctor(void) { __kitomp_initialize(); }
 
 __attribute__((destructor)) static void dtor(void) { __kitomp_finalize(); }
 
-static void thrdFn(int64_t start, int64_t stop, void *args) {
+static void thrdFn(uint64_t start, uint64_t stop, void *args) {
   __kittimer_start(92, omp_get_thread_num(), "tine");
   __kittimer_stop(92, omp_get_thread_num());
 }

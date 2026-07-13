@@ -91,7 +91,7 @@ def int_kit_cpu_threads_launch
 
 // Get the number of parallel CPU threads available.
 def int_kit_cpu_num_threads
-    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty], [ImmArg<ArgIndex<0>>]> {
+    : KitIntrinsic<[llvm_i64_ty], [llvm_i32_ty], [ImmArg<ArgIndex<0>>]> {
   let Doc = KitCPUNumThreadsDoc;
 }
 

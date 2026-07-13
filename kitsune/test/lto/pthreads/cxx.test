@@ -18,8 +18,7 @@
 # CHECK-SAME: ptr addrspace(67)
 # CHECK-SAME: ptr addrspace(67)
 # CHECK-SAME: {{[}]}}
-# CHECK: %[[THRDS32:.+]] = {{.*}}call i32 @llvm.kit.cpu.num.threads(i32 1024)
-# CHECK: %[[NUM_THREADS:.+]] = sext i32 %[[THRDS32]] to i64
+# CHECK: %[[NUM_THREADS:.+]] = {{.*}}call i64 @llvm.kit.cpu.num.threads(i32 1024)
 # CHECK: %[[PER_THREAD:.+]] = udiv i64 {{.+}}, %[[NUM_THREADS]]
 # CHECK: %[[CTX:.+]] = call ptr @llvm.kit.async.cpu.threads.launch(
 # CHECK-SANE: i32 1024,

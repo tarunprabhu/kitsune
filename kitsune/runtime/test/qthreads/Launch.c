@@ -15,7 +15,7 @@ __attribute__((destructor)) static void dtor(void) { __kitqthr_finalize(); }
 
 static pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
 
-static void thrdFunc(int64_t start, int64_t stop, void *args) {
+static void thrdFunc(uint64_t start, uint64_t stop, void *args) {
   pthread_mutex_lock(&mut);
   printf("From thread\n");
   pthread_mutex_unlock(&mut);

@@ -12,7 +12,7 @@
 ; CHECK-SAME: i64 %[[N:[^)]+]]
 ; CHECK-NEXT: call void @__kitocilk_initialize()
 ; CHECK-NEXT: call void @__kitrt_enable_verbose_mode()
-; CHECK-NEXT: call i32 @__kitocilk_num_workers()
+; CHECK-NEXT: call i64 @__kitocilk_num_workers()
 ; CHECK-NEXT: call i64 @__kitocilk_reduce_num_partials(i64 %[[N]])
 ; CHECK-NEXT: call void @__kitocilk_finalize()
 
@@ -25,7 +25,7 @@ define void @f(ptr %buf, i64 %n) {
   call void @llvm.kit.runtime.initialize(i32 8)
   call void @llvm.kit.runtime.set.verbose(i32 2, i8 1)
   call void @llvm.kit.runtime.set.verbose(i32 2, i8 0)
-  %numThreads = call i32 @llvm.kit.cpu.num.threads(i32 8)
+  %numThreads = call i64 @llvm.kit.cpu.num.threads(i32 8)
   %numPartials = call i64 @llvm.kit.reduce.num.partials(i32 8, i64 %n)
   call void @llvm.kit.runtime.finalize(i32 8)
   ret void

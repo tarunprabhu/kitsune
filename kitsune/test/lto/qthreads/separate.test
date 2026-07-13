@@ -39,8 +39,7 @@
 # LOWERED-SAME: ptr addrspace(67)
 # LOWERED-SAME: ptr addrspace(67)
 # LOWERED-SAME: {{[}]}}
-# LOWERED: %[[THRDS32:.+]] = tail call i32 @llvm.kit.cpu.num.threads(i32 32)
-# LOWERED: %[[NUM_THREADS:.+]] = sext i32 %[[THRDS32]] to i64
+# LOWERED: %[[NUM_THREADS:.+]] = tail call i64 @llvm.kit.cpu.num.threads(i32 32)
 # LOWERED: %[[PER_THREAD:.+]] = udiv i64 {{.+}}, %[[NUM_THREADS]]
 # LOWERED-NEXT: %[[ARGPERTHRD:[0-9]+]] = getelementptr {{.*}}, ptr %[[PACK]]
 # LOWERED-NEXT: store i64 %[[PER_THREAD]], ptr %[[ARGPERTHRD]]

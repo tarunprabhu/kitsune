@@ -253,13 +253,13 @@ void __kitcuda_finalize() {
 /// The number of partial reductions to perform in parallel.
 ///
 /// \param n The trip count of the parallel loop in containing a reduction
-extern "C" int64_t __kitcuda_reduce_num_partials(int64_t n) {
+extern "C" uint64_t __kitcuda_reduce_num_partials(uint64_t n) {
   kitrt::log("kitcuda", "Calculating number of partial reductions\n");
 
   // FIXME: This is simply a placeholder to check that the rest of the
   // transformations work as expected. It is beyond terrible for performance, so
   // fix this is ASAP.
-  int numPartials = 8;
+  uint64_t numPartials = 8;
 
   kitrt::log("kitcuda", "Number of partial reductions: %ld\n", numPartials);
 
