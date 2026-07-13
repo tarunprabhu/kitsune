@@ -101,7 +101,7 @@ const int KIT_NVTX_CLEANUP = 4;
 
 extern "C" {
 
-void __kitcuda_initialize() {
+void __kitcuda_initialize(void) {
   kitrt::logEarly(LABEL, "Initializing Kitsune runtime (cuda)");
 
   // Initialize the shared components of the higher-level runtime.
@@ -229,7 +229,7 @@ void __kitcuda_initialize() {
   kitrt::log(LABEL, "Initialized Kitsune runtime (cuda)");
 }
 
-void __kitcuda_finalize() {
+void __kitcuda_finalize(void) {
   if (not _kitcuda_initialized)
     return;
 
