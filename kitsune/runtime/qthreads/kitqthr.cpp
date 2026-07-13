@@ -61,6 +61,7 @@
 #include <qthread.h>
 #include <qthread/barrier.h>
 
+#include <cassert>
 #include <vector>
 
 #define LABEL "kitqthr"
@@ -68,6 +69,45 @@
 using namespace kitrt;
 
 namespace {
+
+class KitQthrSingleton;
+
+static void newSingleton(void);
+static void delSingleton(void);
+static KitQthrSingleton *getSingleton(void);
+
+/// Global state for this runtime. We intentionally keep the members public
+/// because it is not clear what advantage there is to hiding them.
+class KitQthrSingleton {
+public:
+  // Currently, there are no members. This runtime only needs to know if it has
+  // been initialized. If the global singleton is not nullptr, then we know that
+  // the runtime has been initialized.
+
+private:
+  KitQthrSingleton() = default;
+  ~KitQthrSingleton() = default;
+
+public:
+  friend void newSingleton(void);
+  friend void delSingleton(void);
+};
+
+/// FIXME: This should eventually be folded into a single global state object
+/// for kitrt - whenever that happens. This will be created by
+/// __kitqthr_initialize and deleted by __kitqthr_finalize. This object should
+/// never be accessed directly. Instead, the *Singleton() functions should be
+/// used.
+static KitQthrSingleton *gSingleton = nullptr;
+
+static void newSingleton(void) { gSingleton = new KitQthrSingleton(); }
+
+static void delSingleton(void) {
+  delete gSingleton;
+  gSingleton = nullptr;
+}
+
+static KitQthrSingleton *getSingleton(void) { return gSingleton; }
 
 /// The arguments is passed to the thread launch function. This contains the
 /// arguments to be passed to the "actual" thread function. It also contains the
@@ -86,6 +126,7 @@ struct KitQthrThrdArgs {
 /// function should be used when this must be queried instead of calling
 /// `qthread_num_workers()`.
 extern "C" uint64_t __kitqthr_num_workers(void) {
+  assert(__kitqthr_initialized() && "kitqthr initialized");
   return qthread_num_workers();
 }
 
@@ -93,6 +134,7 @@ extern "C" uint64_t __kitqthr_num_workers(void) {
 ///
 /// \param n The trip count of the parallel loop containing a reduction
 extern "C" uint64_t __kitqthr_reduce_num_partials(uint64_t n) {
+  assert(__kitqthr_initialized() && "kitqthr initialized");
   log(LABEL, "Calculating number of partial reductions");
 
   // There might be something smarter that can be done once we support a proper
@@ -127,7 +169,7 @@ static unsigned long kitqthrThrdLaunchFn(KitQthrThrdArgs *thrdArgs) {
 /// have completed. The compiler will transform all tapir loops so they are of
 /// the following form:
 ///
-///     unsigned numThreads = __kitomp_num_threads();
+///     unsigned numThreads = __kitqthr_num_threads();
 ///     size_t itersPerThread = (numThreads + n - 1) / numThreads
 ///     forall (unsigned t = 0; t < numThrds; ++t) {
 ///       size_t start = t * itersPerThread;
@@ -146,6 +188,7 @@ static unsigned long kitqthrThrdLaunchFn(KitQthrThrdArgs *thrdArgs) {
 /// \param args A struct containing data to be passed to \p f
 extern "C" void __kitqthr_launch(KitQthrThrdFunc f, uint64_t start,
                                  uint64_t end, void *args) {
+  assert(__kitqthr_initialized() && "kitqthr initialized");
   assert(start == 0 && end == __kitqthr_num_workers() &&
          "__kitqthr_launch expects loop iterations in range [0,NUM_THREADS)");
   log(LABEL, "Launching multithreaded loop: [%ld,%ld)", start, end);
@@ -186,13 +229,24 @@ extern "C" void __kitqthr_launch(KitQthrThrdFunc f, uint64_t start,
   log(LABEL, "Finished multithreaded loop");
 }
 
+/// Check if this runtime has already been initialized.
+extern "C" bool __kitqthr_initialized(void) { return getSingleton(); }
+
 /// Get a thread ID suitable for use by PAPI.
 static unsigned long getThreadIDForPAPI(void) { return qthread_id(); }
 
 /// Initialize kitsune's qthreads runtime as well as the actual qthreads
 /// runtime.
 extern "C" void __kitqthr_initialize(void) {
+  if (__kitqthr_initialized()) {
+    log(LABEL, "Runtime already initialized");
+    return;
+  }
+
   logEarly(LABEL, "Initializing Kitsune runtime (qthreads)");
+
+  // Create the global singleton object.
+  newSingleton();
 
   // Initialize the components of kitsune's runtime that are shared by the
   // tapir-target-specific components.
@@ -219,6 +273,11 @@ extern "C" void __kitqthr_initialize(void) {
 
 /// Finalize kitsune's qthreads runtime, as well as qthreads runtime.
 extern "C" void __kitqthr_finalize(void) {
+  if (!__kitqthr_initialized()) {
+    log(LABEL, "Cannot finalize runtime. Not initialized");
+    return;
+  }
+
   log(LABEL, "Finalizing Kitsune runtime (qthreads)");
 
   log(LABEL, "Finalizing Qthreads runtime");
@@ -228,6 +287,9 @@ extern "C" void __kitqthr_finalize(void) {
   // Finalize the components of Kitsune's runtime that are shared by the
   // tapir-target-specific components.
   __kitrt_finalize();
+
+  // Delete the global singleton object.
+  delSingleton();
 
   log(LABEL, "Finalized Kitsune runtime (qthreads)");
 }

@@ -72,6 +72,45 @@ using PthreadStartFunc = void *(*)(void *);
 
 namespace {
 
+class KitPthrSingleton;
+
+static void newSingleton(void);
+static void delSingleton(void);
+static KitPthrSingleton *getSingleton(void);
+
+/// Global state for this runtime. We intentionally keep the members public
+/// because it is not clear what advantage there is to hiding them.
+class KitPthrSingleton {
+public:
+  /// The number of threads to use. This should not be used directly in the rest
+  /// of the runtime. Use `__kitpthr_num_threads()` to get this value.
+  uint64_t numThreads = 1;
+
+private:
+  KitPthrSingleton() = default;
+  ~KitPthrSingleton() = default;
+
+public:
+  friend void newSingleton(void);
+  friend void delSingleton(void);
+};
+
+/// FIXME: This should eventually be folded into a single global state object
+/// for kitrt - whenever that happens. This will be created by
+/// __kitpthr_initialize and deleted by __kitpthr_finalize. This object should
+/// never be accessed directly. Instead, the *Singleton() functions should be
+/// used.
+static KitPthrSingleton *gSingleton = nullptr;
+
+static void newSingleton(void) { gSingleton = new KitPthrSingleton(); }
+
+static void delSingleton(void) {
+  delete gSingleton;
+  gSingleton = nullptr;
+}
+
+static KitPthrSingleton *getSingleton(void) { return gSingleton; }
+
 /// Metadata for each thread. This is passed to the thread launch function and
 /// also contains the arguments to be passed to the "actual" thread function.
 struct KitPthrThread {
@@ -139,25 +178,17 @@ public:
   }
 }
 
-/// The number of threads to use. Ideally, this should be part of a global
-/// object that contains all the state needed by the runtime. But that would
-/// require reorganization of the runtime. A separate effort is underway that
-/// does this, so do this temporarily for now.
-///
-/// This will be set in the global ctor for this runtime. This should not be
-/// used directly in the rest of the runtime. Use `__kitpthr_num_threads()` to
-/// get this value.
-static uint64_t __kitpthr_num_threads_v = 1;
-
 /// Get the number of threads available for parallel work.
 extern "C" uint64_t __kitpthr_num_threads(void) {
-  return __kitpthr_num_threads_v;
+  assert(__kitpthr_initialized() && "kitpthr initialized");
+  return getSingleton()->numThreads;
 }
 
 /// The number of partial reductions to perform in parallel.
 ///
 /// \param n The trip count of the parallel loop containing a reduction
 extern "C" uint64_t __kitpthr_reduce_num_partials(uint64_t n) {
+  assert(__kitpthr_initialized() && "kitpthr initialized");
   log(LABEL, "Calculating number of partial reductions");
 
   // There might be something smarter that can be done once we support a proper
@@ -188,7 +219,7 @@ static void *kitpthrThrdStartFn(KitPthrThread *thread) {
 /// have completed. The compiler will transform all tapir loops so they are of
 /// the following form:
 ///
-///     unsigned numThreads = __kitomp_num_threads();
+///     unsigned numThreads = __kitpthr_num_threads();
 ///     size_t itersPerThread = (numThreads + n - 1) / numThreads
 ///     forall (unsigned t = 0; t < numThrds; ++t) {
 ///       size_t start = t * itersPerThread;
@@ -214,6 +245,7 @@ static void *kitpthrThrdStartFn(KitPthrThread *thread) {
 /// \ref __kitpthr_join.
 extern "C" KitPthrContext *__kitpthr_launch(KitPthrThrdFunc f, uint64_t start,
                                             uint64_t end, void *args) {
+  assert(__kitpthr_initialized() && "kitpthr initialized");
   assert(start == 0 && end == __kitpthr_num_threads() &&
          "__kitpthr_launch expects loop iterations in range [0,NUM_THREADS)");
   log(LABEL, "Launching multithreaded loop: [%ld,%ld)", start, end);
@@ -253,6 +285,9 @@ extern "C" void __kitpthr_sync(KitPthrContext *p) {
   delete ctx;
 }
 
+/// Check if this runtime has already been initialized.
+extern "C" bool __kitpthr_initialized(void) { return getSingleton(); }
+
 /// Get a thread ID suitable for use by PAPI.
 static unsigned long getThreadIDForPAPI(void) { return pthread_self(); }
 
@@ -260,7 +295,15 @@ static unsigned long getThreadIDForPAPI(void) { return pthread_self(); }
 /// global variables that enable verbose mode. This runtime is not intended to
 /// ever maintain any other state.
 extern "C" void __kitpthr_initialize(void) {
+  if (__kitpthr_initialized()) {
+    log(LABEL, "Runtime already initialized");
+    return;
+  }
+
   logEarly(LABEL, "Initializing Kitsune runtime (pthreads)");
+
+  // Create the global singleton object.
+  newSingleton();
 
   // Initialize the components of kitsune's runtime that are shared by the
   // tapir-target-specific components.
@@ -270,7 +313,7 @@ extern "C" void __kitpthr_initialize(void) {
   __kitpapi_initialize(getThreadIDForPAPI);
 #endif // KITRT_PAPI_ENABLED
 
-  __kitpthr_num_threads_v = __kitrt_num_threads(nullptr);
+  getSingleton()->numThreads = __kitrt_num_threads(nullptr);
 
   // pthreads does not have to be initialized.
 
@@ -282,6 +325,11 @@ extern "C" void __kitpthr_initialize(void) {
 /// \ref __kitpthr_initialize. Since the runtime does not maintain any global
 /// state of its own, this does nothing.
 extern "C" void __kitpthr_finalize(void) {
+  if (!__kitpthr_initialized()) {
+    log(LABEL, "Cannot finalize runtime. Not initialized");
+    return;
+  }
+
   log(LABEL, "Finalizing Kitsune runtime (pthreads)");
 
   // pthreads does not need to be finalized.
@@ -289,6 +337,9 @@ extern "C" void __kitpthr_finalize(void) {
   // Finalize the components of Kitsune's runtime that are shared by the
   // tapir-target-specific components.
   __kitrt_finalize();
+
+  // Delete the global singleton object.
+  delSingleton();
 
   log(LABEL, "Finalized Kitsune runtime (pthreads)");
 }
