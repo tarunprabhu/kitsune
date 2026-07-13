@@ -14,22 +14,22 @@
 ; DEFAULT: @[[BUNDLE:.+]] = internal constant {{.+}} { i32 1212764230, i32 1, ptr @[[FB]], ptr null }
 ; DEFAULT-SAME: section ".hipFatBinSegment"
 ;
-; DEFAULT: @[[HANDLE:[.]kithip[.].+]] = internal global ptr null
+; DEFAULT: @[[HANDLE:.+]] = internal global ptr null
 ;
 ; DEFAULT-LABEL: @llvm.global_ctors = appending global
-; DEFAULT-SAME: { i32 65535, ptr @[[CTOR:[.]kithip[.]ctor.*]], ptr null }
+; DEFAULT-SAME: { i32 65535, ptr @[[CTOR:.+]], ptr null }
 ;
 ; DEFAULT-LABEL: @llvm.global_dtors = appending global
-; DEFAULT-SAME: { i32 65535, ptr @[[DTOR:[.]kithip[.]dtor.*]], ptr null }
+; DEFAULT-SAME: { i32 65535, ptr @[[DTOR:.+]], ptr null }
 ;
 ; DEFAULT: define internal void @[[CTOR]]()
 ; DEFAULT-NEXT: [[ENTRY:.+]]:
 ; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.initialize(i32 4)
 ; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.set.verbose(i32 4, i8 0)
-; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.set.xnack(i32 4, i8 1)
-; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.set.y.axis.kernel.launch(i32 4, i8 0)
 ; DEFAULT-NOT: call {{.+}} @llvm.kit.runtime.set.fixed.tpb(i32 4,
 ; DEFAULT: call {{.+}} @llvm.kit.runtime.set.max.tpb(i32 4, i32 1024)
+; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.set.xnack(i32 4, i8 1)
+; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.set.y.axis.kernel.launch(i32 4, i8 0)
 ; DEFAULT-DAG: %[[HC:.+]] = call {{.+}}@llvm.kit.gpu.register.devcode(i32 4, ptr @[[BUNDLE]])
 ; DEFAULT-NEXT: store ptr %[[HC]], ptr @[[HANDLE]]
 ; DEFAULT-NEXT: br label %[[EXIT:.+]]
@@ -63,7 +63,7 @@
 ; RUN:     --tapir-gpu-tpb=77 \
 ; RUN:     | FileCheck %s -check-prefix TPB
 ;
-; TPB-LABEL: kithip.ctor{{.*}}
+; TPB-LABEL: .kit.hip.ctor{{.*}}
 ; TPB: call {{.+}} @llvm.kit.runtime.set.fixed.tpb(i32 4, i32 77)
 ;
 ; ----------------------------------------------------------------------------
@@ -72,7 +72,7 @@
 ; RUN:     --tapir-gpu-max-tpb=29 \
 ; RUN:     | FileCheck %s -check-prefix MTPB
 ;
-; MTPB-LABEL: kithip.ctor{{.*}}
+; MTPB-LABEL: .kit.hip.ctor{{.*}}
 ; MTPB: call {{.+}} @llvm.kit.runtime.set.max.tpb(i32 4, i32 29)
 ;
 ; ----------------------------------------------------------------------------
@@ -85,7 +85,7 @@
 ; RUN:     --kitrt-verbose \
 ; RUN:     | FileCheck %s -check-prefix VERBOSE
 ;
-; VERBOSE-LABEL: kithip.ctor{{.*}}
+; VERBOSE-LABEL: .kit.hip.ctor{{.*}}
 ; VERBOSE: call {{.+}} @llvm.kit.runtime.set.verbose(i32 4, i8 1)
 ;
 ; ----------------------------------------------------------------------------
@@ -98,7 +98,7 @@
 ; RUN:     --tapir-hip-xnack=any \
 ; RUN:     | FileCheck %s -check-prefix NOXNACK
 ;
-; NOXNACK-LABEL: kithip.ctor{{.*}}
+; NOXNACK-LABEL: .kit.hip.ctor{{.*}}
 ; NOXNACK: call {{.+}} @llvm.kit.runtime.set.xnack(i32 4, i8 0)
 ;
 ; ----------------------------------------------------------------------------
@@ -107,7 +107,7 @@
 ; RUN:     -hipabi-y-launch \
 ; RUN:     | FileCheck %s -check-prefix YLAUNCH
 ;
-; YLAUNCH-LABEL: kithip.ctor{{.*}}
+; YLAUNCH-LABEL: .kit.hip.ctor{{.*}}
 ; YLAUNCH: call {{.+}} @llvm.kit.runtime.set.y.axis.kernel.launch(i32 4, i8 1)
 ;
 ; ----------------------------------------------------------------------------
