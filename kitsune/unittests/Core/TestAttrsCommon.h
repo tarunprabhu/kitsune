@@ -58,8 +58,7 @@ protected:
 
   // template <typename T, AttrKind Attr,
   //           std::enable_if_t<!std::is_same_v<T, llvm::MDNode *>, int> = 0>
-  template <typename T, AttrKind Attr>
-  T get(unsigned idx) {
+  template <typename T, AttrKind Attr> T get(unsigned idx) {
     return this->get<T>(idx);
   }
 
