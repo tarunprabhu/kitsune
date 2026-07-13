@@ -233,8 +233,8 @@ void llvm::clearMandatoryLLVMLoopAttrs(Loop &loop) {
     clearLoopAttr(loop, attr);
 }
 
-bool llvm::serializeTapirLoop(Loop &loop, Task &task, DominatorTree *dt,
-                              TaskInfo *ti) {
+bool llvm::serializeTapirLoop(Loop &loop, Task &task, bool addAttr,
+                              DominatorTree *dt, TaskInfo *ti) {
   assert(isTapirLoop(loop));
 
   // This must be called early in case `SerializeDetach` removes something that
@@ -251,6 +251,9 @@ bool llvm::serializeTapirLoop(Loop &loop, Task &task, DominatorTree *dt,
   // is called after Serializedetach in case that function examines the tapir
   // loop attributes.
   clearTapirLoopAttrs(loop);
+
+  if (addAttr)
+    addSerializedAttr(loop);
 
   return true;
 }

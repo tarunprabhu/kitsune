@@ -799,7 +799,7 @@ void PrepareReductionLoop::serializeInnerLoop(Loop &loop) {
   sanityCheck(loop, ti);
 
   Task *task = getTaskIfTapirLoop(&loop, &ti);
-  serializeTapirLoop(loop, *task, &dt, &ti);
+  serializeTapirLoop(loop, *task, /*addSerializedAttr=*/false, &dt, &ti);
 
   // serializeTapirLoop will already have updated the analyses that were
   // invalidated by this transformation

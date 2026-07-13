@@ -405,7 +405,7 @@ void PrepareParallelLoopBase::serializeInnerLoop(Loop &loop) {
   sanityCheck(loop, ti);
 
   Task *task = getTaskIfTapirLoop(&loop, &ti);
-  serializeTapirLoop(loop, *task, &dt, &ti);
+  serializeTapirLoop(loop, *task, /*addSerializedAttr=*/false, &dt, &ti);
 
   // serializeTapirLoop will already have updated the analyses that were
   // invalidated by this transformation
@@ -551,11 +551,21 @@ static bool prepareForGPU(TapirLoopInfo &tapirLoop, DominatorTree &dt,
 static bool prepareForSerial(TapirLoopInfo &tapirLoop, DominatorTree &dt,
                              LoopInfo &li, MemorySSA &mssa, ScalarEvolution &se,
                              TaskInfo &ti) {
-  // We could just serialize the loop since that will have the same effect.
-  // We perform a comparable transformation because, we may develop a "serial
-  // runtime" to enable Kitsune's instrumentation for loops with the serial
-  // tapir target.
-  return PrepareParallelLoopSerial(dt, li, mssa, se, ti).run(tapirLoop);
+  // We could just serialize the loop since that will be equivalent. Still, we
+  // perform a comparable transformation because passes later in the pipeline
+  // may want to do something with loops that have been transformed this way.
+  // One problem with this approach though, is that the outer loop will almost
+  // certainly be DCE'ed since the optimizer can clearly see that the trip count
+  // is 1. This means that we will lose the "provenance" of this loop,
+  // specifically that it was intended to be lowered using the serial tapir
+  // target. Some passes, such as `kit-ctors`, need this provenance, The hack
+  // for now, is to add the `tapir.loop.serialized` attribute to the inner
+  // loop since that can be examined by the passes that need this information.
+  bool prepared =
+      PrepareParallelLoopSerial(dt, li, mssa, se, ti).run(tapirLoop);
+  addSerializedAttr(*tapirLoop.getLoop());
+
+  return prepared;
 }
 
 bool llvm::prepareParallelLoop(TapirLoopInfo &tapirLoop, DominatorTree &dt,

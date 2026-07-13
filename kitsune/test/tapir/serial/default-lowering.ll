@@ -40,7 +40,8 @@
 ; CHECK-NEXT: [[END]]:
 ; CHECK-NEXT: ret void
 ;
-; CHECK: ![[MD]] = distinct !{![[MD]]}
+; CHECK-DAG: ![[SERIALIZED:.+]] = !{!"tapir.loop.serialized"}
+; CHECK-DAG: ![[MD]] = distinct !{![[MD]], ![[SERIALIZED]]}
 
 define void @p(i64 %n) {
 entry:

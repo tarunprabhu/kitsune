@@ -6,14 +6,18 @@
 // CHECK-LABEL: @f
 // CHECK-SAME: ptr {{[^%]*}}%[[A:[^,]+]],
 // CHECK-SAME: i64 {{[^%]*}}%[[N:[^,]+]])
-// CHECK: [[ENTRY:.+]]:
+// CHECK-NEXT: [[ENTRY:.+]]:
 // CHECK: [[HEADER:.+]]:
 // CHECK: %[[I:.+]] = phi i64
 // CHECK: %[[IDX:.+]] = getelementptr {{.*}}i64, ptr %[[A]], i64 %[[I]]
 // CHECK: store i64 %[[I]], ptr %[[IDX]]
 // CHECK: %[[INC:.+]] = add {{.+}} %[[I]], 1
 // CHECK: %[[CMP:.+]] = icmp eq i64 %[[INC]], %[[N]]
-// CHECK: br i1 %[[CMP]], label %{{[^,]+}}, label %[[HEADER]], !llvm.loop
+// CHECK: br i1 %[[CMP]], label %{{[^,]+}}, label %[[HEADER]]
+// CHECK-SAME: !llvm.loop ![[LOOP:[0-9]+]]
+//
+// CHECK-DAG: ![[SERIALIZED:.+]] = !{!"tapir.loop.serialized"}
+// CHECK-DAG: ![[LOOP]] = distinct !{![[LOOP]], ![[SERIALIZED]]}
 
 #include <kitsune.h>
 
