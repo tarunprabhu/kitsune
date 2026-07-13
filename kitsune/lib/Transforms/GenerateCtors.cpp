@@ -26,8 +26,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Transforms/GenerateCtors.h"
-#include "GenerateCtorsImpl.h"
+#include "GenerateCtorsCPU.h"
+#include "GenerateCtorsGPU.h"
 #include "kitsune/Analysis/TTObjectsAnalysis.h"
+#include "kitsune/Config/Config.h"
+#include "kitsune/Core/BasicBlockUtils.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Support/CommandLineOptions.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
@@ -54,6 +57,165 @@ using namespace llvm;
 #endif
 extern __attribute__((WEAK)) cl::opt<bool> clRefineLaunches;
 extern __attribute__((WEAK)) cl::opt<bool> clUseYLaunch;
+
+namespace {
+
+/// Helper class to generate a ctor for kitcuda (Kitsune's runtime for the cuda
+/// tapir target). This will also create variables for the fat binary and the
+/// bundle containing the fat binary that is needed by the cuda runtime.
+///
+/// Registering the fat binary image (and all the associated components) is
+/// an undocumented portion of the CUDA API. One place to peek for some details
+/// hides in the cuda header files; specifically fatbinary_section.h. This shows
+/// the following struct that we need to have in the host side code.
+///
+///    struct fatbinC_Wrapper_t {
+///      int magic;
+///      int version;
+///      const unsigned long long *data;
+///      void *filename_or_fatbins;
+///    };
+///
+/// * Per the header, the magic number is 0x466243B1
+/// * FATBINC_VERSION is 1 and FATBINC_LINK_VERSION is 2 (more below)
+/// * Then section and segments are needed that contains the "fatbin control
+///   structure".  This loosely looks like:
+///
+///        Control section name: ".nvFatBinSegment"
+///        Fatbinary section name: ".nv_fatbin"
+///        Pre-linked relocatable section: "__nv_relfatbin"
+///
+/// * The last struct member varies between versions. In the case of version 1
+///   it can be a offline filename and for version 2 it is an array of
+///   pre-linked fatbins.
+///
+class GenerateCtorCuda : public detail::GenerateCtorGPU {
+private:
+  static constexpr int magic = 0x466243B1;
+  static constexpr int version = 1;
+  static constexpr const char *section = ".nvFatBinSegment";
+
+protected:
+  virtual int getBundleMagic() const override { return magic; }
+
+  virtual int getBundleVersion() const override { return version; }
+
+  virtual StringRef getBundleSection() const override { return section; }
+
+  virtual void genCtorBeforeDevCodeRegistration(IRBuilder<> &builder) override {
+    Module *m = getModule(*builder.GetInsertBlock());
+    LLVMContext &ctx = m->getContext();
+
+    Constant *ctt = toConstant(tt, ctx);
+
+    // Booleans are always 8-bit integers. toConstant would, otherwise return an
+    // i1, but the intrinsic expects i8. Casting the boolean to i8 ensures that
+    // we get a value of the correct type.
+    Constant *cRefine = toConstant(uint8_t(genCtorOpts.refineLaunches), ctx);
+    builder.CreateIntrinsic(Intrinsic::kit_runtime_set_kernel_launch_refinement,
+                            {ctt, cRefine});
+  }
+
+  virtual void genCtorAfterDevCodeRegistration(IRBuilder<> &builder,
+                                               GlobalVariable *gBundleHandle,
+                                               const Module &devM) override {
+    Module *m = getModule(*builder.GetInsertBlock());
+    LLVMContext &ctx = m->getContext();
+    Align align = m->getDataLayout().getPointerABIAlignment(0);
+    PointerType *ptr = PointerType::getUnqual(ctx);
+
+    Constant *ctt = toConstant(tt, ctx);
+
+    // Wrap up device code registration steps.
+    Value *handle = builder.CreateAlignedLoad(ptr, gBundleHandle, align);
+    builder.CreateIntrinsic(Intrinsic::kit_gpu_register_devcode_end,
+                            {ctt, handle});
+  }
+
+public:
+  GenerateCtorCuda(const TTOptions &tto,
+                   const detail::GenerateCtorOptions &genCtorOpts)
+      : GenerateCtorGPU(TTID::Cuda, tto, genCtorOpts) {}
+};
+
+/// Helper class to generate a ctor for kithip (Kitsune's runtime for the hip
+/// tapir target).
+class GenerateCtorHip : public detail::GenerateCtorGPU {
+private:
+  static constexpr int magic = 0x48495046;
+  static constexpr int version = 1;
+  static constexpr const char *section = ".hipFatBinSegment";
+
+private:
+  virtual int getBundleMagic() const override { return magic; }
+
+  virtual int getBundleVersion() const override { return version; }
+
+  virtual StringRef getBundleSection() const override { return section; }
+
+  virtual void genCtorBeforeDevCodeRegistration(IRBuilder<> &builder) override {
+    Module *m = getModule(*builder.GetInsertBlock());
+    LLVMContext &ctx = m->getContext();
+
+    Constant *ctt = toConstant(tt, ctx);
+
+    if (tto.getHipXnack() == MaybeBool::On)
+      LLVM_DEBUG(dbgs() << "\t\tenable xnack via ctor runtime call.\n");
+    Constant *cXnack =
+        toConstant(uint8_t(tto.getHipXnack() == MaybeBool::On), ctx);
+    builder.CreateIntrinsic(Intrinsic::kit_runtime_set_xnack, {ctt, cXnack});
+
+    if (genCtorOpts.useYLaunch)
+      LLVM_DEBUG(
+          dbgs()
+          << "\t\tenable y-axis launch pattern via ctor runtime call.\n");
+    Constant *cYAxisLaunch = toConstant(uint8_t(genCtorOpts.useYLaunch), ctx);
+    builder.CreateIntrinsic(Intrinsic::kit_runtime_set_y_axis_kernel_launch,
+                            {ctt, cYAxisLaunch});
+  }
+
+  virtual void genCtorAfterDevCodeRegistration(IRBuilder<> &builder,
+                                               GlobalVariable *gBundleHandle,
+                                               const Module &devM) override {
+    // Nothing to be done.
+  }
+
+  virtual Function *genDtor(Module &m, GlobalVariable *gBundleHandle) override {
+    LLVMContext &ctx = m.getContext();
+    Align align = m.getDataLayout().getPointerABIAlignment(0);
+    PointerType *ptr = PointerType::getUnqual(ctx);
+
+    Constant *ctt = toConstant(tt, ctx);
+
+    Function *dtor = genDtorSkeleton(m);
+    IRBuilder<> builder = getBuilderForSkeleton(dtor);
+
+    Value *handle = builder.CreateAlignedLoad(ptr, gBundleHandle, align);
+    builder.CreateIntrinsic(Intrinsic::kit_gpu_unregister_devcode,
+                            {ctt, handle});
+
+#if 0
+  // FIXME: There is a bug here which seems to cause use-after-free errors in
+  // Kitsune's runtime. It is not entirely clear where exactly the problem is.
+  // This causes the kitsune-test-suite to consistently fail. In the interest of
+  // having the test suite actually be useful, don't generate the call to
+  // finalize the runtime until we can figure out exactly what is going on
+  // there.
+  builder.CreateCall(Intrinsic::kit_runtime_finalize, ctt);
+#endif // 0
+
+    // We don't need to do anything more because genCtorSkeleton() will have set
+    // up dedicated exit blocks and return instructions already.
+    return dtor;
+  }
+
+public:
+  GenerateCtorHip(const TTOptions &tto,
+                  const detail::GenerateCtorOptions &genCtorOpts)
+      : GenerateCtorGPU(TTID::Hip, tto, genCtorOpts) {}
+};
+
+} // namespace
 
 /// Is the given intrinsic \param id called at least once in the module \param m
 /// with the tapir target id \param tt
@@ -115,24 +277,40 @@ static bool shouldGenerateCtor(Module &m, TTID tt) {
   case TTID::OpenCilk:
     return usesCilkRT(m);
   case TTID::OpenMP:
+  case TTID::Qthreads:
     return isCalledWithTTID(m, Intrinsic::kit_cpu_threads_launch, tt);
   case TTID::Pthreads:
     return isCalledWithTTID(m, Intrinsic::kit_async_cpu_threads_launch, tt);
-  case TTID::Qthreads:
-    return isCalledWithTTID(m, Intrinsic::kit_cpu_threads_launch, tt);
+  case TTID::Custom:
+  case TTID::Serial:
+    return false;
   default:
     llvm_unreachable("shouldGenereateCtor: TTID not handled");
   }
 }
 
-static const std::map<TTID, detail::GenerateCtorImplFn> genCtorFns = {
-    {TTID::Cuda, detail::genCtorCuda},
-    {TTID::Hip, detail::genCtorHip},
-    {TTID::OpenCilk, detail::genCtorOpenCilk},
-    {TTID::OpenMP, detail::genCtorOpenMP},
-    {TTID::Pthreads, detail::genCtorPthreads},
-    {TTID::Qthreads, detail::genCtorQthreads},
-};
+/// Generate a ctor and dtor for the given tapir target.
+static void generateCtorDtor(Module &m, TTID tt, const TTOptions &tto,
+                             const detail::GenerateCtorOptions &genCtorOpts) {
+  switch (tt) {
+  case TTID::Cuda:
+    return GenerateCtorCuda(tto, genCtorOpts).run(m);
+  case TTID::Hip:
+    return GenerateCtorHip(tto, genCtorOpts).run(m);
+  case TTID::OpenCilk:
+  case TTID::OpenMP:
+  case TTID::Pthreads:
+  case TTID::Qthreads:
+    return detail::GenerateCtorCPU(tt, tto).run(m);
+  case TTID::Custom:
+  case TTID::Serial:
+    // We don't generate ctor or dtor for these tapir targets. Technically, we
+    // should even get here, but it's ok if we do.
+    return;
+  default:
+    llvm_unreachable("generateCtor: TTID not handled");
+  }
+}
 
 PreservedAnalyses GenerateCtorsPass::run(Module &m,
                                          ModuleAnalysisManager &mam) {
@@ -149,9 +327,9 @@ PreservedAnalyses GenerateCtorsPass::run(Module &m,
     genCtorOpts.useYLaunch = clUseYLaunch;
 
   const TTOptions &ttOpts = ttObjs.getOptions();
-  for (const auto &[tt, genCtorFn] : genCtorFns)
+  for (TTID tt : kitKnownTTs())
     if (shouldGenerateCtor(m, tt))
-      genCtorFn(m, ttOpts, genCtorOpts);
+      generateCtorDtor(m, tt, ttOpts, genCtorOpts);
 
   // This never invalidates any analyses since, at most, only the initializer of
   // a global variable will have changed. The generated ctors will not be called
