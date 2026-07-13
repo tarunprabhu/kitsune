@@ -14,12 +14,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Analysis/TTObjectsAnalysis.h"
+#include "kitsune/Core/IntrinsicUtils.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Support/CommandLineOptions.h"
 #include "kitsune/Targets/TapirTargets.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
+#include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Module.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
@@ -41,6 +43,12 @@ TTObjects::TTObjects(std::optional<TTOptions> ttOpts) : ttOpts(ttOpts) {}
 
 void TTObjects::computeRequiredTTs(Module &m, GetLoopInfo getLoopInfo,
                                    GetTaskInfo getTaskInfo) {
+  auto addRequiredTT = [](TTID tt, SmallSet<TTID, 2> &ttsForFunc,
+                          SmallSet<TTID, 2> &ttsForModule) {
+    ttsForFunc.insert(tt);
+    ttsForModule.insert(tt);
+  };
+
   ttsInFunc.clear();
   ttsInModule.clear();
 
@@ -52,15 +60,17 @@ void TTObjects::computeRequiredTTs(Module &m, GetLoopInfo getLoopInfo,
     LoopInfo &li = getLoopInfo(f);
     TaskInfo &ti = getTaskInfo(f);
     SmallSet<TTID, 2> ttsForFunc;
-    for (const Loop *tl : li) {
-      for (const Loop *loop : post_order(tl)) {
-        if (getTaskIfTapirLoop(loop, &ti)) {
-          TTID tt = *getTargetAttr(*loop);
-          ttsForFunc.insert(tt);
-          ttsForModule.insert(tt);
-        }
-      }
-    }
+    for (const Loop *tl : li)
+      for (const Loop *loop : post_order(tl))
+        if (getTaskIfTapirLoop(loop, &ti))
+          addRequiredTT(*getTargetAttr(*loop), ttsForFunc, ttsForModule);
+
+    for (inst_iterator i = inst_begin(f), e = inst_end(f); i != e; ++i)
+      if (auto *call = dyn_cast<CallBase>(&*i))
+        if (Intrinsic::ID id = call->getIntrinsicID())
+          if (isKitIntrinsic(id))
+            if (std::optional<TTID> tt = getTTIDFromKitIntrCall(*call))
+              addRequiredTT(*tt, ttsForFunc, ttsForModule);
 
     // Simply sort the tapir targets in ascending order so we have some
     // determinism. For multi-target mode, we won't rely on any particular order
