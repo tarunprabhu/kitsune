@@ -13,8 +13,8 @@
 
 #include "GenerateCtorsCommon.h"
 #include "kitsune/Support/OstreamUtils.h"
-#include "llvm/IR/Module.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/IR/Module.h"
 
 using namespace llvm;
 

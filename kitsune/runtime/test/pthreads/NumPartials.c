@@ -13,7 +13,7 @@ __attribute__((constructor)) static void ctor(void) { __kitpthr_initialize(); }
 
 __attribute__((destructor)) static void dtor(void) { __kitpthr_finalize(); }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
   printf("Partial reductions = %ld\n", __kitpthr_reduce_num_partials(1024));
   return 0;
 }

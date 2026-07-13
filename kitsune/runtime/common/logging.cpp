@@ -53,8 +53,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "common/env.h"
 #include "common/logging.h"
+#include "common/env.h"
 #include "kitrt.h"
 
 #include <cstdarg>
