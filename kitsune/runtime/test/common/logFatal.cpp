@@ -26,7 +26,7 @@ __attribute__((constructor)) static void ctor(void) { __kitrt_initialize(); }
 
 __attribute__((destructor)) static void dtor(void) { __kitrt_finalize(); }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
   kitrt::fatal("test", "Fatal error message");
   return 0;
 }
