@@ -95,7 +95,7 @@ extern "C" {
  * Applications should call `__kithip_finalize()` at program exit.
  *
  **/
-void __kithip_initialize();
+void __kithip_initialize(void);
 
 /**
  * Enable the use of XNACK for an executing program. This call should be made
@@ -104,12 +104,12 @@ void __kithip_initialize();
  *
  * TODO: document more about this as it is opaque.
  */
-void __kithip_enable_xnack();
+void __kithip_enable_xnack(void);
 
 /**
  * Load the requried HIP dynamic symbols for use by the runtime.
  */
-bool __kithip_load_dlsyms();
+bool __kithip_load_dlsyms(void);
 
 /**
  * Free and release any resources used by the Kitsune HIP runtime component.
@@ -121,7 +121,7 @@ bool __kithip_load_dlsyms();
  *
  * This call is not thread safe.
  */
-void __kithip_finalize();
+void __kithip_finalize(void);
 
 /**
  * Return `true` if the provided pointer has been allocated as a block of
@@ -331,7 +331,7 @@ void __kithip_set_custom_launch_params(unsigned blks_per_grid,
  * not yet been created and associated with the calling thread it will be
  * created and returned.
  */
-void *__kithip_get_thread_stream();
+void *__kithip_get_thread_stream(void);
 
 /**
  * Synchronize the calling thread with its assocaited stream.
@@ -345,7 +345,7 @@ void __kithip_sync_thread_stream(void *opaque_stream);
  * obviously not always ideal in terms of performance but for correctness this
  * makes code generation sound when analysis is unavailable or inadequate.
  */
-void __kithip_sync_context();
+void __kithip_sync_context(void);
 
 /**
  * Destroy the stream that is associated with the calling thread. If a stream
@@ -359,12 +359,12 @@ void __kithip_delete_thread_stream(void *opaque_stream);
  * runtime. This call will essentially use HIP to destroy each stream and the
  * associated data structure entries used by the runtime.
  */
-void __kithip_destroy_thread_streams();
+void __kithip_destroy_thread_streams(void);
 
 /**
  * Has the HIP portion of the Kitsune runtime been successfully initialized?
  */
-bool __kithip_is_initialized();
+bool __kithip_is_initialized(void);
 
 #ifdef __cplusplus
 } // extern "C"

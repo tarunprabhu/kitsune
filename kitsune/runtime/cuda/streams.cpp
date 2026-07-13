@@ -71,7 +71,7 @@ extern "C" {
 #include <stdbool.h>
 #endif
 
-void *__kitcuda_get_thread_stream() {
+void *__kitcuda_get_thread_stream(void) {
   KIT_NVTX_PUSH("kitcuda:get_thread_stream", KIT_NVTX_STREAM);
 
   CUstream cu_stream;
@@ -106,7 +106,7 @@ void __kitcuda_sync_thread_stream(void *opaque_stream) {
   KIT_NVTX_POP();
 }
 
-void __kitcuda_sync_context() {
+void __kitcuda_sync_context(void) {
   KIT_NVTX_PUSH("kitcuda:sync_context", KIT_NVTX_STREAM);
 
   CUcontext ctx;
@@ -136,7 +136,7 @@ void __kitcuda_delete_thread_stream(void *opaque_stream) {
   KIT_NVTX_POP();
 }
 
-void __kitcuda_destroy_thread_streams() {
+void __kitcuda_destroy_thread_streams(void) {
   KIT_NVTX_PUSH("kitrt:delete_thread_streams", KIT_NVTX_STREAM);
 
   // LOCK
