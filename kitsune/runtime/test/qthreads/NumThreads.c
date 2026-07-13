@@ -33,7 +33,7 @@ __attribute__((constructor)) static void ctor(void) { __kitqthr_initialize(); }
 __attribute__((destructor)) static void dtor(void) { __kitqthr_finalize(); }
 
 int main(int argc, char *argv[]) {
-  printf("Number of workers = %d\n", __kitqthr_num_workers());
+  printf("Number of workers = %ld\n", __kitqthr_num_workers());
 
   // To make proper use of the cores available on the system, it seems that
   // qthreads must be set to use as many shepherds as there are cores with one

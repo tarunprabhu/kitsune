@@ -9,8 +9,7 @@
 ; CHECK-NEXT: br label %[[PH_WRAP:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[PH_WRAP]]:
-; CHECK-NEXT: %[[THRD32:.+]] = call i32 @llvm.kit.cpu.num.threads(i32 8)
-; CHECK-NEXT: %[[NUMTHRDS:.+]] = sext i32 %[[THRD32]] to i64
+; CHECK-NEXT: %[[NUMTHRDS:.+]] = call i64 @llvm.kit.cpu.num.threads(i32 8)
 ; CHECK-NEXT: br label %[[HEADER_WRAP:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[HEADER_WRAP]]:

@@ -25,7 +25,7 @@ __attribute__((constructor)) static void ctor(void) { __kitpthr_initialize(); }
 
 __attribute__((destructor)) static void dtor(void) { __kitpthr_finalize(); }
 
-static void thrdFn(int64_t start, int64_t end, void *args) {
+static void thrdFn(uint64_t start, uint64_t end, void *args) {
   __kittimer_start(92, pthread_self(), "thrd");
   __kittimer_stop(92, pthread_self());
 }

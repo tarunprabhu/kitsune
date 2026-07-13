@@ -11,8 +11,7 @@
 // CHECK: [[ENTRY:.+]]:
 // CHECK: %[[ARGS:.+]] = alloca { i64, i64 }
 // CHECK: [[BODY:.+]]:
-// CHECK: %[[THRDS32:.+]] = tail call i32 @llvm.kit.cpu.num.threads(i32 1024)
-// CHECK: %[[NUM_THREADS:.+]] = sext i32 %[[THRDS32]] to i64
+// CHECK: %[[NUM_THREADS:.+]] = tail call i64 @llvm.kit.cpu.num.threads(i32 1024)
 // CHECK: %[[PER_THREAD:.+]] = udiv i64 {{.+}}, %[[NUM_THREADS]]
 // CHECK: store i64 %[[PER_THREAD]], ptr %[[ARGS]]
 // CHECK: %[[ARGPOS1:.+]] = getelementptr {{.*}}, ptr %[[ARGS]], i64 8
