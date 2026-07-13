@@ -97,7 +97,7 @@ extern "C" {
 #include <stdbool.h>
 #endif
 
-void *__kithip_get_thread_stream() {
+void *__kithip_get_thread_stream(void) {
   using namespace kithip_rt;
   hipStream_t hip_stream;
   if (not _kithip_streams.empty()) {
@@ -129,7 +129,7 @@ void __kithip_sync_thread_stream(void *opaque_stream) {
   // UNLOCK
 }
 
-void __kithip_sync_context() {
+void __kithip_sync_context(void) {
   using namespace kithip_rt;
   HIP_SAFE_CALL(hipSetDevice(deviceID()));
   HIP_SAFE_CALL(hipDeviceSynchronize());
@@ -151,7 +151,7 @@ void __kithip_delete_thread_stream(void *opaque_stream) {
   // UNLOCK
 }
 
-void __kithip_destroy_thread_streams() {
+void __kithip_destroy_thread_streams(void) {
   // LOCK
   _kithip_stream_mutex.lock();
 

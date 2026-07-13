@@ -94,12 +94,12 @@ extern "C" {
  * Applications should call `__kitcuda_finalize()` at program exit.
  *
  **/
-extern void __kitcuda_initialize();
+extern void __kitcuda_initialize(void);
 
 /**
  * Load the requried CUDA dynamic symbols for use by the runtime.
  */
-extern bool __kitcuda_load_dlsyms();
+extern bool __kitcuda_load_dlsyms(void);
 
 /**
  * Free and release any resources used by the Kitsune CUDA runtime
@@ -112,7 +112,7 @@ extern bool __kitcuda_load_dlsyms();
  *
  * This call is not thread safe.
  */
-extern void __kitcuda_finalize();
+extern void __kitcuda_finalize(void);
 
 /**
  * Return `true` if the provided pointer has been allocated as a
@@ -359,7 +359,7 @@ extern void __kitcuda_set_custom_launch_params(unsigned blks_per_grid,
 /**
  * Return a thread-aware stream.
  */
-extern void *__kitcuda_get_thread_stream();
+extern void *__kitcuda_get_thread_stream(void);
 
 /**
  * Synchronize the associated stream.
@@ -374,7 +374,7 @@ extern void __kitcuda_sync_thread_stream(void *opaque_stream);
  * ideal in terms of performance but for correctness this makes code
  * generation sound when analysis is unavailable or inadequate.
  */
-extern void __kitcuda_sync_context();
+extern void __kitcuda_sync_context(void);
 
 /**
  * Destroy the stream that is associated with the calling thread.
@@ -389,7 +389,7 @@ extern void __kitcuda_delete_thread_stream(void *opaque_stream);
  * each stream and the associated data structure entries used by the
  * runtime.
  */
-extern void __kitcuda_destroy_thread_streams();
+extern void __kitcuda_destroy_thread_streams(void);
 
 /*
  * The following global state lives within the runtime to avoid
@@ -403,7 +403,7 @@ extern void __kitcuda_destroy_thread_streams();
  * Has the CUDA portion of the Kitsune runtime been successfully
  * initialized?
  */
-inline bool __kitcuda_is_initialized() {
+inline bool __kitcuda_is_initialized(void) {
   extern bool _kitcuda_initialized;
   return _kitcuda_initialized;
 }
@@ -413,7 +413,7 @@ inline bool __kitcuda_is_initialized() {
  * runtime.  Note this call will assert if the runtime is not
  * initialized.
  */
-inline CUdevice __kitcuda_get_device() {
+inline CUdevice __kitcuda_get_device(void) {
   extern CUdevice _kitcuda_device;
   assert(__kitcuda_is_initialized() && "kitrt: runtime not initialized!");
   return _kitcuda_device;
@@ -424,7 +424,7 @@ inline CUdevice __kitcuda_get_device() {
  * initialized runtime.  Note this call will assert if the runtime
  * is not initialized.
  */
-inline CUdevice __kitcuda_get_device_id() {
+inline CUdevice __kitcuda_get_device_id(void) {
   extern CUdevice _kitcuda_device_id;
   assert(__kitcuda_is_initialized() && "kitrt: runtime not initialized!");
   return _kitcuda_device_id;
@@ -435,7 +435,7 @@ inline CUdevice __kitcuda_get_device_id() {
  * runtime.  Note that this code will assert if the runtime is not
  * initialized.
  */
-inline CUcontext __kitcuda_get_context() {
+inline CUcontext __kitcuda_get_context(void) {
   extern CUcontext _kitcuda_context;
   assert(__kitcuda_is_initialized() && "kitrt: runtime not initialized!");
   return _kitcuda_context;

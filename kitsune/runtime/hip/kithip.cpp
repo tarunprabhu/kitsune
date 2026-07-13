@@ -116,12 +116,12 @@ extern "C" void __kithip_dump_dev_properties(hipDeviceProp_t &props) {
        << " GB" << endl;
 }
 
-extern "C" bool __kithip_is_initialized() {
+extern "C" bool __kithip_is_initialized(void) {
   using namespace kithip_rt;
   return rt_info.initialized;
 }
 
-extern "C" void __kithip_initialize() {
+extern "C" void __kithip_initialize(void) {
   using namespace kithip_rt;
   kitrt::logEarly(LABEL, "Initializing Kitsune runtime (hip)");
 
@@ -181,7 +181,7 @@ extern "C" void __kithip_initialize() {
   kitrt::log(LABEL, "Initialized Kitsune runtime (hip)");
 }
 
-extern "C" void __kithip_finalize() {
+extern "C" void __kithip_finalize(void) {
   using namespace kithip_rt;
   if (not isInitialized())
     return;
