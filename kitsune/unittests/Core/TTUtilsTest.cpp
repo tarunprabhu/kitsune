@@ -36,7 +36,6 @@ TEST(KitTTUtils, isCPUTT) {
   for (TTID tt : kitKnownTTs()) {
     switch (tt) {
     case TTID::Nolo:
-    case TTID::Serial:
     case TTID::Cuda:
     case TTID::Hip:
     case TTID::Custom:
@@ -46,6 +45,7 @@ TEST(KitTTUtils, isCPUTT) {
     case TTID::OpenMP:
     case TTID::Pthreads:
     case TTID::Qthreads:
+    case TTID::Serial:
       EXPECT_TRUE(isCPUTT(tt));
       continue;
     case TTID::Lambda:

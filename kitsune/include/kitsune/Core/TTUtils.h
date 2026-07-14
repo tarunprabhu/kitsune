@@ -74,11 +74,9 @@ bool isEnabledTT(TTID tt);
 /// will always return false for the 'custom' tapir target.
 bool isGPUTT(TTID tt);
 
-/// Does the tapir target generate parallel code that will run on a CPU. Note
-/// that this will return false for the 'serial' tapir target. While that target
-/// does generate code that will run on a CPU, the generated code will not
-/// execute in parallel. This will also returns false for the 'custom' tapir
-/// target.
+/// Does the tapir target generate code that will run on a CPU. This will always
+/// return `false` for the custom tapir target. This will return `true` for the
+/// serial tapir target as well as those that generate multithreaded code.
 bool isCPUTT(TTID tt);
 
 /// Check if the given tapir target generates embedded bitcode.
