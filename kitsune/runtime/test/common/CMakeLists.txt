@@ -1,14 +1,18 @@
-add_kitrt_systest(logEarly.cpp)
-add_kitrt_systest(logError.cpp)
-add_kitrt_systest(logFatal.cpp)
-add_kitrt_systest(logNormal.cpp)
-add_kitrt_systest(logWarning.cpp)
-add_kitrt_systest(timerCannotWriteToFile.c)
-add_kitrt_systest(timerDefaultStderr.c)
-add_kitrt_systest(timerEmpty.c)
-add_kitrt_systest(timerIterateSingleThread.c)
-add_kitrt_systest(timerIterateThreads.c)
-add_kitrt_systest(timerSingleThread.c)
-add_kitrt_systest(timerThreads.c)
-add_kitrt_systest(timerWriteToFile.c)
-add_kitrt_systest(timerWriteNothingToFile.c)
+set(TESTS
+  logEarly.cpp
+  logError.cpp
+  logFatal.cpp
+  logNormal.cpp
+  logWarning.cpp
+  timerCannotWriteToFile.c
+  timerDefaultStderr.c
+  timerEmpty.c
+  timerIterateSingleThread.c
+  timerIterateThreads.c
+  timerSingleThread.c
+  timerThreads.c
+  timerWriteToFile.c
+  timerWriteNothingToFile.c
+)
+
+add_kitrt_systests("${TESTS}")

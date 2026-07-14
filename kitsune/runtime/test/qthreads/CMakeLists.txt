@@ -19,9 +19,11 @@ set(TESTS_WITH_QTHREADS
 
 add_kitrt_systests("${TESTS}")
 
-add_kitrt_systest("${TESTS_WITH_PAPI}"
-  INCDIRS ${KITSUNE_PAPI_INCDIRS}
-  LIBS ${KITSUNE_PAPI_LIBS})
+if (KITSNUE_PAPI_ENABLED)
+  add_kitrt_systest("${TESTS_WITH_PAPI}"
+    INCDIRS ${KITSUNE_PAPI_INCDIRS}
+    LIBS ${KITSUNE_PAPI_LIBS})
+endif ()
 
 add_kitrt_systests("${TESTS_WITH_QTHREADS}"
   INCDIRS ${KITSUNE_QTHREADS_INCDIRS}
