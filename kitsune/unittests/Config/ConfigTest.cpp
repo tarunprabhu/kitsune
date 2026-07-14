@@ -21,11 +21,24 @@ using namespace llvm;
 
 namespace {
 
+static bool contains(ArrayRef<TTID> tts, TTID key) {
+  for (TTID tt : tts)
+    if (tt == key)
+      return true;
+  return false;
+}
+
 TEST(KitConfigUtils, knownTTs) {
   TTID expected[] = {TTID::Cuda,     TTID::Custom, TTID::Hip,
                      TTID::OpenCilk, TTID::OpenMP, TTID::Pthreads,
                      TTID::Qthreads, TTID::Serial};
   EXPECT_EQ(kitKnownTTs(), ArrayRef<TTID>(expected));
+}
+
+TEST(KitConfigUtils, knownCPUTTs) {
+  TTID expected[] = {TTID::OpenCilk, TTID::OpenMP, TTID::Pthreads,
+                     TTID::Qthreads, TTID::Serial};
+  EXPECT_EQ(kitKnownCPUTTs(), ArrayRef<TTID>(expected));
 }
 
 TEST(KitConfigUtils, knownGPUTTs) {
@@ -54,6 +67,35 @@ TEST(KitConfigUtils, unsupported) {
   EXPECT_FALSE(kitLambdaEnabled());
   EXPECT_FALSE(kitOMPTaskEnabled());
   EXPECT_FALSE(kitRealmEnabled());
+}
+
+TEST(KitConfigUtils, enabledCPUTTs) {
+  ArrayRef<TTID> tts = kitKnownCPUTTs();
+  for (TTID tt : kitEnabledCPUTTs())
+    EXPECT_TRUE(contains(tts, tt));
+}
+
+TEST(KitConfigUtils, enabledGPUTTs) {
+  ArrayRef<TTID> tts = kitKnownGPUTTs();
+  for (TTID tt : kitEnabledGPUTTs())
+    EXPECT_TRUE(contains(tts, tt));
+}
+
+TEST(KitConfigUtils, specialCases) {
+  ArrayRef<TTID> known = kitKnownTTs();
+  ArrayRef<TTID> cpu = kitKnownCPUTTs();
+  ArrayRef<TTID> gpu = kitKnownGPUTTs();
+
+  // TTID::Nolo should never be in the list of known tapir targets since it is
+  // a pseudo target that does not generate code.
+  EXPECT_FALSE(contains(known, TTID::Nolo));
+
+  // TTID::Custom should never be in the list known CPU or GPU tapir targets
+  // since we cannot know what a given custom tapir target can do. But it should
+  // be known.
+  EXPECT_TRUE(contains(known, TTID::Custom));
+  EXPECT_FALSE(contains(cpu, TTID::Custom));
+  EXPECT_FALSE(contains(gpu, TTID::Custom));
 }
 
 } // namespace
