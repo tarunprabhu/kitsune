@@ -6,8 +6,8 @@
 
 define void @f() {
   %1 = call i64 @llvm.kit.cpu.num.threads(i32 0)
-  %2 = call i64 @llvm.kit.cpu.num.threads(i32 1)
-  %3 = call i64 @llvm.kit.cpu.num.threads(i32 2)
+  %2 = call i64 @llvm.kit.cpu.num.threads(i32 2)
+  %3 = call i64 @llvm.kit.cpu.num.threads(i32 4)
   %4 = call i64 @llvm.kit.cpu.num.threads(i32 2048)
   ret void
 }
