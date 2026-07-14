@@ -32,7 +32,9 @@
 #include "kitsune/Config/Config.h"
 #include "kitsune/Core/BasicBlockUtils.h"
 #include "kitsune/Core/ConstantUtils.h"
+#include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Support/CommandLineOptions.h"
+#include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
@@ -215,102 +217,135 @@ public:
       : GenerateCtorGPU(TTID::Hip, tto, genCtorOpts) {}
 };
 
-} // namespace
+/// Implementation class to generate ctors
+class GenerateCtorsImpl {
+private:
+  FunctionAnalysisManager &fam;
+  const TTOptions &tto;
+  const detail::GenerateCtorOptions &genCtorOpts;
 
-/// Is the given intrinsic \param id called at least once in the module \param m
-/// with the tapir target id \param tt
-static bool isCalledWithTTID(Module &m, Intrinsic::ID id, TTID tt) {
-  if (Function *f = m.getFunction(Intrinsic::getBaseName(id)))
-    for (Use &u : f->uses())
-      if (auto *call = dyn_cast<CallBase>(u.getUser()))
-        // Although unlikely, the intrinsic could have been passed as an
-        // argument to some other function. Just in case, check that the callee
-        // at this site is the launch kernel function.
-        if (call->getCalledFunction() == f)
-          if (auto *cint = dyn_cast<ConstantInt>(call->getArgOperand(0)))
-            if (std::optional<TTID> ttid = fromConstant<TTID>(*cint))
-              if (*ttid == tt)
-                return true;
-  return false;
-}
-
-/// Check if any functions from Cilk's runtime are used.
-static bool usesCilkRT(Module &m) {
-  // __cilkrts_status is probably safe to check for since it is likely to be
-  // used in most cases. Checking for a cilk stack frame is better, but the
-  // stack frame handling functions get inlined making it difficult to be
-  // certain that it is used. We could check that a stack frame is alloca'ed,
-  // but that would involve checking the type name. This is not reliable,
-  // especially on large codes at high optimization levels because the struct
-  // type may be mangled, or replaced with an anonymous type.
-  if (m.getGlobalVariable("__cilkrts_status"))
-    return true;
-
-  // There is a chance that the function will not have been inlined, so we may
-  // as well check for that in case __cilkrts_status is not present.
-  if (m.getFunction("__cilkrts_enter_frame"))
-    return true;
-
-  // The two cases above should handle the common case. But in case they fail,
-  // attempt to find the creation of a cilk stack frame. The stack frame will
-  // have been created in the entry block of the function, so just look there.
-  //
-  // Ideally, we should only look in the outlined function, but there is no way
-  // to reliably identify such functions.
-  for (Function &f : m.functions())
-    if (f.size())
-      for (Instruction &inst : f.getEntryBlock())
-        if (auto *alloca = dyn_cast<AllocaInst>(&inst))
-          if (auto *sty = dyn_cast<StructType>(alloca->getAllocatedType()))
-            if (sty->hasName())
-              return sty->getName().starts_with("__cilkrts_stack_frame");
-
-  return false;
-}
-
-/// Should a ctor be generated for a tapir target.
-static bool shouldGenerateCtor(Module &m, TTID tt) {
-  switch (tt) {
-  case TTID::Cuda:
-  case TTID::Hip:
-    return isCalledWithTTID(m, Intrinsic::kit_async_gpu_kernel_launch, tt);
-  case TTID::OpenCilk:
-    return usesCilkRT(m);
-  case TTID::OpenMP:
-  case TTID::Qthreads:
-    return isCalledWithTTID(m, Intrinsic::kit_cpu_threads_launch, tt);
-  case TTID::Pthreads:
-    return isCalledWithTTID(m, Intrinsic::kit_async_cpu_threads_launch, tt);
-  case TTID::Custom:
-  case TTID::Serial:
+private:
+  /// Is the given intrinsic \param id called at least once in the module \param
+  /// m with the tapir target id \param tt
+  bool isCalledWithTTID(Module &m, Intrinsic::ID id, TTID tt) {
+    if (Function *f = m.getFunction(Intrinsic::getBaseName(id)))
+      for (Use &u : f->uses())
+        if (auto *call = dyn_cast<CallBase>(u.getUser()))
+          // Although unlikely, the intrinsic could have been passed as an
+          // argument to some other function. Just in case, check that the
+          // callee at this site is the launch kernel function.
+          if (call->getCalledFunction() == f)
+            if (auto *cint = dyn_cast<ConstantInt>(call->getArgOperand(0)))
+              if (std::optional<TTID> ttid = fromConstant<TTID>(*cint))
+                if (*ttid == tt)
+                  return true;
     return false;
-  default:
-    llvm_unreachable("shouldGenereateCtor: TTID not handled");
   }
-}
 
-/// Generate a ctor and dtor for the given tapir target.
-static void generateCtorDtor(Module &m, TTID tt, const TTOptions &tto,
-                             const detail::GenerateCtorOptions &genCtorOpts) {
-  switch (tt) {
-  case TTID::Cuda:
-    return GenerateCtorCuda(tto, genCtorOpts).run(m);
-  case TTID::Hip:
-    return GenerateCtorHip(tto, genCtorOpts).run(m);
-  case TTID::OpenCilk:
-  case TTID::OpenMP:
-  case TTID::Pthreads:
-  case TTID::Qthreads:
-    return detail::GenerateCtorCPU(tt, tto).run(m);
-  case TTID::Custom:
-  case TTID::Serial:
-    // We don't generate ctor or dtor for these tapir targets. Technically, we
-    // should even get here, but it's ok if we do.
-    return;
-  default:
-    llvm_unreachable("generateCtor: TTID not handled");
+  /// Check if any functions from Cilk's runtime are used.
+  bool usesCilkRT(Module &m) {
+    // __cilkrts_status is probably safe to check for since it is likely to be
+    // used in most cases. Checking for a cilk stack frame is better, but the
+    // stack frame handling functions get inlined making it difficult to be
+    // certain that it is used. We could check that a stack frame is alloca'ed,
+    // but that would involve checking the type name. This is not reliable,
+    // especially on large codes at high optimization levels because the struct
+    // type may be mangled, or replaced with an anonymous type.
+    if (m.getGlobalVariable("__cilkrts_status"))
+      return true;
+
+    // There is a chance that the function will not have been inlined, so we may
+    // as well check for that in case __cilkrts_status is not present.
+    if (m.getFunction("__cilkrts_enter_frame"))
+      return true;
+
+    // The two cases above should handle the common case. But in case they fail,
+    // attempt to find the creation of a cilk stack frame. The stack frame will
+    // have been created in the entry block of the function, so just look there.
+    //
+    // Ideally, we should only look in the outlined function, but there is no
+    // way to reliably identify such functions.
+    for (Function &f : m.functions())
+      if (f.size())
+        for (Instruction &inst : f.getEntryBlock())
+          if (auto *alloca = dyn_cast<AllocaInst>(&inst))
+            if (auto *sty = dyn_cast<StructType>(alloca->getAllocatedType()))
+              if (sty->hasName())
+                return sty->getName().starts_with("__cilkrts_stack_frame");
+
+    return false;
   }
-}
+
+  // Check if the module contains at least one serialized loop.
+  bool hasSerializedLoop(Module &m) {
+    for (Function &f : m.functions()) {
+      if (f.size()) {
+        LoopInfo &li = fam.getResult<LoopAnalysis>(f);
+        for (Loop *loop : li.getLoopsInPreorder())
+          if (hasSerializedAttr(*loop))
+            return true;
+      }
+    }
+    return false;
+  }
+
+  /// Should a ctor be generated for a tapir target.
+  bool shouldGenerateCtor(Module &m, TTID tt) {
+    switch (tt) {
+    case TTID::Cuda:
+    case TTID::Hip:
+      return isCalledWithTTID(m, Intrinsic::kit_async_gpu_kernel_launch, tt);
+    case TTID::OpenCilk:
+      return usesCilkRT(m);
+    case TTID::OpenMP:
+    case TTID::Qthreads:
+      return isCalledWithTTID(m, Intrinsic::kit_cpu_threads_launch, tt);
+    case TTID::Pthreads:
+      return isCalledWithTTID(m, Intrinsic::kit_async_cpu_threads_launch, tt);
+    case TTID::Serial:
+      return hasSerializedLoop(m);
+    case TTID::Custom:
+      return false;
+    default:
+      llvm_unreachable("shouldGenereateCtor: TTID not handled");
+    }
+  }
+
+  /// Generate a ctor and dtor for the given tapir target.
+  void generateCtorDtor(Module &m, TTID tt) {
+    switch (tt) {
+    case TTID::Cuda:
+      return GenerateCtorCuda(tto, genCtorOpts).run(m);
+    case TTID::Hip:
+      return GenerateCtorHip(tto, genCtorOpts).run(m);
+    case TTID::OpenCilk:
+    case TTID::OpenMP:
+    case TTID::Pthreads:
+    case TTID::Qthreads:
+    case TTID::Serial:
+      return detail::GenerateCtorCPU(tt, tto).run(m);
+    case TTID::Custom:
+      // We don't generate ctor or dtor for these tapir targets. Technically, we
+      // should even get here, but it's ok if we do.
+      return;
+    default:
+      llvm_unreachable("generateCtor: TTID not handled");
+    }
+  }
+
+public:
+  GenerateCtorsImpl(FunctionAnalysisManager &fam, const TTOptions &tto,
+                    const detail::GenerateCtorOptions &genCtorOpts)
+      : fam(fam), tto(tto), genCtorOpts(genCtorOpts) {}
+
+  void run(Module &m) {
+    for (TTID tt : kitKnownTTs())
+      if (shouldGenerateCtor(m, tt))
+        generateCtorDtor(m, tt);
+  }
+};
+
+} // namespace
 
 PreservedAnalyses GenerateCtorsPass::run(Module &m,
                                          ModuleAnalysisManager &mam) {
@@ -320,16 +355,17 @@ PreservedAnalyses GenerateCtorsPass::run(Module &m,
   if (not ttObjs.hasTTID())
     return PreservedAnalyses::all();
 
+  const TTOptions &ttOpts = ttObjs.getOptions();
+  FunctionAnalysisManager &fam =
+      mam.getResult<FunctionAnalysisManagerModuleProxy>(m).getManager();
+
   detail::GenerateCtorOptions genCtorOpts;
   if (&clRefineLaunches)
     genCtorOpts.refineLaunches = clRefineLaunches;
   if (&clUseYLaunch)
     genCtorOpts.useYLaunch = clUseYLaunch;
 
-  const TTOptions &ttOpts = ttObjs.getOptions();
-  for (TTID tt : kitKnownTTs())
-    if (shouldGenerateCtor(m, tt))
-      generateCtorDtor(m, tt, ttOpts, genCtorOpts);
+  GenerateCtorsImpl(fam, ttOpts, genCtorOpts).run(m);
 
   // This never invalidates any analyses since, at most, only the initializer of
   // a global variable will have changed. The generated ctors will not be called
