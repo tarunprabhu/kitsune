@@ -62,6 +62,11 @@
 // This is *NOT* a string. It can only be used within an initializer list.
 #define KITSUNE_KNOWN_TTIDS @KITSUNE_KNOWN_TTIDS@
 
+// A comma-separated list of all TTID's that generate CPU code. This will
+// include TTID's of targets that are not enabled in this build.
+// This is *NOT* a string. It can only be used within an initializer list.
+#define KITSUNE_KNOWN_CPU_TTIDS @KITSUNE_KNOWN_CPU_TTIDS@
+
 // A comma-separated list of all TTID's that generate GPU code. This will
 // include TTID's of targets that are not enabled in this build.
 // This is *NOT* a string. It can only be used within an initializer list.
@@ -75,6 +80,11 @@
 // A comma-separated list of tapir targets that have been enabled in this build.
 // This is *NOT* a string. It can only be used within an initializer list.
 #define KITSUNE_ENABLED_TTIDS @KITSUNE_ENABLED_TTIDS@
+
+// A comma-separated list of tapir targets that generate GPU code and have been
+// enabled in this build.
+// This is *NOT* a string. It can only be used within an initializer list.
+#define KITSUNE_ENABLED_CPU_TTIDS @KITSUNE_ENABLED_CPU_TTIDS@
 
 // A comma-separated list of tapir targets that generate GPU code and have been
 // enabled in this build.
