@@ -144,12 +144,22 @@ static const KitRTFuncMap kitQthreadsFuncs = {
     {Intrinsic::kit_runtime_initialize, LibFunc_kitqthr_initialize},
 };
 
+/// Kitsune runtime functions for the serial tapir target.
+static const KitRTFuncMap kitSerialFuncs = {
+    {Intrinsic::kit_mobile_alloc, LibFunc_malloc},
+    {Intrinsic::kit_mobile_free, LibFunc_free},
+    {Intrinsic::kit_runtime_finalize, LibFunc_kitser_finalize},
+    {Intrinsic::kit_runtime_initialize, LibFunc_kitser_initialize},
+};
+
+///
 /// Runtime library function maps for tapir targets that have a corresponding
 /// kitsune runtime.
 static const SmallDenseMap<TTID, KitRTFuncMap> kitTTFuncs = {
     {TTID::Cuda, kitCudaFuncs},         {TTID::Hip, kitHipFuncs},
     {TTID::OpenCilk, kitOpenCilkFuncs}, {TTID::OpenMP, kitOpenMPFuncs},
     {TTID::Pthreads, kitPthreadsFuncs}, {TTID::Qthreads, kitQthreadsFuncs},
+    {TTID::Serial, kitSerialFuncs},
 };
 
 /// When lowering the kitsune intrinsics, some arguments may need to be dropped
@@ -257,14 +267,13 @@ private:
     switch (tt) {
     case TTID::Nolo:
       return nullptr;
-    case TTID::Serial:
-      return getOrInsertLibFunc(m, LibFunc_malloc);
     case TTID::Cuda:
     case TTID::Hip:
     case TTID::OpenCilk:
     case TTID::OpenMP:
     case TTID::Pthreads:
     case TTID::Qthreads:
+    case TTID::Serial:
       return getOrInsertLibFunc(m, tt, id);
     case TTID::Custom:
       // TODO: A custom tapir target may require a custom memory allocator.
@@ -288,14 +297,13 @@ private:
     switch (tt) {
     case TTID::Nolo:
       return nullptr;
-    case TTID::Serial:
-      return getOrInsertLibFunc(m, LibFunc_free);
     case TTID::Cuda:
     case TTID::Hip:
     case TTID::OpenCilk:
     case TTID::OpenMP:
     case TTID::Pthreads:
     case TTID::Qthreads:
+    case TTID::Serial:
       return getOrInsertLibFunc(m, tt, id);
     case TTID::Custom:
       // TODO: A custom tapir target may require a custom memory deallocator.
