@@ -117,7 +117,6 @@ bool llvm::isGPUTT(TTID tt) { return contains(kitKnownGPUTTs(), tt); }
 bool llvm::isCPUTT(TTID tt) {
   switch (tt) {
   case TTID::Nolo:
-  case TTID::Serial:
   case TTID::Cuda:
   case TTID::Hip:
   case TTID::Custom:
@@ -126,6 +125,7 @@ bool llvm::isCPUTT(TTID tt) {
   case TTID::OpenMP:
   case TTID::Pthreads:
   case TTID::Qthreads:
+  case TTID::Serial:
     return true;
   case TTID::Lambda:
   case TTID::OMPTask:
