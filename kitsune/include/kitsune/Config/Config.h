@@ -24,9 +24,11 @@ namespace detail {
 
 using TTIDInitList = std::initializer_list<TTID>;
 static constexpr TTIDInitList enabledTTs = {KITSUNE_ENABLED_TTIDS};
+static constexpr TTIDInitList enabledCPUTTs = {KITSUNE_ENABLED_CPU_TTIDS};
 static constexpr TTIDInitList enabledGPUTTs = {KITSUNE_ENABLED_GPU_TTIDS};
 static constexpr TTIDInitList enabledEmbBCTTs = {KITSUNE_ENABLED_EMB_BC_TTIDS};
 static constexpr TTIDInitList knownTTList = {KITSUNE_KNOWN_TTIDS};
+static constexpr TTIDInitList knownCPUTTs = {KITSUNE_KNOWN_CPU_TTIDS};
 static constexpr TTIDInitList knownGPUTTs = {KITSUNE_KNOWN_GPU_TTIDS};
 static constexpr TTIDInitList knownEmbBCTTs = {KITSUNE_KNOWN_EMB_BC_TTIDS};
 static constexpr TTIDInitList universalTTs = {KITSUNE_UNIVERSAL_TTIDS};
@@ -60,6 +62,10 @@ constexpr StringRef kitKnownTapirTargets() {
 /// The list of all known TTID's, including those that have not been enabled.
 /// This may, or *may not* contain all values of the TTID enum.
 constexpr ArrayRef<TTID> kitKnownTTs() { return detail::knownTTList; }
+
+/// The list of all known TTID's that generate code for GPU's, including those
+/// that have not been enabled.
+constexpr ArrayRef<TTID> kitKnownCPUTTs() { return detail::knownCPUTTs; }
 
 /// The list of all known TTID's that generate code for GPU's, including those
 /// that have not been enabled.
@@ -98,6 +104,9 @@ constexpr StringRef kitEnabledTapirTargets() {
 
 /// The list of TTID's that have been enabled in this build.
 constexpr ArrayRef<TTID> kitEnabledTTs() { return detail::enabledTTs; }
+
+/// The list of enabled TTID's that generate CPU code.
+constexpr ArrayRef<TTID> kitEnabledCPUTTs() { return detail::enabledCPUTTs; }
 
 /// The list of enabled TTID's that generate GPU code.
 constexpr ArrayRef<TTID> kitEnabledGPUTTs() { return detail::enabledGPUTTs; }

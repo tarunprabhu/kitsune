@@ -613,6 +613,12 @@ set(KITSUNE_UNIVERSAL_TAPIR_TARGETS
   "The tapir targets that are always built"
   FORCE)
 
+set(KITSUNE_CPU_TAPIR_TARGETS
+  "opencilk;openmp;pthreads;qthreads;serial"
+  CACHE INTERNAL
+  "The tapir targets that generate code to be executed on CPU's"
+  FORCE)
+
 # We may want a more generic list of tapir targets that are compiled for a
 # "device" - usually an accelerator. But for now, we only support GPU's and
 # there are several places in the code where we need to do something
@@ -631,6 +637,26 @@ set(KITSUNE_EMB_BC_TAPIR_TARGETS
   CACHE INTERNAL
   "The tapir targets that generate embedded bitcode modules"
   FORCE)
+
+# Sanity check the lists of known tapir targets
+foreach (TT IN LISTS KITSUNE_KNOWN_TAPIR_TARGETS)
+  if (TT STREQUAL "nolo" OR TT STREQUAL "custom")
+    # The nolo tapir target does not generate code for any device. We cannot
+    # know what a given custom tapir target will do. Neither of these should be
+    # present in the list of CPU (or GPU) tapir targets.
+    list(FIND KITSUNE_CPU_TAPIR_TARGETS ${TT} IS_CPU)
+    list(FIND KITSUNE_GPU_TAPIR_TARGETS ${TT} IS_GPU)
+    if (NOT IS_CPU EQUAL -1 OR NOT IS_GPU EQUAL -1)
+      message(FATAL_ERROR "'${TT}' cannot be a CPU, or GPU, tapir target")
+    endif ()
+  else()
+    list(FIND KITSUNE_CPU_TAPIR_TARGETS ${TT} IS_CPU)
+    list(FIND KITSUNE_GPU_TAPIR_TARGETS ${TT} IS_GPU)
+    if (IS_CPU EQUAL -1 AND IS_GPU EQUAL -1)
+      message(FATAL_ERROR "'${TT}' is not known to be a CPU, or GPU, tapir target")
+    endif ()
+  endif ()
+endforeach ()
 
 set(KITSUNE_ENABLE_TAPIR_TARGETS "all" CACHE STRING
   "Semicolon separated list of tapir targets to enable, or \"all\" to enable all known tapir targets")
@@ -673,6 +699,10 @@ populate_ttids("${KITSUNE_UNIVERSAL_TAPIR_TARGETS}"
   "${KITSUNE_ENABLED_TAPIR_TARGETS}"
   KITSUNE_UNIVERSAL_TTIDS)
 
+populate_ttids("${KITSUNE_CPU_TAPIR_TARGETS}"
+  "${KITSUNE_CPU_TAPIR_TARGETS}"
+  KITSUNE_KNOWN_CPU_TTIDS)
+
 populate_ttids("${KITSUNE_GPU_TAPIR_TARGETS}"
   "${KITSUNE_GPU_TAPIR_TARGETS}"
   KITSUNE_KNOWN_GPU_TTIDS)
@@ -684,6 +714,10 @@ populate_ttids("${KITSUNE_EMB_BC_TAPIR_TARGETS}"
 populate_ttids("${KITSUNE_ENABLED_TAPIR_TARGETS}"
   "${KITSUNE_ENABLED_TAPIR_TARGETS}"
   KITSUNE_ENABLED_TTIDS)
+
+populate_ttids("${KITSUNE_CPU_TAPIR_TARGETS}"
+  "${KITSUNE_ENABLED_TAPIR_TARGETS}"
+  KITSUNE_ENABLED_CPU_TTIDS)
 
 populate_ttids("${KITSUNE_GPU_TAPIR_TARGETS}"
   "${KITSUNE_ENABLED_TAPIR_TARGETS}"

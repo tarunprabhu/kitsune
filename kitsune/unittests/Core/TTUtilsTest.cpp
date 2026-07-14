@@ -33,29 +33,9 @@ TEST(KitTTUtils, isGPUTT) {
 }
 
 TEST(KitTTUtils, isCPUTT) {
-  for (TTID tt : kitKnownTTs()) {
-    switch (tt) {
-    case TTID::Nolo:
-    case TTID::Cuda:
-    case TTID::Hip:
-    case TTID::Custom:
-      EXPECT_FALSE(isCPUTT(tt));
-      continue;
-    case TTID::OpenCilk:
-    case TTID::OpenMP:
-    case TTID::Pthreads:
-    case TTID::Qthreads:
-    case TTID::Serial:
-      EXPECT_TRUE(isCPUTT(tt));
-      continue;
-    case TTID::Lambda:
-    case TTID::OMPTask:
-    case TTID::Realm:
-      EXPECT_DEATH(isCPUTT(tt), "isCPUTT: TTID not handled");
-      continue;
-    }
-    FAIL() << "TTID not handled in test switch";
-  }
+  SmallSetVector<TTID, 4> knownCPUTTs = getAsSet(kitKnownCPUTTs());
+  for (TTID tt : kitKnownTTs())
+    EXPECT_EQ(isCPUTT(tt), knownCPUTTs.contains(tt));
 }
 
 TEST(KitTTUtils, getSpawnStrategy) {
