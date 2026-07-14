@@ -106,6 +106,9 @@ static KitSerSingleton *getSingleton(void) { return gSingleton; }
 
 } // namespace
 
+/// Get the ID of the thread from which this is called. Always return 0.
+extern "C" uint64_t __kitser_thread_id(void) { return 0; }
+
 /// Check if this runtime has already been initialized.
 extern "C" bool __kitser_initialized(void) { return getSingleton(); }
 
@@ -127,7 +130,7 @@ extern "C" void __kitser_initialize(void) {
   __kitrt_initialize();
 
 #ifdef KITRT_PAPI_ENABLED
-  __kitpapi_initialize(nullptr);
+  __kitpapi_initialize(__kitser_thread_id);
 #endif // KITRT_PAPI_ENABLED
 
   log(LABEL, "Initialized Kitsune runtime (serial)");
