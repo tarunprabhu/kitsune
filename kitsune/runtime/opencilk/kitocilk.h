@@ -74,6 +74,7 @@ void __kitocilk_initialize(void);
 bool __kitocilk_initialized(void);
 uint64_t __kitocilk_num_workers(void);
 uint64_t __kitocilk_reduce_num_partials(uint64_t n);
+uint64_t __kitocilk_worker_id(void);
 
 #ifdef __cplusplus
 } // extern "C"

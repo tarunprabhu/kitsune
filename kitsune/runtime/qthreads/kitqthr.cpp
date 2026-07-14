@@ -130,6 +130,11 @@ extern "C" uint64_t __kitqthr_num_workers(void) {
   return qthread_num_workers();
 }
 
+/// Get the ID of the worker from which this is called.
+extern "C" uint64_t __kitqthr_worker_id(void) {
+  return qthread_worker(nullptr);
+}
+
 /// The number of partial reductions to perform in parallel.
 ///
 /// \param n The trip count of the parallel loop containing a reduction
@@ -232,9 +237,6 @@ extern "C" void __kitqthr_launch(KitQthrThrdFunc f, uint64_t start,
 /// Check if this runtime has already been initialized.
 extern "C" bool __kitqthr_initialized(void) { return getSingleton(); }
 
-/// Get a thread ID suitable for use by PAPI.
-static unsigned long getThreadIDForPAPI(void) { return qthread_id(); }
-
 /// Initialize kitsune's qthreads runtime as well as the underlying Qthreads
 /// runtime.
 extern "C" void __kitqthr_initialize(void) {
@@ -253,7 +255,7 @@ extern "C" void __kitqthr_initialize(void) {
   __kitrt_initialize();
 
 #ifdef KITRT_PAPI_ENABLED
-  __kitpapi_initialize(getThreadIDForPAPI);
+  __kitpapi_initialize(__kitqthr_worker_id);
 #endif // KITRT_PAPI_ENABLED
 
   uint64_t numThreads = __kitrt_num_threads(nullptr);

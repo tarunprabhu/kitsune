@@ -184,6 +184,9 @@ extern "C" uint64_t __kitpthr_num_threads(void) {
   return getSingleton()->numThreads;
 }
 
+/// Get the ID of the thread from which this is called.
+extern "C" uint64_t __kitpthr_thread_id(void) { return pthread_self(); }
+
 /// The number of partial reductions to perform in parallel.
 ///
 /// \param n The trip count of the parallel loop containing a reduction
@@ -288,9 +291,6 @@ extern "C" void __kitpthr_sync(KitPthrContext *p) {
 /// Check if this runtime has already been initialized.
 extern "C" bool __kitpthr_initialized(void) { return getSingleton(); }
 
-/// Get a thread ID suitable for use by PAPI.
-static unsigned long getThreadIDForPAPI(void) { return pthread_self(); }
-
 /// Initialize kitsune's pthreads runtime. Currently, this only sets some
 /// global variables that enable verbose mode. This runtime is not intended to
 /// ever maintain any other state.
@@ -310,7 +310,7 @@ extern "C" void __kitpthr_initialize(void) {
   __kitrt_initialize();
 
 #ifdef KITRT_PAPI_ENABLED
-  __kitpapi_initialize(getThreadIDForPAPI);
+  __kitpapi_initialize(__kitpthr_thread_id);
 #endif // KITRT_PAPI_ENABLED
 
   getSingleton()->numThreads = __kitrt_num_threads(nullptr);

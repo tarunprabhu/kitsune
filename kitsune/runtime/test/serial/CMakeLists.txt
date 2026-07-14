@@ -2,7 +2,8 @@ set(TESTS
   Initialized.c
   MultipleInit.c
   MultipleFini.c
-  RTInitFini.c)
+  RTInitFini.c
+  ThreadID.c)
 
 # These tests call PAPI's API functions directly, and require appropriate
 # include and link options.
