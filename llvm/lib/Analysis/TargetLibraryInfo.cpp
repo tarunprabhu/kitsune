@@ -976,24 +976,29 @@ static void initializeLibCalls(TargetLibraryInfoImpl &TLI, const Triple &T,
     TLI.setUnavailable(LibFunc_kitocilk_initialize);
     TLI.setUnavailable(LibFunc_kitocilk_num_workers);
     TLI.setUnavailable(LibFunc_kitocilk_reduce_num_partials);
+    TLI.setUnavailable(LibFunc_kitocilk_worker_id);
     TLI.setUnavailable(LibFunc_kitomp_finalize);
     TLI.setUnavailable(LibFunc_kitomp_initialize);
     TLI.setUnavailable(LibFunc_kitomp_launch);
     TLI.setUnavailable(LibFunc_kitomp_num_threads);
     TLI.setUnavailable(LibFunc_kitomp_reduce_num_partials);
+    TLI.setUnavailable(LibFunc_kitomp_thread_id);
     TLI.setUnavailable(LibFunc_kitpthr_finalize);
     TLI.setUnavailable(LibFunc_kitpthr_initialize);
     TLI.setUnavailable(LibFunc_kitpthr_launch);
     TLI.setUnavailable(LibFunc_kitpthr_num_threads);
     TLI.setUnavailable(LibFunc_kitpthr_reduce_num_partials);
+    TLI.setUnavailable(LibFunc_kitpthr_thread_id);
     TLI.setUnavailable(LibFunc_kitpthr_sync);
     TLI.setUnavailable(LibFunc_kitqthr_finalize);
     TLI.setUnavailable(LibFunc_kitqthr_initialize);
     TLI.setUnavailable(LibFunc_kitqthr_launch);
     TLI.setUnavailable(LibFunc_kitqthr_num_workers);
     TLI.setUnavailable(LibFunc_kitqthr_reduce_num_partials);
+    TLI.setUnavailable(LibFunc_kitqthr_worker_id);
     TLI.setUnavailable(LibFunc_kitser_finalize);
     TLI.setUnavailable(LibFunc_kitser_initialize);
+    TLI.setUnavailable(LibFunc_kitser_thread_id);
   }
 
   TLI.addVectorizableFunctionsFromVecLib(ClVectorLibrary, T);

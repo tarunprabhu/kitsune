@@ -3052,6 +3052,11 @@ TLI_DEFINE_ENUM_INTERNAL(kitocilk_reduce_num_partials)
 TLI_DEFINE_STRING_INTERNAL("__kitocilk_reduce_num_partials")
 TLI_DEFINE_SIG_INTERNAL(Int64, Int64)
 
+/// uint64_t __kitocilk_worker_id()
+TLI_DEFINE_ENUM_INTERNAL(kitocilk_worker_id)
+TLI_DEFINE_STRING_INTERNAL("__kitocilk_worker_id")
+TLI_DEFINE_SIG_INTERNAL(Int64)
+
 /// @}
 
 /// @{
@@ -3084,6 +3089,11 @@ TLI_DEFINE_SIG_INTERNAL(Int64)
 TLI_DEFINE_ENUM_INTERNAL(kitomp_reduce_num_partials)
 TLI_DEFINE_STRING_INTERNAL("__kitomp_reduce_num_partials")
 TLI_DEFINE_SIG_INTERNAL(Int64, Int64)
+
+/// uint64_t __kitomp_thread_id()
+TLI_DEFINE_ENUM_INTERNAL(kitomp_thread_id)
+TLI_DEFINE_STRING_INTERNAL("__kitomp_thread_id")
+TLI_DEFINE_SIG_INTERNAL(Int64)
 
 /// @}
 
@@ -3123,6 +3133,11 @@ TLI_DEFINE_ENUM_INTERNAL(kitpthr_reduce_num_partials)
 TLI_DEFINE_STRING_INTERNAL("__kitpthr_reduce_num_partials")
 TLI_DEFINE_SIG_INTERNAL(Int64, Int64)
 
+/// uint64_t __kitpthr_thread_id()
+TLI_DEFINE_ENUM_INTERNAL(kitpthr_thread_id)
+TLI_DEFINE_STRING_INTERNAL("__kitpthr_thread_id")
+TLI_DEFINE_SIG_INTERNAL(Int64)
+
 /// @}
 
 /// @{
@@ -3156,6 +3171,11 @@ TLI_DEFINE_ENUM_INTERNAL(kitqthr_reduce_num_partials)
 TLI_DEFINE_STRING_INTERNAL("__kitqthr_reduce_num_partials")
 TLI_DEFINE_SIG_INTERNAL(Int64, Int64)
 
+/// uint64_t __kitqthr_worker_id()
+TLI_DEFINE_ENUM_INTERNAL(kitqthr_worker_id)
+TLI_DEFINE_STRING_INTERNAL("__kitqthr_worker_id")
+TLI_DEFINE_SIG_INTERNAL(Int64)
+
 /// @}
 
 /// @{
@@ -3170,6 +3190,11 @@ TLI_DEFINE_SIG_INTERNAL(Void)
 TLI_DEFINE_ENUM_INTERNAL(kitser_initialize)
 TLI_DEFINE_STRING_INTERNAL("__kitser_initialize")
 TLI_DEFINE_SIG_INTERNAL(Void)
+
+/// uint64_t __kitser_thread_id()
+TLI_DEFINE_ENUM_INTERNAL(kitser_thread_id)
+TLI_DEFINE_STRING_INTERNAL("__kitser_thread_id")
+TLI_DEFINE_SIG_INTERNAL(Int64)
 
 /// @}
 

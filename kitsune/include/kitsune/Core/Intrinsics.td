@@ -63,6 +63,18 @@ class KitIntrinsic<list<LLVMType> ret_types,
 //------------------------------------------------------------------------------
 // Intrinsics for parallel execution on CPU's.
 
+// Get the number of parallel CPU threads available.
+def int_kit_cpu_num_threads
+    : KitIntrinsic<[llvm_i64_ty], [llvm_i32_ty], [ImmArg<ArgIndex<0>>]> {
+  let Doc = KitCPUNumThreadsDoc;
+}
+
+// Get the ID of the thread from which this is called.
+def int_kit_cpu_thread_id
+    : KitIntrinsic<[llvm_i64_ty], [llvm_i32_ty], [ImmArg<ArgIndex<0>>]> {
+  let Doc = KitCPUThreadIDDoc;
+}
+
 // Launch a function on one or more CPU threads (asynchronous).
 def int_kit_async_cpu_threads_launch
     : KitIntrinsic<[llvm_ptr_ty],
@@ -87,12 +99,6 @@ def int_kit_cpu_threads_launch
                    [ImmArg<ArgIndex<0>>, NonNull<ArgIndex<1>>,
                     NonNull<ArgIndex<4>>]> {
   let Doc = KitLaunchThreadsDoc;
-}
-
-// Get the number of parallel CPU threads available.
-def int_kit_cpu_num_threads
-    : KitIntrinsic<[llvm_i64_ty], [llvm_i32_ty], [ImmArg<ArgIndex<0>>]> {
-  let Doc = KitCPUNumThreadsDoc;
 }
 
 // Sync the threads launched by an earlier call to

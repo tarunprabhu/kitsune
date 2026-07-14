@@ -202,6 +202,22 @@ will be executed in parallel.
 }];
 }
 
+def KitCPUThreadIDDoc : KitDocIntrinsic {
+  let Category = KitDocCatThreading;
+  let ParamDocs = [
+      KitDocParam<"tt", "The ID of the tapir target calling the intrinsic">
+  ];
+  let Descr = [{
+Get the ID of the thread from which this is called. This will query the
+underlying threading runtime being used. As a result, the ID that is returned
+may *not* be in the range [0, :ref:`llvm.kit.cpu.num.threads`].
+
+If `tt` is :ref:`serial <tapir-targets-serial>`, this will always return 0.
+If `tt` is not :ref:`serial <tapir-targets-serial>`, and this is called from
+outside a threaded context, the result is undefined.
+  }];
+}
+
 def KitLaunchThreadsDoc : KitDocIntrinsic {
   let Category = KitDocCatThreading;
   let ParamDocs = [

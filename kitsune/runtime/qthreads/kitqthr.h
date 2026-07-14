@@ -80,6 +80,7 @@ void __kitqthr_launch(KitQthrThrdFunc f, uint64_t start, uint64_t end,
                       void *args);
 uint64_t __kitqthr_num_workers(void);
 uint64_t __kitqthr_reduce_num_partials(uint64_t n);
+uint64_t __kitqthr_worker_id(void);
 
 #ifdef __cplusplus
 } // extern "C"

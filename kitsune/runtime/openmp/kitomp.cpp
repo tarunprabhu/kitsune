@@ -168,6 +168,9 @@ extern "C" uint64_t __kitomp_num_threads(void) {
   return omp_get_max_threads();
 }
 
+/// Get the ID of the thread from which this is called.
+extern "C" uint64_t __kitomp_thread_id(void) { return omp_get_thread_num(); }
+
 /// The number of partial reductions to perform in parallel.
 ///
 /// \param n The trip count of the parallel loop containing a reduction
@@ -243,9 +246,6 @@ extern "C" void __kitomp_launch(KitOMPThrdFunc f, uint64_t start, uint64_t end,
 /// Check if this runtime has already been initialized.
 extern "C" bool __kitomp_initialized(void) { return getSingleton(); }
 
-/// Get a thread ID suitable for use in PAPI.
-static unsigned long getThreadIDForPAPI(void) { return omp_get_thread_num(); }
-
 /// Initialize kitsune's OpenMP runtime as well as the actual OpenMP runtime.
 extern "C" void __kitomp_initialize(void) {
   if (__kitomp_initialized()) {
@@ -263,7 +263,7 @@ extern "C" void __kitomp_initialize(void) {
   __kitrt_initialize();
 
 #ifdef KITRT_PAPI_ENABLED
-  __kitpapi_initialize(getThreadIDForPAPI);
+  __kitpapi_initialize(__kitomp_thread_id);
 #endif // KITRT_PAPI_ENABLED
 
   uint64_t numThreads = __kitrt_num_threads("OMP_NUM_THREADS");

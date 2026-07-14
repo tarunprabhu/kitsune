@@ -4,7 +4,8 @@ set(TESTS
   MultipleFini.c
   NumPartials.c
   NumThreads.c
-  RTInitFini.c)
+  RTInitFini.c
+  WorkerID.c)
 
 # These tests call PAPI's API functions directly, and require appropriate
 # include and link options.

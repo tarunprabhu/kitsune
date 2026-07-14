@@ -125,6 +125,11 @@ extern "C" uint64_t __kitocilk_num_workers(void) {
   return __cilkrts_get_nworkers();
 }
 
+/// Get the ID of the worker from which this is called.
+extern "C" uint64_t __kitocilk_worker_id(void) {
+  return __cilkrts_get_worker_number();
+}
+
 /// The number of partial reductions to perform in parallel.
 ///
 /// \param n The trip count of the parallel loop containing a reduction
@@ -145,11 +150,6 @@ extern "C" uint64_t __kitocilk_reduce_num_partials(uint64_t n) {
 /// Check if this runtime has already been initialized.
 extern "C" bool __kitocilk_initialized(void) { return getSingleton(); }
 
-/// Get a thread ID suitable for use in PAPI.
-static unsigned long getThreadIDForPAPI(void) {
-  return __cilkrts_get_worker_number();
-}
-
 /// Initialize kitsune's OpenCilk runtime.
 extern "C" void __kitocilk_initialize(void) {
   if (__kitocilk_initialized()) {
@@ -167,7 +167,7 @@ extern "C" void __kitocilk_initialize(void) {
   __kitrt_initialize();
 
 #ifdef KITRT_PAPI_ENABLED
-  __kitpapi_initialize(getThreadIDForPAPI);
+  __kitpapi_initialize(__kitocilk_worker_id);
 #endif // KITRT_PAPI_ENABLED
 
   uint64_t numThreads = __kitrt_num_threads("CILK_NWORKERS");
