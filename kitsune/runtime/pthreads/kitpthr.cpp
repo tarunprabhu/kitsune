@@ -321,9 +321,7 @@ extern "C" void __kitpthr_initialize(void) {
   log(LABEL, "Initialized Kitsune runtime (pthreads)");
 }
 
-/// Finalize kitsune's pthreads runtime. This is only present for symmetry with
-/// \ref __kitpthr_initialize. Since the runtime does not maintain any global
-/// state of its own, this does nothing.
+/// Finalize kitsune's pthreads runtime.
 extern "C" void __kitpthr_finalize(void) {
   if (!__kitpthr_initialized()) {
     log(LABEL, "Cannot finalize runtime. Not initialized");

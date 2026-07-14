@@ -235,7 +235,7 @@ extern "C" bool __kitqthr_initialized(void) { return getSingleton(); }
 /// Get a thread ID suitable for use by PAPI.
 static unsigned long getThreadIDForPAPI(void) { return qthread_id(); }
 
-/// Initialize kitsune's qthreads runtime as well as the actual qthreads
+/// Initialize kitsune's qthreads runtime as well as the underlying Qthreads
 /// runtime.
 extern "C" void __kitqthr_initialize(void) {
   if (__kitqthr_initialized()) {
@@ -271,7 +271,8 @@ extern "C" void __kitqthr_initialize(void) {
   log(LABEL, "Initialized Kitsune runtime (qthreads)");
 }
 
-/// Finalize kitsune's qthreads runtime, as well as qthreads runtime.
+/// Finalize kitsune's qthreads runtime, as well as the underlying Qthreads
+/// runtime.
 extern "C" void __kitqthr_finalize(void) {
   if (!__kitqthr_initialized()) {
     log(LABEL, "Cannot finalize runtime. Not initialized");
