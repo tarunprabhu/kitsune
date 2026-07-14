@@ -992,6 +992,8 @@ static void initializeLibCalls(TargetLibraryInfoImpl &TLI, const Triple &T,
     TLI.setUnavailable(LibFunc_kitqthr_launch);
     TLI.setUnavailable(LibFunc_kitqthr_num_workers);
     TLI.setUnavailable(LibFunc_kitqthr_reduce_num_partials);
+    TLI.setUnavailable(LibFunc_kitser_finalize);
+    TLI.setUnavailable(LibFunc_kitser_initialize);
   }
 
   TLI.addVectorizableFunctionsFromVecLib(ClVectorLibrary, T);

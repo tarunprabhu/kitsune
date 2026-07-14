@@ -754,6 +754,8 @@ TEST_F(TargetLibraryInfoTest, ValidProto) {
       "declare void @__kitqthr_launch(ptr, i64, i64, ptr)\n"
       "declare i64 @__kitqthr_num_workers()\n"
       "declare i64 @__kitqthr_reduce_num_partials(i64)\n"
+      "declare void @__kitser_finalize()\n"
+      "declare void @__kitser_initialize()\n"
       "declare void @__kitrt_enable_verbose_mode()\n"
       "declare void @__kitrt_mobile_init_bool(ptr, i64, i8)\n"
       "declare void @__kitrt_mobile_init_double(ptr, i64, double)\n"

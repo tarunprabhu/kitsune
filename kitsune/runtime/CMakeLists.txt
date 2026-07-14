@@ -130,6 +130,11 @@ if (KITSUNE_QTHREADS_ENABLED)
     ${KITSUNE_QTHREADS_LIBS})
 endif ()
 
+if (KITSUNE_SERIAL_ENABLED)
+  target_sources(${KITRT_OBJLIB} PUBLIC
+    serial/kitser.cpp)
+endif ()
+
 add_library(${KITRT_DSO} SHARED
   $<TARGET_OBJECTS:${KITRT_OBJLIB}>)
 

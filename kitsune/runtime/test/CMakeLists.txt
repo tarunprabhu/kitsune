@@ -47,6 +47,7 @@ endfunction ()
 add_subdirectory(common)
 add_subdirectory(openmp)
 add_subdirectory(pthreads)
+add_subdirectory(serial)
 
 if (KITSUNE_CUDA_ENABLED)
   add_subdirectory(cuda)

@@ -3158,6 +3158,21 @@ TLI_DEFINE_SIG_INTERNAL(Int64, Int64)
 
 /// @}
 
+/// @{
+/// Kitsune runtime library functions for the serial tapir target
+
+/// void __kitser_finalize(void);
+TLI_DEFINE_ENUM_INTERNAL(kitser_finalize)
+TLI_DEFINE_STRING_INTERNAL("__kitser_finalize")
+TLI_DEFINE_SIG_INTERNAL(Void)
+
+/// void __kitser_initialize(void);
+TLI_DEFINE_ENUM_INTERNAL(kitser_initialize)
+TLI_DEFINE_STRING_INTERNAL("__kitser_initialize")
+TLI_DEFINE_SIG_INTERNAL(Void)
+
+/// @}
+
 #undef TLI_DEFINE_ENUM_INTERNAL
 #undef TLI_DEFINE_STRING_INTERNAL
 #undef TLI_DEFINE_SIG_INTERNAL
