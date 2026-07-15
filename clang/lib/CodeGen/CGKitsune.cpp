@@ -56,6 +56,7 @@
 
 #include "CGKitsune.h"
 #include "CodeGenFunction.h"
+#include "kitsune/Clang/ASTUtils.h"
 #include "kitsune/Core/KitOptions.h"
 #include "kitsune/Core/TTUtils.h"
 #include "clang/AST/StmtKitsune.h"
@@ -280,6 +281,9 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
   if (TT != llvm::TTID::Nolo) {
     LoopStack.setTapirTarget(TT);
     LoopStack.setTapirSpawnStrategy(getSpawnStrategyFor(TT));
+
+    FullSourceLoc Loc(S.getBeginLoc(), getContext().getSourceManager());
+    LoopStack.setTapirLoopName(getNameFrom(Loc));
   }
 
   if (isGPUTT(TT))
@@ -448,6 +452,9 @@ void CodeGenFunction::EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
   if (TT != llvm::TTID::Nolo) {
     LoopStack.setTapirTarget(TT);
     LoopStack.setTapirSpawnStrategy(getSpawnStrategyFor(TT));
+
+    FullSourceLoc Loc(S.getBeginLoc(), getContext().getSourceManager());
+    LoopStack.setTapirLoopName(getNameFrom(Loc));
   }
 
   if (isGPUTT(TT))

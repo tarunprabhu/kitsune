@@ -57,6 +57,7 @@
 
 #include "CGKitsune.h"
 #include "CodeGenFunction.h"
+#include "kitsune/Clang/ASTUtils.h"
 #include "kitsune/Core/KitOptions.h"
 #include "kitsune/Core/TTUtils.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
@@ -295,6 +296,9 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
   if (TT != llvm::TTID::Nolo) {
     LoopStack.setTapirTarget(TT);
     LoopStack.setTapirSpawnStrategy(getSpawnStrategyFor(TT));
+
+    FullSourceLoc Loc(CE->getBeginLoc(), getContext().getSourceManager());
+    LoopStack.setTapirLoopName(getNameFrom(Loc));
   }
 
   if (isGPUTT(TT))

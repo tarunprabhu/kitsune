@@ -13,10 +13,12 @@
 #ifndef KITSUNE_CLANG_AST_UTILS_H
 #define KITSUNE_CLANG_AST_UTILS_H
 
+#include "clang/Basic/SourceLocation.h"
+
 namespace clang {
 
-class Type;
 class Expr;
+class Type;
 
 /// \addtogroup kitsune
 /// @{
@@ -25,8 +27,13 @@ class Expr;
 /// expression.
 const Expr *getUnderlyingExpr(const Expr *expr);
 
-// Get the underlying unqualified desugared type of the expression
+/// Get the underlying unqualified desugared type of the expression.
 const Type *getUnqualifiedDesugaredType(const Expr *expr);
+
+/// Compute a name from the given source location. The returned name is usually
+/// of the form "<name>:<line>:<col>", but it need not be. The returned name
+/// may also be an empty string.
+std::string getNameFrom(FullSourceLoc loc);
 
 /// @}
 

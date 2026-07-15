@@ -518,19 +518,23 @@ LoopInfo::getTapirLoopProperties(const LoopAttributes &Attrs) {
 
   // Even if the --tapir option was provided, the tapir target may be
   // std::nullopt if --tapir=nolo was specified.
-  std::optional<TTID> TT = TapirLoopAttrs.TapirTarget;
-  if (TT.has_value())
+  if (std::optional<TTID> TT = TapirLoopAttrs.TapirTarget) {
     Props.push_back(getMDNodeForAttr(Ctx, LoopAttrKind::Target, *TT));
 
-  Props.push_back(getMDNodeForAttr(Ctx, LoopAttrKind::SpawnStrategy,
-                                   TapirLoopAttrs.TapirSpawnStrategy));
+    Props.push_back(getMDNodeForAttr(Ctx, LoopAttrKind::SpawnStrategy,
+                                     TapirLoopAttrs.TapirSpawnStrategy));
 
-  Props.push_back(getMDNodeForAttr(Ctx, LoopAttrKind::Grainsize,
-                                   TapirLoopAttrs.TapirGrainSize));
+    Props.push_back(getMDNodeForAttr(Ctx, LoopAttrKind::Grainsize,
+                                     TapirLoopAttrs.TapirGrainSize));
 
-  if (TT.has_value() && isGPUTT(*TT))
-    Props.push_back(getMDNodeForAttr(Ctx, LoopAttrKind::ThreadsPerBlock,
-                                     TapirLoopAttrs.ThreadsPerBlock));
+    if (TapirLoopAttrs.TapirLoopName.size())
+      Props.push_back(getMDNodeForAttr(Ctx, LoopAttrKind::Name,
+                                       TapirLoopAttrs.TapirLoopName));
+
+    if (isGPUTT(*TT))
+      Props.push_back(getMDNodeForAttr(Ctx, LoopAttrKind::ThreadsPerBlock,
+                                       TapirLoopAttrs.ThreadsPerBlock));
+  }
 
   return Props;
 }

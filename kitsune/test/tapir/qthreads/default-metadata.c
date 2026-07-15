@@ -3,9 +3,6 @@
 // RUN: %kitcc --tapir=qthreads -O1 %s %sysroot \
 // RUN:     -Xclang -disable-llvm-passes -S -emit-llvm -o - 2>&1 \
 // RUN:     | FileCheck %s
-//
-// CHECK-DAG: !{!"tapir.loop.spawn.strategy", i32 4}
-// CHECK-DAG: !{!"tapir.loop.target", i32 32}
 
 #include <kitsune.h>
 
@@ -16,3 +13,11 @@ void f(size_t *a, size_t n) {
   }
   // clang-format on
 }
+
+// The check lines are at the end because the loop name contains the line number
+// of the forall statement. We want that to remain consistent, even if we change
+// the default metadata that is added to a loop.
+//
+// CHECK-DAG: !{!"tapir.loop.name", !"default-metadata.c:11:3"}
+// CHECK-DAG: !{!"tapir.loop.spawn.strategy", i32 4}
+// CHECK-DAG: !{!"tapir.loop.target", i32 32}

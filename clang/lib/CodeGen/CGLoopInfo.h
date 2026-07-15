@@ -71,12 +71,15 @@ struct TapirLoopAttributes {
 
   /// Value for the tapir.loop.grainsize metadata.
   /// TODO: Write some more documentation about this.
+  /// FIXME: Remove this since we never use it.
   unsigned TapirGrainSize = llvm::defaultTapirGrainSize;
 
   /// The number of threads per block to use when launching a tapir loop that
   /// has been compiled to a GPU kernel. Only relevant for the GPU-centric
   /// tapir targets.
   unsigned ThreadsPerBlock = 0;
+
+  std::string TapirLoopName;
 };
 
 /// Attributes that may be specified on loops.
@@ -377,6 +380,12 @@ public:
   /// tapir target has already been set by calling \ref setTapirTarget.
   void setLoopThreadsPerBlock(unsigned TPB) {
     StagedAttrs.TapirLoopAttrs->ThreadsPerBlock = TPB;
+  }
+
+  /// Set the name of the tapir loop. This must only be called *after* calling
+  /// \ref setTapirTarget.
+  void setTapirLoopName(llvm::StringRef Name) {
+    StagedAttrs.TapirLoopAttrs->TapirLoopName = Name;
   }
 
 private:
