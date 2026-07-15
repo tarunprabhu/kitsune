@@ -471,13 +471,6 @@ def int_kit_runtime_set_fixed_tpb
   let Doc = KitGPUSetFixedTPBDoc;
 }
 
-// Enable/disable kernel launch refinement.
-def int_kit_runtime_set_kernel_launch_refinement
-    : KitIntrinsic<[], [llvm_i32_ty, llvm_i8_ty],
-                   [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>]> {
-  let Doc = KitGPUEnableKernelLaunchRefinementDoc;
-}
-
 // Set the maximum number of threads per block to use when launching GPU
 // kernels.
 def int_kit_runtime_set_max_tpb

@@ -929,7 +929,6 @@ static void initializeLibCalls(TargetLibraryInfoImpl &TLI, const Triple &T,
     TLI.setUnavailable(LibFunc_kitrt_mobile_init_float);
     TLI.setUnavailable(LibFunc_kitrt_mobile_init_double);
     TLI.setUnavailable(LibFunc_kitrt_mobile_init_from);
-    TLI.setUnavailable(LibFunc_kitcuda_enable_refine_launches);
     TLI.setUnavailable(LibFunc_kitcuda_finalize);
     TLI.setUnavailable(LibFunc_kitcuda_get_thread_stream);
     TLI.setUnavailable(LibFunc_kitcuda_initialize);

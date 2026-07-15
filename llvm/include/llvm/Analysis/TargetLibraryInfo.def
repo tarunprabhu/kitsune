@@ -2745,11 +2745,6 @@ TLI_DEFINE_SIG_INTERNAL(Void, Ptr, SizeT, Ptr, Int)
 /// @{
 /// Kitsune runtime library functions for the cuda tapir target
 
-/// void __kitcuda_enable_launch_refinement(bool enable);
-TLI_DEFINE_ENUM_INTERNAL(kitcuda_enable_refine_launches)
-TLI_DEFINE_STRING_INTERNAL("__kitcuda_enable_launch_refinement")
-TLI_DEFINE_SIG_INTERNAL(Void, Bool)
-
 /// void __kitcuda_finalize()
 TLI_DEFINE_ENUM_INTERNAL(kitcuda_finalize)
 TLI_DEFINE_STRING_INTERNAL("__kitcuda_finalize")

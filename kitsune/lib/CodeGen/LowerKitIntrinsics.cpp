@@ -64,8 +64,6 @@ static const KitRTFuncMap kitCudaFuncs = {
     {Intrinsic::kit_runtime_initialize, LibFunc_kitcuda_initialize},
     {Intrinsic::kit_runtime_set_fixed_tpb, LibFunc_kitcuda_set_fixed_tpb},
     {Intrinsic::kit_runtime_set_max_tpb, LibFunc_kitcuda_set_max_tpb},
-    {Intrinsic::kit_runtime_set_kernel_launch_refinement,
-     LibFunc_kitcuda_enable_refine_launches},
 };
 
 /// Kitsune runtime functions for the hip tapir target.
@@ -220,7 +218,6 @@ static const KitRTFuncArgMap kitRTArgMap = {
     {Intrinsic::kit_runtime_finalize, {}},
     {Intrinsic::kit_runtime_initialize, {}},
     {Intrinsic::kit_runtime_set_fixed_tpb, {1}},
-    {Intrinsic::kit_runtime_set_kernel_launch_refinement, {1}},
     {Intrinsic::kit_runtime_set_max_tpb, {1}},
     {Intrinsic::kit_runtime_set_xnack, {}},
     {Intrinsic::kit_runtime_set_y_axis_kernel_launch, {}},

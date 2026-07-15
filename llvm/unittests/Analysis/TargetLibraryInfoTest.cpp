@@ -690,8 +690,6 @@ TEST_F(TargetLibraryInfoTest, ValidProto) {
 
       // These functions are Kitsune runtime routines. If a new runtime function
       // is added, but this list is not updated, the test below will fail.
-      "declare void @__kitcuda_enable_launch_refinement(i8)\n"
-      "declare void @__kitcuda_destroy()\n"
       "declare void @__kitcuda_finalize()\n"
       "declare ptr @__kitcuda_get_global_symbol(ptr, ptr)\n"
       "declare ptr @__kitcuda_get_thread_stream()\n"

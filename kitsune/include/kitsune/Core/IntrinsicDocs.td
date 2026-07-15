@@ -400,23 +400,6 @@ prefetched.
 }];
 }
 
-def KitGPUEnableKernelLaunchRefinementDoc : KitDocIntrinsic {
-  let Category = KitDocCatGPU;
-  let ParamDocs = [
-      KitDocParam<"tt", "The ID of the tapir target calling the intrinsic">,
-      KitDocParam<"enable", "Non-zero to enable kernel launch refinement, 0 to disable it">
-  ];
-  let Descr = [{
-Enable launch refinement. Setting this will cause Kitsune's runtime to calculate
-a kernel's launch parameters based on some heuristic. In the case of NVIDIA
-GPU's, this is an occupancy-based heuristic provided by Cuda.
-
-.. note::
-  As of May 2025, this is only implemented in kitsune's cuda runtime. If this is
-  implemented for kitsune's hip runtime as well, this comment should be updated.
-}];
-}
-
 def KitGPUEnableXnackDoc : KitDocIntrinsic {
   let Category = KitDocCatGPU;
   let ParamDocs = [
