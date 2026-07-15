@@ -28,13 +28,12 @@ public:
   // This is required in order to specialize for LoopAttrKind::ThreadsPerBlock
   // below.
   template <typename T, LoopAttrKind Attr> T get(unsigned idx) {
-    return TestAttrsBase::get<T>(idx);
-  }
-
-  template <>
-  uint32_t get<uint32_t, LoopAttrKind::ThreadsPerBlock>(unsigned idx) {
-    static constexpr int32_t pool[] = {0, 4, 16, 64, 128, 256, 512, 1024};
-    return pool[idx % (sizeof(pool) / sizeof(int32_t))];
+    if constexpr (std::is_same_v<T, uint32_t>) {
+      static constexpr int32_t pool[] = {0, 4, 16, 64, 128, 256, 512, 1024};
+      return pool[idx % (sizeof(pool) / sizeof(int32_t))];
+    } else {
+      return TestAttrsBase::get<T>(idx);
+    }
   }
 };
 

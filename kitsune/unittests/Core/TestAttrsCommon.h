@@ -46,28 +46,24 @@ protected:
   // In some cases, the value of an attribute must be in a range. We cannot use
   // a purely random value to test since it will likely fail. This should be
   // specialized for specific attribute kinds.
-  template <typename T> T get(unsigned idx) { return ::get<T>(idx); }
-
-  // Obviously, we need to specialize for MDNode* since we cannot create
-  // arbitrary objects for this. Well, technically we could, but it would
-  // require passing an LLVM context around and that is probably more trouble
-  // than it is worth.
-  template <> llvm::MDNode *get(unsigned idx) {
-    return (idx % 2) ? loopF1->getLoopID() : loopF2->getLoopID();
+  template <typename T> T get(unsigned idx) {
+    // Obviously, we need to specialize for MDNode* since we cannot create
+    // arbitrary objects for this. Well, technically we could, but it would
+    // require passing an LLVM context around and that is probably more trouble
+    // than it is worth.
+    //
+    // We have to do this ugly `if constexpr (std::is_same_v)` thing because
+    // some compilers, like GCC, cannot handle explicit specialization of this
+    // method in a class, even though the standard allowes it.
+    if constexpr (std::is_same_v<T, llvm::MDNode *>)
+      return (idx % 2) ? loopF1->getLoopID() : loopF2->getLoopID();
+    else
+      return ::get<T>(idx);
   }
 
-  // template <typename T, AttrKind Attr,
-  //           std::enable_if_t<!std::is_same_v<T, llvm::MDNode *>, int> = 0>
   template <typename T, AttrKind Attr> T get(unsigned idx) {
     return this->get<T>(idx);
   }
-
-  // template <typename T, AttrKind Attr,
-  //           std::enable_if_t<std::is_same_v<T, llvm::MDNode *>, int> = 0>
-  // return this->get<llvm::MDNode*>
-  // T get(unsigned idx) {
-  //   return ::get<T>(idx);
-  // }
 
   // In some cases, it is difficult to construct a valid attribute - for
   // instance if the attribute initializer must be valid bitcode. In such cases,
