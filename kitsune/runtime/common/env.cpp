@@ -75,10 +75,10 @@ static std::optional<V> parseAs(const std::string &s, const std::string &var,
          "Ignoring environment variable '%s'. Value contains unparsed "
          "characters",
          var.c_str());
-  } catch (std::invalid_argument) {
+  } catch (const std::invalid_argument&) {
     warn(LABEL, "Ignoring environment variable '%s'. Value not valid",
          var.c_str());
-  } catch (std::out_of_range) {
+  } catch (const std::out_of_range&) {
     warn(LABEL, "Ignoring environment variable '%s'. Value not in range",
          var.c_str());
   }
