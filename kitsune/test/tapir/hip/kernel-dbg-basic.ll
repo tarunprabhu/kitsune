@@ -5,14 +5,14 @@
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
-; CHECK-LABEL: define {{.*}}amdgpu_kernel void @__kithip_loop_test.c_13_3
+; CHECK-LABEL: define {{.*}}amdgpu_kernel void @__kithip_loop_test_c_13_3_{{[0-9]}}
 ; CHECK-SAME: !dbg ![[SUBP2:[0-9]+]]
 ; CHECK: store i64 %j
 ; CHECK-SAME: !dbg ![[BODY2:[0-9]+]]
 ; CHECK: br i1 %cmp.j
 ; CHECK-SAME: !dbg ![[LOOP2:[0-9]+]], !llvm.loop
 ;
-; CHECK-LABEL: define {{.*}}amdgpu_kernel void @__kithip_loop_test.c_11_3
+; CHECK-LABEL: define {{.*}}amdgpu_kernel void @__kithip_loop_test_c_11_3_{{[0-9]}}
 ; CHECK-SAME: !dbg ![[SUBP1:[0-9]+]]
 ; CHECK: store i64 %i
 ; CHECK-SAME: !dbg ![[BODY1:[0-9]+]]

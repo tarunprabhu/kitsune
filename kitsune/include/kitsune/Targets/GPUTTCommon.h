@@ -22,6 +22,14 @@ class TTOptions;
 /// \addtogroup kitsune
 /// \@{
 
+/// Some assemblers, such as ptxas, disallow certain characters in symbol names.
+/// Just to be safe, ensure that \p name only contains the characters allowed in
+/// standard C identifiers. If the name is already a valid C identifier, return
+/// it without any changes. Otherwise, replace all invalid characters with '_',
+/// prepend \p prefix to the result, and suffix it with \p suffix.
+std::string normalizeSymbolName(StringRef name, StringRef prefix = "",
+                                StringRef suffix = "");
+
 /// Base class used by the 'cuda' and 'hip' tapir targets. This implements some
 /// common functionality shared by both targets and requires the targets to
 /// implement others.
