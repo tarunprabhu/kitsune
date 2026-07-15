@@ -94,23 +94,6 @@ static cl::opt<bool> clFTZ("cuabi-ftz", cl::init(false), cl::Hidden,
                            cl::desc("Enable flush-denorms-to-zero"),
                            cl::cat(cl::catKitClDevOpts));
 
-// FIXME: The default is currently set to true. This should be changed to false
-// and the name of the option changed.
-//
-// FIXME: We really should not be exposing command line options from other
-// source files. This is an experimental option that has been hacked in for the
-// moment. If this is useful, we should consider adding it to the tapir target
-// options instead. Otherwise, it should be removed altogether.
-//
-// Request that the runtime carry out an extra set of steps to attempt to refine
-// the launch parameters of kernels. In this mode of operation the compiler will
-// provide some compile-time information to the runtime for assisting in the
-// assisting in the analysis and refinement of launches.
-cl::opt<bool> clRefineLaunches(
-    "cuabi-refine-launches", cl::init(true), cl::Hidden,
-    cl::desc("Enable runtime's refinement of launch parameters"),
-    cl::cat(cl::catKitClDevOpts));
-
 /// ptxas has several restrictions on the names of symbols, including internal
 /// symbols. We modify the name of all symbols, including internal ones to be
 /// valid C identifiers by replacing the invalid characters with an '_'.

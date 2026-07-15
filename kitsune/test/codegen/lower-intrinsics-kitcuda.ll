@@ -14,8 +14,6 @@
 ; CHECK-NEXT: %2 = alloca [1 x ptr]
 ; CHECK-NEXT: %guvm = alloca ptr
 ; CHECK-NEXT: call void @__kitcuda_initialize()
-; CHECK-NEXT: call void @__kitcuda_enable_launch_refinement(i8 1)
-; CHECK-NEXT: call void @__kitcuda_enable_launch_refinement(i8 0)
 ; CHECK-NEXT: call void @__kitcuda_set_default_threads_per_blk(i32 24)
 ; CHECK-NEXT: call void @__kitcuda_set_max_threads_per_blk(i32 1024)
 ; CHECK-NEXT: %[[STREAM:.+]] = call ptr @__kitcuda_get_thread_stream()
@@ -40,8 +38,7 @@
 ; CHECK-NEXT: call void @__kitcuda_finalize()
 ; CHECK-NEXT: ret void
 ;
-; CHECK-DAG: void @__kitcuda_enable_launch_refinement(i8) #[[ATTRS:[0-9]+]]
-; CHECK-DAG: void @__kitcuda_finalize() #[[ATTRS]]
+; CHECK-DAG: void @__kitcuda_finalize() #[[ATTRS:[0-9]+]]
 ; CHECK-DAG: ptr @__kitcuda_get_global_symbol(ptr, ptr) #[[ATTRS]]
 ; CHECK-DAG: ptr @__kitcuda_get_thread_stream() #[[ATTRS]]
 ; CHECK-DAG: void @__kitcuda_initialize() #[[ATTRS]]
@@ -72,8 +69,6 @@ target triple = "x86_64-pc-linux-gnu"
 define void @f(ptr %buf, i64 %n) {
   %guvm = alloca ptr
   call void @llvm.kit.runtime.initialize(i32 2)
-  call void @llvm.kit.runtime.set.kernel.launch.refinement(i32 2, i8 1)
-  call void @llvm.kit.runtime.set.kernel.launch.refinement(i32 2, i8 0)
   call void @llvm.kit.runtime.set.fixed.tpb(i32 2, i32 24)
   call void @llvm.kit.runtime.set.max.tpb(i32 2, i32 1024)
   %1 = call ptr @llvm.kit.gpu.stream.new(i32 2)

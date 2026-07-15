@@ -57,7 +57,6 @@ using namespace llvm;
 #else
 #define WEAK weak
 #endif
-extern __attribute__((WEAK)) cl::opt<bool> clRefineLaunches;
 extern __attribute__((WEAK)) cl::opt<bool> clUseYLaunch;
 
 namespace {
@@ -105,17 +104,7 @@ protected:
   virtual StringRef getBundleSection() const override { return section; }
 
   virtual void genCtorBeforeDevCodeRegistration(IRBuilder<> &builder) override {
-    Module *m = getModule(*builder.GetInsertBlock());
-    LLVMContext &ctx = m->getContext();
-
-    Constant *ctt = toConstant(tt, ctx);
-
-    // Booleans are always 8-bit integers. toConstant would, otherwise return an
-    // i1, but the intrinsic expects i8. Casting the boolean to i8 ensures that
-    // we get a value of the correct type.
-    Constant *cRefine = toConstant(uint8_t(genCtorOpts.refineLaunches), ctx);
-    builder.CreateIntrinsic(Intrinsic::kit_runtime_set_kernel_launch_refinement,
-                            {ctt, cRefine});
+    // Nothing to be done.
   }
 
   virtual void genCtorAfterDevCodeRegistration(IRBuilder<> &builder,
@@ -360,8 +349,6 @@ PreservedAnalyses GenerateCtorsPass::run(Module &m,
       mam.getResult<FunctionAnalysisManagerModuleProxy>(m).getManager();
 
   detail::GenerateCtorOptions genCtorOpts;
-  if (&clRefineLaunches)
-    genCtorOpts.refineLaunches = clRefineLaunches;
   if (&clUseYLaunch)
     genCtorOpts.useYLaunch = clUseYLaunch;
 
