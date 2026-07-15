@@ -12,6 +12,7 @@
 
 #include "kitsune/Targets/GPUTTCommon.h"
 #include "kitsune/Core/EmbUtils.h"
+#include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
 #include "kitsune/Core/ModuleUtils.h"
 #include "kitsune/Core/TTUtils.h"
@@ -24,6 +25,27 @@
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
 
 using namespace llvm;
+
+std::string llvm::normalizeSymbolName(StringRef name, StringRef prefix,
+                                      StringRef suffix) {
+  auto isInvalidChar = [](char c) -> bool {
+    return !std::isalpha(c) && !std::isdigit(c) && c != '_';
+  };
+
+  if (std::none_of(name.begin(), name.end(), isInvalidChar))
+    return name.str();
+
+  std::string buf;
+  llvm::raw_string_ostream os(buf);
+
+  os << prefix;
+  for (char c : name)
+    os << (isInvalidChar(c) ? '_' : c);
+  os << suffix;
+  os.flush();
+
+  return buf;
+}
 
 /// Construct the name for a device module.
 static std::string getNameForDeviceModule(TTID tt, const Module &hostM) {
@@ -53,60 +75,68 @@ GPUTTBase::GPUTTBase(TTID tt, Module &hostM, const TTOptions &tto)
   cloneIdentMetadataInto(devM, hostM);
 }
 
+static std::string tryDemangle(StringRef fname) {
+  std::string demangledName;
+  if (nonMicrosoftDemangle(fname, demangledName, /*CanHaveLeadingDot=*/false,
+                           /*ParseParams=*/false))
+    return demangledName;
+  return fname.str();
+}
+
+// Use debug information to construct a name of the form
+// "<filename>:<line>:<col>".
+static std::string getNameFromDebugLoc(DebugLoc dbgLoc) {
+  std::string buf;
+  raw_string_ostream os(buf);
+
+  const DILocation *loc = dbgLoc.get();
+  if (const DILocation *inlinedLoc = dbgLoc.getInlinedAt())
+    loc = inlinedLoc;
+  unsigned line = loc->getLine();
+  unsigned col = loc->getColumn();
+  StringRef filePath = loc->getFile()->getFilename();
+  StringRef fileName = sys::path::filename(filePath);
+
+  os << fileName << "_" << line << "_" << col;
+  os.flush();
+
+  return buf;
+}
+
 std::string GPUTTBase::getNameForTapirLoop(const TapirLoopInfo &tl) {
   std::string buf;
   raw_string_ostream os(buf);
   const Loop *loop = tl.getLoop();
   const Function *f = getFunction(*loop);
-  const Module *m = f->getParent();
 
   os << "__kit" << tt << "_loop_";
-  if (m->getNamedMetadata("llvm.dbg.cu") || m->getNamedMetadata("llvm.dbg")) {
-    // If we have debug info in the module use the line number to name the
-    // kernel. This is only to make debugging a shade easier since it makes it
-    // easier to associate the kernel function with a loop in source code.
-    //
-    // FIXME: This is risky. In principle, in a large project, we could have
-    // multiple files with the same name in different directories. There is a
-    // small possibility that a forall loop occurs on exactly the same line in
-    // both of these files. Ideally, we should include the full file path which
-    // is guaranteed to be unique. However, that would detract from the
-    // "usefulness" of this name (mainly for debugging). For now, we'll stick
-    // with this until we can make some of the support tooling more robust to
-    // allow us to mangle the name to avoid collisions.
-    //
-    // There is another issue here where inlining through multiple levels may
-    // result in incompatibilities. All this is being done because it makes
-    // "IR-dump debugging" easier. This is less of an issue now that parts of
-    // the compiler are a lot more stable.
-    //
-    // TODO: We should consider using a more robust name mangling method to
-    // generate function names, or just use the method where loops are just
-    // named with a monotonically increasing integer suffix.
-    //
-    DebugLoc dbgLoc = loop->getStartLoc();
-    const DILocation *loc = dbgLoc.get();
-    if (const DILocation *inlinedLoc = dbgLoc.getInlinedAt())
-      loc = inlinedLoc;
-    unsigned line = loc->getLine();
-    unsigned col = loc->getColumn();
-    StringRef filePath = loc->getFile()->getFilename();
-    StringRef fileName = sys::path::filename(filePath);
-    os << fileName << "_" << line << "_" << col;
-  } else {
-    StringRef name = f->getName();
-    std::string demangledName;
-    if (nonMicrosoftDemangle(name, demangledName,
-                             /*CanHaveLeadingDot=*/false,
-                             /*ParseParams=*/false))
-      os << demangledName;
-    else
-      os << name;
-    os << "_" << nextKernelID;
-    ++nextKernelID;
-  }
+  if (std::optional<StringRef> name = getNameAttr(*loop))
+    os << *name;
+  else if (DebugLoc dbgLoc = loop->getStartLoc())
+    os << getNameFromDebugLoc(dbgLoc);
+  else
+    os << tryDemangle(f->getName());
 
-  return buf;
+  // We always append a monotonically increasing integer because inlining may
+  // may result in the same loop being duplicated in several places. Each of
+  // them will have the same name. Even when the debug information is used to
+  // generate the kernel name, we may end up with multiple kernels getting the
+  // same name. Since there is only a single instance of this object used for
+  // the whole module, and functions are not processed in parallel,
+  // `nextKernelID` is guaranteed to be different for each loop.
+  //
+  // FIXME: This only works for now because we do not yet support separate
+  // compilation. When we do, we might have a situation where kernels in
+  // different translation units end up with the same name. While this is
+  // unlikely, it is not impossible. We probably want to use a slightly more
+  // "robust" mechanism - but any use of, say, hash functions, random numbers,
+  // or the system clock is still not guaranteed to be unique.
+  os << "_" << nextKernelID;
+  os.flush();
+
+  ++nextKernelID;
+
+  return normalizeSymbolName(buf);
 }
 
 Value *GPUTTBase::lowerGrainsizeCall(CallInst *call) {

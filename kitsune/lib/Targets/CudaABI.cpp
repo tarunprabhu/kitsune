@@ -112,27 +112,14 @@ cl::opt<bool> clRefineLaunches(
     cl::cat(cl::catKitClDevOpts));
 
 /// ptxas has several restrictions on the names of symbols, including internal
-/// symbols. If the given name is not valid for PTX, return a modified name.
-/// Otherwise, just return a clone of the name. The result is prefixed with a
-/// string to reduce the likelihood of collisions. This behavior can be
-/// overridden by passing false to \ref addPrefix.
-static std::string convertNameForPTX(StringRef name, bool addPrefix = true) {
-  auto isInvalidChar = [](char c) -> bool { return c == '.' or c == '-'; };
-  if (std::none_of(name.begin(), name.end(), isInvalidChar))
-    return name.str();
-
-  // Simply replacing the invalid characters with _ may not be safe because
-  // there is a chance of collisions with other symbols in the module. In most
-  // languages that we care about, a double-underscore at the start of an
-  // identifier name is reserved for the compiler, so we prefix the newly
-  // created names with such a prefix.
-  std::string buf;
-  llvm::raw_string_ostream os(buf);
-  if (addPrefix)
-    os << "__kitcu__nwnm__";
-  for (char c : name)
-    os << (isInvalidChar(c) ? '_' : c);
-  return buf;
+/// symbols. We modify the name of all symbols, including internal ones to be
+/// valid C identifiers by replacing the invalid characters with an '_'.
+/// However, there is a chance of collisions with other symbols in the module.
+/// In most languages that we care about, a double-underscore at the start of an
+/// identifier name is reserved for the compiler, so we prefix the newly created
+/// names with a prefix starting with a double-underscore.
+static std::string convertNameForPTX(StringRef name) {
+  return normalizeSymbolName(name, "__kitcu__nwnm__");
 }
 
 /// Loop outline processor that transforms tapir loop nests into a kernel
@@ -238,8 +225,7 @@ CudaABI::getLoopOutlineProcessor(const TapirLoopInfo *tl) {
   LLVM_DEBUG(saveModuleToFile(&hostM, hostM.getName().str() + ".input"));
 
   const TTOptions &tto = getOptions();
-  std::string kernelName = convertNameForPTX(getNameForTapirLoop(*tl),
-                                             /*AddPrefix=*/false);
+  std::string kernelName = getNameForTapirLoop(*tl);
 
   return new CudaLoop(hostM, devM, tto, *tl, kernelName);
 }
