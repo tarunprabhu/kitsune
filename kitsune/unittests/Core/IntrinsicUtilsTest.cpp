@@ -31,7 +31,6 @@ TEST(KitIntrinsicUtils, isKitIntrinsic) {
   EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_gpu_memcpy_dtoh));
   EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_gpu_memcpy_htod));
   EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_gpu_stream_sync));
-  EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_runtime_set_verbose));
 
   EXPECT_FALSE(isKitIntrinsic(Intrinsic::prefetch));
   EXPECT_FALSE(isKitIntrinsic(Intrinsic::memcpy));
@@ -53,7 +52,6 @@ TEST(KitIntrinsicUtils, isKitIntrinsicAsync) {
   EXPECT_FALSE(isKitIntrinsicAsync(Intrinsic::kit_gpu_memcpy_htod));
   EXPECT_FALSE(isKitIntrinsicAsync(Intrinsic::kit_runtime_finalize));
   EXPECT_FALSE(isKitIntrinsicAsync(Intrinsic::kit_runtime_initialize));
-  EXPECT_FALSE(isKitIntrinsicAsync(Intrinsic::kit_runtime_set_verbose));
 }
 
 TEST(KitIntrinsicUtils, isKitIntrinsicBlocking) {
@@ -74,7 +72,6 @@ TEST(KitIntrinsicUtils, isKitIntrinsicBlocking) {
   EXPECT_TRUE(isKitIntrinsicBlocking(Intrinsic::kit_gpu_memcpy_htod));
   EXPECT_TRUE(isKitIntrinsicBlocking(Intrinsic::kit_runtime_finalize));
   EXPECT_TRUE(isKitIntrinsicBlocking(Intrinsic::kit_runtime_initialize));
-  EXPECT_TRUE(isKitIntrinsicBlocking(Intrinsic::kit_runtime_set_verbose));
 }
 
 TEST(KitIntrinsicUtils, isKitIntrinsicCPU) {

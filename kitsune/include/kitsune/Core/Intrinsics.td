@@ -486,12 +486,6 @@ def int_kit_runtime_set_max_tpb
   let Doc = KitGPUSetMaxTPBDoc;
 }
 
-// Enable/disable verbose mode in Kitsune's runtime.
-def int_kit_runtime_set_verbose
-    : KitIntrinsic<[], [llvm_i32_ty, llvm_i8_ty], [ImmArg<ArgIndex<0>>]> {
-  let Doc = KitEnableVerboseDoc;
-}
-
 // Enable xnack in the runtime. This is only relevant for the hip tapir target
 // and its associated kitsune runtime.
 def int_kit_runtime_set_xnack

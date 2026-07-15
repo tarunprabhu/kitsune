@@ -27,18 +27,12 @@ detail::GenerateCtorCPU::GenerateCtorCPU(TTID tt, const TTOptions &tto)
 Function *detail::GenerateCtorCPU::genCtor(Module &m) {
   LLVMContext &ctx = m.getContext();
 
-  // Booleans are always 8-bit integers. toConstant would, otherwise return
-  // an i1, but the intrinsic expects i8. Casting the boolean to i8 ensures
-  // that we get a value of the correct type.
-  Constant *cVerbose = toConstant(uint8_t(tto.getKitrtVerbose()), ctx);
   Constant *ctt = toConstant(tt, ctx);
 
   Function *ctor = genCtorSkeleton(m);
   IRBuilder<> builder = getBuilderForSkeleton(ctor);
 
-  // We can't enable verbose mode until after we call initialize.
   builder.CreateIntrinsic(Intrinsic::kit_runtime_initialize, ctt);
-  builder.CreateIntrinsic(Intrinsic::kit_runtime_set_verbose, {ctt, cVerbose});
 
   // We don't need to do anything more because genCtorSkeleton() will have set
   // up dedicated exit blocks and return instructions already.
