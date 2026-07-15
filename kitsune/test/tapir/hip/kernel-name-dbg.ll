@@ -11,9 +11,9 @@
 ; RUN:     | %kit-mbc -S \
 ; RUN:     | FileCheck %s
 ;
-; CHECK-DAG: define {{.+}} @__kithip_loop_test.cpp_6_3(
-; CHECK-DAG: define {{.+}} @__kithip_loop_test.cpp_11_3(
-; CHECK-DAG: define {{.+}} @__kithip_loop_test.cpp_14_3(
+; CHECK-DAG: define {{.+}} @__kithip_loop_test_cpp_6_3_{{[0-9]}}(
+; CHECK-DAG: define {{.+}} @__kithip_loop_test_cpp_11_3_{{[0-9]}}(
+; CHECK-DAG: define {{.+}} @__kithip_loop_test_cpp_14_3_{{[0-9]}}(
 
 define void @_Z5scalePffm(ptr %buf, float %factor, i64 %n) !dbg !261 {
 entry:

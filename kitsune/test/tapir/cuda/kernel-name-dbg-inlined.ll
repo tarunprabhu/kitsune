@@ -24,9 +24,9 @@
 ; RUN: opt --tapir=cuda -passes='module-inline,loop-spawning' -S %s \
 ; RUN:     | FileCheck %s
 ;
-; CHECK: @[[KERN_VECADD:.+]] = private {{.+}} c"__kitcuda_loop_test_cpp_4_3\00"
-; CHECK: @[[KERN_F:.+]] = private {{.+}} c"__kitcuda_loop_test_cpp_10_3\00"
-; CHECK: @[[KERN_G:.+]] = private {{.+}} c"__kitcuda_loop_test_cpp_14_3\00"
+; CHECK: @[[KERN_VECADD:.+]] = private {{.+}} c"__kitcuda_loop_test_cpp_4_3_{{[0-9]}}\00"
+; CHECK: @[[KERN_F:.+]] = private {{.+}} c"__kitcuda_loop_test_cpp_10_3_{{[0-9]}}\00"
+; CHECK: @[[KERN_G:.+]] = private {{.+}} c"__kitcuda_loop_test_cpp_14_3_{{[0-9]}}\00"
 ;
 ; CHECK: define void @vecadd
 ; CHECK: call {{.+}} @llvm.kit.async.gpu.kernel.launch
