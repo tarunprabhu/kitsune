@@ -18,7 +18,6 @@ void f(size_t *a, size_t n) {
 // of the forall statement. We want that to remain consistent, even if we change
 // the default metadata that is added to a loop.
 //
-// CHECK-DAG: !{!"tapir.loop.grainsize", i32 0}
 // CHECK-DAG: !{!"tapir.loop.name", !"default-metadata.c:11:3"}
 // CHECK-DAG: !{!"tapir.loop.spawn.strategy", i32 3}
 // CHECK-DAG: !{!"tapir.loop.target", i32 4}

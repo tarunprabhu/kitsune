@@ -524,9 +524,6 @@ LoopInfo::getTapirLoopProperties(const LoopAttributes &Attrs) {
     Props.push_back(getMDNodeForAttr(Ctx, LoopAttrKind::SpawnStrategy,
                                      TapirLoopAttrs.TapirSpawnStrategy));
 
-    Props.push_back(getMDNodeForAttr(Ctx, LoopAttrKind::Grainsize,
-                                     TapirLoopAttrs.TapirGrainSize));
-
     if (TapirLoopAttrs.TapirLoopName.size())
       Props.push_back(getMDNodeForAttr(Ctx, LoopAttrKind::Name,
                                        TapirLoopAttrs.TapirLoopName));

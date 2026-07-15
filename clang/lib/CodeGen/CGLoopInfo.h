@@ -69,11 +69,6 @@ struct TapirLoopAttributes {
   ///
   llvm::TapirSpawnStrategy TapirSpawnStrategy = llvm::defaultTapirSpawnStrategy;
 
-  /// Value for the tapir.loop.grainsize metadata.
-  /// TODO: Write some more documentation about this.
-  /// FIXME: Remove this since we never use it.
-  unsigned TapirGrainSize = llvm::defaultTapirGrainSize;
-
   /// The number of threads per block to use when launching a tapir loop that
   /// has been compiled to a GPU kernel. Only relevant for the GPU-centric
   /// tapir targets.
@@ -366,13 +361,6 @@ public:
   /// \ref setTapirTarget.
   void setTapirSpawnStrategy(llvm::TapirSpawnStrategy SpawnStrategy) {
     StagedAttrs.TapirLoopAttrs->TapirSpawnStrategy = SpawnStrategy;
-  }
-
-  /// Set the tapir grain size for the next loop pushed. This must be called
-  /// *after* the tapir target has already been set by calling \ref
-  /// setTapirTarget.
-  void setTapirGrainSize(unsigned GrainSize) {
-    StagedAttrs.TapirLoopAttrs->TapirGrainSize = GrainSize;
   }
 
   /// Set the number of threads per block to use when launching a tapir loop
