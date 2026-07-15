@@ -38,9 +38,7 @@ using KitRTFuncMap = SmallDenseMap<Intrinsic::ID, LibFunc>;
 using KitRTFuncArgMap = SmallDenseMap<Intrinsic::ID, SmallVector<unsigned, 4>>;
 
 /// Kitsune runtime functions for any tapir target.
-static const KitRTFuncMap kitFuncs = {
-    {Intrinsic::kit_runtime_set_verbose, LibFunc_kitrt_enable_verbose},
-};
+static const KitRTFuncMap kitFuncs; // Currently, there are no such functions.
 
 /// Kitsune runtime functions for the cuda tapir target.
 static const KitRTFuncMap kitCudaFuncs = {
@@ -224,7 +222,6 @@ static const KitRTFuncArgMap kitRTArgMap = {
     {Intrinsic::kit_runtime_set_fixed_tpb, {1}},
     {Intrinsic::kit_runtime_set_kernel_launch_refinement, {1}},
     {Intrinsic::kit_runtime_set_max_tpb, {1}},
-    {Intrinsic::kit_runtime_set_verbose, {}},
     {Intrinsic::kit_runtime_set_xnack, {}},
     {Intrinsic::kit_runtime_set_y_axis_kernel_launch, {}},
 };
@@ -372,11 +369,6 @@ private:
 
     case Intrinsic::kit_mobile_init:
       return getMobileInitFunc(m, call);
-
-    case Intrinsic::kit_runtime_set_verbose:
-      // Intrinsics with runtime functions that are independent of a tapir
-      // target.
-      return getOrInsertLibFunc(m, id);
 
     case Intrinsic::kit_runtime_set_xnack:
       // Intrinsics that are exclusive to the hip tapir target
@@ -665,7 +657,6 @@ private:
       changed |= lowerLaunchKernel(call);
       break;
 
-    case Intrinsic::kit_runtime_set_verbose:
     case Intrinsic::kit_runtime_set_xnack:
     case Intrinsic::kit_runtime_set_y_axis_kernel_launch:
       // The first argument is the TTID. The second is a flag. If the flag is

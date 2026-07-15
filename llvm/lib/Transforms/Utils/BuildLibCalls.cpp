@@ -1487,7 +1487,6 @@ bool llvm::inferNonMandatoryLibFuncAttrs(Function &F,
   case LibFunc_kitpthr_reduce_num_partials:
   case LibFunc_kitqthr_launch:
   case LibFunc_kitqthr_reduce_num_partials:
-  case LibFunc_kitrt_enable_verbose:
     Changed |= setOnlyAccessesInaccessibleMemOrArgMem(F);
     Changed |= setDoesNotThrow(F);
     Changed |= setWillReturn(F);

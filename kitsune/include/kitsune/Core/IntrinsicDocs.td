@@ -169,23 +169,6 @@ targets.
 }];
 }
 
-def KitEnableVerboseDoc : KitDocIntrinsic {
-  let Category = KitDocCatCommon;
-  let ParamDocs = [
-      KitDocParam<"tt", "The ID of the tapir target calling the intrinsic">,
-      KitDocParam<"enable", "Non-zero to enable verbose mode, 0 to disable it">
-  ];
-  let Descr = [{
-Enable/disable verbose mode in Kitsune's runtime.
-
-.. note::
-  This intrinsic does not take a tapir target id because verbose mode is common
-  to all tapir targets. In the future, we may support enabling verbose mode on
-  select tapir targets. But this is only useful for multi-target compilation
-  and execution. This is not yet supported.
-}];
-}
-
 def KitCPUNumThreadsDoc : KitDocIntrinsic {
   let Category = KitDocCatThreading;
   let ParamDocs = [

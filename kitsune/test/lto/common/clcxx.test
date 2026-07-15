@@ -10,14 +10,6 @@
 # RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
 # RUN:     | FileCheck %s -check-prefixes=ALL,O3
 #
-# RUN: %kitxx -### --tapir=serial -O2 -flto --tapir-verbose \
-# RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
-# RUN:     | FileCheck %s -check-prefixes=ALL,TAPIR_VERBOSE
-#
-# RUN: %kitxx -### --tapir=serial -O2 -flto --kitrt-verbose \
-# RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
-# RUN:     | FileCheck %s -check-prefixes=ALL,KITRT_VERBOSE
-#
 # RUN: %kitxx -### --tapir=serial -O2 -flto -ffp-contract=off  \
 # RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
 # RUN:     | FileCheck %s -check-prefixes=ALL,FP_STANDARD
@@ -50,8 +42,6 @@
 # ALL: /ld{{(64)?}}.lld"
 # O2: "--lto-O2"
 # O3: "--lto-O3"
-# TAPIR_VERBOSE-SAME: "-mllvm" "--tapir-verbose"
-# KITRT_VERBOSE: "-mllvm" "--kitrt-verbose"
 # FP_STANDARD: "-mllvm" "--fp-contract=on"
 # FP_FAST: "-mllvm" "--fp-contract=fast"
 # ERROR: unsupported optimization level '-Oz'

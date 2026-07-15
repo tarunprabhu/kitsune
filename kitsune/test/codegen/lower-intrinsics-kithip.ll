@@ -14,7 +14,6 @@
 ; CHECK-NEXT: %2 = alloca [1 x ptr]
 ; CHECK-NEXT: %guvm = alloca ptr
 ; CHECK-NEXT: call void @__kithip_initialize()
-; CHECK-NEXT: call void @__kitrt_enable_verbose_mode()
 ; CHECK-NEXT: call void @__kithip_enable_ylaunch()
 ; CHECK-NOT: call void @__kithip_enable_ylaunch()
 ; CHECK-NEXT: call void @__kithip_enable_xnack()
@@ -73,8 +72,6 @@ target triple = "x86_64-pc-linux-gnu"
 define void @f(ptr %buf, i64 %n) {
   %guvm = alloca ptr
   call void @llvm.kit.runtime.initialize(i32 4)
-  call void @llvm.kit.runtime.set.verbose(i32 4, i8 1)
-  call void @llvm.kit.runtime.set.verbose(i32 4, i8 0)
   call void @llvm.kit.runtime.set.y.axis.kernel.launch(i32 4, i8 1)
   call void @llvm.kit.runtime.set.y.axis.kernel.launch(i32 4, i8 0)
   call void @llvm.kit.runtime.set.xnack(i32 4, i8 42)
