@@ -36,9 +36,6 @@ static constexpr unsigned kitDtorPriority = 65535;
 /// Options to generate global ctors for kitsune's runtime.
 struct GenerateCtorOptions {
 public:
-  /// Enable refining the launch parameter in the runtime.
-  unsigned refineLaunches : 1;
-
   /// Launch kernel using Y-axis threading.
   unsigned useYLaunch : 1;
 };

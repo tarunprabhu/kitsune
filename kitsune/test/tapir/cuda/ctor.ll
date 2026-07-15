@@ -27,7 +27,6 @@
 ; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.initialize(i32 2)
 ; DEFAULT-NOT: call {{.+}} @llvm.kit.runtime.set.fixed.tpb(i32 2,
 ; DEFAULT: call {{.+}} @llvm.kit.runtime.set.max.tpb(i32 2, i32 1024)
-; DEFAULT-DAG: call {{.+}} @llvm.kit.runtime.set.kernel.launch.refinement(i32 2, i8 1)
 ; DEFAULT-DAG: %[[HC:.+]] = call {{.+}}@llvm.kit.gpu.register.devcode(i32 2, ptr @[[BUNDLE]])
 ; DEFAULT-NEXT: store ptr %[[HC]], ptr @[[HANDLE]]
 ; DEFAULT-NEXT: %[[HC2:.+]] = load ptr, ptr @[[HANDLE]]
@@ -69,15 +68,6 @@
 ;
 ; MTPB-LABEL: define {{.+}} @.kit.cuda.ctor
 ; MTPB: call {{.+}} @llvm.kit.runtime.set.max.tpb(i32 2, i32 29)
-;
-; ----------------------------------------------------------------------------
-;
-; RUN: opt --tapir=cuda -passes='loop-spawning,kit-ctors' -S %s \
-; RUN:     -cuabi-refine-launches=false \
-; RUN:     | FileCheck %s -check-prefix NOREFINE
-;
-; NOREFINE-LABEL: define {{.+}} @.kit.cuda.ctor
-; NOREFINE: call {{.+}} @llvm.kit.runtime.set.kernel.launch.refinement(i32 2, i8 0)
 ;
 ; ----------------------------------------------------------------------------
 
