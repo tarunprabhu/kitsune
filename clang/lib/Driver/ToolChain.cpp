@@ -2318,8 +2318,6 @@ void ToolChain::AddKitsuneCompilerArgs(const ArgList &Args,
 
   if (std::optional<TTID> TT = parseTTIfValid(Args)) {
     Args.AddLastArg(CmdArgs, options::OPT_ffp_contract);
-    Args.AddLastArg(CmdArgs, options::OPT_kitrt_verbose);
-    Args.AddLastArg(CmdArgs, options::OPT_tapir_verbose);
     Args.AddLastArg(CmdArgs, options::OPT_tapir_EQ);
     AddTTArgs(*TT, Args, CmdArgs);
 
@@ -2490,8 +2488,6 @@ void ToolChain::AddKitsuneLTOArgs(const ArgList &Args,
     CmdArgs.push_back(Args.MakeArgString(join_items(
         "", "--lto-O", std::to_string(getSpeedupLevel(Args, D.getDiags())))));
     PushLastArg(CmdArgs, Args, true, options::OPT_tapir_EQ);
-    PushLastArg(CmdArgs, Args, true, options::OPT_tapir_verbose);
-    PushLastArg(CmdArgs, Args, true, options::OPT_kitrt_verbose);
     AddTTArgs(*TT, Args, CmdArgs);
 
     // Handling of the -ffp-contract option has to be done exactly the way it is

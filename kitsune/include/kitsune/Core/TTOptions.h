@@ -73,18 +73,11 @@ private:
 
   /// Options common to all tapir targets
   /// @{
-  /// Enable verbose mode on the tapir target. Not all tapir targets implement
-  /// verbose mode, so there is no guarantee that this has any effect on a
-  /// given tapir target.
-  unsigned tapirVerbose : 1;
-
-  /// If true, set the Kitsune runtime in verbose mode. Not all tapir targets
-  /// use Kitsune's runtime. In such cases, setting this to true will no effect.
-  unsigned kitrtVerbose : 1;
 
   /// If true, enable generation of calls to prefetch managed memory between
   /// host and GPU.
   unsigned gpuPrefetch : 1;
+
   /// @}
 
   /// The optimization level set on the command line. This level will be used
@@ -97,6 +90,7 @@ private:
 
   /// Options common to the GPU tapir targets
   /// @{
+
   /// If this is non-zero, this value will be used when launching all kernels
   /// which do not already have a custom FixedThreadsPerBlock value. If this is
   /// not set, the number of threads per block to use will be determined by the
@@ -110,10 +104,12 @@ private:
   /// The path to LLD that was built with Kitsune. If clang is invoked from the
   /// build directory, this will be the lld that is in the build directory.
   std::string lld;
+
   /// @}
 
   /// Options for the cuda tapir target
   /// @{
+
   /// The NVIDIA GPU architecture for which to generate code.
   std::string cudaArch;
 
@@ -126,17 +122,21 @@ private:
 
   /// The absolute path to the cuda runtime bitcode file.
   std::string cudaRuntimeBCFile;
+
   /// @}
 
   /// Options for the 'custom' tapir target
   /// @{
+
   /// The tapir target plugin object. This contains a wrapper around the actual
   /// dynamic library among other things.
   std::optional<TTPlugin> ttPlugin = std::nullopt;
+
   /// @}
 
   /// Options for the hip tapir target
   /// @{
+
   /// The AMD GPU architecture for which to generate code.
   std::string hipArch;
 
@@ -154,11 +154,14 @@ private:
   /// computed by the driver from either the default value of @ref cudaArch, or
   /// from the --tapir-hip-arch option if it was provided.
   SmallVector<std::string, 4> hipRuntimeBCFiles;
+
   /// @}
 
   /// Options for the opencilk tapir target
   /// @{
+
   std::string openCilkRuntimeBCFile;
+
   /// @}
 
 private:
@@ -186,8 +189,6 @@ public:
 
   /// @{
   /// Options common to all tapir targets.
-  bool getTapirVerbose() const { return tapirVerbose; }
-  bool getKitrtVerbose() const { return kitrtVerbose; }
   OptznLevel getOptznLevel() const { return optLevel; }
   FPOpFusion::FPOpFusionMode getFPOpFusionMode() const {
     return fpOpFusionMode;

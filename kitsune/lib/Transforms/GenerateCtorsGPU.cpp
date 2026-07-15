@@ -160,20 +160,12 @@ Function *detail::GenerateCtorGPU::genCtor(Module &m, GlobalVariable *gBundle,
                                            const Module &devM) {
   LLVMContext &ctx = m.getContext();
 
-  // Booleans are always 8-bit integers. toConstant would, otherwise return an
-  // i1, but the intrinsic expects i8. Casting the boolean to i8 ensures that we
-  // get a value of the correct type.
-  Constant *cVerbose = toConstant(uint8_t(tto.getKitrtVerbose()), ctx);
   Constant *ctt = toConstant(tt, ctx);
 
   Function *ctor = genCtorSkeleton(m);
   IRBuilder<> builder = getBuilderForSkeleton(ctor);
 
   builder.CreateIntrinsic(Intrinsic::kit_runtime_initialize, ctt);
-
-  // Enable verbose mode early in the constructor so all verbose statements are
-  // printed after the runtime has been initialized.
-  builder.CreateIntrinsic(Intrinsic::kit_runtime_set_verbose, {ctt, cVerbose});
 
   // If the MaxThreadsPerBlock has not been set, use a value of 1024 anyway. At
   // the time of writing, exceeding this value degrades performance. This might

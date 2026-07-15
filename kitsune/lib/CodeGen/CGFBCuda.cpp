@@ -132,8 +132,7 @@ std::unique_ptr<ToolOutputFile> CGFBCuda::assemblePTX(ToolOutputFile &ptxFile) {
   // Warn if we spill registers and provide feedback on kernel stats.
   args.push_back("--warn-on-spills");
 
-  if (tto.getTapirVerbose())
-    args.push_back("--verbose");
+  LLVM_DEBUG(args.push_back("--verbose"));
 
   std::string optLevel =
       std::to_string(getSpeedupLevel(cgfbOpts.ptxasOptLevel));

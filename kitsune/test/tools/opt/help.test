@@ -13,11 +13,9 @@
 # HELP-NOT: emb-O0
 # HELP-NOT: hipabi-
 # HELP: Kitsune Options
-# HELP: --kitrt-verbose
 # HELP: --tapir
 # HELP: --tapir-cuda-arch=
 # HELP: --tapir-hip-arch=
-# HELP: --tapir-verbose
 #
 # -----------------------------------------------------------------------------
 # The "developer" options are visible when hidden options are included. The
@@ -34,5 +32,4 @@
 # HIDDEN: emb-inline-all
 # HIDDEN: emb-print-pipeline-passes
 # HIDDEN: Kitsune Options
-# HIDDEN: --kitrt-verbose
 # HIDDEN: --tapir

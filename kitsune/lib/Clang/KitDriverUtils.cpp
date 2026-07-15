@@ -618,9 +618,6 @@ bool clang::driver::parseKitsuneArgs(KitOptions &kitOpts, const char *argv0,
   kitOpts.setKitsuneFrontend(isKitsuneFrontend(argv0));
   kitOpts.setStripmineLoops(args.hasArg(OPT_fstripmine));
 
-  kitOpts.setTapirVerbose(args.hasArg(OPT_tapir_verbose));
-  kitOpts.setKitrtVerbose(args.hasArg(OPT_kitrt_verbose));
-
   if (const Arg *arg = args.getLastArg(OPT_tapir_EQ)) {
     if (std::optional<llvm::TTID> tt = fromString<TTID>(arg->getValue())) {
       parseKitsuneTTArgs(kitOpts, *tt, args, optTable, diags);

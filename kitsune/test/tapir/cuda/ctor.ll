@@ -25,7 +25,6 @@
 ; DEFAULT: define internal void @[[CTOR]]()
 ; DEFAULT-NEXT: [[ENTRY:.+]]:
 ; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.initialize(i32 2)
-; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.set.verbose(i32 2, i8 0)
 ; DEFAULT-NOT: call {{.+}} @llvm.kit.runtime.set.fixed.tpb(i32 2,
 ; DEFAULT: call {{.+}} @llvm.kit.runtime.set.max.tpb(i32 2, i32 1024)
 ; DEFAULT-DAG: call {{.+}} @llvm.kit.runtime.set.kernel.launch.refinement(i32 2, i8 1)
@@ -70,19 +69,6 @@
 ;
 ; MTPB-LABEL: define {{.+}} @.kit.cuda.ctor
 ; MTPB: call {{.+}} @llvm.kit.runtime.set.max.tpb(i32 2, i32 29)
-;
-; ----------------------------------------------------------------------------
-;
-; RUN: opt --tapir=cuda --tapir-verbose \
-; RUN:     -passes='loop-spawning,kit-ctors' -S %s \
-; RUN:     | FileCheck %s -check-prefix VERBOSE
-;
-; RUN: opt --tapir=cuda --kitrt-verbose \
-; RUN:     -passes='loop-spawning,kit-ctors' -S %s \
-; RUN:     | FileCheck %s -check-prefix VERBOSE
-;
-; VERBOSE-LABEL: define {{.+}} @.kit.cuda.ctor
-; VERBOSE: call {{.+}} @llvm.kit.runtime.set.verbose(i32 2, i8 1)
 ;
 ; ----------------------------------------------------------------------------
 ;

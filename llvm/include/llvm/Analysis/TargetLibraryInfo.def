@@ -2700,11 +2700,6 @@ TLI_DEFINE_SIG_INTERNAL(SSizeT, Int, Ptr, SizeT)
 /// @{
 // Runtime library functions common to all tapir targets
 
-/// void __kitrt_enable_verbose_mode();
-TLI_DEFINE_ENUM_INTERNAL(kitrt_enable_verbose)
-TLI_DEFINE_STRING_INTERNAL("__kitrt_enable_verbose_mode")
-TLI_DEFINE_SIG_INTERNAL(Void)
-
 /// void __kitrt_mobile_init_bool(void *, size_t n, bool v)
 TLI_DEFINE_ENUM_INTERNAL(kitrt_mobile_init_bool)
 TLI_DEFINE_STRING_INTERNAL("__kitrt_mobile_init_bool")

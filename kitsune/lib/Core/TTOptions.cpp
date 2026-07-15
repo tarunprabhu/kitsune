@@ -58,16 +58,6 @@ static cl::alias clTapirTarget("tapir-target", cl::desc("Alias for --tapir"),
                                cl::aliasopt(clTapir),
                                cl::cat(cl::catKitClOpts));
 
-static cl::opt<bool>
-    clTapirVerbose("tapir-verbose", cl::init(false),
-                   cl::desc("Enable verbose mode in all tapir targets"),
-                   cl::cat(cl::catKitClOpts));
-
-static cl::opt<bool>
-    clKitrtVerbose("kitrt-verbose", cl::init(false),
-                   cl::desc("Enable verbose mode in kitsune's runtime"),
-                   cl::cat(cl::catKitClOpts));
-
 static cl::opt<std::string> clLLD("tapir-lld", cl::init(""),
                                   cl::desc("Path to LLD"),
                                   cl::cat(cl::catKitClOpts));
@@ -346,8 +336,6 @@ TTOptions::createFromCommandLine(OptznLevel optznLevel) {
   TTOptions tto(clTapir);
 
   // Set common tapir target options
-  tto.tapirVerbose = clTapirVerbose;
-  tto.kitrtVerbose = clTapirVerbose || clKitrtVerbose;
   tto.optLevel = optznLevel;
   tto.fpOpFusionMode = codegen::getFuseFPOps();
   tto.lld = clLLD;
@@ -415,8 +403,6 @@ std::optional<TTOptions> TTOptions::create(const KitOptions &kitOpts,
   TTOptions tto(*kitOpts.getTTID());
 
   // Set common tapir target options.
-  tto.tapirVerbose = kitOpts.getTapirVerbose();
-  tto.kitrtVerbose = kitOpts.getTapirVerbose() or kitOpts.getKitrtVerbose();
   tto.fpOpFusionMode = fpOpFusionMode;
   tto.optLevel = optznLevel;
   tto.lld = kitOpts.getLLD();
@@ -456,8 +442,6 @@ std::optional<TTOptions> TTOptions::create(const KitOptions &kitOpts,
 void TTOptions::print(raw_ostream &os, bool all) const {
   os << "Tapir target options:\n";
   os << "  Primary:                 " << tt << "\n";
-  os << "  Compiler verbose:        " << getTapirVerbose() << "\n";
-  os << "  Runtime verbose:         " << getKitrtVerbose() << "\n";
   os << "  Optimization level:      " << getOptznLevel() << "\n";
   os << "  FP fusion:               " << getFPOpFusionMode() << "\n";
   if (all || tt == TTID::Cuda || tt == TTID::Hip) {

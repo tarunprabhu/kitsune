@@ -69,10 +69,6 @@ def fkokkos_no_init : Flag<["-"], "fkokkos-no-init">, Alias<kokkos_no_init>,
     Visibility<[KitsuneOption, ClangOption, CC1Option]>,
     HelpText<"DEPRECATED: Use --kokkos-no-init">;
 
-def kitrt_verbose: Flag<["--"], "kitrt-verbose">,
-    Visibility<[KitsuneOption, ClangOption, CC1Option, FlangOption, FC1Option]>,
-    HelpText<"Enable verbose mode in kitsune's runtime">;
-
 def tapir_EQ : Joined<["--"], "tapir=">,
     Visibility<[KitsuneOption, ClangOption, CC1Option, FlangOption, FC1Option]>,
     MetaVarName<"<target>">,
@@ -88,11 +84,6 @@ def tapir_plugin_EQ : Joined<["--"], "tapir-plugin=">,
 def ftapir_EQ : Joined<["-"], "ftapir=">, Alias<tapir_EQ>,
     Visibility<[KitsuneOption, ClangOption, CC1Option, FlangOption, FC1Option]>,
     HelpText<"DEPRECATED: Use --tapir=">;
-
-def tapir_verbose: Flag<["--"], "tapir-verbose">,
-    Visibility<[KitsuneOption, ClangOption, CC1Option, FlangOption, FC1Option]>,
-    HelpText<"Enable verbose mode in all tapir targets. This also enables "
-             "verbose mode in the runtime i.e. it implies --kitrt-verbose">;
 
 def tapir_gpu_tpb_EQ: Joined<["--"], "tapir-gpu-tpb=">,
     Visibility<[KitsuneOption, ClangOption, CC1Option, FlangOption, FC1Option]>,

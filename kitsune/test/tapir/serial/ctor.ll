@@ -13,7 +13,6 @@
 ; DEFAULT: define internal void @[[CTOR]]()
 ; DEFAULT-NEXT: [[ENTRY:.+]]:
 ; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.initialize(i32 1)
-; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.set.verbose(i32 1, i8 0)
 ; DEFAULT-NEXT: br label %[[EXIT:.+]]
 ; DEFAULT-EMPTY:
 ; DEFAULT-NEXT: [[EXIT]]:
@@ -28,17 +27,6 @@
 ; DEFAULT-NEXT: [[EXIT]]:
 ; DEFAULT-NEXT: ret void
 ; DEFAULT-NEXT: }
-;
-; RUN: opt --tapir=openmp -passes='loop-spawning,kit-ctors' -S %s \
-; RUN:     --tapir-verbose \
-; RUN:     | FileCheck %s -check-prefix VERBOSE
-;
-; RUN: opt --tapir=openmp -passes='loop-spawning,kit-ctors' -S %s \
-; RUN:     --kitrt-verbose \
-; RUN:     | FileCheck %s -check-prefix VERBOSE
-;
-; VERBOSE-LABEL: define {{.+}} @.kit.serial.ctor
-; VERBOSE: call {{.+}} @llvm.kit.runtime.set.verbose(i32 1, i8 1)
 ;
 ; ----------------------------------------------------------------------------
 

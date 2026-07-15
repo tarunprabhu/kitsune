@@ -4842,12 +4842,6 @@ void CompilerInvocationBase::GenerateKitsuneArgs(const KitOptions &Opts,
       GenerateArg(Consumer, Opts.getGPUPrefetch() ? OPT_tapir_gpu_prefetch
                                                   : OPT_tapir_gpu_no_prefetch);
     }
-
-    if (Opts.getTapirVerbose())
-      GenerateArg(Consumer, OPT_tapir_verbose);
-
-    if (Opts.getKitrtVerbose())
-      GenerateArg(Consumer, OPT_kitrt_verbose);
   }
 
   if (Opts.getKokkos())

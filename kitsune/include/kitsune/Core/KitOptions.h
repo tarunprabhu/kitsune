@@ -99,19 +99,6 @@ private:
   /// Should loop strip-mining be enabled.
   unsigned stripmineLoops : 1;
 
-  /// Enable verbose mode for the tapir target LLVM passes. This is different
-  /// from -mllvm -debug-only=<tapir-target-llvm-pass-name>. When the verbose
-  /// flag is set, the passes may print some subset of the information that is
-  /// printed in full debug mode. However, there is no guarantee that any given
-  /// tapir target LLVM pass will print anything at all.
-  unsigned tapirVerbose : 1;
-
-  /// If true, code will be generated to enable verbose mode in the Kitsune
-  /// runtime. This obviates the need to set an environment variable to turn on
-  /// verbose mode when the compiled code is run. The effect of this will only
-  /// be visible in certain tapir targets because not all use Kitsune's runtime.
-  unsigned kitrtVerbose : 1;
-
   /// Enable prefetching managed memory with GPU tapir targets. If this is set
   /// to true, prefetch calls between host and device may be inserted. There is
   /// no guarantee because a profitability analysis may determine that there is
@@ -205,8 +192,8 @@ private:
 public:
   KitOptions()
       : kitsuneFrontend(false), kokkos(false), kokkosNoInit(false),
-        stripmineLoops(defaultStripmineLoops), tapirVerbose(false),
-        kitrtVerbose(false), gpuPrefetch(defaultGPUPrefetch) {}
+        stripmineLoops(defaultStripmineLoops), gpuPrefetch(defaultGPUPrefetch) {
+  }
 
   /// @{
   /// Setters for options not directly connected to a specific tapir target.
@@ -227,13 +214,6 @@ public:
   void setStripmineLoops(bool stripmineLoops = true) {
     this->stripmineLoops = stripmineLoops;
   }
-  /// @}
-
-  /// @{
-  /// Setters for options relevant to all tapir targets
-  void setKitrtVerbose(bool verbose = true) { this->kitrtVerbose = verbose; }
-
-  void setTapirVerbose(bool verbose = true) { this->tapirVerbose = verbose; }
   /// @}
 
   /// @{
@@ -295,10 +275,6 @@ public:
   bool getKokkosNoInit() const { return kokkosNoInit; }
 
   bool getStripmineLoops() const { return stripmineLoops; }
-
-  bool getTapirVerbose() const { return tapirVerbose; }
-
-  bool getKitrtVerbose() const { return kitrtVerbose; }
 
   std::optional<TTID> getTTID() const { return tt; }
 

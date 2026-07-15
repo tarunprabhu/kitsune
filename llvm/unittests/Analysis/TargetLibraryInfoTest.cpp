@@ -761,7 +761,6 @@ TEST_F(TargetLibraryInfoTest, ValidProto) {
       "declare void @__kitser_finalize()\n"
       "declare void @__kitser_initialize()\n"
       "declare i64 @__kitser_thread_id()\n"
-      "declare void @__kitrt_enable_verbose_mode()\n"
       "declare void @__kitrt_mobile_init_bool(ptr, i64, i8)\n"
       "declare void @__kitrt_mobile_init_double(ptr, i64, double)\n"
       "declare void @__kitrt_mobile_init_float(ptr, i64, float)\n"
