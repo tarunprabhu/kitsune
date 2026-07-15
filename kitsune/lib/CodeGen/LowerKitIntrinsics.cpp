@@ -289,8 +289,9 @@ private:
       // These tapir targets are not fully supported yet, but add them to this
       // switch to ensure that a warning is emitted when a new tapir target is
       // added.
-      llvm_unreachable("getMobileAllocFunc: TTID not handled");
+      break;
     }
+    llvm_unreachable("getMobileAllocFunc: TTID not handled");
   }
 
   FunctionCallee getMobileFreeFunc(Module &m, CallInst &call) {
@@ -319,8 +320,9 @@ private:
       // These tapir targets are not fully supported yet, but add them to this
       // switch to ensure that a warning is emitted when a new tapir target is
       // added.
-      llvm_unreachable("getMobileFreeFunc: TTID not handled");
+      break;
     }
+    llvm_unreachable("getMobileFreeFunc: TTID not handled");
   }
 
   FunctionCallee getMobileInitFunc(Module &m, CallInst &call) {
