@@ -133,6 +133,6 @@ void llvm::verifyNameAttr(KitVerifier &v, const Loop &loop,
 
 void llvm::verifyThreadsPerBlockAttr(KitVerifier &v, const Loop &loop,
                                      const uint32_t &tpb) {
-  v.check(tpb >= 0 && tpb <= 1024, loop, DiagID::ErrAttrBadValue,
+  v.check(tpb <= 1024, loop, DiagID::ErrAttrBadValue,
           LoopAttrKind::ThreadsPerBlock, "Must be in the range [0,1024]");
 }
