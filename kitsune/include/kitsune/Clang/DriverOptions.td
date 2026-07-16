@@ -93,13 +93,6 @@ def tapir_gpu_tpb_EQ: Joined<["--"], "tapir-gpu-tpb=">,
              "the threads per block will be calculated by Kitsune's runtime. "
              "Can be at most 1024">;
 
-def tapir_gpu_max_tpb_EQ: Joined<["--"], "tapir-gpu-max-tpb=">,
-    Visibility<[KitsuneOption, ClangOption, CC1Option, FlangOption, FC1Option]>,
-    MetaVarName<"<N>">,
-    HelpText<"The maximum number of threads per block to launch. If this is "
-             "not provided, Kitsune's runtime is free to launch as many "
-             "threads per block as it sees fit">;
-
 def tapir_gpu_prefetch : Flag<["--"], "tapir-gpu-prefetch">,
     Visibility<[KitsuneOption, ClangOption, CC1Option, FlangOption, FC1Option]>,
     HelpText<"Enable generation of prefetch calls to move managed memory "

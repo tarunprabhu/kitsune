@@ -1976,7 +1976,6 @@ void ToolChain::AddKitsuneGPUCommonArgs(const ArgList &Args,
                                         ArgStringList &CmdArgs,
                                         bool MLLVM) const {
   PushLastArg(CmdArgs, Args, MLLVM, options::OPT_tapir_gpu_tpb_EQ);
-  PushLastArg(CmdArgs, Args, MLLVM, options::OPT_tapir_gpu_max_tpb_EQ);
 
   bool DefaultPrefetch = KitOptions::defaultGPUPrefetch;
   if (Args.hasFlag(options::OPT_tapir_gpu_prefetch,

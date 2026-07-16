@@ -294,6 +294,14 @@ void *__kithip_launch_kernel(const void *fatbin, const char *name, void **args,
                              const KitRTInstMix *inst_mix, void *stream_in);
 
 /**
+ * Set the runtime's value for the number of threads-per-block used in simple
+ * launch parameter calculations.
+ *
+ * @param nthreads - number of threads per block
+ */
+void __kithip_set_threads_per_blk(int nthreads);
+
+/**
  * Set the runtime's value for the maximum number of threads allowed per block
  * (typically a hardware limit). For HIP there is a dependency between the
  * runtime and the compiler-generated code (kernel) attributes. The compiler

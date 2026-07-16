@@ -219,6 +219,13 @@ void __kitcuda_initialize(void) {
       fprintf(stderr, "  kitcuda: threads/block: %d\n", *tpb);
   }
 
+  if (std::optional<int> tpb =
+          kitrt::envLookup<int>("KITCUDA_MAX_THREADS_PER_BLOCK")) {
+    __kitcuda_set_max_threads_per_blk(*tpb);
+    if (__kitrt_verbose_mode())
+      fprintf(stderr, "  kitcuda: max threads/block: %d\n", *tpb);
+  }
+
   if (std::optional<bool> disable_refined_launches =
           kitrt::envLookup<bool>("KITCUDA_DISABLE_LAUNCH_REFINEMENT"))
     if (*disable_refined_launches)

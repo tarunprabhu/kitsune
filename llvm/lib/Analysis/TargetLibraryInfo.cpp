@@ -943,7 +943,6 @@ static void initializeLibCalls(TargetLibraryInfoImpl &TLI, const Triple &T,
     TLI.setUnavailable(LibFunc_kitcuda_register_global);
     TLI.setUnavailable(LibFunc_kitcuda_register_global_managed);
     TLI.setUnavailable(LibFunc_kitcuda_set_fixed_tpb);
-    TLI.setUnavailable(LibFunc_kitcuda_set_max_tpb);
     TLI.setUnavailable(LibFunc_kitcuda_symbol_device_ptr);
     TLI.setUnavailable(LibFunc_kitcuda_symbol_memcpy_dtoh);
     TLI.setUnavailable(LibFunc_kitcuda_symbol_memcpy_htod);
@@ -964,7 +963,6 @@ static void initializeLibCalls(TargetLibraryInfoImpl &TLI, const Triple &T,
     TLI.setUnavailable(LibFunc_kithip_register_global);
     TLI.setUnavailable(LibFunc_kithip_register_global_managed);
     TLI.setUnavailable(LibFunc_kithip_set_fixed_tpb);
-    TLI.setUnavailable(LibFunc_kithip_set_max_tpb);
     TLI.setUnavailable(LibFunc_kithip_symbol_device_ptr);
     TLI.setUnavailable(LibFunc_kithip_symbol_memcpy_dtoh);
     TLI.setUnavailable(LibFunc_kithip_symbol_memcpy_htod);

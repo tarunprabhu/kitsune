@@ -2,7 +2,6 @@
 ;
 ; RUN: opt --tapir=cuda %s -disable-output \
 ; RUN:     --tapir-gpu-tpb=64 \
-; RUN:     --tapir-gpu-max-tpb=128 \
 ; RUN:     --tapir-gpu-prefetch=false \
 ; RUN:     --tapir-cuda-arch=sm_72 \
 ; RUN:     --tapir-cuda-virt-arch=compute_72 \
@@ -19,7 +18,6 @@
 ; ALL:       Tapir target options
 ; ALL:       Primary: cuda
 ; CHECK:     GPU fixed threads/block: 64
-; CHECK:     GPU max threads/block: 128
 ; CHECK:     GPU prefetch: 0
 ; CHECK:     Cuda arch: sm_72
 ; CHECK:     Cuda virtual arch: compute_72

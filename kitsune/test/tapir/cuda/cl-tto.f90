@@ -13,11 +13,6 @@
 !
 ! RUN: %kitfc --tapir=cuda -O1 -S -emit-llvm -o /dev/null %s \
 ! RUN:     -mllvm -dump-tapir-target-options \
-! RUN:     --tapir-cuda-arch=sm_72 --tapir-gpu-max-tpb=128 2>&1 \
-! RUN:     | FileCheck %s -check-prefixes ALL,MTPB
-!
-! RUN: %kitfc --tapir=cuda -O1 -S -emit-llvm -o /dev/null %s \
-! RUN:     -mllvm -dump-tapir-target-options \
 ! RUN:     --tapir-cuda-arch=sm_72 --tapir-gpu-prefetch 2>&1 \
 ! RUN:     | FileCheck %s -check-prefixes ALL,PREFETCH
 !
@@ -46,7 +41,6 @@
 ! ALL:          Tapir target options
 ! ALL:          Primary: cuda
 ! TPB:          GPU fixed threads/block: 64
-! MTPB:         GPU max threads/block: 128
 ! PREFETCH:     GPU prefetch: 1
 ! NO-PREFETCH:  GPU prefetch: 0
 ! ARCH:         Cuda arch: sm_60

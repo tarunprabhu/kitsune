@@ -4836,9 +4836,6 @@ void CompilerInvocationBase::GenerateKitsuneArgs(const KitOptions &Opts,
       if (unsigned N = Opts.getFixedThreadsPerBlock())
         GenerateArg(Consumer, OPT_tapir_gpu_tpb_EQ, std::to_string(N));
 
-      if (unsigned N = Opts.getMaxThreadsPerBlock())
-        GenerateArg(Consumer, OPT_tapir_gpu_max_tpb_EQ, std::to_string(N));
-
       GenerateArg(Consumer, Opts.getGPUPrefetch() ? OPT_tapir_gpu_prefetch
                                                   : OPT_tapir_gpu_no_prefetch);
     }

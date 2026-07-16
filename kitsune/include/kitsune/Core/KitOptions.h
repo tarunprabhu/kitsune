@@ -118,11 +118,6 @@ private:
   /// If this is non-zero, the number of threads per block to use.
   unsigned fixedThreadsPerBlock = 0;
 
-  /// If this is non-zero, the maximum number of threads per block to use. This
-  /// may be used in conjunction with @ref threadsPerBlock, in which case this
-  /// value must be greater than or equal to @ref threadsPerBlock.
-  unsigned maxThreadsPerBlock = 0;
-
   /// The path to LLD that was built with Kitsune. This path is determined by
   /// the location of clang's executable. This allows it to be used from both
   /// the build and install directories. The logic for doing so was already in
@@ -222,10 +217,6 @@ public:
     this->fixedThreadsPerBlock = threadsPerBlock;
   }
 
-  void setMaxThreadsPerBlock(unsigned threadsPerBlock) {
-    this->maxThreadsPerBlock = threadsPerBlock;
-  }
-
   void setGPUPrefetch(bool prefetch) { this->gpuPrefetch = prefetch; }
 
   void setLLD(StringRef lld) { this->lld = lld; }
@@ -287,8 +278,6 @@ public:
   StringRef getTTPlugin() const { return ttPlugin; }
 
   unsigned getFixedThreadsPerBlock() const { return fixedThreadsPerBlock; }
-
-  unsigned getMaxThreadsPerBlock() const { return maxThreadsPerBlock; }
 
   bool getGPUPrefetch() const { return gpuPrefetch; }
 

@@ -15,7 +15,6 @@
 ; CHECK-NEXT: %guvm = alloca ptr
 ; CHECK-NEXT: call void @__kitcuda_initialize()
 ; CHECK-NEXT: call void @__kitcuda_set_default_threads_per_blk(i32 24)
-; CHECK-NEXT: call void @__kitcuda_set_max_threads_per_blk(i32 1024)
 ; CHECK-NEXT: %[[STREAM:.+]] = call ptr @__kitcuda_get_thread_stream()
 ; CHECK-NEXT: %[[GSYM:.+]] = call ptr @__kitcuda_get_global_symbol(ptr null, ptr @.gname)
 ; CHECK-NEXT: call void @__kitcuda_memcpy_sym_to_device(ptr @gbuf, ptr %[[GSYM]], i64 28)
@@ -53,7 +52,6 @@
 ; CHECK-DAG: void @__kitcuda_register_global(ptr, ptr, ptr, ptr, i64, i32, i32) #[[ATTRS]]
 ; CHECK-DAG: void @__kitcuda_register_global_managed(ptr, ptr, ptr, ptr, i64, i32, i32, i32) #[[ATTRS]]
 ; CHECK-DAG: void @__kitcuda_set_default_threads_per_blk(i32) #[[ATTRS]]
-; CHECK-DAG: void @__kitcuda_set_max_threads_per_blk(i32) #[[ATTRS]]
 ; CHECK-DAG: void @__kitcuda_sync_thread_stream(ptr) #[[ATTRS]]
 ; CHECK-DAG: void @__kitcuda_unregister_devcode(ptr) #[[ATTRS]]
 ;
@@ -70,7 +68,6 @@ define void @f(ptr %buf, i64 %n) {
   %guvm = alloca ptr
   call void @llvm.kit.runtime.initialize(i32 2)
   call void @llvm.kit.runtime.set.fixed.tpb(i32 2, i32 24)
-  call void @llvm.kit.runtime.set.max.tpb(i32 2, i32 1024)
   %1 = call ptr @llvm.kit.gpu.stream.new(i32 2)
   %2 = call ptr @llvm.kit.gpu.symbol.address(i32 2, ptr null, ptr @.gname)
   call void @llvm.kit.gpu.symbol.memcpy.htod(i32 2, ptr %2, ptr @gbuf, i64 28)

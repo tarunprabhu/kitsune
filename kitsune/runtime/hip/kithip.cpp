@@ -175,6 +175,20 @@ extern "C" void __kithip_initialize(void) {
     abort();
   }
 
+  if (std::optional<int> tpb =
+          kitrt::envLookup<int>("KITHIP_THREADS_PER_BLOCK")) {
+    __kithip_set_threads_per_blk(*tpb);
+    if (__kitrt_verbose_mode())
+      fprintf(stderr, "  kithip: threads/block: %d\n", *tpb);
+  }
+
+  if (std::optional<int> tpb =
+          kitrt::envLookup<int>("KITHIP_MAX_THREADS_PER_BLOCK")) {
+    __kithip_set_max_threads_per_blk(*tpb);
+    if (__kitrt_verbose_mode())
+      fprintf(stderr, "  kithip: max threads/block: %d\n", *tpb);
+  }
+
   // We should be good to go...
   setInitialized(true);
 
