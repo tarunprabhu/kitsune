@@ -1453,7 +1453,6 @@ bool llvm::inferNonMandatoryLibFuncAttrs(Function &F,
   case LibFunc_kitcuda_register_devcode_end:
   case LibFunc_kitcuda_register_global:
   case LibFunc_kitcuda_register_global_managed:
-  case LibFunc_kitcuda_set_fixed_tpb:
   case LibFunc_kitcuda_symbol_device_ptr:
   case LibFunc_kitcuda_symbol_memcpy_dtoh:
   case LibFunc_kitcuda_symbol_memcpy_htod:
@@ -1471,7 +1470,6 @@ bool llvm::inferNonMandatoryLibFuncAttrs(Function &F,
   case LibFunc_kithip_register_devcode:
   case LibFunc_kithip_register_global:
   case LibFunc_kithip_register_global_managed:
-  case LibFunc_kithip_set_fixed_tpb:
   case LibFunc_kithip_symbol_device_ptr:
   case LibFunc_kithip_symbol_memcpy_dtoh:
   case LibFunc_kithip_symbol_memcpy_htod:
@@ -1617,10 +1615,8 @@ FunctionCallee llvm::getOrInsertLibFunc(Module *M, const TargetLibraryInfo &TLI,
 
   case LibFunc_kitcuda_managed_malloc:
   case LibFunc_kitcuda_reduce_num_partials:
-  case LibFunc_kitcuda_set_fixed_tpb:
   case LibFunc_kithip_managed_malloc:
   case LibFunc_kithip_reduce_num_partials:
-  case LibFunc_kithip_set_fixed_tpb:
   case LibFunc_kitocilk_reduce_num_partials:
   case LibFunc_kitomp_reduce_num_partials:
   case LibFunc_kitpthr_reduce_num_partials:

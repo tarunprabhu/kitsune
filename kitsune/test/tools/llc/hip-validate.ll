@@ -88,31 +88,3 @@
 ; XNACK-SAME: Cannot find option named '{{.*}}'
 ;
 ; ------------------------------------------------------------------------------
-; RUN: not llc --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:         --tapir-hip-runtime-bcs=%S/input/libdevice-amd.ll \
-; RUN:         --tapir-gpu-tpb= \
-; RUN:         -filetype=asm -o /dev/null %s 2>&1 \
-; RUN:     | FileCheck %s --check-prefix=TPB
-;
-; RUN: not llc --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:         --tapir-hip-runtime-bcs=%S/input/libdevice-amd.ll \
-; RUN:         --tapir-gpu-tpb=ten \
-; RUN:         -filetype=asm -o /dev/null %s 2>&1 \
-; RUN:     | FileCheck %s --check-prefix=TPB
-;
-; RUN: not llc --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:         --tapir-hip-runtime-bcs=%S/input/libdevice-amd.ll \
-; RUN:         --tapir-gpu-tpb=0 \
-; RUN:         -filetype=asm -o /dev/null %s 2>&1 \
-; RUN:     | FileCheck %s --check-prefix=RANGE
-;
-; RUN: not llc --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:         --tapir-hip-runtime-bcs=%S/input/libdevice-amd.ll \
-; RUN:         --tapir-gpu-tpb=1025 \
-; RUN:         -filetype=asm -o /dev/null %s 2>&1 \
-; RUN:     | FileCheck %s --check-prefix=RANGE
-;
-; TPB: for the --tapir-gpu{{(-.+)?}}-tpb option: '{{.*}}' value invalid
-; RANGE: error: option '--tapir-gpu{{(-.+)?}}-tpb' has value '{{.*}}' not in range [1,1024]
-;
-; ------------------------------------------------------------------------------

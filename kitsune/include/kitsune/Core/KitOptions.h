@@ -115,9 +115,6 @@ private:
   /// object that can be loaded as a tapir target plugin.
   std::string ttPlugin;
 
-  /// If this is non-zero, the number of threads per block to use.
-  unsigned fixedThreadsPerBlock = 0;
-
   /// The path to LLD that was built with Kitsune. This path is determined by
   /// the location of clang's executable. This allows it to be used from both
   /// the build and install directories. The logic for doing so was already in
@@ -192,6 +189,7 @@ public:
 
   /// @{
   /// Setters for options not directly connected to a specific tapir target.
+
   void setKitsuneFrontend(bool kitsuneFrontend = true) {
     this->kitsuneFrontend = kitsuneFrontend;
   }
@@ -209,21 +207,21 @@ public:
   void setStripmineLoops(bool stripmineLoops = true) {
     this->stripmineLoops = stripmineLoops;
   }
+
   /// @}
 
   /// @{
   /// Setters common to the GPU-specific tapir targets.
-  void setFixedThreadsPerBlock(unsigned threadsPerBlock) {
-    this->fixedThreadsPerBlock = threadsPerBlock;
-  }
 
   void setGPUPrefetch(bool prefetch) { this->gpuPrefetch = prefetch; }
 
   void setLLD(StringRef lld) { this->lld = lld; }
+
   /// @}
 
   /// @{
   /// Setters for options related to the cuda tapir target.
+
   void setCudaArch(StringRef arch) { this->cudaArch = arch; }
 
   void setCudaVirtArch(StringRef arch) { this->cudaVirtArch = arch; }
@@ -231,10 +229,12 @@ public:
   void setCudaFeatures(StringRef features) { this->cudaFeatures = features; }
 
   void setCudaRuntimeBCFile(StringRef file) { this->cudaRuntimeBCFile = file; }
+
   /// @}
 
   /// @{
   /// Setters for options related to the hip tapir target.
+
   void setHipArch(StringRef arch) { this->hipArch = arch; }
 
   void setHipFeatures(StringRef features) { this->hipFeatures = features; }
@@ -246,13 +246,16 @@ public:
   void addHipRuntimeBCFile(StringRef file) {
     this->hipRuntimeBCFiles.push_back(file.str());
   }
+
   /// @}
 
   /// @{
   /// Setters for options related to the opencilk tapir target.
+
   void setOpenCilkRuntimeBCFile(StringRef path) {
     this->openCilkRuntimeBCFile = path;
   }
+
   /// @}
 
   bool isKitsuneFrontend() const { return kitsuneFrontend; }
@@ -276,8 +279,6 @@ public:
   TTID getTTIDOr(TTID defawlt) const { return tt.value_or(defawlt); }
 
   StringRef getTTPlugin() const { return ttPlugin; }
-
-  unsigned getFixedThreadsPerBlock() const { return fixedThreadsPerBlock; }
 
   bool getGPUPrefetch() const { return gpuPrefetch; }
 

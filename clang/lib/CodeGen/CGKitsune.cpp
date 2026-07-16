@@ -102,14 +102,13 @@ llvm::TTID clang::CodeGen::getTTID(llvm::ArrayRef<const Attr *> attrs,
 
 /// Get the value of the kitsune::launch attribute if it was set. If the
 /// attribute was not set, return 0.
-unsigned clang::CodeGen::getLaunchTPB(llvm::ArrayRef<const Attr *> attrs,
-                                      unsigned tpb) {
+unsigned clang::CodeGen::getLaunchTPB(llvm::ArrayRef<const Attr *> attrs) {
   // The KitsuneLaunch attribute is guaranteed to appear at most once, so it is
   // safe to return immediately when it is encountered.
   for (const Attr *attr : attrs)
     if (const auto *launchAttr = dyn_cast<KitsuneLaunchAttr>(attr))
       return launchAttr->getThreadsPerBlock();
-  return tpb;
+  return 0;
 }
 
 llvm::Instruction *CodeGenFunction::EmitLabeledSyncRegionStart(StringRef SV) {
@@ -287,7 +286,7 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
   }
 
   if (isGPUTT(TT))
-    if (unsigned TPB = getLaunchTPB(Attrs, KitOpts.getFixedThreadsPerBlock()))
+    if (unsigned TPB = getLaunchTPB(Attrs))
       LoopStack.setLoopThreadsPerBlock(TPB);
 
   // New basic blocks and jump destinations with Tapir terminators
@@ -458,7 +457,7 @@ void CodeGenFunction::EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
   }
 
   if (isGPUTT(TT))
-    if (unsigned TPB = getLaunchTPB(Attrs, KitOpts.getFixedThreadsPerBlock()))
+    if (unsigned TPB = getLaunchTPB(Attrs))
       LoopStack.setLoopThreadsPerBlock(TPB);
 
   // New basic blocks and jump destinations with Tapir terminators.

@@ -62,7 +62,6 @@ static const KitRTFuncMap kitCudaFuncs = {
     {Intrinsic::kit_reduce_num_partials, LibFunc_kitcuda_reduce_num_partials},
     {Intrinsic::kit_runtime_finalize, LibFunc_kitcuda_finalize},
     {Intrinsic::kit_runtime_initialize, LibFunc_kitcuda_initialize},
-    {Intrinsic::kit_runtime_set_fixed_tpb, LibFunc_kitcuda_set_fixed_tpb},
 };
 
 /// Kitsune runtime functions for the hip tapir target.
@@ -85,7 +84,6 @@ static const KitRTFuncMap kitHipFuncs = {
     {Intrinsic::kit_reduce_num_partials, LibFunc_kithip_reduce_num_partials},
     {Intrinsic::kit_runtime_finalize, LibFunc_kithip_finalize},
     {Intrinsic::kit_runtime_initialize, LibFunc_kithip_initialize},
-    {Intrinsic::kit_runtime_set_fixed_tpb, LibFunc_kithip_set_fixed_tpb},
     {Intrinsic::kit_runtime_set_xnack, LibFunc_kithip_enable_xnack},
     {Intrinsic::kit_runtime_set_y_axis_kernel_launch,
      LibFunc_kithip_enable_y_axis_launches},
@@ -215,7 +213,6 @@ static const KitRTFuncArgMap kitRTArgMap = {
     {Intrinsic::kit_reduce_num_partials, {1}},
     {Intrinsic::kit_runtime_finalize, {}},
     {Intrinsic::kit_runtime_initialize, {}},
-    {Intrinsic::kit_runtime_set_fixed_tpb, {1}},
     {Intrinsic::kit_runtime_set_xnack, {}},
     {Intrinsic::kit_runtime_set_y_axis_kernel_launch, {}},
 };

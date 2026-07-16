@@ -649,22 +649,11 @@ void GPUTTLoopBase::processOutlinedLoopCall(TapirLoopInfo &tl,
   // The name of the kernel function must be passed as a string to the runtime.
   Value *kName = createConstString(kernelName, hostM);
 
-  // At this point we need a threads-per-block value for the launch call. There
-  // are a number of ways that this can be set. The tapir loop may have an
-  // explicit value attached to it (usually when an attribute is added to the
-  // forall loop). This takes priority over a value provided on the command
-  // line. Otherwise, set tpb to 0 to allow the runtime to pick an appropriate
-  // value.
-  unsigned tpbHint = getThreadsPerBlockAttr(*tl.getLoop()).value_or(0);
-  unsigned fixedTPB = getOptions().getFixedThreadsPerBlock();
-  Value *tpb = nullptr;
-  if (tpbHint)
-    tpb = ConstantInt::get(i32, tpbHint);
-  else if (fixedTPB)
-    tpb = ConstantInt::get(i32, fixedTPB);
-  else
-    tpb = ConstantInt::get(i32, 0);
-  assert(tpb && "Threads per block cannot be null");
+  // At this point we need a threads-per-block value for the launch call. If the
+  // tapir loop has an explicit value attached to it, use that, otherwise, set
+  // it to zero. This tells the runtime to compute a value to use.
+  Loop *loop = tl.getLoop();
+  Value *tpb = ConstantInt::get(i32, getThreadsPerBlockAttr(*loop).value_or(0));
 
   // The trip counts will be the second, fourth and sixth arguments to the
   // outlined functions (depending on the depth of the tapir loop).

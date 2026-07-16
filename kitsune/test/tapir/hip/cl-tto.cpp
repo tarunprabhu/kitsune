@@ -3,11 +3,6 @@
 //
 // RUN: %kitxx --tapir=hip -O2 -S -emit-llvm -o /dev/null %s \
 // RUN:     -mllvm -dump-tapir-target-options \
-// RUN:     --tapir-gpu-tpb=64 \
-// RUN:     | FileCheck %s -check-prefixes ALL,TPB
-//
-// RUN: %kitxx --tapir=hip -O2 -S -emit-llvm -o /dev/null %s \
-// RUN:     -mllvm -dump-tapir-target-options \
 // RUN:     --tapir-gpu-prefetch \
 // RUN:     | FileCheck %s -check-prefixes ALL,PREFETCH
 //
@@ -83,7 +78,6 @@
 // -----------------------------------------------------------------------------
 // ALL:          Tapir target options
 // ALL:          Primary: hip
-// TPB:          GPU fixed threads/block: 64
 // PREFETCH:     GPU prefetch: 1
 // NO-PREFETCH:  GPU prefetch: 0
 // ARCH:         Hip arch: gfx906

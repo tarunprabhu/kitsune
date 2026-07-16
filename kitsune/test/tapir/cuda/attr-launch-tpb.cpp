@@ -1,4 +1,3 @@
-// -----------------------------------------------------------------------------
 // Check that the value of threads per block in the kitsune::launch attribute
 // is lowered to the correct metadata.
 //
@@ -6,29 +5,7 @@
 // RUN:     -Xclang -disable-llvm-passes -S -emit-llvm -o - \
 // RUN:     | FileCheck %s --check-prefix=ATTR
 //
-// -----------------------------------------------------------------------------
-// The command-line argument will not override the value of the launch
-// attribute in the code.
-//
-// RUN: %kitxx --tapir-gpu-tpb=155 --tapir=cuda --tapir-cuda-arch=sm_72 \
-// RUN:     -Xclang -disable-llvm-passes -S -emit-llvm -O1 -o - %s \
-// RUN:     | FileCheck %s --check-prefix=ATTR
-//
 // ATTR: !{!"tapir.loop.threads.per.block", i32 57}
-//
-// -----------------------------------------------------------------------------
-// The tapir target should prefer the value in the code as well.
-//
-// RUN: %kitxx --tapir=cuda --tapir-cuda-arch=sm_72 \
-// RUN:     -O1 -S -emit-llvm -o - %s \
-// RUN:     | FileCheck %s --check-prefix=LAUNCH
-//
-// RUN: %kitxx --tapir-gpu-tpb=155 --tapir=cuda --tapir-cuda-arch=sm_72 \
-// RUN:     -S -emit-llvm -O1 -o - %s \
-// RUN:     | FileCheck %s --check-prefix=LAUNCH
-//
-// LAUNCH: call {{.+}} @llvm.kit.async.gpu.kernel.launch
-// LAUNCH-SAME: i32 57
 
 #include <kitsune.h>
 
