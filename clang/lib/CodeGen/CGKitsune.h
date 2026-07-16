@@ -31,8 +31,8 @@ namespace CodeGen {
 llvm::TTID getTTID(llvm::ArrayRef<const Attr *> attrs, llvm::TTID primaryTT);
 
 /// Get the value of the kitsune::launch attribute if it was set. If the
-/// attribute was not set, return \p tpb.
-unsigned getLaunchTPB(llvm::ArrayRef<const Attr *> attrs, unsigned tpb);
+/// attribute was not set, return 0.
+unsigned getLaunchTPB(llvm::ArrayRef<const Attr *> attrs);
 
 /// Is \p id the ID for a Kitsune-specific builtin.
 bool IsKitBuiltin(unsigned builtinID);

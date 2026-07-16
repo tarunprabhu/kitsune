@@ -2793,11 +2793,6 @@ TLI_DEFINE_ENUM_INTERNAL(kitcuda_prefetch_htod)
 TLI_DEFINE_STRING_INTERNAL("__kitcuda_mem_gpu_prefetch")
 TLI_DEFINE_SIG_INTERNAL(Ptr, Ptr, Ptr)
 
-/// void __kitcuda_set_default_threads_per_blk(int32_t threads_per_block);
-TLI_DEFINE_ENUM_INTERNAL(kitcuda_set_fixed_tpb)
-TLI_DEFINE_STRING_INTERNAL("__kitcuda_set_default_threads_per_blk")
-TLI_DEFINE_SIG_INTERNAL(Void, Int32)
-
 /// void* __kitcuda_get_global_symbol(void* fat_binary,
 ///                                   const char* name);
 TLI_DEFINE_ENUM_INTERNAL(kitcuda_symbol_device_ptr)
@@ -2933,11 +2928,6 @@ TLI_DEFINE_SIG_INTERNAL(Ptr, Ptr, Ptr)
 TLI_DEFINE_ENUM_INTERNAL(kithip_prefetch_htod)
 TLI_DEFINE_STRING_INTERNAL("__kithip_mem_gpu_prefetch")
 TLI_DEFINE_SIG_INTERNAL(Ptr, Ptr, Ptr)
-
-/// void __kithip_set_default_threads_per_blk(int32_t threads_per_block);
-TLI_DEFINE_ENUM_INTERNAL(kithip_set_fixed_tpb)
-TLI_DEFINE_STRING_INTERNAL("__kithip_set_default_threads_per_blk")
-TLI_DEFINE_SIG_INTERNAL(Void, Int32)
 
 /// void* __kithip_get_global_symbol(void* fat_binary,
 ///                                  const char* name);

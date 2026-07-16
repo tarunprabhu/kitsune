@@ -18,7 +18,6 @@
 ; CHECK-NOT: call void @__kithip_enable_ylaunch()
 ; CHECK-NEXT: call void @__kithip_enable_xnack()
 ; CHECK-NOT: call void @__kithip_enable_xnack()
-; CHECK-NEXT: call void @__kithip_set_default_threads_per_blk(i32 24)
 ; CHECK-NEXT: %[[STREAM:.+]] = call ptr @__kithip_get_thread_stream()
 ; CHECK-NEXT: %[[GSYM:.+]] = call ptr @__kithip_get_global_symbol(ptr null, ptr @.gname)
 ; CHECK-NEXT: call void @__kithip_memcpy_sym_to_device(ptr @gbuf, ptr %[[GSYM]], i64 28)
@@ -54,7 +53,6 @@
 ; CHECK-DAG: ptr @__kithip_register_devcode(ptr) #[[ATTRS]]
 ; CHECK-DAG: void @__kithip_register_global(ptr, ptr, ptr, ptr, i64, i32, i32) #[[ATTRS]]
 ; CHECK-DAG: void @__kithip_register_global_managed(ptr, ptr, ptr, ptr, i64, i32, i32, i32) #[[ATTRS]]
-; CHECK-DAG: void @__kithip_set_default_threads_per_blk(i32) #[[ATTRS]]
 ; CHECK-DAG: void @__kithip_sync_thread_stream(ptr) #[[ATTRS]]
 ; CHECK-DAG: void @__kithip_unregister_devcode(ptr) #[[ATTRS]]
 ;
@@ -74,7 +72,6 @@ define void @f(ptr %buf, i64 %n) {
   call void @llvm.kit.runtime.set.y.axis.kernel.launch(i32 4, i8 0)
   call void @llvm.kit.runtime.set.xnack(i32 4, i8 42)
   call void @llvm.kit.runtime.set.xnack(i32 4, i8 0)
-  call void @llvm.kit.runtime.set.fixed.tpb(i32 4, i32 24)
   %1 = call ptr @llvm.kit.gpu.stream.new(i32 4)
   %2 = call ptr @llvm.kit.gpu.symbol.address(i32 4, ptr null, ptr @.gname)
   call void @llvm.kit.gpu.symbol.memcpy.htod(i32 4, ptr %2, ptr @gbuf, i64 28)

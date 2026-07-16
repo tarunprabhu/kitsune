@@ -91,12 +91,6 @@ private:
   /// Options common to the GPU tapir targets
   /// @{
 
-  /// If this is non-zero, this value will be used when launching all kernels
-  /// which do not already have a custom FixedThreadsPerBlock value. If this is
-  /// not set, the number of threads per block to use will be determined by the
-  /// runtime.
-  unsigned fixedThreadsPerBlock = 0;
-
   /// The path to LLD that was built with Kitsune. If clang is invoked from the
   /// build directory, this will be the lld that is in the build directory.
   std::string lld;
@@ -185,10 +179,12 @@ public:
 
   /// @{
   /// Options common to all tapir targets.
+
   OptznLevel getOptznLevel() const { return optLevel; }
   FPOpFusion::FPOpFusionMode getFPOpFusionMode() const {
     return fpOpFusionMode;
   }
+
   /// @}
 
   /// @{
@@ -196,27 +192,33 @@ public:
   /// only used by some tapir targets. They are here because they are not tied,
   /// in principle, to any one. For example, the path to LLD is only used by
   /// the hip tapir target.
-  unsigned getFixedThreadsPerBlock() const { return fixedThreadsPerBlock; }
+
   bool getGPUPrefetch() const { return gpuPrefetch; }
   StringRef getLLD() const { return lld; }
+
   /// @}
 
   /// @{
   /// Options for the cuda tapir target.
+
   StringRef getCudaArch() const { return cudaArch; }
   StringRef getCudaVirtArch() const { return cudaVirtArch; }
   StringRef getCudaTargetFeatures() const { return cudaTargetFeatures; }
   StringRef getCudaRuntimeBCFile() const { return cudaRuntimeBCFile; }
+
   /// @}
 
   /// @{
   /// Options for the the 'custom' tapir target. These should only be called
   /// when we know that the options object is valid.
+
   std::optional<TTPlugin> getTTPlugin() const { return ttPlugin; }
+
   /// @}
 
   /// @{
   /// Options for the hip tapir target.
+
   StringRef getHipArch() const { return hipArch; }
   MaybeBool getHipSRAMECC() const { return hipSRAMECC; }
   MaybeBool getHipXnack() const { return hipXnack; }
@@ -224,11 +226,14 @@ public:
   ArrayRef<std::string> getHipRuntimeBCFiles() const {
     return hipRuntimeBCFiles;
   }
+
   /// @}
 
   /// @{
   /// Options for the opencilk tapir target
+
   StringRef getOpenCilkRuntimeBCFile() const { return openCilkRuntimeBCFile; }
+
   /// @}
 
   /// Print the options object to the given output stream. If \p all is true,

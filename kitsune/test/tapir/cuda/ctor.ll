@@ -25,7 +25,6 @@
 ; DEFAULT: define internal void @[[CTOR]]()
 ; DEFAULT-NEXT: [[ENTRY:.+]]:
 ; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.initialize(i32 2)
-; DEFAULT-NOT: call {{.+}} @llvm.kit.runtime.set.fixed.tpb(i32 2,
 ; DEFAULT-DAG: %[[HC:.+]] = call {{.+}}@llvm.kit.gpu.register.devcode(i32 2, ptr @[[BUNDLE]])
 ; DEFAULT-NEXT: store ptr %[[HC]], ptr @[[HANDLE]]
 ; DEFAULT-NEXT: %[[HC2:.+]] = load ptr, ptr @[[HANDLE]]
@@ -49,15 +48,6 @@
 ;
 ; DEFAULT-DAG: ![[MD]] = distinct !{![[MD]], ![[DC:[0-9]+]]}
 ; DEFAULT-DAG: ![[DC]] = !{!"kit.gv.device.code", i32 2}
-;
-; ----------------------------------------------------------------------------
-;
-; RUN: opt --tapir=cuda -passes='loop-spawning,kit-ctors' -S %s \
-; RUN:     --tapir-gpu-tpb=77 \
-; RUN:     | FileCheck %s -check-prefix TPB
-;
-; TPB-LABEL: define {{.+}} @.kit.cuda.ctor
-; TPB: call {{.+}} @llvm.kit.runtime.set.fixed.tpb(i32 2, i32 77)
 ;
 ; ----------------------------------------------------------------------------
 

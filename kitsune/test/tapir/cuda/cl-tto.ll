@@ -1,7 +1,6 @@
 ; Check that opt's command line options make it to the tapir target options.
 ;
 ; RUN: opt --tapir=cuda %s -disable-output \
-; RUN:     --tapir-gpu-tpb=64 \
 ; RUN:     --tapir-gpu-prefetch=false \
 ; RUN:     --tapir-cuda-arch=sm_72 \
 ; RUN:     --tapir-cuda-virt-arch=compute_72 \
@@ -17,7 +16,6 @@
 ;
 ; ALL:       Tapir target options
 ; ALL:       Primary: cuda
-; CHECK:     GPU fixed threads/block: 64
 ; CHECK:     GPU prefetch: 0
 ; CHECK:     Cuda arch: sm_72
 ; CHECK:     Cuda virtual arch: compute_72

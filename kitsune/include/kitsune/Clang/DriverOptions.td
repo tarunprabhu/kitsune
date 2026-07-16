@@ -85,14 +85,6 @@ def ftapir_EQ : Joined<["-"], "ftapir=">, Alias<tapir_EQ>,
     Visibility<[KitsuneOption, ClangOption, CC1Option, FlangOption, FC1Option]>,
     HelpText<"DEPRECATED: Use --tapir=">;
 
-def tapir_gpu_tpb_EQ: Joined<["--"], "tapir-gpu-tpb=">,
-    Visibility<[KitsuneOption, ClangOption, CC1Option, FlangOption, FC1Option]>,
-    MetaVarName<"<N>">,
-    HelpText<"Use a fixed number of threads per block for all GPU kernel "
-             "launches unless overridden with pragmas. If this is not provided "
-             "the threads per block will be calculated by Kitsune's runtime. "
-             "Can be at most 1024">;
-
 def tapir_gpu_prefetch : Flag<["--"], "tapir-gpu-prefetch">,
     Visibility<[KitsuneOption, ClangOption, CC1Option, FlangOption, FC1Option]>,
     HelpText<"Enable generation of prefetch calls to move managed memory "

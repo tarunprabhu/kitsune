@@ -167,11 +167,6 @@ Function *detail::GenerateCtorGPU::genCtor(Module &m, GlobalVariable *gBundle,
 
   builder.CreateIntrinsic(Intrinsic::kit_runtime_initialize, ctt);
 
-  if (unsigned fixedTPB = tto.getFixedThreadsPerBlock()) {
-    Constant *cTPB = toConstant(fixedTPB, ctx);
-    builder.CreateIntrinsic(Intrinsic::kit_runtime_set_fixed_tpb, {ctt, cTPB});
-  }
-
   genCtorBeforeDevCodeRegistration(builder);
   genCtorDevCodeRegistration(builder, gBundle, gBundleHandle, devM);
   genCtorAfterDevCodeRegistration(builder, gBundleHandle, devM);

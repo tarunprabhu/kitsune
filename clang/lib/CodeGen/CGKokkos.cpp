@@ -302,7 +302,7 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
   }
 
   if (isGPUTT(TT))
-    if (unsigned TPB = getLaunchTPB(Attrs, KitOpts.getFixedThreadsPerBlock()))
+    if (unsigned TPB = getLaunchTPB(Attrs))
       LoopStack.setLoopThreadsPerBlock(TPB);
 
   // New basic blocks and jump destinations with Tapir terminators.

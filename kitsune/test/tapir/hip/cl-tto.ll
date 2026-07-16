@@ -1,7 +1,6 @@
 ; Check that opt's command line options make it to the tapir target options.
 ;
 ; RUN: opt --tapir=hip %s -disable-output \
-; RUN:     --tapir-gpu-tpb=64 \
 ; RUN:     --tapir-gpu-prefetch=false \
 ; RUN:     --tapir-hip-arch=gfx906 \
 ; RUN:     --tapir-hip-sramecc=off \
@@ -19,7 +18,6 @@
 ;
 ; ALL:       Tapir target options
 ; ALL:       Primary: hip
-; CHECK:     GPU fixed threads/block: 64
 ; CHECK:     GPU prefetch: 0
 ; CHECK:     Hip arch: gfx906
 ; CHECK:     Hip sramecc: off

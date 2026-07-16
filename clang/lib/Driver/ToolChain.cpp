@@ -1975,8 +1975,6 @@ static InputArgList ParseExtendedArgs(const Driver &D,
 void ToolChain::AddKitsuneGPUCommonArgs(const ArgList &Args,
                                         ArgStringList &CmdArgs,
                                         bool MLLVM) const {
-  PushLastArg(CmdArgs, Args, MLLVM, options::OPT_tapir_gpu_tpb_EQ);
-
   bool DefaultPrefetch = KitOptions::defaultGPUPrefetch;
   if (Args.hasFlag(options::OPT_tapir_gpu_prefetch,
                    options::OPT_tapir_gpu_no_prefetch, DefaultPrefetch))

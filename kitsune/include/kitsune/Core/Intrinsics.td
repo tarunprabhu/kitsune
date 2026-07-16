@@ -464,13 +464,6 @@ def int_kit_runtime_initialize
   let Doc = KitInitializeDoc;
 }
 
-// Set the fixed number of threads per block to use when launching GPU kernels.
-def int_kit_runtime_set_fixed_tpb
-    : KitIntrinsic<[], [llvm_i32_ty, llvm_i32_ty],
-                   [ImmArg<ArgIndex<0>>]> {
-  let Doc = KitGPUSetFixedTPBDoc;
-}
-
 // Enable xnack in the runtime. This is only relevant for the hip tapir target
 // and its associated kitsune runtime.
 def int_kit_runtime_set_xnack
