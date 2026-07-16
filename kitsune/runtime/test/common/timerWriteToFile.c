@@ -21,8 +21,10 @@
 // -----------------------------------------------------------------------------
 // If KIT_TIMING_FILE is set to "-", write timings to stdout.
 //
-// RUN: env KIT_TIMING_FILE=- KIT_NUM_THREADS=3 %exe 2>&1 \
+// RUN: env KIT_TIMING_FILE=- KIT_NUM_THREADS=3 %exe \
 // RUN:     | FileCheck %s --check-prefix=FILE
+// RUN: env KIT_TIMING_FILE=- KIT_NUM_THREADS=3 %exe 2>&1 > /dev/null \
+// RUN:     | FileCheck %s --allow-empty --check-prefix=STDERR
 //
 // -----------------------------------------------------------------------------
 // STDERR-NOT: {{^.+$}}
