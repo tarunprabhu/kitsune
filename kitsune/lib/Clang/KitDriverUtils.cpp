@@ -286,10 +286,6 @@ void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
       diags.Report(diag::err_drv_kit_bad_hip_arch) << a->getValue();
   }
 
-  // Check that options accepting numeric arguments are within a valid range.
-  if (Arg *a = args.getLastArg(options::OPT_tapir_gpu_tpb_EQ))
-    checkThreadsPerBlock(*a, args, diags);
-
   for (OptSpecifier opt :
        {options::OPT_tapir_hip_sramecc_EQ, options::OPT_tapir_hip_xnack_EQ}) {
     if (const Arg *a = args.getLastArg(opt)) {
@@ -402,13 +398,6 @@ parseCommaSeparatedList(StringRef s, DiagnosticsEngine &diags) {
 static void parseKitsuneCommonGPUArgs(KitOptions &opts, const ArgList &args,
                                       const OptTable &optTable,
                                       DiagnosticsEngine &diags) {
-  if (const Arg *a = args.getLastArg(OPT_tapir_gpu_tpb_EQ)) {
-    unsigned n;
-    StringRef val = a->getValue();
-    val.getAsInteger(10, n);
-    opts.setFixedThreadsPerBlock(n);
-  }
-
   opts.setGPUPrefetch(args.hasFlag(OPT_tapir_gpu_prefetch,
                                    OPT_tapir_gpu_no_prefetch,
                                    KitOptions::defaultGPUPrefetch));

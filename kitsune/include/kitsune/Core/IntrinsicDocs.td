@@ -742,18 +742,6 @@ pointer must not be used to examine the returned object directly.
 }];
 }
 
-def KitGPUSetFixedTPBDoc : KitDocIntrinsic {
-  let Category = KitDocCatGPU;
-  let ParamDocs = [
-      KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
-      KitDocParam<"tpb", "The threads per block value">,
-  ];
-  let Descr = [{
-Set a fixed number of threads per block to use when launching kernels generated
-by the tapir target `tt`.
-}];
-}
-
 def KitGPURegisterDevCodeDoc : KitDocIntrinsic {
   let Category = KitDocCatGPU;
   let ParamDocs = [

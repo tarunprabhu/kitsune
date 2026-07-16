@@ -64,14 +64,6 @@ static cl::opt<std::string> clLLD("tapir-lld", cl::init(""),
 
 // ------------------ options common to the GPU tapir targets ------------------
 
-static cl::opt<unsigned> clFixedThreadsPerBlock(
-    "tapir-gpu-tpb", cl::init(0),
-    cl::desc("Use a fixed number of threads per block for all GPU kernel "
-             "launches unless overridden with pragmas. If this is not provided "
-             "the threads per block will be calculated by Kitsune's runtime. "
-             "Can be at most 1024"),
-    cl::cat(cl::catKitClOpts));
-
 static cl::opt<bool>
     clGPUPrefetch("tapir-gpu-prefetch",
                   cl::init(KitOptions::defaultGPUPrefetch),
@@ -219,21 +211,6 @@ static Error validateRequiredListOption(const cl::list<std::string> &clOpt) {
     return Error::success();
 }
 
-// The threads-per-block options must be provided at most once with a value in
-// the range [1,1024]. The options are optional.
-static Error validateThreadsPerBlock(const TTOptions &tto) {
-  auto validate = [](const cl::opt<unsigned> &clOpt) -> Error {
-    if (clOpt.getNumOccurrences())
-      if (clOpt < 1 || clOpt > 1024)
-        return createDiagError(DiagID::ErrOptValueInvalidRange, clOpt.ArgStr,
-                               clOpt, 1, 1024);
-    return Error::success();
-  };
-
-  CHECK(validate(clFixedThreadsPerBlock))
-  ELSE_SUCCESS();
-}
-
 static Error validateSupportBCFiles(TTID tt, const TTOptions &tto) {
   LLVMContext ctx;
   return getSupportModule(tt, tto, ctx).takeError();
@@ -247,8 +224,7 @@ static SmallVector<std::string, 4> makeSmallVector(const Container &c) {
 TTOptions::TTOptions(TTID tt) : tt(tt) {}
 
 Error TTOptions::validateCudaOptions() const {
-  CHECK(validateThreadsPerBlock(*this))
-  ELSE_CHECK(validateRequiredStringOption(clCudaArch))
+  CHECK(validateRequiredStringOption(clCudaArch))
   ELSE_CHECK(validateRequiredStringOption(clCudaRuntimeBCFile))
   ELSE_CHECK(validateStringOption(clCudaVirtArch))
   ELSE_CHECK(validateStringOption(clCudaFeatures))
@@ -263,8 +239,7 @@ Error TTOptions::validateCustomOptions() const {
 }
 
 Error TTOptions::validateHipOptions() const {
-  CHECK(validateThreadsPerBlock(*this))
-  ELSE_CHECK(validateRequiredStringOption(clHipArch))
+  CHECK(validateRequiredStringOption(clHipArch))
   ELSE_CHECK(validateRequiredListOption(clHipRuntimeBCFiles))
   ELSE_CHECK(validateStringOption(clHipFeatures))
   ELSE_CHECK(validateSupportBCFiles(TTID::Hip, *this))
@@ -330,8 +305,6 @@ TTOptions::createFromCommandLine(OptznLevel optznLevel) {
   tto.optLevel = optznLevel;
   tto.fpOpFusionMode = codegen::getFuseFPOps();
   tto.lld = clLLD;
-  if (clFixedThreadsPerBlock)
-    tto.fixedThreadsPerBlock = clFixedThreadsPerBlock;
   tto.gpuPrefetch = clGPUPrefetch;
 
   // Set cuda tapir target options
@@ -361,16 +334,6 @@ TTOptions::createFromCommandLine(OptznLevel optznLevel) {
   // Set opencilk tapir target options
   tto.openCilkRuntimeBCFile = clOpenCilkRuntimeBCFile;
 
-  // FIXME: This is here purely for debugging because it was in HipABI.cpp
-  // originally. It really should go away.
-  if (std::optional<std::string> tpb =
-          sys::Process::GetEnv("KITHIP_THREADS_PER_BLOCK")) {
-    if (clFixedThreadsPerBlock)
-      errs() << "kitsune[hipabi]: Note that KITHIP_THREADS_PER_BLOCK is "
-             << "overriding command line args.\n";
-    tto.fixedThreadsPerBlock = std::stoi(tpb.value());
-  }
-
   return tto;
 }
 
@@ -397,7 +360,6 @@ std::optional<TTOptions> TTOptions::create(const KitOptions &kitOpts,
   tto.lld = kitOpts.getLLD();
 
   // Set tapir target options shared by GPU-centric tapir targets.
-  tto.fixedThreadsPerBlock = kitOpts.getFixedThreadsPerBlock();
   tto.gpuPrefetch = kitOpts.getGPUPrefetch();
 
   // Set cuda tapir target options.
@@ -433,7 +395,6 @@ void TTOptions::print(raw_ostream &os, bool all) const {
   os << "  Optimization level:      " << getOptznLevel() << "\n";
   os << "  FP fusion:               " << getFPOpFusionMode() << "\n";
   if (all || tt == TTID::Cuda || tt == TTID::Hip) {
-    os << "  GPU fixed threads/block: " << getFixedThreadsPerBlock() << "\n";
     os << "  GPU prefetch:            " << getGPUPrefetch() << "\n";
   }
   if (all || tt == TTID::Cuda) {
