@@ -204,7 +204,11 @@ extern "C" void __kithip_finalize(void) {
 
   __kithip_destroy_thread_streams();
   __kitrt_destroy_memory_map(__kithip_mem_destroy);
-  HIP_SAFE_CALL(hipDeviceReset());
+
+  // FIXME: Figure out what why hipDeviceReset() segfaults. There is a probably
+  // some resource cleanup that is not being done correctly.
+  // HIP_SAFE_CALL(hipDeviceReset());
+
   setInitialized(false);
 
   // Finalize the components of Kitsune's runtime that are shared by the
