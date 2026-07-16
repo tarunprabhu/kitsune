@@ -26,7 +26,6 @@
 ; DEFAULT-NEXT: [[ENTRY:.+]]:
 ; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.initialize(i32 2)
 ; DEFAULT-NOT: call {{.+}} @llvm.kit.runtime.set.fixed.tpb(i32 2,
-; DEFAULT: call {{.+}} @llvm.kit.runtime.set.max.tpb(i32 2, i32 1024)
 ; DEFAULT-DAG: %[[HC:.+]] = call {{.+}}@llvm.kit.gpu.register.devcode(i32 2, ptr @[[BUNDLE]])
 ; DEFAULT-NEXT: store ptr %[[HC]], ptr @[[HANDLE]]
 ; DEFAULT-NEXT: %[[HC2:.+]] = load ptr, ptr @[[HANDLE]]
@@ -59,15 +58,6 @@
 ;
 ; TPB-LABEL: define {{.+}} @.kit.cuda.ctor
 ; TPB: call {{.+}} @llvm.kit.runtime.set.fixed.tpb(i32 2, i32 77)
-;
-; ----------------------------------------------------------------------------
-;
-; RUN: opt --tapir=cuda -passes='loop-spawning,kit-ctors' -S %s \
-; RUN:     --tapir-gpu-max-tpb=29 \
-; RUN:     | FileCheck %s -check-prefix MTPB
-;
-; MTPB-LABEL: define {{.+}} @.kit.cuda.ctor
-; MTPB: call {{.+}} @llvm.kit.runtime.set.max.tpb(i32 2, i32 29)
 ;
 ; ----------------------------------------------------------------------------
 

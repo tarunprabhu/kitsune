@@ -167,18 +167,6 @@ Function *detail::GenerateCtorGPU::genCtor(Module &m, GlobalVariable *gBundle,
 
   builder.CreateIntrinsic(Intrinsic::kit_runtime_initialize, ctt);
 
-  // If the MaxThreadsPerBlock has not been set, use a value of 1024 anyway. At
-  // the time of writing, exceeding this value degrades performance. This might
-  // change, and we may even have to set a different value depending on the
-  // specific GPU architecture.
-  //
-  // FIXME: Don't hardcode this value here. Maybe move it to a named constant.
-  unsigned maxTPB = tto.getMaxThreadsPerBlock();
-  if (!maxTPB)
-    maxTPB = 1024;
-  Constant *cTPB = toConstant(maxTPB, ctx);
-  builder.CreateIntrinsic(Intrinsic::kit_runtime_set_max_tpb, {ctt, cTPB});
-
   if (unsigned fixedTPB = tto.getFixedThreadsPerBlock()) {
     Constant *cTPB = toConstant(fixedTPB, ctx);
     builder.CreateIntrinsic(Intrinsic::kit_runtime_set_fixed_tpb, {ctt, cTPB});

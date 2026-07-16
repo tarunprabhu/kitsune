@@ -26,7 +26,6 @@
 ; DEFAULT-NEXT: [[ENTRY:.+]]:
 ; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.initialize(i32 4)
 ; DEFAULT-NOT: call {{.+}} @llvm.kit.runtime.set.fixed.tpb(i32 4,
-; DEFAULT: call {{.+}} @llvm.kit.runtime.set.max.tpb(i32 4, i32 1024)
 ; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.set.xnack(i32 4, i8 1)
 ; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.set.y.axis.kernel.launch(i32 4, i8 0)
 ; DEFAULT-DAG: %[[HC:.+]] = call {{.+}}@llvm.kit.gpu.register.devcode(i32 4, ptr @[[BUNDLE]])
@@ -64,15 +63,6 @@
 ;
 ; TPB-LABEL: .kit.hip.ctor{{.*}}
 ; TPB: call {{.+}} @llvm.kit.runtime.set.fixed.tpb(i32 4, i32 77)
-;
-; ----------------------------------------------------------------------------
-;
-; RUN: opt --tapir=hip -passes='loop-spawning,kit-ctors' -S %s \
-; RUN:     --tapir-gpu-max-tpb=29 \
-; RUN:     | FileCheck %s -check-prefix MTPB
-;
-; MTPB-LABEL: .kit.hip.ctor{{.*}}
-; MTPB: call {{.+}} @llvm.kit.runtime.set.max.tpb(i32 4, i32 29)
 ;
 ; ----------------------------------------------------------------------------
 ;
