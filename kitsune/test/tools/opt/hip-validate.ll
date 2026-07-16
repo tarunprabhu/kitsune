@@ -112,24 +112,6 @@
 ; RUN:         -passes='kit-lowering<O1>' -S %s 2>&1 \
 ; RUN:     | FileCheck %s --check-prefix=RANGE
 ;
-; RUN: not opt --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:         --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
-; RUN:         --tapir-gpu-max-tpb= \
-; RUN:         -passes='kit-lowering<O1>' -S %s 2>&1 \
-; RUN:     | FileCheck %s --check-prefix=TPB
-;
-; RUN: not opt --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:         --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
-; RUN:         --tapir-gpu-max-tpb=0 \
-; RUN:     -passes='kit-lowering<O1>' -S %s 2>&1 \
-; RUN:     | FileCheck %s --check-prefix=RANGE
-;
-; RUN: not opt --tapir=hip --tapir-hip-arch=gfx90c \
-; RUN:         --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
-; RUN:         --tapir-gpu-max-tpb=1025 \
-; RUN:         -passes='kit-lowering<O1>' -S %s 2>&1 \
-; RUN:     | FileCheck %s --check-prefix=RANGE
-;
 ; TPB: for the --tapir-gpu{{(-.+)?}}-tpb option: '{{.*}}' value invalid
 ; RANGE: error: option '--tapir-gpu{{(-.+)?}}-tpb' has value '{{.*}}' not in range [1,1024]
 ;

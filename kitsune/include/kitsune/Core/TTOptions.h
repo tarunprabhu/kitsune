@@ -97,10 +97,6 @@ private:
   /// runtime.
   unsigned fixedThreadsPerBlock = 0;
 
-  /// If this is non-zero, the threads per block will not be allowed to exceed
-  /// this value.
-  unsigned maxThreadsPerBlock = 0;
-
   /// The path to LLD that was built with Kitsune. If clang is invoked from the
   /// build directory, this will be the lld that is in the build directory.
   std::string lld;
@@ -201,7 +197,6 @@ public:
   /// in principle, to any one. For example, the path to LLD is only used by
   /// the hip tapir target.
   unsigned getFixedThreadsPerBlock() const { return fixedThreadsPerBlock; }
-  unsigned getMaxThreadsPerBlock() const { return maxThreadsPerBlock; }
   bool getGPUPrefetch() const { return gpuPrefetch; }
   StringRef getLLD() const { return lld; }
   /// @}

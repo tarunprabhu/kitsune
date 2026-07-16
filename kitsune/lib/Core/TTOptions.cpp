@@ -72,14 +72,6 @@ static cl::opt<unsigned> clFixedThreadsPerBlock(
              "Can be at most 1024"),
     cl::cat(cl::catKitClOpts));
 
-static cl::opt<unsigned> clMaxThreadsPerBlock(
-    "tapir-gpu-max-tpb", cl::init(0),
-    cl::desc(
-        "The maximum number of threads per block to launch. If this is not "
-        "provided, Kitsune's runtime is free to launch as many threads per "
-        "block as it sees fit"),
-    cl::cat(cl::catKitClOpts));
-
 static cl::opt<bool>
     clGPUPrefetch("tapir-gpu-prefetch",
                   cl::init(KitOptions::defaultGPUPrefetch),
@@ -239,7 +231,6 @@ static Error validateThreadsPerBlock(const TTOptions &tto) {
   };
 
   CHECK(validate(clFixedThreadsPerBlock))
-  ELSE_CHECK(validate(clMaxThreadsPerBlock))
   ELSE_SUCCESS();
 }
 
@@ -341,8 +332,6 @@ TTOptions::createFromCommandLine(OptznLevel optznLevel) {
   tto.lld = clLLD;
   if (clFixedThreadsPerBlock)
     tto.fixedThreadsPerBlock = clFixedThreadsPerBlock;
-  if (clMaxThreadsPerBlock)
-    tto.maxThreadsPerBlock = clMaxThreadsPerBlock;
   tto.gpuPrefetch = clGPUPrefetch;
 
   // Set cuda tapir target options
@@ -409,7 +398,6 @@ std::optional<TTOptions> TTOptions::create(const KitOptions &kitOpts,
 
   // Set tapir target options shared by GPU-centric tapir targets.
   tto.fixedThreadsPerBlock = kitOpts.getFixedThreadsPerBlock();
-  tto.maxThreadsPerBlock = kitOpts.getMaxThreadsPerBlock();
   tto.gpuPrefetch = kitOpts.getGPUPrefetch();
 
   // Set cuda tapir target options.
@@ -446,7 +434,6 @@ void TTOptions::print(raw_ostream &os, bool all) const {
   os << "  FP fusion:               " << getFPOpFusionMode() << "\n";
   if (all || tt == TTID::Cuda || tt == TTID::Hip) {
     os << "  GPU fixed threads/block: " << getFixedThreadsPerBlock() << "\n";
-    os << "  GPU max threads/block:   " << getMaxThreadsPerBlock() << "\n";
     os << "  GPU prefetch:            " << getGPUPrefetch() << "\n";
   }
   if (all || tt == TTID::Cuda) {

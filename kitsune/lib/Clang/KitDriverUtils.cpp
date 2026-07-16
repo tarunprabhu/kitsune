@@ -290,9 +290,6 @@ void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
   if (Arg *a = args.getLastArg(options::OPT_tapir_gpu_tpb_EQ))
     checkThreadsPerBlock(*a, args, diags);
 
-  if (Arg *a = args.getLastArg(options::OPT_tapir_gpu_max_tpb_EQ))
-    checkThreadsPerBlock(*a, args, diags);
-
   for (OptSpecifier opt :
        {options::OPT_tapir_hip_sramecc_EQ, options::OPT_tapir_hip_xnack_EQ}) {
     if (const Arg *a = args.getLastArg(opt)) {
@@ -410,13 +407,6 @@ static void parseKitsuneCommonGPUArgs(KitOptions &opts, const ArgList &args,
     StringRef val = a->getValue();
     val.getAsInteger(10, n);
     opts.setFixedThreadsPerBlock(n);
-  }
-
-  if (const Arg *a = args.getLastArg(OPT_tapir_gpu_max_tpb_EQ)) {
-    unsigned n;
-    StringRef val = a->getValue();
-    val.getAsInteger(10, n);
-    opts.setMaxThreadsPerBlock(n);
   }
 
   opts.setGPUPrefetch(args.hasFlag(OPT_tapir_gpu_prefetch,
