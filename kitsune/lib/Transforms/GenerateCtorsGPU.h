@@ -21,7 +21,17 @@ class GlobalVariable;
 
 namespace detail {
 
-/// Base class to generate ctors/dtors for GPU-centric tapir targets.
+/// Base class to generate ctors/dtors for GPU-centric tapir targets. The
+/// default implementation should cover most cases for the cuda and hip tapir
+/// targets. Aside from the pure virtual methods that must be implemented by
+/// subclasses, the two other useful methods that may be overridden are
+/// genCtorBeforeDevCodeRegistration() and genCtorAfterDevCodeRegistration().
+/// Most calls that setup the runtime should be added to the first of these.
+/// genCtorAfterDevCodeRegister is only really necessary if one has to call the
+/// runtime to indicate that the device code has been registered, though there
+/// may be work that needs to be done after the device code has been registered.
+///
+/// NOTE: The default implementations of these methods do nothing.
 class GenerateCtorGPU : public GenerateCtorBase {
 protected:
   const GenerateCtorOptions &genCtorOpts;
@@ -76,7 +86,7 @@ protected:
   ///     genCtorDevCodeRegistration()
   ///     genCtorAfterDevCodeRegistration()
   ///
-  virtual void genCtorBeforeDevCodeRegistration(IRBuilder<> &builder) = 0;
+  virtual void genCtorBeforeDevCodeRegistration(IRBuilder<> &builder);
 
   /// Add additional code to the ctor after the device code and non-const
   /// globals have been registered. Essentially, the structure of the ctor is as
@@ -89,7 +99,7 @@ protected:
   ///
   virtual void genCtorAfterDevCodeRegistration(IRBuilder<> &builder,
                                                GlobalVariable *gBundleHandle,
-                                               const Module &devM) = 0;
+                                               const Module &devM);
 
   /// Generate the ctor. It is the caller's responsibility to append the
   /// returned function to @llvm.global_ctors.

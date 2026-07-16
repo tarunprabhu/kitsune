@@ -103,10 +103,6 @@ protected:
 
   virtual StringRef getBundleSection() const override { return section; }
 
-  virtual void genCtorBeforeDevCodeRegistration(IRBuilder<> &builder) override {
-    // Nothing to be done.
-  }
-
   virtual void genCtorAfterDevCodeRegistration(IRBuilder<> &builder,
                                                GlobalVariable *gBundleHandle,
                                                const Module &devM) override {
@@ -163,41 +159,6 @@ private:
     Constant *cYAxisLaunch = toConstant(uint8_t(genCtorOpts.useYLaunch), ctx);
     builder.CreateIntrinsic(Intrinsic::kit_runtime_set_y_axis_kernel_launch,
                             {ctt, cYAxisLaunch});
-  }
-
-  virtual void genCtorAfterDevCodeRegistration(IRBuilder<> &builder,
-                                               GlobalVariable *gBundleHandle,
-                                               const Module &devM) override {
-    // Nothing to be done.
-  }
-
-  virtual Function *genDtor(Module &m, GlobalVariable *gBundleHandle) override {
-    LLVMContext &ctx = m.getContext();
-    Align align = m.getDataLayout().getPointerABIAlignment(0);
-    PointerType *ptr = PointerType::getUnqual(ctx);
-
-    Constant *ctt = toConstant(tt, ctx);
-
-    Function *dtor = genDtorSkeleton(m);
-    IRBuilder<> builder = getBuilderForSkeleton(dtor);
-
-    Value *handle = builder.CreateAlignedLoad(ptr, gBundleHandle, align);
-    builder.CreateIntrinsic(Intrinsic::kit_gpu_unregister_devcode,
-                            {ctt, handle});
-
-#if 0
-  // FIXME: There is a bug here which seems to cause use-after-free errors in
-  // Kitsune's runtime. It is not entirely clear where exactly the problem is.
-  // This causes the kitsune-test-suite to consistently fail. In the interest of
-  // having the test suite actually be useful, don't generate the call to
-  // finalize the runtime until we can figure out exactly what is going on
-  // there.
-  builder.CreateCall(Intrinsic::kit_runtime_finalize, ctt);
-#endif // 0
-
-    // We don't need to do anything more because genCtorSkeleton() will have set
-    // up dedicated exit blocks and return instructions already.
-    return dtor;
   }
 
 public:

@@ -139,6 +139,11 @@ void detail::GenerateCtorGPU::registerNonConstGlobals(IRBuilder<> &builder,
   }
 }
 
+void detail::GenerateCtorGPU::genCtorBeforeDevCodeRegistration(
+    IRBuilder<> &builder) {
+  // The default implementation does nothing.
+}
+
 void detail::GenerateCtorGPU::genCtorDevCodeRegistration(
     IRBuilder<> &builder, GlobalVariable *gBundle,
     GlobalVariable *gBundleHandle, const Module &devM) {
@@ -153,6 +158,11 @@ void detail::GenerateCtorGPU::genCtorDevCodeRegistration(
   builder.CreateAlignedStore(handle, gBundleHandle, align);
 
   registerNonConstGlobals(builder, handle, devM);
+}
+
+void detail::GenerateCtorGPU::genCtorAfterDevCodeRegistration(
+    IRBuilder<> &builder, GlobalVariable *gBundleHandle, const Module &devM) {
+  // The default implementation does nothing.
 }
 
 Function *detail::GenerateCtorGPU::genCtor(Module &m, GlobalVariable *gBundle,

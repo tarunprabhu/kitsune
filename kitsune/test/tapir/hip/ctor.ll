@@ -35,16 +35,11 @@
 ; DEFAULT-NEXT: ret void
 ; DEFAULT: }
 ;
-; FIXME: There is a bug where calling __kithip_finalize raises a segmentation
-; fault or some other error which looks like memory corruption bug. As a
-; temporary workaround, __kithip_finalize is not called, but it eventually
-; should be once the issue is fixed.
-;
 ; DEFAULT: define internal void @[[DTOR]]()
 ; DEFAULT-NEXT: [[ENTRY:.+]]:
 ; DEFAULT-NEXT: %[[HD:.+]] = load ptr, ptr @[[HANDLE]]
 ; DEFAULT-NEXT: call {{.+}} @llvm.kit.gpu.unregister.devcode(i32 4, ptr %[[HD]])
-; DEFAULT-NOT: call {{.+}} @llvm.kit.runtime.finalize(i32 4)
+; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.finalize(i32 4)
 ; DEFAULT-NEXT: br label %[[EXIT:.+]]
 ; DEFAULT-EMPTY:
 ; DEFAULT-NEXT: [[EXIT]]:
