@@ -130,6 +130,11 @@ public:
   using Timers = std::map<TimerKey, Timer>;
 
 private:
+  // The mutex that guards access to \ref tmap. Depending on how many threads
+  // are in flight, tmap may be being modified while another thread tries to
+  // read from it - which can have unpleasant consequences.
+  std::mutex mtx;
+
   // The names of the timers. These are used to print the results. The timer
   // name cannot be inferred from the id.
   std::map<TimerID, std::string> tnames;
@@ -146,18 +151,22 @@ public:
   Timer &get(TimerID timer, ThreadID thrd, const char *name) {
     TimerKey key(timer, thrd);
     if (tmap.find(key) == tmap.end()) {
-      static std::mutex mtx;
       std::lock_guard<std::mutex> guard(mtx);
-
       tnames[timer] = name;
       tmap.try_emplace(key);
     }
     return tmap.at(key);
   }
 
-  Timer &get(TimerID timer, ThreadID thrd) { return tmap.at({timer, thrd}); }
+  Timer &get(TimerID timer, ThreadID thrd) {
+    std::lock_guard<std::mutex> guard(mtx);
+    return tmap.at({timer, thrd});
+  }
 
   const Timer &get(TimerID timer, ThreadID thrd) const {
+    // We don't guard this with a lock because this will only ever be called
+    // from the global destructor, __kittimer_finalize(), and that is guaranteed
+    // to only run from a single thread.
     return tmap.at({timer, thrd});
   }
 
