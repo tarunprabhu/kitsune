@@ -86,11 +86,6 @@ inline bool __kitrt_verbose_mode(void) {
 }
 
 /**
- * Get the nearest power of 2 that is less than or equal to \p n.
- */
-uint32_t nearestPowerOf2LE(uint32_t n);
-
-/**
  * *** EXPERIMENTAL: This is a new interface between the compiler and
  * the runtime.  It is a quick set of details regarding the particular
  * instruction mix of a kernel and any device-side functions it calls.
