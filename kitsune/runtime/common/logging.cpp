@@ -116,14 +116,12 @@ void kitrt::log(const char *tag, const char *msg, ...) {
 
 void kitrt::logEarly(const char *tag, const char *msg, ...) {
   auto isVerbose = []() -> bool {
-    // FIXME: If KIT_VERBOSE=0, this will nevertheless look for KITRT_VERBOSE.
-    // This is wrong! It should look for either one, or the other.
     if (std::optional<bool> verbose = envLookup<bool>("KIT_VERBOSE"))
-      if (*verbose)
-        return true;
-    if (std::optional<bool> verbose = envLookup<bool>("KITRT_VERBOSE"))
       return *verbose;
-    return false;
+    else if (std::optional<bool> verbose = envLookup<bool>("KITRT_VERBOSE"))
+      return *verbose;
+    else
+      return false;
   };
 
   if (isVerbose()) {

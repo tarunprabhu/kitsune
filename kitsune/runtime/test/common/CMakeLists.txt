@@ -1,4 +1,5 @@
 set(TESTS
+  envVerbose.c
   logEarly.cpp
   logEarlyNoTag.cpp
   logError.cpp

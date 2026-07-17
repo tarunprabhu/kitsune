@@ -8,16 +8,16 @@
 // RUN:     | FileCheck %s --match-full-lines
 //
 // -----------------------------------------------------------------------------
-// If either KIT_VERBOSE, or KITRT_VERBOSE is set, then early log messages will
-// be written.
-//
-// RUN: env KIT_VERBOSE=0 KITRT_VERBOSE=1 %exe 2>&1 \
-// RUN:     | FileCheck %s --match-full-lines
-// RUN: env KIT_VERBOSE=1 KITRT_VERBOSE=0 %exe 2>&1 \
-// RUN:     | FileCheck %s --match-full-lines
+// KIT_VERBOSE takes priority over KITRT_VERBOSE.
 //
 // RUN: env KIT_VERBOSE=0 KITRT_VERBOSE=0 %exe 2>&1 \
 // RUN:     | FileCheck %s --check-prefix=EMPTY --allow-empty
+// RUN: env KIT_VERBOSE=0 KITRT_VERBOSE=1 %exe 2>&1 \
+// RUN:     | FileCheck %s --check-prefix=EMPTY --allow-empty
+// RUN: env KIT_VERBOSE=1 KITRT_VERBOSE=0 %exe 2>&1 \
+// RUN:     | FileCheck %s --match-full-lines
+// RUN: env KIT_VERBOSE=1 KITRT_VERBOSE=1 %exe 2>&1 \
+// RUN:     | FileCheck %s --match-full-lines
 //
 // -----------------------------------------------------------------------------
 // Log messages should be written to stderr.
