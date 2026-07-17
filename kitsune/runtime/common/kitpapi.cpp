@@ -66,7 +66,7 @@
 #include <string>
 #include <vector>
 
-#define LABEL "kitpapi"
+#define LABEL "kitrt"
 
 using namespace kitrt;
 

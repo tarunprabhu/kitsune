@@ -64,7 +64,7 @@
 
 #include <cassert>
 
-#define LABEL "kitocilk"
+#define LABEL "kitrt: [opencilk]"
 
 using namespace kitrt;
 

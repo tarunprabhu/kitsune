@@ -61,7 +61,7 @@
 #include <cassert>
 #include <string_view>
 
-#define LABEL "kitomp"
+#define LABEL "kitrt: [openmp]"
 
 using namespace kitrt;
 

@@ -76,7 +76,7 @@ namespace kithip_rt {
 kithip_rt_info_t rt_info;
 }
 
-#define LABEL "kithip"
+#define LABEL "kitrt: [hip]"
 
 #ifdef KITHIP_ENABLE_ROCTX
 #error "rocTX is not yet supported."
