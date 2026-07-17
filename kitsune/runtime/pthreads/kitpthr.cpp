@@ -56,6 +56,7 @@
 #include "kitpthr.h"
 #include "common/env.h"
 #include "common/logging.h"
+#include "common/utils.h"
 #include "kitrt.h"
 
 #include <cassert>
@@ -310,7 +311,7 @@ extern "C" void __kitpthr_initialize(void) {
   __kitpapi_initialize(__kitpthr_thread_id);
 #endif // KITRT_PAPI_ENABLED
 
-  getSingleton()->numThreads = __kitrt_num_threads(nullptr);
+  getSingleton()->numThreads = kitrt::getNumThreadsOrCPUs();
 
   // pthreads does not have to be initialized.
 

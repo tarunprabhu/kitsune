@@ -56,6 +56,7 @@
 #include "kitqthr.h"
 #include "common/env.h"
 #include "common/logging.h"
+#include "common/utils.h"
 #include "kitrt.h"
 
 #include <qthread.h>
@@ -63,8 +64,6 @@
 
 #include <cassert>
 #include <vector>
-
-using namespace kitrt;
 
 namespace {
 
@@ -258,10 +257,10 @@ extern "C" void __kitqthr_initialize(void) {
   __kitpapi_initialize(__kitqthr_worker_id);
 #endif // KITRT_PAPI_ENABLED
 
-  uint64_t numThreads = __kitrt_num_threads(nullptr);
+  uint64_t numThreads = kitrt::getNumThreadsOrCPUs();
 
-  envSet("QT_NUM_SHEPHERDS", numThreads);
-  envSet("QT_NUM_WORKERS_PER_SHEPHERD", 1);
+  kitrt::envSet("QT_NUM_SHEPHERDS", numThreads);
+  kitrt::envSet("QT_NUM_WORKERS_PER_SHEPHERD", 1);
 
   LOG("Initializing Qthreads runtime");
   if (qthread_initialize())
