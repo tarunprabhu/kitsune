@@ -60,7 +60,7 @@
 #include <mutex>
 #include <string>
 
-#define LABEL "kithip"
+#define LABEL "kitrt: [hip]"
 
 // Note that there are close bindings between the runtime and compiler and the
 // details of when different settings are enabled/disabled can be driven by the

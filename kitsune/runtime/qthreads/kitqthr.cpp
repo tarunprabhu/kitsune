@@ -64,7 +64,7 @@
 #include <cassert>
 #include <vector>
 
-#define LABEL "kitqthr"
+#define LABEL "kitrt: [qthreads]"
 
 using namespace kitrt;
 

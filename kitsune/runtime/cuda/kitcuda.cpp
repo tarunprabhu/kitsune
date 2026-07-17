@@ -97,7 +97,7 @@ const int KIT_NVTX_LAUNCH = 3;
 const int KIT_NVTX_CLEANUP = 4;
 #endif // KITCUDA_ENABLE_NVTX
 
-#define LABEL "kitcuda"
+#define LABEL "kitrt: [cuda]"
 
 extern "C" {
 

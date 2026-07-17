@@ -59,7 +59,7 @@
 #include "common/logging.h"
 #include "kitrt.h"
 
-#define LABEL "kitser"
+#define LABEL "kitrt: [serial]"
 
 using namespace kitrt;
 

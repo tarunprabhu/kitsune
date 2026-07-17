@@ -63,7 +63,7 @@
 #include <pthread.h>
 #include <vector>
 
-#define LABEL "kitpthr"
+#define LABEL "kitrt: [pthreads]"
 
 using namespace kitrt;
 
