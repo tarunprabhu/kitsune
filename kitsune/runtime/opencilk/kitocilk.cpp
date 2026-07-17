@@ -71,6 +71,7 @@ extern unsigned __cilkrts_nproc;
 extern "C" unsigned __cilkrts_get_worker_number(void);
 extern "C" unsigned __cilkrts_get_nworkers(void);
 extern "C" void __cilkrts_internal_set_nworkers(unsigned nworkers);
+extern "C" int __cilkrts_is_initialized(void);
 
 namespace {
 
@@ -173,28 +174,40 @@ extern "C" void __kitocilk_initialize(void) {
 #endif // KITRT_PAPI_ENABLED
 
   uint64_t numThreads = __kitrt_num_threads("CILK_NWORKERS");
+  if (__cilkrts_is_initialized()) {
+    LOG("OpenCilk runtime has already been initialized");
+    LOG("Overriding number of workers");
 
-  // If the OpenCilk runtime has already been initialized, the number of workers
-  // will have been set to the number of CPU's detected on the system. In that
-  // case, there is no way to increase the number of workers, though it is still
-  // possible to limit the number of workers to a value less than the number of
-  // CPU's. Since we cannot control the order in which the initializers are run,
-  // for consistency, we always disallow increasing the number of workers beyond
-  // the number of CPU's.
-  uint64_t numCPUs = __kitrt_num_cpus();
-  if (numThreads > __kitrt_num_cpus())
-    FATAL("Number of threads/workers (%d) cannot be greater than number of "
-          "detected CPUs (%d)",
-          numThreads, numCPUs);
+    // If the OpenCilk runtime has already been initialized, the number of
+    // workers will have been set to the number of CPU's detected on the system.
+    // In that case, there is no way to increase the number of workers, though
+    // it is still possible to limit the number of workers to a value less than
+    // the number of CPU's. Since we cannot control the order in which the
+    // initializers are run, for consistency, we always disallow increasing the
+    // number of workers beyond the number of CPU's.
+    uint64_t numCPUs = __kitrt_num_cpus();
+    if (numThreads > __kitrt_num_cpus())
+      FATAL("Number of threads/workers (%d) cannot be greater than number of "
+            "detected CPUs (%d)",
+            numThreads, numCPUs);
 
-  // Both of the lines below are required. __cilkrts_nproc is returned by
-  // __cilkrts_nworkers. But it is not set by __cilkrts_internal_set_nworkers.
-  // If we only call set_nworkers, parallel for loops will use the correct
-  // number of threads, but reductions will not. If we only set __cilkrts_nproc,
-  // reductions will perform the correct number of parallel reductions, but
-  // parallel for loops will not use the correct number of threads.
-  __cilkrts_nproc = numThreads;
-  __cilkrts_internal_set_nworkers(numThreads);
+    // Both of the lines below are required. __cilkrts_nproc is returned by
+    // __cilkrts_nworkers. But it is not set by __cilkrts_internal_set_nworkers.
+    // If we only call set_nworkers, parallel for loops will use the correct
+    // number of threads, but reductions will not. If we only set
+    // __cilkrts_nproc, reductions will perform the correct number of parallel
+    // reductions, but parallel for loops will not use the correct number of
+    // threads.
+    __cilkrts_nproc = numThreads;
+    __cilkrts_internal_set_nworkers(numThreads);
+  } else {
+    // If the OpenCilk runtime has not already been initialized, the simply
+    // setting CILK_NWORKERS in the environment should be sufficient. When the
+    // global ctor for Cheetah runs, it will setup the number of workers
+    // correctly.
+    LOG("OpenCilk runtime has not been initialized");
+    envSet("CILK_NWORKERS", numThreads);
+  }
 
   // There is no way to initialize OpenCilk's runtime explicitly - it is
   // initialized by its own private global constructor. We have no control over
