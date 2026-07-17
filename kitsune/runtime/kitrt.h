@@ -86,11 +86,6 @@ inline bool __kitrt_verbose_mode(void) {
 }
 
 /**
- * Provide a backtrace to stderr to help track down runtime crashes.
- */
-void __kitrt_print_stack_trace(void);
-
-/**
  * Get the nearest power of 2 that is less than or equal to \p n.
  */
 uint32_t nearestPowerOf2LE(uint32_t n);

@@ -56,6 +56,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include "common/utils.h"
 #include "kitrt.h"
 
 #include <cuda.h>
@@ -456,7 +457,7 @@ extern CUcontext _kitcuda_context;
       const char *errName;                                                     \
       cuGetErrorName_p(result, &errName);                                      \
       ERROR("%s:%d", __FILE__, __LINE__);                                      \
-      __kitrt_print_stack_trace();                                             \
+      kitrt::printStackTrace();                                                \
                                                                                \
       ERROR("%s failed ('%s')", #x, errName);                                  \
       const char *errString;                                                   \
