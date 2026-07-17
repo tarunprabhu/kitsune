@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "common/env.h"
+#include "common/utils.h"
 #include "kitrt.h"
 
 #include "gtest/gtest.h"
@@ -20,39 +21,41 @@ TEST(KitrtUtils, num_cpus) {
   // advantage to trying to check that the "correct" value for the number of
   // CPU's is returned because the implementation simply calls
   // std::thread::hardware_concurrency.
-  EXPECT_GE(__kitrt_num_cpus(), 1U);
+  EXPECT_GE(getNumCPUs(), 1U);
 }
 
 TEST(KitrtUtils, num_threads) {
-  uint32_t cpus = __kitrt_num_cpus();
-  EXPECT_EQ(__kitrt_num_threads(nullptr), cpus);
+  uint32_t cpus = getNumCPUs();
+
+  envUnset("KIT_NUM_THREADS");
+  EXPECT_EQ(getNumThreadsOrCPUs(), cpus);
 
   envSet("KIT_NUM_THREADS", 41U);
   envSet("ALTERNATIVE", 97U);
-  EXPECT_EQ(__kitrt_num_threads(nullptr), 41U);
-  EXPECT_EQ(__kitrt_num_threads("ALTERNATIVE"), 41U);
+  EXPECT_EQ(getNumThreadsOrCPUs(), 41U);
+  EXPECT_EQ(getNumThreadsOrCPUs("ALTERNATIVE"), 41U);
 
   envUnset("KIT_NUM_THREADS");
-  EXPECT_EQ(__kitrt_num_threads(nullptr), cpus);
-  EXPECT_EQ(__kitrt_num_threads("ALTERNATIVE"), 97U);
+  EXPECT_EQ(getNumThreadsOrCPUs(), cpus);
+  EXPECT_EQ(getNumThreadsOrCPUs("ALTERNATIVE"), 97U);
 
   envUnset("ALTERNATIVE");
-  EXPECT_EQ(__kitrt_num_threads("KIT_NUM_THREADS"), cpus);
-  EXPECT_EQ(__kitrt_num_threads("ALTERNATIVE"), cpus);
+  EXPECT_EQ(getNumThreadsOrCPUs("KIT_NUM_THREADS"), cpus);
+  EXPECT_EQ(getNumThreadsOrCPUs("ALTERNATIVE"), cpus);
 
   envSet("KIT_NUM_THREADS", "forty-one");
   envSet("ALTERNATIVE", "ninety-seven");
-  EXPECT_EQ(__kitrt_num_threads(nullptr), cpus);
-  EXPECT_EQ(__kitrt_num_threads("ALTERNATIVE"), cpus);
+  EXPECT_EQ(getNumThreadsOrCPUs(), cpus);
+  EXPECT_EQ(getNumThreadsOrCPUs("ALTERNATIVE"), cpus);
 
   envSet("KIT_NUM_THREADS", 0U);
   envSet("ALTERNATIVE", 11U);
-  EXPECT_EQ(__kitrt_num_threads(nullptr), cpus);
-  EXPECT_EQ(__kitrt_num_threads("ALTERNATIVE"), 11U);
+  EXPECT_EQ(getNumThreadsOrCPUs(), cpus);
+  EXPECT_EQ(getNumThreadsOrCPUs("ALTERNATIVE"), 11U);
 
   envSet("KIT_NUM_THREADS", "0");
   envSet("ALTERNATIVE", 0U);
-  EXPECT_EQ(__kitrt_num_threads("ALTERNATIVE"), cpus);
+  EXPECT_EQ(getNumThreadsOrCPUs("ALTERNATIVE"), cpus);
 
   envUnset("KIT_NUM_THREADS");
   envUnset("ALTERNATIVE");

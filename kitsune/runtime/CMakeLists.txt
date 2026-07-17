@@ -13,7 +13,8 @@ add_library(${KITRT_OBJLIB} OBJECT
   memory_map.cpp
   common/env.cpp
   common/logging.cpp
-  common/timer.cpp)
+  common/timer.cpp
+  common/utils.cpp)
 
 add_dependencies(${KITRT_OBJLIB} ${KITRT_DEPENDS})
 

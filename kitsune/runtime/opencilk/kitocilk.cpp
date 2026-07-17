@@ -60,11 +60,10 @@
 #include "kitocilk.h"
 #include "common/env.h"
 #include "common/logging.h"
+#include "common/utils.h"
 #include "kitrt.h"
 
 #include <cassert>
-
-using namespace kitrt;
 
 /// Declare functions and globals from the opencilk runtime that are used here.
 extern unsigned __cilkrts_nproc;
@@ -173,7 +172,7 @@ extern "C" void __kitocilk_initialize(void) {
   __kitpapi_initialize(__kitocilk_worker_id);
 #endif // KITRT_PAPI_ENABLED
 
-  uint64_t numThreads = __kitrt_num_threads("CILK_NWORKERS");
+  uint64_t numThreads = kitrt::getNumThreadsOrCPUs("CILK_NWORKERS");
   if (__cilkrts_is_initialized()) {
     LOG("OpenCilk runtime has already been initialized");
     LOG("Overriding number of workers");
@@ -185,8 +184,8 @@ extern "C" void __kitocilk_initialize(void) {
     // the number of CPU's. Since we cannot control the order in which the
     // initializers are run, for consistency, we always disallow increasing the
     // number of workers beyond the number of CPU's.
-    uint64_t numCPUs = __kitrt_num_cpus();
-    if (numThreads > __kitrt_num_cpus())
+    uint64_t numCPUs = kitrt::getNumCPUs();
+    if (numThreads > numCPUs)
       FATAL("Number of threads/workers (%d) cannot be greater than number of "
             "detected CPUs (%d)",
             numThreads, numCPUs);
@@ -206,7 +205,7 @@ extern "C" void __kitocilk_initialize(void) {
     // global ctor for Cheetah runs, it will setup the number of workers
     // correctly.
     LOG("OpenCilk runtime has not been initialized");
-    envSet("CILK_NWORKERS", numThreads);
+    kitrt::envSet("CILK_NWORKERS", numThreads);
   }
 
   // There is no way to initialize OpenCilk's runtime explicitly - it is

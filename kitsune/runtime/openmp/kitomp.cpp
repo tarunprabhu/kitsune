@@ -52,6 +52,7 @@
 #include "kitomp.h"
 #include "common/env.h"
 #include "common/logging.h"
+#include "common/utils.h"
 #include "kitrt.h"
 
 // This is an internal header in LLVM's OpenMP runtime. The path is relative
@@ -60,8 +61,6 @@
 
 #include <cassert>
 #include <string_view>
-
-using namespace kitrt;
 
 // Since we have included kmp.h, the implementation header for OpenMP, we cannot
 // also include omp.h. Therefore, we have to redeclare the functions from omp.h
@@ -267,8 +266,8 @@ extern "C" void __kitomp_initialize(void) {
   __kitpapi_initialize(__kitomp_thread_id);
 #endif // KITRT_PAPI_ENABLED
 
-  uint64_t numThreads = __kitrt_num_threads("OMP_NUM_THREADS");
-  envSet("OMP_NUM_THREADS", numThreads);
+  uint64_t numThreads = kitrt::getNumThreadsOrCPUs("OMP_NUM_THREADS");
+  kitrt::envSet("OMP_NUM_THREADS", numThreads);
 
   // The second argument in the call to __kmpc_begin is currently unused, per
   // the 10-year old documentation that seems to be the only kind that is

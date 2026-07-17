@@ -66,7 +66,7 @@ extern "C" {
  * Initialize the core kitsune runtime components that are shared across all the
  * tapir-target-specific runtimes. This is typically called in the global
  * constructor for each target-specific runtime. It is safe to call this
- * multiple times, thought this should be avoided.
+ * multiple times, though this should be avoided.
  */
 void __kitrt_initialize(void);
 
@@ -112,30 +112,6 @@ typedef struct _kitrt_inst_mix_info {
   uint64_t numIntOps;    // Integer operations.
   uint64_t numOtherOps;  // Other operations.
 } KitRTInstMix;
-
-/**
- * Get the number of parallel execution threads to use. This is determined as
- * follows:
- *
- *   - If KIT_NUM_THREADS was set in the environment to a valid value, return
- *     that.
- *
- *   - Otherwise, if \p alternate is not NULL, and it is set in the environment
- *     to a valid value, return that.
- *
- *   - Otherwise, return the value obtained by calling `__kitrt_num_cpus`. This
- *     is guaranteed to be at least 1.
- *
- * A value is valid if it is a positive, base 10 integer, whose value is at most
- * 2^31 - 1.
- */
-uint32_t __kitrt_num_threads(const char *alternate);
-
-/**
- * Get the number of CPU cores on the system. If this could not be determined,
- * return 1.
- */
-uint32_t __kitrt_num_cpus(void);
 
 #ifdef __cplusplus
 } // extern "C"
