@@ -1,25 +1,25 @@
 set(TESTS
   EnvNumThreads.c
-  envVerbose.c
-  logEarly.cpp
-  logEarlyNoTag.cpp
-  logError.cpp
-  logErrorNoTag.cpp
-  logFatal.cpp
-  logFatalNoTag.cpp
-  logNormal.cpp
-  logNormalNoTag.cpp
-  logWarning.cpp
-  logWarningNoTag.cpp
-  timerCannotWriteToFile.c
-  timerDefaultStderr.c
-  timerEmpty.c
-  timerIterateSingleThread.c
-  timerIterateThreads.c
-  timerSingleThread.c
-  timerThreads.c
-  timerWriteToFile.c
-  timerWriteNothingToFile.c
+  EnvVerbose.c
+  LogEarly.cpp
+  LogEarlyNoTag.cpp
+  LogError.cpp
+  LogErrorNoTag.cpp
+  LogFatal.cpp
+  LogFatalNoTag.cpp
+  LogNormal.cpp
+  LogNormalNoTag.cpp
+  LogWarning.cpp
+  LogWarningNoTag.cpp
+  TimerCannotWriteToFile.c
+  TimerDefaultStderr.c
+  TimerEmpty.c
+  TimerIterateSingleThread.c
+  TimerIterateThreads.c
+  TimerSingleThread.c
+  TimerThreads.c
+  TimerWriteToFile.c
+  TimerWriteNothingToFile.c
 )
 
 add_kitrt_systests("${TESTS}")
