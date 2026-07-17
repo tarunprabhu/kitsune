@@ -12,18 +12,19 @@
 //
 // ALTERNATE: Ignoring environment variable 'ALTERNATE' with invalid value
 
+#include "common/utils.h"
 #include "kitrt.h"
 
-#include <stdlib.h>
+#include <cstdlib>
 
 __attribute__((constructor)) static void ctor(void) { __kitrt_initialize(); }
 
 __attribute__((destructor)) static void dtor(void) { __kitrt_finalize(); }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
   if (getenv("ALTERNATE"))
-    __kitrt_num_threads("ALTERNATE");
+    kitrt::getNumThreadsOrCPUs("ALTERNATE");
   else
-    __kitrt_num_threads(NULL);
+    kitrt::getNumThreadsOrCPUs(NULL);
   return 0;
 }

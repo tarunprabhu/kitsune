@@ -1,4 +1,4 @@
-//=- kitrt.h - Routines common to several of Kitsune's runtimes --*- C++ -*--=//
+//===- utlis.h - Miscellaneous utilities ------------------------*- C++ -*-===//
 //
 // Copyright (c) 2021, Los Alamos National Security, LLC.
 // All rights reserved.
@@ -47,74 +47,42 @@
 //  SUCH DAMAGE.
 //
 //===----------------------------------------------------------------------===//
+//
+// Some useful utilities that are used by several tapir-target-specific
+// runtimes.
+//
+// TODO: Rather than just dumping a number of unrelated utilities here, we
+// should try to find a more reasonable organization across source files.
+//
+//===----------------------------------------------------------------------===//
 
-#ifndef __KITRT_H__
-#define __KITRT_H__
-
-#include "common/kitpapi.h"
-#include "common/timer.h"
+#ifndef KITRT_COMMON_UTILS_H
+#define KITRT_COMMON_UTILS_H
 
 #include <stdint.h>
 
-#ifdef __cplusplus
-extern "C" {
-#else
-#include <stdbool.h>
-#endif
+namespace kitrt {
 
-/**
- * Initialize the core kitsune runtime components that are shared across all the
- * tapir-target-specific runtimes. This is typically called in the global
- * constructor for each target-specific runtime. It is safe to call this
- * multiple times, though this should be avoided.
- */
-void __kitrt_initialize(void);
+/// Get the number of parallel execution threads to use. This is determined as
+/// follows:
+///
+///   - If KIT_NUM_THREADS was set in the environment to a valid value, return
+///     that.
+///
+///   - Otherwise, if \p alternate is not nullptr, and it is set in the
+///     environment to a valid value, return that.
+///
+///   - Otherwise, return the value obtained by calling \ref getNumCPUs. This
+///     is guaranteed to be at least 1.
+///
+/// A value is valid if it is a positive, base 10 integer, whose value is at
+/// most 2^31 - 1.
+uint32_t getNumThreadsOrCPUs(const char *alternate = nullptr);
 
-/**
- * Finalize Kitsune's runtime. This is typically called from the global
- * destructors for individual runtimes such as kitcuda, or kitomp. This can be
- * safely called multiple times.
- */
-void __kitrt_finalize(void);
+/// Get the number of CPU cores on the system. If this cannot be determined for
+/// any reason, return 1.
+uint32_t getNumCPUs(void);
 
-/**
- * Check if the verbose mode has been enabled in Kitsune's runtime.
- */
-inline bool __kitrt_verbose_mode(void) {
-  extern bool _kitrt_verbose_mode;
-  return _kitrt_verbose_mode;
-}
+} // namespace kitrt
 
-/**
- * Provide a backtrace to stderr to help track down runtime crashes.
- */
-void __kitrt_print_stack_trace(void);
-
-/**
- * Get the nearest power of 2 that is less than or equal to \p n.
- */
-uint32_t nearestPowerOf2LE(uint32_t n);
-
-/**
- * *** EXPERIMENTAL: This is a new interface between the compiler and
- * the runtime.  It is a quick set of details regarding the particular
- * instruction mix of a kernel and any device-side functions it calls.
- * It is gathered from the LLVM form of the code (not ptx/s-code) and
- * at this point is limited.  In general we are using to explore
- * impacts on launch parameters.
- * NOTE: Changing this structure has implications on code generation
- * inside the CudaABI component of the compiler -- both must be kept
- * up-to-date.
- */
-typedef struct _kitrt_inst_mix_info {
-  uint64_t numMemoryOps; // Number of memory (read/write) ops.
-  uint64_t numFlops;     // Floating point operations.
-  uint64_t numIntOps;    // Integer operations.
-  uint64_t numOtherOps;  // Other operations.
-} KitRTInstMix;
-
-#ifdef __cplusplus
-} // extern "C"
-#endif // __cplusplus
-
-#endif // __KITRT_H__
+#endif // KITRT_COMMON_UTILS_H

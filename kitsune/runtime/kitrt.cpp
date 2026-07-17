@@ -54,7 +54,6 @@
 
 #include <cstdlib>
 #include <execinfo.h>
-#include <thread>
 
 using namespace kitrt;
 
@@ -118,56 +117,4 @@ uint32_t nearestPowerOf2LE(uint32_t n) {
   while (p <= n)
     p <<= 1;
   return p >> 1;
-}
-
-extern "C" uint32_t __kitrt_num_threads(const char *alternate) {
-  auto warnIfExists = [](const char *envVar) -> void {
-    if (envContains(envVar))
-      WARN("Ignoring environment variable '%s' with invalid value \"%s\"",
-           envVar, envLookup(envVar)->c_str());
-  };
-
-  if (std::optional<uint32_t> threads = envLookup<uint32_t>(envNumThreads)) {
-    if (*threads > 0) {
-      LOG("Environment contains %s=%d", envNumThreads, *threads);
-      return *threads;
-    }
-  }
-
-  // If the environment variable was set, but to an invalid value, issue a
-  // diagnostic since the behavior can be confusing if kitrt silently ignores
-  // variable and the user does not realize their mistake.
-  warnIfExists(envNumThreads);
-
-  if (alternate) {
-    if (std::optional<uint32_t> threads = envLookup<uint32_t>(alternate)) {
-      // If the value is set to zero, don't use it. This is just to be
-      // consistent with the behavior of KIT_NUM_THREADS. It is possible that
-      // the underlying runtime can handle the value, but we don't want to take
-      // that chance.
-      if (*threads > 0) {
-        LOG("Environment contains %s=%d", alternate, *threads);
-        return *threads;
-      }
-    }
-    warnIfExists(alternate);
-  }
-
-  return __kitrt_num_cpus();
-}
-
-extern "C" uint32_t __kitrt_num_cpus(void) {
-  LOG("Determining number of CPUs");
-
-  // The standard says that std::thread::hardware_concurrency() should only be
-  // considered a hint. But it seems to work on the platforms that we care
-  // about. Still, it might be worth using a more reliable method.
-  unsigned cpus = std::thread::hardware_concurrency();
-  if (cpus == 0) {
-    WARN("Could not determine number of CPUs");
-    return 1;
-  }
-
-  LOG("Found %d CPUs", cpus);
-  return cpus;
 }

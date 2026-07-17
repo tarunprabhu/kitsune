@@ -1,5 +1,5 @@
 set(TESTS
-  EnvNumThreads.c
+  EnvNumThreads.cpp
   EnvVerbose.c
   LogEarly.cpp
   LogEarlyNoTag.cpp
