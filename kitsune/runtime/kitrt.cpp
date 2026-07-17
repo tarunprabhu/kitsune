@@ -89,9 +89,6 @@ extern "C" void __kitrt_finalize(void) {
 
   LOG("Finalizing Kitsune runtime (common)");
 
-#ifdef KITRT_PAPI_ENABLED
-  __kitpapi_finalize();
-#endif // KITRT_PAPI_ENABLED
   __kittimer_finalize();
 
   __kitrt_finalized = true;

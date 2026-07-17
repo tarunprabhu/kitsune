@@ -333,6 +333,10 @@ extern "C" void __kitpthr_finalize(void) {
 
   // pthreads does not need to be finalized.
 
+#ifdef KITRT_PAPI_ENABLED
+  __kitpapi_finalize();
+#endif // KITRT_PAPI_ENABLED
+
   // Finalize the components of Kitsune's runtime that are shared by the
   // tapir-target-specific components.
   __kitrt_finalize();
