@@ -68,8 +68,12 @@ protected:
 
   void checkContains() {
     EXPECT_FALSE(envContains("NONEXISTENT"));
-    for (const VarSpec<T> &v : vars)
+    EXPECT_FALSE(envContains("NONEXISTENT", "NOT_THIS_ONE_EITHER"));
+    for (const VarSpec<T> &v : vars) {
       EXPECT_TRUE(envContains(v.name()));
+      EXPECT_TRUE(envContains("NONEXISTENT", v.name()));
+      EXPECT_TRUE(envContains(v.name(), "NONEXISTENT"));
+    }
   }
 
   void checkLookup() {
@@ -77,9 +81,16 @@ protected:
     for (const VarSpec<T> &v : vars) {
       if (v.valid()) {
         EXPECT_TRUE(envLookup<T>(v.name()).has_value());
+        EXPECT_TRUE(envLookup<T>("NONEXISTENT", v.name()).has_value());
+        EXPECT_TRUE(envLookup<T>(v.name(), "NONEXISTENT").has_value());
+
         EXPECT_EQ(*envLookup<T>(v.name()), v.expected());
+        EXPECT_EQ(*envLookup<T>("NONEXISTENT", v.name()), v.expected());
+        EXPECT_EQ(*envLookup<T>(v.name(), "NONEXISTENT"), v.expected());
       } else {
         EXPECT_FALSE(envLookup<T>(v.name()).has_value());
+        EXPECT_FALSE(envLookup<T>(v.name(), "NONEXISTENT").has_value());
+        EXPECT_FALSE(envLookup<T>("NONEXISTENT", v.name()).has_value());
       }
     }
   }
@@ -121,6 +132,9 @@ TEST_F(EnvBool, envBool) {
   checkLookup();
   checkSet(false);
   checkUnset();
+
+  EXPECT_EQ(*envLookup<bool>("TEST_1", "TEST_5"), true);
+  EXPECT_EQ(*envLookup<bool>("TEST_5", "TEST_1"), false);
 }
 
 class EnvI32 : public EnvBase<int> {
@@ -142,6 +156,9 @@ TEST_F(EnvI32, envInt32) {
   checkLookup();
   checkSet(0xbadc0de);
   checkUnset();
+
+  EXPECT_EQ(*envLookup<int32_t>("TEST_6", "TEST_7"), 1);
+  EXPECT_EQ(*envLookup<int32_t>("TEST_7", "TEST_6"), -1);
 }
 
 class EnvU32 : public EnvBase<unsigned> {
@@ -162,6 +179,9 @@ TEST_F(EnvU32, envUInt32) {
   checkLookup();
   checkSet(0xbadc0de);
   checkUnset();
+
+  EXPECT_EQ(*envLookup<uint32_t>("TEST_3", "TEST_5"), max<uint32_t>());
+  EXPECT_EQ(*envLookup<uint32_t>("TEST_5", "TEST_3"), 1U);
 }
 
 class EnvI64 : public EnvBase<int64_t> {
@@ -183,6 +203,9 @@ TEST_F(EnvI64, envInt64) {
   checkLookup();
   checkSet(0xbadc0dedec0deL);
   checkUnset();
+
+  EXPECT_EQ(*envLookup<int64_t>("TEST_6", "TEST_7"), 1L);
+  EXPECT_EQ(*envLookup<int64_t>("TEST_7", "TEST_6"), -1L);
 }
 
 class EnvU64 : public EnvBase<uint64_t> {
@@ -198,11 +221,14 @@ public:
     add("3.14159");
   }
 };
-TEST_F(EnvI64, envUInt64) {
+TEST_F(EnvU64, envUInt64) {
   checkContains();
   checkLookup();
   checkSet(0xbadc0dedec0deL);
   checkUnset();
+
+  EXPECT_EQ(*envLookup<uint64_t>("TEST_3", "TEST_5"), max<uint64_t>());
+  EXPECT_EQ(*envLookup<uint64_t>("TEST_5", "TEST_3"), 1UL);
 }
 
 class EnvFloat : public EnvBase<float> {
@@ -221,6 +247,9 @@ TEST_F(EnvFloat, envFloat) {
   checkLookup();
   checkSet(2.71828f);
   checkUnset();
+
+  EXPECT_EQ(*envLookup<float>("TEST_2", "TEST_3"), 1.5f);
+  EXPECT_EQ(*envLookup<float>("TEST_3", "TEST_2"), -3.4f);
 }
 
 class EnvDouble : public EnvBase<double> {
@@ -239,6 +268,9 @@ TEST_F(EnvDouble, envDouble) {
   checkLookup();
   checkSet(2.71828);
   checkUnset();
+
+  EXPECT_EQ(*envLookup<double>("TEST_2", "TEST_3"), 1.5);
+  EXPECT_EQ(*envLookup<double>("TEST_3", "TEST_2"), -3.4);
 }
 
 class EnvString : public EnvBase<std::string> {
@@ -261,6 +293,10 @@ TEST_F(EnvString, envString) {
   envSet("TEST_0", "new-str");
   EXPECT_TRUE(envLookup("TEST_0").has_value());
   EXPECT_EQ(envLookup("TEST_0"), "new-str");
+
+  envSet("TEST_1", "other-str");
+  EXPECT_EQ(*envLookup("TEST_0", "TEST_1"), "new-str");
+  EXPECT_EQ(*envLookup("TEST_1", "TEST_0"), "other-str");
 
   envUnset("TEST_0");
   EXPECT_FALSE(getenv("TEST_0"));

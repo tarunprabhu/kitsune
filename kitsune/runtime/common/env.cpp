@@ -59,7 +59,11 @@
 
 using namespace kitrt;
 
-bool kitrt::envContains(const std::string &var) { return getenv(var.c_str()); }
+static bool envContains(const std::string &var) { return getenv(var.c_str()); }
+
+bool kitrt::envContains(const std::string &var, const std::string &alt) {
+  return ::envContains(var) || ::envContains(alt);
+}
 
 template <typename V, typename F, typename... Args>
 static std::optional<V> parseAs(const std::string &s, const std::string &var,
@@ -144,29 +148,57 @@ std::optional<double> parseAs(const std::string &s, const std::string &var) {
   return parseAs<double>(s, var, (Converter *)&std::stod);
 }
 
-std::optional<std::string> kitrt::envLookup(const std::string &var) {
+static std::optional<std::string> envLookup(const std::string &var) {
   if (char *s = getenv(var.c_str()))
     return s;
   return std::nullopt;
 }
 
-template <typename T, std::enable_if_t<std::is_scalar_v<T>, int>>
-std::optional<T> kitrt::envLookup(const std::string &var) {
+std::optional<std::string> kitrt::envLookup(const std::string &var,
+                                            const std::string &alt) {
+  if (std::optional<std::string> v = ::envLookup(var))
+    return v;
+  else if (alt.size())
+    return ::envLookup(alt);
+  else
+    return std::nullopt;
+}
+
+template <typename T, std::enable_if_t<std::is_scalar_v<T>, int> = 0>
+static std::optional<T> envLookup(const std::string &var) {
   if (char *s = getenv(var.c_str()))
     return parseAs<T>(s, var);
   return std::nullopt;
 }
 
+template <typename T, std::enable_if_t<std::is_scalar_v<T>, int>>
+std::optional<T> kitrt::envLookup(const std::string &var,
+                                  const std::string &alt) {
+  if (std::optional<T> v = ::envLookup<T>(var))
+    return v;
+  else if (alt.size())
+    return ::envLookup<T>(alt);
+  else
+    return std::nullopt;
+}
+
 // It is unlikely that we will ever want to parse a non-primitive type from
 // an environment variable. To keep things clean, explicitly initialize all the
 // types that we might need.
-template std::optional<bool> kitrt::envLookup(const std::string &var);
-template std::optional<int32_t> kitrt::envLookup(const std::string &var);
-template std::optional<uint32_t> kitrt::envLookup(const std::string &var);
-template std::optional<int64_t> kitrt::envLookup(const std::string &var);
-template std::optional<uint64_t> kitrt::envLookup(const std::string &var);
-template std::optional<float> kitrt::envLookup(const std::string &var);
-template std::optional<double> kitrt::envLookup(const std::string &var);
+template std::optional<bool> kitrt::envLookup(const std::string &var,
+                                              const std::string &alt);
+template std::optional<int32_t> kitrt::envLookup(const std::string &var,
+                                                 const std::string &alt);
+template std::optional<uint32_t> kitrt::envLookup(const std::string &var,
+                                                  const std::string &alt);
+template std::optional<int64_t> kitrt::envLookup(const std::string &var,
+                                                 const std::string &alt);
+template std::optional<uint64_t> kitrt::envLookup(const std::string &var,
+                                                  const std::string &alt);
+template std::optional<float> kitrt::envLookup(const std::string &var,
+                                               const std::string &alt);
+template std::optional<double> kitrt::envLookup(const std::string &var,
+                                                const std::string &alt);
 
 void kitrt::envSet(const std::string &var, const std::string &val) {
   LOG("Setting in environment: %s=%s", var.c_str(), val.c_str());

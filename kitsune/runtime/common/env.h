@@ -62,24 +62,30 @@
 namespace kitrt {
 
 /**
- * Check if an variable named \p var has been set in the environment. The
- * value of the variable is irrelevant.
+ * Return `true` if either a variable named \p var, or, if it has been provided,
+ * one named \p alt () has been set in the environment. Return `false`
+ * otherwise.
  */
-bool envContains(const std::string &var);
+bool envContains(const std::string &var, const std::string &alt = "");
 
 /**
- * Read the value of the environment variable \p var and return it as-is.. If
- * the variable does not exist in the environment, return `std::nullopt`.
+ * Read the value of the variable \p var from the environment and return it
+ * as-is. If the variable does not exist, and \p alt has been given, read the
+ * value of \p alt from the environment. If that does not exist either, return
+ * `std::nullopt`.
  */
-std::optional<std::string> envLookup(const std::string &var);
+std::optional<std::string> envLookup(const std::string &var,
+                                     const std::string &alt = "");
 
 /**
- * Read the value of the environment variable \p var which is expected to be
- * of type \p ValueType. If the variable does not exist in the environment, or
- * if it cannot be parsed as a \p ValueType, return `std::nullopt`.
+ * Read the value of the variable \p var from the environment. It is expected to
+ * be of type \tparam T. If the variable does not exist in the environment, or
+ * if it cannot be parsed into a value of type \tparam T, and \p alt has been
+ * provided, perform \p alt. If that, too, fails to yield a valid value of type
+ * \tparam T, return `std::nullopt`.
  */
 template <typename T, std::enable_if_t<std::is_scalar_v<T>, int> = 0>
-std::optional<T> envLookup(const std::string &var);
+std::optional<T> envLookup(const std::string &var, const std::string &alt = "");
 
 /**
  * Set a variable to the given value in the environment. If the variable has

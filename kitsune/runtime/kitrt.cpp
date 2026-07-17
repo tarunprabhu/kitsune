@@ -85,12 +85,11 @@ extern "C" void __kitrt_initialize(void) {
 
   LOGEARLY("Initializing Kitsune runtime (common)");
 
-  if (std::optional<bool> verbose = envLookup<bool>("KIT_VERBOSE"))
-    _kitrt_verbose_mode = *verbose;
-  else if (std::optional<bool> verbose = envLookup<bool>("KITRT_VERBOSE"))
-    _kitrt_verbose_mode = *verbose;
+  _kitrt_verbose_mode =
+      envLookup<bool>("KIT_VERBOSE", "KITRT_VERBOSE").value_or(false);
 
-  // This message will only be printed if verbose mode is actually set.
+  // This message will only be printed if verbose mode if _kitrt_verbose_mode
+  // gets set to true above.
   LOG("Verbose mode enabled");
 
   __kittimer_initialize();

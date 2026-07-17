@@ -115,16 +115,7 @@ void kitrt::log(const char *tag, const char *msg, ...) {
 }
 
 void kitrt::logEarly(const char *tag, const char *msg, ...) {
-  auto isVerbose = []() -> bool {
-    if (std::optional<bool> verbose = envLookup<bool>("KIT_VERBOSE"))
-      return *verbose;
-    else if (std::optional<bool> verbose = envLookup<bool>("KITRT_VERBOSE"))
-      return *verbose;
-    else
-      return false;
-  };
-
-  if (isVerbose()) {
+  if (envLookup<bool>("KIT_VERBOSE", "KITRT_VERBOSE").value_or(false)) {
     va_list args;
     va_start(args, msg);
     logImpl(tag, nullptr, msg, args);
