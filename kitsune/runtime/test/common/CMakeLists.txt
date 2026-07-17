@@ -25,6 +25,7 @@ set(TESTS
 # These tests call PAPI's API functions directly, and require appropriate
 # include and link options.
 set(TESTS_WITH_PAPI
+  RTPAPIInitFini.c
   PAPIMultipleFini.c
   PAPIMultipleInit.c)
 
