@@ -119,7 +119,7 @@ void __kitcuda_initialize(void) {
     fprintf(stderr, "kitrt: FATAL ERROR - "
                     "unable to resolve dynamic symbols for CUDA!\n");
     fprintf(stderr, "kitrt: aborting.\n");
-    __kitrt_print_stack_trace();
+    kitrt::printStackTrace();
     abort();
   }
 
@@ -131,7 +131,7 @@ void __kitcuda_initialize(void) {
     fprintf(stderr, "kitcuda: FATAL ERROR - "
                     "no suitable CUDA devices found!\n");
     fprintf(stderr, "kitcuda: aborting.\n");
-    __kitrt_print_stack_trace();
+    kitrt::printStackTrace();
     abort();
   }
 

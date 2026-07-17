@@ -83,6 +83,9 @@ uint32_t getNumThreadsOrCPUs(const char *alternate = nullptr);
 /// any reason, return 1.
 uint32_t getNumCPUs(void);
 
+/// Write a stack trace to stderr.
+void printStackTrace(void);
+
 } // namespace kitrt
 
 #endif // KITRT_COMMON_UTILS_H

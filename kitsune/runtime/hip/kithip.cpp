@@ -141,7 +141,7 @@ extern "C" void __kithip_initialize(void) {
   HIP_SAFE_CALL(hipGetDeviceCount(&rt_info.device_count));
   if (rt_info.device_count <= 0) {
     fprintf(stderr, "kitrt[hip]: no suitable hip-enabled devices found!\n");
-    __kitrt_print_stack_trace();
+    kitrt::printStackTrace();
     abort();
   }
 

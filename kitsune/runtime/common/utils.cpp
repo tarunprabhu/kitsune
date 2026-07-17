@@ -60,6 +60,7 @@
 #include "common/env.h"
 #include "common/logging.h"
 
+#include <execinfo.h>
 #include <thread>
 
 using namespace kitrt;
@@ -112,4 +113,17 @@ uint32_t kitrt::getNumCPUs(void) {
 
   LOG("Found %d CPUs", cpus);
   return cpus;
+}
+
+void kitrt::printStackTrace(void) {
+  constexpr int depth = 25;
+  void *trace[depth];
+  int size = backtrace(trace, depth);
+  if (char **strings = backtrace_symbols(trace, size)) {
+    LOG("stack trace (%d frames)", size);
+    for (int i = 0; i < size; ++i)
+      LOG("  %s", strings[i]);
+    LOG("end stack trace");
+    free(strings);
+  }
 }
