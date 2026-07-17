@@ -115,7 +115,7 @@ void kitrt::log(const char *tag, const char *msg, ...) {
 }
 
 void kitrt::logEarly(const char *tag, const char *msg, ...) {
-  if (envLookup<bool>(envVerbose, envVerboseLegacy).value_or(false)) {
+  if (envLookupOr(envVerbose, envVerboseLegacy, false)) {
     va_list args;
     va_start(args, msg);
     logImpl(tag, nullptr, msg, args);

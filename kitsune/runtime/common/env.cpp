@@ -164,6 +164,20 @@ std::optional<std::string> kitrt::envLookup(const std::string &var,
     return std::nullopt;
 }
 
+std::string kitrt::envLookupOr(const std::string &var,
+                               const std::string &defawlt) {
+  if (std::optional<std::string> v = envLookup(var))
+    return *v;
+  return defawlt;
+}
+
+std::string kitrt::envLookupOr(const std::string &var, const std::string &alt,
+                               const std::string &defawlt) {
+  if (std::optional<std::string> v = envLookup(var, alt))
+    return *v;
+  return defawlt;
+}
+
 template <typename T, std::enable_if_t<std::is_scalar_v<T>, int> = 0>
 static std::optional<T> envLookup(const std::string &var) {
   if (char *s = getenv(var.c_str()))
@@ -180,6 +194,21 @@ std::optional<T> kitrt::envLookup(const std::string &var,
     return ::envLookup<T>(alt);
   else
     return std::nullopt;
+}
+
+template <typename T, std::enable_if_t<std::is_scalar_v<T>, int>>
+T kitrt::envLookupOr(const std::string &var, T defawlt) {
+  if (std::optional<T> v = envLookup<T>(var))
+    return *v;
+  return defawlt;
+}
+
+template <typename T, std::enable_if_t<std::is_scalar_v<T>, int>>
+T kitrt::envLookupOr(const std::string &var, const std::string &alt,
+                     T defawlt) {
+  if (std::optional<T> v = envLookup<T>(var, alt))
+    return *v;
+  return defawlt;
 }
 
 // It is unlikely that we will ever want to parse a non-primitive type from
@@ -199,6 +228,29 @@ template std::optional<float> kitrt::envLookup(const std::string &var,
                                                const std::string &alt);
 template std::optional<double> kitrt::envLookup(const std::string &var,
                                                 const std::string &alt);
+
+template bool kitrt::envLookupOr(const std::string &var, bool);
+template int32_t kitrt::envLookupOr(const std::string &var, int32_t);
+template int64_t kitrt::envLookupOr(const std::string &var, int64_t);
+template uint32_t kitrt::envLookupOr(const std::string &var, uint32_t);
+template uint64_t kitrt::envLookupOr(const std::string &var, uint64_t);
+template float kitrt::envLookupOr(const std::string &var, float);
+template double kitrt::envLookupOr(const std::string &var, double);
+
+template bool kitrt::envLookupOr(const std::string &var, const std::string &alt,
+                                 bool);
+template int32_t kitrt::envLookupOr(const std::string &var,
+                                    const std::string &alt, int32_t);
+template int64_t kitrt::envLookupOr(const std::string &var,
+                                    const std::string &alt, int64_t);
+template uint32_t kitrt::envLookupOr(const std::string &var,
+                                     const std::string &alt, uint32_t);
+template uint64_t kitrt::envLookupOr(const std::string &var,
+                                     const std::string &alt, uint64_t);
+template float kitrt::envLookupOr(const std::string &var,
+                                  const std::string &alt, float);
+template double kitrt::envLookupOr(const std::string &var,
+                                   const std::string &alt, double);
 
 void kitrt::envSet(const std::string &var, const std::string &val) {
   LOG("Setting in environment: %s=%s", var.c_str(), val.c_str());

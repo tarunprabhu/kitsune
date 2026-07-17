@@ -108,6 +108,22 @@ protected:
     EXPECT_FALSE(envContains("TEST_0"));
     EXPECT_FALSE(envLookup<T>("TEST_0").has_value());
   }
+
+  void checkAlt(const char *v1, const char *v2, T expV1, T expV2) {
+    EXPECT_EQ(*envLookup<T>(v1, v2), expV1);
+    EXPECT_EQ(*envLookup<T>(v2, v1), expV2);
+    EXPECT_FALSE(envLookup<T>("NONEXISTENT", "NOT_THIS_EITHER").has_value());
+  }
+
+  void checkAltDefault(const char *v1, const char *v2, T expV1, T expV2,
+                       T defawlt) {
+    EXPECT_EQ(envLookupOr(v1, defawlt), expV1);
+    EXPECT_EQ(envLookupOr("NONEXISTENT", defawlt), defawlt);
+
+    EXPECT_EQ(envLookupOr(v1, v2, defawlt), expV1);
+    EXPECT_EQ(envLookupOr(v2, v1, defawlt), expV2);
+    EXPECT_EQ(envLookupOr("NONEXISTENT", "NOT_THIS_EITHER", defawlt), defawlt);
+  }
 };
 
 class EnvBool : public EnvBase<bool> {
@@ -132,9 +148,8 @@ TEST_F(EnvBool, envBool) {
   checkLookup();
   checkSet(false);
   checkUnset();
-
-  EXPECT_EQ(*envLookup<bool>("TEST_1", "TEST_5"), true);
-  EXPECT_EQ(*envLookup<bool>("TEST_5", "TEST_1"), false);
+  checkAlt("TEST_1", "TEST_5", true, false);
+  checkAltDefault("TEST_1", "TEST_5", true, false, true);
 }
 
 class EnvI32 : public EnvBase<int> {
@@ -156,9 +171,8 @@ TEST_F(EnvI32, envInt32) {
   checkLookup();
   checkSet(0xbadc0de);
   checkUnset();
-
-  EXPECT_EQ(*envLookup<int32_t>("TEST_6", "TEST_7"), 1);
-  EXPECT_EQ(*envLookup<int32_t>("TEST_7", "TEST_6"), -1);
+  checkAlt("TEST_6", "TEST_7", 1, -1);
+  checkAltDefault("TEST_6", "TEST_7", 1, -1, -42);
 }
 
 class EnvU32 : public EnvBase<unsigned> {
@@ -179,9 +193,8 @@ TEST_F(EnvU32, envUInt32) {
   checkLookup();
   checkSet(0xbadc0de);
   checkUnset();
-
-  EXPECT_EQ(*envLookup<uint32_t>("TEST_3", "TEST_5"), max<uint32_t>());
-  EXPECT_EQ(*envLookup<uint32_t>("TEST_5", "TEST_3"), 1U);
+  checkAlt("TEST_3", "TEST_5", max<uint32_t>(), 1);
+  checkAltDefault("TEST_3", "TEST_5", max<uint32_t>(), 1, 0xbadc0de);
 }
 
 class EnvI64 : public EnvBase<int64_t> {
@@ -203,9 +216,8 @@ TEST_F(EnvI64, envInt64) {
   checkLookup();
   checkSet(0xbadc0dedec0deL);
   checkUnset();
-
-  EXPECT_EQ(*envLookup<int64_t>("TEST_6", "TEST_7"), 1L);
-  EXPECT_EQ(*envLookup<int64_t>("TEST_7", "TEST_6"), -1L);
+  checkAlt("TEST_6", "TEST_7", 1L, -1L);
+  checkAltDefault("TEST_6", "TEST_7", 1L, -1L, -92831);
 }
 
 class EnvU64 : public EnvBase<uint64_t> {
@@ -226,9 +238,8 @@ TEST_F(EnvU64, envUInt64) {
   checkLookup();
   checkSet(0xbadc0dedec0deL);
   checkUnset();
-
-  EXPECT_EQ(*envLookup<uint64_t>("TEST_3", "TEST_5"), max<uint64_t>());
-  EXPECT_EQ(*envLookup<uint64_t>("TEST_5", "TEST_3"), 1UL);
+  checkAlt("TEST_3", "TEST_5", max<uint64_t>(), 1UL);
+  checkAltDefault("TEST_3", "TEST_5", max<uint64_t>(), 1UL, 0xdefacedfacade);
 }
 
 class EnvFloat : public EnvBase<float> {
@@ -247,9 +258,8 @@ TEST_F(EnvFloat, envFloat) {
   checkLookup();
   checkSet(2.71828f);
   checkUnset();
-
-  EXPECT_EQ(*envLookup<float>("TEST_2", "TEST_3"), 1.5f);
-  EXPECT_EQ(*envLookup<float>("TEST_3", "TEST_2"), -3.4f);
+  checkAlt("TEST_2", "TEST_3", 1.5, -3.4);
+  checkAltDefault("TEST_2", "TEST_3", 1.5, -3.4, 111.10);
 }
 
 class EnvDouble : public EnvBase<double> {
@@ -268,9 +278,8 @@ TEST_F(EnvDouble, envDouble) {
   checkLookup();
   checkSet(2.71828);
   checkUnset();
-
-  EXPECT_EQ(*envLookup<double>("TEST_2", "TEST_3"), 1.5);
-  EXPECT_EQ(*envLookup<double>("TEST_3", "TEST_2"), -3.4);
+  checkAlt("TEST_2", "TEST_3", 1.5, -3.4);
+  checkAltDefault("TEST_2", "TEST_3", 1.5, -3.4, -111.10);
 }
 
 class EnvString : public EnvBase<std::string> {
@@ -297,6 +306,15 @@ TEST_F(EnvString, envString) {
   envSet("TEST_1", "other-str");
   EXPECT_EQ(*envLookup("TEST_0", "TEST_1"), "new-str");
   EXPECT_EQ(*envLookup("TEST_1", "TEST_0"), "other-str");
+  EXPECT_FALSE(envLookup("NONEXISTENT", "NOT_THIS_EITHER").has_value());
+
+  std::string defawlt = "netiher-str";
+  EXPECT_EQ(envLookupOr("TEST_0", defawlt), "new-str");
+  EXPECT_EQ(envLookupOr("NONEXISTENT", defawlt), defawlt);
+
+  EXPECT_EQ(envLookupOr("TEST_0", "TEST_1", defawlt), "new-str");
+  EXPECT_EQ(envLookupOr("TEST_1", "TEST_0", defawlt), "other-str");
+  EXPECT_EQ(envLookupOr("NONEXISTENT", "NOT_THIS_EITHER", defawlt), defawlt);
 
   envUnset("TEST_0");
   EXPECT_FALSE(getenv("TEST_0"));
