@@ -74,7 +74,7 @@ extern "C" void __kitrt_initialize(void) {
   LOGEARLY("Initializing Kitsune runtime (common)");
 
   _kitrt_verbose_mode =
-      envLookup<bool>("KIT_VERBOSE", "KITRT_VERBOSE").value_or(false);
+      envLookup<bool>(envVerbose, envVerboseLegacy).value_or(false);
 
   // This message will only be printed if verbose mode if _kitrt_verbose_mode
   // gets set to true above.
@@ -122,10 +122,8 @@ uint32_t nearestPowerOf2LE(uint32_t n) {
 }
 
 extern "C" uint32_t __kitrt_num_threads(const char *alternate) {
-  const char *primary = "KIT_NUM_THREADS";
-
-  if (std::optional<uint32_t> threads = envLookup<uint32_t>(primary)) {
-    LOG("Environment contains %s=%d", primary, *threads);
+  if (std::optional<uint32_t> threads = envLookup<uint32_t>(envNumThreads)) {
+    LOG("Environment contains %s=%d", envNumThreads, *threads);
     return *threads;
   }
 
