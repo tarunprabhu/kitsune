@@ -83,6 +83,13 @@ uint32_t getNumThreadsOrCPUs(const char *alternate = nullptr);
 /// any reason, return 1.
 uint32_t getNumCPUs(void);
 
+/// Get the nearest power of 2 that is less than or equal to \p n.
+uint32_t nearestPowerOf2LE(uint32_t n);
+
+/// Get the nearest multiple of \p m that is less than or equal to \p n. If
+/// either \p m, or \p n is 0, or if \p m is greater than \p n, return \p m.
+uint32_t nearestMultipleLT(uint32_t m, uint32_t n);
+
 /// Write a stack trace to stderr.
 void printStackTrace(void);
 

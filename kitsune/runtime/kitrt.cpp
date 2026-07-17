@@ -97,10 +97,3 @@ extern "C" void __kitrt_finalize(void) {
   __kitrt_finalized = true;
   LOG("Finalized Kitsune runtime (common)");
 }
-
-uint32_t nearestPowerOf2LE(uint32_t n) {
-  uint64_t p = 1;
-  while (p <= n)
-    p <<= 1;
-  return p >> 1;
-}

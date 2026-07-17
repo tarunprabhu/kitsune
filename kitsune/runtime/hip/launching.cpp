@@ -157,10 +157,6 @@ void __kithip_get_kern_attrs(kithip_kern_attrs_t &attrs, hipFunction_t kfunc) {
                                     kfunc));
 }
 
-// We currently borrow this from the kitcuda runtime... It should probably
-// move up one level to kitrt...
-extern int next_lowest_factor(int n, int m);
-
 int __kithip_reg_analysis(int threads_per_blk, int regs_per_thread,
                           int max_regs_per_block) {
   using namespace kithip_rt;
@@ -321,8 +317,8 @@ static hipStream_t launchKernel2(hipFunction_t f, void **args, size_t tcY,
   // direction separately. This would require a change to the runtime interface.
   // For now, we simply do something that is correct, but probably inefficient.
   unsigned t = sqrt(tpb);
-  unsigned tpbX = nearestPowerOf2LE(t);
-  unsigned tpbY = nearestPowerOf2LE(t);
+  unsigned tpbX = kitrt::nearestPowerOf2LE(t);
+  unsigned tpbY = kitrt::nearestPowerOf2LE(t);
   unsigned tpbZ = 1;
   unsigned bpgX = (tcX + tpbX - 1) / tpbX;
   unsigned bpgY = (tcY + tpbY - 1) / tpbY;
@@ -355,9 +351,9 @@ static hipStream_t launchKernel3(hipFunction_t f, void **args, size_t tcZ,
   // direction separately. This would require a change to the runtime interface.
   // For now, we simply do something that is correct, but probably inefficient.
   unsigned t = cbrt(tpb);
-  unsigned tpbX = nearestPowerOf2LE(t);
-  unsigned tpbY = nearestPowerOf2LE(t);
-  unsigned tpbZ = nearestPowerOf2LE(t);
+  unsigned tpbX = kitrt::nearestPowerOf2LE(t);
+  unsigned tpbY = kitrt::nearestPowerOf2LE(t);
+  unsigned tpbZ = kitrt::nearestPowerOf2LE(t);
   unsigned bpgX = (tcX + tpbX - 1) / tpbX;
   unsigned bpgY = (tcY + tpbY - 1) / tpbY;
   unsigned bpgZ = (tcZ + tpbZ - 1) / tpbZ;
