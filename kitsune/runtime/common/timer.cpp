@@ -244,7 +244,7 @@ extern "C" void __kittimer_finalize(void) {
   };
 
   auto getFile = []() -> FILE * {
-    if (std::optional<std::string> fname = envLookup("KIT_TIMING_FILE")) {
+    if (std::optional<std::string> fname = envLookup(envTimingFile)) {
       if (fname == "-")
         return stdout;
 

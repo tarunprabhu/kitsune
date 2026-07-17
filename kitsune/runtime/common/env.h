@@ -61,60 +61,92 @@
 
 namespace kitrt {
 
-/**
- * Return `true` if either a variable named \p var, or, if it has been provided,
- * one named \p alt () has been set in the environment. Return `false`
- * otherwise.
- */
+/// @{
+/// These are the names of environment variables used to control kitrt's
+/// behavior.
+
+/// If set to a valid, positive integer, the number of threads to use in the
+/// CPU-centric Kitsune runtime.
+static constexpr const char *envNumThreads = "KIT_NUM_THREADS";
+
+/// If set to a valid, positive value, the maximum number of threads per block
+/// to use when launching GPU kernels from the GPU-centric tapir targets. This
+/// maximum value will apply to *all* kernels that are launched.
+static constexpr const char *envMaxThreadsPerBlock = "KIT_MAX_TPB";
+
+/// The name of the file to which to write any information collected by PAPI. If
+/// this is "-", the information will be written to stdout. If no PAPI
+/// information was collected, this will have no effect.
+static constexpr const char *envPAPIFile = "KIT_PAPI_FILE";
+
+/// The name of the file to which to run any timings that were collected. If
+/// this is "-", the timings will be written to stdout.
+static constexpr const char *envTimingFile = "KIT_TIMING_FILE";
+
+/// If set to a valid, positive value, the number of threads per block to use
+/// when launching GPU kernels from the GPU-centric tapir targets. This will use
+/// the same value for *all* kernels that are launched.
+static constexpr const char *envThreadsPerBlock = "KIT_TPB";
+
+/// Enable verbose mode if it is set to a "non-false-y" value. "False-y" values
+/// that are currently recognized are "0", "f", and "false" (all
+/// case-insensitive). Any non-false-y value is interpreted as a "truth-y" value
+/// and will result in verbose mode being enabled.
+static constexpr const char *envVerbose = "KIT_VERBOSE";
+
+/// @}
+
+/// @{
+/// These are the legacy names for environment variables that can be used to
+/// control kitrt's behavior. Their use is discouraged.
+
+static constexpr const char *envVerboseLegacy = "KITRT_VERBOSE";
+
+/// @}
+
+/// Return `true` if either a variable named \p var, or, if it has been
+/// provided, one named \p alt () has been set in the environment. Return
+/// `false` otherwise.
 bool envContains(const std::string &var, const std::string &alt = "");
 
-/**
- * Read the value of the variable \p var from the environment and return it
- * as-is. If the variable does not exist, and \p alt has been given, read the
- * value of \p alt from the environment. If that does not exist either, return
- * `std::nullopt`.
- */
+/// Read the value of the variable \p var from the environment and return it
+/// as-is. If the variable does not exist, and \p alt has been given, read the
+/// value of \p alt from the environment. If that does not exist either, return
+/// `std::nullopt`.
 std::optional<std::string> envLookup(const std::string &var,
                                      const std::string &alt = "");
 
-/**
- * Read the value of the variable \p var from the environment. It is expected to
- * be of type \tparam T. If the variable does not exist in the environment, or
- * if it cannot be parsed into a value of type \tparam T, and \p alt has been
- * provided, perform \p alt. If that, too, fails to yield a valid value of type
- * \tparam T, return `std::nullopt`.
- */
+/// Read the value of the variable \p var from the environment. It is expected
+/// to be of type \tparam T. If the variable does not exist in the environment,
+/// or if it cannot be parsed into a value of type \tparam T, and \p alt has
+/// been provided, perform \p alt. If that, too, fails to yield a valid value of
+/// type
+/// \tparam T, return `std::nullopt`.
 template <typename T, std::enable_if_t<std::is_scalar_v<T>, int> = 0>
 std::optional<T> envLookup(const std::string &var, const std::string &alt = "");
 
-/**
- * Set a variable to the given value in the environment. If the variable has
- * already been set in the environment, the value will be overridden. Note that
- * if the value of the environment variable has already been read by some other
- * part of the runtime, that value will be unaffected.
- *
- * NOTE: This is only available on POSIX systems, but those are the only ones
- * that we currently support.
- */
+/// Set a variable to the given value in the environment. If the variable has
+/// already been set in the environment, the value will be overridden. Note that
+/// if the value of the environment variable has already been read by some other
+/// part of the runtime, that value will be unaffected.
+///
+/// NOTE: This is only available on POSIX systems, but those are the only ones
+/// that we currently support.
 void envSet(const std::string &var, const std::string &s);
 
-/**
- * Set a variable to the given value in the environment. If the variable has
- * already been set in the environment, the value will be overridden. Note that
- * if the value of the environment variable has already been read by some other
- * part of the runtime, that value will be unaffected.
- *
- * NOTE: This is only available on POSIX systems, but those are the only ones
- * that we currently support.
- */
+/// Set a variable to the given value in the environment. If the variable has
+/// already been set in the environment, the value will be overridden. Note that
+/// if the value of the environment variable has already been read by some other
+/// part of the runtime, that value will be unaffected.
+///
+/// NOTE: This is only available on POSIX systems, but those are the only ones
+/// that we currently support.
 template <typename T, std::enable_if_t<std::is_scalar_v<T>, int> = 0>
 void envSet(const std::string &var, const T &value);
 
-/**
- * Unset the value of an environment variable.
- * NOTE: This is only available on POSIX systems, but those are the only ones
- * that we support currently.
- */
+/// Unset the value of an environment variable.
+/// NOTE: This is only available on POSIX systems, but those are the only ones
+/// that we support currently.
 void envUnset(const std::string &var);
 
 } // namespace kitrt
