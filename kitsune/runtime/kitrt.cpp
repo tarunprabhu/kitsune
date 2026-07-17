@@ -87,9 +87,8 @@ extern "C" void __kitrt_initialize(void) {
 
   if (std::optional<bool> verbose = envLookup<bool>("KIT_VERBOSE"))
     _kitrt_verbose_mode = *verbose;
-  if (!_kitrt_verbose_mode)
-    if (std::optional<bool> verbose = envLookup<bool>("KITRT_VERBOSE"))
-      _kitrt_verbose_mode = *verbose;
+  else if (std::optional<bool> verbose = envLookup<bool>("KITRT_VERBOSE"))
+    _kitrt_verbose_mode = *verbose;
 
   // This message will only be printed if verbose mode is actually set.
   LOG("Verbose mode enabled");
