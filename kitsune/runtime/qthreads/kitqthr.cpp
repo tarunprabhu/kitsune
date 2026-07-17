@@ -288,6 +288,10 @@ extern "C" void __kitqthr_finalize(void) {
   qthread_finalize();
   LOG("Finalized Qthreads runtime");
 
+#ifdef KITRT_PAPI_ENABLED
+  __kitpapi_finalize();
+#endif // KITRT_PAPI_ENABLED
+
   // Finalize the components of Kitsune's runtime that are shared by the
   // tapir-target-specific components.
   __kitrt_finalize();

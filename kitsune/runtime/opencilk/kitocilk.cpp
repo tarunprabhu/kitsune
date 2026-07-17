@@ -232,6 +232,10 @@ extern "C" void __kitocilk_finalize(void) {
   // by its own private global destructor. We have no control over when that
   // destructor is run relative to this one.
 
+#ifdef KITRT_PAPI_ENABLED
+  __kitpapi_finalize();
+#endif // KITRT_PAPI_ENABLED
+
   // Finalize the components of Kitsune's runtime that are shared by the
   // tapir-target-specific components.
   __kitrt_finalize();
