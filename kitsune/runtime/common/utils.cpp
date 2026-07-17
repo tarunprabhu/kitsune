@@ -127,3 +127,16 @@ void kitrt::printStackTrace(void) {
     free(strings);
   }
 }
+
+uint32_t kitrt::nearestPowerOf2LE(uint32_t n) {
+  uint64_t p = 1;
+  while (p <= n)
+    p <<= 1;
+  return p >> 1;
+}
+
+uint32_t kitrt::nearestMultipleLT(uint32_t m, uint32_t n) {
+  if (m && n && m < n)
+    return ((n - 1) / m) * m;
+  return m;
+}

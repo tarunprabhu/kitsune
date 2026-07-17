@@ -134,21 +134,6 @@ void __kitcuda_set_default_threads_per_blk(int threads_per_blk) {
 typedef std::unordered_map<std::string, int> KitCudaLaunchParamMap;
 static KitCudaLaunchParamMap _kitcuda_launch_param_map;
 
-namespace {
-
-int next_lowest_factor(int n, int m) {
-  if (n > m && n) {
-    for (int i = n - 1; i != 0; i--) {
-      int r = i % m;
-      if (r == 0)
-        return i;
-    }
-  }
-  return m;
-}
-
-} // namespace
-
 /**
  * Get the launch parameters for a given kernel and trip count based
  * an occupancy-based heuristic.  The behavior of this call will depend
@@ -221,7 +206,7 @@ void __kitcuda_refine_launch_params(size_t trip_count, CUfunction cu_func,
       int warps_per_sm = 4;
       int min_tpb = warp_size * warps_per_sm;
       while (block_count < num_multiprocs && threads_per_blk > min_tpb) {
-        threads_per_blk = next_lowest_factor(threads_per_blk, min_tpb);
+        threads_per_blk = kitrt::nearestMultipleLT(min_tpb, threads_per_blk);
         block_count = (trip_count + threads_per_blk - 1) / threads_per_blk;
         sm_load = ((float)block_count / num_multiprocs) * 100.0;
       }
@@ -379,8 +364,8 @@ static CUstream launchKernel2(CUfunction f, void **args, size_t tcY, size_t tcX,
   // direction separately. This would require a change to the runtime interface.
   // For now, we simply do something that is correct, but probably inefficient.
   unsigned t = sqrt(tpb);
-  unsigned tpbX = nearestPowerOf2LE(t);
-  unsigned tpbY = nearestPowerOf2LE(t);
+  unsigned tpbX = kitrt::nearestPowerOf2LE(t);
+  unsigned tpbY = kitrt::nearestPowerOf2LE(t);
   unsigned tpbZ = 1;
   unsigned bpgX = (tcX + tpbX - 1) / tpbX;
   unsigned bpgY = (tcY + tpbY - 1) / tpbY;
@@ -409,9 +394,9 @@ static CUstream launchKernel3(CUfunction f, void **args, size_t tcZ, size_t tcY,
   // direction separately. This would require a change to the runtime interface.
   // For now, we simply do something that is correct, but probably inefficient.
   unsigned t = cbrt(tpb);
-  unsigned tpbX = nearestPowerOf2LE(t);
-  unsigned tpbY = nearestPowerOf2LE(t);
-  unsigned tpbZ = nearestPowerOf2LE(t);
+  unsigned tpbX = kitrt::nearestPowerOf2LE(t);
+  unsigned tpbY = kitrt::nearestPowerOf2LE(t);
+  unsigned tpbZ = kitrt::nearestPowerOf2LE(t);
   unsigned bpgX = (tcX + tpbX - 1) / tpbX;
   unsigned bpgY = (tcY + tpbY - 1) / tpbY;
   unsigned bpgZ = (tcZ + tpbZ - 1) / tpbZ;

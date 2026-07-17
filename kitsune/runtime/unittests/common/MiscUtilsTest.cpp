@@ -8,7 +8,6 @@
 
 #include "common/env.h"
 #include "common/utils.h"
-#include "kitrt.h"
 
 #include "gtest/gtest.h"
 
@@ -80,6 +79,27 @@ TEST(KitrtUtils, nearestPowerOf2LE) {
   EXPECT_EQ(nearestPowerOf2LE(pow2(31)), 1U << 30);
   EXPECT_EQ(nearestPowerOf2LE(pow2(32) - 1), 1U << 30);
   EXPECT_EQ(nearestPowerOf2LE(pow2(32)), 1U << 31);
+}
+
+TEST(KitrtUtils, nearestMultipleLT) {
+  EXPECT_EQ(nearestMultipleLT(0, 99), 0U);
+  EXPECT_EQ(nearestMultipleLT(99, 0), 99U);
+  EXPECT_EQ(nearestMultipleLT(1, 99), 98U);
+  EXPECT_EQ(nearestMultipleLT(2, 99), 98U);
+  EXPECT_EQ(nearestMultipleLT(3, 99), 96U);
+  EXPECT_EQ(nearestMultipleLT(32, 99), 96U);
+  EXPECT_EQ(nearestMultipleLT(33, 99), 66U);
+  EXPECT_EQ(nearestMultipleLT(34, 99), 68U);
+  EXPECT_EQ(nearestMultipleLT(49, 99), 98U);
+  EXPECT_EQ(nearestMultipleLT(50, 99), 50U);
+  EXPECT_EQ(nearestMultipleLT(51, 99), 51U);
+  EXPECT_EQ(nearestMultipleLT(98, 99), 98U);
+  EXPECT_EQ(nearestMultipleLT(99, 99), 99U);
+  EXPECT_EQ(nearestMultipleLT(100, 99), 100U);
+  EXPECT_EQ(nearestMultipleLT(101, 99), 101U);
+  EXPECT_EQ(nearestMultipleLT(197, 99), 197U);
+  EXPECT_EQ(nearestMultipleLT(198, 99), 198U);
+  EXPECT_EQ(nearestMultipleLT(199, 99), 199U);
 }
 
 } // namespace
