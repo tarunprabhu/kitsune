@@ -60,8 +60,6 @@
 #include <mutex>
 #include <string>
 
-#define LABEL "kitrt: [hip]"
-
 // Note that there are close bindings between the runtime and compiler and the
 // details of when different settings are enabled/disabled can be driven by the
 // compiler via command line arguments and/or language level
@@ -129,7 +127,7 @@ extern "C" void __kithip_enable_xnack() {
     kitrt::envSet("HSA_XNACK", 1);
   }
 
-  kitrt::log(LABEL, "xnack enabled");
+  LOG("xnack enabled");
 }
 
 // Enable/Disable the xnack operation. This setting is largely in the hands of
@@ -139,17 +137,14 @@ extern "C" void __kithip_enable_xnack() {
 extern "C" void __kithip_set_xnack(bool flag) {
   bool xnack_env = kitrt::envContains("HSA_XNACK");
   if (xnack_env != flag) {
-    kitrt::warn(
-        LABEL,
-        "HSA_XNACK setting overriding/conflicting with runtime settings");
-    kitrt::warn(LABEL, "Stability and/or correctness issues may occur");
+    WARN("HSA_XNACK setting overriding/conflicting with runtime settings");
+    WARN("Stability and/or correctness issues may occur");
     kithip_rt::setXnack(xnack_env);
   } else {
     kithip_rt::setXnack(flag);
   }
 
-  kitrt::log(LABEL, "xnack mode is %s",
-             kithip_rt::xnackEnabled() ? "enabled" : "disabled");
+  LOG("xnack mode is %s", kithip_rt::xnackEnabled() ? "enabled" : "disabled");
 }
 
 // Allocate a block of managed memory (UVM) of 'size' bytes.
@@ -172,9 +167,7 @@ extern "C" [[gnu::malloc]] void *__kithip_mem_alloc_managed(size_t size) {
 
   assert(alloced_ptr && "kitrt[hip]: unexpected null allocation!");
 
-  kitrt::log(
-      LABEL,
-      "allocated and registered %ld bytes of managed memory (address = %p)",
+  LOG("allocated and registered %ld bytes of managed memory (address = %p)",
       size, alloced_ptr);
 
   // Attempt to provide the hip/rocm runtime with extra information about the
@@ -301,8 +294,8 @@ extern "C" void *__kithip_mem_gpu_prefetch(void *vp, void *opaque_stream) {
     else
       hip_stream = (hipStream_t)__kithip_get_thread_stream();
 
-    kitrt::log(LABEL, "issue prefetch(address=%p, size=%ld, stream=%p)", vp,
-               size, (void *)hip_stream);
+    LOG("issue prefetch(address=%p, size=%ld, stream=%p)", vp, size,
+        (void *)hip_stream);
 
     HIP_SAFE_CALL(
         hipMemPrefetchAsync(vp, size, kithip_rt::deviceID(), hip_stream));

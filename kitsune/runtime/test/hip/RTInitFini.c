@@ -3,17 +3,17 @@
 // Check that the hip tapir target runtime initializes (and finalizes) the other
 // runtime components correctly.
 //
-// RUN: KIT_VERBOSE=1 %exe 2>&1 | FileCheck %s
+// RUN: env KIT_VERBOSE=1 %exe 2>&1 | FileCheck %s --match-full-lines
 //
-// CHECK: Initializing Kitsune runtime (hip)
-// CHECK: Initializing Kitsune runtime (common)
-// CHECK: Initialized Kitsune runtime (common)
-// CHECK: Initialized Kitsune runtime (hip)
+// CHECK: kitrt: [hip]: Initializing Kitsune runtime (hip)
+// CHECK: kitrt: Initializing Kitsune runtime (common)
+// CHECK: kitrt: Initialized Kitsune runtime (common)
+// CHECK: kitrt: [hip]: Initialized Kitsune runtime (hip)
 // CHECK: Haldeman
-// CHECK: Finalizing Kitsune runtime (hip)
-// CHECK: Finalizing Kitsune runtime (common)
-// CHECK: Finalized Kitsune runtime (common)
-// CHECK: Finalized Kitsune runtime (hip)
+// CHECK: kitrt: [hip]: Finalizing Kitsune runtime (hip)
+// CHECK: kitrt: Finalizing Kitsune runtime (common)
+// CHECK: kitrt: Finalized Kitsune runtime (common)
+// CHECK: kitrt: [hip]: Finalized Kitsune runtime (hip)
 
 #include <stdio.h>
 

@@ -54,9 +54,7 @@
 
 #include <cstdlib>
 #include <cstring>
-#include <type_traits>
-
-#define LABEL "kitrt"
+#include <string>
 
 template <typename T> static constexpr const char *getTypeName();
 template <> constexpr const char *getTypeName<bool>() { return "bool"; }
@@ -93,10 +91,8 @@ template <typename T,
           std::enable_if_t<std::is_integral_v<T> || std::is_floating_point_v<T>,
                            int> = 0>
 static void mobileInitScalar(T *buf, size_t n, T v) {
-  kitrt::logNoEndl(LABEL,
-                   "Setting %ld elements of mobile buffer with type %s to ", n,
-                   getTypeName<T>());
-  kitrt::log(nullptr, getTypeFmt<T>(), v);
+  LOG("Setting %ld elements of mobile buffer with type '%s' to %s", n,
+      getTypeName<T>(), std::to_string(v).c_str());
   for (size_t i = 0; i < n; ++i)
     buf[i] = v;
 }
