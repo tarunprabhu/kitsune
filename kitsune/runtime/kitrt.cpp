@@ -67,18 +67,6 @@ static bool __kitrt_finalized = false;
 // it in a function may be expensive.
 bool _kitrt_verbose_mode = false;
 
-extern "C" void __kitrt_enable_verbose_mode(void) {
-  _kitrt_verbose_mode = true;
-}
-
-extern "C" void __kitrt_disable_verbose_mode(void) {
-  _kitrt_verbose_mode = false;
-}
-
-extern "C" void __kitrt_set_verbose_mode(bool enable) {
-  _kitrt_verbose_mode = enable;
-}
-
 extern "C" void __kitrt_initialize(void) {
   if (__kitrt_initialized)
     return;

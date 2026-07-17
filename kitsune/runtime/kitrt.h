@@ -78,26 +78,6 @@ void __kitrt_initialize(void);
 void __kitrt_finalize(void);
 
 /**
- * Enable verbose mode. This will cause logging messages to be written to
- * standard error.
- */
-void __kitrt_enable_verbose_mode(void);
-
-/**
- * Disable verbose mode.
- */
-void __kitrt_disable_verbose_mode(void);
-
-/**
- * Enable/disable the runtime's verbose mode. __kitrt_initialize() reads the
- * value of the KIT_VERBOSE environment variable. This should only be used
- * if there is need to set that value after the runtime has been initialized.
- *
- * @param enable - if `true` enable verbose mode, disable if `false`.
- */
-void __kitrt_set_verbose_mode(bool enable);
-
-/**
  * Check if the verbose mode has been enabled in Kitsune's runtime.
  */
 inline bool __kitrt_verbose_mode(void) {
