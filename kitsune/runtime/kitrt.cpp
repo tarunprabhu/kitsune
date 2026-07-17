@@ -58,7 +58,6 @@ using namespace kitrt;
 
 // FIXME: Combine all global variables here into a single struct.
 static bool __kitrt_initialized = false;
-static bool __kitrt_finalized = false;
 
 // This should be private. However, we expose it because it is examined often by
 // most runtimes to determine whether to print informational messages. Wrapping
@@ -66,8 +65,10 @@ static bool __kitrt_finalized = false;
 bool _kitrt_verbose_mode = false;
 
 extern "C" void __kitrt_initialize(void) {
-  if (__kitrt_initialized)
+  if (__kitrt_initialized) {
+    LOG("Runtime already initialized");
     return;
+  }
 
   LOGEARLY("Initializing Kitsune runtime (common)");
 
@@ -84,13 +85,15 @@ extern "C" void __kitrt_initialize(void) {
 }
 
 extern "C" void __kitrt_finalize(void) {
-  if (__kitrt_finalized)
+  if (!__kitrt_initialized) {
+    LOG("Cannot finalize runtime. Not initialized");
     return;
+  }
 
   LOG("Finalizing Kitsune runtime (common)");
 
   __kittimer_finalize();
 
-  __kitrt_finalized = true;
+  __kitrt_initialized = false;
   LOG("Finalized Kitsune runtime (common)");
 }
