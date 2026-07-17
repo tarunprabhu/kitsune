@@ -53,7 +53,6 @@
 #include "common/logging.h"
 
 #include <cstdlib>
-#include <execinfo.h>
 
 using namespace kitrt;
 
@@ -97,19 +96,6 @@ extern "C" void __kitrt_finalize(void) {
 
   __kitrt_finalized = true;
   LOG("Finalized Kitsune runtime (common)");
-}
-
-extern "C" void __kitrt_print_stack_trace(void) {
-  const unsigned depth = 25;
-  void *trace[depth];
-  int size = backtrace(trace, depth);
-  if (char **strings = backtrace_symbols(trace, size)) {
-    LOG("stack trace (%d frames)", size);
-    for (int i = 0; i < size; i++)
-      LOG("  %s", strings[i]);
-    LOG("end stack trace");
-    free(strings);
-  }
 }
 
 uint32_t nearestPowerOf2LE(uint32_t n) {

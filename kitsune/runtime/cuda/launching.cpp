@@ -578,7 +578,7 @@ uint64_t __kitcuda_get_global_symbol(void *fat_bin, const char *sym_name) {
     fprintf(stderr, "  * cuModuleGetGlobal('%s'...) failed\n", msg);
     cuGetErrorString_p(result, &msg);
     fprintf(stderr, "  * error: '%s'\n", msg);
-    __kitrt_print_stack_trace();
+    kitrt::printStackTrace();
     abort();
   }
 

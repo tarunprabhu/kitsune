@@ -55,6 +55,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include "common/utils.h"
 #include "kitrt.h"
 
 #define __HIP_DISABLE_CPP_FUNCTIONS__ // skip extra c++ cruft
@@ -383,7 +384,7 @@ bool __kithip_is_initialized(void);
     hipError_t hip_result = x;                                                 \
     if (hip_result != hipSuccess) {                                            \
       ERROR("%s:%d", __FILE__, __LINE__);                                      \
-      __kitrt_print_stack_trace();                                             \
+      kitrt::printStackTrace();                                                \
       ERROR("%s failed ('%s')", #x, hipGetErrorName(hip_result));              \
       FATAL(hipGetErrorString(hip_result));                                    \
     }                                                                          \
