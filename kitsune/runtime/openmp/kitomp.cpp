@@ -61,8 +61,6 @@
 #include <cassert>
 #include <string_view>
 
-#define LABEL "kitrt: [openmp]"
-
 using namespace kitrt;
 
 // Since we have included kmp.h, the implementation header for OpenMP, we cannot
@@ -177,14 +175,14 @@ extern "C" uint64_t __kitomp_thread_id(void) { return omp_get_thread_num(); }
 extern "C" uint64_t __kitomp_reduce_num_partials(uint64_t n) {
   assert(__kitomp_initialized() && "kitomp initialized");
 
-  log(LABEL, "Calculating number of partial reductions");
+  LOG("Calculating number of partial reductions");
 
   // There might be something smarter that can be done once we support a proper
   // reduction tree, but since we only support a reduction tree of depth 1, we
   // just return the number of CPU's on the system.
   uint64_t numPartials = __kitomp_num_threads();
 
-  log(LABEL, "Number of partial reductions: %d", numPartials);
+  LOG("Number of partial reductions: %d", numPartials);
 
   return numPartials;
 }
@@ -199,7 +197,7 @@ extern "C" uint64_t __kitomp_reduce_num_partials(uint64_t n) {
 static void staticLoopWrapper(int32_t *globalTID, int32_t *localTID,
                               KitOMPThrdFunc f, uint64_t start, uint64_t end,
                               void *args) {
-  log(LABEL, "Running on thread %d of %d [global = %d]", *localTID,
+  LOG("Running on thread %d of %d [global = %d]", *localTID,
       omp_get_num_threads(), *globalTID);
 
   // Since each thread must run exactly one iteration, we can just use the
@@ -234,13 +232,13 @@ extern "C" void __kitomp_launch(KitOMPThrdFunc f, uint64_t start, uint64_t end,
   assert(__kitomp_initialized() && "kitomp initialized");
   assert(start == 0 && end == __kitomp_num_threads() &&
          "__kitomp_launch expects loop iterations in range [0,NUM_THREADS)");
-  log(LABEL, "Launching multithreaded loop: [%ld,%ld)", start, end);
+  LOG("Launching multithreaded loop: [%ld,%ld)", start, end);
 
   // This will launch `omp_get_max_threads()` threads.
   __kmpc_fork_call(&staticLoopLoc, 4, (kmpc_micro)&staticLoopWrapper, f, start,
                    end, args);
 
-  log(LABEL, "Finished multithreaded loop");
+  LOG("Finished multithreaded loop");
 }
 
 /// Check if this runtime has already been initialized.
@@ -249,11 +247,11 @@ extern "C" bool __kitomp_initialized(void) { return getSingleton(); }
 /// Initialize kitsune's OpenMP runtime as well as the actual OpenMP runtime.
 extern "C" void __kitomp_initialize(void) {
   if (__kitomp_initialized()) {
-    log(LABEL, "Runtime already initialized");
+    LOG("Runtime already initialized");
     return;
   }
 
-  logEarly(LABEL, "Initializing Kitsune runtime (openmp)");
+  LOGEARLY("Initializing Kitsune runtime (openmp)");
 
   // Create the global singleton object.
   newSingleton();
@@ -272,28 +270,28 @@ extern "C" void __kitomp_initialize(void) {
   // The second argument in the call to __kmpc_begin is currently unused, per
   // the 10-year old documentation that seems to be the only kind that is
   // available.
-  log(LABEL, "Initializing OpenMP runtime");
+  LOG("Initializing OpenMP runtime");
   __kmpc_begin(&unknownLoc, /*flags=*/0);
-  log(LABEL, "Initialized OpenMP runtime");
+  LOG("Initialized OpenMP runtime");
 
-  log(LABEL, "Number of threads = %d", __kitomp_num_threads());
-  log(LABEL, "Initialized Kitsune runtime (openmp)");
+  LOG("Number of threads = %d", __kitomp_num_threads());
+  LOG("Initialized Kitsune runtime (openmp)");
 }
 
 /// Finalize kitsune's OpenMP runtime, as well as OpenMP runtime.
 extern "C" void __kitomp_finalize(void) {
   if (!__kitomp_initialized()) {
-    log(LABEL, "Cannot finalize runtime. Not initialized");
+    LOG("Cannot finalize runtime. Not initialized");
     return;
   }
 
-  log(LABEL, "Finalizing Kitsune runtime (openmp)");
+  LOG("Finalizing Kitsune runtime (openmp)");
 
   // This call is optional, but we use it anyway for consistency with the other
   // runtimes.
-  log(LABEL, "Finalizing OpenMP runtime");
+  LOG("Finalizing OpenMP runtime");
   __kmpc_end(&unknownLoc);
-  log(LABEL, "Finalized OpenMP runtime");
+  LOG("Finalized OpenMP runtime");
 
   // Finalize the components of Kitsune's runtime that are shared by the
   // tapir-target-specific components.
@@ -302,5 +300,5 @@ extern "C" void __kitomp_finalize(void) {
   // Delete the global singleton object.
   delSingleton();
 
-  log(LABEL, "Finalized Kitsune runtime (openmp)");
+  LOG("Finalized Kitsune runtime (openmp)");
 }

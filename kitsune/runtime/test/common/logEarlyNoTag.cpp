@@ -32,14 +32,9 @@
 //
 // EMPTY-NOT: {{^.+$}}
 //
-// CHECK: kitrt: [test]: Early message
+// CHECK: kitrt: Early message
 //
 // -----------------------------------------------------------------------------
-
-// This must be defined before common/logging.h is included. In the actual kitrt
-// source, this will have been defined by the compiler invocation in the form of
-// a `-DKITRT_LOG_TAG="<...>"` command-line option.
-#define KITRT_LOG_TAG "test"
 
 #include "common/logging.h"
 #include "kitrt.h"

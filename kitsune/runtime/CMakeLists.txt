@@ -59,12 +59,17 @@ if (KITSUNE_PAPI_ENABLED)
 endif ()
 
 if (KITSUNE_CUDA_ENABLED)
-  target_sources(${KITRT_OBJLIB} PUBLIC
+  set (SOURCES
     cuda/kitcuda.cpp
     cuda/dylib_support.cpp
     cuda/launching.cpp
     cuda/memory.cpp
     cuda/streams.cpp)
+
+  set_source_files_properties(${SOURCES}
+    PROPERTIES COMPILE_DEFINITIONS "KITRT_LOG_TAG=\"cuda\"")
+
+  target_sources(${KITRT_OBJLIB} PUBLIC ${SOURCES})
 
   target_include_directories(${KITRT_OBJLIB} SYSTEM PUBLIC
     ${KITSUNE_CUDA_INCDIRS})
@@ -74,12 +79,17 @@ if (KITSUNE_CUDA_ENABLED)
 endif()
 
 if (KITSUNE_HIP_ENABLED)
-  target_sources(${KITRT_OBJLIB} PUBLIC
+  set(SOURCES
     hip/kithip.cpp
     hip/dylib_support.cpp
     hip/launching.cpp
     hip/memory.cpp
     hip/streams.cpp)
+
+  set_source_files_properties(${SOURCES}
+    PROPERTIES COMPILE_DEFINITIONS "KITRT_LOG_TAG=\"hip\"")
+
+  target_sources(${KITRT_OBJLIB} PUBLIC ${SOURCES})
 
   target_compile_definitions(${KITRT_OBJLIB} PUBLIC
     # FIXME: It looks like __HIP_PLATFORM_AMD__ is defined in the kitsune
@@ -96,16 +106,26 @@ if (KITSUNE_HIP_ENABLED)
 endif()
 
 if (KITSUNE_OPENCILK_ENABLED)
-  target_sources(${KITRT_OBJLIB} PUBLIC
+  set(SOURCES
     opencilk/kitocilk.cpp)
+
+  set_source_files_properties(${SOURCES}
+    PROPERTIES COMPILE_DEFINITIONS "KITRT_LOG_TAG=\"opencilk\"")
+
+  target_sources(${KITRT_OBJLIB} PUBLIC ${SOURCES})
 
   target_link_libraries(${KITRT_OBJLIB} PUBLIC
     ${KITSUNE_OPENCILK_LIBS})
 endif ()
 
 if (KITSUNE_OPENMP_ENABLED)
-  target_sources(${KITRT_OBJLIB} PUBLIC
+  set(SOURCES
     openmp/kitomp.cpp)
+
+  set_source_files_properties(${SOURCES}
+    PROPERTIES COMPILE_DEFINITIONS "KITRT_LOG_TAG=\"openmp\"")
+
+  target_sources(${KITRT_OBJLIB} PUBLIC ${SOURCES})
 
   target_include_directories(${KITRT_OBJLIB} SYSTEM PUBLIC
     ${KITSUNE_OPENMP_INCDIRS})
@@ -115,13 +135,23 @@ if (KITSUNE_OPENMP_ENABLED)
 endif ()
 
 if (KITSUNE_PTHREADS_ENABLED)
-  target_sources(${KITRT_OBJLIB} PUBLIC
+  set(SOURCES
     pthreads/kitpthr.cpp)
+
+  set_source_files_properties(${SOURCES}
+    PROPERTIES COMPILE_DEFINITIONS "KITRT_LOG_TAG=\"pthreads\"")
+
+  target_sources(${KITRT_OBJLIB} PUBLIC ${SOURCES})
 endif ()
 
 if (KITSUNE_QTHREADS_ENABLED)
-  target_sources(${KITRT_OBJLIB} PUBLIC
+  set(SOURCES
     qthreads/kitqthr.cpp)
+
+  set_source_files_properties(${SOURCES}
+    PROPERTIES COMPILE_DEFINITIONS "KITRT_LOG_TAG=\"qthreads\"")
+
+  target_sources(${KITRT_OBJLIB} PUBLIC ${SOURCES})
 
   target_include_directories(${KITRT_OBJLIB} SYSTEM PUBLIC
     ${KITSUNE_QTHREADS_INCDIRS})
@@ -131,8 +161,13 @@ if (KITSUNE_QTHREADS_ENABLED)
 endif ()
 
 if (KITSUNE_SERIAL_ENABLED)
-  target_sources(${KITRT_OBJLIB} PUBLIC
+  set(SOURCES
     serial/kitser.cpp)
+
+  set_source_files_properties(${SOURCES}
+    PROPERTIES COMPILE_DEFINITIONS "KITRT_LOG_TAG=\"serial\"")
+
+  target_sources(${KITRT_OBJLIB} PUBLIC ${SOURCES})
 endif ()
 
 add_library(${KITRT_DSO} SHARED

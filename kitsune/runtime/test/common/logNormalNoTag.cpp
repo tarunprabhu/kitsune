@@ -1,23 +1,11 @@
 // -----------------------------------------------------------------------------
-// logEarly works with both KIT_VERBOSE and KITRT_VERBOSE.
+// Log messages are not printed if verbose mode is not enabled.
 //
 // RUN: %exe 2>&1 | FileCheck %s --check-prefix=EMPTY --allow-empty
 // RUN: env KIT_VERBOSE=1 %exe 2>&1 \
 // RUN:     | FileCheck %s --match-full-lines
-// RUN: env KIT_VERBOSE=1 %exe 2>&1 \
+// RUN: env KITRT_VERBOSE=1 %exe 2>&1 \
 // RUN:     | FileCheck %s --match-full-lines
-//
-// -----------------------------------------------------------------------------
-// If either KIT_VERBOSE, or KITRT_VERBOSE is set, then early log messages will
-// be written.
-//
-// RUN: env KIT_VERBOSE=0 KITRT_VERBOSE=1 %exe 2>&1 \
-// RUN:     | FileCheck %s --match-full-lines
-// RUN: env KIT_VERBOSE=1 KITRT_VERBOSE=0 %exe 2>&1 \
-// RUN:     | FileCheck %s --match-full-lines
-//
-// RUN: env KIT_VERBOSE=0 KITRT_VERBOSE=0 %exe 2>&1 \
-// RUN:     | FileCheck %s --check-prefix=EMPTY --allow-empty
 //
 // -----------------------------------------------------------------------------
 // Log messages should be written to stderr.
@@ -32,14 +20,9 @@
 //
 // EMPTY-NOT: {{^.+$}}
 //
-// CHECK: kitrt: [test]: Early message
+// CHECK: kitrt: Log message
 //
 // -----------------------------------------------------------------------------
-
-// This must be defined before common/logging.h is included. In the actual kitrt
-// source, this will have been defined by the compiler invocation in the form of
-// a `-DKITRT_LOG_TAG="<...>"` command-line option.
-#define KITRT_LOG_TAG "test"
 
 #include "common/logging.h"
 #include "kitrt.h"
@@ -49,6 +32,6 @@ __attribute__((constructor)) static void ctor(void) { __kitrt_initialize(); }
 __attribute__((destructor)) static void dtor(void) { __kitrt_finalize(); }
 
 int main(int argc, char *argv[]) {
-  LOGEARLY("Early message");
+  LOG("Log message");
   return 0;
 }

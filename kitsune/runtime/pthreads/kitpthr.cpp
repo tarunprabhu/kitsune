@@ -63,10 +63,6 @@
 #include <pthread.h>
 #include <vector>
 
-#define LABEL "kitrt: [pthreads]"
-
-using namespace kitrt;
-
 /// The type of the pthread start function.
 using PthreadStartFunc = void *(*)(void *);
 
@@ -154,13 +150,13 @@ public:
   const char *lede = "Could not create thread";
   switch (err) {
   case EINVAL:
-    fatal(LABEL, "%s. Invalid attributes", lede);
+    FATAL("%s. Invalid attributes", lede);
   case EAGAIN:
-    fatal(LABEL, "%s. Insufficient resources", lede);
+    FATAL("%s. Insufficient resources", lede);
   case EPERM:
-    fatal(LABEL, "%s. Insufficient permissions", lede);
+    FATAL("%s. Insufficient permissions", lede);
   default:
-    fatal(LABEL, "%s. Unknown error", lede);
+    FATAL("%s. Unknown error", lede);
   }
 }
 
@@ -168,13 +164,13 @@ public:
   const char *lede = "Error joining thread";
   switch (err) {
   case EDEADLK:
-    fatal(LABEL, "%s. Deadlock detected", lede);
+    FATAL("%s. Deadlock detected", lede);
   case EINVAL:
-    fatal(LABEL, "%s. Thread is not joinable", lede);
+    FATAL("%s. Thread is not joinable", lede);
   case ESRCH:
-    fatal(LABEL, "%s. Invalid thread id", lede);
+    FATAL("%s. Invalid thread id", lede);
   default:
-    fatal(LABEL, "%s. Unknown error", lede);
+    FATAL("%s. Unknown error", lede);
   }
 }
 
@@ -192,14 +188,14 @@ extern "C" uint64_t __kitpthr_thread_id(void) { return pthread_self(); }
 /// \param n The trip count of the parallel loop containing a reduction
 extern "C" uint64_t __kitpthr_reduce_num_partials(uint64_t n) {
   assert(__kitpthr_initialized() && "kitpthr initialized");
-  log(LABEL, "Calculating number of partial reductions");
+  LOG("Calculating number of partial reductions");
 
   // There might be something smarter that can be done once we support a proper
   // reduction tree, but since we only support a reduction tree of depth 1, we
   // just use as many partials as there are CPU's on the system.
   uint64_t numPartials = __kitpthr_num_threads();
 
-  log(LABEL, "Number of partial reductions: %d", numPartials);
+  LOG("Number of partial reductions: %d", numPartials);
 
   return numPartials;
 }
@@ -251,7 +247,7 @@ extern "C" KitPthrContext *__kitpthr_launch(KitPthrThrdFunc f, uint64_t start,
   assert(__kitpthr_initialized() && "kitpthr initialized");
   assert(start == 0 && end == __kitpthr_num_threads() &&
          "__kitpthr_launch expects loop iterations in range [0,NUM_THREADS)");
-  log(LABEL, "Launching multithreaded loop: [%ld,%ld)", start, end);
+  LOG("Launching multithreaded loop: [%ld,%ld)", start, end);
 
   uint64_t numThreads = __kitpthr_num_threads();
   KitPthrContextImpl *ctx = new KitPthrContextImpl(numThreads - 1);
@@ -260,12 +256,12 @@ extern "C" KitPthrContext *__kitpthr_launch(KitPthrThrdFunc f, uint64_t start,
     thrd.args = args;
 
     if (pthread_attr_init(&thrd.attr))
-      fatal(LABEL, "Error initializing thread attributes");
+      FATAL("Error initializing thread attributes");
 
     if (int err = pthread_create(&thrd.pthr, &thrd.attr,
                                  (PthreadStartFunc)kitpthrThrdStartFn, &thrd))
       kitpthrHandleCreateError(err);
-    log(LABEL, "Fork thread %ld (%ld)", thrd.tid, thrd.pthr);
+    LOG("Fork thread %ld (%ld)", thrd.tid, thrd.pthr);
   }
   f(numThreads - 1, numThreads, args);
 
@@ -277,13 +273,13 @@ extern "C" KitPthrContext *__kitpthr_launch(KitPthrThrdFunc f, uint64_t start,
 /// case, this function does nothing.
 extern "C" void __kitpthr_sync(KitPthrContext *p) {
   KitPthrContextImpl *ctx = reinterpret_cast<KitPthrContextImpl *>(p);
-  log(LABEL, "Joining %ld threads", ctx->size());
+  LOG("Joining %ld threads", ctx->size());
   for (KitPthrThread &thrd : *ctx) {
     if (int err = pthread_join(thrd.pthr, nullptr))
       kitpthrHandleJoinError(err);
     if (pthread_attr_destroy(&thrd.attr))
-      fatal(LABEL, "Error destroying thread attributes");
-    log(LABEL, "Joined thread %ld (%ld)", thrd.tid, thrd.pthr);
+      FATAL("Error destroying thread attributes");
+    LOG("Joined thread %ld (%ld)", thrd.tid, thrd.pthr);
   }
   delete ctx;
 }
@@ -296,11 +292,11 @@ extern "C" bool __kitpthr_initialized(void) { return getSingleton(); }
 /// ever maintain any other state.
 extern "C" void __kitpthr_initialize(void) {
   if (__kitpthr_initialized()) {
-    log(LABEL, "Runtime already initialized");
+    LOG("Runtime already initialized");
     return;
   }
 
-  logEarly(LABEL, "Initializing Kitsune runtime (pthreads)");
+  LOGEARLY("Initializing Kitsune runtime (pthreads)");
 
   // Create the global singleton object.
   newSingleton();
@@ -317,18 +313,18 @@ extern "C" void __kitpthr_initialize(void) {
 
   // pthreads does not have to be initialized.
 
-  log(LABEL, "Number of threads = %d", __kitpthr_num_threads());
-  log(LABEL, "Initialized Kitsune runtime (pthreads)");
+  LOG("Number of threads = %d", __kitpthr_num_threads());
+  LOG("Initialized Kitsune runtime (pthreads)");
 }
 
 /// Finalize kitsune's pthreads runtime.
 extern "C" void __kitpthr_finalize(void) {
   if (!__kitpthr_initialized()) {
-    log(LABEL, "Cannot finalize runtime. Not initialized");
+    LOG("Cannot finalize runtime. Not initialized");
     return;
   }
 
-  log(LABEL, "Finalizing Kitsune runtime (pthreads)");
+  LOG("Finalizing Kitsune runtime (pthreads)");
 
   // pthreads does not need to be finalized.
 
@@ -339,5 +335,5 @@ extern "C" void __kitpthr_finalize(void) {
   // Delete the global singleton object.
   delSingleton();
 
-  log(LABEL, "Finalized Kitsune runtime (pthreads)");
+  LOG("Finalized Kitsune runtime (pthreads)");
 }

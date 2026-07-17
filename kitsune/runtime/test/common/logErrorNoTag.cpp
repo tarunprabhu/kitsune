@@ -1,6 +1,6 @@
 // -----------------------------------------------------------------------------
-// Warning messages are always written out, even if verbose mode has not been
-// enabled.
+// Error messages are always written out, even if verbose mode has not been
+// enabled. But an error will not result in a failure.
 //
 // RUN: %exe 2>&1 > /dev/null | FileCheck %s --match-full-lines
 // RUN: env KIT_VERBOSE=1 %exe 2>&1 > /dev/null \
@@ -16,14 +16,9 @@
 //
 // EMPTY-NOT: {{^.+$}}
 //
-// CHECK: kitrt: [test]: WARNING: Warning message
+// CHECK: kitrt: ERROR: Error message
 //
 // -----------------------------------------------------------------------------
-
-// This must be defined before common/logging.h is included. In the actual kitrt
-// source, this will have been defined by the compiler invocation in the form of
-// a `-DKITRT_LOG_TAG="<...>"` command-line option.
-#define KITRT_LOG_TAG "test"
 
 #include "common/logging.h"
 #include "kitrt.h"
@@ -33,6 +28,6 @@ __attribute__((constructor)) static void ctor(void) { __kitrt_initialize(); }
 __attribute__((destructor)) static void dtor(void) { __kitrt_finalize(); }
 
 int main(int argc, char *argv[]) {
-  WARN("Warning message");
+  ERROR("Error message");
   return 0;
 }

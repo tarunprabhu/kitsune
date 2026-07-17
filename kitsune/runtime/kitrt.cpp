@@ -56,8 +56,6 @@
 #include <execinfo.h>
 #include <thread>
 
-#define LABEL "kitrt"
-
 using namespace kitrt;
 
 // FIXME: Combine all global variables here into a single struct.
@@ -85,7 +83,7 @@ extern "C" void __kitrt_initialize(void) {
   if (__kitrt_initialized)
     return;
 
-  logEarly(LABEL, "Initializing Kitsune runtime (common)");
+  LOGEARLY("Initializing Kitsune runtime (common)");
 
   if (std::optional<bool> verbose = envLookup<bool>("KIT_VERBOSE"))
     _kitrt_verbose_mode = *verbose;
@@ -94,19 +92,19 @@ extern "C" void __kitrt_initialize(void) {
       _kitrt_verbose_mode = *verbose;
 
   // This message will only be printed if verbose mode is actually set.
-  log(LABEL, "Verbose mode enabled");
+  LOG("Verbose mode enabled");
 
   __kittimer_initialize();
 
   __kitrt_initialized = true;
-  log(LABEL, "Initialized Kitsune runtime (common)");
+  LOG("Initialized Kitsune runtime (common)");
 }
 
 extern "C" void __kitrt_finalize(void) {
   if (__kitrt_finalized)
     return;
 
-  log(LABEL, "Finalizing Kitsune runtime (common)");
+  LOG("Finalizing Kitsune runtime (common)");
 
 #ifdef KITRT_PAPI_ENABLED
   __kitpapi_finalize();
@@ -114,7 +112,7 @@ extern "C" void __kitrt_finalize(void) {
   __kittimer_finalize();
 
   __kitrt_finalized = true;
-  log(LABEL, "Finalized Kitsune runtime (common)");
+  LOG("Finalized Kitsune runtime (common)");
 }
 
 extern "C" void __kitrt_print_stack_trace(void) {
@@ -122,10 +120,10 @@ extern "C" void __kitrt_print_stack_trace(void) {
   void *trace[depth];
   int size = backtrace(trace, depth);
   if (char **strings = backtrace_symbols(trace, size)) {
-    log(LABEL, "stack trace (%d frames)", size);
+    LOG("stack trace (%d frames)", size);
     for (int i = 0; i < size; i++)
-      log(LABEL, "  %s", strings[i]);
-    log(LABEL, "end stack trace");
+      LOG("  %s", strings[i]);
+    LOG("end stack trace");
     free(strings);
   }
 }
@@ -141,13 +139,13 @@ extern "C" uint32_t __kitrt_num_threads(const char *alternate) {
   const char *primary = "KIT_NUM_THREADS";
 
   if (std::optional<uint32_t> threads = envLookup<uint32_t>(primary)) {
-    log(LABEL, "Environment contains %s=%d", primary, *threads);
+    LOG("Environment contains %s=%d", primary, *threads);
     return *threads;
   }
 
   if (alternate) {
     if (std::optional<uint32_t> threads = envLookup<uint32_t>(alternate)) {
-      log(LABEL, "Environment contains %s=%d", alternate, *threads);
+      LOG("Environment contains %s=%d", alternate, *threads);
       return *threads;
     }
   }
@@ -156,17 +154,17 @@ extern "C" uint32_t __kitrt_num_threads(const char *alternate) {
 }
 
 extern "C" uint32_t __kitrt_num_cpus(void) {
-  log(LABEL, "Determining number of CPUs");
+  LOG("Determining number of CPUs");
 
   // The standard says that std::thread::hardware_concurrency() should only be
   // considered a hint. But it seems to work on the platforms that we care
   // about. Still, it might be worth using a more reliable method.
   unsigned cpus = std::thread::hardware_concurrency();
   if (cpus == 0) {
-    warn(LABEL, "Could not determine number of CPUs");
+    WARN("Could not determine number of CPUs");
     return 1;
   }
 
-  log(LABEL, "Found %d CPUs", cpus);
+  LOG("Found %d CPUs", cpus);
   return cpus;
 }

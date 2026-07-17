@@ -57,8 +57,6 @@
 #include <limits>
 #include <stdexcept>
 
-#define LABEL "kitrt"
-
 using namespace kitrt;
 
 bool kitrt::envContains(const std::string &var) { return getenv(var.c_str()); }
@@ -71,16 +69,13 @@ static std::optional<V> parseAs(const std::string &s, const std::string &var,
     V tmp = converter(s, &pos, args...);
     if (pos == s.size())
       return tmp;
-    warn(LABEL,
-         "Ignoring environment variable '%s'. Value contains unparsed "
+    WARN("Ignoring environment variable '%s'. Value contains unparsed "
          "characters",
          var.c_str());
-  } catch (const std::invalid_argument&) {
-    warn(LABEL, "Ignoring environment variable '%s'. Value not valid",
-         var.c_str());
-  } catch (const std::out_of_range&) {
-    warn(LABEL, "Ignoring environment variable '%s'. Value not in range",
-         var.c_str());
+  } catch (const std::invalid_argument &) {
+    WARN("Ignoring environment variable '%s'. Value not valid", var.c_str());
+  } catch (const std::out_of_range &) {
+    WARN("Ignoring environment variable '%s'. Value not in range", var.c_str());
   }
   return std::nullopt;
 }
@@ -104,8 +99,7 @@ std::optional<bool> parseAs(const std::string &s, const std::string &var) {
 
   // FIXME: We should be more strict and reject this, but for now, we are
   // permissive.
-  warn(LABEL,
-       "Environment variable '%s' not set to known boolean. Assuming 'true'",
+  WARN("Environment variable '%s' not set to known boolean. Assuming 'true'",
        var.c_str());
   return true;
 }
@@ -175,9 +169,9 @@ template std::optional<float> kitrt::envLookup(const std::string &var);
 template std::optional<double> kitrt::envLookup(const std::string &var);
 
 void kitrt::envSet(const std::string &var, const std::string &val) {
-  log(LABEL, "Setting in environment: %s=%s", var.c_str(), val.c_str());
+  LOG("Setting in environment: %s=%s", var.c_str(), val.c_str());
   if (setenv(var.c_str(), val.c_str(), 1))
-    warn(LABEL, "Could not set environment variable '%s'", var.c_str());
+    WARN("Could not set environment variable '%s'", var.c_str());
 }
 
 template <typename T, std::enable_if_t<std::is_scalar_v<T>, int>>
@@ -194,7 +188,7 @@ template void kitrt::envSet(const std::string &var, const float &);
 template void kitrt::envSet(const std::string &var, const double &);
 
 void kitrt::envUnset(const std::string &var) {
-  log(LABEL, "Unsetting in environment: %s", var.c_str());
+  LOG("Unsetting in environment: %s", var.c_str());
   if (unsetenv(var.c_str()))
-    warn(LABEL, "Could not unset environment variable '%s'", var.c_str());
+    WARN("Could not unset environment variable '%s'", var.c_str());
 }

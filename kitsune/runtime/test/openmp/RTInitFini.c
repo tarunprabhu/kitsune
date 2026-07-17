@@ -1,17 +1,17 @@
 // Check that the openmp tapir target runtime initializes (and finalizes) the
 // other runtime components correctly.
 //
-// RUN: KIT_VERBOSE=1 %exe 2>&1 | FileCheck %s
+// RUN: env KIT_VERBOSE=1 %exe 2>&1 | FileCheck %s --match-full-lines
 //
-// CHECK: Initializing Kitsune runtime (openmp)
-// CHECK: Initializing Kitsune runtime (common)
-// CHECK: Initialized Kitsune runtime (common)
-// CHECK: Initialized Kitsune runtime (openmp)
+// CHECK: kitrt: [openmp]: Initializing Kitsune runtime (openmp)
+// CHECK: kitrt: Initializing Kitsune runtime (common)
+// CHECK: kitrt: Initialized Kitsune runtime (common)
+// CHECK: kitrt: [openmp]: Initialized Kitsune runtime (openmp)
 // CHECK: Herbert
-// CHECK: Finalizing Kitsune runtime (openmp)
-// CHECK: Finalizing Kitsune runtime (common)
-// CHECK: Finalized Kitsune runtime (common)
-// CHECK: Finalized Kitsune runtime (openmp)
+// CHECK: kitrt: [openmp]: Finalizing Kitsune runtime (openmp)
+// CHECK: kitrt: Finalizing Kitsune runtime (common)
+// CHECK: kitrt: Finalized Kitsune runtime (common)
+// CHECK: kitrt: [openmp]: Finalized Kitsune runtime (openmp)
 
 #include <openmp/kitomp.h>
 

@@ -1,9 +1,14 @@
 set(TESTS
   logEarly.cpp
+  logEarlyNoTag.cpp
   logError.cpp
+  logErrorNoTag.cpp
   logFatal.cpp
+  logFatalNoTag.cpp
   logNormal.cpp
+  logNormalNoTag.cpp
   logWarning.cpp
+  logWarningNoTag.cpp
   timerCannotWriteToFile.c
   timerDefaultStderr.c
   timerEmpty.c

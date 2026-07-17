@@ -71,8 +71,6 @@
 #include <string>
 #include <vector>
 
-#define LABEL "kitrt"
-
 using namespace kitrt;
 
 namespace {
@@ -250,10 +248,10 @@ extern "C" void __kittimer_finalize(void) {
       if (fname == "-")
         return stdout;
 
-      log(LABEL, "Writing timings to file: %s", fname->c_str());
+      LOG("Writing timings to file: %s", fname->c_str());
       FILE *fp = fopen(fname->c_str(), "wt");
       if (!fp)
-        warn(LABEL, "Could not open file for writing");
+        WARN("Could not open file for writing");
       return fp;
     } else {
       return stderr;
@@ -304,7 +302,7 @@ extern "C" void __kittimer_finalize(void) {
       printTimers(fp, ids);
       if (fp != stdout && fp != stderr) {
         fclose(fp);
-        log(LABEL, "Timings written to file");
+        LOG("Timings written to file");
       }
     }
   }

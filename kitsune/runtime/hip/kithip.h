@@ -382,11 +382,10 @@ bool __kithip_is_initialized(void);
   {                                                                            \
     hipError_t hip_result = x;                                                 \
     if (hip_result != hipSuccess) {                                            \
-      kitrt::error("kithip", "%s:%d", __FILE__, __LINE__);                     \
+      ERROR("%s:%d", __FILE__, __LINE__);                                      \
       __kitrt_print_stack_trace();                                             \
-      kitrt::error("kithip", "%s failed ('%s')", #x,                           \
-                   hipGetErrorName(hip_result));                               \
-      kitrt::fatal("kithip", hipGetErrorString(hip_result));                   \
+      ERROR("%s failed ('%s')", #x, hipGetErrorName(hip_result));              \
+      FATAL(hipGetErrorString(hip_result));                                    \
     }                                                                          \
   }
 

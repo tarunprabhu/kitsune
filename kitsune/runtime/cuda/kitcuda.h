@@ -455,13 +455,13 @@ extern CUcontext _kitcuda_context;
     if (result != CUDA_SUCCESS) {                                              \
       const char *errName;                                                     \
       cuGetErrorName_p(result, &errName);                                      \
-      kitrt::error("kitcuda", "%s:%d", __FILE__, __LINE__);                    \
+      ERROR("%s:%d", __FILE__, __LINE__);                                      \
       __kitrt_print_stack_trace();                                             \
                                                                                \
-      kitrt::error("kitcuda", "%s failed ('%s')", #x, errName);                \
+      ERROR("%s failed ('%s')", #x, errName);                                  \
       const char *errString;                                                   \
       cuGetErrorString_p(result, &errString);                                  \
-      kitrt::fatal("kitcuda", errString);                                      \
+      FATAL(errString);                                                        \
     }                                                                          \
   }
 

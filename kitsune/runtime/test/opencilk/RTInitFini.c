@@ -1,17 +1,17 @@
 // Check that the opencilk tapir target runtime initializes (and finalizes) the
 // other runtime components correctly.
 //
-// RUN: KIT_VERBOSE=1 %exe 2>&1 | FileCheck %s
+// RUN: env KIT_VERBOSE=1 %exe 2>&1 | FileCheck %s --match-full-lines
 //
-// CHECK: Initializing Kitsune runtime (opencilk)
-// CHECK: Initializing Kitsune runtime (common)
-// CHECK: Initialized Kitsune runtime (common)
-// CHECK: Initialized Kitsune runtime (opencilk)
+// CHECK: kitrt: [opencilk]: Initializing Kitsune runtime (opencilk)
+// CHECK: kitrt: Initializing Kitsune runtime (common)
+// CHECK: kitrt: Initialized Kitsune runtime (common)
+// CHECK: kitrt: [opencilk]: Initialized Kitsune runtime (opencilk)
 // CHECK: Le Guin
-// CHECK: Finalizing Kitsune runtime (opencilk)
-// CHECK: Finalizing Kitsune runtime (common)
-// CHECK: Finalized Kitsune runtime (common)
-// CHECK: Finalized Kitsune runtime (opencilk)
+// CHECK: kitrt: [opencilk]: Finalizing Kitsune runtime (opencilk)
+// CHECK: kitrt: Finalizing Kitsune runtime (common)
+// CHECK: kitrt: Finalized Kitsune runtime (common)
+// CHECK: kitrt: [opencilk]: Finalized Kitsune runtime (opencilk)
 
 #include <opencilk/kitocilk.h>
 

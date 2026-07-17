@@ -1,17 +1,17 @@
 // Check that the opencilk tapir target runtime initializes (and finalizes) the
 // other runtime components correctly.
 //
-// RUN: KIT_VERBOSE=1 %exe 2>&1 | FileCheck %s
+// RUN: env KIT_VERBOSE=1 %exe 2>&1 | FileCheck %s --match-full-lines
 //
-// CHECK: Initializing Kitsune runtime (serial)
-// CHECK: Initializing Kitsune runtime (common)
-// CHECK: Initialized Kitsune runtime (common)
-// CHECK: Initialized Kitsune runtime (serial)
+// CHECK: kitrt: [serial]: Initializing Kitsune runtime (serial)
+// CHECK: kitrt: Initializing Kitsune runtime (common)
+// CHECK: kitrt: Initialized Kitsune runtime (common)
+// CHECK: kitrt: [serial]: Initialized Kitsune runtime (serial)
 // CHECK: Gibson
-// CHECK: Finalizing Kitsune runtime (serial)
-// CHECK: Finalizing Kitsune runtime (common)
-// CHECK: Finalized Kitsune runtime (common)
-// CHECK: Finalized Kitsune runtime (serial)
+// CHECK: kitrt: [serial]: Finalizing Kitsune runtime (serial)
+// CHECK: kitrt: Finalizing Kitsune runtime (common)
+// CHECK: kitrt: Finalized Kitsune runtime (common)
+// CHECK: kitrt: [serial]: Finalized Kitsune runtime (serial)
 
 #include <serial/kitser.h>
 

@@ -63,80 +63,61 @@
 #include <mutex>
 #include <optional>
 
+using namespace kitrt;
+
 // Write a message to stderr. \p category is optional. If \p is a format string,
 // the variable list of arguments \p args must be of the appropriate types.
-static void logImpl(const char *label, const char *category, bool newline,
-                    const char *msg, va_list args) {
+static void logImpl(const char *tag, const char *category, const char *msg,
+                    va_list args) {
   static std::mutex mtx;
   std::lock_guard<std::mutex> guard(mtx);
 
-  // TODO: It would be nice if we could colorize the label.
-  if (label)
-    fprintf(stderr, "%s: ", label);
+  // TODO: It would be nice if we could colorize the message.
+  fprintf(stderr, "kitrt: ");
+  if (tag)
+    fprintf(stderr, "[%s]: ", tag);
   if (category)
     fprintf(stderr, "%s: ", category);
   vfprintf(stderr, msg, args);
-  if (newline)
-    fprintf(stderr, "\n");
+  fprintf(stderr, "\n");
 }
 
-[[noreturn]] void kitrt::fatal(const char *label, const char *msg, ...) {
+[[noreturn]] void kitrt::fatal(const char *tag, const char *msg, ...) {
   va_list args;
   va_start(args, msg);
-  logImpl(label, "ERROR", true, msg, args);
+  logImpl(tag, "ERROR", msg, args);
   va_end(args);
 
   std::exit(EXIT_FAILURE);
 }
 
-void kitrt::error(const char *label, const char *msg, ...) {
+void kitrt::error(const char *tag, const char *msg, ...) {
   va_list args;
   va_start(args, msg);
-  logImpl(label, "ERROR", true, msg, args);
+  logImpl(tag, "ERROR", msg, args);
   va_end(args);
 }
 
-void kitrt::errorNoEndl(const char *label, const char *msg, ...) {
+void kitrt::warn(const char *tag, const char *msg, ...) {
   va_list args;
   va_start(args, msg);
-  logImpl(label, "ERROR", false, msg, args);
+  logImpl(tag, "WARNING", msg, args);
   va_end(args);
 }
 
-void kitrt::warn(const char *label, const char *msg, ...) {
-  va_list args;
-  va_start(args, msg);
-  logImpl(label, "WARNING", true, msg, args);
-  va_end(args);
-}
-
-void kitrt::warnNoEndl(const char *label, const char *msg, ...) {
-  va_list args;
-  va_start(args, msg);
-  logImpl(label, "WARNING", false, msg, args);
-  va_end(args);
-}
-
-void kitrt::log(const char *label, const char *msg, ...) {
+void kitrt::log(const char *tag, const char *msg, ...) {
   if (__kitrt_verbose_mode()) {
     va_list args;
     va_start(args, msg);
-    logImpl(label, nullptr, true, msg, args);
+    logImpl(tag, nullptr, msg, args);
     va_end(args);
   }
 }
 
-void kitrt::logNoEndl(const char *label, const char *msg, ...) {
-  if (__kitrt_verbose_mode()) {
-    va_list args;
-    va_start(args, msg);
-    logImpl(label, nullptr, false, msg, args);
-    va_end(args);
-  }
-}
-
-void kitrt::logEarly(const char *label, const char *msg) {
+void kitrt::logEarly(const char *tag, const char *msg, ...) {
   auto isVerbose = []() -> bool {
+    // FIXME: If KIT_VERBOSE=0, this will nevertheless look for KITRT_VERBOSE.
+    // This is wrong! It should look for either one, or the other.
     if (std::optional<bool> verbose = envLookup<bool>("KIT_VERBOSE"))
       if (*verbose)
         return true;
@@ -145,6 +126,10 @@ void kitrt::logEarly(const char *label, const char *msg) {
     return false;
   };
 
-  if (isVerbose())
-    fprintf(stderr, "%s: %s\n", label, msg);
+  if (isVerbose()) {
+    va_list args;
+    va_start(args, msg);
+    logImpl(tag, nullptr, msg, args);
+    va_end(args);
+  }
 }

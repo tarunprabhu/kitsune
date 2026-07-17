@@ -59,10 +59,6 @@
 #include "common/logging.h"
 #include "kitrt.h"
 
-#define LABEL "kitrt: [serial]"
-
-using namespace kitrt;
-
 namespace {
 
 class KitSerSingleton;
@@ -116,11 +112,11 @@ extern "C" bool __kitser_initialized(void) { return getSingleton(); }
 /// than initialize the rest of the runtime and initialize PAPI.
 extern "C" void __kitser_initialize(void) {
   if (__kitser_initialized()) {
-    log(LABEL, "Runtime already initialized");
+    LOG("Runtime already initialized");
     return;
   }
 
-  logEarly(LABEL, "Initializing Kitsune runtime (serial)");
+  LOGEARLY("Initializing Kitsune runtime (serial)");
 
   // Create the global singleton object.
   newSingleton();
@@ -133,17 +129,17 @@ extern "C" void __kitser_initialize(void) {
   __kitpapi_initialize(__kitser_thread_id);
 #endif // KITRT_PAPI_ENABLED
 
-  log(LABEL, "Initialized Kitsune runtime (serial)");
+  LOG("Initialized Kitsune runtime (serial)");
 }
 
 /// Finalize Kitsune's serial runtime.
 extern "C" void __kitser_finalize(void) {
   if (!__kitser_initialized()) {
-    log(LABEL, "Cannot finalize runtime. Not initialized");
+    LOG("Cannot finalize runtime. Not initialized");
     return;
   }
 
-  log(LABEL, "Finalizing Kitsune runtime (serial)");
+  LOG("Finalizing Kitsune runtime (serial)");
 
   // Finalize the components of Kitsune's runtime that are shared by the
   // tapir-target-specific components.
@@ -152,5 +148,5 @@ extern "C" void __kitser_finalize(void) {
   // Delete the global singleton object.
   delSingleton();
 
-  log(LABEL, "Finalized Kitsune runtime (serial)");
+  LOG("Finalized Kitsune runtime (serial)");
 }

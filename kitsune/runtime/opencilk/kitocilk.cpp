@@ -64,8 +64,6 @@
 
 #include <cassert>
 
-#define LABEL "kitrt: [opencilk]"
-
 using namespace kitrt;
 
 /// Declare functions and globals from the opencilk runtime that are used here.
@@ -135,14 +133,14 @@ extern "C" uint64_t __kitocilk_worker_id(void) {
 /// \param n The trip count of the parallel loop containing a reduction
 extern "C" uint64_t __kitocilk_reduce_num_partials(uint64_t n) {
   assert(__kitocilk_initialized() && "kitocilk initialized");
-  log(LABEL, "Calculating number of partial reductions");
+  LOG("Calculating number of partial reductions");
 
   // There might be something smarter that can be done once we support a proper
   // reduction tree, but since we only support a reduction tree of depth 1, we
   // just return the number of available workers.
   uint64_t numPartials = __kitocilk_num_workers();
 
-  log(LABEL, "Number of partial reductions: %d", numPartials);
+  LOG("Number of partial reductions: %d", numPartials);
 
   return numPartials;
 }
@@ -153,11 +151,11 @@ extern "C" bool __kitocilk_initialized(void) { return getSingleton(); }
 /// Initialize kitsune's OpenCilk runtime.
 extern "C" void __kitocilk_initialize(void) {
   if (__kitocilk_initialized()) {
-    log(LABEL, "Runtime already initialized");
+    LOG("Runtime already initialized");
     return;
   }
 
-  logEarly(LABEL, "Initializing Kitsune runtime (opencilk)");
+  LOGEARLY("Initializing Kitsune runtime (opencilk)");
 
   // Create the global singleton object.
   newSingleton();
@@ -181,8 +179,7 @@ extern "C" void __kitocilk_initialize(void) {
   // the number of CPU's.
   uint64_t numCPUs = __kitrt_num_cpus();
   if (numThreads > __kitrt_num_cpus())
-    fatal(LABEL,
-          "Number of threads/workers (%d) cannot be greater than number of "
+    FATAL("Number of threads/workers (%d) cannot be greater than number of "
           "detected CPUs (%d)",
           numThreads, numCPUs);
 
@@ -199,18 +196,18 @@ extern "C" void __kitocilk_initialize(void) {
   // initialized by its own private global constructor. We have no control over
   // when that constructor is run relative to this one.
 
-  log(LABEL, "Number of workers = %d", __kitocilk_num_workers());
-  log(LABEL, "Initialized Kitsune runtime (opencilk)");
+  LOG("Number of workers = %d", __kitocilk_num_workers());
+  LOG("Initialized Kitsune runtime (opencilk)");
 }
 
 /// Finalize kitsune's OpenCilk runtime.
 extern "C" void __kitocilk_finalize(void) {
   if (!__kitocilk_initialized()) {
-    log(LABEL, "Cannot finalize runtime. Not initialized");
+    LOG("Cannot finalize runtime. Not initialized");
     return;
   }
 
-  log(LABEL, "Finalizing Kitsune runtime (opencilk)");
+  LOG("Finalizing Kitsune runtime (opencilk)");
 
   // There is no way to finalize OpenCilk's runtime explicitly - it is finalized
   // by its own private global destructor. We have no control over when that
@@ -223,5 +220,5 @@ extern "C" void __kitocilk_finalize(void) {
   // Delete the global singleton object.
   delSingleton();
 
-  log(LABEL, "Finalized Kitsune runtime (opencilk)");
+  LOG("Finalized Kitsune runtime (opencilk)");
 }
