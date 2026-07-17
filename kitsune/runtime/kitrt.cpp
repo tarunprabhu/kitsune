@@ -73,8 +73,7 @@ extern "C" void __kitrt_initialize(void) {
 
   LOGEARLY("Initializing Kitsune runtime (common)");
 
-  _kitrt_verbose_mode =
-      envLookup<bool>(envVerbose, envVerboseLegacy).value_or(false);
+  _kitrt_verbose_mode = envLookupOr(envVerbose, envVerboseLegacy, false);
 
   // This message will only be printed if verbose mode if _kitrt_verbose_mode
   // gets set to true above.

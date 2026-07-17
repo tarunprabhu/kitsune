@@ -116,14 +116,39 @@ bool envContains(const std::string &var, const std::string &alt = "");
 std::optional<std::string> envLookup(const std::string &var,
                                      const std::string &alt = "");
 
+/// Read the value of the variable \p var from the environment and return it
+/// as-is. If the variable does not exist, return the default value, \p defawlt.
+std::string envLookupOr(const std::string &var, const std::string &defawlt);
+
+/// Read the value of the variable \p var from the environment and return it
+/// as-is. If the variable does not exist, read the value of \p alt from the
+/// environment. If that does not exist either, return the default value, \p
+/// defawlt.
+std::string envLookupOr(const std::string &var, const std::string &alt,
+                        const std::string &defawlt);
+
 /// Read the value of the variable \p var from the environment. It is expected
 /// to be of type \tparam T. If the variable does not exist in the environment,
 /// or if it cannot be parsed into a value of type \tparam T, and \p alt has
-/// been provided, perform \p alt. If that, too, fails to yield a valid value of
-/// type
-/// \tparam T, return `std::nullopt`.
+/// been provided, try the same with the variable \p alt. If that, too, fails to
+/// yield a valid value of type \tparam T, return `std::nullopt`.
 template <typename T, std::enable_if_t<std::is_scalar_v<T>, int> = 0>
 std::optional<T> envLookup(const std::string &var, const std::string &alt = "");
+
+/// Read the value of the variable \p var from the environment. It is expected
+/// to be of type \tparam T. If the variable does not exist in the environment,
+/// or if it cannot be parsed into a value of type \tparam T, return the default
+/// value, \p defawlt.
+template <typename T, std::enable_if_t<std::is_scalar_v<T>, int> = 0>
+T envLookupOr(const std::string &var, T defawlt);
+
+/// Read the value of the variable \p var from the environment. It is expected
+/// to be of type \tparam T. If the variable does not exist in the environment,
+/// or if it cannot be parsed into a value of type \tparam T, and \p alt has
+/// been provided, try the same with the variable \p alt. If that, too, fails to
+/// yield a valid value of type \tparam T, return the default value, \p defawlt.
+template <typename T, std::enable_if_t<std::is_scalar_v<T>, int> = 0>
+T envLookupOr(const std::string &var, const std::string &alt, T defawlt);
 
 /// Set a variable to the given value in the environment. If the variable has
 /// already been set in the environment, the value will be overridden. Note that
