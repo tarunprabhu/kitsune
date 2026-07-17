@@ -148,7 +148,7 @@ extern "C" {
     bool read_only, write_only;
     size_t nbytes = __kitrt_get_mem_alloc_size(ptr, &read_only, &write_only);
     if (nbytes == 0) {
-      kitrt::warn("kitcuda", "realloc() on untracked allocation");
+      WARN("realloc() on untracked allocation");
       KIT_NVTX_POP();
       return nullptr;
     }

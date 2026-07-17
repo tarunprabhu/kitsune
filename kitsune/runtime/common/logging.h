@@ -49,7 +49,9 @@
 //===----------------------------------------------------------------------===//
 //
 // For now, these just write to stderr. We probably don't need anything more
-// sophisticated than this.
+// sophisticated than this. In every case, the message being emitted will be
+// prefixed with "kitrt: ". Here, the provided macros are what are intended to
+// be used, not the functions themselves.
 //
 //===----------------------------------------------------------------------===//
 
@@ -61,61 +63,77 @@ namespace kitrt {
 /**
  * Print an error message to stderr and terminate the process with an exit code.
  * \p msg may be a printf-compatible format string. In that case, any optional
- * arguments must be of the appropriate types.
+ * arguments must be of the appropriate types. If \p tag is not nullptr,
+ * "[<tag>]: " will be added between the message and the standard "kitrt: "
+ * prefix.
  */
-[[noreturn]] void fatal(const char *label, const char *msg, ...);
+[[noreturn]] void fatal(const char *tag, const char *msg, ...);
 
 /**
  * Print an error message to stderr. \p msg may be a printf-compatible format
  * string. In that case, any optional arguments must be of the appropriate
- * types.
+ * types. If \p tag is not nullptr, "[<tag>]: " will be added between the
+ * message and the standard "kitrt: " prefix.
  */
-void error(const char *label, const char *msg, ...);
-
-/**
- * Print an error message to stderr. \p msg may be a printf-compatible format
- * string. In that case, any optional arguments must be of the appropriate
- * types. This does not add a trailing newline after printing the message.
- */
-void errorNoEndl(const char *label, const char *msg, ...);
-
-/**
- * Print a warning message to stderr. \p msg may be a printf-compatible format
- * string. In that case, any optional arguments must be of the appropriate
- * types.
- */
-void warn(const char *label, const char *msg, ...);
-
-/**
- * Print a warning message to stderr. \p msg may be a printf-compatible format
- * string. In that case, any optional arguments must be of the appropriate
- * types. This does not add a trailing newline after printing the message.
- */
-void warnNoEndl(const char *label, const char *msg, ...);
+void error(const char *tag, const char *msg, ...);
 
 /**
  * Print a message to stderr if verbose mode has been enabled. \p msg may be a
  * printf-compatible format string. In that case, any optional arguments must be
- * of the appropriate types.
+ * of the appropriate types. If \p tag is not nullptr, "[<tag>]: " will be added
+ * between the message and the standard "kitrt: " prefix.
  */
-void log(const char *label, const char *msg, ...);
-
-/**
- * Print a message to stderr if verbose mode has been enabled. \p msg may be a
- * printf-compatible format string. In that case, any optional arguments must be
- * of the appropriate types. This does not add a trailing newline after printing
- * the message.
- */
-void logNoEndl(const char *label, const char *msg, ...);
+void log(const char *tag, const char *msg, ...);
 
 /**
  * Print a message to stderr if an environment variable named `KIT_VERBOSE` is
  * set to a known "true-like" boolean value. This should only be used if a
  * log message must be printed before __kitrt_initialize() is run. In nearly all
- * cases, \ref log or \ref logNoEndl should be used.
+ * cases, \ref log or \ref logNoEndl should be used. If \p tag is not nullptr,
+ * "[<tag>]: " will be added between the message and the standard "kitrt: "
+ * prefix.
  */
-void logEarly(const char *label, const char *msg);
+void logEarly(const char *tag, const char *msg, ...);
+
+/**
+ * Print a warning message to stderr. \p msg may be a printf-compatible format
+ * string. In that case, any optional arguments must be of the appropriate
+ * types. If \p tag is not nullptr, "[<tag>]: " will be added between the
+ * message and the standard "kitrt: " prefix.
+ */
+void warn(const char *tag, const char *msg, ...);
 
 } // namespace kitrt
+
+// In some cases, this will be defined in kitsune/runtime/CMakeLists.txt.If it
+// is not, set it to nullptr since the logging functions require something.
+#ifndef KITRT_LOG_TAG
+#define KITRT_LOG_TAG nullptr
+#endif // KITRT_LOG_TAG
+
+#define ERROR(...)                                                             \
+  do {                                                                         \
+    kitrt::error(KITRT_LOG_TAG, __VA_ARGS__);                                  \
+  } while (0)
+
+#define FATAL(...)                                                             \
+  do {                                                                         \
+    kitrt::fatal(KITRT_LOG_TAG, __VA_ARGS__);                                  \
+  } while (0)
+
+#define LOG(...)                                                               \
+  do {                                                                         \
+    kitrt::log(KITRT_LOG_TAG, __VA_ARGS__);                                    \
+  } while (0)
+
+#define LOGEARLY(...)                                                          \
+  do {                                                                         \
+    kitrt::logEarly(KITRT_LOG_TAG, __VA_ARGS__);                               \
+  } while (0)
+
+#define WARN(...)                                                              \
+  do {                                                                         \
+    kitrt::warn(KITRT_LOG_TAG, __VA_ARGS__);                                   \
+  } while (0)
 
 #endif // KITRT_COMMON_LOGGING_H

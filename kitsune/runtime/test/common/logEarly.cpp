@@ -2,15 +2,19 @@
 // logEarly works with both KIT_VERBOSE and KITRT_VERBOSE.
 //
 // RUN: %exe 2>&1 | FileCheck %s --check-prefix=EMPTY --allow-empty
-// RUN: env KIT_VERBOSE=1 %exe 2>&1 | FileCheck %s
-// RUN: env KIT_VERBOSE=1 %exe 2>&1 | FileCheck %s
+// RUN: env KIT_VERBOSE=1 %exe 2>&1 \
+// RUN:     | FileCheck %s --match-full-lines
+// RUN: env KIT_VERBOSE=1 %exe 2>&1 \
+// RUN:     | FileCheck %s --match-full-lines
 //
 // -----------------------------------------------------------------------------
 // If either KIT_VERBOSE, or KITRT_VERBOSE is set, then early log messages will
 // be written.
 //
-// RUN: env KIT_VERBOSE=0 KITRT_VERBOSE=1 %exe 2>&1 | FileCheck %s
-// RUN: env KIT_VERBOSE=1 KITRT_VERBOSE=0 %exe 2>&1 | FileCheck %s
+// RUN: env KIT_VERBOSE=0 KITRT_VERBOSE=1 %exe 2>&1 \
+// RUN:     | FileCheck %s --match-full-lines
+// RUN: env KIT_VERBOSE=1 KITRT_VERBOSE=0 %exe 2>&1 \
+// RUN:     | FileCheck %s --match-full-lines
 //
 // RUN: env KIT_VERBOSE=0 KITRT_VERBOSE=0 %exe 2>&1 \
 // RUN:     | FileCheck %s --check-prefix=EMPTY --allow-empty
@@ -21,15 +25,21 @@
 // RUN: env KIT_VERBOSE=1 %exe 2> /dev/null \
 // RUN:     | FileCheck %s --check-prefix=EMPTY --allow-empty
 //
-// RUN: env KIT_VERBOSE=1 %exe 2>&1 > /dev/null | FileCheck %s
+// RUN: env KIT_VERBOSE=1 %exe 2>&1 > /dev/null \
+// RUN:     | FileCheck %s --match-full-lines
 //
 // -----------------------------------------------------------------------------
 //
 // EMPTY-NOT: {{^.+$}}
 //
-// CHECK: test: Early message
+// CHECK: kitrt: [test]: Early message
 //
 // -----------------------------------------------------------------------------
+
+// This must be defined before common/logging.h is included. In the actual kitrt
+// source, this will have been defined by the compiler invocation in the form of
+// a `-DKITRT_LOG_TAG="<...>"` command-line option.
+#define KITRT_LOG_TAG "test"
 
 #include "common/logging.h"
 #include "kitrt.h"
@@ -39,6 +49,6 @@ __attribute__((constructor)) static void ctor(void) { __kitrt_initialize(); }
 __attribute__((destructor)) static void dtor(void) { __kitrt_finalize(); }
 
 int main(int argc, char *argv[]) {
-  kitrt::logEarly("test", "Early message");
+  LOGEARLY("Early message");
   return 0;
 }
