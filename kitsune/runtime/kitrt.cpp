@@ -51,41 +51,36 @@
 #include "kitrt.h"
 #include "common/env.h"
 #include "common/logging.h"
+#include "global/global.h"
 
 #include <cstdlib>
 
 using namespace kitrt;
 
-// FIXME: Combine all global variables here into a single struct.
-static bool __kitrt_initialized = false;
-
-// This should be private. However, we expose it because it is examined often by
-// most runtimes to determine whether to print informational messages. Wrapping
-// it in a function may be expensive.
-bool _kitrt_verbose_mode = false;
+extern "C" bool __kitrt_initialized(void) { return gctx.initialized; }
 
 extern "C" void __kitrt_initialize(void) {
-  if (__kitrt_initialized) {
+  if (__kitrt_initialized()) {
     LOG("Runtime already initialized");
     return;
   }
 
-  LOGEARLY("Initializing Kitsune runtime (common)");
+  // At the point, the global singleton object has not yet been initialized.
+  // AS a result, verbose mode will always return false. The only way to ensure
+  // that a message is printed is to check the environment variables.
+  LOG_IF_VERBOSE("Initializing Kitsune runtime (common)");
 
-  _kitrt_verbose_mode = envLookupOr(envVerbose, envVerboseLegacy, false);
-
-  // This message will only be printed if verbose mode if _kitrt_verbose_mode
-  // gets set to true above.
-  LOG("Verbose mode enabled");
+  KitRTContext &rt = mutKitRTContext();
+  rt.setVerbose(envLookupOr(envVerbose, envVerboseLegacy, false));
 
   __kittimer_initialize();
 
-  __kitrt_initialized = true;
+  rt.setInitialized(true);
   LOG("Initialized Kitsune runtime (common)");
 }
 
 extern "C" void __kitrt_finalize(void) {
-  if (!__kitrt_initialized) {
+  if (!__kitrt_initialized()) {
     LOG("Cannot finalize runtime. Not initialized");
     return;
   }
@@ -94,6 +89,11 @@ extern "C" void __kitrt_finalize(void) {
 
   __kittimer_finalize();
 
-  __kitrt_initialized = false;
-  LOG("Finalized Kitsune runtime (common)");
+  mutKitRTContext().setInitialized(false);
+
+  // Although we don't do so, it is reasonable to clear the global singleton at
+  // this point. In that case, LOG(...) would not work because verbose mode
+  // would always be false. Using LOG_IF_VERBOSE(...) here serves as a marker
+  // that the global context object should not be used beyond this point.
+  LOG_IF_VERBOSE("Finalized Kitsune runtime (common)");
 }

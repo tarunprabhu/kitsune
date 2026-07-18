@@ -61,6 +61,7 @@
 #include "common/env.h"
 #include "common/logging.h"
 #include "common/utils.h"
+#include "global/singleton.h"
 #include "kitrt.h"
 
 #include <cassert>
@@ -72,48 +73,19 @@ extern "C" unsigned __cilkrts_get_nworkers(void);
 extern "C" void __cilkrts_internal_set_nworkers(unsigned nworkers);
 extern "C" int __cilkrts_is_initialized(void);
 
-namespace {
+using namespace kitrt;
 
-class KitOCilkSingleton;
-
-static void newSingleton(void);
-static void delSingleton(void);
-static KitOCilkSingleton *getSingleton(void);
+namespace kitrt {
 
 /// Global state for this runtime. We intentionally keep the members public
 /// because it is not clear what advantage there is to hiding them.
-class KitOCilkSingleton {
-public:
+class KitOCilkContext : public KitContextMixin<KitOCilkContext> {
   // Currently, there are no members. This runtime only needs to know if it has
-  // been initialized. If the global singleton is not nullptr, then we know that
-  // the runtime has been initialized.
-
-private:
-  KitOCilkSingleton() = default;
-  ~KitOCilkSingleton() = default;
-
-public:
-  friend void newSingleton(void);
-  friend void delSingleton(void);
+  // been initialized. For this, an instance of this object must be registered
+  // with the global singleton. This is done in __kitocilk_initialize.
 };
 
-/// FIXME: This should eventually be folded into a single global state object
-/// for kitrt - whenever that happens. This will be created by
-/// __kitocilk_initialize and deleted by __kitocilk_finalize. This object should
-/// never be accessed directly. Instead, the *Singleton() functions should be
-/// used.
-static KitOCilkSingleton *gSingleton = nullptr;
-
-static void newSingleton(void) { gSingleton = new KitOCilkSingleton(); }
-
-static void delSingleton(void) {
-  delete gSingleton;
-  gSingleton = nullptr;
-}
-
-static KitOCilkSingleton *getSingleton(void) { return gSingleton; }
-
-} // namespace
+} // namespace kitrt
 
 /// Get the number of workers available for parallel work. For consistency, this
 /// function should be used when this must be queried instead of calling
@@ -145,8 +117,12 @@ extern "C" uint64_t __kitocilk_reduce_num_partials(uint64_t n) {
   return numPartials;
 }
 
-/// Check if this runtime has already been initialized.
-extern "C" bool __kitocilk_initialized(void) { return getSingleton(); }
+/// Check if this runtime has already been initialized. It is deemed to have
+/// been initialized if a context for the runtime has been registered with the
+/// global singleton.
+extern "C" bool __kitocilk_initialized(void) {
+  return KitOCilkContext::hasSingleton();
+}
 
 /// Initialize Kitsune's OpenCilk runtime. This does *not* initialize the
 /// underlying OpenCilk runtime. That happens independently of this, and may
@@ -159,20 +135,17 @@ extern "C" void __kitocilk_initialize(void) {
     return;
   }
 
-  LOGEARLY("Initializing Kitsune runtime (opencilk)");
-
-  // Create the global singleton object.
-  newSingleton();
-
-  // Initialize the components of kitsune's runtime that are shared by the
-  // tapir-target-specific components.
   __kitrt_initialize();
+
+  LOG("Initializing Kitsune runtime (opencilk)");
+
+  KitOCilkContext::addSingleton();
 
 #ifdef KITRT_PAPI_ENABLED
   __kitpapi_initialize(__kitocilk_worker_id);
 #endif // KITRT_PAPI_ENABLED
 
-  uint64_t numThreads = kitrt::getNumThreadsOrCPUs("CILK_NWORKERS");
+  uint64_t numThreads = getNumThreadsOrCPUs("CILK_NWORKERS");
   if (__cilkrts_is_initialized()) {
     LOG("OpenCilk runtime has already been initialized");
     LOG("Overriding number of workers");
@@ -184,7 +157,7 @@ extern "C" void __kitocilk_initialize(void) {
     // the number of CPU's. Since we cannot control the order in which the
     // initializers are run, for consistency, we always disallow increasing the
     // number of workers beyond the number of CPU's.
-    uint64_t numCPUs = kitrt::getNumCPUs();
+    uint64_t numCPUs = getNumCPUs();
     if (numThreads > numCPUs)
       FATAL("Number of threads/workers (%d) cannot be greater than number of "
             "detected CPUs (%d)",
@@ -205,13 +178,14 @@ extern "C" void __kitocilk_initialize(void) {
     // global ctor for Cheetah runs, it will setup the number of workers
     // correctly.
     LOG("OpenCilk runtime has not been initialized");
-    kitrt::envSet("CILK_NWORKERS", numThreads);
+    envSet("CILK_NWORKERS", numThreads);
   }
 
   // There is no way to initialize OpenCilk's runtime explicitly - it is
   // initialized by its own private global constructor. We have no control over
   // when that constructor is run relative to this one.
 
+  LOG("Number of CPUs = %d", getNumCPUs());
   LOG("Number of workers = %d", __kitocilk_num_workers());
   LOG("Initialized Kitsune runtime (opencilk)");
 }
@@ -236,12 +210,9 @@ extern "C" void __kitocilk_finalize(void) {
   __kitpapi_finalize();
 #endif // KITRT_PAPI_ENABLED
 
-  // Finalize the components of Kitsune's runtime that are shared by the
-  // tapir-target-specific components.
-  __kitrt_finalize();
-
-  // Delete the global singleton object.
-  delSingleton();
+  KitOCilkContext::delSingleton();
 
   LOG("Finalized Kitsune runtime (opencilk)");
+
+  __kitrt_finalize();
 }

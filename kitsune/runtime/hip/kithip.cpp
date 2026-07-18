@@ -67,6 +67,7 @@
 
 #include "common/env.h"
 #include "common/logging.h"
+#include "global/global.h"
 #include "kithip.h"
 #include "kithip_rtinfo.h"
 #include "kitrt.h"
@@ -121,11 +122,12 @@ extern "C" bool __kithip_is_initialized(void) {
 
 extern "C" void __kithip_initialize(void) {
   using namespace kithip_rt;
-  LOGEARLY("Initializing Kitsune runtime (hip)");
 
   // Initialize the components of kitsune's runtime that are shared by the
   // tapir-target-specific components.
   __kitrt_initialize();
+
+  LOG("Initializing Kitsune runtime (hip)");
 
   if (isInitialized()) {
     fprintf(stderr,
@@ -163,7 +165,7 @@ extern "C" void __kithip_initialize(void) {
 
   HIP_SAFE_CALL(hipSetDevice(deviceID()));
   HIP_SAFE_CALL(hipGetDeviceProperties(&rt_info.props, deviceID()));
-  if (__kitrt_verbose_mode())
+  if (kitrt::gctx.verbose)
     __kithip_dump_dev_properties(rt_info.props);
 
   if (not supportsManagedMemory()) {
@@ -176,14 +178,14 @@ extern "C" void __kithip_initialize(void) {
   if (std::optional<int> tpb =
           kitrt::envLookup<int>("KITHIP_THREADS_PER_BLOCK")) {
     __kithip_set_threads_per_blk(*tpb);
-    if (__kitrt_verbose_mode())
+    if (kitrt::gctx.verbose)
       fprintf(stderr, "  kithip: threads/block: %d\n", *tpb);
   }
 
   if (std::optional<int> tpb =
           kitrt::envLookup<int>("KITHIP_MAX_THREADS_PER_BLOCK")) {
     __kithip_set_max_threads_per_blk(*tpb);
-    if (__kitrt_verbose_mode())
+    if (kitrt::gctx.verbose)
       fprintf(stderr, "  kithip: max threads/block: %d\n", *tpb);
   }
 
@@ -209,11 +211,11 @@ extern "C" void __kithip_finalize(void) {
 
   setInitialized(false);
 
+  LOG("Finalized Kitsune runtime (hip)");
+
   // Finalize the components of Kitsune's runtime that are shared by the
   // tapir-target-specific components.
   __kitrt_finalize();
-
-  LOG("Finalized Kitsune runtime (hip)");
 }
 
 /// The number of partial reductions to perform in parallel.

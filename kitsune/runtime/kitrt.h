@@ -78,12 +78,9 @@ void __kitrt_initialize(void);
 void __kitrt_finalize(void);
 
 /**
- * Check if the verbose mode has been enabled in Kitsune's runtime.
+ * Check if Kitsune's runtime has been initialized.
  */
-inline bool __kitrt_verbose_mode(void) {
-  extern bool _kitrt_verbose_mode;
-  return _kitrt_verbose_mode;
-}
+bool __kitrt_initialized(void);
 
 /**
  * *** EXPERIMENTAL: This is a new interface between the compiler and

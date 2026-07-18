@@ -22,7 +22,7 @@ static void thrdFunc(uint64_t start, uint64_t stop, void *args) {
 }
 
 int main(int argc, char *argv[]) {
-  KitPthrContext *ctx = __kitpthr_launch(thrdFunc, 0, 3, NULL);
+  KitPthrLaunchContext *ctx = __kitpthr_launch(thrdFunc, 0, 3, NULL);
   __kitpthr_sync(ctx);
 
   pthread_mutex_destroy(&mut);
