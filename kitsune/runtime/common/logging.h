@@ -93,7 +93,7 @@ void log(const char *tag, const char *msg, ...);
  * "[<tag>]: " will be added between the message and the standard "kitrt: "
  * prefix.
  */
-void logEarly(const char *tag, const char *msg, ...);
+void logIfVerbose(const char *tag, const char *msg, ...);
 
 /**
  * Print a warning message to stderr. \p msg may be a printf-compatible format
@@ -126,9 +126,9 @@ void warn(const char *tag, const char *msg, ...);
     kitrt::log(KITRT_LOG_TAG, __VA_ARGS__);                                    \
   } while (0)
 
-#define LOGEARLY(...)                                                          \
+#define LOG_IF_VERBOSE(...)                                                    \
   do {                                                                         \
-    kitrt::logEarly(KITRT_LOG_TAG, __VA_ARGS__);                               \
+    kitrt::logIfVerbose(KITRT_LOG_TAG, __VA_ARGS__);                           \
   } while (0)
 
 #define WARN(...)                                                              \

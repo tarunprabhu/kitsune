@@ -32,7 +32,7 @@ static void thrdFn(uint64_t start, uint64_t end, void *args) {
 
 int main(int argc, char *argv[]) {
   __kittimer_start(11, 0, "main");
-  KitPthrContext *ctx = __kitpthr_launch(thrdFn, 0, 3, NULL);
+  KitPthrLaunchContext *ctx = __kitpthr_launch(thrdFn, 0, 3, NULL);
   __kitpthr_sync(ctx);
   __kittimer_stop(11, 0);
 

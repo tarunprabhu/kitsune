@@ -1,12 +1,12 @@
 set(TESTS
   EnvNumThreads.cpp
   EnvVerbose.c
-  LogEarly.cpp
-  LogEarlyNoTag.cpp
   LogError.cpp
   LogErrorNoTag.cpp
   LogFatal.cpp
   LogFatalNoTag.cpp
+  LogIfVerbose.cpp
+  LogIfVerboseNoTag.cpp
   LogNormal.cpp
   LogNormalNoTag.cpp
   LogWarning.cpp

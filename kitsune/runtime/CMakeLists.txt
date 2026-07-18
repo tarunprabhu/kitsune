@@ -14,7 +14,8 @@ add_library(${KITRT_OBJLIB} OBJECT
   common/env.cpp
   common/logging.cpp
   common/timer.cpp
-  common/utils.cpp)
+  common/utils.cpp
+  global/global.cpp)
 
 add_dependencies(${KITRT_OBJLIB} ${KITRT_DEPENDS})
 

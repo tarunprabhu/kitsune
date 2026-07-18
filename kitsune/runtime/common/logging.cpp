@@ -55,6 +55,7 @@
 
 #include "common/logging.h"
 #include "common/env.h"
+#include "global/global.h"
 #include "kitrt.h"
 
 #include <cstdarg>
@@ -106,7 +107,7 @@ void kitrt::warn(const char *tag, const char *msg, ...) {
 }
 
 void kitrt::log(const char *tag, const char *msg, ...) {
-  if (__kitrt_verbose_mode()) {
+  if (gctx.verbose) {
     va_list args;
     va_start(args, msg);
     logImpl(tag, nullptr, msg, args);
@@ -114,7 +115,7 @@ void kitrt::log(const char *tag, const char *msg, ...) {
   }
 }
 
-void kitrt::logEarly(const char *tag, const char *msg, ...) {
+void kitrt::logIfVerbose(const char *tag, const char *msg, ...) {
   if (envLookupOr(envVerbose, envVerboseLegacy, false)) {
     va_list args;
     va_start(args, msg);

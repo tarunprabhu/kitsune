@@ -5,9 +5,9 @@
 //
 // CHECK: Initialized = {{[1-9][0-9]*}}
 // CHECK: Finalizing Kitsune runtime (opencilk)
+// CHECK: Finalized Kitsune runtime (opencilk)
 // CHECK: Finalizing Kitsune runtime (common)
 // CHECK: Finalized Kitsune runtime (common)
-// CHECK: Finalized Kitsune runtime (opencilk)
 // CHECK: Initialized = 0
 // CHECK: Cannot finalize runtime. Not initialized
 // CHECK: Initialized = 0

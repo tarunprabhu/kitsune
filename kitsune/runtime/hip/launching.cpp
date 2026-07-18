@@ -50,6 +50,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "common/logging.h"
+#include "global/global.h"
 #include "kithip.h"
 #include "kithip_rtinfo.h"
 
@@ -208,7 +209,7 @@ void __kithip_get_launch_params(size_t trip_count, hipFunction_t kfunc,
   } else {
     kithip_kern_attrs_t attrs;
     __kithip_get_kern_attrs(attrs, kfunc);
-    if (__kitrt_verbose_mode()) {
+    if (kitrt::gctx.verbose) {
       fprintf(stderr, "kitrt[hip]: kernel attributes:\n");
       fprintf(stderr, "  - name: %s\n", kfunc_name);
       fprintf(stderr, "  - num registers: %d\n", attrs.numRegisters);
@@ -240,7 +241,7 @@ void __kithip_get_launch_params(size_t trip_count, hipFunction_t kfunc,
     int min_grid_size;
     HIP_SAFE_CALL(hipModuleOccupancyMaxPotentialBlockSize(
         &min_grid_size, &threads_per_blk, kfunc, 0, 0));
-    if (__kitrt_verbose_mode()) {
+    if (kitrt::gctx.verbose) {
       fprintf(stderr, "*** BEGIN LAUNCH\n");
       fprintf(stderr, "kitrt[hip]: occpancy kernel launch parameters:\n");
       fprintf(stderr, "  threads per block: %d\n", threads_per_blk);
@@ -293,7 +294,7 @@ static hipStream_t launchKernel1(hipFunction_t f, void **args, size_t tcX,
   unsigned bpgZ = 1;
   size_t sharedMemSize = 0;
 
-  if (__kitrt_verbose_mode()) {
+  if (kitrt::gctx.verbose) {
     fprintf(stderr, "  1D kernel launch\n");
     fprintf(stderr, "  trip count (X): %ld\n", tcX);
     fprintf(stderr, "  blocks: [%d, %d, %d]\n", bpgX, bpgY, bpgZ);
@@ -325,7 +326,7 @@ static hipStream_t launchKernel2(hipFunction_t f, void **args, size_t tcY,
   unsigned bpgZ = 1;
   size_t sharedMemSize = 0;
 
-  if (__kitrt_verbose_mode()) {
+  if (kitrt::gctx.verbose) {
     fprintf(stderr, "  2D kernel launch\n");
     fprintf(stderr, "  trip count (Y): %ld\n", tcY);
     fprintf(stderr, "  trip count (X): %ld\n", tcX);
@@ -359,7 +360,7 @@ static hipStream_t launchKernel3(hipFunction_t f, void **args, size_t tcZ,
   unsigned bpgZ = (tcZ + tpbZ - 1) / tpbZ;
   size_t sharedMemSize = 0;
 
-  if (__kitrt_verbose_mode()) {
+  if (kitrt::gctx.verbose) {
     fprintf(stderr, "  3D kernel launch\n");
     fprintf(stderr, "  trip count (Z): %ld\n", tcZ);
     fprintf(stderr, "  trip count (Y): %ld\n", tcY);
@@ -463,16 +464,16 @@ void *__kithip_launch_kernel(const void *fatbin, const char *name, void **args,
   hipStream_t stream;
   if (stream_in) {
     stream = (hipStream_t)stream_in;
-    if (__kitrt_verbose_mode())
+    if (kitrt::gctx.verbose)
       fprintf(stderr, "kithip: launch stream is non-null.\n");
   } else {
     stream = (hipStream_t)__kithip_get_thread_stream();
-    if (__kitrt_verbose_mode())
+    if (kitrt::gctx.verbose)
       fprintf(stderr,
               "kithip: launch stream is null, requested a new stream.\n");
   }
 
-  if (__kitrt_verbose_mode()) {
+  if (kitrt::gctx.verbose) {
     fprintf(stderr, "kitrt[hip]: kernel '%s' launch parameters:\n", name);
   }
 

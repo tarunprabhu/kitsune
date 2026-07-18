@@ -5,15 +5,15 @@
 //
 // RUN: env KIT_VERBOSE=1 %exe 2>&1 | FileCheck %s --match-full-lines
 //
-// CHECK: kitrt: [hip]: Initializing Kitsune runtime (hip)
 // CHECK: kitrt: Initializing Kitsune runtime (common)
 // CHECK: kitrt: Initialized Kitsune runtime (common)
+// CHECK: kitrt: [hip]: Initializing Kitsune runtime (hip)
 // CHECK: kitrt: [hip]: Initialized Kitsune runtime (hip)
 // CHECK: Haldeman
 // CHECK: kitrt: [hip]: Finalizing Kitsune runtime (hip)
+// CHECK: kitrt: [hip]: Finalized Kitsune runtime (hip)
 // CHECK: kitrt: Finalizing Kitsune runtime (common)
 // CHECK: kitrt: Finalized Kitsune runtime (common)
-// CHECK: kitrt: [hip]: Finalized Kitsune runtime (hip)
 
 #include <stdio.h>
 
