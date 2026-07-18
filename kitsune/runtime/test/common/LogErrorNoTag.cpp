@@ -16,7 +16,7 @@
 //
 // EMPTY-NOT: {{^.+$}}
 //
-// CHECK: kitrt: ERROR: Error message
+// CHECK: kitrt: error: Error message
 //
 // -----------------------------------------------------------------------------
 

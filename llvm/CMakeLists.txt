@@ -843,14 +843,6 @@ message(STATUS "Kitsune: Kokkos support: ${KITSUNE_KOKKOS_ENABLED}")
 # since that is the current behavior.
 option(KITSUNE_ENABLE_EXPERIMENTS "Enable Kitsune's experiments" ON)
 
-# Kitsune's has some support to instrument code with PAPI to gather hardware
-# counters. This is only available on certain platforms, so it is disabled by
-# default.
-option(KITSUNE_ENABLE_PAPI "Enable PAPI support in Kitsune" OFF)
-set(KITSUNE_PAPI_ENABLED ${KITSUNE_ENABLE_PAPI} CACHE INTERNAL
-  "Enable PAPI support" FORCE)
-message(STATUS "Kitsune: PAPI support: ${KITSUNE_PAPI_ENABLED}")
-
 # Should the examples be built. Unlike in LLVM, for Kitsune, this defaults to
 # ON. Building these requires full linker support and also requires a fairly
 # standard sysroot. Of the platforms that Kitsune supports, this is only likely
@@ -888,6 +880,19 @@ endif ()
 if (KITSUNE_ENABLE_LLVM_DOXYGEN AND NOT KITSUNE_ENABLE_DOXYGEN)
   message(WARNING "KITSUNE_ENABLE_LLVM_DOXYGEN has no effect because KITSUNE_ENABLE_DOXYGEN is disabled")
 endif ()
+
+option(KITSUNE_ENABLE_COLORS "Enable colored diagnostics from Kitsune's runtime" OFF)
+set(KITSUNE_COLORS_ENABLED ${KITSUNE_ENABLE_COLORS} CACHE INTERNAL
+  "Enable colored diagnostics from Kitsune's runtime" FORCE)
+message(STATUS "Kitsune: Colored runtime diagnostics: ${KITSUNE_COLORS_ENABLED}")
+
+# Kitsune's has some support to instrument code with PAPI to gather hardware
+# counters. This is only available on certain platforms, so it is disabled by
+# default.
+option(KITSUNE_ENABLE_PAPI "Enable PAPI support in Kitsune" OFF)
+set(KITSUNE_PAPI_ENABLED ${KITSUNE_ENABLE_PAPI} CACHE INTERNAL
+  "Enable PAPI support" FORCE)
+message(STATUS "Kitsune: PAPI support: ${KITSUNE_PAPI_ENABLED}")
 
 option(KITSUNE_INCLUDE_TESTS "Generate build targets for Kitsune's tests" ON)
 

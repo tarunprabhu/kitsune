@@ -67,7 +67,8 @@ namespace kitrt {
  * "[<tag>]: " will be added between the message and the standard "kitrt: "
  * prefix.
  */
-[[noreturn]] void fatal(const char *tag, const char *msg, ...);
+[[noreturn]] void fatal(const char *color, const char *tag, const char *msg,
+                        ...);
 
 /**
  * Print an error message to stderr. \p msg may be a printf-compatible format
@@ -75,7 +76,7 @@ namespace kitrt {
  * types. If \p tag is not nullptr, "[<tag>]: " will be added between the
  * message and the standard "kitrt: " prefix.
  */
-void error(const char *tag, const char *msg, ...);
+void error(const char *color, const char *tag, const char *msg, ...);
 
 /**
  * Print a message to stderr if verbose mode has been enabled. \p msg may be a
@@ -83,7 +84,7 @@ void error(const char *tag, const char *msg, ...);
  * of the appropriate types. If \p tag is not nullptr, "[<tag>]: " will be added
  * between the message and the standard "kitrt: " prefix.
  */
-void log(const char *tag, const char *msg, ...);
+void log(const char *color, const char *tag, const char *msg, ...);
 
 /**
  * Print a message to stderr if an environment variable named `KIT_VERBOSE` is
@@ -101,29 +102,47 @@ void logIfVerbose(const char *tag, const char *msg, ...);
  * types. If \p tag is not nullptr, "[<tag>]: " will be added between the
  * message and the standard "kitrt: " prefix.
  */
-void warn(const char *tag, const char *msg, ...);
+void warn(const char *color, const char *tag, const char *msg, ...);
 
 } // namespace kitrt
 
-// In some cases, this will be defined in kitsune/runtime/CMakeLists.txt.If it
+#define ANSI_RESET "\033[0m"
+
+#define ANSI_WHITE "\033[0;37m"
+#define ANSI_RED "\033[0;31m"
+#define ANSI_GREEN "\033[0;32m"
+#define ANSI_BLUE "\033[0;34m"
+#define ANSI_CYAN "\033[0;36m"
+#define ANSI_MAGENTA "\033[0;35m"
+#define ANSI_YELLOW "\033[0;33m"
+#define ANSI_BLACK "\033[0;30m"
+
+#define ANSI_BOLD "\033[1m"
+#define ANSI_RESET "\033[0m"
+
+// In some cases, these will be defined in kitsune/runtime/CMakeLists.txt. If it
 // is not, set it to nullptr since the logging functions require something.
 #ifndef KITRT_LOG_TAG
 #define KITRT_LOG_TAG nullptr
 #endif // KITRT_LOG_TAG
 
+#ifndef KITRT_LOG_COLOR
+#define KITRT_LOG_COLOR nullptr
+#endif // KITRT_LOG_COLOR
+
 #define ERROR(...)                                                             \
   do {                                                                         \
-    kitrt::error(KITRT_LOG_TAG, __VA_ARGS__);                                  \
+    kitrt::error(KITRT_LOG_COLOR, KITRT_LOG_TAG, __VA_ARGS__);                 \
   } while (0)
 
 #define FATAL(...)                                                             \
   do {                                                                         \
-    kitrt::fatal(KITRT_LOG_TAG, __VA_ARGS__);                                  \
+    kitrt::fatal(KITRT_LOG_COLOR, KITRT_LOG_TAG, __VA_ARGS__);                 \
   } while (0)
 
 #define LOG(...)                                                               \
   do {                                                                         \
-    kitrt::log(KITRT_LOG_TAG, __VA_ARGS__);                                    \
+    kitrt::log(KITRT_LOG_COLOR, KITRT_LOG_TAG, __VA_ARGS__);                   \
   } while (0)
 
 #define LOG_IF_VERBOSE(...)                                                    \
@@ -133,7 +152,7 @@ void warn(const char *tag, const char *msg, ...);
 
 #define WARN(...)                                                              \
   do {                                                                         \
-    kitrt::warn(KITRT_LOG_TAG, __VA_ARGS__);                                   \
+    kitrt::warn(KITRT_LOG_COLOR, KITRT_LOG_TAG, __VA_ARGS__);                  \
   } while (0)
 
 #endif // KITRT_COMMON_LOGGING_H

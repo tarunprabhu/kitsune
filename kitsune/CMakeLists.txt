@@ -195,6 +195,22 @@ if (KITSUNE_PAPI_ENABLED)
   get_filename_component(KITSUNE_PAPI_INCDIRS "${PAPI_H}" DIRECTORY)
 endif ()
 
+if (KITSUNE_COLORS_ENABLED)
+  message(STATUS "Kitsune: Colorized verbose mode output enabled")
+
+  # Since this is an opt-in feature, we strictly require curses. We also expect
+  # to find this on the system. We prefer the static libraries because we only
+  # use a couple of functions from it and we don't want to be bothered with
+  # setting up rpaths for it.
+  find_library(LIBCURSES REQUIRED
+    NAMES libcurses.a libncurses.a libcurses.so libncurses.so)
+  find_file(CURSES_H REQUIRED
+    NAMES curses.h)
+
+  set(KITSUNE_CURSES_LIBS ${LIBCURSES})
+  get_filename_component(KITSUNE_CURSES_INCDIRS "${CURSES_H}" DIRECTORY)
+endif ()
+
 if (KITSUNE_KOKKOS_ENABLED)
   # We currently don't support using a pre-built Kokkos - even if it has been
   # patched the way we need it to be. This could possibly be moved to

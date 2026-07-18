@@ -16,7 +16,7 @@
 //
 // EMPTY-NOT: {{^.+$}}
 //
-// CHECK: kitrt: WARNING: Warning message
+// CHECK: kitrt: warning: Warning message
 //
 // -----------------------------------------------------------------------------
 
