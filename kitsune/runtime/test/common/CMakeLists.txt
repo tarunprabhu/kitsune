@@ -31,7 +31,8 @@ set(TESTS
 set(TESTS_WITH_PAPI
   RTPAPIInitFini.c
   PAPIMultipleFini.c
-  PAPIMultipleInit.c)
+  PAPIMultipleInit.c
+)
 
 add_kitrt_systests("${TESTS}")
 
