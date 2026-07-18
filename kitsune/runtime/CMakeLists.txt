@@ -15,7 +15,8 @@ add_library(${KITRT_OBJLIB} OBJECT
   common/logging.cpp
   common/timer.cpp
   common/utils.cpp
-  global/global.cpp)
+  global/global.cpp
+)
 
 add_dependencies(${KITRT_OBJLIB} ${KITRT_DEPENDS})
 
@@ -66,10 +67,12 @@ if (KITSUNE_CUDA_ENABLED)
     cuda/dylib_support.cpp
     cuda/launching.cpp
     cuda/memory.cpp
-    cuda/streams.cpp)
+    cuda/streams.cpp
+  )
 
-  set_source_files_properties(${SOURCES}
-    PROPERTIES COMPILE_DEFINITIONS "KITRT_LOG_TAG=\"cuda\"")
+  set_source_files_properties(${SOURCES} PROPERTIES
+    COMPILE_DEFINITIONS
+    "KITRT_LOG_TAG=\"cuda\"")
 
   target_sources(${KITRT_OBJLIB} PUBLIC ${SOURCES})
 
@@ -86,10 +89,12 @@ if (KITSUNE_HIP_ENABLED)
     hip/dylib_support.cpp
     hip/launching.cpp
     hip/memory.cpp
-    hip/streams.cpp)
+    hip/streams.cpp
+  )
 
-  set_source_files_properties(${SOURCES}
-    PROPERTIES COMPILE_DEFINITIONS "KITRT_LOG_TAG=\"hip\"")
+  set_source_files_properties(${SOURCES} PROPERTIES
+    COMPILE_DEFINITIONS
+    "KITRT_LOG_TAG=\"hip\"")
 
   target_sources(${KITRT_OBJLIB} PUBLIC ${SOURCES})
 
@@ -109,10 +114,12 @@ endif()
 
 if (KITSUNE_OPENCILK_ENABLED)
   set(SOURCES
-    opencilk/kitocilk.cpp)
+    opencilk/kitocilk.cpp
+  )
 
-  set_source_files_properties(${SOURCES}
-    PROPERTIES COMPILE_DEFINITIONS "KITRT_LOG_TAG=\"opencilk\"")
+  set_source_files_properties(${SOURCES} PROPERTIES
+    COMPILE_DEFINITIONS
+    "KITRT_LOG_TAG=\"opencilk\"")
 
   target_sources(${KITRT_OBJLIB} PUBLIC ${SOURCES})
 
@@ -122,10 +129,12 @@ endif ()
 
 if (KITSUNE_OPENMP_ENABLED)
   set(SOURCES
-    openmp/kitomp.cpp)
+    openmp/kitomp.cpp
+  )
 
-  set_source_files_properties(${SOURCES}
-    PROPERTIES COMPILE_DEFINITIONS "KITRT_LOG_TAG=\"openmp\"")
+  set_source_files_properties(${SOURCES} PROPERTIES
+    COMPILE_DEFINITIONS
+    "KITRT_LOG_TAG=\"openmp\"")
 
   target_sources(${KITRT_OBJLIB} PUBLIC ${SOURCES})
 
@@ -138,20 +147,24 @@ endif ()
 
 if (KITSUNE_PTHREADS_ENABLED)
   set(SOURCES
-    pthreads/kitpthr.cpp)
+    pthreads/kitpthr.cpp
+  )
 
-  set_source_files_properties(${SOURCES}
-    PROPERTIES COMPILE_DEFINITIONS "KITRT_LOG_TAG=\"pthreads\"")
+  set_source_files_properties(${SOURCES} PROPERTIES
+    COMPILE_DEFINITIONS
+    "KITRT_LOG_TAG=\"pthreads\"")
 
   target_sources(${KITRT_OBJLIB} PUBLIC ${SOURCES})
 endif ()
 
 if (KITSUNE_QTHREADS_ENABLED)
   set(SOURCES
-    qthreads/kitqthr.cpp)
+    qthreads/kitqthr.cpp
+  )
 
-  set_source_files_properties(${SOURCES}
-    PROPERTIES COMPILE_DEFINITIONS "KITRT_LOG_TAG=\"qthreads\"")
+  set_source_files_properties(${SOURCES} PROPERTIES
+    COMPILE_DEFINITIONS
+    "KITRT_LOG_TAG=\"qthreads\"")
 
   target_sources(${KITRT_OBJLIB} PUBLIC ${SOURCES})
 
@@ -164,10 +177,12 @@ endif ()
 
 if (KITSUNE_SERIAL_ENABLED)
   set(SOURCES
-    serial/kitser.cpp)
+    serial/kitser.cpp
+  )
 
-  set_source_files_properties(${SOURCES}
-    PROPERTIES COMPILE_DEFINITIONS "KITRT_LOG_TAG=\"serial\"")
+  set_source_files_properties(${SOURCES} PROPERTIES
+    COMPILE_DEFINITIONS
+    "KITRT_LOG_TAG=\"serial\"")
 
   target_sources(${KITRT_OBJLIB} PUBLIC ${SOURCES})
 endif ()
