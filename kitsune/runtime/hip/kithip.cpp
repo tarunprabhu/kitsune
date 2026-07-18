@@ -122,18 +122,16 @@ extern "C" bool __kithip_is_initialized(void) {
 
 extern "C" void __kithip_initialize(void) {
   using namespace kithip_rt;
+  if (isInitialized()) {
+    LOG("Runtime already initialized");
+    return;
+  }
 
   // Initialize the components of kitsune's runtime that are shared by the
   // tapir-target-specific components.
   __kitrt_initialize();
 
   LOG("Initializing Kitsune runtime (hip)");
-
-  if (isInitialized()) {
-    fprintf(stderr,
-            "kitrt[hip]: warning, mutliple initialization attempts...\n");
-    return;
-  }
 
   // AMD's documentation suggests that there is no need to explicitly call
   // hipInit() as all API entry points will initialize when necessary.  For now,
@@ -197,8 +195,10 @@ extern "C" void __kithip_initialize(void) {
 
 extern "C" void __kithip_finalize(void) {
   using namespace kithip_rt;
-  if (not isInitialized())
+  if (not isInitialized()) {
+    LOG("Cannot finalize runtime. Not initialized");
     return;
+  }
 
   LOG("Finalizing Kitsune runtime (hip)");
 

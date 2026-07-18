@@ -11,6 +11,8 @@ set(TESTS
   LogNormalNoTag.cpp
   LogWarning.cpp
   LogWarningNoTag.cpp
+
+  RTInitialized.c
   RTMultipleInit.c
   RTMultipleFini.c
   TimerCannotWriteToFile.c

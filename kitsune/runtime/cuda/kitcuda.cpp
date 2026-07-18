@@ -101,17 +101,17 @@ const int KIT_NVTX_CLEANUP = 4;
 extern "C" {
 
 void __kitcuda_initialize(void) {
+  if (_kitcuda_initialized) {
+    LOG("Runtime already initialized");
+    return;
+  }
+
   // Initialize the shared components of the higher-level runtime.
   __kitrt_initialize();
 
   LOG("Initializing Kitsune runtime (cuda)");
 
   KIT_NVTX_PUSH("kitcuda: initialize", KIT_NVTX_INIT);
-  if (_kitcuda_initialized) {
-    if (kitrt::gctx.verbose)
-      fprintf(stderr, "kitcuda: warning, multiple initialization calls!\n");
-    return;
-  }
 
   if (not __kitcuda_load_symbols()) {
     // TODO: This error block is repetative in the runtime...  Probably best
@@ -236,8 +236,10 @@ void __kitcuda_initialize(void) {
 }
 
 void __kitcuda_finalize(void) {
-  if (not _kitcuda_initialized)
+  if (not _kitcuda_initialized) {
+    LOG("Cannot finalize runtime. Not initialized");
     return;
+  }
 
   LOG("Finalizing Kitsune runtime (cuda)");
 
