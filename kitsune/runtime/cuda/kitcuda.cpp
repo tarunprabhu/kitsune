@@ -66,6 +66,7 @@
 
 #include "common/env.h"
 #include "common/logging.h"
+#include "global/global.h"
 #include "kitcuda.h"
 #include "kitcuda_dylib.h"
 #include "kitrt.h"
@@ -100,14 +101,14 @@ const int KIT_NVTX_CLEANUP = 4;
 extern "C" {
 
 void __kitcuda_initialize(void) {
-  LOGEARLY("Initializing Kitsune runtime (cuda)");
-
   // Initialize the shared components of the higher-level runtime.
   __kitrt_initialize();
 
+  LOG("Initializing Kitsune runtime (cuda)");
+
   KIT_NVTX_PUSH("kitcuda: initialize", KIT_NVTX_INIT);
   if (_kitcuda_initialized) {
-    if (__kitrt_verbose_mode())
+    if (kitrt::gctx.verbose)
       fprintf(stderr, "kitcuda: warning, multiple initialization calls!\n");
     return;
   }
@@ -185,7 +186,7 @@ void __kitcuda_initialize(void) {
       &_kitcuda_minor_compute_capability,
       CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, _kitcuda_device));
 
-  if (__kitrt_verbose_mode()) {
+  if (kitrt::gctx.verbose) {
     fprintf(stderr, "    kitcuda: found %d devices.\n", device_count);
     fprintf(stderr, "             using device:     %d\n", _kitcuda_device_id);
     fprintf(stderr, "             driver version:   %d\n",
@@ -213,14 +214,14 @@ void __kitcuda_initialize(void) {
   if (std::optional<int> tpb =
           kitrt::envLookup<int>("KITCUDA_THREADS_PER_BLOCK")) {
     __kitcuda_set_default_threads_per_blk(*tpb);
-    if (__kitrt_verbose_mode())
+    if (kitrt::gctx.verbose)
       fprintf(stderr, "  kitcuda: threads/block: %d\n", *tpb);
   }
 
   if (std::optional<int> tpb =
           kitrt::envLookup<int>("KITCUDA_MAX_THREADS_PER_BLOCK")) {
     __kitcuda_set_max_threads_per_blk(*tpb);
-    if (__kitrt_verbose_mode())
+    if (kitrt::gctx.verbose)
       fprintf(stderr, "  kitcuda: max threads/block: %d\n", *tpb);
   }
 
@@ -248,11 +249,11 @@ void __kitcuda_finalize(void) {
   _kitcuda_initialized = false;
   KIT_NVTX_POP();
 
+  LOG("Finalized Kitsune runtime (cuda)");
+
   // Finalize the components of Kitsune's runtime that are shared by the
   // tapir-target-specific components.
   __kitrt_finalize();
-
-  LOG("Finalized Kitsune runtime (cuda)");
 }
 
 /// The number of partial reductions to perform in parallel.

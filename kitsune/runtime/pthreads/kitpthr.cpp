@@ -57,6 +57,7 @@
 #include "common/env.h"
 #include "common/logging.h"
 #include "common/utils.h"
+#include "global/singleton.h"
 #include "kitrt.h"
 
 #include <cassert>
@@ -64,49 +65,25 @@
 #include <pthread.h>
 #include <vector>
 
-/// The type of the pthread start function.
-using PthreadStartFunc = void *(*)(void *);
+using namespace kitrt;
 
-namespace {
-
-class KitPthrSingleton;
-
-static void newSingleton(void);
-static void delSingleton(void);
-static KitPthrSingleton *getSingleton(void);
+namespace kitrt {
 
 /// Global state for this runtime. We intentionally keep the members public
 /// because it is not clear what advantage there is to hiding them.
-class KitPthrSingleton {
+class KitPthrContext : public KitContextMixin<KitPthrContext> {
 public:
   /// The number of threads to use. This should not be used directly in the rest
   /// of the runtime. Use `__kitpthr_num_threads()` to get this value.
-  uint64_t numThreads = 1;
-
-private:
-  KitPthrSingleton() = default;
-  ~KitPthrSingleton() = default;
-
-public:
-  friend void newSingleton(void);
-  friend void delSingleton(void);
+  uint32_t numThreads = 1;
 };
 
-/// FIXME: This should eventually be folded into a single global state object
-/// for kitrt - whenever that happens. This will be created by
-/// __kitpthr_initialize and deleted by __kitpthr_finalize. This object should
-/// never be accessed directly. Instead, the *Singleton() functions should be
-/// used.
-static KitPthrSingleton *gSingleton = nullptr;
+} // namespace kitrt
 
-static void newSingleton(void) { gSingleton = new KitPthrSingleton(); }
+namespace {
 
-static void delSingleton(void) {
-  delete gSingleton;
-  gSingleton = nullptr;
-}
-
-static KitPthrSingleton *getSingleton(void) { return gSingleton; }
+/// The type of the pthread start function.
+using PthreadStartFunc = void *(*)(void *);
 
 /// Metadata for each thread. This is passed to the thread launch function and
 /// also contains the arguments to be passed to the "actual" thread function.
@@ -118,22 +95,21 @@ struct KitPthrThread {
   pthread_attr_t attr;
 };
 
-/// The thread context object. This is created and returned by
-/// \ref __kitpthr_launch. This should be passed to __kitpthr_join where it
-/// will be deleted.
-struct KitPthrContextImpl {
+/// The launch context object. The instance created by \ref __kitpthr_launch
+/// should be passed to __kitpthr_join where it will be deleted.
+struct LaunchContextImpl {
   std::vector<KitPthrThread> thrds;
 
 public:
-  KitPthrContextImpl() = default;
-  KitPthrContextImpl(size_t numThreads) : thrds(numThreads) {
+  LaunchContextImpl() = default;
+  LaunchContextImpl(size_t numThreads) : thrds(numThreads) {
     for (size_t t = 0; t < numThreads; ++t)
       thrds[t].tid = t;
   }
 
-  KitPthrContextImpl(const KitPthrContextImpl &) = delete;
-  KitPthrContextImpl(KitPthrContextImpl &&) = delete;
-  KitPthrContext &operator=(const KitPthrContextImpl &) = delete;
+  LaunchContextImpl(const LaunchContextImpl &) = delete;
+  LaunchContextImpl(LaunchContextImpl &&) = delete;
+  LaunchContextImpl &operator=(const LaunchContextImpl &) = delete;
 
   KitPthrThread &operator[](size_t i) { return thrds.at(i); }
   const KitPthrThread &operator[](size_t i) const { return thrds.at(i); }
@@ -178,7 +154,7 @@ public:
 /// Get the number of threads available for parallel work.
 extern "C" uint64_t __kitpthr_num_threads(void) {
   assert(__kitpthr_initialized() && "kitpthr initialized");
-  return getSingleton()->numThreads;
+  return KitPthrContext::getSingleton().numThreads;
 }
 
 /// Get the ID of the thread from which this is called.
@@ -243,15 +219,15 @@ static void *kitpthrThrdStartFn(KitPthrThread *thread) {
 /// launched, i.e. \p f is run on the main thread, nullptr will be returned
 /// instead. In this case, the caller is not required to call
 /// \ref __kitpthr_join.
-extern "C" KitPthrContext *__kitpthr_launch(KitPthrThrdFunc f, uint64_t start,
-                                            uint64_t end, void *args) {
+extern "C" KitPthrLaunchContext *
+__kitpthr_launch(KitPthrThrdFunc f, uint64_t start, uint64_t end, void *args) {
   assert(__kitpthr_initialized() && "kitpthr initialized");
   assert(start == 0 && end == __kitpthr_num_threads() &&
          "__kitpthr_launch expects loop iterations in range [0,NUM_THREADS)");
   LOG("Launching multithreaded loop: [%ld,%ld)", start, end);
 
   uint64_t numThreads = __kitpthr_num_threads();
-  KitPthrContextImpl *ctx = new KitPthrContextImpl(numThreads - 1);
+  LaunchContextImpl *ctx = new LaunchContextImpl(numThreads - 1);
   for (KitPthrThread &thrd : *ctx) {
     thrd.f = f;
     thrd.args = args;
@@ -266,14 +242,14 @@ extern "C" KitPthrContext *__kitpthr_launch(KitPthrThrdFunc f, uint64_t start,
   }
   f(numThreads - 1, numThreads, args);
 
-  return reinterpret_cast<KitPthrContext *>(ctx);
+  return reinterpret_cast<KitPthrLaunchContext *>(ctx);
 }
 
 /// Join the threads launched by a previous call to \ref __kitpthr_launch.
 /// \p ctx is the context returned by that call. \p ctx may be nullptr, in which
 /// case, this function does nothing.
-extern "C" void __kitpthr_sync(KitPthrContext *p) {
-  KitPthrContextImpl *ctx = reinterpret_cast<KitPthrContextImpl *>(p);
+extern "C" void __kitpthr_sync(KitPthrLaunchContext *p) {
+  LaunchContextImpl *ctx = reinterpret_cast<LaunchContextImpl *>(p);
   LOG("Joining %ld threads", ctx->size());
   for (KitPthrThread &thrd : *ctx) {
     if (int err = pthread_join(thrd.pthr, nullptr))
@@ -286,7 +262,9 @@ extern "C" void __kitpthr_sync(KitPthrContext *p) {
 }
 
 /// Check if this runtime has already been initialized.
-extern "C" bool __kitpthr_initialized(void) { return getSingleton(); }
+extern "C" bool __kitpthr_initialized(void) {
+  return KitPthrContext::hasSingleton();
+}
 
 /// Initialize Kitsune's pthreads runtime. This is intended to be called from
 /// a global constructor that is generated by Kitsune. This is not thread-safe,
@@ -298,23 +276,20 @@ extern "C" void __kitpthr_initialize(void) {
     return;
   }
 
-  LOGEARLY("Initializing Kitsune runtime (pthreads)");
-
-  // Create the global singleton object.
-  newSingleton();
-
-  // Initialize the components of kitsune's runtime that are shared by the
-  // tapir-target-specific components.
   __kitrt_initialize();
+
+  LOG("Initializing Kitsune runtime (pthreads)");
+
+  KitPthrContext::addSingleton();
+  KitPthrContext::mutSingleton().numThreads = getNumThreadsOrCPUs();
 
 #ifdef KITRT_PAPI_ENABLED
   __kitpapi_initialize(__kitpthr_thread_id);
 #endif // KITRT_PAPI_ENABLED
 
-  getSingleton()->numThreads = kitrt::getNumThreadsOrCPUs();
-
   // pthreads does not have to be initialized.
 
+  LOG("Number of CPUs = %d", getNumCPUs());
   LOG("Number of threads = %d", __kitpthr_num_threads());
   LOG("Initialized Kitsune runtime (pthreads)");
 }
@@ -337,12 +312,9 @@ extern "C" void __kitpthr_finalize(void) {
   __kitpapi_finalize();
 #endif // KITRT_PAPI_ENABLED
 
-  // Finalize the components of Kitsune's runtime that are shared by the
-  // tapir-target-specific components.
-  __kitrt_finalize();
-
-  // Delete the global singleton object.
-  delSingleton();
+  KitPthrContext::delSingleton();
 
   LOG("Finalized Kitsune runtime (pthreads)");
+
+  __kitrt_finalize();
 }

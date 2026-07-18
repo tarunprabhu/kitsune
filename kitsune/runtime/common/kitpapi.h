@@ -87,7 +87,7 @@ extern "C" {
 /// An opaque structure containing the context for a single PAPI event set.
 /// The typical use of this object is as follows:
 ///
-///     PAPIContext *ctx = __kitpapi_new("some-useful-name");
+///     KitPAPIEventsContext *ctx = __kitpapi_new("some-useful-name");
 ///     __kitpapi_add_event(ctx, <event-name>);
 ///
 ///     // Add as many events as needed. Note that individual platforms will
@@ -99,8 +99,8 @@ extern "C" {
 ///
 ///     __kitpapi_stop(ctx);
 ///
-struct KitPAPIContext;
-typedef struct KitPAPIContext KitPAPIContext;
+struct KitPAPIEventsContext;
+typedef struct KitPAPIEventsContext KitPAPIEventsContext;
 
 /// The type of the function that returns the ID of a thread.
 typedef unsigned long (*PAPIThreadIDFunc)(void);
@@ -126,7 +126,7 @@ void __kitpapi_finalize(void);
 ///
 /// In each case, additional events can be added to the context with
 /// __kitpapi_add_event.
-KitPAPIContext *__kitpapi_new(const char *name, ...);
+KitPAPIEventsContext *__kitpapi_new(const char *name, ...);
 
 /// Add an event to the event set represented by the context \p ctx. \p evtName
 /// is the Kitsune-specific name of the event. If the event could not be added
@@ -135,16 +135,16 @@ KitPAPIContext *__kitpapi_new(const char *name, ...);
 /// and the subsequent behavior of __kitpapi_start and kitpapi_stop are
 /// undefined if \p evtName is an event that is not available on the system
 /// where PAPI is used.
-void __kitpapi_add_event(KitPAPIContext *ctx, const char *evtName);
+void __kitpapi_add_event(KitPAPIEventsContext *ctx, const char *evtName);
 
 /// Start collecting events. \p ctx is a context previously created by a
 /// call to __kitpapi_new.
-void __kitpapi_start(KitPAPIContext *ctx);
+void __kitpapi_start(KitPAPIEventsContext *ctx);
 
 /// Stop collecting events. \p ctx is a context previously created by a call to
 /// __kitpapi_new. This will print the counters that were collected to stderr.
 /// \p ctx will be destroyed.
-void __kitpapi_stop(KitPAPIContext *ctx);
+void __kitpapi_stop(KitPAPIEventsContext *ctx);
 
 #ifdef __cplusplus
 } // extern "C"

@@ -57,56 +57,31 @@
 
 #include "kitser.h"
 #include "common/logging.h"
+#include "global/singleton.h"
 #include "kitrt.h"
 
-namespace {
+using namespace kitrt;
 
-class KitSerSingleton;
-
-static void newSingleton(void);
-static void delSingleton(void);
-static KitSerSingleton *getSingleton(void);
+namespace kitrt {
 
 /// Global state for this runtime. We intentionally keep the members public
 /// because it is not clear what advantage there is to hiding them.
-class KitSerSingleton {
+class KitSerContext : public KitContextMixin<KitSerContext> {
 public:
   // Currently, there are no members. This runtime only needs to know if it has
   // been initialized. If the global singleton is not nullptr, then we know that
   // the runtime has been initialized.
-
-private:
-  KitSerSingleton() = default;
-  ~KitSerSingleton() = default;
-
-public:
-  friend void newSingleton(void);
-  friend void delSingleton(void);
 };
 
-/// FIXME: This should eventually be folded into a single global state object
-/// for kitrt - whenever that happens. This will be created by
-/// __kitser_initialize and deleted by __kitser_finalize. This object should
-/// never be accessed directly. Instead, the *Singleton() functions should be
-/// used.
-static KitSerSingleton *gSingleton = nullptr;
-
-static void newSingleton(void) { gSingleton = new KitSerSingleton(); }
-
-static void delSingleton(void) {
-  delete gSingleton;
-  gSingleton = nullptr;
-}
-
-static KitSerSingleton *getSingleton(void) { return gSingleton; }
-
-} // namespace
+} // namespace kitrt
 
 /// Get the ID of the thread from which this is called. Always return 0.
 extern "C" uint64_t __kitser_thread_id(void) { return 0; }
 
 /// Check if this runtime has already been initialized.
-extern "C" bool __kitser_initialized(void) { return getSingleton(); }
+extern "C" bool __kitser_initialized(void) {
+  return KitSerContext::hasSingleton();
+}
 
 /// Initialize Kitsune's serial runtime. This is not expected to do much other
 /// than initialize the rest of the runtime and initialize PAPI.
@@ -116,15 +91,10 @@ extern "C" void __kitser_initialize(void) {
     return;
   }
 
-  LOGEARLY("Initializing Kitsune runtime (serial)");
-
-  // Create the global singleton object.
-  newSingleton();
-
-  // Initialize the components of kitsune's runtime that are shared by the
-  // tapir-target-specific components.
   __kitrt_initialize();
 
+  LOG("Initializing Kitsune runtime (serial)");
+  KitSerContext::addSingleton();
 #ifdef KITRT_PAPI_ENABLED
   __kitpapi_initialize(__kitser_thread_id);
 #endif // KITRT_PAPI_ENABLED
@@ -144,13 +114,8 @@ extern "C" void __kitser_finalize(void) {
 #ifdef KITRT_PAPI_ENABLED
   __kitpapi_finalize();
 #endif // KITRT_PAPI_ENABLED
-
-  // Finalize the components of Kitsune's runtime that are shared by the
-  // tapir-target-specific components.
-  __kitrt_finalize();
-
-  // Delete the global singleton object.
-  delSingleton();
-
+  KitSerContext::delSingleton();
   LOG("Finalized Kitsune runtime (serial)");
+
+  __kitrt_finalize();
 }

@@ -53,6 +53,7 @@
 #include "common/env.h"
 #include "common/logging.h"
 #include "common/utils.h"
+#include "global/singleton.h"
 #include "kitrt.h"
 
 // This is an internal header in LLVM's OpenMP runtime. The path is relative
@@ -69,48 +70,20 @@ extern "C" unsigned omp_get_thread_num(void);
 extern "C" unsigned omp_get_num_threads(void);
 extern "C" unsigned omp_get_max_threads(void);
 
-namespace {
+using namespace kitrt;
 
-class KitOMPSingleton;
-
-static void newSingleton(void);
-static void delSingleton(void);
-static KitOMPSingleton *getSingleton(void);
+namespace kitrt {
 
 /// Global state for this runtime. We intentionally keep the members public
 /// because it is not clear what advantage there is to hiding them.
-class KitOMPSingleton {
+class KitOMPContext : public KitContextMixin<KitOMPContext> {
 public:
   // Currently, there are no members. This runtime only needs to know if it has
-  // been initialized. If the global singleton is not nullptr, then we know that
-  // the runtime has been initialized.
-
-private:
-  KitOMPSingleton() = default;
-  ~KitOMPSingleton() = default;
-
-public:
-  friend void newSingleton(void);
-  friend void delSingleton(void);
+  // been initialized. For this, an instance of this object must be registered
+  // with the global singleton. This is done in __kitomp_initialize.
 };
 
-/// FIXME: This should eventually be folded into a single global state object
-/// for kitrt - whenever that happens. This will be created by
-/// __kitomp_initialize and deleted by __kitomp_finalize. This object should
-/// never be accessed directly. Instead, the kitompSingleton*() functions should
-/// be used.
-static KitOMPSingleton *gSingleton = nullptr;
-
-static void newSingleton(void) { gSingleton = new KitOMPSingleton(); }
-
-static void delSingleton(void) {
-  delete gSingleton;
-  gSingleton = nullptr;
-}
-
-static KitOMPSingleton *getSingleton(void) { return gSingleton; }
-
-} // namespace
+} // namespace kitrt
 
 /// "Location" information needed by libomp's functions. It would be good to
 /// get actual source information, but that would need to come from the
@@ -241,7 +214,9 @@ extern "C" void __kitomp_launch(KitOMPThrdFunc f, uint64_t start, uint64_t end,
 }
 
 /// Check if this runtime has already been initialized.
-extern "C" bool __kitomp_initialized(void) { return getSingleton(); }
+extern "C" bool __kitomp_initialized(void) {
+  return KitOMPContext::hasSingleton();
+}
 
 /// Initialize Kitsune's OpenMP runtime as well as the underlying OpenMP
 /// runtime. This is intended to be called from a global constructor that is
@@ -253,21 +228,18 @@ extern "C" void __kitomp_initialize(void) {
     return;
   }
 
-  LOGEARLY("Initializing Kitsune runtime (openmp)");
-
-  // Create the global singleton object.
-  newSingleton();
-
-  // Initialize the components of kitsune's runtime that are shared by the
-  // tapir-target-specific components.
   __kitrt_initialize();
+
+  LOG("Initializing Kitsune runtime (openmp)");
+
+  KitOMPContext::addSingleton();
 
 #ifdef KITRT_PAPI_ENABLED
   __kitpapi_initialize(__kitomp_thread_id);
 #endif // KITRT_PAPI_ENABLED
 
-  uint64_t numThreads = kitrt::getNumThreadsOrCPUs("OMP_NUM_THREADS");
-  kitrt::envSet("OMP_NUM_THREADS", numThreads);
+  uint64_t numThreads = getNumThreadsOrCPUs("OMP_NUM_THREADS");
+  envSet("OMP_NUM_THREADS", numThreads);
 
   // The second argument in the call to __kmpc_begin is currently unused, per
   // the 10-year old documentation that seems to be the only kind that is
@@ -276,6 +248,7 @@ extern "C" void __kitomp_initialize(void) {
   __kmpc_begin(&unknownLoc, /*flags=*/0);
   LOG("Initialized OpenMP runtime");
 
+  LOG("Number of CPUs = %d", getNumCPUs());
   LOG("Number of threads = %d", __kitomp_num_threads());
   LOG("Initialized Kitsune runtime (openmp)");
 }
@@ -302,12 +275,9 @@ extern "C" void __kitomp_finalize(void) {
   __kitpapi_finalize();
 #endif // KITRT_PAPI_ENABLED
 
-  // Finalize the components of Kitsune's runtime that are shared by the
-  // tapir-target-specific components.
-  __kitrt_finalize();
-
-  // Delete the global singleton object.
-  delSingleton();
+  KitOMPContext::delSingleton();
 
   LOG("Finalized Kitsune runtime (openmp)");
+
+  __kitrt_finalize();
 }

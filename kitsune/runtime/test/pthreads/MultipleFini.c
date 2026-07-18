@@ -5,9 +5,9 @@
 //
 // CHECK: Initialized = {{[1-9][0-9]*}}
 // CHECK: Finalizing Kitsune runtime (pthreads)
+// CHECK: Finalized Kitsune runtime (pthreads)
 // CHECK: Finalizing Kitsune runtime (common)
 // CHECK: Finalized Kitsune runtime (common)
-// CHECK: Finalized Kitsune runtime (pthreads)
 // CHECK: Initialized = 0
 // CHECK: Cannot finalize runtime. Not initialized
 // CHECK: Initialized = 0

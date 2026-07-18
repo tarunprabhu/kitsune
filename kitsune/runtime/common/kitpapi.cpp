@@ -70,7 +70,7 @@
 // identify the source of the counters when they are printed, and an event set
 // created by a call to PAPI_create_event_set. This is intentionally opaque to
 // callers. A pointer to this will be used by most of the functions here.
-struct KitPAPIContext {
+struct KitPAPIEventsContext {
   std::string name = "<anon>";
 
   /// The event set created by PAPI_create_event_set.
@@ -83,7 +83,7 @@ struct KitPAPIContext {
   std::vector<long long> values;
 
 public:
-  KitPAPIContext(const char *n, int evtSet) : evtSet(evtSet) {
+  KitPAPIEventsContext(const char *n, int evtSet) : evtSet(evtSet) {
     if (n && strlen(n) > 0)
       name = n;
   }
@@ -115,8 +115,8 @@ static std::string getEventLabel(int evt) {
   return "<unknown>";
 }
 
-static void __kitpapi_add_event_impl(KitPAPIContext *ctx, const char *name,
-                                     int evt) {
+static void __kitpapi_add_event_impl(KitPAPIEventsContext *ctx,
+                                     const char *name, int evt) {
   std::string evtSymbol = getEventSymbol(evt);
   std::string evtLabel = getEventLabel(evt);
   if (int err = PAPI_add_event(ctx->evtSet, evt)) {
@@ -137,7 +137,8 @@ static void __kitpapi_add_event_impl(KitPAPIContext *ctx, const char *name,
       return __kitpapi_add_event_impl(ctx, name, evtCode);                     \
   } while (0)
 
-extern "C" void __kitpapi_add_event(KitPAPIContext *ctx, const char *name) {
+extern "C" void __kitpapi_add_event(KitPAPIEventsContext *ctx,
+                                    const char *name) {
   if (!ctx)
     return;
 
@@ -169,16 +170,16 @@ extern "C" void __kitpapi_add_event(KitPAPIContext *ctx, const char *name) {
   WARN("Ignoring unknown event '%s'", name);
 }
 
-static KitPAPIContext *newContext(const char *name) {
+static KitPAPIEventsContext *newContext(const char *name) {
   int evtSet = PAPI_NULL;
   if (int err = PAPI_create_eventset(&evtSet)) {
     handleError("Could not create PAPI event set", err);
     return nullptr;
   }
-  return new KitPAPIContext(name, evtSet);
+  return new KitPAPIEventsContext(name, evtSet);
 }
 
-static void deleteContext(KitPAPIContext *ctx) {
+static void deleteContext(KitPAPIEventsContext *ctx) {
   if (int err = PAPI_cleanup_eventset(ctx->evtSet))
     handleError("Could not cleanup event set", err);
   if (int err = PAPI_destroy_eventset(&ctx->evtSet))
@@ -186,11 +187,11 @@ static void deleteContext(KitPAPIContext *ctx) {
   delete ctx;
 }
 
-extern "C" KitPAPIContext *__kitpapi_new(const char *name, ...) {
+extern "C" KitPAPIEventsContext *__kitpapi_new(const char *name, ...) {
   if (!PAPI_is_initialized())
     return nullptr;
 
-  KitPAPIContext *ctx = newContext(name);
+  KitPAPIEventsContext *ctx = newContext(name);
   if (!ctx)
     return nullptr;
 
@@ -207,7 +208,7 @@ extern "C" KitPAPIContext *__kitpapi_new(const char *name, ...) {
   return ctx;
 }
 
-extern "C" void __kitpapi_start(KitPAPIContext *ctx) {
+extern "C" void __kitpapi_start(KitPAPIEventsContext *ctx) {
   if (!ctx)
     return;
 
@@ -216,7 +217,7 @@ extern "C" void __kitpapi_start(KitPAPIContext *ctx) {
     return handleError("Could not start PAPI counters", err);
 }
 
-extern "C" void __kitpapi_stop(KitPAPIContext *ctx) {
+extern "C" void __kitpapi_stop(KitPAPIEventsContext *ctx) {
   if (!ctx)
     return;
 

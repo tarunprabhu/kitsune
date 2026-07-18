@@ -24,7 +24,7 @@
 // RUN: env KIT_VERBOSE=1 KITRT_VERBOSE=1 %exe 2>&1 \
 // RUN:     | FileCheck %s --check-prefix=VERBOSE
 //
-// VERBOSE: Verbose mode enabled
+// VERBOSE: Initialized Kitsune runtime (common)
 // NOT-VERBOSE-NOT: {{^.+$}}
 
 #include "kitrt.h"

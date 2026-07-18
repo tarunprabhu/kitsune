@@ -57,6 +57,7 @@
 #include "common/env.h"
 #include "common/logging.h"
 #include "common/utils.h"
+#include "global/singleton.h"
 #include "kitrt.h"
 
 #include <qthread.h>
@@ -65,46 +66,22 @@
 #include <cassert>
 #include <vector>
 
-namespace {
+using namespace kitrt;
 
-class KitQthrSingleton;
-
-static void newSingleton(void);
-static void delSingleton(void);
-static KitQthrSingleton *getSingleton(void);
+namespace kitrt {
 
 /// Global state for this runtime. We intentionally keep the members public
 /// because it is not clear what advantage there is to hiding them.
-class KitQthrSingleton {
+class KitQthrContext : public KitContextMixin<KitQthrContext> {
 public:
   // Currently, there are no members. This runtime only needs to know if it has
   // been initialized. If the global singleton is not nullptr, then we know that
   // the runtime has been initialized.
-
-private:
-  KitQthrSingleton() = default;
-  ~KitQthrSingleton() = default;
-
-public:
-  friend void newSingleton(void);
-  friend void delSingleton(void);
 };
 
-/// FIXME: This should eventually be folded into a single global state object
-/// for kitrt - whenever that happens. This will be created by
-/// __kitqthr_initialize and deleted by __kitqthr_finalize. This object should
-/// never be accessed directly. Instead, the *Singleton() functions should be
-/// used.
-static KitQthrSingleton *gSingleton = nullptr;
+} // namespace kitrt
 
-static void newSingleton(void) { gSingleton = new KitQthrSingleton(); }
-
-static void delSingleton(void) {
-  delete gSingleton;
-  gSingleton = nullptr;
-}
-
-static KitQthrSingleton *getSingleton(void) { return gSingleton; }
+namespace {
 
 /// The arguments is passed to the thread launch function. This contains the
 /// arguments to be passed to the "actual" thread function. It also contains the
@@ -232,7 +209,9 @@ extern "C" void __kitqthr_launch(KitQthrThrdFunc f, uint64_t start,
 }
 
 /// Check if this runtime has already been initialized.
-extern "C" bool __kitqthr_initialized(void) { return getSingleton(); }
+extern "C" bool __kitqthr_initialized(void) {
+  return KitQthrContext::hasSingleton();
+}
 
 /// Initialize kitsune's qthreads runtime as well as the underlying Qthreads
 /// runtime. This is intended to be called from a global constructor that is
@@ -244,29 +223,26 @@ extern "C" void __kitqthr_initialize(void) {
     return;
   }
 
-  LOGEARLY("Initializing Kitsune runtime (qthreads)");
-
-  // Create the global singleton object.
-  newSingleton();
-
-  // Initialize the components of kitsune's runtime that are shared by the
-  // tapir-target-specific components.
   __kitrt_initialize();
+
+  LOG("Initializing Kitsune runtime (qthreads)");
+
+  KitQthrContext::addSingleton();
 
 #ifdef KITRT_PAPI_ENABLED
   __kitpapi_initialize(__kitqthr_worker_id);
 #endif // KITRT_PAPI_ENABLED
 
-  uint64_t numThreads = kitrt::getNumThreadsOrCPUs();
-
-  kitrt::envSet("QT_NUM_SHEPHERDS", numThreads);
-  kitrt::envSet("QT_NUM_WORKERS_PER_SHEPHERD", 1);
+  uint64_t numThreads = getNumThreadsOrCPUs();
+  envSet("QT_NUM_SHEPHERDS", numThreads);
+  envSet("QT_NUM_WORKERS_PER_SHEPHERD", 1);
 
   LOG("Initializing Qthreads runtime");
   if (qthread_initialize())
     FATAL("Could not initialize Qthreads runtime");
   LOG("Initialized Qthreads runtime");
 
+  LOG("Number of CPUs = %d", getNumCPUs());
   LOG("Number of shepherds = %d", qthread_num_shepherds());
   LOG("Number of workers = %d", qthread_num_workers());
   LOG("Initialized Kitsune runtime (qthreads)");
@@ -292,12 +268,9 @@ extern "C" void __kitqthr_finalize(void) {
   __kitpapi_finalize();
 #endif // KITRT_PAPI_ENABLED
 
-  // Finalize the components of Kitsune's runtime that are shared by the
-  // tapir-target-specific components.
-  __kitrt_finalize();
-
-  // Delete the global singleton object.
-  delSingleton();
+  KitQthrContext::delSingleton();
 
   LOG("Finalized Kitsune runtime (qthreads)");
+
+  __kitrt_finalize();
 }

@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------------
-// logEarly works with both KIT_VERBOSE and KITRT_VERBOSE.
+// logIfVerbose works with both KIT_VERBOSE and KITRT_VERBOSE.
 //
 // RUN: %exe 2>&1 | FileCheck %s --check-prefix=EMPTY --allow-empty
 // RUN: env KIT_VERBOSE=1 %exe 2>&1 \
@@ -32,9 +32,14 @@
 //
 // EMPTY-NOT: {{^.+$}}
 //
-// CHECK: kitrt: Early message
+// CHECK: kitrt: [test]: Early message
 //
 // -----------------------------------------------------------------------------
+
+// This must be defined before common/logging.h is included. In the actual kitrt
+// source, this will have been defined by the compiler invocation in the form of
+// a `-DKITRT_LOG_TAG="<...>"` command-line option.
+#define KITRT_LOG_TAG "test"
 
 #include "common/logging.h"
 #include "kitrt.h"
@@ -44,6 +49,6 @@ __attribute__((constructor)) static void ctor(void) { __kitrt_initialize(); }
 __attribute__((destructor)) static void dtor(void) { __kitrt_finalize(); }
 
 int main(int argc, char *argv[]) {
-  LOGEARLY("Early message");
+  LOG_IF_VERBOSE("Early message");
   return 0;
 }

@@ -4,9 +4,9 @@
 // RUN: KIT_VERBOSE=1 %exe 2>&1 | FileCheck %s
 //
 // CHECK: Initialized = 0
-// CHECK: Initializing Kitsune runtime (pthreads)
 // CHECK: Initializing Kitsune runtime (common)
 // CHECK: Initialized Kitsune runtime (common)
+// CHECK: Initializing Kitsune runtime (pthreads)
 // CHECK: Initialized Kitsune runtime (pthreads)
 // CHECK: Initialized = {{[1-9][0-9]*}}
 // CHECK: Runtime already initialized
