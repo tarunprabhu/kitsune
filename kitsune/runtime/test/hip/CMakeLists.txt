@@ -1,10 +1,15 @@
 set(TESTS
-  RTInitFini.c)
+  Initialized.c
+  MultipleFini.c
+  MultipleInit.c
+  RTInitFini.c
+)
 
 # These tests call PAPI's API functions directly, and require appropriate
 # include and link options.
 set(TESTS_WITH_PAPI
-  PAPIInitFini.c)
+  PAPIInitFini.c
+)
 
 add_kitrt_systests("${TESTS}")
 
