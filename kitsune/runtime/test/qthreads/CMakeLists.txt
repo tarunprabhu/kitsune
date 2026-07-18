@@ -5,26 +5,29 @@ set(TESTS
   MultipleFini.c
   NumPartials.c
   RTInitFini.c
-  WorkerID.c)
-
-# These tests call PAPI's API functions directly, and require appropriate
-# include and link options.
-set(TESTS_WITH_PAPI
-  PAPIInitFini.c)
+  WorkerID.c
+)
 
 # These tests call functions from Qthreads directly, and require appropriate
 # include and link options.
 set(TESTS_WITH_QTHREADS
-  NumThreads.c)
+  NumThreads.c
+)
+
+# These tests call PAPI's API functions directly, and require appropriate
+# include and link options.
+set(TESTS_WITH_PAPI
+  PAPIInitFini.c
+)
 
 add_kitrt_systests("${TESTS}")
+
+add_kitrt_systests("${TESTS_WITH_QTHREADS}"
+  INCDIRS ${KITSUNE_QTHREADS_INCDIRS}
+  LIBS ${KITSUNE_QTHREADS_LIBS})
 
 if (KITSUNE_PAPI_ENABLED)
   add_kitrt_systests("${TESTS_WITH_PAPI}"
     INCDIRS ${KITSUNE_PAPI_INCDIRS}
     LIBS ${KITSUNE_PAPI_LIBS})
 endif ()
-
-add_kitrt_systests("${TESTS_WITH_QTHREADS}"
-  INCDIRS ${KITSUNE_QTHREADS_INCDIRS}
-  LIBS ${KITSUNE_QTHREADS_LIBS})
