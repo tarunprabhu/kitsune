@@ -105,14 +105,11 @@ uint32_t kitrt::getNumCPUs(void) {
   // The standard says that std::thread::hardware_concurrency() should only be
   // considered a hint. But it seems to work on the platforms that we care
   // about. Still, it might be worth using a more reliable method.
-  unsigned cpus = std::thread::hardware_concurrency();
-  if (cpus == 0) {
-    WARN("Could not determine number of CPUs. Defaulting to 1");
-    return 1;
-  }
+  if (unsigned cpus = std::thread::hardware_concurrency())
+    return cpus;
 
-  LOG("Found %d CPUs", cpus);
-  return cpus;
+  WARN("Could not determine number of CPUs. Defaulting to 1");
+  return 1;
 }
 
 void kitrt::printStackTrace(void) {
