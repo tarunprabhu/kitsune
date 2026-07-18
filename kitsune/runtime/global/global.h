@@ -82,6 +82,10 @@ public:
   /// Has verbose mode been enabled.
   uint32_t verbose : 1;
 
+  /// Enable colorized output. This is only used for logs and diagnostic
+  /// messages.
+  uint32_t colors : 1;
+
   /// Global context for Kitsune's cuda runtime.
   KitCudaContext *cuda = nullptr;
 
@@ -133,6 +137,9 @@ public:
 
   /// Set the verbose flag.
   void setVerbose(bool verbose);
+
+  /// Set the colors flag.
+  void setColors(bool colors);
 
   /// Set the global context object for Kitsune's cuda runtime.
   void addContext(KitCudaContext *ctx);

@@ -7,6 +7,15 @@
 
 set(KITRT_OBJLIB "kitrt_objlib")
 
+set(KITSUNE_CPU_TERMCOLOR "nullptr")
+set(KITSUNE_CUDA_TERMCOLOR "nullptr")
+set(KITSUNE_HIP_TERMCOLOR "nullptr")
+if (KITSUNE_TERMCOLOR_ENABLED)
+  set(KITSUNE_CPU_TERMCOLOR "ANSI_CYAN")
+  set(KITSUNE_CUDA_TERMCOLOR "ANSI_BLUE")
+  set(KITSUNE_HIP_TERMCOLOR "ANSI_YELLOW")
+endif ()
+
 add_library(${KITRT_OBJLIB} OBJECT
   kitrt.cpp
   memory.cpp
@@ -47,6 +56,17 @@ if (LLVM_ENABLE_ASSERTIONS)
     -UNDEBUG)
 endif()
 
+if (KITSUNE_COLORS_ENABLED)
+  target_compile_definitions(${KITRT_OBJLIB} PUBLIC
+    KITRT_COLORS_ENABLED)
+
+  target_include_directories(${KITRT_OBJLIB} SYSTEM PUBLIC
+    ${KITSUNE_CURSES_INCDIRS})
+
+  target_link_libraries(${KITRT_OBJLIB} PUBLIC
+    ${KITSUNE_CURSES_LIBS})
+endif ()
+
 if (KITSUNE_PAPI_ENABLED)
   target_sources(${KITRT_OBJLIB} PUBLIC
     common/kitpapi.cpp)
@@ -72,7 +92,7 @@ if (KITSUNE_CUDA_ENABLED)
 
   set_source_files_properties(${SOURCES} PROPERTIES
     COMPILE_DEFINITIONS
-    "KITRT_LOG_TAG=\"cuda\"")
+    "KITRT_LOG_TAG=\"cuda\";KITRT_LOG_COLOR=${KITSUNE_CUDA_TERMCOLOR}")
 
   target_sources(${KITRT_OBJLIB} PUBLIC ${SOURCES})
 
@@ -94,7 +114,7 @@ if (KITSUNE_HIP_ENABLED)
 
   set_source_files_properties(${SOURCES} PROPERTIES
     COMPILE_DEFINITIONS
-    "KITRT_LOG_TAG=\"hip\"")
+    "KITRT_LOG_TAG=\"hip\";KITRT_LOG_COLOR=${KITSUNE_HIP_TERMCOLOR}")
 
   target_sources(${KITRT_OBJLIB} PUBLIC ${SOURCES})
 
@@ -119,7 +139,7 @@ if (KITSUNE_OPENCILK_ENABLED)
 
   set_source_files_properties(${SOURCES} PROPERTIES
     COMPILE_DEFINITIONS
-    "KITRT_LOG_TAG=\"opencilk\"")
+    "KITRT_LOG_TAG=\"opencilk\";KITRT_LOG_COLOR=${KITSUNE_CPU_TERMCOLOR}")
 
   target_sources(${KITRT_OBJLIB} PUBLIC ${SOURCES})
 
@@ -134,7 +154,7 @@ if (KITSUNE_OPENMP_ENABLED)
 
   set_source_files_properties(${SOURCES} PROPERTIES
     COMPILE_DEFINITIONS
-    "KITRT_LOG_TAG=\"openmp\"")
+    "KITRT_LOG_TAG=\"openmp\";KITRT_LOG_COLOR=${KITSUNE_CPU_TERMCOLOR}")
 
   target_sources(${KITRT_OBJLIB} PUBLIC ${SOURCES})
 
@@ -152,7 +172,7 @@ if (KITSUNE_PTHREADS_ENABLED)
 
   set_source_files_properties(${SOURCES} PROPERTIES
     COMPILE_DEFINITIONS
-    "KITRT_LOG_TAG=\"pthreads\"")
+    "KITRT_LOG_TAG=\"pthreads\";KITRT_LOG_COLOR=${KITSUNE_CPU_TERMCOLOR}")
 
   target_sources(${KITRT_OBJLIB} PUBLIC ${SOURCES})
 endif ()
@@ -164,7 +184,7 @@ if (KITSUNE_QTHREADS_ENABLED)
 
   set_source_files_properties(${SOURCES} PROPERTIES
     COMPILE_DEFINITIONS
-    "KITRT_LOG_TAG=\"qthreads\"")
+    "KITRT_LOG_TAG=\"qthreads\";KITRT_LOG_COLOR=${KITSUNE_CPU_TERMCOLOR}")
 
   target_sources(${KITRT_OBJLIB} PUBLIC ${SOURCES})
 
@@ -182,7 +202,7 @@ if (KITSUNE_SERIAL_ENABLED)
 
   set_source_files_properties(${SOURCES} PROPERTIES
     COMPILE_DEFINITIONS
-    "KITRT_LOG_TAG=\"serial\"")
+    "KITRT_LOG_TAG=\"serial\";KITRT_LOG_COLOR=${KITSUNE_CPU_TERMCOLOR}")
 
   target_sources(${KITRT_OBJLIB} PUBLIC ${SOURCES})
 endif ()

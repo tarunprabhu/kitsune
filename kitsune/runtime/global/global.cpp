@@ -70,6 +70,8 @@ void KitRTContext::setInitialized(bool initialized) {
 
 void KitRTContext::setVerbose(bool verbose) { this->verbose = verbose; }
 
+void KitRTContext::setColors(bool colors) { this->colors = colors; }
+
 void KitRTContext::addContext(KitCudaContext *ctx) { this->cuda = ctx; }
 
 void KitRTContext::addContext(KitHipContext *ctx) { this->hip = ctx; }

@@ -53,9 +53,44 @@
 #include "common/logging.h"
 #include "global/global.h"
 
+#ifdef KITRT_COLORS_ENABLED
+#include <curses.h>
+#include <unistd.h>
+#endif // KITRT_COLORS_ENABLED
+
 #include <cstdlib>
 
 using namespace kitrt;
+
+static bool terminalHasColors() {
+  bool colors = false;
+
+#ifdef KITRT_COLORS_ENABLED
+  // Respect the NO_COLOR environment variable. If it is present, don't use
+  // colors. Conversely, if FORCE_COLOR is present, always use colors, even
+  // when not writing to a tty. If both are present, NO_COLOR takes precedence,
+  // only because NO_COLOR is supported in clang, while FORCE_COLOR isn't. That
+  // is a pretty useless reason, but there doesn't seem to be an established
+  // convention for this case. For instance, Python gives NO_COLOR precedence,
+  // whereas NVIDIA Legate gives preference to FORCE_COLOR.
+  if (envContains("NO_COLOR"))
+    return false;
+
+  if (envContains("FORCE_COLOR"))
+    return true;
+
+  // Otherwise, do the "sane" thing and use colors only if the terminal supports
+  // it. If stderr is not connected to a terminal, don't use colors.
+  if (isatty(STDERR_FILENO)) {
+    SCREEN *scr = newterm(NULL, stderr, stdin);
+    colors = has_colors();
+    endwin();
+    delscreen(scr);
+  }
+#endif // KITRT_COLORS_ENABLED
+
+  return colors;
+}
 
 extern "C" bool __kitrt_initialized(void) { return gctx.initialized; }
 
@@ -72,6 +107,7 @@ extern "C" void __kitrt_initialize(void) {
 
   KitRTContext &rt = mutKitRTContext();
   rt.setVerbose(envLookupOr(envVerbose, envVerboseLegacy, false));
+  rt.setColors(terminalHasColors());
 
   __kittimer_initialize();
 
