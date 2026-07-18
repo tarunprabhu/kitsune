@@ -61,6 +61,7 @@
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <mutex>
 #include <optional>
 
@@ -68,49 +69,80 @@ using namespace kitrt;
 
 // Write a message to stderr. \p category is optional. If \p is a format string,
 // the variable list of arguments \p args must be of the appropriate types.
-static void logImpl(const char *tag, const char *category, const char *msg,
-                    va_list args) {
+static void logImpl(const char *color, const char *tag, const char *category,
+                    const char *msg, va_list args) {
   static std::mutex mtx;
   std::lock_guard<std::mutex> guard(mtx);
 
-  // TODO: It would be nice if we could colorize the message.
   fprintf(stderr, "kitrt: ");
-  if (tag)
-    fprintf(stderr, "[%s]: ", tag);
-  if (category)
-    fprintf(stderr, "%s: ", category);
-  vfprintf(stderr, msg, args);
+  if (!gctx.colors) {
+    if (tag)
+      fprintf(stderr, "[%s]: ", tag);
+    if (category)
+      fprintf(stderr, "%s: ", category);
+    vfprintf(stderr, msg, args);
+  } else if (category) {
+    // If a category is set, and colors are enabled, a tag will be printed in
+    // the default color for the tag. This will be followed by the category in
+    // boldface and a color depending on the category itself. Finally, the
+    // message will be printed in bold in the default color of the terminal.
+    //
+    // The HTML-ish code below is an approximation of the output.
+    //
+    // <color>[$tag]</color>: <b><catColor>$category</catColor>: $msg</b>
+    //
+    if (tag)
+      fprintf(stderr, "%s[%s]%s: ", color ? color : "", tag, ANSI_RESET);
+    const char *categoryColor = ANSI_RESET;
+    if (strcmp(category, "error") == 0)
+      categoryColor = ANSI_RED;
+    else if (strcmp(category, "warning") == 0)
+      categoryColor = ANSI_MAGENTA;
+    fprintf(stderr, "%s%s%s%s", categoryColor, ANSI_BOLD, category, ANSI_RESET);
+    fprintf(stderr, "%s: ", ANSI_BOLD);
+    vfprintf(stderr, msg, args);
+    fprintf(stderr, "%s", ANSI_RESET);
+  } else {
+    // If a category is not set an colors are enabled, the tag and message will
+    // all be printed in the same color.
+    fprintf(stderr, "%s", color ? color : "");
+    if (tag)
+      fprintf(stderr, "[%s]: ", tag);
+    vfprintf(stderr, msg, args);
+    fprintf(stderr, "%s", color ? ANSI_RESET : "");
+  }
   fprintf(stderr, "\n");
 }
 
-[[noreturn]] void kitrt::fatal(const char *tag, const char *msg, ...) {
+[[noreturn]] void kitrt::fatal(const char *color, const char *tag,
+                               const char *msg, ...) {
   va_list args;
   va_start(args, msg);
-  logImpl(tag, "ERROR", msg, args);
+  logImpl(color, tag, "error", msg, args);
   va_end(args);
 
   std::exit(EXIT_FAILURE);
 }
 
-void kitrt::error(const char *tag, const char *msg, ...) {
+void kitrt::error(const char *color, const char *tag, const char *msg, ...) {
   va_list args;
   va_start(args, msg);
-  logImpl(tag, "ERROR", msg, args);
+  logImpl(color, tag, "error", msg, args);
   va_end(args);
 }
 
-void kitrt::warn(const char *tag, const char *msg, ...) {
+void kitrt::warn(const char *color, const char *tag, const char *msg, ...) {
   va_list args;
   va_start(args, msg);
-  logImpl(tag, "WARNING", msg, args);
+  logImpl(color, tag, "warning", msg, args);
   va_end(args);
 }
 
-void kitrt::log(const char *tag, const char *msg, ...) {
+void kitrt::log(const char *color, const char *tag, const char *msg, ...) {
   if (gctx.verbose) {
     va_list args;
     va_start(args, msg);
-    logImpl(tag, nullptr, msg, args);
+    logImpl(color, tag, nullptr, msg, args);
     va_end(args);
   }
 }
@@ -119,7 +151,7 @@ void kitrt::logIfVerbose(const char *tag, const char *msg, ...) {
   if (envLookupOr(envVerbose, envVerboseLegacy, false)) {
     va_list args;
     va_start(args, msg);
-    logImpl(tag, nullptr, msg, args);
+    logImpl(nullptr, tag, nullptr, msg, args);
     va_end(args);
   }
 }
