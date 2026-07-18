@@ -356,10 +356,6 @@ GlobalVariable *GPUTTLoopBase::getDevGlobal(GlobalVariable *g,
 
 unsigned GPUTTLoopBase::getDepth() const { return loops.size(); }
 
-Value *GPUTTLoopBase::getGrainsize(Type *ty) {
-  return ConstantInt::get(ty, 1, /*isSigned=*/false);
-}
-
 void GPUTTLoopBase::setKernelFuncLinkage(Function &f) {
   f.setLinkage(GlobalValue::ExternalLinkage);
 }
@@ -523,9 +519,9 @@ void GPUTTLoopBase::emitIndexCalculation(IRBuilder<> &builder, PHINode *iv,
   Value *ivBeg =
       builder.CreateIntCast(bdxbipti, ivType, /*isSigned=*/false, n("ivb"));
 
-  // The final value of the induction variable will be sum of the initial value
-  // and the grainsize. In most cases, this will just be the `ivBeg + 1`.
-  Value *ivEnd = builder.CreateAdd(ivBeg, getGrainsize(ivType), n("ive"));
+  // The final value of the induction variable will be just be the `ivBeg + 1`.
+  Value *one = ConstantInt::get(ivType, 1, /*isSigned=*/false);
+  Value *ivEnd = builder.CreateAdd(ivBeg, one, n("ive"));
 
   ivRanges.push_back({iv, ivBeg, ivEnd});
 }
