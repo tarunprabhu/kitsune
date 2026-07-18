@@ -277,8 +277,8 @@ protected:
     Value *tipbdxbi = bldr.CreateAdd(bdxbi, tidX, ".ivbeg.x");
     Value *ivBeg =
         bldr.CreateIntCast(tipbdxbi, ivType, /*isSigned=*/false, "ivbeg.x");
-    Value *grainsize = getGrainsize(ivType);
-    Value *ivEnd = bldr.CreateAdd(ivBeg, grainsize, "ivend.x");
+    Value *one = ConstantInt::get(ivType, 1, /*isSigned=*/false);
+    Value *ivEnd = bldr.CreateAdd(ivBeg, one, "ivend.x");
 
     Argument *tcX = f.getArg(1);
     Value *ivCond = bldr.CreateICmpUGE(ivBeg, tcX);

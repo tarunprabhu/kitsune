@@ -194,9 +194,6 @@ protected:
   /// Get the depth of the loop nest that is being lowered.
   unsigned getDepth() const;
 
-  /// Get the grainsize to use. The default implementation always returns 1.
-  virtual Value *getGrainsize(Type *ty);
-
   /// Set the correct calling convention on the outlined kernel function, \p f
   /// into which a tapir loop has been outlined.
   virtual void setKernelFuncCallingConv(Function &f) {}
