@@ -59,15 +59,16 @@ __attribute__((constructor)) static void ctor(void) { __kitomp_initialize(); }
 __attribute__((destructor)) static void dtor(void) { __kitomp_finalize(); }
 
 static void thrdFn(uint64_t start, uint64_t stop, void *args) {
-  __kittimer_start(92, omp_get_thread_num(), "kinder");
-  __kittimer_stop(92, omp_get_thread_num());
+  TimePoint tick = __kittimer_start();
+  __kittimer_stop(tick, /*timerID=*/92, /*threadID=*/omp_get_thread_num(),
+                  "kinder");
 }
 
 int main(int argc, char *argv[]) {
-  __kittimer_start(11, 0, "papagena");
+  TimePoint tick = __kittimer_start();
   for (unsigned i = 0; i < 3; ++i)
     __kitomp_launch(thrdFn, 0, 3, NULL);
-  __kittimer_stop(11, 0);
+  __kittimer_stop(tick, /*timerID=*/11, /*threadID=*/0, "papagena");
 
   return 0;
 }
