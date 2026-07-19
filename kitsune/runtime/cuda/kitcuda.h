@@ -265,11 +265,11 @@ uint64_t __kitcuda_get_global_symbol(void *fat_bin, const char *sym_name);
  * calls are typically issued prior to kernel launch to make sure
  * values are synchronized.
  *
- * @param host_sym - a pointer to the host-side symbol.
  * @param dev_sym - handle to the device-side symbol.
+ * @param host_sym - a pointer to the host-side symbol.
  * @param nbytes - size in bytes of the symbol.
  */
-extern void __kitcuda_memcpy_sym_to_device(void *host_sym, uint64_t dev_sym,
+extern void __kitcuda_memcpy_sym_to_device(uint64_t dev_sym, void *host_sym,
                                            size_t nbytes);
 
 /**

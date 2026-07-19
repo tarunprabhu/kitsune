@@ -381,7 +381,7 @@ void *__kitcuda_mem_host_prefetch(void *vp, uint64_t bytes,
   return nullptr;
 }
 
-void __kitcuda_memcpy_sym_to_device(void *hostPtr, uint64_t devPtr,
+void __kitcuda_memcpy_sym_to_device(uint64_t devPtr, void *hostPtr,
                                     size_t size) {
   assert(devPtr != 0 && "unexpected null device pointer!");
   assert(hostPtr != nullptr && "unexpected null host pointer!");
@@ -398,7 +398,7 @@ void __kitcuda_memcpy_sym_to_device(void *hostPtr, uint64_t devPtr,
   KIT_NVTX_POP();
 }
 
-void __kitcuda_memcpy_sym_to_host(uint64_t devPtr, void *hostPtr, size_t size) {
+void __kitcuda_memcpy_sym_to_host(void *hostPtr, uint64_t devPtr, size_t size) {
   assert(devPtr != 0 && "unexpected null device pointer!");
   assert(hostPtr != nullptr && "unexpected null host pointer!");
   assert(size != 0 && "requested a 0 byte copy!");

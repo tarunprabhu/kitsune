@@ -258,11 +258,11 @@ void *__kithip_get_global_symbol(void *fat_bin, const char *sym_name);
  * values on the device side (GPU). These calls are typically issued prior to
  * kernel launch to make sure values are synchronized.
  *
- * @param host_sym a pointer to the host-side symbol.
  * @param dev_sym handle to the device-side symbol.
+ * @param host_sym a pointer to the host-side symbol.
  * @param bytes size in bytes of the symbol.
  */
-void __kithip_memcpy_sym_to_device(void *host_sym, void *dev_sym, size_t bytes);
+void __kithip_memcpy_sym_to_device(void *dev_sym, void *host_sym, size_t bytes);
 
 /**
  * Given a pointer to a fat binary, launch the named kernel with the given

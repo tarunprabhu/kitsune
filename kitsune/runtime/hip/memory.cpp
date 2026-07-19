@@ -352,7 +352,7 @@ extern "C" void __kithip_mem_host_prefetch(void *vp, uint64_t bytes,
   }
 }
 
-extern "C" void __kithip_memcpy_sym_to_device(void *hostPtr, void *devPtr,
+extern "C" void __kithip_memcpy_sym_to_device(void *devPtr, void *hostPtr,
                                               size_t size) {
   assert(devPtr && "kitrt[hip]: unexpected null device pointer!");
   assert(hostPtr && "kitrt[hip]: unexpected null host pointer!");
@@ -361,7 +361,7 @@ extern "C" void __kithip_memcpy_sym_to_device(void *hostPtr, void *devPtr,
   HIP_SAFE_CALL(hipMemcpyHtoD(devPtr, hostPtr, size));
 }
 
-extern "C" void __kithip_memcpy_sym_to_host(void *devPtr, void *hostPtr,
+extern "C" void __kithip_memcpy_sym_to_host(void *hostPtr, void *devPtr,
                                             size_t size) {
   assert(devPtr && "kitrt[hip]: unexpected null device pointer!");
   assert(hostPtr && "kitrt[hip]: unexpected null host pointer!");

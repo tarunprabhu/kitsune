@@ -16,7 +16,7 @@
 ; CHECK-NEXT: call void @__kitcuda_initialize()
 ; CHECK-NEXT: %[[STREAM:.+]] = call ptr @__kitcuda_get_thread_stream()
 ; CHECK-NEXT: %[[GSYM:.+]] = call ptr @__kitcuda_get_global_symbol(ptr null, ptr @.gname)
-; CHECK-NEXT: call void @__kitcuda_memcpy_sym_to_device(ptr @gbuf, ptr %[[GSYM]], i64 28)
+; CHECK-NEXT: call void @__kitcuda_memcpy_sym_to_device(ptr %[[GSYM]], ptr @gbuf, i64 28)
 ; CHECK-NEXT: call ptr @__kitcuda_mem_gpu_prefetch(ptr %[[BUF]], i64 -1, ptr %[[STREAM]])
 ; CHECK-NEXT: call ptr @__kitcuda_mem_gpu_prefetch(ptr %[[BUF]], i64 1024, ptr %[[STREAM]])
 ; CHECK-NEXT: store ptr null, ptr %1
@@ -24,7 +24,7 @@
 ; CHECK-NEXT: store ptr %1, ptr %7
 ; CHECK-NEXT: %8 = call ptr @__kitcuda_launch_kernel(ptr null, ptr @.name, ptr nonnull %2, i64 128, i64 0, i64 -1, i32 24, ptr null, ptr %[[STREAM]])
 ; CHECK-NEXT: call void @__kitcuda_sync_thread_stream(ptr %[[STREAM]])
-; CHECK-NEXT: call void @__kitcuda_memcpy_sym_to_host(ptr %[[GSYM]], ptr @gbuf, i64 28)
+; CHECK-NEXT: call void @__kitcuda_memcpy_sym_to_host(ptr @gbuf, ptr %[[GSYM]], i64 28)
 ; CHECK-NEXT: %9 = call ptr @__kitcuda_mem_host_prefetch(ptr %[[BUF]], i64 -1, ptr %[[STREAM]])
 ; CHECK-NEXT: %10 = call ptr @__kitcuda_mem_host_prefetch(ptr %[[BUF]], i64 1024, ptr %[[STREAM]])
 ; CHECK-NEXT: %11 = call i64 @__kitcuda_reduce_num_partials(i64 %[[N]])
