@@ -71,6 +71,9 @@ typedef uint64_t TimePoint;
 /// \ref __kittimer_stop.
 typedef uint64_t TimeSpan;
 
+/// Check if the timing context has been initialized.
+bool __kittimer_initialized(void);
+
 /// Initialize the Kitsune's timing context.
 void __kittimer_initialize(void);
 
