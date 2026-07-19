@@ -227,13 +227,14 @@ extern void __kitcuda_mem_destroy(void *ptr);
  * If the provided pointer is not recognized by the runtime this
  * call is a silent no-op.
  *
- * @param ptr - The pointer to the allocated region to
- *              prefetch.
+ * @param ptr The pointer to the allocated region to prefetch.
+ * @param bytes The number of bytes to prefetch. This is currently unused
  *
  * **NOTE**: See `__kitcuda_mem_host_prefetch()` for host-side
  * prefetch requests.
  */
-extern void *__kitcuda_mem_gpu_prefetch(void *ptr, void *opaque_stream);
+extern void *__kitcuda_mem_gpu_prefetch(void *ptr, uint64_t bytes,
+                                        void *opaque_stream);
 
 /**
  * Request that the memory allocation associated with the given
@@ -242,13 +243,14 @@ extern void *__kitcuda_mem_gpu_prefetch(void *ptr, void *opaque_stream);
  * interface.  If the provided pointer is not recognized by the
  * runtime this call is a silent no-op.
  *
- * @param ptr - The pointer to the allocated region to
- *              prefetch.
+ * @param ptr The pointer to the allocated region to prefetch.
+ * @param bytes The number of bytes to prefetch. This is currently unused.
  *
  * **NOTE**: See `__kitcuda_mem_gpu_prefetch()` for GPU prefetch
  * requests.
  */
-extern void *__kitcuda_mem_host_prefetch(void *ptr, void *opaque_stream);
+extern void *__kitcuda_mem_host_prefetch(void *ptr, uint64_t bytes,
+                                         void *opaque_stream);
 
 /**
  * Find the named symbol in the given CUDA module represented by

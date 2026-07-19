@@ -1567,6 +1567,10 @@ FunctionCallee llvm::getOrInsertLibFunc(Module *M, const TargetLibraryInfo &TLI,
     setArgExtAttr(*F, 0, TLI);
     break;
 
+  case LibFunc_kitcuda_prefetch_dtoh:
+  case LibFunc_kitcuda_prefetch_htod:
+  case LibFunc_kithip_prefetch_dtoh:
+  case LibFunc_kithip_prefetch_htod:
   case LibFunc_kitrt_mobile_init_float:
   case LibFunc_kitrt_mobile_init_double:
     setArgExtAttr(*F, 1, TLI);

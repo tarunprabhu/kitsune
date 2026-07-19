@@ -48,10 +48,10 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "common/logging.h"
 #include "kitcuda.h"
 #include "kitcuda_dylib.h"
 #include "memory_map.h"
-#include "common/logging.h"
 
 #include "kitsune/Config/config.h"
 
@@ -219,7 +219,8 @@ bool __kitcuda_is_mem_managed(void *vp) {
 
 // NOTE: See within the code below for notes about the prefetching
 // semantics.
-void *__kitcuda_mem_gpu_prefetch(void *vp, void *opaque_stream) {
+void *__kitcuda_mem_gpu_prefetch(void *vp, uint64_t bytes,
+                                 void *opaque_stream) {
   assert(vp && "unexpected null pointer!");
 
   KIT_NVTX_PUSH("kitcuda:mem_gpu_prefetch", KIT_NVTX_MEM);
@@ -314,7 +315,8 @@ void *__kitcuda_mem_gpu_prefetch(void *vp, void *opaque_stream) {
   return opaque_stream;
 }
 
-void *__kitcuda_mem_host_prefetch(void *vp, void *opaque_stream) {
+void *__kitcuda_mem_host_prefetch(void *vp, uint64_t bytes,
+                                  void *opaque_stream) {
   assert(vp && "unexpected null pointer!");
 
   KIT_NVTX_PUSH("kitcuda:mem_host_prefetch", KIT_NVTX_MEM);
