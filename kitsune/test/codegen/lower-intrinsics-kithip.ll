@@ -21,16 +21,16 @@
 ; CHECK-NEXT: %[[STREAM:.+]] = call ptr @__kithip_get_thread_stream()
 ; CHECK-NEXT: %[[GSYM:.+]] = call ptr @__kithip_get_global_symbol(ptr null, ptr @.gname)
 ; CHECK-NEXT: call void @__kithip_memcpy_sym_to_device(ptr @gbuf, ptr %[[GSYM]], i64 28)
-; CHECK-NEXT: call ptr @__kithip_mem_gpu_prefetch(ptr %[[BUF]], ptr %[[STREAM]])
-; CHECK-NEXT: call ptr @__kithip_mem_gpu_prefetch(ptr %[[BUF]], ptr %[[STREAM]])
+; CHECK-NEXT: call ptr @__kithip_mem_gpu_prefetch(ptr %[[BUF]], i64 -1, ptr %[[STREAM]])
+; CHECK-NEXT: call ptr @__kithip_mem_gpu_prefetch(ptr %[[BUF]], i64 1024, ptr %[[STREAM]])
 ; CHECK-NEXT: store ptr null, ptr %1
 ; CHECK-NEXT: %7 = getelementptr inbounds [1 x ptr], ptr %2, i64 0, i64 0
 ; CHECK-NEXT: store ptr %1, ptr %7
 ; CHECK-NEXT: call ptr @__kithip_launch_kernel(ptr null, ptr @.name, ptr nonnull %2, i64 128, i64 0, i64 -1, i32 24, ptr null, ptr %[[STREAM]])
 ; CHECK-NEXT: call void @__kithip_sync_thread_stream(ptr %[[STREAM]])
 ; CHECK-NEXT: call void @__kithip_memcpy_sym_to_host(ptr %[[GSYM]], ptr @gbuf, i64 28)
-; CHECK-NEXT: call ptr @__kithip_mem_host_prefetch(ptr %[[BUF]], ptr %[[STREAM]])
-; CHECK-NEXT: call ptr @__kithip_mem_host_prefetch(ptr %[[BUF]], ptr %[[STREAM]])
+; CHECK-NEXT: call ptr @__kithip_mem_host_prefetch(ptr %[[BUF]], i64 -1, ptr %[[STREAM]])
+; CHECK-NEXT: call ptr @__kithip_mem_host_prefetch(ptr %[[BUF]], i64 1024, ptr %[[STREAM]])
 ; CHECK-NEXT: call i64 @__kithip_reduce_num_partials(i64 %[[N]])
 ; CHECK-NEXT: %handle = call ptr @__kithip_register_devcode(ptr null)
 ; CHECK-NEXT: call void @__kithip_register_global(ptr %handle, ptr @gbuf, ptr @.gname, ptr @.gname, i64 28, i32 1, i32 0)
@@ -45,8 +45,8 @@
 ; CHECK-DAG: ptr @__kithip_get_global_symbol(ptr, ptr) #[[ATTRS]]
 ; CHECK-DAG: void @__kithip_initialize() #[[ATTRS]]
 ; CHECK-DAG: ptr @__kithip_launch_kernel(ptr, ptr, ptr, i64, i64, i64, i32, ptr, ptr) #[[ATTRS]]
-; CHECK-DAG: ptr @__kithip_mem_gpu_prefetch(ptr, ptr) #[[ATTRS]]
-; CHECK-DAG: ptr @__kithip_mem_host_prefetch(ptr, ptr) #[[ATTRS]]
+; CHECK-DAG: ptr @__kithip_mem_gpu_prefetch(ptr, i64, ptr) #[[ATTRS]]
+; CHECK-DAG: ptr @__kithip_mem_host_prefetch(ptr, i64, ptr) #[[ATTRS]]
 ; CHECK-DAG: void @__kithip_memcpy_sym_to_device(ptr, ptr, i64) #[[ATTRS]]
 ; CHECK-DAG: void @__kithip_memcpy_sym_to_host(ptr, ptr, i64) #[[ATTRS]]
 ; CHECK-DAG: i64 @__kithip_reduce_num_partials(i64) #[[ATTRS]]
