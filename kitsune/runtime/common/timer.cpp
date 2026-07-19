@@ -270,9 +270,33 @@ extern "C" TimeSpan __kittimer_stop(TimePoint start, TimerID timer,
   return span;
 }
 
-extern "C" void __kittimer_initialize(void) { KitTimerContext::addSingleton(); }
+extern "C" bool __kittimer_initialized(void) {
+  return KitTimerContext::hasSingleton();
+}
+
+extern "C" void __kittimer_initialize(void) {
+  if (__kittimer_initialized()) {
+    LOG("Timing context already initialized");
+    return;
+  }
+
+  LOG("Initializing Kitsune timing context");
+
+  KitTimerContext::addSingleton();
+
+  LOG("Initialized Kitsune timing context");
+}
 
 extern "C" void __kittimer_finalize(void) {
+  if (!__kittimer_initialized()) {
+    LOG("Cannot finalize timing context. Not initialized");
+    return;
+  }
+
+  LOG("Finalizing Kitsune timing context");
+
   writeTimings(KitTimerContext::getSingleton());
   KitTimerContext::delSingleton();
+
+  LOG("Finalized Kitsune timing context");
 }

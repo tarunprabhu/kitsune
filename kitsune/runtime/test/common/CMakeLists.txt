@@ -21,8 +21,12 @@ set(TESTS
   TimerCannotWriteToFile.c
   TimerDefaultStderr.c
   TimerEmpty.c
+  TimerInitFini.c
+  TimerInitialized.c
   TimerIterateSingleThread.c
   TimerIterateThreads.c
+  TimerMultipleFini.c
+  TimerMultipleInit.c
   TimerSingleThread.c
   TimerThreads.c
   TimerWriteToFile.c
