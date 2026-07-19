@@ -19,8 +19,8 @@ __attribute__((constructor)) static void ctor(void) { __kitrt_initialize(); }
 __attribute__((destructor)) static void dtor(void) { __kitrt_finalize(); }
 
 int main(int argc, char *argv[]) {
-  __kittimer_start(11, 0, "sarastro");
-  __kittimer_stop(11, 0);
+  TimePoint tick = __kittimer_start();
+  __kittimer_stop(tick, /*timerID=*/11, /*threadID=*/0, "sarastro");
 
   return 0;
 }

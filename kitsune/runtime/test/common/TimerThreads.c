@@ -26,15 +26,15 @@ __attribute__((constructor)) static void ctor(void) { __kitpthr_initialize(); }
 __attribute__((destructor)) static void dtor(void) { __kitpthr_finalize(); }
 
 static void thrdFn(uint64_t start, uint64_t end, void *args) {
-  __kittimer_start(92, pthread_self(), "thrd");
-  __kittimer_stop(92, pthread_self());
+  TimePoint tick = __kittimer_start();
+  __kittimer_stop(tick, /*timerID=*/92, /*threadID=*/pthread_self(), "thrd");
 }
 
 int main(int argc, char *argv[]) {
-  __kittimer_start(11, 0, "main");
+  TimePoint tick = __kittimer_start();
   KitPthrLaunchContext *ctx = __kitpthr_launch(thrdFn, 0, 3, NULL);
   __kitpthr_sync(ctx);
-  __kittimer_stop(11, 0);
+  __kittimer_stop(tick, /*timerID=*/11, /*threadID=*/0, "main");
 
   return 0;
 }

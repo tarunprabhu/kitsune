@@ -20,12 +20,12 @@ __attribute__((constructor)) static void ctor(void) { __kitrt_initialize(); }
 __attribute__((destructor)) static void dtor(void) { __kitrt_finalize(); }
 
 int main(int argc, char *argv[]) {
-  __kittimer_start(11, 0, "papageno");
+  TimePoint startMain = __kittimer_start();
   for (unsigned i = 0; i < 3; ++i) {
-    __kittimer_start(9, 0, "pa");
-    __kittimer_stop(9, 0);
+    TimePoint startIter =__kittimer_start();
+    __kittimer_stop(startIter, 9, 0, "pa");
   }
-  __kittimer_stop(11, 0);
+  __kittimer_stop(startMain, 11, 0, "papageno");
 
   return 0;
 }
