@@ -12,8 +12,8 @@ __attribute__((constructor)) static void ctor(void) { __kitrt_initialize(); }
 __attribute__((destructor)) static void dtor(void) { __kitrt_finalize(); }
 
 int main(int argc, char *argv[]) {
-  __kittimer_start(/*timer-id=*/11, /*thread-id=*/0, "no-file");
-  __kittimer_stop(/*timer-id=*/11, /*thread-id=*/0);
+  TimePoint tick = __kittimer_start();
+  __kittimer_stop(tick, /*timer-id=*/11, /*thread-id=*/0, "no-file");
 
   return 0;
 }

@@ -23,12 +23,15 @@ __attribute__((constructor)) static void ctor(void) { __kitrt_initialize(); }
 __attribute__((destructor)) static void dtor(void) { __kitrt_finalize(); }
 
 int main(int argc, char *argv[]) {
-  __kittimer_start(11, 0, "tamino");
-  __kittimer_start(0, 0, "pamina");
-  __kittimer_stop(0, 0);
-  __kittimer_start(4, 0, "monostatos");
-  __kittimer_stop(4, 0);
-  __kittimer_stop(11, 0);
+  TimePoint tick0 = __kittimer_start();
+
+  TimePoint tick1 = __kittimer_start();
+  __kittimer_stop(tick1, /*timerID=*/0, /*threadID=*/0, "pamina");
+
+  TimePoint tick2 = __kittimer_start();
+  __kittimer_stop(tick2, /*timerID=*/4, /*threadID=*/0, "monostatos");
+
+  __kittimer_stop(tick0, /*timerID=*/11, /*threadID=*/0, "tamino");
 
   return 0;
 }

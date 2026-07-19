@@ -1,6 +1,7 @@
 set(TESTS
   EnvNumThreads.cpp
   EnvVerbose.c
+
   LogError.cpp
   LogErrorNoTag.cpp
   LogFatal.cpp
@@ -15,6 +16,8 @@ set(TESTS
   RTInitialized.c
   RTMultipleInit.c
   RTMultipleFini.c
+
+  TimerBasic.c
   TimerCannotWriteToFile.c
   TimerDefaultStderr.c
   TimerEmpty.c

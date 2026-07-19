@@ -63,6 +63,14 @@ typedef uint64_t TimerID;
 /// The ID of the thread in which a timer is running.
 typedef uint64_t ThreadID;
 
+/// A time point. This is usually the number of nanoseconds since the epoch.
+typedef uint64_t TimePoint;
+
+/// A time span. This is expected to be the wallclock time, in nanoseconds, that
+/// have elapsed between a pair of calls to \ref __kittimer_start and
+/// \ref __kittimer_stop.
+typedef uint64_t TimeSpan;
+
 /// Initialize the Kitsune's timing context.
 void __kittimer_initialize(void);
 
@@ -71,16 +79,20 @@ void __kittimer_initialize(void);
 void __kittimer_finalize(void);
 
 /// Start the timer \p timer. \p thrd is the ID of the thread on which the
-/// timer is running. \p name is the name of the timer. The runtime will create
-/// a mapping between \p timer and \p name, but only if \p timer was not used
-/// in an earlier call to this function. Multiple threads can share the a timer
-/// ID. This is useful when measuring the times for individual threads launched,
-/// for instance, when a parallel loop is lowered using a CPU-centric tapir
-/// target.
-void __kittimer_start(TimerID timer, ThreadID thrd, const char *name);
+/// timer is running. \p name is the name of the timer.
+TimePoint __kittimer_start(void);
 
-/// Stop the timer \p timer running on a thread with ID \p thrd.
-void __kittimer_stop(TimerID timer, ThreadID thrd);
+/// Stop the timer \p timer running on a thread with ID \p thrd. The runtime
+/// will create a mapping between \p timer and \p name, but only if \p timer was
+/// not used in an earlier call to this function. Multiple threads can
+/// share the a timer ID. This is useful when measuring the times for individual
+/// threads launched, for instance, when a parallel loop is lowered using a
+/// CPU-centric tapir target. \p start is the TimePoint obtained by calling
+/// \ref __kittimer_start. Returns the wallclock time, in nanoseconds, that have
+/// elapsed between the time this is called, and the time that \p start was
+/// recorded.
+TimeSpan __kittimer_stop(TimePoint start, TimerID timer, ThreadID thrd,
+                         const char *name);
 
 #ifdef __cplusplus
 } // extern "C"
