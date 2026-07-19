@@ -228,10 +228,11 @@ void __kithip_mem_destroy(void *ptr);
  * recognized by the runtime this call is a silent no-op.
  *
  * @param ptr The pointer to the allocated region to prefetch.
+ * @param bytes The number of bytes to prefetch. This is currently unused
  *
  * **NOTE**: See `__kithip_mem_host_prefetch()` for host-side prefetch requests.
  */
-void *__kithip_mem_gpu_prefetch(void *ptr, void *opaque_stream);
+void *__kithip_mem_gpu_prefetch(void *ptr, uint64_t bytes, void *opaque_stream);
 
 /**
  * Request that the memory allocation associated with the given pointer be
@@ -240,10 +241,11 @@ void *__kithip_mem_gpu_prefetch(void *ptr, void *opaque_stream);
  * is not recognized by the runtime this call is a silent no-op.
  *
  * @param ptr The pointer to the allocated region to prefetch.
+ * @param bytes The number of bytes to prefetch. This is currently unused
  *
  * **NOTE**: See `__kithip_mem_gpu_prefetch()` for GPU prefetch requests.
  */
-void __kithip_mem_host_prefetch(void *ptr);
+void __kithip_mem_host_prefetch(void *ptr, uint64_t byes, void *opaque_stream);
 
 /**
  * Find symbol named \p sym_name in the module represented \p fat_bin.

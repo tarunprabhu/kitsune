@@ -270,7 +270,8 @@ extern "C" bool __kithip_is_mem_managed(void *vp) {
 
 // NOTE: See within the code below for notes about the prefetching
 // semantics.
-extern "C" void *__kithip_mem_gpu_prefetch(void *vp, void *opaque_stream) {
+extern "C" void *__kithip_mem_gpu_prefetch(void *vp, uint64_t bytes,
+                                           void *opaque_stream) {
   assert(vp && "kitrt[hip]: unexpected null pointer!");
 
   // TODO: Prefetching details and approaches need to be further explored. In
@@ -312,7 +313,8 @@ extern "C" void *__kithip_mem_gpu_prefetch(void *vp, void *opaque_stream) {
   return opaque_stream;
 }
 
-extern "C" void __kithip_mem_host_prefetch(void *vp) {
+extern "C" void __kithip_mem_host_prefetch(void *vp, uint64_t bytes,
+                                           void *opaque_stream) {
   assert(vp && "kitrt[hip]: unexpected null pointer!");
 
   // TODO: Prefetching details and approaches need to be further explored. In
