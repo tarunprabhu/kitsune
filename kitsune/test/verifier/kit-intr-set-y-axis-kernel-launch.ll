@@ -6,6 +6,6 @@
 ; CHECK: TTID argument in call must be 'hip'
 
 define void @f() {
-  call void @llvm.kit.runtime.set.y.axis.kernel.launch(i32 2, i8 1)
+  call void @llvm.kit.runtime.set.y.axis.kernel.launch(i32 2)
   ret void
 }

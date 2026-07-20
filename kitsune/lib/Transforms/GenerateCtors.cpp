@@ -143,22 +143,20 @@ private:
   virtual void genCtorBeforeDevCodeRegistration(IRBuilder<> &builder) override {
     Module *m = getModule(*builder.GetInsertBlock());
     LLVMContext &ctx = m->getContext();
-
     Constant *ctt = toConstant(tt, ctx);
 
-    if (tto.getHipXnack() == MaybeBool::On)
+    if (tto.getHipXnack() == MaybeBool::On) {
       LLVM_DEBUG(dbgs() << "\t\tenable xnack via ctor runtime call.\n");
-    Constant *cXnack =
-        toConstant(uint8_t(tto.getHipXnack() == MaybeBool::On), ctx);
-    builder.CreateIntrinsic(Intrinsic::kit_runtime_set_xnack, {ctt, cXnack});
+      builder.CreateIntrinsic(Intrinsic::kit_runtime_set_xnack, {ctt});
+    }
 
-    if (genCtorOpts.useYLaunch)
+    if (genCtorOpts.useYLaunch) {
       LLVM_DEBUG(
           dbgs()
           << "\t\tenable y-axis launch pattern via ctor runtime call.\n");
-    Constant *cYAxisLaunch = toConstant(uint8_t(genCtorOpts.useYLaunch), ctx);
-    builder.CreateIntrinsic(Intrinsic::kit_runtime_set_y_axis_kernel_launch,
-                            {ctt, cYAxisLaunch});
+      builder.CreateIntrinsic(Intrinsic::kit_runtime_set_y_axis_kernel_launch,
+                              {ctt});
+    }
   }
 
 public:

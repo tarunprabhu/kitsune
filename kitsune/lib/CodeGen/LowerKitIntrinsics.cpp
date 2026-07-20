@@ -701,17 +701,6 @@ private:
       changed |= lowerLaunchThreads(call);
       break;
 
-    case Intrinsic::kit_runtime_set_xnack:
-    case Intrinsic::kit_runtime_set_y_axis_kernel_launch:
-      // The first argument is the TTID. The second is a flag. If the flag is
-      // false, the corresponding runtime function should not be called.
-      if (isZero(call.getArgOperand(1)))
-        call.eraseFromParent();
-      else
-        lowerIntrinsicDefault(call);
-      changed |= true;
-      break;
-
     default:
       changed |= lowerIntrinsicDefault(call);
       break;

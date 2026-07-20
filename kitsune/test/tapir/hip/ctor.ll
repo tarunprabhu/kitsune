@@ -25,9 +25,9 @@
 ; DEFAULT: define internal void @[[CTOR]]()
 ; DEFAULT-NEXT: [[ENTRY:.+]]:
 ; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.initialize(i32 4)
-; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.set.xnack(i32 4, i8 1)
-; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.set.y.axis.kernel.launch(i32 4, i8 0)
-; DEFAULT-DAG: %[[HC:.+]] = call {{.+}}@llvm.kit.gpu.register.devcode(i32 4, ptr @[[BUNDLE]])
+; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.set.xnack(i32 4)
+; DEFAULT-NOT: call {{.+}} @llvm.kit.runtime.set.y.axis.kernel.launch(i32 4)
+; DEFAULT-NEXT: %[[HC:.+]] = call {{.+}}@llvm.kit.gpu.register.devcode(i32 4, ptr @[[BUNDLE]])
 ; DEFAULT-NEXT: store ptr %[[HC]], ptr @[[HANDLE]]
 ; DEFAULT-NEXT: br label %[[EXIT:.+]]
 ; DEFAULT-EMPTY:
@@ -60,7 +60,7 @@
 ; RUN:     | FileCheck %s -check-prefix NOXNACK
 ;
 ; NOXNACK-LABEL: .kit.hip.ctor{{.*}}
-; NOXNACK: call {{.+}} @llvm.kit.runtime.set.xnack(i32 4, i8 0)
+; NOXNACK-NOT: call {{.+}} @llvm.kit.runtime.set.xnack(i32 4)
 ;
 ; ----------------------------------------------------------------------------
 ;
@@ -69,7 +69,7 @@
 ; RUN:     | FileCheck %s -check-prefix YLAUNCH
 ;
 ; YLAUNCH-LABEL: .kit.hip.ctor{{.*}}
-; YLAUNCH: call {{.+}} @llvm.kit.runtime.set.y.axis.kernel.launch(i32 4, i8 1)
+; YLAUNCH: call {{.+}} @llvm.kit.runtime.set.y.axis.kernel.launch(i32 4)
 ;
 ; ----------------------------------------------------------------------------
 
