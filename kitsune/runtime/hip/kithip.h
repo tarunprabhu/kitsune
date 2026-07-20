@@ -280,7 +280,6 @@ void __kithip_memcpy_sym_to_device(void *dev_sym, void *host_sym, size_t bytes);
  *
  * @param fatbin The fat binary image containing the compiled kernel.
  * @param name The name of the kernel to launch.
- * @param args The argument buffer for the kernel.
  * @param tc_z The trip count of the loop at depth 3, or 0 if the kernel being
  *             launched was derived from a loop nest with depth less than 3.
  * @param tc_y The trip count of the loop at depth 2, or 0 if the kernel being
@@ -291,10 +290,12 @@ void __kithip_memcpy_sym_to_device(void *dev_sym, void *host_sym, size_t bytes);
  *            appropriate value will be calculated.
  * @param inst_mix external static code analysis details.
  * @param stream_in externally created stream for execution.
+ * @param args The argument buffer for the kernel.
  */
-void *__kithip_launch_kernel(const void *fatbin, const char *name, void **args,
-                             int64_t tc_z, int64_t tc_y, int64_t tc_x, int tpb,
-                             const KitRTInstMix *inst_mix, void *stream_in);
+void *__kithip_launch_kernel(const void *fatbin, const char *name, int64_t tc_z,
+                             int64_t tc_y, int64_t tc_x, int tpb,
+                             const KitRTInstMix *inst_mix, void *stream_in,
+                             void **args);
 
 /**
  * Set the runtime's value for the number of threads-per-block used in simple

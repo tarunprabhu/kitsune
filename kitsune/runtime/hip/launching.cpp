@@ -388,9 +388,10 @@ static hipStream_t launchKernel3(hipFunction_t f, void **args, size_t tcZ,
 // compiler-provided value for the threads-per-block value will be
 // used.
 //
-void *__kithip_launch_kernel(const void *fatbin, const char *name, void **args,
-                             int64_t tc_z, int64_t tc_y, int64_t tc_x, int tpb,
-                             const KitRTInstMix *inst_mix, void *stream_in) {
+void *__kithip_launch_kernel(const void *fatbin, const char *name, int64_t tc_z,
+                             int64_t tc_y, int64_t tc_x, int tpb,
+                             const KitRTInstMix *inst_mix, void *stream_in,
+                             void **args) {
   assert(fatbin && "kitrt[hip]: launch with null fat binary");
   assert(name && "kitrt[hip]: launch with null name");
   assert(args && "kitrt[hip]: launch with null args");

@@ -26,7 +26,7 @@
 ; CHECK-NEXT: store ptr null, ptr %1
 ; CHECK-NEXT: %7 = getelementptr inbounds [1 x ptr], ptr %2, i64 0, i64 0
 ; CHECK-NEXT: store ptr %1, ptr %7
-; CHECK-NEXT: call ptr @__kithip_launch_kernel(ptr null, ptr @.name, ptr nonnull %2, i64 128, i64 0, i64 -1, i32 24, ptr null, ptr %[[STREAM]])
+; CHECK-NEXT: call ptr @__kithip_launch_kernel(ptr null, ptr @.name, i64 128, i64 0, i64 -1, i32 24, ptr null, ptr %[[STREAM]], ptr %2)
 ; CHECK-NEXT: call void @__kithip_sync_thread_stream(ptr %[[STREAM]])
 ; CHECK-NEXT: call void @__kithip_memcpy_sym_to_host(ptr @gbuf, ptr %[[GSYM]], i64 28)
 ; CHECK-NEXT: call ptr @__kithip_mem_host_prefetch(ptr %[[BUF]], i64 -1, ptr %[[STREAM]])
@@ -44,7 +44,7 @@
 ; CHECK-DAG: void @__kithip_finalize() #[[ATTRS]]
 ; CHECK-DAG: ptr @__kithip_get_global_symbol(ptr, ptr) #[[ATTRS]]
 ; CHECK-DAG: void @__kithip_initialize() #[[ATTRS]]
-; CHECK-DAG: ptr @__kithip_launch_kernel(ptr, ptr, ptr, i64, i64, i64, i32, ptr, ptr) #[[ATTRS]]
+; CHECK-DAG: ptr @__kithip_launch_kernel(ptr, ptr, i64, i64, i64, i32, ptr, ptr, ptr) #[[ATTRS]]
 ; CHECK-DAG: ptr @__kithip_mem_gpu_prefetch(ptr, i64, ptr) #[[ATTRS]]
 ; CHECK-DAG: ptr @__kithip_mem_host_prefetch(ptr, i64, ptr) #[[ATTRS]]
 ; CHECK-DAG: void @__kithip_memcpy_sym_to_device(ptr, ptr, i64) #[[ATTRS]]
