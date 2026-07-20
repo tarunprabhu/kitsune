@@ -115,7 +115,7 @@ static const KitRTFuncMap kitOpenMPFuncs = {
 
 /// Kitsune runtime functions for the pthreads tapir target.
 static const KitRTFuncMap kitPthreadsFuncs = {
-    {Intrinsic::kit_async_cpu_threads_launch, LibFunc_kitpthr_launch},
+    {Intrinsic::kit_async_cpu_threads_launch, LibFunc_kitpthr_async_launch},
     {Intrinsic::kit_cpu_num_threads, LibFunc_kitpthr_num_threads},
     {Intrinsic::kit_cpu_thread_id, LibFunc_kitpthr_thread_id},
     {Intrinsic::kit_cpu_threads_sync, LibFunc_kitpthr_sync},

@@ -338,19 +338,19 @@ evenly across all threads that are launched, but this may change in the future.
 The listing below illustrates the basic operation of this tapir target.
 
 ```kit++
-                                          n_threads = kitpthr_num_threads(s, e);
-forall (int i = s; i < e; ++i) {          for (int j = 0; j < n_threads; ++j) {
-    ...                                       kitpthr_launch([](j) { ... });
-}                                         }
-                                          kitpthr_join();
+                                        n_threads = kitpthr_num_threads(s, e);
+forall (int i = s; i < e; ++i) {        for (int j = 0; j < n_threads; ++j) {
+    ...                                     kitpthr_async_launch([](j) { ... });
+}                                       }
+                                        kitpthr_sync();
 ```
 
 Here `kitpthr_num_threads` returns the number of threads to launch given the
 range of the loop induction variable. Note that a step of 1 is assumed. The
 body of the parallel loop on the left is shown to be outlined into an
 anonymous function. This function is run by each thread. The threads are created
-and launched by `kitpthr_launch`. `kitpthr_join` blocks waiting for all threads
-launched by calls to `kitpthr_launch` to terminate.
+and launched by `kitpthr_async_launch`. `kitpthr_sync` blocks waiting for all
+threads launched by calls to `kitpthr_async_launch` to terminate.
 
 ```{note}
 The illustration above is an approximation of the actual operation of this

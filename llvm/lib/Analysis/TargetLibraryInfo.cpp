@@ -977,9 +977,9 @@ static void initializeLibCalls(TargetLibraryInfoImpl &TLI, const Triple &T,
     TLI.setUnavailable(LibFunc_kitomp_num_threads);
     TLI.setUnavailable(LibFunc_kitomp_reduce_num_partials);
     TLI.setUnavailable(LibFunc_kitomp_thread_id);
+    TLI.setUnavailable(LibFunc_kitpthr_async_launch);
     TLI.setUnavailable(LibFunc_kitpthr_finalize);
     TLI.setUnavailable(LibFunc_kitpthr_initialize);
-    TLI.setUnavailable(LibFunc_kitpthr_launch);
     TLI.setUnavailable(LibFunc_kitpthr_num_threads);
     TLI.setUnavailable(LibFunc_kitpthr_reduce_num_partials);
     TLI.setUnavailable(LibFunc_kitpthr_thread_id);
