@@ -3069,6 +3069,13 @@ TLI_DEFINE_SIG_INTERNAL(Int64)
 /// @{
 /// Kitsune runtime library functions for the pthreads tapir target
 
+/// void* __kitpthr_async_launch(void(*thread_f)(uint64_t, uint64_t, void*),
+///                              uint64_t start, uint64_t end, void* args,
+///                              uint64_t argSize);
+TLI_DEFINE_ENUM_INTERNAL(kitpthr_async_launch)
+TLI_DEFINE_STRING_INTERNAL("__kitpthr_async_launch")
+TLI_DEFINE_SIG_INTERNAL(Ptr, Ptr, Int64, Int64, Ptr, Int64)
+
 /// void __kitpthr_finalize(void);
 TLI_DEFINE_ENUM_INTERNAL(kitpthr_finalize)
 TLI_DEFINE_STRING_INTERNAL("__kitpthr_finalize")
@@ -3078,13 +3085,6 @@ TLI_DEFINE_SIG_INTERNAL(Void)
 TLI_DEFINE_ENUM_INTERNAL(kitpthr_initialize)
 TLI_DEFINE_STRING_INTERNAL("__kitpthr_initialize")
 TLI_DEFINE_SIG_INTERNAL(Void)
-
-/// void* __kitpthr_launch(void(*thread_f)(uint64_t, uint64_t, void*),
-///                        uint64_t start, uint64_t end, void* args,
-///                        uint64_t argSize);
-TLI_DEFINE_ENUM_INTERNAL(kitpthr_launch)
-TLI_DEFINE_STRING_INTERNAL("__kitpthr_launch")
-TLI_DEFINE_SIG_INTERNAL(Ptr, Ptr, Int64, Int64, Ptr, Int64)
 
 /// void __kitpthr_sync(const void* pthrCtxt);
 TLI_DEFINE_ENUM_INTERNAL(kitpthr_sync)

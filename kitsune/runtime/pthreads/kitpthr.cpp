@@ -97,13 +97,14 @@ struct KitPthrThread {
   pthread_attr_t attr;
 };
 
-/// The launch context object. The instance created by \ref __kitpthr_launch
-/// should be passed to __kitpthr_join where it will be deleted.
+/// The launch context object. The instance created by \ref
+/// __kitpthr_async_launch should be passed to __kitpthr_join where it will be
+/// deleted.
 struct LaunchContextImpl {
   std::vector<KitPthrThread> thrds;
 
   /// The argument bundle required by the functions that run on each thread.
-  /// This is a copy of the bundle passed to __kitpthr_launch. It will be
+  /// This is a copy of the bundle passed to __kitpthr_async_launch. It will be
   /// deleted when this is deleted, which will be when it is passed to
   /// __kitpthr_sync.
   std::unique_ptr<std::byte[]> thrdArgs;
@@ -238,13 +239,12 @@ static void *kitpthrThrdStartFn(KitPthrThread *thread) {
 /// launched, i.e. \p f is run on the main thread, nullptr will be returned
 /// instead. In this case, the caller is not required to call
 /// \ref __kitpthr_join.
-extern "C" KitPthrLaunchContext *__kitpthr_launch(KitPthrThrdFunc f,
-                                                  uint64_t start, uint64_t end,
-                                                  void *args,
-                                                  uint64_t argSize) {
+extern "C" KitPthrLaunchContext *
+__kitpthr_async_launch(KitPthrThrdFunc f, uint64_t start, uint64_t end,
+                       void *args, uint64_t argSize) {
   assert(__kitpthr_initialized() && "kitpthr initialized");
   assert(start == 0 && end == __kitpthr_num_threads() &&
-         "__kitpthr_launch expects loop iterations in range [0,NUM_THREADS)");
+         "__kitpthr_async_launch expects loop iterations in range [0, N)");
   LOG("Launching multithreaded loop: [%ld,%ld)", start, end);
 
   uint64_t numThreads = __kitpthr_num_threads();
@@ -266,7 +266,7 @@ extern "C" KitPthrLaunchContext *__kitpthr_launch(KitPthrThrdFunc f,
   return reinterpret_cast<KitPthrLaunchContext *>(ctx);
 }
 
-/// Join the threads launched by a previous call to \ref __kitpthr_launch.
+/// Join the threads launched by a previous call to \ref __kitpthr_async_launch.
 /// \p ctx is the context returned by that call. \p ctx may be nullptr, in which
 /// case, this function does nothing.
 extern "C" void __kitpthr_sync(KitPthrLaunchContext *p) {

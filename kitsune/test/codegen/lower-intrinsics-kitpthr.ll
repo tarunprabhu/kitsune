@@ -16,7 +16,7 @@
 ; CHECK-NEXT: store ptr null, ptr %[[OFF0]]
 ; CHECK-NEXT: %[[OFF1:.+]] = getelementptr inbounds { ptr, float }, ptr %[[BUNDLE]], i32 0, i32 1
 ; CHECK-NEXT: store float 1.500000e+00, ptr %[[OFF1]]
-; CHECK-NEXT: %[[CTX:.+]] = call ptr @__kitpthr_launch(ptr nonnull @f, i64 0, i64 128, ptr %[[BUNDLE]], i64 16) #[[LAUNCH:[0-9]+]]
+; CHECK-NEXT: %[[CTX:.+]] = call ptr @__kitpthr_async_launch(ptr nonnull @f, i64 0, i64 128, ptr %[[BUNDLE]], i64 16) #[[LAUNCH:[0-9]+]]
 ; CHECK-NEXT: call i64 @__kitpthr_num_threads() #[[THREADS:[0-9]+]]
 ; CHECK-NEXT: call i64 @__kitpthr_thread_id() #[[ID:[0-9]+]]
 ; CHECK-NEXT: call void @__kitpthr_sync(ptr nonnull %[[CTX]]) #[[SYNC:[0-9]+]]
