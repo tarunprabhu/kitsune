@@ -417,9 +417,10 @@ static CUstream launchKernel3(CUfunction f, void **args, size_t tcZ, size_t tcY,
   return stream;
 }
 
-void *__kitcuda_launch_kernel(const void *fatbin, const char *name, void **args,
+void *__kitcuda_launch_kernel(const void *fatbin, const char *name,
                               int64_t tc_z, int64_t tc_y, int64_t tc_x, int tpb,
-                              const KitRTInstMix *inst_mix, void *stream_in) {
+                              const KitRTInstMix *inst_mix, void *stream_in,
+                              void **args) {
   assert(fatbin && "kitrt[cuda]: launch with null fat binary");
   assert(name && "kitrt[cuda]: launch with null name");
   assert(args && "kitrt[cuda]: launch with null args");
