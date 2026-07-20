@@ -15,9 +15,7 @@
 ; CHECK-NEXT: %guvm = alloca ptr
 ; CHECK-NEXT: call void @__kithip_initialize()
 ; CHECK-NEXT: call void @__kithip_enable_ylaunch()
-; CHECK-NOT: call void @__kithip_enable_ylaunch()
 ; CHECK-NEXT: call void @__kithip_enable_xnack()
-; CHECK-NOT: call void @__kithip_enable_xnack()
 ; CHECK-NEXT: %[[STREAM:.+]] = call ptr @__kithip_get_thread_stream()
 ; CHECK-NEXT: %[[GSYM:.+]] = call ptr @__kithip_get_global_symbol(ptr null, ptr @.gname)
 ; CHECK-NEXT: call void @__kithip_memcpy_sym_to_device(ptr %[[GSYM]], ptr @gbuf, i64 28)
@@ -68,10 +66,8 @@ target triple = "x86_64-pc-linux-gnu"
 define void @f(ptr %buf, i64 %n) {
   %guvm = alloca ptr
   call void @llvm.kit.runtime.initialize(i32 4)
-  call void @llvm.kit.runtime.set.y.axis.kernel.launch(i32 4, i8 1)
-  call void @llvm.kit.runtime.set.y.axis.kernel.launch(i32 4, i8 0)
-  call void @llvm.kit.runtime.set.xnack(i32 4, i8 42)
-  call void @llvm.kit.runtime.set.xnack(i32 4, i8 0)
+  call void @llvm.kit.runtime.set.y.axis.kernel.launch(i32 4)
+  call void @llvm.kit.runtime.set.xnack(i32 4)
   %1 = call ptr @llvm.kit.gpu.stream.new(i32 4)
   %2 = call ptr @llvm.kit.gpu.symbol.address(i32 4, ptr null, ptr @.gname)
   call void @llvm.kit.gpu.symbol.memcpy.htod(i32 4, ptr %2, ptr @gbuf, i64 28)

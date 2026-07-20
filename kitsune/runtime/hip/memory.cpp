@@ -125,6 +125,7 @@ extern "C" void __kithip_enable_xnack() {
     // variable. For correct low-level behavior from ROCm (and perhaps even the
     // kernel) we need to set "HAS_XNACK".
     kitrt::envSet("HSA_XNACK", 1);
+    kithip_rt::setXnack(true);
   }
 
   LOG("xnack enabled");
