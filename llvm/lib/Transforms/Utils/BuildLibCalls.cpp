@@ -1477,7 +1477,7 @@ bool llvm::inferNonMandatoryLibFuncAttrs(Function &F,
   case LibFunc_kithip_unregister_devcode:
   case LibFunc_kitomp_launch:
   case LibFunc_kitomp_reduce_num_partials:
-  case LibFunc_kitpthr_launch:
+  case LibFunc_kitpthr_async_launch:
   case LibFunc_kitpthr_sync:
   case LibFunc_kitpthr_reduce_num_partials:
   case LibFunc_kitqthr_launch:
@@ -1607,7 +1607,7 @@ FunctionCallee llvm::getOrInsertLibFunc(Module *M, const TargetLibraryInfo &TLI,
     break;
 
   case LibFunc_kitomp_launch:
-  case LibFunc_kitpthr_launch:
+  case LibFunc_kitpthr_async_launch:
   case LibFunc_kitqthr_launch:
     setArgExtAttr(*F, 1, TLI);
     setArgExtAttr(*F, 2, TLI);

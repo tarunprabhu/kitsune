@@ -78,9 +78,9 @@ typedef void (*KitPthrThrdFunc)(uint64_t start, uint64_t end, void *args);
 void __kitpthr_finalize(void);
 void __kitpthr_initialize(void);
 bool __kitpthr_initialized(void);
-KitPthrLaunchContext *__kitpthr_launch(KitPthrThrdFunc f, uint64_t start,
-                                       uint64_t end, void *args,
-                                       uint64_t argSize);
+KitPthrLaunchContext *__kitpthr_async_launch(KitPthrThrdFunc f, uint64_t start,
+                                             uint64_t end, void *args,
+                                             uint64_t argSize);
 uint64_t __kitpthr_num_threads(void);
 uint64_t __kitpthr_reduce_num_partials(uint64_t n);
 uint64_t __kitpthr_thread_id(void);
