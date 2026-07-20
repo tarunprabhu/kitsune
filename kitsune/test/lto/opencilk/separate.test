@@ -16,7 +16,7 @@
 # RUN:     -o %t/main.o %S/../input/main.cpp
 # RUN: llvm-dis -o - %t/main.o | FileCheck %s --check-prefix MAIN
 #
-# MAIN: call void @_Z6vecaddN7kitsune
+# MAIN: call void @vecadd
 #
 #
 # RUN: %kitxx -flto --tapir=opencilk -O2 %sysroot \

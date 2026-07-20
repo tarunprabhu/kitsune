@@ -161,12 +161,19 @@ static unsigned long kitqthrThrdLaunchFn(KitQthrThrdArgs *thrdArgs) {
 /// which will execute exactly one iteration. In the future, `end - start` may
 /// be less than the number of threads available.
 ///
+/// NOTE: At this time, \p argSize is not used because this function blocks
+/// until all threads have finished executing. In the future, if we change this
+/// to be non-blocking, \p args will be copied before this returns, at which
+/// point, \p argSize will be used.
+///
 /// \param f The function to execute on each thread
 /// \param start The start index of the iteration space
 /// \param end The value one greater than the last index of the iteration space
 /// \param args A struct containing data to be passed to \p f
+/// \param argSize The size of the struct pointed to by \p args.
 extern "C" void __kitqthr_launch(KitQthrThrdFunc f, uint64_t start,
-                                 uint64_t end, void *args) {
+                                 uint64_t end, void *args,
+                                 [[maybe_unused]] uint64_t argSize) {
   assert(__kitqthr_initialized() && "kitqthr initialized");
   assert(start == 0 && end == __kitqthr_num_workers() &&
          "__kitqthr_launch expects loop iterations in range [0,NUM_THREADS)");

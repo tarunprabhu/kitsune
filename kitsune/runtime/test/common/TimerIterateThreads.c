@@ -35,7 +35,7 @@ static void thrdFn(uint64_t start, uint64_t stop, void *args) {
 int main(int argc, char *argv[]) {
   TimePoint tick = __kittimer_start();
   for (unsigned i = 0; i < 3; ++i)
-    __kitomp_launch(thrdFn, 0, 3, NULL);
+    __kitomp_launch(thrdFn, /*beg=*/0, /*end=*/3, /*args=*/NULL, /*argSize=*/0);
   __kittimer_stop(tick, 11, 0, "fork");
 
   return 0;

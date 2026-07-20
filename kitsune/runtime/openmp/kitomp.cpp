@@ -195,12 +195,18 @@ static void staticLoopWrapper(int32_t *globalTID, int32_t *localTID,
 /// which will execute exactly one iteration. In the future, `end - start` may
 /// be less than the number of threads available.
 ///
+/// NOTE: At this time, \p argSize is not used because this function blocks
+/// until all threads have finished executing. In the future, if we change this
+/// to be non-blocking, \p args will be copied before this returns, at which
+/// point, \p argSize will be used.
+///
 /// \param f The function to execute on each thread
 /// \param start The start index of the iteration space
 /// \param end The value one greater than the last index of the iteration space
 /// \param args Pointer to the struct containing data to be passed to \p f
+/// \param argSize The size of the struct pointed to by \p args
 extern "C" void __kitomp_launch(KitOMPThrdFunc f, uint64_t start, uint64_t end,
-                                void *args) {
+                                void *args, [[maybe_unused]] uint64_t argSize) {
   assert(__kitomp_initialized() && "kitomp initialized");
   assert(start == 0 && end == __kitomp_num_threads() &&
          "__kitomp_launch expects loop iterations in range [0,NUM_THREADS)");

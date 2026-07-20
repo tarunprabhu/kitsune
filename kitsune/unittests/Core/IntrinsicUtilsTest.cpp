@@ -100,49 +100,6 @@ TEST(KitIntrinsicUtils, isKitIntrinsicGPU) {
   EXPECT_FALSE(isKitIntrinsicGPU(Intrinsic::kit_runtime_initialize));
 }
 
-TEST(KitIntrinsicUtils, getKernelArgumentsFromLaunch) {
-  LLVMContext ctx;
-  Module m("", ctx);
-  Function *f = Intrinsic::getOrInsertDeclaration(
-      &m, Intrinsic::kit_async_gpu_kernel_launch);
-
-  FunctionType *fty = f->getFunctionType();
-  PointerType *ptr = PointerType::getUnqual(ctx);
-  Type *i32 = Type::getInt32Ty(ctx);
-  Type *i64 = Type::getInt64Ty(ctx);
-  Type *f32 = Type::getFloatTy(ctx);
-
-  Constant *g = m.getOrInsertGlobal("g", ptr);
-  Constant *cnull = ConstantPointerNull::get(ptr);
-  Constant *c0_4 = ConstantInt::get(i32, 0);
-  Constant *c0_8 = ConstantInt::get(i64, 0);
-  Constant *ctt = ConstantInt::get(i32, unsigned(TTID::Cuda));
-  Constant *cfp = ConstantFP::get(f32, 3.14159);
-
-  CallInst *call0 = CallInst::Create(
-      fty, f, {ctt, cnull, cnull, c0_8, c0_8, c0_8, c0_4, cnull, cnull});
-  CallInst *call1 = CallInst::Create(
-      fty, f, {ctt, cnull, cnull, c0_8, c0_8, c0_8, c0_4, cnull, cnull, g});
-  CallInst *call2 = CallInst::Create(
-      fty, f,
-      {ctt, cnull, cnull, c0_8, c0_8, c0_8, c0_4, cnull, cnull, g, cfp});
-  CallInst *call3 = CallInst::Create(
-      fty, f,
-      {ctt, cnull, cnull, c0_8, c0_8, c0_8, c0_4, cnull, cnull, g, cfp, ctt});
-
-  EXPECT_EQ(getKernelArgumentsFromLaunch(*call0), (SmallVector<Value *, 8>{}));
-  EXPECT_EQ(getKernelArgumentsFromLaunch(*call1), (SmallVector<Value *, 8>{g}));
-  EXPECT_EQ(getKernelArgumentsFromLaunch(*call2),
-            (SmallVector<Value *, 8>{g, cfp}));
-  EXPECT_EQ(getKernelArgumentsFromLaunch(*call3),
-            (SmallVector<Value *, 8>{g, cfp, ctt}));
-
-  call0->deleteValue();
-  call1->deleteValue();
-  call2->deleteValue();
-  call3->deleteValue();
-}
-
 TEST(KitIntrinsicUtils, getStreamFromLaunch) {
   LLVMContext ctx;
   Module m("", ctx);

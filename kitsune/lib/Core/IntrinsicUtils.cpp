@@ -57,24 +57,6 @@ Value *llvm::getStreamFromLaunch(const CallBase &call) {
   return call.getArgOperand(calleeTy->getNumParams() - 1);
 }
 
-SmallVector<Value *, 8>
-llvm::getKernelArgumentsFromLaunch(const CallBase &call) {
-  assert(call.getIntrinsicID() == Intrinsic::kit_async_gpu_kernel_launch &&
-         "Instruction must call async_launch_kernel intrinsic");
-
-  // The last parameter of the function type of the callee is the "var arg
-  // type". By definition, this is also the argument number of the first
-  // variadic argument in the call. This, along with all subsequent arguments
-  // in the call are the arguments to the kernel function being launched.
-  SmallVector<Value *, 8> args;
-  Function *callee = call.getCalledFunction();
-  FunctionType *calleeTy = callee->getFunctionType();
-  for (unsigned i = calleeTy->getNumParams(); i < call.arg_size(); ++i)
-    args.push_back(call.getArgOperand(i));
-
-  return args;
-}
-
 std::optional<TTID> llvm::getTTIDFromKitIntrCall(const CallBase &call) {
   if (Intrinsic::ID id = call.getIntrinsicID())
     if (isKitIntrinsic(id))

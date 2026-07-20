@@ -2,17 +2,29 @@
 
 #include <kitsune.h>
 
-void vecadd(kitsune::mobile_ptr<double> c, const kitsune::mobile_ptr<double> a,
-            const kitsune::mobile_ptr<double> b, size_t n);
+extern "C" double random_value(void);
+extern "C" void print(const double *c, size_t n);
+extern "C" void vecadd(double *c, const double *a, const double *b, size_t n);
+
+static double *alloc(size_t n) {
+  double *buf = (double *)malloc(sizeof(double) * n);
+  for (size_t i = 0; i < n; ++i)
+    buf[i] = random_value();
+  return buf;
+}
 
 int main(int argc, char *argv[]) {
-  size_t n = atoi(argv[1]);
-  unsigned iterations;
-  kitsune::mobile_ptr<double> a(n);
-  kitsune::mobile_ptr<double> b(n);
-  kitsune::mobile_ptr<double> c(n);
+  size_t n = atol(argv[1]);
+  double *a = alloc(n);
+  double *b = alloc(n);
+  double *c = alloc(n);
 
   vecadd(c, a, b, n);
+  print(c, argc);
 
-  return c[argc];
+  free(c);
+  free(b);
+  free(a);
+
+  return 0;
 }

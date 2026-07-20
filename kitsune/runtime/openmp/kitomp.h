@@ -76,8 +76,8 @@ typedef void (*KitOMPThrdFunc)(uint64_t start, uint64_t end, void *args);
 void __kitomp_finalize(void);
 void __kitomp_initialize(void);
 bool __kitomp_initialized(void);
-void __kitomp_launch(KitOMPThrdFunc f, uint64_t start, uint64_t end,
-                     void *args);
+void __kitomp_launch(KitOMPThrdFunc f, uint64_t start, uint64_t end, void *args,
+                     uint64_t argsSize);
 uint64_t __kitomp_num_threads(void);
 uint64_t __kitomp_reduce_num_partials(uint64_t n);
 uint64_t __kitomp_thread_id(void);

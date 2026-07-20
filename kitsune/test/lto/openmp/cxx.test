@@ -1,71 +1,34 @@
-# Check a standard lowering using LTO. We check the output of the loop spawning
-# pass rather than the final result which will include the effect of some
-# cleanup passes run after loop spawning.
+# Check a standard lowering using LTO. We don't check as carefully as well do
+# for the non-LTO lowering because simply passing -fno-vectorize and
+# -fno-unroll-loops does not work as expected when using LTO.
 #
-# RUN: %kitxx --tapir=openmp -O2 -flto -fno-inline -o /dev/null %sysroot \
+# RUN: %kitxx --tapir=openmp -O2 -flto -o /dev/null %sysroot \
+# RUN:     -fno-inline -fno-vectorize -fno-unroll-loops \
 # RUN:     -Wl,--lto-emit-llvm \
 # RUN:     -Wl,-mllvm -Wl,-print-after=loop-spawning \
 # RUN:     %S/../input/add.cpp %S/../input/main.cpp 2>&1 \
 # RUN:     | FileCheck %s
 #
-# CHECK: define {{.*}}void @_Z6vecadd{{[^(]+}}(
+# CHECK: define internal fastcc void @vecadd(
 # CHECK-SAME: ptr {{[^%]*}}%[[C:[^,]+]],
 # CHECK-SAME: ptr {{[^%]*}}%[[A:[^,]+]],
 # CHECK-SAME: ptr {{[^%]*}}%[[B:[^,]+]],
 # CHECK-SAME: i64 {{[^%]*}}%[[N:[^,]+]])
-# CHECK: %[[PACK:.+]] = alloca {{[{]}}
-# CHECK-SAME: i64
-# CHECK-SAME: i64
-# CHECK-SAME: ptr addrspace(67)
-# CHECK-SAME: ptr addrspace(67)
-# CHECK-SAME: ptr addrspace(67)
-# CHECK-SAME: {{[}]}}
 # CHECK: %[[NUM_THREADS:.+]] = tail call i64 @llvm.kit.cpu.num.threads(i32 512)
 # CHECK: %[[PER_THREAD:.+]] = udiv i64 {{.+}}, %[[NUM_THREADS]]
-# CHECK-NEXT: %[[ARGPERTHRD:[0-9]+]] = getelementptr {{.*}}, ptr %[[PACK]]
-# CHECK-NEXT: store i64 %[[PER_THREAD]], ptr %[[ARGPERTHRD]]
-# CHECK-NEXT: %[[ARGN:[0-9]+]] = getelementptr {{.*}}, ptr %[[PACK]]
-# CHECK-NEXT: store i64 %[[N]], ptr %[[ARGN]]
-# CHECK-NEXT: %[[ARGA:[0-9]+]] = getelementptr {{.*}}, ptr %[[PACK]]
-# CHECK-NEXT: store ptr {{.*}}%[[A]], ptr %[[ARGA]]
-# CHECK-NEXT: %[[ARGB:[0-9]+]] = getelementptr {{.*}}, ptr %[[PACK]]
-# CHECK-NEXT: store ptr {{.*}}%[[B]], ptr %[[ARGB]]
-# CHECK-NEXT: %[[ARGC:[0-9]+]] = getelementptr {{.*}}, ptr %[[PACK]]
-# CHECK-NEXT: store ptr {{.*}}%[[C]], ptr %[[ARGC]]
-# CHECK: call void @llvm.kit.cpu.threads.launch(
+# CHECK: call void (i32, ptr, i64, i64, ...) @llvm.kit.cpu.threads.launch(
 # CHECK-SAME: i32 512,
-# CHECK-SAME: ptr @[[OUTLINED:[^,]+]],
+# CHECK-SAME: ptr @[[WRAPPER:[^,]+]],
 # CHECK-SAME: i64 0,
 # CHECK-SAME: i64 %[[NUM_THREADS]],
-# CHECK-SAME: ptr %[[PACK]])
+# CHECK-SAME: i64 %[[PER_THREAD]],
+# CHECK-SAME: i64 %[[N]],
+# CHECK-SAME: ptr %[[A]],
+# CHECK-SAME: ptr %[[B]],
+# CHECK-SAME: ptr %[[C]],
 # CHECK: ret void
 #
-# CHECK: define internal fastcc void @[[OUTLINED:_Z6vecaddN7kitsune10mobile_ptrIdEES1_S1_m.outline_.ls1]](
-# CHECK-SAME: i64 %[[START:[^,]+]],
-# CHECK-SAME: i64 %[[END:[^,]+]],
-# CHECK-SAME: ptr {{.*}}%[[ARGS:[^)]+]])
-# CHECK: br label %[[BODY:.+]]
-# CHECK: [[BODY]]:
-# CHECK: %[[I:[0-9]+]] = phi i64
-# CHECK: %[[ARGPERTHRD:.+]] = getelementptr {{.*}}, ptr %[[ARGS]], i32 0, i32 0
-# CHECK: %[[PERTHRD:.+]] = load i64, ptr %[[ARGPERTHRD]]
-# CHECK: %[[ARGN:.+]] = getelementptr {{.*}}, ptr %[[ARGS]], i32 0, i32 1
-# CHECK: %[[N:.+]] = load i64, ptr %[[ARGN]]
-# CHECK: %[[ARGA:.+]] = getelementptr {{.*}}, ptr %[[ARGS]], i32 0, i32 2
-# CHECK: %[[PTRA:.+]] = load ptr addrspace(67), ptr %[[ARGA]]
-# CHECK: %[[ARGB:.+]] = getelementptr {{.*}}, ptr %[[ARGS]], i32 0, i32 3
-# CHECK: %[[PTRB:.+]] = load ptr addrspace(67), ptr %[[ARGB]]
-# CHECK: %[[ARGC:.+]] = getelementptr {{.*}}, ptr %[[ARGS]], i32 0, i32 4
-# CHECK: %[[PTRC:.+]] = load ptr addrspace(67), ptr %[[ARGC]]
-# CHECK: %[[IDXA:.+]] = {{.*}}call {{.+}} ptr @
-# CHECK: %[[VA:.+]] = load double, ptr %[[IDXA]]
-# CHECK: %[[IDXB:.+]] = {{.*}}call {{.+}} ptr @
-# CHECK: %[[VB:.+]] = load double, ptr %[[IDXB]]
-# CHECK: %[[SUM:.+]] = fadd double %[[VA]], %[[VB]]
-# CHECK: %[[IDXC:.+]] = {{.*}}call
-# CHECK: store double %[[SUM]], ptr %[[IDXC]]
-# CHECK: add {{.*}}i64 %[[I]], 1
-# CHECK: %[[ICMP:.+]] = icmp
-# CHECK: br i1 %[[ICMP]], label %[[EXIT:.+]], label %[[BODY]]
-# CHECK: [[EXIT]]:
-# CHECK: ret void
+# CHECK: define internal fastcc void @[[WRAPPER]](
+# CHECK-SAME: i64 {{[^%]*}}%[[BEG:[^,]+]],
+# CHECK-SAME: i64 {{[^%]*}}%[[END:[^,]+]],
+# CHECK-SAME: ptr {{[^%]*}}%[[ARGS:[^)]+]])
