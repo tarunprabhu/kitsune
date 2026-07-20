@@ -22,7 +22,7 @@ __attribute__((destructor)) static void dtor(void) { __kitrt_finalize(); }
 int main(int argc, char *argv[]) {
   TimePoint startMain = __kittimer_start();
   for (unsigned i = 0; i < 3; ++i) {
-    TimePoint startIter =__kittimer_start();
+    TimePoint startIter = __kittimer_start();
     __kittimer_stop(startIter, 9, 0, "pa");
   }
   __kittimer_stop(startMain, 11, 0, "papageno");

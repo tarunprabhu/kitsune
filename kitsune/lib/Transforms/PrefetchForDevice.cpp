@@ -19,6 +19,7 @@
 #include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/Core/AddrSpace.h"
 #include "kitsune/Core/ConstantUtils.h"
+#include "kitsune/Core/InstUtils.h"
 #include "kitsune/Core/IntrinsicUtils.h"
 #include "kitsune/Core/TTOptions.h"
 #include "llvm/IR/Constants.h"
@@ -66,7 +67,7 @@ bool Prefetch::insertPrefetchesHToD(CallBase &call) {
 
   bool changed = false;
   Value *stream = getStreamFromLaunch(call);
-  for (Value *arg : getKernelArgumentsFromLaunch(call)) {
+  for (Value *arg : getVariadicArgs(call)) {
     if (auto *pty = dyn_cast<PointerType>(arg->getType())) {
       IRBuilder<> builder(&call);
 

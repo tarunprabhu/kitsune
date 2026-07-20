@@ -14,7 +14,7 @@
 # RUN:     --tapir=cuda --tapir-cuda-arch=sm_72
 # RUN: llvm-dis -o - %t/main.o | FileCheck %s --check-prefix MAIN
 #
-# MAIN: call void @_Z6vecaddN7kitsune
+# MAIN: call void @vecadd
 #
 #
 # RUN: %kitxx -flto -O2 %t/main.o %t/add.o %sysroot \

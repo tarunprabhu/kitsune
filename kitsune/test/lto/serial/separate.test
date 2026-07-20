@@ -1,9 +1,14 @@
 # Check a "standard" lowering using LTO, but where each file is compiled
-# separately.
+# separately. We check the output of the loop spawning pass rather than the
+# final result which will include the effect of some cleanup passes run after
+# loop spawning. This is intentionally very basic because -fno-vectorize and
+# -fno-unroll-loops are not fully respected when using LTO. We simply check that
+# there are no Kitsune intrinsics in the lowered code.
 #
 # RUN: mkdir -p %t
 #
-# RUN: %kitxx -c -flto --tapir=serial -O2 %sysroot -fno-inline \
+# RUN: %kitxx -c -flto --tapir=serial -O2 %sysroot \
+# RUN:     -fno-inline -fno-vectorize -fno-unroll-loops \
 # RUN:     -o %t/add.o  %S/../input/add.cpp
 # RUN: llvm-dis -o - %t/add.o | FileCheck %s --check-prefix TAPIR
 #
@@ -14,11 +19,12 @@
 # TAPIR-NOT: sync within
 #
 #
-# RUN: %kitxx -c -flto --tapir=serial -O2 %sysroot -fno-inline \
+# RUN: %kitxx -c -flto --tapir=serial -O2 %sysroot \
+# RUN:     -fno-inline -fno-vectorize -fno-unroll-loops \
 # RUN:     -o %t/main.o %S/../input/main.cpp
 # RUN: llvm-dis -o - %t/main.o | FileCheck %s --check-prefix MAIN
 #
-# MAIN: call void @_Z6vecadd
+# MAIN: call void @vecadd
 #
 #
 # RUN: %kitxx -flto --tapir=serial -fno-inline -O2 %sysroot \
@@ -27,23 +33,10 @@
 # RUN:     | llvm-dis -o - \
 # RUN:     | FileCheck %s --check-prefix LOWERED
 #
-# LOWERED: define {{.*}}void @_Z6vecadd{{[^(]+}}(
+# LOWERED: define {{.*}}void @vecadd(
 # LOWERED-SAME: {{[^%]*}}%[[C:[^,]+]],
 # LOWERED-SAME: {{[^%]*}}%[[A:[^,]+]],
 # LOWERED-SAME: {{[^%]*}}%[[B:[^,]+]],
 # LOWERED-SAME: i64 {{[^%]*}}%[[N:[^,]+]])
-# LOWERED: br {{.+}}, label %[[END:.+]], label %[[BODY:[^,]+]]
-# LOWERED: [[BODY]]:
-# LOWERED: %[[I:.+]] = phi i64
-# LOWERED: %[[IDXA:.+]] = tail call {{.*}}(ptr {{.*}}, i64 {{.*}}%[[I]])
-# LOWERED: %[[VA:.+]] = load double, ptr %[[IDXA]]
-# LOWERED: %[[IDXB:.+]] = tail call {{.*}}(ptr {{.*}}, i64 {{.*}}%[[I]])
-# LOWERED: %[[VB:.+]] = load double, ptr %[[IDXB]]
-# LOWERED: %[[ADD:.+]] = fadd double %[[VA]], %[[VB]]
-# LOWERED: %[[IDXC:.+]] = tail call {{.*}}(ptr {{.*}}, i64 {{.*}}%[[I]])
-# LOWERED: store double %[[ADD]], ptr %[[IDXC]]
-# LOWERED: %[[INC:.+]] = add {{.+}} %[[I]], 1
-# LOWERED: %[[CMP:.+]] = icmp
-# LOWERED: br i1 %[[CMP]], label %[[END]], label %[[BODY]], !llvm.loop
-# LOWERED: [[END:.+]]:
+# LOWERED-NOT: @llvm.kit.
 # LOWERED: ret void

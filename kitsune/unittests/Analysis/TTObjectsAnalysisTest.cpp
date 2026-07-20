@@ -274,7 +274,7 @@ static constexpr StringRef mixedIntrsOnly = R"m(
 declare void @thrdfn(i64, i64, ptr)
 
 define void @f(i64 %n) {
-  call void @llvm.kit.cpu.threads.launch(i32 512, ptr @thrdfn, i64 0, i64 %n, ptr null)
+  call void(i32, ptr, i64, i64, ...) @llvm.kit.cpu.threads.launch(i32 512, ptr @thrdfn, i64 0, i64 %n, ptr null)
   ret void
 }
 
@@ -306,7 +306,7 @@ static constexpr StringRef mixedIntrsLoops = R"m(
 declare void @thrdfn(i64, i64, ptr)
 
 define void @f(i64 %n) {
-  call void @llvm.kit.cpu.threads.launch(i32 512, ptr @thrdfn, i64 0, i64 %n, ptr null)
+  call void(i32, ptr, i64, i64, ...) @llvm.kit.cpu.threads.launch(i32 512, ptr @thrdfn, i64 0, i64 %n)
   ret void
 }
 
