@@ -401,8 +401,7 @@ prefetched.
 def KitGPUEnableXnackDoc : KitDocIntrinsic {
   let Category = KitDocCatGPU;
   let ParamDocs = [
-      KitDocParam<"tt", "The ID of the tapir target calling the intrinsic">,
-      KitDocParam<"enable", "Non-zero to enable xnack, 0 to disable it">
+      KitDocParam<"tt", "The ID of the tapir target calling the intrinsic">
   ];
   let Descr = [{
 Enable xnack in Kitsune's runtime. This is only relevant for the
@@ -413,8 +412,7 @@ Enable xnack in Kitsune's runtime. This is only relevant for the
 def KitGPUEnableYAxisKernelLaunchDoc : KitDocIntrinsic {
   let Category = KitDocCatGPU;
   let ParamDocs = [
-      KitDocParam<"tt", "The ID of the tapir target calling the intrinsic">,
-      KitDocParam<"enable", "Non-zero to enable the y-axis launch pattern, 0 to disable it">
+      KitDocParam<"tt", "The ID of the tapir target calling the intrinsic">
   ];
   let Descr = [{
 Enable the Y-axis launch pattern for all GPU kernels.

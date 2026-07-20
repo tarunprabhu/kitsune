@@ -466,13 +466,12 @@ def int_kit_runtime_initialize
 // Enable xnack in the runtime. This is only relevant for the hip tapir target
 // and its associated kitsune runtime.
 def int_kit_runtime_set_xnack
-    : KitIntrinsic<[], [llvm_i32_ty, llvm_i8_ty], []> {
+    : KitIntrinsic<[], [llvm_i32_ty], [ImmArg<ArgIndex<0>>]> {
   let Doc = KitGPUEnableXnackDoc;
 }
 
 // Enable the y-axis launch pattern for all GPU kernels.
 def int_kit_runtime_set_y_axis_kernel_launch
-    : KitIntrinsic<[], [llvm_i32_ty, llvm_i8_ty],
-                   [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>]> {
+    : KitIntrinsic<[], [llvm_i32_ty], [ImmArg<ArgIndex<0>>]> {
   let Doc = KitGPUEnableYAxisKernelLaunchDoc;
 }
