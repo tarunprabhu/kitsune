@@ -15,6 +15,7 @@
 #define KITSUNE_TARGETS_CPUTT_LOOP_H
 
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/IR/IRBuilder.h"
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
 
 namespace llvm {
@@ -35,35 +36,45 @@ protected:
   CPUTTLoopProcessor(TTID tt, const TTOptions &opts, bool asynLaunch,
                      Module &m);
 
-  /// Insert an asynchronous launch call that will eventually replace \p call.
-  /// Consider the call below:
+  /// Generate a wrapper for the function \p outlined. \p outlined is obtained
+  /// by outlining the body of a tapir loop. \p outlined is assumed to have the
+  /// signature:
   ///
-  ///     call void @func(args ...)
+  ///     void(i64 %beg, i64 %end, %args...)
   ///
-  /// This will be replaced with something similar to what is shown below.
+  /// Here %beg, and %end are the range of iterations that the function operates
+  /// on. %args... is a variadic list of arguments that consist of the entities
+  /// used by the tapir loop from which \p outlined was obtained.
   ///
-  ///     %ctx = call @llvm.kit.async.cpu.threads.launch(%tt, @func, args...)
-  ///     call @llvm.kit.cpu.threads.sync(%tt, %ctx)
+  /// The wrapper will have the signature
   ///
-  void insertAsyncLaunch(CallBase &call);
-
-  /// Insert a blocking launch call that will eventually replace \p call.
-  /// Consider the call below:
+  ///     void(i64 %beg i64 %end, ptr %args)
   ///
-  ///     call void @func(args ...)
+  /// Here, %args is expected to be a struct. Each element of the struct is an
+  /// argument to be passed to \p outlined. The body of the generated wrapper
+  /// function will be roughly as follows:
   ///
-  /// This will be replaced with something similar to what is shown below.
+  ///     void @wrapper(i64 %beg, i64 %end, ptr %args) {
+  ///     entry:
+  ///         %0 = getelementptr %bundleTy, ptr %args, i32 0, i32 0
+  ///         %arg0 = load <ty0>, ptr %0
+  ///         %1 = getelementptr %bundleTy, ptr %args, i32 0, i32 1
+  ///         %arg0 = load <ty0>, ptr %0
+  ///         ...
+  ///         <body of outlined function>
+  ///         br label %exit
   ///
-  ///     call @llvm.kit.cpu.threads.launch(%tt, @func, args...)
+  ///     exit:
+  ///         ret void
+  ///     }
   ///
-  void insertBlockingLaunch(CallBase &call);
+  /// Here, %bundleTy is a struct with each element of the struct corresponding
+  /// to an argument in %args... expected by \p outlined. Note that \p outlined
+  /// is inlined into the generated wrapper function.
+  Function *genWrapperFor(Function &outlined);
 
 public:
   virtual ~CPUTTLoopProcessor() = default;
-
-  /// Returns an ArgStructMode enum value describing how inputs to the
-  /// underlying task of a tapir loop should be passed to the task.
-  virtual ArgStructMode getArgStructMode() const override;
 
   /// Setup the loop-control arguments \p lcArgs and loop-control inputs
   /// \p lcInputs for the Tapir loop \p tl.

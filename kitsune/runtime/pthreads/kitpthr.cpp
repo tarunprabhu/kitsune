@@ -61,7 +61,9 @@
 #include "kitrt.h"
 
 #include <cassert>
+#include <cstring>
 #include <errno.h>
+#include <memory>
 #include <pthread.h>
 #include <vector>
 
@@ -100,11 +102,25 @@ struct KitPthrThread {
 struct LaunchContextImpl {
   std::vector<KitPthrThread> thrds;
 
+  /// The argument bundle required by the functions that run on each thread.
+  /// This is a copy of the bundle passed to __kitpthr_launch. It will be
+  /// deleted when this is deleted, which will be when it is passed to
+  /// __kitpthr_sync.
+  std::unique_ptr<std::byte[]> thrdArgs;
+
+  /// The size, in bytes, of the argument bundle.
+  uint64_t thrdArgSize = 0;
+
 public:
-  LaunchContextImpl() = default;
-  LaunchContextImpl(size_t numThreads) : thrds(numThreads) {
+  LaunchContextImpl(size_t numThreads, void *args, uint64_t argSize)
+      : thrds(numThreads) {
     for (size_t t = 0; t < numThreads; ++t)
       thrds[t].tid = t;
+    if (args) {
+      thrdArgs.reset(new std::byte[argSize]);
+      memcpy(thrdArgs.get(), args, argSize);
+      thrdArgSize = argSize;
+    }
   }
 
   LaunchContextImpl(const LaunchContextImpl &) = delete;
@@ -114,6 +130,8 @@ public:
   KitPthrThread &operator[](size_t i) { return thrds.at(i); }
   const KitPthrThread &operator[](size_t i) const { return thrds.at(i); }
   size_t size() const { return thrds.size(); }
+  void *args() const { return thrdArgs.get(); }
+  uint64_t argSize() const { return thrdArgSize; }
 
   decltype(thrds)::iterator begin() { return thrds.begin(); }
   decltype(thrds)::const_iterator begin() const { return thrds.begin(); }
@@ -214,23 +232,26 @@ static void *kitpthrThrdStartFn(KitPthrThread *thread) {
 /// \param start The start index of the iteration space
 /// \param end The value one greater than the last index of the iteration space
 /// \param args A struct containing data to be passed to \p f
+/// \params argSize The size of the underlying struct pointed to by \p args
 /// \return An opaque thread context object. It is the caller's responsibility
 /// to call \ref __kitpthr_join with this context object. If no threads are
 /// launched, i.e. \p f is run on the main thread, nullptr will be returned
 /// instead. In this case, the caller is not required to call
 /// \ref __kitpthr_join.
-extern "C" KitPthrLaunchContext *
-__kitpthr_launch(KitPthrThrdFunc f, uint64_t start, uint64_t end, void *args) {
+extern "C" KitPthrLaunchContext *__kitpthr_launch(KitPthrThrdFunc f,
+                                                  uint64_t start, uint64_t end,
+                                                  void *args,
+                                                  uint64_t argSize) {
   assert(__kitpthr_initialized() && "kitpthr initialized");
   assert(start == 0 && end == __kitpthr_num_threads() &&
          "__kitpthr_launch expects loop iterations in range [0,NUM_THREADS)");
   LOG("Launching multithreaded loop: [%ld,%ld)", start, end);
 
   uint64_t numThreads = __kitpthr_num_threads();
-  LaunchContextImpl *ctx = new LaunchContextImpl(numThreads - 1);
+  LaunchContextImpl *ctx = new LaunchContextImpl(numThreads - 1, args, argSize);
   for (KitPthrThread &thrd : *ctx) {
     thrd.f = f;
-    thrd.args = args;
+    thrd.args = ctx->args();
 
     if (pthread_attr_init(&thrd.attr))
       FATAL("Error initializing thread attributes");
@@ -240,7 +261,7 @@ __kitpthr_launch(KitPthrThrdFunc f, uint64_t start, uint64_t end, void *args) {
       kitpthrHandleCreateError(err);
     LOG("Fork thread %ld (%ld)", thrd.tid, thrd.pthr);
   }
-  f(numThreads - 1, numThreads, args);
+  f(numThreads - 1, numThreads, ctx->args());
 
   return reinterpret_cast<KitPthrLaunchContext *>(ctx);
 }

@@ -13,12 +13,14 @@
 #ifndef KITSUNE_CORE_INST_UTILS_H
 #define KITSUNE_CORE_INST_UTILS_H
 
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 
 namespace llvm {
 
 class BasicBlock;
 class BinaryOperator;
+class CallBase;
 class Instruction;
 class LLVMContext;
 class Module;
@@ -45,6 +47,15 @@ std::string getName(const Instruction &inst);
 /// representing the C++ name of the concrete class of the instruction. For
 /// instance, "BinaryOperator", "ICmpInst", "FCmpInst", "DetachInst" etc.
 StringRef getInstClassName(const Instruction &inst);
+
+/// Get the number of non-variadic arguments in \p call. The callee need not be
+/// a variadic function. \p call must be a direct call.
+unsigned getNumNonVariadicArgs(const CallBase &call);
+
+/// From a call to a variadic function, get the variadic arguments. If the call
+/// is to a non-variadic function, returns an empty list. \p call must be a
+/// direct call.
+SmallVector<Value *, 4> getVariadicArgs(const CallBase &call);
 
 /// Is the instruction a call to the llvm.syncregion.start() intrinsic.
 bool isCallSyncRegionStart(const Instruction &inst);

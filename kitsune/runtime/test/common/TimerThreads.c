@@ -32,7 +32,8 @@ static void thrdFn(uint64_t start, uint64_t end, void *args) {
 
 int main(int argc, char *argv[]) {
   TimePoint tick = __kittimer_start();
-  KitPthrLaunchContext *ctx = __kitpthr_launch(thrdFn, 0, 3, NULL);
+  KitPthrLaunchContext *ctx = __kitpthr_launch(thrdFn, /*beg=*/0, /*end=*/3,
+                                               /*args=*/NULL, /*argSize=*/0);
   __kitpthr_sync(ctx);
   __kittimer_stop(tick, /*timerID=*/11, /*threadID=*/0, "main");
 

@@ -13,9 +13,14 @@
 ; CHECK-LABEL: @f
 ; CHECK-SAME: ptr %[[BUF:[^,]+]]
 ; CHECK-SAME: i64 %[[N:[^)]+]]
-; CHECK-NEXT: call void @__kitqthr_launch(ptr nonnull @f, i64 0, i64 128, ptr @gbuf) #[[LAUNCH:[0-9]+]]
+; CHECK-NEXT: %[[BUNDLE:.+]] = alloca { ptr, float }
 ; CHECK-NEXT: call i64 @__kitqthr_num_workers() #[[THREADS:[0-9]+]]
 ; CHECK-NEXT: call i64 @__kitqthr_worker_id() #[[ID:[0-9]+]]
+; CHECK-NEXT: %[[OFF0:.+]] = getelementptr inbounds { ptr, float }, ptr %[[BUNDLE]], i32 0, i32 0
+; CHECK-NEXT: store ptr null, ptr %[[OFF0]]
+; CHECK-NEXT: %[[OFF1:.+]] = getelementptr inbounds { ptr, float }, ptr %[[BUNDLE]], i32 0, i32 1
+; CHECK-NEXT: store float 1.500000e+00, ptr %[[OFF1]]
+; CHECK-NEXT: call void @__kitqthr_launch(ptr nonnull @f, i64 0, i64 128, ptr %[[BUNDLE]], i64 16) #[[LAUNCH:[0-9]+]]
 ; CHECK-NEXT: call i64 @__kitqthr_reduce_num_partials(i64 %[[N]]) #[[PARTIALS:[0-9]+]]
 ; CHECK-NEXT: call void @__kitqthr_finalize() #[[FINALIZE:[0-9]+]]
 ; CHECK-NEXT: call void @__kitqthr_initialize() #[[INITIALIZE:[0-9]+]]
@@ -30,21 +35,19 @@
 ; This needs a triple in order to correctly initialize the target library.
 target triple = "x86_64-pc-linux-gnu"
 
-@gbuf = external global [7 x float]
-
 define void @f(ptr %buf, i64 %n) {
-  call void @llvm.kit.cpu.threads.launch(i32 32, ptr nonnull @f, i64 0, i64 128, ptr @gbuf) #0
-  %numThreads = call i64 @llvm.kit.cpu.num.threads(i32 32) #1
-  %threadID = call i64 @llvm.kit.cpu.thread.id(i32 32) #2
+  %numThreads = call i64 @llvm.kit.cpu.num.threads(i32 32) #0
+  %threadID = call i64 @llvm.kit.cpu.thread.id(i32 32) #1
+  call void(i32, ptr, i64, i64, ...) @llvm.kit.cpu.threads.launch(i32 32, ptr nonnull @f, i64 0, i64 128, ptr null, float 1.5) #2
   %numPartials = call i64 @llvm.kit.reduce.num.partials(i32 32, i64 %n) #3
   call void @llvm.kit.runtime.finalize(i32 32) #4
   call void @llvm.kit.runtime.initialize(i32 32) #5
   ret void
 }
 
-attributes #0 = { "launch" }
-attributes #1 = { "threads" }
-attributes #2 = { "id" }
+attributes #0 = { "threads" }
+attributes #1 = { "id" }
+attributes #2 = { "launch" }
 attributes #3 = { "partials" }
 attributes #4 = { "finalize" }
 attributes #5 = { "initialize" }

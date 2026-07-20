@@ -82,9 +82,9 @@ def int_kit_async_cpu_threads_launch
                     llvm_ptr_ty,  // thread function
                     llvm_i64_ty,  // start index
                     llvm_i64_ty,  // end index
-                    llvm_ptr_ty], // argument bundle
+                    llvm_vararg_ty],
                    [NonNull<RetIndex>, ImmArg<ArgIndex<0>>,
-                    NonNull<ArgIndex<1>>, NonNull<ArgIndex<4>>]> {
+                    NonNull<ArgIndex<1>>]> {
   let Doc = KitAsyncLaunchThreadsDoc;
 }
 
@@ -95,9 +95,8 @@ def int_kit_cpu_threads_launch
                     llvm_ptr_ty,  // thread function
                     llvm_i64_ty,  // start index
                     llvm_i64_ty,  // end index
-                    llvm_ptr_ty], // argument bundle
-                   [ImmArg<ArgIndex<0>>, NonNull<ArgIndex<1>>,
-                    NonNull<ArgIndex<4>>]> {
+                    llvm_vararg_ty],
+                   [ImmArg<ArgIndex<0>>, NonNull<ArgIndex<1>>]> {
   let Doc = KitLaunchThreadsDoc;
 }
 

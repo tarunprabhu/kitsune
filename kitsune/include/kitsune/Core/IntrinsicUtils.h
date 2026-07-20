@@ -56,10 +56,6 @@ bool isKitIntrinsicGPU(Intrinsic::ID id);
 /// Get the stream from the given call to Kitsune's kernel launch intrinsic.
 Value *getStreamFromLaunch(const CallBase &call);
 
-/// Get the arguments that will be passed to the kernel in the given call to
-/// Kitsune's launch_kernel intrinsic.
-SmallVector<Value *, 8> getKernelArgumentsFromLaunch(const CallBase &call);
-
 /// Get the TTID argument from a call. This will return std::nullopt if any of
 /// the following is not true:
 ///

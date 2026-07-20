@@ -79,6 +79,26 @@ StringRef llvm::getInstClassName(const Instruction &inst) {
   llvm_unreachable("getClassName: Instruction opcode not handled");
 }
 
+unsigned llvm::getNumNonVariadicArgs(const CallBase &call) {
+  assert(call.getCalledFunction() && "Call must be a direct call");
+
+  // The last parameter of the function type of the callee is the "vararg type".
+  // By definition, this is also the argument number of the first variadic
+  // argument in the call. This, along with all subsequent arguments in the call
+  // are the arguments to the kernel function being launched.
+  Function *callee = call.getCalledFunction();
+  FunctionType *calleeTy = callee->getFunctionType();
+
+  return calleeTy->getNumParams();
+}
+
+SmallVector<Value *, 4> llvm::getVariadicArgs(const CallBase &call) {
+  SmallVector<Value *, 4> args;
+  for (unsigned i = getNumNonVariadicArgs(call); i < call.arg_size(); ++i)
+    args.push_back(call.getArgOperand(i));
+  return args;
+}
+
 bool llvm::isCallSyncRegionStart(const Instruction &inst) {
   if (const auto *call = dyn_cast<CallBase>(&inst))
     if (const Function *f = call->getCalledFunction())

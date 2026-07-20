@@ -118,6 +118,102 @@ TEST(KitInstUtils, getInstClassName) {
   EXPECT_EQ(getInstClassName(*phi), "PHINode");
 }
 
+TEST(KitInstUtils, getNumNonVariadicArgs) {
+  auto addFunc = [](Module &m, StringRef name, FunctionType *ty) -> Function * {
+    return cast<Function>(m.getOrInsertFunction(name, ty).getCallee());
+  };
+
+  LLVMContext ctx;
+  Type *voidTy = Type::getVoidTy(ctx);
+  PointerType *ptr = PointerType::getUnqual(ctx);
+  Type *i32 = Type::getInt32Ty(ctx);
+
+  FunctionType *fty0 = FunctionType::get(voidTy, {}, /*isVarArg=*/false);
+  FunctionType *fty1 = FunctionType::get(voidTy, {ptr}, /*isVarArg=*/false);
+  FunctionType *vty0 = FunctionType::get(voidTy, {}, /*isVarArg=*/true);
+  FunctionType *vty1 = FunctionType::get(voidTy, {ptr}, /*isVarArg=*/true);
+
+  Value *cnull = ConstantPointerNull::get(ptr);
+  Value *ci32 = ConstantInt::get(i32, 11);
+
+  Module m("", ctx);
+  Function *f0 = addFunc(m, "f0", fty0);
+  Function *f1 = addFunc(m, "f1", fty1);
+  Function *vf0 = addFunc(m, "vf0", vty0);
+  Function *vf1 = addFunc(m, "vf1", vty1);
+
+  CallInst *c0 = CallInst::Create(fty0, f0, {}, "");
+  CallInst *c1 = CallInst::Create(fty1, f1, {cnull});
+  CallInst *cv00 = CallInst::Create(vty0, vf0, {}, "");
+  CallInst *cv01 = CallInst::Create(vty0, vf0, {ci32});
+  CallInst *cv10 = CallInst::Create(vty1, vf1, {cnull});
+  CallInst *cv11 = CallInst::Create(vty1, vf1, {cnull, ci32, ci32});
+
+  EXPECT_EQ(getNumNonVariadicArgs(*c0), 0U);
+  EXPECT_EQ(getNumNonVariadicArgs(*c1), 1U);
+  EXPECT_EQ(getNumNonVariadicArgs(*cv00), 0U);
+  EXPECT_EQ(getNumNonVariadicArgs(*cv01), 0U);
+  EXPECT_EQ(getNumNonVariadicArgs(*cv10), 1U);
+  EXPECT_EQ(getNumNonVariadicArgs(*cv11), 1U);
+
+  c0->deleteValue();
+  c1->deleteValue();
+  cv00->deleteValue();
+  cv01->deleteValue();
+  cv10->deleteValue();
+  cv11->deleteValue();
+}
+
+TEST(KitInstUtils, getVariadicArgs) {
+  auto addFunc = [](Module &m, StringRef name, FunctionType *ty) -> Function * {
+    return cast<Function>(m.getOrInsertFunction(name, ty).getCallee());
+  };
+
+  LLVMContext ctx;
+  Type *voidTy = Type::getVoidTy(ctx);
+  PointerType *ptr = PointerType::getUnqual(ctx);
+  Type *i32 = Type::getInt32Ty(ctx);
+
+  FunctionType *fty0 = FunctionType::get(voidTy, {}, /*isVarArg=*/false);
+  FunctionType *fty1 = FunctionType::get(voidTy, {ptr}, /*isVarArg=*/false);
+  FunctionType *vty0 = FunctionType::get(voidTy, {}, /*isVarArg=*/true);
+  FunctionType *vty1 = FunctionType::get(voidTy, {ptr}, /*isVarArg=*/true);
+
+  Value *cnull = ConstantPointerNull::get(ptr);
+  Value *ci32 = ConstantInt::get(i32, 11);
+
+  Module m("", ctx);
+  Function *f0 = addFunc(m, "f0", fty0);
+  Function *f1 = addFunc(m, "f1", fty1);
+  Function *vf0 = addFunc(m, "vf0", vty0);
+  Function *vf1 = addFunc(m, "vf1", vty1);
+
+  CallInst *c0 = CallInst::Create(fty0, f0, {}, "");
+  CallInst *c1 = CallInst::Create(fty1, f1, {cnull});
+  CallInst *cv00 = CallInst::Create(vty0, vf0, {}, "");
+  CallInst *cv01 = CallInst::Create(vty0, vf0, {ci32, cnull});
+  CallInst *cv10 = CallInst::Create(vty1, vf1, {cnull});
+  CallInst *cv11 = CallInst::Create(vty1, vf1, {cnull, ci32, ci32});
+
+  SmallVector<Value *, 4> empty = {};
+  SmallVector<Value *, 4> exp01 = {ci32, cnull};
+  SmallVector<Value *, 4> exp11 = {ci32, ci32};
+
+  EXPECT_EQ(getVariadicArgs(*c0), empty);
+  EXPECT_EQ(getVariadicArgs(*c1), empty);
+  EXPECT_EQ(getVariadicArgs(*cv00), empty);
+  EXPECT_EQ(getVariadicArgs(*cv01), exp01);
+  EXPECT_EQ(getVariadicArgs(*cv10), empty);
+  EXPECT_EQ(getVariadicArgs(*cv11), exp11);
+
+  c0->deleteValue();
+  c1->deleteValue();
+  cv00->deleteValue();
+  cv01->deleteValue();
+  cv10->deleteValue();
+  cv11->deleteValue();
+}
+
 TEST(KitInstUtils, replaceNonMatchingOperands) {
   LLVMContext ctx;
   Type *i32 = Type::getInt32Ty(ctx);

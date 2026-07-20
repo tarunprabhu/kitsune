@@ -15,6 +15,7 @@
 
 #include "kitsune/CodeGen/LowerKitIntrinsics.h"
 #include "kitsune/Core/ConstantUtils.h"
+#include "kitsune/Core/InstUtils.h"
 #include "kitsune/Core/IntrinsicUtils.h"
 #include "kitsune/Core/Tapir.h"
 #include "kitsune/Core/ValueUtils.h"
@@ -189,10 +190,8 @@ static const SmallDenseMap<TTID, KitRTFuncMap> kitTTFuncs = {
 /// modified before passing them to the runtime function, the lowering *MUST* be
 /// handled with a custom lowering function.
 static const KitRTFuncArgMap kitRTArgMap = {
-    {Intrinsic::kit_async_cpu_threads_launch, {1, 2, 3, 4}},
     {Intrinsic::kit_cpu_num_threads, {}},
     {Intrinsic::kit_cpu_thread_id, {}},
-    {Intrinsic::kit_cpu_threads_launch, {1, 2, 3, 4}},
     {Intrinsic::kit_cpu_threads_sync, {1}},
     {Intrinsic::kit_async_gpu_memcpy_dtoh, {1, 2, 3, 4}},
     {Intrinsic::kit_async_gpu_memcpy_htod, {1, 2, 3, 4}},
@@ -396,6 +395,21 @@ private:
   }
 
   /// Create a new attribute list that will eventually be applied to the
+  /// replacement of \p call. \p call is expected to be a direct call to a
+  /// Kitsune-specific intrinsic. Since the first argument to such intrinsics
+  /// will always be a TTID, that is skipped. The remaining non-variadic
+  /// arguments are assumed to be passed as-is to the new call, so their
+  /// attributes are copied over.
+  AttributeList createNewAttrList(const CallInst &call) {
+    AttributeList attrs;
+    attrs = addAttrsFrom(attrs, call, AttributeList::FunctionIndex);
+    attrs = addAttrsFrom(attrs, call, AttributeList::ReturnIndex);
+    for (size_t i = 1; i < getNumNonVariadicArgs(call); ++i)
+      attrs = addAttrsFrom(attrs, i - 1, call, i);
+    return attrs;
+  }
+
+  /// Create a new attribute list that will eventually be applied to the
   /// replacement of the given call instruction. If \ref argMap[i] = j, the
   /// attributes from the j'th argument of \ref call will be added to index i
   /// of the new attribute list that is returned.
@@ -535,6 +549,57 @@ private:
     return true;
   }
 
+  /// Lower the thread launch intrinsic. This is a vararg intrinsic, but the
+  /// runtime expects the variadic arguments to be bundled into a struct. We
+  /// allocate a struct on the stack for these arguments.
+  ///
+  /// TODO: We should look at the number of arguments that are required and
+  /// consider allocating a struct on the heap instead.
+  bool lowerLaunchThreads(CallInst &call) {
+    Module &m = *getModule(call);
+    LLVMContext &ctx = m.getContext();
+    Type *i32 = Type::getInt32Ty(ctx);
+    Type *i64 = Type::getInt64Ty(ctx);
+
+    SmallVector<Value *, 4> args = getVariadicArgs(call);
+
+    SmallVector<Type *, 4> tys;
+    for (Value *arg : args)
+      tys.push_back(arg->getType());
+    StructType *bundleTy = StructType::get(ctx, tys, /*isPacked=*/false);
+
+    BasicBlock &bbEntry = call.getFunction()->getEntryBlock();
+    Value *bundle =
+        new AllocaInst(bundleTy, /*addrspace=*/0, "", bbEntry.begin());
+    Constant *zero = ConstantInt::get(i32, 0, /*isSigned=*/false);
+    for (size_t i = 0; i < args.size(); ++i) {
+      Constant *idx = ConstantInt::get(i32, i, /*isSigned=*/false);
+      GetElementPtrInst *off = GetElementPtrInst::CreateInBounds(
+          bundleTy, bundle, {zero, idx}, "", call.getIterator());
+      (void)new StoreInst(args[i], off, call.getIterator());
+    }
+
+    const DataLayout &dl = m.getDataLayout();
+    uint64_t bundleSize = dl.getTypeStoreSize(bundleTy).getFixedValue();
+    SmallVector<Value *, 4> launchArgs;
+    for (unsigned i = 1; i < getNumNonVariadicArgs(call); ++i)
+      launchArgs.push_back(call.getArgOperand(i));
+    launchArgs.push_back(bundle);
+    launchArgs.push_back(ConstantInt::get(i64, bundleSize));
+
+    FunctionCallee rtFunc = getRuntimeFunc(call);
+    CallInst *newCall = createNewCallFor(call, rtFunc, launchArgs);
+
+    // The call will use the argument bundle, so it cannot be a tail call.
+    newCall->setAttributes(createNewAttrList(call));
+    newCall->setTailCallKind(CallInst::TCK_None);
+
+    call.replaceAllUsesWith(newCall);
+    call.eraseFromParent();
+
+    return true;
+  }
+
   /// Lower the kernel launch intrinsic. This is a vararg intrinsic, but the
   /// corresponding runtime functions need the arguments to be passed an array
   /// of pointers to the arguments. We implement this by creating a stack slot
@@ -547,18 +612,19 @@ private:
     PointerType *ptrTy = PointerType::getUnqual(ctx);
     Constant *c0 = ConstantInt::get(i64, 0);
 
-    BasicBlock &bbEntry = call.getParent()->getParent()->getEntryBlock();
-
-    SmallVector<Value *, 8> kernelArgs = getKernelArgumentsFromLaunch(call);
+    BasicBlock &bbEntry = call.getFunction()->getEntryBlock();
+    SmallVector<Value *, 8> kernelArgs = getVariadicArgs(call);
     ArrayType *arrTy = ArrayType::get(ptrTy, kernelArgs.size());
-    AllocaInst *argArray = new AllocaInst(arrTy, 0, "", bbEntry.begin());
+    AllocaInst *argArray =
+        new AllocaInst(arrTy, /*addrspace=*/0, "", bbEntry.begin());
     for (size_t i = 0; i < kernelArgs.size(); ++i) {
       Constant *ci = ConstantInt::get(i64, i);
       Value *indices[] = {c0, ci};
       Value *kernelArg = kernelArgs[i];
       Type *argTy = kernelArg->getType();
 
-      AllocaInst *slot = new AllocaInst(argTy, 0, "", argArray->getIterator());
+      AllocaInst *slot =
+          new AllocaInst(argTy, /*addrspace=*/0, "", argArray->getIterator());
       (void)new StoreInst(kernelArg, slot, call.getIterator());
       GetElementPtrInst *argOffset = GetElementPtrInst::CreateInBounds(
           arrTy, argArray, indices, "", call.getIterator());
@@ -648,6 +714,11 @@ private:
 
     case Intrinsic::kit_async_gpu_kernel_launch:
       changed |= lowerLaunchKernel(call);
+      break;
+
+    case Intrinsic::kit_async_cpu_threads_launch:
+    case Intrinsic::kit_cpu_threads_launch:
+      changed |= lowerLaunchThreads(call);
       break;
 
     case Intrinsic::kit_runtime_set_xnack:
