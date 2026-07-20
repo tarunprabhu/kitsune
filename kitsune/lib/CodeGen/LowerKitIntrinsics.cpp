@@ -631,37 +631,17 @@ private:
       (void)new StoreInst(slot, argOffset, call.getIterator());
     }
 
-    // The attributes can mostly be copied over to the new call. However, the
-    // 3rd argument in the runtime call will be the packed argument array, so
-    // those attributes cannot be copied over from the intrinsic call.
-    unsigned attr0 = AttributeList::FirstArgIndex;
-    AttributeList attrs;
-    attrs = addAttrsFrom(attrs, call, AttributeList::FunctionIndex);
-    attrs = addAttrsFrom(attrs, call, AttributeList::ReturnIndex);
-    attrs = addAttrsFrom(attrs, attr0 + 0, call, attr0 + 1);
-    attrs = addAttrsFrom(attrs, attr0 + 1, call, attr0 + 2);
-    attrs = addAttrsFrom(attrs, attr0 + 3, call, attr0 + 3);
-    attrs = addAttrsFrom(attrs, attr0 + 4, call, attr0 + 4);
-    attrs = addAttrsFrom(attrs, attr0 + 5, call, attr0 + 5);
-    attrs = addAttrsFrom(attrs, attr0 + 6, call, attr0 + 6);
-    attrs = addAttrsFrom(attrs, attr0 + 7, call, attr0 + 7);
-    attrs = addAttrsFrom(attrs, attr0 + 8, call, attr0 + 8);
-    attrs = attrs.addAttributeAtIndex(ctx, attr0 + 2, Attribute::NonNull);
+    SmallVector<Value*, 8> args;
+    for (unsigned i = 1; i < getNumNonVariadicArgs(call); ++i)
+      args.push_back(call.getArgOperand(i));
+    args.push_back(argArray);
 
     FunctionCallee rtFunc = getRuntimeFunc(call);
-    Value *args[] = {
-        call.getArgOperand(1), // fatbin
-        call.getArgOperand(2), // kernel name
-        argArray,              // kernel arguments
-        call.getArgOperand(3), // trip count (x)
-        call.getArgOperand(4), // trip count (y)
-        call.getArgOperand(5), // trip count (z)
-        call.getArgOperand(6), // threads per block
-        call.getArgOperand(7), // instruction mix
-        call.getArgOperand(8), // stream
-    };
     CallInst *newCall = createNewCallFor(call, rtFunc, args);
-    newCall->setAttributes(attrs);
+
+    // The call will use the argument bundle, so it cannot be a tail call.
+    newCall->setAttributes(createNewAttrList(call));
+    newCall->setTailCallKind(CallInst::TCK_None);
 
     call.replaceAllUsesWith(newCall);
     call.eraseFromParent();
