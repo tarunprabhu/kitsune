@@ -17,7 +17,6 @@
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/InstUtils.h"
 #include "kitsune/Core/IntrinsicUtils.h"
-#include "kitsune/Core/Tapir.h"
 #include "kitsune/Core/ValueUtils.h"
 #include "llvm/Analysis/CGSCCPassManager.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
@@ -150,7 +149,6 @@ static const KitRTFuncMap kitSerialFuncs = {
     {Intrinsic::kit_cpu_thread_id, LibFunc_kitser_thread_id},
 };
 
-///
 /// Runtime library function maps for tapir targets that have a corresponding
 /// kitsune runtime.
 static const SmallDenseMap<TTID, KitRTFuncMap> kitTTFuncs = {
@@ -160,61 +158,53 @@ static const SmallDenseMap<TTID, KitRTFuncMap> kitTTFuncs = {
     {TTID::Serial, kitSerialFuncs},
 };
 
-/// When lowering the kitsune intrinsics, some arguments may need to be dropped
-/// or reordered. The values in this map are the order in which the source
-/// operands should appear in the call to the runtime function. For instance,
-/// if the value is {2, 1, 3}, it indicates that the first argument to the
-/// intrinsic is dropped, while the second and third arguments are swapped.
-/// For e.g., if Intrinsic::example were to be lowered to LibFunc_example with
-/// the argument map {2, 1, 3}, then this call:
-///
-///     call void llvm.example(i32 2, ptr writeonly a, ptr readonly b, i64 c)
-///
-/// would be lowered to
-///
-///     call void example(ptr readonly b, ptr writeonly a, i64 c)
-///
-/// Note that the attributes on the call arguments have been preserved. In fact,
-/// this is the primary motivation for having this map, since, without it, these
-/// attributes would likely be lost.
-///
-/// NOTE: It is not clear if there is any advantage to preserving these
-/// attributes since this pass runs as part of codegen, at which point the
-/// optimization pipeline has already run. Even so, it is probably a good idea
-/// to preserve these attributes if only to avoid any unnecessary surprises if
-/// this part of the code were ever moved elsewhere, or if a (very late)
-/// optimization pass were added after this pass.
-///
-/// If an intrinsic does not contain an entry in this map, a custom lowering
-/// function must be provided for it. If the arguments to an intrinsic must be
-/// modified before passing them to the runtime function, the lowering *MUST* be
-/// handled with a custom lowering function.
-static const KitRTFuncArgMap kitRTArgMap = {
-    {Intrinsic::kit_cpu_num_threads, {}},
-    {Intrinsic::kit_cpu_thread_id, {}},
-    {Intrinsic::kit_cpu_threads_sync, {1}},
-    {Intrinsic::kit_async_gpu_memcpy_dtoh, {1, 2, 3, 4}},
-    {Intrinsic::kit_async_gpu_memcpy_htod, {1, 2, 3, 4}},
-    {Intrinsic::kit_async_gpu_prefetch_dtoh, {1, 2, 3}},
-    {Intrinsic::kit_async_gpu_prefetch_htod, {1, 2, 3}},
-    {Intrinsic::kit_gpu_memcpy_dtoh, {1, 2, 3}},
-    {Intrinsic::kit_gpu_memcpy_htod, {1, 2, 3}},
-    {Intrinsic::kit_gpu_stream_sync, {1}},
-    {Intrinsic::kit_gpu_stream_new, {}},
-    {Intrinsic::kit_gpu_symbol_address, {1, 2}},
-    {Intrinsic::kit_gpu_symbol_memcpy_dtoh, {1, 2, 3}},
-    {Intrinsic::kit_gpu_symbol_memcpy_htod, {1, 2, 3}},
-    {Intrinsic::kit_gpu_register_devcode, {1}},
-    {Intrinsic::kit_gpu_register_devcode_end, {1}},
-    {Intrinsic::kit_gpu_register_global, {1, 2, 3, 4, 5, 6, 7}},
-    {Intrinsic::kit_gpu_register_global_managed, {1, 2, 3, 4, 5, 6, 7, 8}},
-    {Intrinsic::kit_gpu_unregister_devcode, {1}},
-    {Intrinsic::kit_reduce_num_partials, {1}},
-    {Intrinsic::kit_runtime_finalize, {}},
-    {Intrinsic::kit_runtime_initialize, {}},
-    {Intrinsic::kit_runtime_set_xnack, {}},
-    {Intrinsic::kit_runtime_set_y_axis_kernel_launch, {}},
-};
+/// Return a new attribute list which is exactly the same as the given
+/// attribute list \ref attrs except that the attributes at index \ref src of
+/// \ref call's attribute list are added to index \ref dst of \ref attrs. The
+/// newly created attribute list is returned.
+static AttributeList addAttrsFrom(AttributeList attrs, unsigned dst,
+                                  const CallInst &call, unsigned src) {
+  LLVMContext &ctx = call.getContext();
+  AttributeList callAttrs = call.getAttributes();
+  for (const Attribute &attr : callAttrs.getAttributes(src))
+    attrs = attrs.addAttributeAtIndex(ctx, dst, attr);
+  return attrs;
+}
+
+/// Return a new attribute list which is exactly the same as the given attribute
+/// list \ref attrs except that the attributes at index \ref src of \ref call's
+/// attribute list are added to index \ref src of \ref attrs. The newly created
+/// attribute list is returned.
+static AttributeList addAttrsFrom(AttributeList attrs, const CallInst &call,
+                                  unsigned src) {
+  return addAttrsFrom(attrs, src, call, src);
+}
+
+/// Create a new attribute list that will eventually be applied to the
+/// replacement of \p call. \p call is expected to be a direct call to a
+/// Kitsune-specific intrinsic. Since the first argument to such intrinsics will
+/// always be a TTID, that is skipped. The remaining non-variadic arguments are
+/// assumed to be passed as-is to the new call, so their attributes are copied.
+static AttributeList createNewAttrList(const CallInst &call) {
+  AttributeList attrs;
+  attrs = addAttrsFrom(attrs, call, AttributeList::FunctionIndex);
+  attrs = addAttrsFrom(attrs, call, AttributeList::ReturnIndex);
+  for (size_t i = 1; i < getNumNonVariadicArgs(call); ++i) {
+    unsigned src = AttributeList::FirstArgIndex + i;
+    unsigned dst = AttributeList::FirstArgIndex + i - 1;
+    attrs = addAttrsFrom(attrs, dst, call, src);
+  }
+  return attrs;
+}
+
+/// All runtime intrinsics take the TTID as the first argument. Parse this into
+/// a TTID enum.
+static TTID getTTID(Value *v) {
+  assert(isa<Constant>(v) && "TTID must be a constant");
+  assert(fromConstant<TTID>(*cast<Constant>(v)) && "Not a valid TTID");
+
+  return *fromConstant<TTID>(*cast<Constant>(v));
+}
 
 /// Main implementation class to lower Kitsune intrinsics.
 class LowerKitIntrinsics {
@@ -222,15 +212,6 @@ private:
   const TargetLibraryInfo &tli;
 
 private:
-  /// All runtime intrinsics take the TTID as the first argument. Parse this
-  /// into a TTID enum.
-  TTID getTTID(Value *v) const {
-    assert(isa<Constant>(v) && "TTID must be a constant");
-    assert(fromConstant<TTID>(*cast<Constant>(v)) && "Not a valid TTID");
-
-    return *fromConstant<TTID>(*cast<Constant>(v));
-  }
-
   FunctionCallee getOrInsertLibFunc(Module &m, LibFunc libFunc) {
     FunctionCallee f = llvm::getOrInsertLibFunc(&m, tli, libFunc);
     inferNonMandatoryLibFuncAttrs(*cast<Function>(f.getCallee()), tli);
@@ -355,75 +336,13 @@ private:
     switch (id) {
     case Intrinsic::kit_mobile_alloc:
       return getMobileAllocFunc(m, call);
-
     case Intrinsic::kit_mobile_free:
       return getMobileFreeFunc(m, call);
-
     case Intrinsic::kit_mobile_init:
       return getMobileInitFunc(m, call);
-
-    case Intrinsic::kit_runtime_set_xnack:
-      // Intrinsics that are exclusive to the hip tapir target
-      return getOrInsertLibFunc(m, TTID::Hip, id);
-
     default:
-      // Intrinsics with runtime functions dependent on the tapir target.
       return getOrInsertLibFunc(m, getTTID(call.getArgOperand(0)), id);
     }
-  }
-
-  /// Return a new attribute list which is exactly the same as the given
-  /// attribute list \ref attrs except that the attributes at index \ref src of
-  /// \ref call's attribute list are added to index \ref dst of \ref attrs. The
-  /// newly created attribute list is returned.
-  AttributeList addAttrsFrom(AttributeList attrs, unsigned dst,
-                             const CallInst &call, unsigned src) {
-    LLVMContext &ctx = call.getContext();
-    AttributeList callAttrs = call.getAttributes();
-    for (const Attribute &attr : callAttrs.getAttributes(src))
-      attrs = attrs.addAttributeAtIndex(ctx, dst, attr);
-    return attrs;
-  }
-
-  /// Return a new attribute list which is exactly the same as the given
-  /// attribute list \ref attrs except that the attributes at index \ref src of
-  /// \ref call's attribute list are added to index \ref src of \ref attrs. The
-  /// newly created attribute list is returned.
-  AttributeList addAttrsFrom(AttributeList attrs, const CallInst &call,
-                             unsigned src) {
-    return addAttrsFrom(attrs, src, call, src);
-  }
-
-  /// Create a new attribute list that will eventually be applied to the
-  /// replacement of \p call. \p call is expected to be a direct call to a
-  /// Kitsune-specific intrinsic. Since the first argument to such intrinsics
-  /// will always be a TTID, that is skipped. The remaining non-variadic
-  /// arguments are assumed to be passed as-is to the new call, so their
-  /// attributes are copied over.
-  AttributeList createNewAttrList(const CallInst &call) {
-    AttributeList attrs;
-    attrs = addAttrsFrom(attrs, call, AttributeList::FunctionIndex);
-    attrs = addAttrsFrom(attrs, call, AttributeList::ReturnIndex);
-    for (size_t i = 1; i < getNumNonVariadicArgs(call); ++i)
-      attrs = addAttrsFrom(attrs, i - 1, call, i);
-    return attrs;
-  }
-
-  /// Create a new attribute list that will eventually be applied to the
-  /// replacement of the given call instruction. If \ref argMap[i] = j, the
-  /// attributes from the j'th argument of \ref call will be added to index i
-  /// of the new attribute list that is returned.
-  AttributeList createNewAttrList(const CallInst &call,
-                                  ArrayRef<unsigned> argMap) {
-    AttributeList attrs;
-    attrs = addAttrsFrom(attrs, call, AttributeList::FunctionIndex);
-    attrs = addAttrsFrom(attrs, call, AttributeList::ReturnIndex);
-    for (size_t i = 0; i < argMap.size(); ++i) {
-      unsigned isrc = AttributeList::FirstArgIndex + argMap[i];
-      unsigned idst = AttributeList::FirstArgIndex + i;
-      attrs = addAttrsFrom(attrs, idst, call, isrc);
-    }
-    return attrs;
   }
 
   /// Create a new call to the given function to replace an existing call. The
@@ -473,7 +392,7 @@ private:
     CallInst *newCall = createNewCallFor(call, f, call.getArgOperand(1));
     CastInst *cst =
         CastInst::Create(Instruction::AddrSpaceCast, newCall, retTy, "", pos);
-    newCall->setAttributes(createNewAttrList(call, {1}));
+    newCall->setAttributes(createNewAttrList(call));
 
     cst->moveAfter(newCall);
     call.replaceAllUsesWith(cst);
@@ -498,7 +417,7 @@ private:
     CastInst *cst = CastInst::Create(Instruction::AddrSpaceCast,
                                      call.getArgOperand(1), ptrTy, "", pos);
     CallInst *newCall = createNewCallFor(call, f, cst);
-    newCall->setAttributes(createNewAttrList(call, {1}));
+    newCall->setAttributes(createNewAttrList(call));
 
     call.replaceAllUsesWith(newCall);
     call.eraseFromParent();
@@ -541,7 +460,7 @@ private:
       args.push_back(call.getArgOperand(4));
 
     CallInst *newCall = createNewCallFor(call, f, args);
-    newCall->setAttributes(createNewAttrList(call, {1, 2, 3}));
+    newCall->setAttributes(createNewAttrList(call));
 
     call.replaceAllUsesWith(newCall);
     call.eraseFromParent();
@@ -631,7 +550,7 @@ private:
       (void)new StoreInst(slot, argOffset, call.getIterator());
     }
 
-    SmallVector<Value*, 8> args;
+    SmallVector<Value *, 8> args;
     for (unsigned i = 1; i < getNumNonVariadicArgs(call); ++i)
       args.push_back(call.getArgOperand(i));
     args.push_back(argArray);
@@ -650,20 +569,18 @@ private:
   }
 
   /// Replace the Kitsune intrinsic called in the given instruction with an
-  /// appropriate runtime function to be called with the given arguments.
-  /// Always returns true.
+  /// appropriate runtime function. The arguments passed to the intrinsic will
+  /// be passed to the runtime function. Always returns true.
   bool lowerIntrinsicDefault(CallInst &call) {
-    assert((kitRTArgMap.find(call.getIntrinsicID()) != kitRTArgMap.end()) &&
-           "Intrinsic supports default lowering");
-
-    ArrayRef argMap = kitRTArgMap.at(call.getIntrinsicID());
-    FunctionCallee f = getRuntimeFunc(call);
+    // The first argument will be the TTID. Everything else will be passed along
+    // to the lowered function.
     SmallVector<Value *, 4> args;
-    for (unsigned argNo : argMap)
-      args.push_back(call.getArgOperand(argNo));
+    for (unsigned i = 1; i < call.arg_size(); ++i)
+      args.push_back(call.getArgOperand(i));
 
+    FunctionCallee f = getRuntimeFunc(call);
     CallInst *newCall = createNewCallFor(call, f, args);
-    newCall->setAttributes(createNewAttrList(call, argMap));
+    newCall->setAttributes(createNewAttrList(call));
 
     call.replaceAllUsesWith(newCall);
     call.eraseFromParent();
@@ -677,44 +594,27 @@ private:
   /// lowering). Returns true if the call to the intrinsic was replaced, false
   /// otherwise.
   bool lowerIntrinsic(CallInst &call) {
-    bool changed = false;
-
     switch (call.getIntrinsicID()) {
     case Intrinsic::kit_mobile_alloc:
-      changed |= lowerMobileAlloc(call);
-      break;
-
+      return lowerMobileAlloc(call);
     case Intrinsic::kit_mobile_free:
-      changed |= lowerMobileFree(call);
-      break;
-
+      return lowerMobileFree(call);
     case Intrinsic::kit_mobile_init:
-      changed |= lowerMobileInit(call);
-      break;
-
+      return lowerMobileInit(call);
     case Intrinsic::kit_async_gpu_kernel_launch:
-      changed |= lowerLaunchKernel(call);
-      break;
-
+      return lowerLaunchKernel(call);
     case Intrinsic::kit_async_cpu_threads_launch:
     case Intrinsic::kit_cpu_threads_launch:
-      changed |= lowerLaunchThreads(call);
-      break;
-
+      return lowerLaunchThreads(call);
     default:
-      changed |= lowerIntrinsicDefault(call);
-      break;
+      return lowerIntrinsicDefault(call);
     }
-
-    return changed;
   }
 
 public:
   LowerKitIntrinsics(TargetLibraryInfo &tli) : tli(tli) {}
 
   bool run(Function &f) {
-    bool changed = false;
-
     SmallVector<CallInst *, 4> calls;
     for (inst_iterator i = inst_begin(f), e = inst_end(f); i != e; ++i) {
       if (auto *call = dyn_cast<CallInst>(&*i)) {
@@ -726,9 +626,9 @@ public:
       }
     }
 
+    bool changed = false;
     for (CallInst *call : calls)
       changed |= lowerIntrinsic(*call);
-
     return changed;
   }
 };
