@@ -9,7 +9,7 @@ target triple = "x86_64-unknown-linux-gnu"
 
 ; CHECK-LABEL: @allocate
 ; CHECK-SAME: i64 %[[N:[^)]+]]
-; CHECK: call ptr @malloc(i64 %[[N]]), !dbg ![[DBG_ALLOC:[0-9]+]]
+; CHECK: call ptr @__kitrt_default_mem_alloc(i64 %[[N]]), !dbg ![[DBG_ALLOC:[0-9]+]]
 define void @allocate(i64 %n) !dbg !9 {
   %1 = tail call ptr addrspace(67) @llvm.kit.mobile.alloc(i32 1, i64 %n), !dbg !15
   ret void, !dbg !16
@@ -17,7 +17,7 @@ define void @allocate(i64 %n) !dbg !9 {
 
 ; CHECK-LABEL: @deallocate
 ; CHECK-SAME: ptr addrspace(67) %[[P:[^)]+]]
-; CHECK: call void @free(ptr %{{.+}}), !dbg ![[DBG_FREE:[0-9]+]]
+; CHECK: call void @__kitrt_default_mem_free(ptr %{{.+}}), !dbg ![[DBG_FREE:[0-9]+]]
 define void @deallocate(ptr addrspace(67) %ptr) !dbg !17 {
   tail call void @llvm.kit.mobile.free(i32 1, ptr addrspace(67) %ptr), !dbg !19
   ret void, !dbg !20

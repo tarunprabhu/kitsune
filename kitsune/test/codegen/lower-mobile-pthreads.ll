@@ -9,7 +9,7 @@ target triple = "x86_64-pc-linux-gnu"
 
 ; CHECK-LABEL: @allocate
 ; CHECK-SAME: i64 %[[N:[^)]+]]
-; CHECK-NEXT: %[[PTR:[0-9]+]] = call noalias ptr @malloc(i64 %[[N]])
+; CHECK-NEXT: %[[PTR:[0-9]+]] = call noalias ptr @__kitrt_default_mem_alloc(i64 %[[N]])
 ; CHECK-NEXT: %[[CST:[0-9]]] = addrspacecast ptr %[[PTR]] to ptr addrspace(67)
 ; CHECK-NEXT: ret ptr addrspace(67) %[[CST]]
 define noalias ptr addrspace(67) @allocate(i64 %n) {
@@ -20,7 +20,7 @@ define noalias ptr addrspace(67) @allocate(i64 %n) {
 ; CHECK-LABEL: @deallocate
 ; CHECK-SAME: ptr addrspace(67) %[[P:[^)]+]]
 ; CHECK-NEXT: %[[CST:[0-9]+]] = addrspacecast ptr addrspace(67) %[[P]] to ptr
-; CHECK-NEXT: call void @free(ptr %[[CST]])
+; CHECK-NEXT: call void @__kitrt_default_mem_free(ptr %[[CST]])
 ; CHECK-NEXT: ret void
 define void @deallocate(ptr addrspace(67) %p) {
   call void @llvm.kit.mobile.free(i32 1024, ptr addrspace(67) %p)

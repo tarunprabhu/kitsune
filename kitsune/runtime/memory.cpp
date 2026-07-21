@@ -74,7 +74,7 @@ template <> constexpr const char *getTypeFmt<int64_t>() { return "%ld"; }
 template <> constexpr const char *getTypeFmt<float>() { return "%f"; }
 template <> constexpr const char *getTypeFmt<double>() { return "%g"; }
 
-extern "C" [[gnu::malloc]] void *__kitrt_default_mem_alloc(size_t bytes) {
+extern "C" [[gnu::malloc]] void *__kitrt_default_mem_alloc(uint64_t bytes) {
   void *ptr = malloc(bytes);
   __kitrt_register_mem_alloc(ptr, bytes);
   return ptr;

@@ -17,16 +17,15 @@
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/InstUtils.h"
 #include "kitsune/Core/IntrinsicUtils.h"
+#include "kitsune/Core/LibFuncs.h"
 #include "kitsune/Core/ValueUtils.h"
 #include "llvm/Analysis/CGSCCPassManager.h"
-#include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
 #include "llvm/InitializePasses.h"
-#include "llvm/Transforms/Utils/BuildLibCalls.h"
 
 #define DEBUG_TYPE "kit-lower-intrinsics"
 
@@ -34,7 +33,7 @@ using namespace llvm;
 
 namespace {
 
-using KitRTFuncMap = SmallDenseMap<Intrinsic::ID, LibFunc>;
+using KitRTFuncMap = SmallDenseMap<Intrinsic::ID, KitFunc>;
 using KitRTFuncArgMap = SmallDenseMap<Intrinsic::ID, SmallVector<unsigned, 4>>;
 
 /// Kitsune runtime functions for any tapir target.
@@ -42,111 +41,114 @@ static const KitRTFuncMap kitFuncs; // Currently, there are no such functions.
 
 /// Kitsune runtime functions for the cuda tapir target.
 static const KitRTFuncMap kitCudaFuncs = {
-    {Intrinsic::kit_async_gpu_kernel_launch, LibFunc_kitcuda_launch_kernel},
-    {Intrinsic::kit_async_gpu_prefetch_dtoh, LibFunc_kitcuda_prefetch_dtoh},
-    {Intrinsic::kit_async_gpu_prefetch_htod, LibFunc_kitcuda_prefetch_htod},
-    {Intrinsic::kit_gpu_stream_new, LibFunc_kitcuda_get_thread_stream},
-    {Intrinsic::kit_gpu_stream_sync, LibFunc_kitcuda_sync_stream},
-    {Intrinsic::kit_gpu_symbol_address, LibFunc_kitcuda_symbol_device_ptr},
-    {Intrinsic::kit_gpu_symbol_memcpy_dtoh, LibFunc_kitcuda_symbol_memcpy_dtoh},
-    {Intrinsic::kit_gpu_symbol_memcpy_htod, LibFunc_kitcuda_symbol_memcpy_htod},
-    {Intrinsic::kit_gpu_register_devcode, LibFunc_kitcuda_register_devcode},
+    {Intrinsic::kit_async_gpu_kernel_launch, KitFunc::kitcuda_kernel_launch},
+    {Intrinsic::kit_async_gpu_prefetch_dtoh, KitFunc::kitcuda_prefetch_dtoh},
+    {Intrinsic::kit_async_gpu_prefetch_htod, KitFunc::kitcuda_prefetch_htod},
+    {Intrinsic::kit_gpu_stream_new, KitFunc::kitcuda_stream_new},
+    {Intrinsic::kit_gpu_stream_sync, KitFunc::kitcuda_stream_sync},
+    {Intrinsic::kit_gpu_symbol_address, KitFunc::kitcuda_symbol_device_ptr},
+    {Intrinsic::kit_gpu_symbol_memcpy_dtoh,
+     KitFunc::kitcuda_symbol_memcpy_dtoh},
+    {Intrinsic::kit_gpu_symbol_memcpy_htod,
+     KitFunc::kitcuda_symbol_memcpy_htod},
+    {Intrinsic::kit_gpu_register_devcode, KitFunc::kitcuda_register_devcode},
     {Intrinsic::kit_gpu_register_devcode_end,
-     LibFunc_kitcuda_register_devcode_end},
-    {Intrinsic::kit_gpu_register_global, LibFunc_kitcuda_register_global},
+     KitFunc::kitcuda_register_devcode_end},
+    {Intrinsic::kit_gpu_register_global, KitFunc::kitcuda_register_global},
     {Intrinsic::kit_gpu_register_global_managed,
-     LibFunc_kitcuda_register_global_managed},
-    {Intrinsic::kit_gpu_unregister_devcode, LibFunc_kitcuda_unregister_devcode},
-    {Intrinsic::kit_mobile_alloc, LibFunc_kitcuda_managed_malloc},
-    {Intrinsic::kit_mobile_free, LibFunc_kitcuda_managed_free},
-    {Intrinsic::kit_reduce_num_partials, LibFunc_kitcuda_reduce_num_partials},
-    {Intrinsic::kit_runtime_finalize, LibFunc_kitcuda_finalize},
-    {Intrinsic::kit_runtime_initialize, LibFunc_kitcuda_initialize},
+     KitFunc::kitcuda_register_global_managed},
+    {Intrinsic::kit_gpu_unregister_devcode,
+     KitFunc::kitcuda_unregister_devcode},
+    {Intrinsic::kit_mobile_alloc, KitFunc::kitcuda_managed_malloc},
+    {Intrinsic::kit_mobile_free, KitFunc::kitcuda_managed_free},
+    {Intrinsic::kit_reduce_num_partials, KitFunc::kitcuda_reduce_num_partials},
+    {Intrinsic::kit_runtime_finalize, KitFunc::kitcuda_finalize},
+    {Intrinsic::kit_runtime_initialize, KitFunc::kitcuda_initialize},
 };
 
 /// Kitsune runtime functions for the hip tapir target.
 static const KitRTFuncMap kitHipFuncs = {
-    {Intrinsic::kit_async_gpu_kernel_launch, LibFunc_kithip_launch_kernel},
-    {Intrinsic::kit_async_gpu_prefetch_dtoh, LibFunc_kithip_prefetch_dtoh},
-    {Intrinsic::kit_async_gpu_prefetch_htod, LibFunc_kithip_prefetch_htod},
-    {Intrinsic::kit_gpu_stream_new, LibFunc_kithip_get_thread_stream},
-    {Intrinsic::kit_gpu_stream_sync, LibFunc_kithip_sync_stream},
-    {Intrinsic::kit_gpu_symbol_address, LibFunc_kithip_symbol_device_ptr},
-    {Intrinsic::kit_gpu_symbol_memcpy_dtoh, LibFunc_kithip_symbol_memcpy_dtoh},
-    {Intrinsic::kit_gpu_symbol_memcpy_htod, LibFunc_kithip_symbol_memcpy_htod},
-    {Intrinsic::kit_gpu_register_devcode, LibFunc_kithip_register_devcode},
-    {Intrinsic::kit_gpu_register_global, LibFunc_kithip_register_global},
+    {Intrinsic::kit_async_gpu_kernel_launch, KitFunc::kithip_kernel_launch},
+    {Intrinsic::kit_async_gpu_prefetch_dtoh, KitFunc::kithip_prefetch_dtoh},
+    {Intrinsic::kit_async_gpu_prefetch_htod, KitFunc::kithip_prefetch_htod},
+    {Intrinsic::kit_gpu_stream_new, KitFunc::kithip_stream_new},
+    {Intrinsic::kit_gpu_stream_sync, KitFunc::kithip_stream_sync},
+    {Intrinsic::kit_gpu_symbol_address, KitFunc::kithip_symbol_device_ptr},
+    {Intrinsic::kit_gpu_symbol_memcpy_dtoh, KitFunc::kithip_symbol_memcpy_dtoh},
+    {Intrinsic::kit_gpu_symbol_memcpy_htod, KitFunc::kithip_symbol_memcpy_htod},
+    {Intrinsic::kit_gpu_register_devcode, KitFunc::kithip_register_devcode},
+    {Intrinsic::kit_gpu_register_global, KitFunc::kithip_register_global},
     {Intrinsic::kit_gpu_register_global_managed,
-     LibFunc_kithip_register_global_managed},
-    {Intrinsic::kit_gpu_unregister_devcode, LibFunc_kithip_unregister_devcode},
-    {Intrinsic::kit_mobile_alloc, LibFunc_kithip_managed_malloc},
-    {Intrinsic::kit_mobile_free, LibFunc_kithip_managed_free},
-    {Intrinsic::kit_reduce_num_partials, LibFunc_kithip_reduce_num_partials},
-    {Intrinsic::kit_runtime_finalize, LibFunc_kithip_finalize},
-    {Intrinsic::kit_runtime_initialize, LibFunc_kithip_initialize},
-    {Intrinsic::kit_runtime_set_xnack, LibFunc_kithip_enable_xnack},
+     KitFunc::kithip_register_global_managed},
+    {Intrinsic::kit_gpu_unregister_devcode, KitFunc::kithip_unregister_devcode},
+    {Intrinsic::kit_mobile_alloc, KitFunc::kithip_managed_malloc},
+    {Intrinsic::kit_mobile_free, KitFunc::kithip_managed_free},
+    {Intrinsic::kit_reduce_num_partials, KitFunc::kithip_reduce_num_partials},
+    {Intrinsic::kit_runtime_finalize, KitFunc::kithip_finalize},
+    {Intrinsic::kit_runtime_initialize, KitFunc::kithip_initialize},
+    {Intrinsic::kit_runtime_set_xnack, KitFunc::kithip_enable_xnack},
     {Intrinsic::kit_runtime_set_y_axis_kernel_launch,
-     LibFunc_kithip_enable_y_axis_launches},
+     KitFunc::kithip_enable_y_axis_launches},
 };
 
 /// Kitsune runtime functions for the opencilk tapir target.
 static const KitRTFuncMap kitOpenCilkFuncs = {
-    {Intrinsic::kit_cpu_num_threads, LibFunc_kitocilk_num_workers},
-    {Intrinsic::kit_cpu_thread_id, LibFunc_kitocilk_worker_id},
-    {Intrinsic::kit_mobile_alloc, LibFunc_malloc},
-    {Intrinsic::kit_mobile_free, LibFunc_free},
-    {Intrinsic::kit_reduce_num_partials, LibFunc_kitocilk_reduce_num_partials},
-    {Intrinsic::kit_runtime_finalize, LibFunc_kitocilk_finalize},
-    {Intrinsic::kit_runtime_initialize, LibFunc_kitocilk_initialize},
+    {Intrinsic::kit_cpu_num_threads, KitFunc::kitocilk_num_workers},
+    {Intrinsic::kit_cpu_thread_id, KitFunc::kitocilk_worker_id},
+    {Intrinsic::kit_mobile_alloc, KitFunc::kitrt_malloc},
+    {Intrinsic::kit_mobile_free, KitFunc::kitrt_free},
+    {Intrinsic::kit_reduce_num_partials, KitFunc::kitocilk_reduce_num_partials},
+    {Intrinsic::kit_runtime_finalize, KitFunc::kitocilk_finalize},
+    {Intrinsic::kit_runtime_initialize, KitFunc::kitocilk_initialize},
 };
 
 /// Kitsune runtime functions for the openmp tapir target.
 static const KitRTFuncMap kitOpenMPFuncs = {
-    {Intrinsic::kit_cpu_num_threads, LibFunc_kitomp_num_threads},
-    {Intrinsic::kit_cpu_thread_id, LibFunc_kitomp_thread_id},
-    {Intrinsic::kit_cpu_threads_launch, LibFunc_kitomp_launch},
-    {Intrinsic::kit_mobile_alloc, LibFunc_malloc},
-    {Intrinsic::kit_mobile_free, LibFunc_free},
-    {Intrinsic::kit_reduce_num_partials, LibFunc_kitomp_reduce_num_partials},
-    {Intrinsic::kit_runtime_finalize, LibFunc_kitomp_finalize},
-    {Intrinsic::kit_runtime_initialize, LibFunc_kitomp_initialize},
+    {Intrinsic::kit_cpu_num_threads, KitFunc::kitomp_num_threads},
+    {Intrinsic::kit_cpu_thread_id, KitFunc::kitomp_thread_id},
+    {Intrinsic::kit_cpu_threads_launch, KitFunc::kitomp_launch},
+    {Intrinsic::kit_mobile_alloc, KitFunc::kitrt_malloc},
+    {Intrinsic::kit_mobile_free, KitFunc::kitrt_free},
+    {Intrinsic::kit_reduce_num_partials, KitFunc::kitomp_reduce_num_partials},
+    {Intrinsic::kit_runtime_finalize, KitFunc::kitomp_finalize},
+    {Intrinsic::kit_runtime_initialize, KitFunc::kitomp_initialize},
 };
 
 /// Kitsune runtime functions for the pthreads tapir target.
 static const KitRTFuncMap kitPthreadsFuncs = {
-    {Intrinsic::kit_async_cpu_threads_launch, LibFunc_kitpthr_async_launch},
-    {Intrinsic::kit_cpu_num_threads, LibFunc_kitpthr_num_threads},
-    {Intrinsic::kit_cpu_thread_id, LibFunc_kitpthr_thread_id},
-    {Intrinsic::kit_cpu_threads_sync, LibFunc_kitpthr_sync},
-    {Intrinsic::kit_mobile_alloc, LibFunc_malloc},
-    {Intrinsic::kit_mobile_free, LibFunc_free},
-    {Intrinsic::kit_reduce_num_partials, LibFunc_kitpthr_reduce_num_partials},
-    {Intrinsic::kit_runtime_finalize, LibFunc_kitpthr_finalize},
-    {Intrinsic::kit_runtime_initialize, LibFunc_kitpthr_initialize},
+    {Intrinsic::kit_async_cpu_threads_launch, KitFunc::kitpthr_async_launch},
+    {Intrinsic::kit_cpu_num_threads, KitFunc::kitpthr_num_threads},
+    {Intrinsic::kit_cpu_thread_id, KitFunc::kitpthr_thread_id},
+    {Intrinsic::kit_cpu_threads_sync, KitFunc::kitpthr_sync},
+    {Intrinsic::kit_mobile_alloc, KitFunc::kitrt_malloc},
+    {Intrinsic::kit_mobile_free, KitFunc::kitrt_free},
+    {Intrinsic::kit_reduce_num_partials, KitFunc::kitpthr_reduce_num_partials},
+    {Intrinsic::kit_runtime_finalize, KitFunc::kitpthr_finalize},
+    {Intrinsic::kit_runtime_initialize, KitFunc::kitpthr_initialize},
 };
 
 /// Kitsune runtime functions for the qthreads tapir target.
 static const KitRTFuncMap kitQthreadsFuncs = {
-    {Intrinsic::kit_cpu_num_threads, LibFunc_kitqthr_num_workers},
-    {Intrinsic::kit_cpu_thread_id, LibFunc_kitqthr_worker_id},
-    {Intrinsic::kit_cpu_threads_launch, LibFunc_kitqthr_launch},
+    {Intrinsic::kit_cpu_num_threads, KitFunc::kitqthr_num_workers},
+    {Intrinsic::kit_cpu_thread_id, KitFunc::kitqthr_worker_id},
+    {Intrinsic::kit_cpu_threads_launch, KitFunc::kitqthr_launch},
     // There may be some benefit to using the memory allocation functions
     // provided by qthreads. Those use memory pools and it is not yet clear if
     // that is something we should consider using.
-    {Intrinsic::kit_mobile_alloc, LibFunc_malloc},
-    {Intrinsic::kit_mobile_free, LibFunc_free},
-    {Intrinsic::kit_reduce_num_partials, LibFunc_kitqthr_reduce_num_partials},
-    {Intrinsic::kit_runtime_finalize, LibFunc_kitqthr_finalize},
-    {Intrinsic::kit_runtime_initialize, LibFunc_kitqthr_initialize},
+    {Intrinsic::kit_mobile_alloc, KitFunc::kitrt_malloc},
+    {Intrinsic::kit_mobile_free, KitFunc::kitrt_free},
+    {Intrinsic::kit_reduce_num_partials, KitFunc::kitqthr_reduce_num_partials},
+    {Intrinsic::kit_runtime_finalize, KitFunc::kitqthr_finalize},
+    {Intrinsic::kit_runtime_initialize, KitFunc::kitqthr_initialize},
 };
 
 /// Kitsune runtime functions for the serial tapir target.
 static const KitRTFuncMap kitSerialFuncs = {
-    {Intrinsic::kit_mobile_alloc, LibFunc_malloc},
-    {Intrinsic::kit_mobile_free, LibFunc_free},
-    {Intrinsic::kit_runtime_finalize, LibFunc_kitser_finalize},
-    {Intrinsic::kit_runtime_initialize, LibFunc_kitser_initialize},
-    {Intrinsic::kit_cpu_thread_id, LibFunc_kitser_thread_id},
+    {Intrinsic::kit_mobile_alloc, KitFunc::kitrt_malloc},
+    {Intrinsic::kit_mobile_free, KitFunc::kitrt_free},
+    {Intrinsic::kit_runtime_finalize, KitFunc::kitser_finalize},
+    {Intrinsic::kit_runtime_initialize, KitFunc::kitser_initialize},
+    {Intrinsic::kit_cpu_thread_id, KitFunc::kitser_thread_id},
 };
 
 /// Runtime library function maps for tapir targets that have a corresponding
@@ -209,19 +211,10 @@ static TTID getTTID(Value *v) {
 /// Main implementation class to lower Kitsune intrinsics.
 class LowerKitIntrinsics {
 private:
-  const TargetLibraryInfo &tli;
-
-private:
-  FunctionCallee getOrInsertLibFunc(Module &m, LibFunc libFunc) {
-    FunctionCallee f = llvm::getOrInsertLibFunc(&m, tli, libFunc);
-    inferNonMandatoryLibFuncAttrs(*cast<Function>(f.getCallee()), tli);
-    return f;
-  }
-
   FunctionCallee getOrInsertLibFunc(Module &m, Intrinsic::ID id) {
     assert(kitFuncs.find(id) != kitFuncs.end() &&
            "getRuntimeFunc: No kitsune library function for intrinsic");
-    return getOrInsertLibFunc(m, kitFuncs.at(id));
+    return ::getOrInsertLibFunc(m, kitFuncs.at(id));
   }
 
   FunctionCallee getOrInsertLibFunc(Module &m, TTID tt, Intrinsic::ID id) {
@@ -231,7 +224,7 @@ private:
 
     assert(funcs.find(id) != funcs.end() &&
            "getRuntimeFunc: No kitsune library function for tapir target");
-    return getOrInsertLibFunc(m, funcs.at(id));
+    return ::getOrInsertLibFunc(m, funcs.at(id));
   }
 
   FunctionCallee getMobileAllocFunc(Module &m, CallInst &call) {
@@ -253,7 +246,7 @@ private:
       // TODO: A custom tapir target may require a custom memory allocator.
       // Currently, there is no way to have the plugin specify a memory
       // allocator to use, so just default to using libc's malloc.
-      return getOrInsertLibFunc(m, LibFunc_malloc);
+      return ::getOrInsertLibFunc(m, KitFunc::kitrt_malloc);
     case TTID::Lambda:
     case TTID::OMPTask:
     case TTID::Realm:
@@ -284,7 +277,7 @@ private:
       // TODO: A custom tapir target may require a custom memory deallocator.
       // Currently, there is no way to have the plugin specify a memory
       // deallocator to use, so just default to using libc's free.
-      return getOrInsertLibFunc(m, LibFunc_free);
+      return ::getOrInsertLibFunc(m, KitFunc::kitrt_free);
     case TTID::Lambda:
     case TTID::OMPTask:
     case TTID::Realm:
@@ -308,21 +301,21 @@ private:
     // initialization on the device.
     Value *init = call.getArgOperand(3);
     if (isBool(init))
-      return getOrInsertLibFunc(m, LibFunc_kitrt_mobile_init_bool);
+      return ::getOrInsertLibFunc(m, KitFunc::kitrt_mobile_init_bool);
     else if (isInt8(init))
-      return getOrInsertLibFunc(m, LibFunc_kitrt_mobile_init_i8);
+      return ::getOrInsertLibFunc(m, KitFunc::kitrt_mobile_init_i8);
     else if (isInt16(init))
-      return getOrInsertLibFunc(m, LibFunc_kitrt_mobile_init_i16);
+      return ::getOrInsertLibFunc(m, KitFunc::kitrt_mobile_init_i16);
     else if (isInt32(init))
-      return getOrInsertLibFunc(m, LibFunc_kitrt_mobile_init_i32);
+      return ::getOrInsertLibFunc(m, KitFunc::kitrt_mobile_init_i32);
     else if (isInt64(init))
-      return getOrInsertLibFunc(m, LibFunc_kitrt_mobile_init_i64);
+      return ::getOrInsertLibFunc(m, KitFunc::kitrt_mobile_init_i64);
     else if (isFloat(init))
-      return getOrInsertLibFunc(m, LibFunc_kitrt_mobile_init_float);
+      return ::getOrInsertLibFunc(m, KitFunc::kitrt_mobile_init_float);
     else if (isDouble(init))
-      return getOrInsertLibFunc(m, LibFunc_kitrt_mobile_init_double);
+      return ::getOrInsertLibFunc(m, KitFunc::kitrt_mobile_init_double);
     else if (isPointer(init))
-      return getOrInsertLibFunc(m, LibFunc_kitrt_mobile_init_from);
+      return ::getOrInsertLibFunc(m, KitFunc::kitrt_mobile_init_from);
     else
       llvm_unreachable("Unsupported initializer type");
   }
@@ -612,8 +605,6 @@ private:
   }
 
 public:
-  LowerKitIntrinsics(TargetLibraryInfo &tli) : tli(tli) {}
-
   bool run(Function &f) {
     SmallVector<CallInst *, 4> calls;
     for (inst_iterator i = inst_begin(f), e = inst_end(f); i != e; ++i) {
@@ -643,15 +634,10 @@ public:
 
   StringRef getPassName() const override { return "Lower Kitsune intrinsics"; }
 
-  void getAnalysisUsage(AnalysisUsage &au) const override {
-    au.addRequired<TargetLibraryInfoWrapperPass>();
-  }
+  void getAnalysisUsage(AnalysisUsage &au) const override {}
 
   bool runOnFunction(Function &f) override {
-    TargetLibraryInfo &tli =
-        getAnalysis<TargetLibraryInfoWrapperPass>().getTLI(f);
-
-    return LowerKitIntrinsics(tli).run(f);
+    return LowerKitIntrinsics().run(f);
   }
 
 public:
@@ -673,11 +659,9 @@ FunctionPass *llvm::createLowerKitIntrinsicsLegacyPass() {
 
 PreservedAnalyses LowerKitIntrinsicsPass::run(Function &f,
                                               FunctionAnalysisManager &am) {
-  TargetLibraryInfo &tli = am.getResult<TargetLibraryAnalysis>(f);
-
   // If any kitsune intrinsics were replaced, the call graph will have changed,
   // but other analyses will not have been invalidated.
-  bool changed = LowerKitIntrinsics(tli).run(f);
+  bool changed = LowerKitIntrinsics().run(f);
   if (changed) {
     PreservedAnalyses pa;
     pa.preserve<FunctionAnalysisManagerCGSCCProxy>();

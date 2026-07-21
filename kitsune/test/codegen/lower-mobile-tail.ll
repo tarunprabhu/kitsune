@@ -9,9 +9,9 @@ target triple = "x86_64-pc-linux-gnu"
 
 ; CHECK-LABEL: @allocate
 ; CHECK-SAME: i64 %[[N:[^)]+]]
-; CHECK: tail call noalias ptr @malloc(i64 %[[N]])
-; CHECK: notail call noalias ptr @malloc(i64 %[[N]])
-; CHECK: tail call noalias ptr @malloc(i64 %[[N]])
+; CHECK: tail call noalias ptr @__kitrt_default_mem_alloc(i64 %[[N]])
+; CHECK: notail call noalias ptr @__kitrt_default_mem_alloc(i64 %[[N]])
+; CHECK: tail call noalias ptr @__kitrt_default_mem_alloc(i64 %[[N]])
 define ptr addrspace(67) @allocate(i64 %n) {
   %1 = tail call noalias ptr addrspace(67) @llvm.kit.mobile.alloc(i32 1, i64 %n)
   %2 = notail call noalias ptr addrspace(67) @llvm.kit.mobile.alloc(i32 1, i64 %n)
@@ -21,9 +21,9 @@ define ptr addrspace(67) @allocate(i64 %n) {
 
 ; CHECK-LABEL: @deallocate
 ; CHECK-SAME: ptr addrspace(67) %[[P:[^)]+]]
-; CHECK: tail call void @free(
-; CHECK: notail call void @free(
-; CHECK: tail call void @free(
+; CHECK: tail call void @__kitrt_default_mem_free(
+; CHECK: notail call void @__kitrt_default_mem_free(
+; CHECK: tail call void @__kitrt_default_mem_free(
 define void @deallocate(ptr addrspace(67) %p) {
   tail call void @llvm.kit.mobile.free(i32 1, ptr addrspace(67) %p)
   notail call void @llvm.kit.mobile.free(i32 1, ptr addrspace(67) %p)
