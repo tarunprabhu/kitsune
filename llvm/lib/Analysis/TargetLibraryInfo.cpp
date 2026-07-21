@@ -60,7 +60,6 @@ std::string VecDesc::getVectorFunctionABIVariantString() const {
 enum FuncArgTypeID : char {
   Void = 0, // Must be zero.
   Bool,     // 8 bits on all targets
-  Int8,
   Int16,
   Int32,
   Int,
@@ -81,7 +80,7 @@ enum FuncArgTypeID : char {
   Same,     // Same argument type as the previous one.
 };
 
-typedef std::array<FuncArgTypeID, 10> FuncProtoTy;
+typedef std::array<FuncArgTypeID, 8> FuncProtoTy;
 
 static const FuncProtoTy Signatures[] = {
 #define TLI_DEFINE_SIG
@@ -918,83 +917,6 @@ static void initializeLibCalls(TargetLibraryInfoImpl &TLI, const Triple &T,
   if (T.isOSAIX())
     TLI.setUnavailable(LibFunc_memrchr);
 
-  // Kitsune's runtime functions are only available on some platforms. Without
-  // settings these as unavailable, we get some test failures in tli-checker.
-  if (!T.isOSLinux() && !T.isOSFreeBSD() && !T.isOSDarwin()) {
-    TLI.setUnavailable(LibFunc_kitrt_mobile_init_bool);
-    TLI.setUnavailable(LibFunc_kitrt_mobile_init_i8);
-    TLI.setUnavailable(LibFunc_kitrt_mobile_init_i16);
-    TLI.setUnavailable(LibFunc_kitrt_mobile_init_i32);
-    TLI.setUnavailable(LibFunc_kitrt_mobile_init_i64);
-    TLI.setUnavailable(LibFunc_kitrt_mobile_init_float);
-    TLI.setUnavailable(LibFunc_kitrt_mobile_init_double);
-    TLI.setUnavailable(LibFunc_kitrt_mobile_init_from);
-    TLI.setUnavailable(LibFunc_kitcuda_finalize);
-    TLI.setUnavailable(LibFunc_kitcuda_get_thread_stream);
-    TLI.setUnavailable(LibFunc_kitcuda_initialize);
-    TLI.setUnavailable(LibFunc_kitcuda_launch_kernel);
-    TLI.setUnavailable(LibFunc_kitcuda_managed_free);
-    TLI.setUnavailable(LibFunc_kitcuda_managed_malloc);
-    TLI.setUnavailable(LibFunc_kitcuda_prefetch_dtoh);
-    TLI.setUnavailable(LibFunc_kitcuda_prefetch_htod);
-    TLI.setUnavailable(LibFunc_kitcuda_reduce_num_partials);
-    TLI.setUnavailable(LibFunc_kitcuda_register_devcode);
-    TLI.setUnavailable(LibFunc_kitcuda_register_devcode_end);
-    TLI.setUnavailable(LibFunc_kitcuda_register_global);
-    TLI.setUnavailable(LibFunc_kitcuda_register_global_managed);
-    TLI.setUnavailable(LibFunc_kitcuda_symbol_device_ptr);
-    TLI.setUnavailable(LibFunc_kitcuda_symbol_memcpy_dtoh);
-    TLI.setUnavailable(LibFunc_kitcuda_symbol_memcpy_htod);
-    TLI.setUnavailable(LibFunc_kitcuda_sync_stream);
-    TLI.setUnavailable(LibFunc_kitcuda_unregister_devcode);
-    TLI.setUnavailable(LibFunc_kithip_enable_xnack);
-    TLI.setUnavailable(LibFunc_kithip_enable_y_axis_launches);
-    TLI.setUnavailable(LibFunc_kithip_finalize);
-    TLI.setUnavailable(LibFunc_kithip_get_thread_stream);
-    TLI.setUnavailable(LibFunc_kithip_initialize);
-    TLI.setUnavailable(LibFunc_kithip_launch_kernel);
-    TLI.setUnavailable(LibFunc_kithip_managed_free);
-    TLI.setUnavailable(LibFunc_kithip_managed_malloc);
-    TLI.setUnavailable(LibFunc_kithip_prefetch_dtoh);
-    TLI.setUnavailable(LibFunc_kithip_prefetch_htod);
-    TLI.setUnavailable(LibFunc_kithip_reduce_num_partials);
-    TLI.setUnavailable(LibFunc_kithip_register_devcode);
-    TLI.setUnavailable(LibFunc_kithip_register_global);
-    TLI.setUnavailable(LibFunc_kithip_register_global_managed);
-    TLI.setUnavailable(LibFunc_kithip_symbol_device_ptr);
-    TLI.setUnavailable(LibFunc_kithip_symbol_memcpy_dtoh);
-    TLI.setUnavailable(LibFunc_kithip_symbol_memcpy_htod);
-    TLI.setUnavailable(LibFunc_kithip_sync_stream);
-    TLI.setUnavailable(LibFunc_kithip_unregister_devcode);
-    TLI.setUnavailable(LibFunc_kitocilk_finalize);
-    TLI.setUnavailable(LibFunc_kitocilk_initialize);
-    TLI.setUnavailable(LibFunc_kitocilk_num_workers);
-    TLI.setUnavailable(LibFunc_kitocilk_reduce_num_partials);
-    TLI.setUnavailable(LibFunc_kitocilk_worker_id);
-    TLI.setUnavailable(LibFunc_kitomp_finalize);
-    TLI.setUnavailable(LibFunc_kitomp_initialize);
-    TLI.setUnavailable(LibFunc_kitomp_launch);
-    TLI.setUnavailable(LibFunc_kitomp_num_threads);
-    TLI.setUnavailable(LibFunc_kitomp_reduce_num_partials);
-    TLI.setUnavailable(LibFunc_kitomp_thread_id);
-    TLI.setUnavailable(LibFunc_kitpthr_async_launch);
-    TLI.setUnavailable(LibFunc_kitpthr_finalize);
-    TLI.setUnavailable(LibFunc_kitpthr_initialize);
-    TLI.setUnavailable(LibFunc_kitpthr_num_threads);
-    TLI.setUnavailable(LibFunc_kitpthr_reduce_num_partials);
-    TLI.setUnavailable(LibFunc_kitpthr_thread_id);
-    TLI.setUnavailable(LibFunc_kitpthr_sync);
-    TLI.setUnavailable(LibFunc_kitqthr_finalize);
-    TLI.setUnavailable(LibFunc_kitqthr_initialize);
-    TLI.setUnavailable(LibFunc_kitqthr_launch);
-    TLI.setUnavailable(LibFunc_kitqthr_num_workers);
-    TLI.setUnavailable(LibFunc_kitqthr_reduce_num_partials);
-    TLI.setUnavailable(LibFunc_kitqthr_worker_id);
-    TLI.setUnavailable(LibFunc_kitser_finalize);
-    TLI.setUnavailable(LibFunc_kitser_initialize);
-    TLI.setUnavailable(LibFunc_kitser_thread_id);
-  }
-
   TLI.addVectorizableFunctionsFromVecLib(ClVectorLibrary, T);
 }
 
@@ -1105,7 +1027,6 @@ static bool matchType(FuncArgTypeID ArgTy, const Type *Ty, unsigned IntBits,
   case Void:
     return Ty->isVoidTy();
   case Bool:
-  case Int8:
     return Ty->isIntegerTy(8);
   case Int16:
     return Ty->isIntegerTy(16);
@@ -1298,55 +1219,6 @@ bool TargetLibraryInfoImpl::isValidProtoForLibFunc(const FunctionType &FTy,
   // Return success only if all entries on both lists have been processed
   // and the function is not a variadic one.
   return Idx == NumParams + 1 && !FTy.isFunctionVarArg();
-}
-
-static Type *getType(FuncArgTypeID ArgTy, const Module &M,
-                     const TargetLibraryInfoImpl &tlii) {
-  LLVMContext &Ctx = M.getContext();
-  switch (ArgTy) {
-  case Void:
-    return Type::getVoidTy(Ctx);
-  case Bool:
-  case Int8:
-    return Type::getInt8Ty(Ctx);
-  case Int16:
-    return Type::getInt16Ty(Ctx);
-  case Int32:
-    return Type::getInt32Ty(Ctx);
-  case Int:
-  case IntX:
-    return IntegerType::get(Ctx, tlii.getIntSize());
-  case Int64:
-    return Type::getInt64Ty(Ctx);
-  case LLong:
-    return Type::getInt64Ty(Ctx);
-  case SizeT:
-  case SSizeT:
-    return IntegerType::get(Ctx, tlii.getSizeTSize(M));
-  case Flt:
-    return Type::getFloatTy(Ctx);
-  case Dbl:
-    return Type::getDoubleTy(Ctx);
-  case Ptr:
-    return PointerType::getUnqual(Ctx);
-  default:
-    break;
-  }
-  llvm_unreachable("TargetLibraryInfo::getType: Type not yet supported");
-}
-
-FunctionType *TargetLibraryInfoImpl::getLibFuncType(LibFunc F,
-                                                    const Module &M) const {
-  std::vector<Type *> Args;
-
-  // The only way to detect the end of value types in Signatures[F] is to check
-  // for FuncArgTyID == Void (which is defined to be 0).
-  const FuncProtoTy& TyIDs = Signatures[F];
-  for (size_t Idx = 1; Idx < TyIDs.size() && TyIDs[Idx]; ++Idx)
-    Args.push_back(getType(TyIDs[Idx], M, *this));
-
-  Type *RetTy = getType(TyIDs[0], M, *this);
-  return FunctionType::get(RetTy, Args, false);
 }
 
 bool TargetLibraryInfoImpl::getLibFunc(const Function &FDecl,

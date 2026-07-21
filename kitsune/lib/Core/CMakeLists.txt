@@ -17,6 +17,7 @@ add_llvm_component_library(LLVMKitCore
   Instrumentation.cpp
   IntrinsicUtils.cpp
   KernelProperties.cpp
+  LibFuncs.cpp
   LoopAttrs.cpp
   LoopUtils.cpp
   MetadataUtils.cpp

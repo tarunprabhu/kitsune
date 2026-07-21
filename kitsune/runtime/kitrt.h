@@ -62,37 +62,36 @@ extern "C" {
 #include <stdbool.h>
 #endif
 
-/**
- * Initialize the core kitsune runtime components that are shared across all the
- * tapir-target-specific runtimes. This is typically called in the global
- * constructor for each target-specific runtime. It is safe to call this
- * multiple times, though this should be avoided.
- */
+/// Initialize the core kitsune runtime components that are shared across all
+/// the tapir-target-specific runtimes. This is typically called in the global
+/// constructor for each target-specific runtime. It is safe to call this
+/// multiple times, though this should be avoided.
 void __kitrt_initialize(void);
 
-/**
- * Finalize Kitsune's runtime. This is typically called from the global
- * destructors for individual runtimes such as kitcuda, or kitomp. This can be
- * safely called multiple times.
- */
+/// Finalize Kitsune's runtime. This is typically called from the global
+/// destructors for individual runtimes such as kitcuda, or kitomp. This can be
+/// safely called multiple times.
 void __kitrt_finalize(void);
 
-/**
- * Check if Kitsune's runtime has been initialized.
- */
+/// Check if Kitsune's runtime has been initialized.
 bool __kitrt_initialized(void);
 
-/**
- * *** EXPERIMENTAL: This is a new interface between the compiler and
- * the runtime.  It is a quick set of details regarding the particular
- * instruction mix of a kernel and any device-side functions it calls.
- * It is gathered from the LLVM form of the code (not ptx/s-code) and
- * at this point is limited.  In general we are using to explore
- * impacts on launch parameters.
- * NOTE: Changing this structure has implications on code generation
- * inside the CudaABI component of the compiler -- both must be kept
- * up-to-date.
- */
+/// Allocate \p bytes on the heap. This simply calls malloc to allocate the
+/// memory, but keeps track of it within this runtime..
+void *__kitrt_default_mem_alloc(uint64_t bytes);
+
+/// Free a pointer previously allocated by \ref __kitrt_default_mem_free.
+void __kitrt_default_mem_free(void *ptr);
+
+/// *** EXPERIMENTAL: This is a new interface between the compiler and
+/// the runtime.  It is a quick set of details regarding the particular
+/// instruction mix of a kernel and any device-side functions it calls.
+/// It is gathered from the LLVM form of the code (not ptx/s-code) and
+/// at this point is limited.  In general we are using to explore
+/// impacts on launch parameters.
+/// NOTE: Changing this structure has implications on code generation
+/// inside the CudaABI component of the compiler -- both must be kept
+/// up-to-date.
 typedef struct _kitrt_inst_mix_info {
   uint64_t numMemoryOps; // Number of memory (read/write) ops.
   uint64_t numFlops;     // Floating point operations.

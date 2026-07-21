@@ -21,6 +21,7 @@ add_kitsune_unittest(KitCore
   InstUtilsTest.cpp
   InstrumentationTest.cpp
   IntrinsicUtilsTest.cpp
+  LibFuncsTest.cpp
   LoopAttrsTest.cpp
   LoopUtilsTest.cpp
   KernelPropertiesTest.cpp

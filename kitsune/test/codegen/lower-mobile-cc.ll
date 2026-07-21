@@ -9,9 +9,9 @@ target triple = "x86_64-pc-linux-gnu"
 
 ; CHECK-LABEL: @allocate
 ; CHECK-SAME: i64 %[[N:[^)]+]]
-; CHECK: call fastcc noalias ptr @malloc(i64 %[[N]])
-; CHECK: call coldcc noalias ptr @malloc(i64 %[[N]])
-; CHECK: call anyregcc noalias ptr @malloc(i64 %[[N]])
+; CHECK: call fastcc noalias ptr @__kitrt_default_mem_alloc(i64 %[[N]])
+; CHECK: call coldcc noalias ptr @__kitrt_default_mem_alloc(i64 %[[N]])
+; CHECK: call anyregcc noalias ptr @__kitrt_default_mem_alloc(i64 %[[N]])
 define void @allocate(i64 %n) {
   %1 = call fastcc noalias ptr addrspace(67) @llvm.kit.mobile.alloc(i32 1, i64 %n)
   %2 = call coldcc noalias ptr addrspace(67) @llvm.kit.mobile.alloc(i32 1, i64 %n)
@@ -21,9 +21,9 @@ define void @allocate(i64 %n) {
 
 ; CHECK-LABEL: @deallocate
 ; CHECK-SAME: ptr addrspace(67) %[[P:[^)]+]]
-; CHECK: call fastcc void @free(
-; CHECK: call coldcc void @free(
-; CHECK: call anyregcc void @free(
+; CHECK: call fastcc void @__kitrt_default_mem_free(
+; CHECK: call coldcc void @__kitrt_default_mem_free(
+; CHECK: call anyregcc void @__kitrt_default_mem_free(
 define void @deallocate(ptr addrspace(67) %p) {
   call fastcc void @llvm.kit.mobile.free(i32 1, ptr addrspace(67) %p)
   call coldcc void @llvm.kit.mobile.free(i32 1, ptr addrspace(67) %p)

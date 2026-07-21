@@ -1385,50 +1385,6 @@ bool llvm::inferNonMandatoryLibFuncAttrs(Function &F,
     Changed |= setWillReturn(F);
     Changed |= setOnlyWritesArgMemOrErrnoMem(F);
     break;
-  case LibFunc_kitcuda_finalize:
-  case LibFunc_kitcuda_get_thread_stream:
-  case LibFunc_kitcuda_initialize:
-  case LibFunc_kitcuda_launch_kernel:
-  case LibFunc_kitcuda_prefetch_dtoh:
-  case LibFunc_kitcuda_prefetch_htod:
-  case LibFunc_kitcuda_reduce_num_partials:
-  case LibFunc_kitcuda_register_devcode:
-  case LibFunc_kitcuda_register_devcode_end:
-  case LibFunc_kitcuda_register_global:
-  case LibFunc_kitcuda_register_global_managed:
-  case LibFunc_kitcuda_symbol_device_ptr:
-  case LibFunc_kitcuda_symbol_memcpy_dtoh:
-  case LibFunc_kitcuda_symbol_memcpy_htod:
-  case LibFunc_kitcuda_sync_stream:
-  case LibFunc_kitcuda_unregister_devcode:
-  case LibFunc_kithip_enable_xnack:
-  case LibFunc_kithip_enable_y_axis_launches:
-  case LibFunc_kithip_finalize:
-  case LibFunc_kithip_get_thread_stream:
-  case LibFunc_kithip_initialize:
-  case LibFunc_kithip_launch_kernel:
-  case LibFunc_kithip_prefetch_dtoh:
-  case LibFunc_kithip_prefetch_htod:
-  case LibFunc_kithip_reduce_num_partials:
-  case LibFunc_kithip_register_devcode:
-  case LibFunc_kithip_register_global:
-  case LibFunc_kithip_register_global_managed:
-  case LibFunc_kithip_symbol_device_ptr:
-  case LibFunc_kithip_symbol_memcpy_dtoh:
-  case LibFunc_kithip_symbol_memcpy_htod:
-  case LibFunc_kithip_sync_stream:
-  case LibFunc_kithip_unregister_devcode:
-  case LibFunc_kitomp_launch:
-  case LibFunc_kitomp_reduce_num_partials:
-  case LibFunc_kitpthr_async_launch:
-  case LibFunc_kitpthr_sync:
-  case LibFunc_kitpthr_reduce_num_partials:
-  case LibFunc_kitqthr_launch:
-  case LibFunc_kitqthr_reduce_num_partials:
-    Changed |= setOnlyAccessesInaccessibleMemOrArgMem(F);
-    Changed |= setDoesNotThrow(F);
-    Changed |= setWillReturn(F);
-    break;
   default:
     // FIXME: It'd be really nice to cover all the library functions we're
     // aware of here.
@@ -1549,70 +1505,6 @@ FunctionCallee llvm::getOrInsertLibFunc(Module *M, const TargetLibraryInfo &TLI,
   case LibFunc_vsnprintf:
     break;
 
-  case LibFunc_kitomp_launch:
-  case LibFunc_kitpthr_async_launch:
-  case LibFunc_kitqthr_launch:
-    setArgExtAttr(*F, 1, TLI);
-    setArgExtAttr(*F, 2, TLI);
-    break;
-
-  case LibFunc_kitcuda_managed_malloc:
-  case LibFunc_kitcuda_reduce_num_partials:
-  case LibFunc_kithip_managed_malloc:
-  case LibFunc_kithip_reduce_num_partials:
-  case LibFunc_kitocilk_reduce_num_partials:
-  case LibFunc_kitomp_reduce_num_partials:
-  case LibFunc_kitpthr_reduce_num_partials:
-  case LibFunc_kitqthr_reduce_num_partials:
-    setArgExtAttr(*F, 0, TLI);
-    break;
-
-  case LibFunc_kitcuda_prefetch_dtoh:
-  case LibFunc_kitcuda_prefetch_htod:
-  case LibFunc_kithip_prefetch_dtoh:
-  case LibFunc_kithip_prefetch_htod:
-  case LibFunc_kitrt_mobile_init_float:
-  case LibFunc_kitrt_mobile_init_double:
-    setArgExtAttr(*F, 1, TLI);
-    break;
-
-  case LibFunc_kitrt_mobile_init_bool:
-  case LibFunc_kitrt_mobile_init_i8:
-  case LibFunc_kitrt_mobile_init_i16:
-  case LibFunc_kitrt_mobile_init_i32:
-  case LibFunc_kitrt_mobile_init_i64:
-  case LibFunc_kitrt_mobile_init_from:
-    setArgExtAttr(*F, 1, TLI);
-    setArgExtAttr(*F, 2, TLI);
-    break;
-
-  case LibFunc_kitcuda_symbol_memcpy_dtoh:
-  case LibFunc_kitcuda_symbol_memcpy_htod:
-  case LibFunc_kithip_symbol_memcpy_dtoh:
-  case LibFunc_kithip_symbol_memcpy_htod:
-    setArgExtAttr(*F, 2, TLI);
-    break;
-
-  case LibFunc_kitcuda_launch_kernel:
-  case LibFunc_kithip_launch_kernel:
-    setArgExtAttr(*F, 4, TLI);
-    break;
-
-  case LibFunc_kitcuda_register_global:
-  case LibFunc_kithip_register_global:
-    setArgExtAttr(*F, 4, TLI);
-    setArgExtAttr(*F, 5, TLI);
-    setArgExtAttr(*F, 6, TLI);
-    break;
-
-  case LibFunc_kitcuda_register_global_managed:
-  case LibFunc_kithip_register_global_managed:
-    setArgExtAttr(*F, 4, TLI);
-    setArgExtAttr(*F, 5, TLI);
-    setArgExtAttr(*F, 6, TLI);
-    setArgExtAttr(*F, 7, TLI);
-    break;
-
   default:
 #ifndef NDEBUG
     for (unsigned i = 0; i < T->getNumParams(); i++)
@@ -1630,11 +1522,6 @@ FunctionCallee llvm::getOrInsertLibFunc(Module *M, const TargetLibraryInfo &TLI,
 FunctionCallee llvm::getOrInsertLibFunc(Module *M, const TargetLibraryInfo &TLI,
                                         LibFunc TheLibFunc, FunctionType *T) {
   return getOrInsertLibFunc(M, TLI, TheLibFunc, T, AttributeList());
-}
-
-FunctionCallee llvm::getOrInsertLibFunc(Module *M, const TargetLibraryInfo &TLI,
-                                        LibFunc LibFunc) {
-  return getOrInsertLibFunc(M, TLI, LibFunc, TLI.getLibFuncType(LibFunc, *M));
 }
 
 bool llvm::isLibFuncEmittable(const Module *M, const TargetLibraryInfo *TLI,
