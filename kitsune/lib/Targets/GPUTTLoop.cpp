@@ -160,9 +160,9 @@ void GPUTTLoopBase::copyNonConstGlobals(IRBuilder<> &builder,
 
       Value *devPtr = builder.CreateIntrinsic(
           ptrTy, Intrinsic::kit_gpu_symbol_address, {ctt, fb, name});
-      if (copyFn == Intrinsic::kit_gpu_symbol_memcpy_dtoh)
+      if (copyFn == Intrinsic::kit_gpu_memcpy_dtoh)
         (void)builder.CreateIntrinsic(voidTy, copyFn, {ctt, g, devPtr, bytes});
-      else if (copyFn == Intrinsic::kit_gpu_symbol_memcpy_htod)
+      else if (copyFn == Intrinsic::kit_gpu_memcpy_htod)
         (void)builder.CreateIntrinsic(voidTy, copyFn, {ctt, devPtr, g, bytes});
       else
         llvm_unreachable("copyNonConstGlobals: Invalid intrinsic");
@@ -171,11 +171,11 @@ void GPUTTLoopBase::copyNonConstGlobals(IRBuilder<> &builder,
 }
 
 void GPUTTLoopBase::copyNonConstGlobalsDToH(IRBuilder<> &builder) {
-  copyNonConstGlobals(builder, Intrinsic::kit_gpu_symbol_memcpy_dtoh);
+  copyNonConstGlobals(builder, Intrinsic::kit_gpu_memcpy_dtoh);
 }
 
 void GPUTTLoopBase::copyNonConstGlobalsHToD(IRBuilder<> &builder) {
-  copyNonConstGlobals(builder, Intrinsic::kit_gpu_symbol_memcpy_htod);
+  copyNonConstGlobals(builder, Intrinsic::kit_gpu_memcpy_htod);
 }
 
 void GPUTTLoopBase::cloneUsedGlobalAliases(ValueToValueMapTy &vmap) {

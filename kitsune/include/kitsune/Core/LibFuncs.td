@@ -107,6 +107,18 @@ def kitcuda_managed_free :
 def kitcuda_managed_malloc :
     KitFunc<"__kitcuda_mem_alloc_managed", Ptr, [U64]>;
 
+// FIXME: The device pointer tyep is CUdeviceptr which is U64, not Ptr. But we
+// need to fix kit-lower-intrinsics pass before we do this.
+// void __kitcuda_memcpy_dtoh(void *hostPtr, void *devicePtr, uint64_t n)
+def kitcuda_memcpy_dtoh :
+    KitFunc<"__kitcuda_memcpy_dtoh", Void, [Ptr, Ptr, U64]>;
+
+// FIXME: The device pointer tyep is CUdeviceptr which is U64, not Ptr. But we
+// need to fix kit-lower-intrinsics pass before we do this.
+// void __kitcuda_memcpy_htod(void *hostPtr, void *devicePtr, uint64_t n)
+def kitcuda_memcpy_htod :
+    KitFunc<"__kitcuda_memcpy_htod", Void, [Ptr, Ptr, U64]>;
+
 // void* __kitcuda_mem_host_prefetch(void *ptr, uint64_t bytes, void *stream)
 def kitcuda_prefetch_dtoh :
     KitFunc<"__kitcuda_mem_host_prefetch", Ptr, [Ptr, U64, Ptr]>;
@@ -169,14 +181,8 @@ def kitcuda_stream_sync :
     KitFunc<"__kitcuda_sync_thread_stream", Void, [Ptr]>;
 
 // void* __kitcuda_get_global_symbol(void* devcode, const char* name)
-def kitcuda_symbol_device_ptr :
+def kitcuda_symbol_address :
     KitFunc<"__kitcuda_get_global_symbol", Ptr, [Ptr, Ptr]>;
-
-def kitcuda_symbol_memcpy_dtoh :
-    KitFunc<"__kitcuda_memcpy_sym_to_host", Void, [Ptr, Ptr, U64]>;
-
-def kitcuda_symbol_memcpy_htod :
-    KitFunc<"__kitcuda_memcpy_sym_to_device", Void, [Ptr, Ptr, U64]>;
 
 // -----------------------------------------------------------------------------
 // Runtime library functions for the hip tapir taret.
@@ -208,6 +214,14 @@ def kithip_managed_free :
 // [[malloc]] void *__kithip_mem_alloc_managed(uint64_t bytes)
 def kithip_managed_malloc :
     KitFunc<"__kithip_mem_alloc_managed", Ptr, [U64]>;
+
+// void __kithip_memcpy_dtoh(void *hostPtr, void *devicePtr, uint64_t n)
+def kithip_memcpy_dtoh :
+    KitFunc<"__kithip_memcpy_dtoh", Void, [Ptr, Ptr, U64]>;
+
+// void __kithip_memcpy_htod(void *hostPtr, void *devicePtr, uint64_t n)
+def kithip_memcpy_htod :
+    KitFunc<"__kithip_memcpy_htod", Void, [Ptr, Ptr, U64]>;
 
 // void* __kithip_mem_host_prefetch(void *ptr, uint64_t bytes, void *stream)
 def kithip_prefetch_dtoh :
@@ -267,16 +281,8 @@ def kithip_stream_sync :
     KitFunc<"__kithip_sync_thread_stream", Void, [Ptr]>;
 
 // void* __kithip_get_global_symbol(void* devcode, const char* name)
-def kithip_symbol_device_ptr :
+def kithip_symbol_address :
     KitFunc<"__kithip_get_global_symbol", Ptr, [Ptr, Ptr]>;
-
-// void __kithip_memcpy_sym_to_host(void *hostPtr, void *devPtr, uint64_t size)
-def kithip_symbol_memcpy_dtoh :
-    KitFunc<"__kithip_memcpy_sym_to_host", Void, [Ptr, Ptr, U64]>;
-
-// void __kithip_memcpy_sym_to_device(void *devPtr, void *hostPtr, uint64_t size)
-def kithip_symbol_memcpy_htod :
-    KitFunc<"__kithip_memcpy_sym_to_device", Void, [Ptr, Ptr, U64]>;
 
 // -----------------------------------------------------------------------------
 // Runtime library functions for the opencilk tapir taret.
