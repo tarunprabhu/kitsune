@@ -438,17 +438,13 @@ static bool lowerKitIntrinsic(CallInst &call) {
 }
 
 static bool lowerKitIntrinsics(Function &f) {
+  // Kitsune's intrinsics cannot be invoked. The verifier will already have
+  // caught this, so we only need to check for call instructions.
   SmallVector<CallInst *, 4> calls;
-  for (inst_iterator i = inst_begin(f), e = inst_end(f); i != e; ++i) {
-    if (auto *call = dyn_cast<CallInst>(&*i)) {
+  for (inst_iterator i = inst_begin(f), e = inst_end(f); i != e; ++i)
+    if (auto *call = dyn_cast<CallInst>(&*i))
       if (isKitIntrinsic(call->getIntrinsicID()))
         calls.push_back(call);
-    } else if (auto *invoke = dyn_cast<InvokeInst>(&*i)) {
-      // TODO: This invoke check should be moved to the verifier.
-      if (isKitIntrinsic(invoke->getIntrinsicID()))
-        llvm_unreachable("Invoke of kitsune intrinsic");
-    }
-  }
 
   bool changed = false;
   for (CallInst *call : calls)
