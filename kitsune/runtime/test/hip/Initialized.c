@@ -9,6 +9,7 @@
 // CHECK: Before finalize: {{[1-9][0-9]*}}
 // CHECK: After finalize: 0
 
+#include <stdbool.h>
 #include <stdio.h>
 
 // hip/kithip.h is not safe to be included in C source files. That header
