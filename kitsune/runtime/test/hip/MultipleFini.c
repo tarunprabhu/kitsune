@@ -14,6 +14,7 @@
 // CHECK: Cannot finalize runtime. Not initialized
 // CHECK: Initialized = 0
 
+#include <stdbool.h>
 #include <stdio.h>
 
 // hip/kithip.h is not safe to be included in C source files. That header should

@@ -52,6 +52,9 @@
 #define KITRT_COMMON_TIMER_H
 
 #include <stdint.h>
+#ifndef __cplusplus
+#include <stdbool.h>
+#endif // ! __cplusplus
 
 #ifdef __cplusplus
 extern "C" {
