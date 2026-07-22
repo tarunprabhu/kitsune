@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/TypeUtils.h"
+#include "kitsune/Core/AddrSpace.h"
 #include "kitsune/Support/TypeTraits.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Type.h"
@@ -20,6 +21,13 @@ using namespace llvm;
 bool llvm::isByteArrayTy(Type *Ty) {
   if (auto *arrayTy = dyn_cast<ArrayType>(Ty))
     return arrayTy->getElementType()->isIntegerTy(8);
+  return false;
+}
+
+bool llvm::isMobilePointerTy(Type *ty) {
+  if (auto *ptrTy = dyn_cast<PointerType>(ty))
+    if (ptrTy->getAddressSpace() == KitAS::Mobile)
+      return true;
   return false;
 }
 
