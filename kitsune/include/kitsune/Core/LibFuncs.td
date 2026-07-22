@@ -119,6 +119,10 @@ def kitcuda_memcpy_dtoh :
 def kitcuda_memcpy_htod :
     KitFunc<"__kitcuda_memcpy_htod", Void, [Ptr, Ptr, U64]>;
 
+// uint64_t __kitcuda_num_sms()
+def kitcuda_num_sms :
+    KitFunc<"__kitcuda_num_sms", U64, []>;
+
 // void* __kitcuda_mem_host_prefetch(void *ptr, uint64_t bytes, void *stream)
 def kitcuda_prefetch_dtoh :
     KitFunc<"__kitcuda_mem_host_prefetch", Ptr, [Ptr, U64, Ptr]>;
@@ -222,6 +226,10 @@ def kithip_memcpy_dtoh :
 // void __kithip_memcpy_htod(void *hostPtr, void *devicePtr, uint64_t n)
 def kithip_memcpy_htod :
     KitFunc<"__kithip_memcpy_htod", Void, [Ptr, Ptr, U64]>;
+
+// uint64_t __kithip_num_cus()
+def kithip_num_cus :
+    KitFunc<"__kithip_num_cus", U64, []>;
 
 // void* __kithip_mem_host_prefetch(void *ptr, uint64_t bytes, void *stream)
 def kithip_prefetch_dtoh :

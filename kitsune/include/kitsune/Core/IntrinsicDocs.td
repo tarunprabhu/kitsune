@@ -818,6 +818,18 @@ Unregister device code that was previously registered with
 }];
 }
 
+def KitGPUNumComputeUnitsDoc : KitDocIntrinsic {
+  let Category = KitDocCatCommon;
+  let ParamDocs = [
+      KitDocParam<"tt", "The ID of the tapir target calling the intrinsic">
+  ];
+  let Descr = [{
+Get the maximum number of compute units on the default device used by the given
+tapir target. On NVIDIA GPUs, this is the number of SM's (streaming
+multiprocessors). On AMD GPUs, this is the number of multiprocessors.
+}];
+}
+
 def KitReduce0Doc : KitDocIntrinsic {
   let Category = KitDocCatCommon;
   let ParamDocs = [

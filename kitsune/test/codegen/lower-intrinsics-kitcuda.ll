@@ -14,6 +14,7 @@
 ; CHECK-NEXT: %2 = alloca [1 x ptr]
 ; CHECK-NEXT: %guvm = alloca ptr
 ; CHECK-NEXT: call void @__kitcuda_initialize()
+; CHECK-NEXT: %[[CUS:.+]] = call i64 @__kitcuda_num_sms()
 ; CHECK-NEXT: %[[STREAM:.+]] = call ptr @__kitcuda_get_thread_stream()
 ; CHECK-NEXT: %[[GSYM:.+]] = call ptr @__kitcuda_get_global_symbol(ptr null, ptr @.gname)
 ; CHECK-NEXT: call void @__kitcuda_memcpy_htod(ptr %[[GSYM]], ptr @gbuf, i64 28)
@@ -45,6 +46,7 @@
 ; CHECK-DAG: ptr @__kitcuda_mem_host_prefetch(ptr, i64, ptr) #[[ATTRS]]
 ; CHECK-DAG: void @__kitcuda_memcpy_dtoh(ptr, ptr, i64) #[[ATTRS]]
 ; CHECK-DAG: void @__kitcuda_memcpy_htod(ptr, ptr, i64) #[[ATTRS]]
+; CHECK-DAG: i64 @__kitcuda_num_sms() #[[ATTRS]]
 ; CHECK-DAG: i64 @__kitcuda_reduce_num_partials(i64) #[[ATTRS]]
 ; CHECK-DAG: ptr @__kitcuda_register_devcode(ptr) #[[ATTRS]]
 ; CHECK-DAG: void @__kitcuda_register_devcode_end(ptr) #[[ATTRS]]
@@ -65,6 +67,7 @@ target triple = "x86_64-pc-linux-gnu"
 define void @f(ptr %buf, i64 %n) {
   %guvm = alloca ptr
   call void @llvm.kit.runtime.initialize(i32 2)
+  %cus = call i64 @llvm.kit.gpu.num.compute.units(i32 2)
   %1 = call ptr @llvm.kit.gpu.stream.new(i32 2)
   %2 = call ptr @llvm.kit.gpu.symbol.address(i32 2, ptr null, ptr @.gname)
   call void @llvm.kit.gpu.memcpy.htod(i32 2, ptr %2, ptr @gbuf, i64 28)

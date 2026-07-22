@@ -271,6 +271,11 @@ void __kitcuda_memcpy_dtoh(void *hostPtr, uint64_t devicePtr, uint64_t bytes);
 void __kitcuda_memcpy_htod(uint64_t devicePtr, void *hostPtr, uint64_t bytes);
 
 /**
+ * Get the number of streaming multiprocessors (SM's) on the default device.
+ */
+uint64_t __kitcuda_num_sms(void);
+
+/**
  * Find the named symbol in the given CUDA module represented by
  * the provided fat binary.
  */

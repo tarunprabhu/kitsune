@@ -166,6 +166,9 @@ extern "C" void __kithip_initialize(void) {
   if (kitrt::gctx.verbose)
     __kithip_dump_dev_properties(rt_info.props);
 
+  // Apparently this is the only way to determine if the device is GCN or not.
+  rt_info.isGCN = std::string_view(rt_info.props.gcnArchName).find("gfx9") == 0;
+
   if (not supportsManagedMemory()) {
     fprintf(stderr,
             "kitrt[hip]: device/system does not support managed memory!\n");
@@ -216,6 +219,20 @@ extern "C" void __kithip_finalize(void) {
   // Finalize the components of Kitsune's runtime that are shared by the
   // tapir-target-specific components.
   __kitrt_finalize();
+}
+
+extern "C" uint64_t __kithip_num_cus(void) {
+  // On GCN, the number of compute units reported is the actual number that are
+  // available, while on other architectures, the reported value must be
+  // multiplied by 2 to get the actual number available. Because that is
+  // definitely reasonable. This is being tracked here:
+  //
+  //     https://github.com/rocm/rocm/issues/6407
+  //
+  int mps = kithip_rt::rt_info.props.multiProcessorCount;
+  if (kithip_rt::rt_info.isGCN)
+    return mps;
+  return mps * 2;
 }
 
 /// The number of partial reductions to perform in parallel.
