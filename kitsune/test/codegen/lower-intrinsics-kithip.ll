@@ -16,6 +16,7 @@
 ; CHECK-NEXT: call void @__kithip_initialize()
 ; CHECK-NEXT: call void @__kithip_enable_ylaunch()
 ; CHECK-NEXT: call void @__kithip_enable_xnack()
+; CHECK-NEXT: %[[CUS:.+]] = call i64 @__kithip_num_cus()
 ; CHECK-NEXT: %[[STREAM:.+]] = call ptr @__kithip_get_thread_stream()
 ; CHECK-NEXT: %[[GSYM:.+]] = call ptr @__kithip_get_global_symbol(ptr null, ptr @.gname)
 ; CHECK-NEXT: call void @__kithip_memcpy_htod(ptr %[[GSYM]], ptr @gbuf, i64 28)
@@ -47,6 +48,7 @@
 ; CHECK-DAG: ptr @__kithip_mem_host_prefetch(ptr, i64, ptr) #[[ATTRS]]
 ; CHECK-DAG: void @__kithip_memcpy_dtoh(ptr, ptr, i64) #[[ATTRS]]
 ; CHECK-DAG: void @__kithip_memcpy_htod(ptr, ptr, i64) #[[ATTRS]]
+; CHECK-DAG: i64 @__kithip_num_cus() #[[ATTRS]]
 ; CHECK-DAG: i64 @__kithip_reduce_num_partials(i64) #[[ATTRS]]
 ; CHECK-DAG: ptr @__kithip_register_devcode(ptr) #[[ATTRS]]
 ; CHECK-DAG: void @__kithip_register_global(ptr, ptr, ptr, ptr, i64, i32, i32) #[[ATTRS]]
@@ -68,6 +70,7 @@ define void @f(ptr %buf, i64 %n) {
   call void @llvm.kit.runtime.initialize(i32 4)
   call void @llvm.kit.runtime.set.y.axis.kernel.launch(i32 4)
   call void @llvm.kit.runtime.set.xnack(i32 4)
+  %cus = call i64 @llvm.kit.gpu.num.compute.units(i32 4)
   %1 = call ptr @llvm.kit.gpu.stream.new(i32 4)
   %2 = call ptr @llvm.kit.gpu.symbol.address(i32 4, ptr null, ptr @.gname)
   call void @llvm.kit.gpu.memcpy.htod(i32 4, ptr %2, ptr @gbuf, i64 28)
