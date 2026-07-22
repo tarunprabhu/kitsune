@@ -253,6 +253,24 @@ extern void *__kitcuda_mem_host_prefetch(void *ptr, uint64_t bytes,
                                          void *opaque_stream);
 
 /**
+ * Synchronous memcpy from device to host.
+ *
+ * @param hostPtr Destination address on the host.
+ * @param devicePtr Source pointer on the device.
+ * @param bytes The number of bytes to copy.
+ */
+void __kitcuda_memcpy_dtoh(void *hostPtr, uint64_t devicePtr, uint64_t bytes);
+
+/**
+ * Synchronous memcpy from host to device.
+ *
+ * @param devicePtr Destination address on the host.
+ * @param hostPtr Source pointer on the device.
+ * @param bytes The number of bytes to copy.
+ */
+void __kitcuda_memcpy_htod(uint64_t devicePtr, void *hostPtr, uint64_t bytes);
+
+/**
  * Find the named symbol in the given CUDA module represented by
  * the provided fat binary.
  */

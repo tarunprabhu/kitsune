@@ -280,36 +280,6 @@ def int_kit_async_gpu_prefetch_htod
   let Doc = KitAsyncPrefetchHToDDoc;
 }
 
-// Get the address of a symbol on a GPU.
-def int_kit_gpu_symbol_address
-    : KitIntrinsic<[llvm_ptr_ty],
-                   [llvm_i32_ty, llvm_ptr_ty, llvm_ptr_ty],
-                   [ImmArg<ArgIndex<0>>]> {
-  let Doc = KitGPUSymbolAddressDoc;
-}
-
-// Copy a symbol from device to host.
-// FIXME: The runtime call here simply calls cuMemcpyDtoH. We should consider
-// removing this and using kit_memcpy_dtoh instead.
-def int_kit_gpu_symbol_memcpy_dtoh
-    : Intrinsic<[],
-                [llvm_i32_ty,  // TTID
-                 llvm_ptr_ty,  // pointer to symbol on the host
-                 llvm_ptr_ty,  // pointer to symbol on the device
-                 llvm_i64_ty], // number of bytes to copy
-                [ImmArg<ArgIndex<0>>]>;
-
-// Copy a symbol from host to device.
-// FIXME: The runtime call here simply calls cuMemcpyHtoD. We should consider
-// removing this and using kit_memcpy_htod instead.
-def int_kit_gpu_symbol_memcpy_htod
-    : Intrinsic<[],
-                [llvm_i32_ty,  // TTID
-                 llvm_ptr_ty,  // pointer to symbol on the device
-                 llvm_ptr_ty,  // pointer to symbol on the host
-                 llvm_i64_ty], // number of bytes to copy
-                [ImmArg<ArgIndex<0>>]>;
-
 // Register device code with the runtime.
 def int_kit_gpu_register_devcode
     : KitIntrinsic<[llvm_ptr_ty], // A handle to be used for other registrations
@@ -324,13 +294,6 @@ def int_kit_gpu_register_devcode
 def int_kit_gpu_register_devcode_end
     : KitIntrinsic<[], [llvm_i32_ty, llvm_ptr_ty], [ImmArg<ArgIndex<0>>]> {
   let Doc = KitGPURegisterDevCodeEndDoc;
-}
-
-// Unregister device code that was previously registered with
-// int_kit_gpu_register_devcode.
-def int_kit_gpu_unregister_devcode
-    : KitIntrinsic<[], [llvm_i32_ty, llvm_ptr_ty], [ImmArg<ArgIndex<0>>]> {
-  let Doc = KitGPUUnregisterDevCodeDoc;
 }
 
 // Register a "normal" (non-UVM) global variable used in device code.
@@ -370,6 +333,21 @@ def int_kit_gpu_register_global_managed
                     NonNull<ArgIndex<2>>, NonNull<ArgIndex<3>>,
                     NonNull<ArgIndex<4>>]> {
   let Doc = KitGPURegisterGlobalManagedDoc;
+}
+
+// Get the address of a symbol on a GPU.
+def int_kit_gpu_symbol_address
+    : KitIntrinsic<[llvm_ptr_ty],
+                   [llvm_i32_ty, llvm_ptr_ty, llvm_ptr_ty],
+                   [ImmArg<ArgIndex<0>>]> {
+  let Doc = KitGPUSymbolAddressDoc;
+}
+
+// Unregister device code that was previously registered with
+// int_kit_gpu_register_devcode.
+def int_kit_gpu_unregister_devcode
+    : KitIntrinsic<[], [llvm_i32_ty, llvm_ptr_ty], [ImmArg<ArgIndex<0>>]> {
+  let Doc = KitGPUUnregisterDevCodeDoc;
 }
 
 //------------------------------------------------------------------------------
