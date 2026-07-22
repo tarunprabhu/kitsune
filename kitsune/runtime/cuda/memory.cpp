@@ -381,6 +381,26 @@ void *__kitcuda_mem_host_prefetch(void *vp, uint64_t bytes,
   return nullptr;
 }
 
+void __kitcuda_memcpy_dtoh(void *hostPtr, uint64_t devicePtr, uint64_t bytes) {
+  assert(hostPtr && "host pointer must not be null");
+  assert(devicePtr && "device pointer must not be null");
+  assert(bytes && "bytes to copy must not be zero");
+
+  KIT_NVTX_PUSH("kitcuda:memcpy_dtoh", KIT_NVTX_MEM);
+  CU_SAFE_CALL(cuMemcpyDtoH(hostPtr, devicePtr, bytes));
+  KIT_NVTX_POP();
+}
+
+void __kitcuda_memcpy_htod(uint64_t devicePtr, void *hostPtr, uint64_t bytes) {
+  assert(devicePtr && "device point must not be null");
+  assert(hostPtr && "host pointer must not be null");
+  assert(bytes && "bytes to copy must not be zero");
+
+  KIT_NVTX_PUSH("kitcuda:memcpy_htod", KIT_NVTX_MEM);
+  CU_SAFE_CALL(cuMemcpyHtoD(devicePtr, hostPtr, bytes));
+  KIT_NVTX_POP();
+}
+
 void __kitcuda_memcpy_sym_to_device(uint64_t devPtr, void *hostPtr,
                                     size_t size) {
   assert(devPtr != 0 && "unexpected null device pointer!");

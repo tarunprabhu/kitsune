@@ -248,6 +248,24 @@ void *__kithip_mem_gpu_prefetch(void *ptr, uint64_t bytes, void *opaque_stream);
 void __kithip_mem_host_prefetch(void *ptr, uint64_t byes, void *opaque_stream);
 
 /**
+ * Synchronous memcpy from device to host.
+ *
+ * @param hostPtr Destination address on the host.
+ * @param devicePtr Source pointer on the device.
+ * @param bytes The number of bytes to copy.
+ */
+void __kithip_memcpy_dtoh(void *hostPtr, void *devicePtr, uint64_t bytes);
+
+/**
+ * Synchronous memcpy from host to device.
+ *
+ * @param devicePtr Destination address on the host.
+ * @param hostPtr Source pointer on the device.
+ * @param bytes The number of bytes to copy.
+ */
+void __kithip_memcpy_htod(void *devicePtr, void *hostPtr, uint64_t bytes);
+
+/**
  * Find symbol named \p sym_name in the module represented \p fat_bin.
  */
 void *__kithip_get_global_symbol(void *fat_bin, const char *sym_name);
