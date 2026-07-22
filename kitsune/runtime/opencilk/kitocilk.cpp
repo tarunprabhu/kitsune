@@ -100,23 +100,6 @@ extern "C" uint64_t __kitocilk_worker_id(void) {
   return __cilkrts_get_worker_number();
 }
 
-/// The number of partial reductions to perform in parallel.
-///
-/// \param n The trip count of the parallel loop containing a reduction
-extern "C" uint64_t __kitocilk_reduce_num_partials(uint64_t n) {
-  assert(__kitocilk_initialized() && "kitocilk initialized");
-  LOG("Calculating number of partial reductions");
-
-  // There might be something smarter that can be done once we support a proper
-  // reduction tree, but since we only support a reduction tree of depth 1, we
-  // just return the number of available workers.
-  uint64_t numPartials = __kitocilk_num_workers();
-
-  LOG("Number of partial reductions: %d", numPartials);
-
-  return numPartials;
-}
-
 /// Check if this runtime has already been initialized. It is deemed to have
 /// been initialized if a context for the runtime has been registered with the
 /// global singleton.

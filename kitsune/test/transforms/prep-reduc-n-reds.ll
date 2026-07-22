@@ -24,7 +24,7 @@
 ; CHECK: %[[R3:.+]] = alloca i32
 ; CHECK: %[[R4:.+]] = alloca i32
 ;
-; CHECK: %[[NREDS:.+]] = call {{.+}} @llvm.kit.reduce.num.partials(i32 1024, i64 %[[N]])
+; CHECK: %[[NREDS:.+]] = call i64 @llvm.kit.cpu.num.threads(i32 1024)
 ; CHECK-NEXT: %[[BYTES1:.+]] = mul {{.+}} 8, %[[NREDS]]
 ; CHECK-NEXT: %[[BUF1:.+]] = call {{.+}} @llvm.kit.mobile.alloc(i32 1024, i64 %[[BYTES1]])
 ; CHECK-NEXT: call void {{.+}} @llvm.kit.mobile.init

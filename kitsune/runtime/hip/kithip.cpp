@@ -235,22 +235,6 @@ extern "C" uint64_t __kithip_num_cus(void) {
   return mps * 2;
 }
 
-/// The number of partial reductions to perform in parallel.
-///
-/// \param n The trip count of the parallel loop in containing a reduction
-extern "C" uint64_t __kithip_reduce_num_partials(uint64_t n) {
-  LOG("Calculating number of partial reductions\n");
-
-  // FIXME: This is simply a placeholder to check that the rest of the
-  // transformations work as expected. It is beyond terrible for performance, so
-  // fix this is ASAP.
-  uint64_t numPartials = 8;
-
-  LOG("Number of partial reductions: %ld\n", numPartials);
-
-  return numPartials;
-}
-
 // These are declarations from ROCm's "internal" headers (internal in the sense
 // that they are in headers that are part of the ROCm installation, but they
 // don't look like they are intended for the average user)

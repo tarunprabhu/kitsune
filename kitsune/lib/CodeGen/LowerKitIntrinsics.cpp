@@ -60,7 +60,6 @@ static const KitRTFuncMap kitCudaFuncs = {
      KitFunc::kitcuda_unregister_devcode},
     {Intrinsic::kit_mobile_alloc, KitFunc::kitcuda_managed_malloc},
     {Intrinsic::kit_mobile_free, KitFunc::kitcuda_managed_free},
-    {Intrinsic::kit_reduce_num_partials, KitFunc::kitcuda_reduce_num_partials},
     {Intrinsic::kit_runtime_finalize, KitFunc::kitcuda_finalize},
     {Intrinsic::kit_runtime_initialize, KitFunc::kitcuda_initialize},
 };
@@ -83,7 +82,6 @@ static const KitRTFuncMap kitHipFuncs = {
     {Intrinsic::kit_gpu_unregister_devcode, KitFunc::kithip_unregister_devcode},
     {Intrinsic::kit_mobile_alloc, KitFunc::kithip_managed_malloc},
     {Intrinsic::kit_mobile_free, KitFunc::kithip_managed_free},
-    {Intrinsic::kit_reduce_num_partials, KitFunc::kithip_reduce_num_partials},
     {Intrinsic::kit_runtime_finalize, KitFunc::kithip_finalize},
     {Intrinsic::kit_runtime_initialize, KitFunc::kithip_initialize},
     {Intrinsic::kit_runtime_set_xnack, KitFunc::kithip_enable_xnack},
@@ -97,7 +95,6 @@ static const KitRTFuncMap kitOpenCilkFuncs = {
     {Intrinsic::kit_cpu_thread_id, KitFunc::kitocilk_worker_id},
     {Intrinsic::kit_mobile_alloc, KitFunc::kitrt_malloc},
     {Intrinsic::kit_mobile_free, KitFunc::kitrt_free},
-    {Intrinsic::kit_reduce_num_partials, KitFunc::kitocilk_reduce_num_partials},
     {Intrinsic::kit_runtime_finalize, KitFunc::kitocilk_finalize},
     {Intrinsic::kit_runtime_initialize, KitFunc::kitocilk_initialize},
 };
@@ -109,7 +106,6 @@ static const KitRTFuncMap kitOpenMPFuncs = {
     {Intrinsic::kit_cpu_threads_launch, KitFunc::kitomp_launch},
     {Intrinsic::kit_mobile_alloc, KitFunc::kitrt_malloc},
     {Intrinsic::kit_mobile_free, KitFunc::kitrt_free},
-    {Intrinsic::kit_reduce_num_partials, KitFunc::kitomp_reduce_num_partials},
     {Intrinsic::kit_runtime_finalize, KitFunc::kitomp_finalize},
     {Intrinsic::kit_runtime_initialize, KitFunc::kitomp_initialize},
 };
@@ -122,7 +118,6 @@ static const KitRTFuncMap kitPthreadsFuncs = {
     {Intrinsic::kit_cpu_threads_sync, KitFunc::kitpthr_sync},
     {Intrinsic::kit_mobile_alloc, KitFunc::kitrt_malloc},
     {Intrinsic::kit_mobile_free, KitFunc::kitrt_free},
-    {Intrinsic::kit_reduce_num_partials, KitFunc::kitpthr_reduce_num_partials},
     {Intrinsic::kit_runtime_finalize, KitFunc::kitpthr_finalize},
     {Intrinsic::kit_runtime_initialize, KitFunc::kitpthr_initialize},
 };
@@ -137,7 +132,6 @@ static const KitRTFuncMap kitQthreadsFuncs = {
     // that is something we should consider using.
     {Intrinsic::kit_mobile_alloc, KitFunc::kitrt_malloc},
     {Intrinsic::kit_mobile_free, KitFunc::kitrt_free},
-    {Intrinsic::kit_reduce_num_partials, KitFunc::kitqthr_reduce_num_partials},
     {Intrinsic::kit_runtime_finalize, KitFunc::kitqthr_finalize},
     {Intrinsic::kit_runtime_initialize, KitFunc::kitqthr_initialize},
 };

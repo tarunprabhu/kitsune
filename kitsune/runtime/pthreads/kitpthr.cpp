@@ -179,23 +179,6 @@ extern "C" uint64_t __kitpthr_num_threads(void) {
 /// Get the ID of the thread from which this is called.
 extern "C" uint64_t __kitpthr_thread_id(void) { return pthread_self(); }
 
-/// The number of partial reductions to perform in parallel.
-///
-/// \param n The trip count of the parallel loop containing a reduction
-extern "C" uint64_t __kitpthr_reduce_num_partials(uint64_t n) {
-  assert(__kitpthr_initialized() && "kitpthr initialized");
-  LOG("Calculating number of partial reductions");
-
-  // There might be something smarter that can be done once we support a proper
-  // reduction tree, but since we only support a reduction tree of depth 1, we
-  // just use as many partials as there are CPU's on the system.
-  uint64_t numPartials = __kitpthr_num_threads();
-
-  LOG("Number of partial reductions: %d", numPartials);
-
-  return numPartials;
-}
-
 /// The function that is launched by each thread. This simply finds the "actual"
 /// function that is to be run in \p thrdInfo and calls it. The arguments to the
 /// actual function are also present in \p thrdInfo. Always returns 0.

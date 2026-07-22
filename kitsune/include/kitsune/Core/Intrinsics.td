@@ -422,16 +422,6 @@ def int_kit_reduce_1
   let Doc = KitReduce1DDoc;
 }
 
-// Get the number of partial reductions to perform when lowering a parallel
-// reduction.
-def int_kit_reduce_num_partials
-    : KitIntrinsic<[llvm_i64_ty],
-                   [llvm_i32_ty,  // TTID
-                    llvm_i64_ty], // Reduction loop trip count
-                   [ImmArg<ArgIndex<0>>]> {
-  let Doc = KitReduceNumPartialsDoc;
-}
-
 //------------------------------------------------------------------------------
 // Intrinsics for Kitsune's runtime that are not specific to a tapir target.
 
