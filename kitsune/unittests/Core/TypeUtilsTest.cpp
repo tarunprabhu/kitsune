@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/TypeUtils.h"
+#include "kitsune/Core/AddrSpace.h"
 
 #include "llvm/IR/LLVMContext.h"
 
@@ -15,6 +16,22 @@
 using namespace llvm;
 
 namespace {
+
+TEST(KitTypeUtils, isMobilePointerTy) {
+  LLVMContext ctx;
+  Type *voidTy = Type::getVoidTy(ctx);
+  Type *i32 = Type::getInt32Ty(ctx);
+  Type *ptr = PointerType::getUnqual(ctx);
+  Type *mobile = PointerType::get(ctx, KitAS::Mobile);
+  Type *ptrAS = PointerType::get(ctx, 1);
+
+  EXPECT_FALSE(isMobilePointerTy(voidTy));
+  EXPECT_FALSE(isMobilePointerTy(i32));
+  EXPECT_FALSE(isMobilePointerTy(ptr));
+  EXPECT_FALSE(isMobilePointerTy(ptrAS));
+
+  EXPECT_TRUE(isMobilePointerTy(mobile));
+}
 
 TEST(KitTypeUtils, getLLVMTypeFor) {
   LLVMContext ctx;
