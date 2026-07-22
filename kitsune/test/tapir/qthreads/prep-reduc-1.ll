@@ -6,7 +6,7 @@
 ; CHECK-SAME: i64 %[[N:[^)]+]]
 ; CHECK: %[[RESULT:.+]] = alloca i32
 ; CHECK: %[[SYNCREG:.+]] = tail call token @llvm.syncregion.start()
-; CHECK: %[[NREDS:.+]] = call i64 @llvm.kit.reduce.num.partials(i32 32, i64 %[[N]])
+; CHECK: %[[NREDS:.+]] = call i64 @llvm.kit.cpu.num.threads(i32 32)
 ; CHECK-NEXT: %[[BYTES:.+]] = mul {{.+}} 4, %[[NREDS]]
 ; CHECK-NEXT: %[[REDS:.+]] = call {{.+}} @llvm.kit.mobile.alloc(i32 32, i64 %[[BYTES]])
 ; CHECK-NEXT: call void {{.+}} @llvm.kit.mobile.init

@@ -131,11 +131,6 @@ def kitcuda_prefetch_dtoh :
 def kitcuda_prefetch_htod :
     KitFunc<"__kitcuda_mem_gpu_prefetch", Ptr, [Ptr, U64, Ptr]>;
 
-// FIXME: Remove this library function in favor of kitcuda_num_compute_units
-// uint64_t __kitcuda_reduce_num_partials(uint64_t tripCount)
-def kitcuda_reduce_num_partials :
-    KitFunc<"__kitcuda_reduce_num_partials", U64, [U64]>;
-
 // void* __kitcuda_register_devcode(void* deviceCode)
 def kitcuda_register_devcode :
     KitFunc<"__kitcuda_register_devcode", Ptr, [Ptr]>;
@@ -239,11 +234,6 @@ def kithip_prefetch_dtoh :
 def kithip_prefetch_htod :
     KitFunc<"__kithip_mem_gpu_prefetch", Ptr, [Ptr, U64, Ptr]>;
 
-// FIXME: Remove this library function in favor of kithip_num_compute_units
-// uint64_t __kithip_reduce_num_partials(uint64_t tripCount)
-def kithip_reduce_num_partials :
-    KitFunc<"__kithip_reduce_num_partials", U64, [U64]>;
-
 // void* __kithip_register_devcode(void* deviceCode)
 def kithip_register_devcode :
     KitFunc<"__kithip_register_devcode", Ptr, [Ptr]>;
@@ -304,11 +294,6 @@ def kitocilk_initialize :
 def kitocilk_num_workers :
     KitFunc<"__kitocilk_num_workers", U64, []>;
 
-// FIXME: Remove this altogether.
-// uint64_t __kitocilk_reduce_num_partials(uint64_t);
-def kitocilk_reduce_num_partials :
-    KitFunc<"__kitocilk_reduce_num_partials", U64, [U64]>;
-
 def kitocilk_worker_id :
     KitFunc<"__kitocilk_worker_id", U64, []>;
 
@@ -331,11 +316,6 @@ def kitomp_num_threads :
 def kitomp_launch :
     KitFunc<"__kitomp_launch", Void, [Ptr, U64, U64, Ptr, U64]>;
 
-// FIXME: Remove this altogether.
-// uint64_t __kitomp_reduce_num_partials(uint64_t);
-def kitomp_reduce_num_partials :
-    KitFunc<"__kitomp_reduce_num_partials", U64, [U64]>;
-
 def kitomp_thread_id :
     KitFunc<"__kitomp_thread_id", U64, []>;
 
@@ -357,11 +337,6 @@ def kitpthr_initialize :
 
 def kitpthr_num_threads :
     KitFunc<"__kitpthr_num_threads", U64, []>;
-
-// FIXME: Remove this altogether.
-// uint64_t __kitpthr_reduce_num_partials(uint64_t);
-def kitpthr_reduce_num_partials :
-    KitFunc<"__kitpthr_reduce_num_partials", U64, [U64]>;
 
 // void __kitpthr_sync(void*)
 def kitpthr_sync :
@@ -388,11 +363,6 @@ def kitqthr_num_workers :
 //                       uint64_t argSize);
 def kitqthr_launch :
     KitFunc<"__kitqthr_launch", Void, [Ptr, U64, U64, Ptr, U64]>;
-
-// FIXME: Remove this altogether.
-// uint64_t __kitqthr_reduce_num_partials(uint64_t);
-def kitqthr_reduce_num_partials :
-    KitFunc<"__kitqthr_reduce_num_partials", U64, [U64]>;
 
 def kitqthr_worker_id :
     KitFunc<"__kitqthr_worker_id", U64, []>;

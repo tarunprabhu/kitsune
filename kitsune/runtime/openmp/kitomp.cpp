@@ -141,24 +141,6 @@ extern "C" uint64_t __kitomp_num_threads(void) {
 /// Get the ID of the thread from which this is called.
 extern "C" uint64_t __kitomp_thread_id(void) { return omp_get_thread_num(); }
 
-/// The number of partial reductions to perform in parallel.
-///
-/// \param n The trip count of the parallel loop containing a reduction
-extern "C" uint64_t __kitomp_reduce_num_partials(uint64_t n) {
-  assert(__kitomp_initialized() && "kitomp initialized");
-
-  LOG("Calculating number of partial reductions");
-
-  // There might be something smarter that can be done once we support a proper
-  // reduction tree, but since we only support a reduction tree of depth 1, we
-  // just return the number of CPU's on the system.
-  uint64_t numPartials = __kitomp_num_threads();
-
-  LOG("Number of partial reductions: %d", numPartials);
-
-  return numPartials;
-}
-
 /// This wraps the function \p f that will be launched on each thread. It
 /// calculates the range of iterations that should be executed by \p f, then,
 /// invokes it with that range. This uses static scheduling - so every thread
