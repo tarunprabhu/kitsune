@@ -21,7 +21,7 @@
 ; CHECK-NEXT: call ptr @__kitcuda_mem_gpu_prefetch(ptr %[[BUF]], i64 -1, ptr %[[STREAM]])
 ; CHECK-NEXT: call ptr @__kitcuda_mem_gpu_prefetch(ptr %[[BUF]], i64 1024, ptr %[[STREAM]])
 ; CHECK-NEXT: store ptr null, ptr %1
-; CHECK-NEXT: %7 = getelementptr inbounds [1 x ptr], ptr %2, i64 0, i64 0
+; CHECK-NEXT: %7 = getelementptr inbounds [1 x ptr], ptr %2, i32 0, i32 0
 ; CHECK-NEXT: store ptr %1, ptr %7
 ; CHECK-NEXT: %8 = call ptr @__kitcuda_launch_kernel(ptr null, ptr @.name, i64 128, i64 0, i64 -1, i32 24, ptr null, ptr %[[STREAM]], ptr %2)
 ; CHECK-NEXT: call void @__kitcuda_sync_thread_stream(ptr %[[STREAM]])
