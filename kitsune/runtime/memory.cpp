@@ -65,15 +65,6 @@ template <> constexpr const char *getTypeName<int64_t>() { return "int64_t"; }
 template <> constexpr const char *getTypeName<float>() { return "float"; }
 template <> constexpr const char *getTypeName<double>() { return "double"; }
 
-template <typename T> static constexpr const char *getTypeFmt();
-template <> constexpr const char *getTypeFmt<bool>() { return "%d"; }
-template <> constexpr const char *getTypeFmt<int8_t>() { return "%d"; }
-template <> constexpr const char *getTypeFmt<int16_t>() { return "%d"; }
-template <> constexpr const char *getTypeFmt<int32_t>() { return "%d"; }
-template <> constexpr const char *getTypeFmt<int64_t>() { return "%ld"; }
-template <> constexpr const char *getTypeFmt<float>() { return "%f"; }
-template <> constexpr const char *getTypeFmt<double>() { return "%g"; }
-
 extern "C" [[gnu::malloc]] void *__kitrt_default_mem_alloc(uint64_t bytes) {
   void *ptr = malloc(bytes);
   __kitrt_register_mem_alloc(ptr, bytes);
