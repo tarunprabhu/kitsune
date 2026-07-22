@@ -3,7 +3,6 @@ set(TESTS
   Launch.c
   MultipleInit.c
   MultipleFini.c
-  NumPartials.c
   RTInitFini.c
   WorkerID.c
 )

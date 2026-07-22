@@ -37,7 +37,7 @@
 // This pass will transform this into the following for parallel execution on a
 // CPU.
 //
-//     int64_t numPartials = kit.reduce.num.partials(n);
+//     int64_t numPartials = ...
 //     int64_t sizePartial = (n + numPartials - 1) / numPartials;
 //     int32_t* buf32 = kit.mobile.alloc(numPartials * sizeof(int32_t));
 //     int64_t* buf64 = kit.mobile.alloc(numPartials * sizeof(int64_t));
@@ -56,15 +56,15 @@
 //     kit.mobile.free(buf32);
 //     kit.mobile.free(buf64);
 //
-// Here, kit.reduce.num.partials is used to determine the number of partial
-// reductions that are to be performed in parallel. An outer parallel loop is
-// added to carry these out. Each iteration of the parallel loop will perform a
-// sequential reduction. This is followed by calls to kit.reduce.1 which
-// computes the final result from the partial reductions.
+// Here, numPartials is the number of partial reductions that are to be
+// performed in parallel. An outer parallel loop is added to carry these out.
+// Each iteration of the parallel loop will perform a sequential reduction. This
+// is followed by calls to kit.reduce.1 which computes the final result from the
+// partial reductions.
 //
 // The code below is the transformation that is carried out for GPU's.
 //
-//     int64_t numPartials = kit.reduce.num.partials(n);
+//     int64_t numPartials = ...;
 //     int64_t partialSize = (n + numPartials - 1) / numPartials;
 //     int32_t* buf32 = kit.mobile.alloc(numPartials * sizeof(int32_t));
 //     int64_t* buf64 = kit.mobile.alloc(numPartials * sizeof(int64_t));
@@ -315,15 +315,9 @@ BasicBlock *PrepareReductionLoop::genFreePartialsBlock(Loop &outerLoop) {
   return bb;
 }
 
-// Insert code to calculate the number of partial reductions to use. This
-// simply inserts a call to Kitsune's kit.reduce.num.partials intrinsic that
-// performs the actual calculation. The intrinsic will be lowered in a later
-// pass.
-//
-//      prduc.numPartials = call @llvm.kit.reduce.num.partials(i64 %n)
-//
-// Here %n is the trip count of the tapir reduction loop being transformed,
-// \p tapirLoop
+// Insert code to calculate the number of partial reductions to use. On CPU's,
+// this inserts a call to Kitsune's kit.cpu.num.threads intrinsic. On GPU's,
+// this inserts a call to Kitsune's kit.gpu.num.compute.units.
 Value *PrepareReductionLoop::computeNumPartialReductions(
     BasicBlock &bb, const TapirLoopInfo &tapirLoop) {
   auto sanityCheck = [](const TapirLoopInfo &tapirLoop) {
@@ -338,17 +332,17 @@ Value *PrepareReductionLoop::computeNumPartialReductions(
   sanityCheck(tapirLoop);
 
   LLVMContext &ctx = bb.getContext();
-  Type *i64 = Type::getInt64Ty(ctx);
-
   Loop &loop = *tapirLoop.getLoop();
+
   TTID tt = *getTargetAttr(loop);
   Constant *ctt = toConstant(tt, ctx);
-  Value *tc = tapirLoop.getTripCount();
 
   IRBuilder<> builder(&*bb.begin());
-  Value *tc64 = builder.CreateIntCast(tc, i64, /*isSigned=*/true);
+  Intrinsic::ID numPartialsFunc = isGPUTT(tt)
+                                      ? Intrinsic::kit_gpu_num_compute_units
+                                      : Intrinsic::kit_cpu_num_threads;
   Value *numPartials =
-      builder.CreateIntrinsic(Intrinsic::kit_reduce_num_partials, {ctt, tc64},
+      builder.CreateIntrinsic(numPartialsFunc, {ctt},
                               /*FMFSource=*/{}, "prduc.num.partials");
 
   return numPartials;
