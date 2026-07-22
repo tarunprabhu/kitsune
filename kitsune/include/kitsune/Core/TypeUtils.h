@@ -23,6 +23,9 @@ namespace llvm {
 /// Is the type an array of bytes.
 bool isByteArrayTy(Type *ty);
 
+/// Is the type a mobile pointer.
+bool isMobilePointerTy(Type *ty);
+
 /// Get the LLVM type for a given C++ type. This only works for primitive and
 /// pointer types. This cannot be used for struct/class types. However, pointers
 /// to struct's or classes are allowed.
