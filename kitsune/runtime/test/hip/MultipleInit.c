@@ -14,14 +14,15 @@
 // CHECK: Runtime already initialized
 // CHECK: Initialized = {{[1-9][0-9]*}}
 
+#include <stdbool.h>
+#include <stdio.h>
+
 // hip/kithip.h is not safe to be included in C source files. That header should
 // be modified, but that might be a non-trivial change, so for now, this is
 // easier.
 bool __kithip_is_initialized(void);
 void __kithip_initialize(void);
 void __kithip_finalize(void);
-
-#include <stdio.h>
 
 __attribute__((constructor)) static void ctor(void) {
   fprintf(stderr, "Initialized = %d\n", __kithip_is_initialized());
