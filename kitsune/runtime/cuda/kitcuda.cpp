@@ -258,6 +258,13 @@ void __kitcuda_finalize(void) {
   __kitrt_finalize();
 }
 
+extern "C" uint64_t __kitcuda_num_sms(void) {
+  int sms;
+  cuDeviceGetAttribute_p(&sms, CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT,
+                         _kitcuda_device);
+  return sms;
+}
+
 /// The number of partial reductions to perform in parallel.
 ///
 /// \param n The trip count of the parallel loop in containing a reduction

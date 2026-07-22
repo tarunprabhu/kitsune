@@ -183,6 +183,12 @@ def int_kit_gpu_grid_size_z
   let Doc = KitGPUGridSizeZDoc;
 }
 
+// Get the number of compute units available to a GPU tapir target.
+def int_kit_gpu_num_compute_units
+    : KitIntrinsic<[llvm_i64_ty], [llvm_i32_ty], [ImmArg<ArgIndex<0>>]> {
+  let Doc = KitGPUNumComputeUnitsDoc;
+}
+
 // Get a new GPU stream.
 def int_kit_gpu_stream_new
     : KitIntrinsic<[llvm_ptr_ty], [llvm_i32_ty], [ImmArg<ArgIndex<0>>]> {
@@ -427,7 +433,7 @@ def int_kit_reduce_num_partials
 }
 
 //------------------------------------------------------------------------------
-// Intrinsics to control Kitsune's runtime(s).
+// Intrinsics for Kitsune's runtime that are not specific to a tapir target.
 
 // Finalize Kitsune's runtime.
 def int_kit_runtime_finalize

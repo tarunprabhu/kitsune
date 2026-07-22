@@ -46,6 +46,7 @@ static const KitRTFuncMap kitCudaFuncs = {
     {Intrinsic::kit_async_gpu_prefetch_htod, KitFunc::kitcuda_prefetch_htod},
     {Intrinsic::kit_gpu_memcpy_dtoh, KitFunc::kitcuda_memcpy_dtoh},
     {Intrinsic::kit_gpu_memcpy_htod, KitFunc::kitcuda_memcpy_htod},
+    {Intrinsic::kit_gpu_num_compute_units, KitFunc::kitcuda_num_sms},
     {Intrinsic::kit_gpu_register_devcode, KitFunc::kitcuda_register_devcode},
     {Intrinsic::kit_gpu_register_devcode_end,
      KitFunc::kitcuda_register_devcode_end},
@@ -71,6 +72,7 @@ static const KitRTFuncMap kitHipFuncs = {
     {Intrinsic::kit_async_gpu_prefetch_htod, KitFunc::kithip_prefetch_htod},
     {Intrinsic::kit_gpu_memcpy_dtoh, KitFunc::kithip_memcpy_dtoh},
     {Intrinsic::kit_gpu_memcpy_htod, KitFunc::kithip_memcpy_htod},
+    {Intrinsic::kit_gpu_num_compute_units, KitFunc::kithip_num_cus},
     {Intrinsic::kit_gpu_register_devcode, KitFunc::kithip_register_devcode},
     {Intrinsic::kit_gpu_register_global, KitFunc::kithip_register_global},
     {Intrinsic::kit_gpu_register_global_managed,
@@ -142,11 +144,11 @@ static const KitRTFuncMap kitQthreadsFuncs = {
 
 /// Kitsune runtime functions for the serial tapir target.
 static const KitRTFuncMap kitSerialFuncs = {
+    {Intrinsic::kit_cpu_thread_id, KitFunc::kitser_thread_id},
     {Intrinsic::kit_mobile_alloc, KitFunc::kitrt_malloc},
     {Intrinsic::kit_mobile_free, KitFunc::kitrt_free},
     {Intrinsic::kit_runtime_finalize, KitFunc::kitser_finalize},
     {Intrinsic::kit_runtime_initialize, KitFunc::kitser_initialize},
-    {Intrinsic::kit_cpu_thread_id, KitFunc::kitser_thread_id},
 };
 
 /// Runtime library function maps for tapir targets that have a corresponding

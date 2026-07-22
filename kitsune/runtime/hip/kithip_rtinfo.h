@@ -67,6 +67,7 @@ struct kithip_rt_info_t {
   bool initialized = false;
   int device_id = 0; // KITHIP_DEVICE_ID
   int device_count = -1;
+  bool isGCN = false;
   hipDeviceProp_t props;
 
   // compiler/enviornment driven settings.
