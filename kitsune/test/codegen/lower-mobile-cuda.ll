@@ -31,13 +31,14 @@ define void @deallocate(ptr addrspace(67) %p) {
 
 ; CHECK-LABEL: @fi1
 ; CHECK-SAME: ptr {{[^%]+}}%[[BUF:[^,]+]]
-; CHECK-SAME: i64 %[[N:[^)]+]]
+; CHECK-SAME: i64 %[[N:[^,]+]]
+; CHECK-SAME: i1 %[[INIT:[^)]+]]
 ; CHECK-NEXT: %[[CST:.+]] = addrspacecast {{.+}}%[[BUF]] to ptr
-; CHECK-NEXT: %[[V:.+]] = zext i1 false to i8
+; CHECK-NEXT: %[[V:.+]] = zext nneg i1 %[[INIT]] to i8
 ; CHECK-NEXT: call void @__kitrt_mobile_init_bool
 ; CHECK-SAME: (ptr {{.*}}%[[CST]], i64 %[[N]], i8 %[[V]])
-define void @fi1(ptr addrspace(67) %buf, i64 %n) {
-  call void(i32, ptr addrspace(67), i64, i1, ...) @llvm.kit.mobile.init(i32 2, ptr addrspace(67) %buf, i64 %n, i1 false)
+define void @fi1(ptr addrspace(67) %buf, i64 %n, i1 %init) {
+  call void(i32, ptr addrspace(67), i64, i1, ...) @llvm.kit.mobile.init(i32 2, ptr addrspace(67) %buf, i64 %n, i1 %init)
   ret void
 }
 
