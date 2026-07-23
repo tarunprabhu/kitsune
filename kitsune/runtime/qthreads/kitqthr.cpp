@@ -156,7 +156,7 @@ static unsigned long kitqthrThrdLaunchFn(KitQthrThrdArgs *thrdArgs) {
 /// \param argSize The size of the struct pointed to by \p args.
 extern "C" void __kitqthr_launch(KitQthrThrdFunc f, uint64_t start,
                                  uint64_t end, void *args,
-                                 [[maybe_unused]] uint64_t argSize) {
+                                 [[maybe_unused]] uint32_t argSize) {
   assert(__kitqthr_initialized() && "kitqthr initialized");
   assert(start == 0 && end == __kitqthr_num_workers() &&
          "__kitqthr_launch expects loop iterations in range [0,NUM_THREADS)");

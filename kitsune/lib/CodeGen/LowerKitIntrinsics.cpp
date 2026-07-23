@@ -243,7 +243,7 @@ static bool lowerLaunchThreads(CallInst &call, IRBuilder<> &builder) {
 
   Module &m = *getModule(call);
   const DataLayout &dl = m.getDataLayout();
-  uint64_t bundleSize = dl.getTypeStoreSize(bundleTy).getFixedValue();
+  uint32_t bundleSize = dl.getTypeStoreSize(bundleTy).getFixedValue();
   SmallVector<Value *, 4> launchArgs;
   for (unsigned i = 1; i < getNumNonVariadicArgs(call); ++i)
     launchArgs.push_back(call.getArgOperand(i));
