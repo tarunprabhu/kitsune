@@ -107,17 +107,13 @@ def kitcuda_managed_free :
 def kitcuda_managed_malloc :
     KitFunc<"__kitcuda_mem_alloc_managed", Ptr, [U64]>;
 
-// FIXME: The device pointer tyep is CUdeviceptr which is U64, not Ptr. But we
-// need to fix kit-lower-intrinsics pass before we do this.
 // void __kitcuda_memcpy_dtoh(void *hostPtr, void *devicePtr, uint64_t n)
 def kitcuda_memcpy_dtoh :
-    KitFunc<"__kitcuda_memcpy_dtoh", Void, [Ptr, Ptr, U64]>;
+    KitFunc<"__kitcuda_memcpy_dtoh", Void, [Ptr, U64, U64]>;
 
-// FIXME: The device pointer tyep is CUdeviceptr which is U64, not Ptr. But we
-// need to fix kit-lower-intrinsics pass before we do this.
-// void __kitcuda_memcpy_htod(void *hostPtr, void *devicePtr, uint64_t n)
+// void __kitcuda_memcpy_htod(void *devicePtr, void *hostPtr, uint64_t n)
 def kitcuda_memcpy_htod :
-    KitFunc<"__kitcuda_memcpy_htod", Void, [Ptr, Ptr, U64]>;
+    KitFunc<"__kitcuda_memcpy_htod", Void, [U64, Ptr, U64]>;
 
 // uint64_t __kitcuda_num_sms()
 def kitcuda_num_sms :
