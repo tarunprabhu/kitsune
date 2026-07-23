@@ -10,24 +10,26 @@
 ; CHECK-LABEL: @f
 ; CHECK-SAME: ptr %[[BUF:[^,]+]]
 ; CHECK-SAME: i64 %[[N:[^)]+]]
-; CHECK-NEXT: %1 = alloca ptr
-; CHECK-NEXT: %2 = alloca [1 x ptr]
+; CHECK-NEXT: %[[SLOT0:.+]] = alloca ptr
+; CHECK-NEXT: %[[BUNDLE:.+]] = alloca [1 x ptr]
 ; CHECK-NEXT: %guvm = alloca ptr
 ; CHECK-NEXT: call void @__kitcuda_initialize()
 ; CHECK-NEXT: %[[CUS:.+]] = call i64 @__kitcuda_num_sms()
 ; CHECK-NEXT: %[[STREAM:.+]] = call ptr @__kitcuda_get_thread_stream()
 ; CHECK-NEXT: %[[GSYM:.+]] = call ptr @__kitcuda_get_global_symbol(ptr null, ptr @.gname)
-; CHECK-NEXT: call void @__kitcuda_memcpy_htod(ptr %[[GSYM]], ptr @gbuf, i64 28)
+; CHECK-NEXT: %[[GSYMI:.+]] = ptrtoint ptr %[[GSYM]] to i64
+; CHECK-NEXT: call void @__kitcuda_memcpy_htod(i64 %[[GSYMI]], ptr @gbuf, i64 28)
 ; CHECK-NEXT: call ptr @__kitcuda_mem_gpu_prefetch(ptr %[[BUF]], i64 -1, ptr %[[STREAM]])
 ; CHECK-NEXT: call ptr @__kitcuda_mem_gpu_prefetch(ptr %[[BUF]], i64 1024, ptr %[[STREAM]])
-; CHECK-NEXT: store ptr null, ptr %1
-; CHECK-NEXT: %7 = getelementptr inbounds [1 x ptr], ptr %2, i32 0, i32 0
-; CHECK-NEXT: store ptr %1, ptr %7
-; CHECK-NEXT: %8 = call ptr @__kitcuda_launch_kernel(ptr null, ptr @.name, i64 128, i64 0, i64 -1, i32 24, ptr null, ptr %[[STREAM]], ptr %2)
+; CHECK-NEXT: store ptr null, ptr %[[SLOT0]]
+; CHECK-NEXT: %[[OFF0:.+]] = getelementptr inbounds [1 x ptr], ptr %[[BUNDLE]], i32 0, i32 0
+; CHECK-NEXT: store ptr %[[SLOT0]], ptr %[[OFF0]]
+; CHECK-NEXT: call ptr @__kitcuda_launch_kernel(ptr null, ptr @.name, i64 128, i64 0, i64 -1, i32 24, ptr null, ptr %[[STREAM]], ptr %[[BUNDLE]])
 ; CHECK-NEXT: call void @__kitcuda_sync_thread_stream(ptr %[[STREAM]])
-; CHECK-NEXT: call void @__kitcuda_memcpy_dtoh(ptr @gbuf, ptr %[[GSYM]], i64 28)
-; CHECK-NEXT: %9 = call ptr @__kitcuda_mem_host_prefetch(ptr %[[BUF]], i64 -1, ptr %[[STREAM]])
-; CHECK-NEXT: %10 = call ptr @__kitcuda_mem_host_prefetch(ptr %[[BUF]], i64 1024, ptr %[[STREAM]])
+; CHECK-NEXT: %[[GSYMI:.+]] = ptrtoint ptr %[[GSYM]] to i64
+; CHECK-NEXT: call void @__kitcuda_memcpy_dtoh(ptr @gbuf, i64 %[[GSYMI]], i64 28)
+; CHECK-NEXT: call ptr @__kitcuda_mem_host_prefetch(ptr %[[BUF]], i64 -1, ptr %[[STREAM]])
+; CHECK-NEXT: call ptr @__kitcuda_mem_host_prefetch(ptr %[[BUF]], i64 1024, ptr %[[STREAM]])
 ; CHECK-NEXT: %[[HANDLE:.+]] = call ptr @__kitcuda_register_devcode(ptr null)
 ; CHECK-NEXT: call void @__kitcuda_register_devcode_end(ptr %[[HANDLE]])
 ; CHECK-NEXT: call void @__kitcuda_register_global(ptr %[[HANDLE]], ptr @gbuf, ptr @.gname, ptr @.gname, i64 28, i32 1, i32 0)
@@ -43,8 +45,8 @@
 ; CHECK-DAG: ptr @__kitcuda_launch_kernel(ptr, ptr, i64, i64, i64, i32, ptr, ptr, ptr) #[[ATTRS]]
 ; CHECK-DAG: ptr @__kitcuda_mem_gpu_prefetch(ptr, i64, ptr) #[[ATTRS]]
 ; CHECK-DAG: ptr @__kitcuda_mem_host_prefetch(ptr, i64, ptr) #[[ATTRS]]
-; CHECK-DAG: void @__kitcuda_memcpy_dtoh(ptr, ptr, i64) #[[ATTRS]]
-; CHECK-DAG: void @__kitcuda_memcpy_htod(ptr, ptr, i64) #[[ATTRS]]
+; CHECK-DAG: void @__kitcuda_memcpy_dtoh(ptr, i64, i64) #[[ATTRS]]
+; CHECK-DAG: void @__kitcuda_memcpy_htod(i64, ptr, i64) #[[ATTRS]]
 ; CHECK-DAG: i64 @__kitcuda_num_sms() #[[ATTRS]]
 ; CHECK-DAG: ptr @__kitcuda_register_devcode(ptr) #[[ATTRS]]
 ; CHECK-DAG: void @__kitcuda_register_devcode_end(ptr) #[[ATTRS]]

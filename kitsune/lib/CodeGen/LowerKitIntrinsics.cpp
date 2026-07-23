@@ -24,135 +24,111 @@
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/LegacyPassManager.h"
-#include "llvm/IR/Module.h"
 #include "llvm/InitializePasses.h"
+
+#include <map>
 
 #define DEBUG_TYPE "kit-lower-intrinsics"
 
 using namespace llvm;
 
-namespace {
+using LibFuncMap = std::map<TTID, KitFunc>;
+using KitIntrLibFuncMap = std::map<Intrinsic::ID, LibFuncMap>;
+#define GET_INTR_LIBFUNC_MAP
+#include "kitsune/Core/IntrLibFuncMap.inc"
+static const KitIntrLibFuncMap intrLibFuncMap = INTR_LIBFUNC_MAP;
 
-using KitRTFuncMap = SmallDenseMap<Intrinsic::ID, KitFunc>;
-using KitRTFuncArgMap = SmallDenseMap<Intrinsic::ID, SmallVector<unsigned, 4>>;
+static bool requiresCustomLowering(const CallInst &call) {
+  switch (call.getIntrinsicID()) {
+#define GET_INTR_LOWERING_SPEC
+#define INTR(NAME, CUSTOM_LOWERING, ALLOW_PARAM_CAST, ALLOW_RETURN_CAST)       \
+  case Intrinsic::NAME:                                                        \
+    return CUSTOM_LOWERING;
+#include "kitsune/Core/IntrLibFuncMap.inc"
+  }
+  llvm_unreachable("requiresCustomLowering: Intrinsic ID not handled");
+}
 
-// Kitsune runtime functions for any tapir target.
-static const KitRTFuncMap kitFuncs; // Currently, there are no such functions.
+static bool allowParamCast(const CallInst &call) {
+  switch (call.getIntrinsicID()) {
+#define GET_INTR_LOWERING_SPEC
+#define INTR(NAME, CUSTOM_LOWERING, ALLOW_PARAM_CAST, ALLOW_RETURN_CAST)       \
+  case Intrinsic::NAME:                                                        \
+    return ALLOW_PARAM_CAST;
+#include "kitsune/Core/IntrLibFuncMap.inc"
+  }
+  llvm_unreachable("allowParamCast: Intrinsic ID not handled");
+}
 
-// Kitsune runtime functions for the cuda tapir target.
-static const KitRTFuncMap kitCudaFuncs = {
-    {Intrinsic::kit_async_gpu_kernel_launch, KitFunc::kitcuda_kernel_launch},
-    {Intrinsic::kit_async_gpu_prefetch_dtoh, KitFunc::kitcuda_prefetch_dtoh},
-    {Intrinsic::kit_async_gpu_prefetch_htod, KitFunc::kitcuda_prefetch_htod},
-    {Intrinsic::kit_gpu_memcpy_dtoh, KitFunc::kitcuda_memcpy_dtoh},
-    {Intrinsic::kit_gpu_memcpy_htod, KitFunc::kitcuda_memcpy_htod},
-    {Intrinsic::kit_gpu_num_compute_units, KitFunc::kitcuda_num_sms},
-    {Intrinsic::kit_gpu_register_devcode, KitFunc::kitcuda_register_devcode},
-    {Intrinsic::kit_gpu_register_devcode_end,
-     KitFunc::kitcuda_register_devcode_end},
-    {Intrinsic::kit_gpu_register_global, KitFunc::kitcuda_register_global},
-    {Intrinsic::kit_gpu_register_global_managed,
-     KitFunc::kitcuda_register_global_managed},
-    {Intrinsic::kit_gpu_stream_new, KitFunc::kitcuda_stream_new},
-    {Intrinsic::kit_gpu_stream_sync, KitFunc::kitcuda_stream_sync},
-    {Intrinsic::kit_gpu_symbol_address, KitFunc::kitcuda_symbol_address},
-    {Intrinsic::kit_gpu_unregister_devcode,
-     KitFunc::kitcuda_unregister_devcode},
-    {Intrinsic::kit_mobile_alloc, KitFunc::kitcuda_managed_malloc},
-    {Intrinsic::kit_mobile_free, KitFunc::kitcuda_managed_free},
-    {Intrinsic::kit_runtime_finalize, KitFunc::kitcuda_finalize},
-    {Intrinsic::kit_runtime_initialize, KitFunc::kitcuda_initialize},
+static bool allowReturnCast(const CallInst &call) {
+  switch (call.getIntrinsicID()) {
+#define GET_INTR_LOWERING_SPEC
+#define INTR(NAME, CUSTOM_LOWERING, ALLOW_PARAM_CAST, ALLOW_RETURN_CAST)       \
+  case Intrinsic::NAME:                                                        \
+    return ALLOW_RETURN_CAST;
+#include "kitsune/Core/IntrLibFuncMap.inc"
+  }
+  llvm_unreachable("allowReturnCast: Intrinsic ID not handled");
+}
+
+static FunctionCallee getRuntimeFunc(CallInst &call, KitFunc rtFunc) {
+  Module &m = *call.getModule();
+  return getOrInsertLibFunc(m, rtFunc);
+}
+
+// Get the kitsune runtime function that will replace the intrinsic called in
+// the given call instruction.
+static FunctionCallee getRuntimeFunc(CallInst &call) {
+  Intrinsic::ID id = call.getIntrinsicID();
+  const LibFuncMap &libFuncMap = intrLibFuncMap.at(id);
+
+  TTID tt = *getTTIDFromKitIntrCall(call);
+  assert(libFuncMap.find(tt) != libFuncMap.end() &&
+         "No library function for tapir target");
+
+  return getRuntimeFunc(call, libFuncMap.at(tt));
+}
+
+// If the type of \p v does not match \p dstTy, insert a cast using the given
+// builder and return the casted value. Otherwise, simply return v.
+Value *maybeCast(Value *v, Type *dstTy, IRBuilder<> &builder) {
+  Type *srcTy = v->getType();
+  if (srcTy == dstTy)
+    return v;
+  else if (srcTy->isPointerTy() && dstTy->isPointerTy())
+    return builder.CreatePointerBitCastOrAddrSpaceCast(v, dstTy);
+  else if (srcTy->isIntegerTy(1) && dstTy->isIntegerTy())
+    return builder.CreateIntCast(v, dstTy, /*isSigned=*/false);
+  else if (srcTy->isIntegerTy() && dstTy->isIntegerTy())
+    return builder.CreateIntCast(v, dstTy, /*isSigned=*/true);
+  else if (srcTy->isFloatingPointTy() && dstTy->isFloatingPointTy())
+    return builder.CreateFPCast(v, dstTy);
+  else if (srcTy->isPointerTy() && dstTy->isIntegerTy())
+    return builder.CreatePtrToInt(v, dstTy);
+  else if (srcTy->isIntegerTy() && srcTy->isPointerTy())
+    return builder.CreateIntToPtr(v, dstTy);
+  llvm_unreachable("maybeCast: Cast kind not yet implemented");
 };
 
-// Kitsune runtime functions for the hip tapir target.
-static const KitRTFuncMap kitHipFuncs = {
-    {Intrinsic::kit_async_gpu_kernel_launch, KitFunc::kithip_kernel_launch},
-    {Intrinsic::kit_async_gpu_prefetch_dtoh, KitFunc::kithip_prefetch_dtoh},
-    {Intrinsic::kit_async_gpu_prefetch_htod, KitFunc::kithip_prefetch_htod},
-    {Intrinsic::kit_gpu_memcpy_dtoh, KitFunc::kithip_memcpy_dtoh},
-    {Intrinsic::kit_gpu_memcpy_htod, KitFunc::kithip_memcpy_htod},
-    {Intrinsic::kit_gpu_num_compute_units, KitFunc::kithip_num_cus},
-    {Intrinsic::kit_gpu_register_devcode, KitFunc::kithip_register_devcode},
-    {Intrinsic::kit_gpu_register_global, KitFunc::kithip_register_global},
-    {Intrinsic::kit_gpu_register_global_managed,
-     KitFunc::kithip_register_global_managed},
-    {Intrinsic::kit_gpu_stream_new, KitFunc::kithip_stream_new},
-    {Intrinsic::kit_gpu_stream_sync, KitFunc::kithip_stream_sync},
-    {Intrinsic::kit_gpu_symbol_address, KitFunc::kithip_symbol_address},
-    {Intrinsic::kit_gpu_unregister_devcode, KitFunc::kithip_unregister_devcode},
-    {Intrinsic::kit_mobile_alloc, KitFunc::kithip_managed_malloc},
-    {Intrinsic::kit_mobile_free, KitFunc::kithip_managed_free},
-    {Intrinsic::kit_runtime_finalize, KitFunc::kithip_finalize},
-    {Intrinsic::kit_runtime_initialize, KitFunc::kithip_initialize},
-    {Intrinsic::kit_runtime_set_xnack, KitFunc::kithip_enable_xnack},
-    {Intrinsic::kit_runtime_set_y_axis_kernel_launch,
-     KitFunc::kithip_enable_y_axis_launches},
-};
-
-// Kitsune runtime functions for the opencilk tapir target.
-static const KitRTFuncMap kitOpenCilkFuncs = {
-    {Intrinsic::kit_cpu_num_threads, KitFunc::kitocilk_num_workers},
-    {Intrinsic::kit_cpu_thread_id, KitFunc::kitocilk_worker_id},
-    {Intrinsic::kit_mobile_alloc, KitFunc::kitrt_malloc},
-    {Intrinsic::kit_mobile_free, KitFunc::kitrt_free},
-    {Intrinsic::kit_runtime_finalize, KitFunc::kitocilk_finalize},
-    {Intrinsic::kit_runtime_initialize, KitFunc::kitocilk_initialize},
-};
-
-// Kitsune runtime functions for the openmp tapir target.
-static const KitRTFuncMap kitOpenMPFuncs = {
-    {Intrinsic::kit_cpu_num_threads, KitFunc::kitomp_num_threads},
-    {Intrinsic::kit_cpu_thread_id, KitFunc::kitomp_thread_id},
-    {Intrinsic::kit_cpu_threads_launch, KitFunc::kitomp_launch},
-    {Intrinsic::kit_mobile_alloc, KitFunc::kitrt_malloc},
-    {Intrinsic::kit_mobile_free, KitFunc::kitrt_free},
-    {Intrinsic::kit_runtime_finalize, KitFunc::kitomp_finalize},
-    {Intrinsic::kit_runtime_initialize, KitFunc::kitomp_initialize},
-};
-
-// Kitsune runtime functions for the pthreads tapir target.
-static const KitRTFuncMap kitPthreadsFuncs = {
-    {Intrinsic::kit_async_cpu_threads_launch, KitFunc::kitpthr_async_launch},
-    {Intrinsic::kit_cpu_num_threads, KitFunc::kitpthr_num_threads},
-    {Intrinsic::kit_cpu_thread_id, KitFunc::kitpthr_thread_id},
-    {Intrinsic::kit_cpu_threads_sync, KitFunc::kitpthr_sync},
-    {Intrinsic::kit_mobile_alloc, KitFunc::kitrt_malloc},
-    {Intrinsic::kit_mobile_free, KitFunc::kitrt_free},
-    {Intrinsic::kit_runtime_finalize, KitFunc::kitpthr_finalize},
-    {Intrinsic::kit_runtime_initialize, KitFunc::kitpthr_initialize},
-};
-
-// Kitsune runtime functions for the qthreads tapir target.
-static const KitRTFuncMap kitQthreadsFuncs = {
-    {Intrinsic::kit_cpu_num_threads, KitFunc::kitqthr_num_workers},
-    {Intrinsic::kit_cpu_thread_id, KitFunc::kitqthr_worker_id},
-    {Intrinsic::kit_cpu_threads_launch, KitFunc::kitqthr_launch},
-    // There may be some benefit to using the memory allocation functions
-    // provided by qthreads. Those use memory pools and it is not yet clear if
-    // that is something we should consider using.
-    {Intrinsic::kit_mobile_alloc, KitFunc::kitrt_malloc},
-    {Intrinsic::kit_mobile_free, KitFunc::kitrt_free},
-    {Intrinsic::kit_runtime_finalize, KitFunc::kitqthr_finalize},
-    {Intrinsic::kit_runtime_initialize, KitFunc::kitqthr_initialize},
-};
-
-// Kitsune runtime functions for the serial tapir target.
-static const KitRTFuncMap kitSerialFuncs = {
-    {Intrinsic::kit_cpu_thread_id, KitFunc::kitser_thread_id},
-    {Intrinsic::kit_mobile_alloc, KitFunc::kitrt_malloc},
-    {Intrinsic::kit_mobile_free, KitFunc::kitrt_free},
-    {Intrinsic::kit_runtime_finalize, KitFunc::kitser_finalize},
-    {Intrinsic::kit_runtime_initialize, KitFunc::kitser_initialize},
-};
-
-// Runtime library function maps for tapir targets that have a corresponding
-// kitsune runtime.
-static const SmallDenseMap<TTID, KitRTFuncMap> kitTTFuncs = {
-    {TTID::Cuda, kitCudaFuncs},         {TTID::Hip, kitHipFuncs},
-    {TTID::OpenCilk, kitOpenCilkFuncs}, {TTID::OpenMP, kitOpenMPFuncs},
-    {TTID::Pthreads, kitPthreadsFuncs}, {TTID::Qthreads, kitQthreadsFuncs},
-    {TTID::Serial, kitSerialFuncs},
-};
+// Get the arguments that must be passed to the runtime function \p rtFunc in a
+// default lowering. Since the first argument of the intrinsic will be the TTID,
+// that will be skipped. All the other arguments will be returned in order. If
+// the type of some argument does not match that of the corresponding parameter
+// of \p rtFunc, and casting is permitted, a cast will be inserted using the
+// given builder and the casted value will be added to the returned list.
+SmallVector<Value *, 4> getDefaultLoweringArgs(CallInst &call,
+                                               FunctionCallee rtFunc,
+                                               IRBuilder<> &builder) {
+  SmallVector<Value *, 4> args;
+  FunctionType *funcTy = rtFunc.getFunctionType();
+  for (unsigned i = 1; i < call.arg_size(); ++i) {
+    Value *arg = call.getArgOperand(i);
+    if (allowParamCast(call))
+      arg = maybeCast(arg, funcTy->getParamType(i - 1), builder);
+    args.push_back(arg);
+  }
+  return args;
+}
 
 // Return a new attribute list which is exactly the same as the given
 // attribute list \ref attrs except that the attributes at index \ref src of
@@ -193,56 +169,6 @@ static AttributeList createNewAttrList(const CallInst &call) {
   return attrs;
 }
 
-static FunctionCallee getOrInsertLibFunc(Module &m, TTID tt, Intrinsic::ID id) {
-  assert(kitTTFuncs.find(tt) != kitTTFuncs.end() &&
-         "getRuntimeFunc: Invalid tapir target for intrinsic");
-  const KitRTFuncMap &funcs = kitTTFuncs.at(tt);
-
-  assert(funcs.find(id) != funcs.end() &&
-         "getRuntimeFunc: No kitsune library function for tapir target");
-  return getOrInsertLibFunc(m, funcs.at(id));
-}
-
-// Get the kitsune runtime function that will replace the intrinsic called in
-// the given call instruction.
-static FunctionCallee getRuntimeFunc(CallInst &call) {
-  auto getMobileInitFunc = [](CallInst &call) -> KitFunc {
-    // Currently, we always lower to a runtime function provided by Kitsune that
-    // runs on the host.
-    // FIXME: We should probably lower this differently depending on how the
-    // buffer is being used. In some cases, it may be better to do the
-    // initialization on the device.
-    Value *init = call.getArgOperand(3);
-    if (isBool(init))
-      return KitFunc::kitrt_mobile_init_bool;
-    else if (isInt8(init))
-      return KitFunc::kitrt_mobile_init_i8;
-    else if (isInt16(init))
-      return KitFunc::kitrt_mobile_init_i16;
-    else if (isInt32(init))
-      return KitFunc::kitrt_mobile_init_i32;
-    else if (isInt64(init))
-      return KitFunc::kitrt_mobile_init_i64;
-    else if (isFloat(init))
-      return KitFunc::kitrt_mobile_init_float;
-    else if (isDouble(init))
-      return KitFunc::kitrt_mobile_init_double;
-    else if (isPointer(init))
-      return KitFunc::kitrt_mobile_init_from;
-    else
-      llvm_unreachable("Unsupported initializer type");
-  };
-
-  Intrinsic::ID id = call.getIntrinsicID();
-  Module &m = *call.getModule();
-  switch (id) {
-  case Intrinsic::kit_mobile_init:
-    return getOrInsertLibFunc(m, getMobileInitFunc(call));
-  default:
-    return getOrInsertLibFunc(m, *getTTIDFromKitIntrCall(call), id);
-  }
-}
-
 // Create a new call to the given function to replace an existing call. The
 // debug info, metadata, calling convention and tail call kind will be copied
 // over from the original call. However, the attributes will not be copied. The
@@ -253,38 +179,7 @@ static FunctionCallee getRuntimeFunc(CallInst &call) {
 // statements in this function, we require the attributes to be copied over by
 // callers.
 static Value *createNewCallFor(CallInst &call, FunctionCallee f,
-                               ArrayRef<Value *> origArgs) {
-  auto requiresMobilePointerCast = [](Type *src, Type *dst) -> bool {
-    return (isMobilePointerTy(src) && !isMobilePointerTy(dst)) ||
-           (isMobilePointerTy(dst) && !isMobilePointerTy(src));
-  };
-
-  auto requiresCastFromBool = [](Type *src, Type *dst) -> bool {
-    return src->isIntegerTy(1) && dst->isIntegerTy();
-  };
-
-  // In most cases, we expect the intrinsics and their corresponding runtime
-  // functions to have exactly the same signature. There are a limited number of
-  // cases where we permit casting though.
-  auto maybeCast = [&](Value *v, Type *dstTy, IRBuilder<> &builder) -> Value * {
-    Type *srcTy = v->getType();
-    if (requiresMobilePointerCast(srcTy, dstTy))
-      return builder.CreateAddrSpaceCast(v, dstTy);
-    else if (requiresCastFromBool(srcTy, dstTy))
-      return builder.CreateZExt(v, dstTy, /*name=*/"", /*isNonNeg=*/true);
-    return v;
-  };
-
-  LLVMContext &ctx = call.getContext();
-  IRBuilder<> builder(ctx);
-
-  builder.SetInsertPoint(call.getIterator());
-
-  SmallVector<Value *, 8> args;
-  FunctionType *funcType = f.getFunctionType();
-  for (unsigned i = 0; i < origArgs.size(); ++i)
-    args.push_back(maybeCast(origArgs[i], funcType->getParamType(i), builder));
-
+                               ArrayRef<Value *> args, IRBuilder<> &builder) {
   CallInst *newCall = builder.CreateCall(f, args);
   newCall->cloneDebugInfoFrom(&call);
   newCall->copyMetadata(call);
@@ -301,12 +196,24 @@ static Value *createNewCallFor(CallInst &call, FunctionCallee f,
   else
     newCall->setTailCallKind(tck);
 
-  Value *newInst = maybeCast(newCall, call.getType(), builder);
+  Value *newInst = newCall;
+  if (allowReturnCast(call))
+    newInst = maybeCast(newCall, call.getType(), builder);
 
   call.replaceAllUsesWith(newInst);
   call.eraseFromParent();
 
   return newInst;
+}
+
+// Default lowering of a call to the runtime function \p rtFunc.
+static bool lowerCall(CallInst &call, FunctionCallee rtFunc,
+                      IRBuilder<> &builder) {
+  builder.SetInsertPoint(call.getIterator());
+  SmallVector<Value *, 4> args = getDefaultLoweringArgs(call, rtFunc, builder);
+  (void)createNewCallFor(call, rtFunc, args, builder);
+
+  return true;
 }
 
 // Lower the thread launch intrinsic. This is a vararg intrinsic, but the
@@ -315,10 +222,9 @@ static Value *createNewCallFor(CallInst &call, FunctionCallee f,
 //
 // TODO: We should look at the number of arguments that are required and
 // consider allocating a struct on the heap instead.
-static bool lowerLaunchThreads(CallInst &call) {
+static bool lowerLaunchThreads(CallInst &call, IRBuilder<> &builder) {
   Function &f = *call.getFunction();
   LLVMContext &ctx = f.getContext();
-  IRBuilder<> builder(ctx);
 
   SmallVector<Value *, 4> args = getVariadicArgs(call);
   SmallVector<Type *, 4> tys;
@@ -345,10 +251,9 @@ static bool lowerLaunchThreads(CallInst &call) {
   launchArgs.push_back(toConstant(bundleSize, ctx));
 
   FunctionCallee rtFunc = getRuntimeFunc(call);
-  assert(rtFunc && "Got runtime function for intrinsic call");
+  Value *newCall = createNewCallFor(call, rtFunc, launchArgs, builder);
 
   // The call will use the argument bundle, so it cannot be a tail call.
-  Value *newCall = createNewCallFor(call, rtFunc, launchArgs);
   cast<CallInst>(newCall)->setTailCallKind(CallInst::TCK_None);
 
   return true;
@@ -360,11 +265,10 @@ static bool lowerLaunchThreads(CallInst &call) {
 // each argument, and an array of pointers, each of which is a pointer to one of
 // these stack slots. The runtime function is passed a pointer to this array of
 // pointers.
-static bool lowerLaunchKernel(CallInst &call) {
+static bool lowerLaunchKernel(CallInst &call, IRBuilder<> &builder) {
   LLVMContext &ctx = call.getContext();
   PointerType *ptrTy = PointerType::getUnqual(ctx);
 
-  IRBuilder<> builder(ctx);
   Function &f = *call.getFunction();
   BasicBlock &bbEntry = f.getEntryBlock();
   builder.SetInsertPoint(bbEntry.begin());
@@ -390,31 +294,51 @@ static bool lowerLaunchKernel(CallInst &call) {
   args.push_back(argArray);
 
   FunctionCallee rtFunc = getRuntimeFunc(call);
-  assert(rtFunc && "Got runtime function for intrinsic call");
+  Value *newCall = createNewCallFor(call, rtFunc, args, builder);
 
   // The call will use the argument bundle, so it cannot be a tail call.
-  Value *newCall = createNewCallFor(call, rtFunc, args);
   cast<CallInst>(newCall)->setTailCallKind(CallInst::TCK_None);
 
   return true;
 }
 
+static bool lowerMobileInit(CallInst &call, IRBuilder<> &builder) {
+  auto getMobileInitFunc = [](CallInst &call) -> KitFunc {
+    // TODO: Currently, we always lower to a runtime function provided by
+    // Kitsune that runs on the host. We should probably lower this differently
+    // depending on how the buffer is being used. In some cases, it may be
+    // better to do the initialization on the device.
+    Value *init = call.getArgOperand(3);
+    if (isBool(init))
+      return KitFunc::kitrt_mobile_init_bool;
+    else if (isInt8(init))
+      return KitFunc::kitrt_mobile_init_i8;
+    else if (isInt16(init))
+      return KitFunc::kitrt_mobile_init_i16;
+    else if (isInt32(init))
+      return KitFunc::kitrt_mobile_init_i32;
+    else if (isInt64(init))
+      return KitFunc::kitrt_mobile_init_i64;
+    else if (isFloat(init))
+      return KitFunc::kitrt_mobile_init_float;
+    else if (isDouble(init))
+      return KitFunc::kitrt_mobile_init_double;
+    else if (isPointer(init))
+      return KitFunc::kitrt_mobile_init_from;
+    else
+      llvm_unreachable("Unsupported initializer type");
+  };
+
+  FunctionCallee rtFunc = getRuntimeFunc(call, getMobileInitFunc(call));
+  return lowerCall(call, rtFunc, builder);
+}
+
 // Replace the Kitsune intrinsic called in the given instruction with an
 // appropriate runtime function. The arguments passed to the intrinsic will
 // be passed to the runtime function. Always returns true.
-static bool lowerDefault(CallInst &call) {
-  // The first argument will be the TTID. Everything else will be passed along
-  // to the lowered function.
-  SmallVector<Value *, 4> args;
-  for (unsigned i = 1; i < call.arg_size(); ++i)
-    args.push_back(call.getArgOperand(i));
-
+static bool lowerDefault(CallInst &call, IRBuilder<> &builder) {
   FunctionCallee rtFunc = getRuntimeFunc(call);
-  assert(rtFunc && "Got runtime function for intrinsic call");
-
-  (void)createNewCallFor(call, rtFunc, args);
-
-  return true;
+  return lowerCall(call, rtFunc, builder);
 }
 
 // The given call instruction is a call to a kitsune intrinsic. This may lower
@@ -426,15 +350,24 @@ static bool lowerKitIntrinsic(CallInst &call) {
   if (tt == TTID::Nolo)
     return false;
 
-  switch (call.getIntrinsicID()) {
-  case Intrinsic::kit_async_gpu_kernel_launch:
-    return lowerLaunchKernel(call);
-  case Intrinsic::kit_async_cpu_threads_launch:
-  case Intrinsic::kit_cpu_threads_launch:
-    return lowerLaunchThreads(call);
-  default:
-    return lowerDefault(call);
+  LLVMContext &ctx = call.getContext();
+  IRBuilder<> builder(ctx);
+
+  if (requiresCustomLowering(call)) {
+    switch (call.getIntrinsicID()) {
+    case Intrinsic::kit_async_gpu_kernel_launch:
+      return lowerLaunchKernel(call, builder);
+    case Intrinsic::kit_async_cpu_threads_launch:
+    case Intrinsic::kit_cpu_threads_launch:
+      return lowerLaunchThreads(call, builder);
+    case Intrinsic::kit_mobile_init:
+      return lowerMobileInit(call, builder);
+    default:
+      llvm_unreachable(
+          "lowerKitIntrinsic: Intrinsic requiring custom lowering not handled");
+    }
   }
+  return lowerDefault(call, builder);
 }
 
 static bool lowerKitIntrinsics(Function &f) {
@@ -451,6 +384,8 @@ static bool lowerKitIntrinsics(Function &f) {
     changed |= lowerKitIntrinsic(*call);
   return changed;
 }
+
+namespace {
 
 /// Pass, for the legacy pass manager, that lowers kitsune-specific intrinsics.
 class LowerKitIntrinsicsLegacyPass : public FunctionPass {
