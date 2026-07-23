@@ -103,10 +103,10 @@ llvm::TTID clang::CodeGen::getTTID(llvm::ArrayRef<const Attr *> attrs,
 /// Get the value of the kitsune::launch attribute if it was set. If the
 /// attribute was not set, return 0.
 unsigned clang::CodeGen::getLaunchTPB(llvm::ArrayRef<const Attr *> attrs) {
-  // The KitsuneLaunch attribute is guaranteed to appear at most once, so it is
-  // safe to return immediately when it is encountered.
+  // The kitsune::launch attribute is guaranteed to appear at most once, so it
+  // is safe to return immediately when it is encountered.
   for (const Attr *attr : attrs)
-    if (const auto *launchAttr = dyn_cast<KitsuneLaunchAttr>(attr))
+    if (const auto *launchAttr = dyn_cast<KitLaunchAttr>(attr))
       return launchAttr->getThreadsPerBlock();
   return 0;
 }

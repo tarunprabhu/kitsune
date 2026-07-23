@@ -19,18 +19,18 @@ int _readwrite gext;
 static int _readonly gint;
 
 // CHECK-DAG: declare {{.*}} @fdecl(
-// CHECK-DAG-SAME: ptr {{.*}}"kitsune.readwrite"{{.*}},
-// CHECK-DAG-SAME: ptr {{.*}}"kitsune.readonly"{{.*}},
-// CHECK-DAG-SAME: ptr {{.*}}"kitsune.writeonly"{{.*}})
+// CHECK-DAG-SAME: ptr {{.*}}"kit.readwrite"{{.*}},
+// CHECK-DAG-SAME: ptr {{.*}}"kit.readonly"{{.*}},
+// CHECK-DAG-SAME: ptr {{.*}}"kit.writeonly"{{.*}})
 int fdecl(int _readwrite *a1, int _readonly *a2, int _writeonly *a3);
 
-// CHECK-DAG: define {{.*}} @fdef(ptr {{.*}}"kitsune.writeonly"{{.*}} %out)
+// CHECK-DAG: define {{.*}} @fdef(ptr {{.*}}"kit.writeonly"{{.*}} %out)
 void fdef(int _writeonly *out) {
   int in = gint + gdecl;
   *out = in;
   gext += fdecl(&in, NULL, NULL);
 }
 
-// CHECK-DAG: attributes #[[GDECL_ATTRS]] = { {{.*}}"kitsune.writeonly"{{.*}} }
-// CHECK-DAG: attributes #[[GEXT_ATTRS]] = { {{.*}}"kitsune.readwrite"{{.*}} }
-// CHECK-DAG: attributes #[[GINT_ATTRS]] = { {{.*}}"kitsune.readonly"{{.*}} }
+// CHECK-DAG: attributes #[[GDECL_ATTRS]] = { {{.*}}"kit.writeonly"{{.*}} }
+// CHECK-DAG: attributes #[[GEXT_ATTRS]] = { {{.*}}"kit.readwrite"{{.*}} }
+// CHECK-DAG: attributes #[[GINT_ATTRS]] = { {{.*}}"kit.readonly"{{.*}} }
