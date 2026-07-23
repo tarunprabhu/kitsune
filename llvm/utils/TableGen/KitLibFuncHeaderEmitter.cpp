@@ -126,4 +126,4 @@ KitLibFuncEmitter::KitLibFuncEmitter(const RecordKeeper &records)
 
 static TableGen::Emitter::OptClass<KitLibFuncEmitter>
     X("gen-kit-libfunc-header",
-      "Generate header for Kitsune-specific loop attributes");
+      "Generate header for Kitsune's registered library functions");
