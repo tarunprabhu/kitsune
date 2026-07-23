@@ -12,6 +12,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+// -----------------------------------------------------------------------------
+// Attributes for statements.
+
 def TT : StmtAttr {
   let Spellings = [CXX11<"tapir", "target">];
 
@@ -31,10 +34,10 @@ def TT : StmtAttr {
                             "openmp", "pthreads", "qthreads", "serial"],
                            ["Cuda", "Custom", "Hip", "Nolo", "OpenCilk",
                             "OpenMP", "Pthreads", "Qthreads", "Serial"]>];
-  let Documentation = [TTDocs];
+  let Documentation = [TTAttrDoc];
 }
 
-def KitsuneLaunch : StmtAttr {
+def KitLaunch : StmtAttr {
   let Spellings = [CXX11<"kitsune", "launch">];
 
   // For now, we have no plans to support this on Kokkos constructs, so we can
@@ -44,10 +47,21 @@ def KitsuneLaunch : StmtAttr {
   let Subjects = SubjectList<[ForallStmt, CXXForallRangeStmt],
                              ErrorDiag, "'forall' statement">;
   let Args = [IntArgument<"ThreadsPerBlock">];
-  let Documentation = [KitsuneLaunchDocs];
+  let Documentation = [KitLaunchAttrDoc];
 }
 
-def KitsuneMemAccess : TypeAttr {
+def KitStmtName : StmtAttr {
+  let Spellings = [CXX11<"kitsune", "name">, C23<"kitsune", "name">];
+  let Subjects = SubjectList<[ForallStmt, CXXForallRangeStmt],
+                             ErrorDiag, "'forall' statement">;
+  let Args = [StringArgument<"Name">];
+  let Documentation = [KitStmtNameAttrDoc];
+}
+
+// -----------------------------------------------------------------------------
+// Attributees for types.
+
+def KitMemAccess : TypeAttr {
   // FIXME: Would it be better to use a namespaced attribute name here instead
   // of a custom keyword?
   let Spellings = [CustomKeyword<"_readonly">,
@@ -62,19 +76,11 @@ def KitsuneMemAccess : TypeAttr {
     Accessor<"isReadWrite", [CustomKeyword<"_readwrite">]>
   ];
 
-  let Documentation = [KitsuneMemAccessDocs];
+  let Documentation = [KitMemAccessAttrDoc];
 }
 
-def KitsuneMobile : TypeAttr {
+def KitMobile : TypeAttr {
   let Spellings = [GNU<"kitsune_mobile">, CXX11<"kitsune", "mobile">,
                    C23<"kitsune", "mobile">];
-  let Documentation = [KitsuneMobileDocs];
-}
-
-def KitsuneStmtName : StmtAttr {
-  let Spellings = [CXX11<"kitsune", "name">, C23<"kitsune", "name">];
-  let Subjects = SubjectList<[ForallStmt, CXXForallRangeStmt],
-                             ErrorDiag, "'forall' statement">;
-  let Args = [StringArgument<"Name">];
-  let Documentation = [KitsuneStmtNameDocs];
+  let Documentation = [KitMobileAttrDoc];
 }
