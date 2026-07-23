@@ -247,7 +247,7 @@ void __kitcuda_finalize(void) {
   __kitcuda_destroy_thread_streams();
   __kitrt_destroy_memory_map(__kitcuda_mem_destroy);
   // Note that all resources associated with the context will be destroyed.
-  CU_SAFE_CALL(cuDevicePrimaryCtxReset_v2_p(_kitcuda_device));
+  // CU_SAFE_CALL(cuDevicePrimaryCtxReset_v2_p(_kitcuda_device));
   _kitcuda_initialized = false;
   KIT_NVTX_POP();
 
