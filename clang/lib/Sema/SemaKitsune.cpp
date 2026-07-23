@@ -174,12 +174,40 @@ Attr *SemaKitsune::handleLaunchAttr(Stmt *stmt, const ParsedAttr &attr,
   return ::new (ctx) KitsuneLaunchAttr(ctx, attr, val);
 }
 
+Attr *SemaKitsune::handleStmtNameAttr(Stmt *stmt, const ParsedAttr &attr,
+                                      SourceRange range) {
+  StringRef str;
+  SourceLocation argLoc;
+  if (!sema.checkStringLiteralArgumentAttr(attr, 0, str, &argLoc))
+    return nullptr;
+
+  if (str.empty()) {
+    Diag(attr.getLoc(), diag::err_kit_name_empty);
+    return nullptr;
+  }
+
+  for (char c : str) {
+    if (std::isspace(c)) {
+      Diag(attr.getLoc(), diag::err_kit_name_space);
+      return nullptr;
+    } else if (!std::isprint(c)) {
+      Diag(attr.getLoc(), diag::err_kit_name_printable);
+      return nullptr;
+    }
+  }
+
+  ASTContext &ctx = getASTContext();
+  return ::new (ctx) KitsuneStmtNameAttr(ctx, attr, str);
+}
+
 Handled<Attr *> SemaKitsune::processStmtAttribute(Stmt *stmt,
                                                   const ParsedAttr &attr,
                                                   SourceRange range) {
   switch (attr.getKind()) {
   case ParsedAttr::AT_KitsuneLaunch:
     return handleLaunchAttr(stmt, attr, range);
+  case ParsedAttr::AT_KitsuneStmtName:
+    return handleStmtNameAttr(stmt, attr, range);
   case ParsedAttr::AT_TT:
     return handleTTAttr(stmt, attr, range);
   default:
@@ -189,7 +217,8 @@ Handled<Attr *> SemaKitsune::processStmtAttribute(Stmt *stmt,
 
 void SemaKitsune::checkAttributes(const Stmt *stmt,
                                   const SmallVectorImpl<const Attr *> &attrs) {
-  attr::Kind checkMaxOneAttrs[] = {attr::TT, attr::KitsuneLaunch};
+  attr::Kind checkMaxOneAttrs[] = {attr::TT, attr::KitsuneLaunch,
+                                   attr::KitsuneStmtName};
   for (attr::Kind kind : checkMaxOneAttrs)
     if (!checkMaxOneOccurrence(kind, attrs,
                                diag::err_kit_duplicate_attribute_stmt))

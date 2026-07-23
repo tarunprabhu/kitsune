@@ -14,10 +14,14 @@
 #define KITSUNE_CLANG_AST_UTILS_H
 
 #include "clang/Basic/SourceLocation.h"
+#include "llvm/ADT/ArrayRef.h"
 
 namespace clang {
 
+class ASTContext;
+class Attr;
 class Expr;
+class Stmt;
 class Type;
 
 /// \addtogroup kitsune
@@ -30,10 +34,12 @@ const Expr *getUnderlyingExpr(const Expr *expr);
 /// Get the underlying unqualified desugared type of the expression.
 const Type *getUnqualifiedDesugaredType(const Expr *expr);
 
-/// Compute a name from the given source location. The returned name is usually
-/// of the form "<name>:<line>:<col>", but it need not be. The returned name
-/// may also be an empty string.
-std::string getNameFrom(FullSourceLoc loc);
+/// Compute a name for the statement \stmt. \p attrs are the attributes attached
+/// to the statement. If it contains a `kitsune::name` attribute, the value
+/// specified there will be used. Otherwise, a name will be computed from the
+/// location of statement.
+std::string getNameFor(const Stmt &stmt, llvm::ArrayRef<const Attr *> attrs,
+                       ASTContext &ast);
 
 /// @}
 
