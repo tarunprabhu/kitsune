@@ -188,7 +188,7 @@ static void staticLoopWrapper(int32_t *globalTID, int32_t *localTID,
 /// \param args Pointer to the struct containing data to be passed to \p f
 /// \param argSize The size of the struct pointed to by \p args
 extern "C" void __kitomp_launch(KitOMPThrdFunc f, uint64_t start, uint64_t end,
-                                void *args, [[maybe_unused]] uint64_t argSize) {
+                                void *args, [[maybe_unused]] uint32_t argSize) {
   assert(__kitomp_initialized() && "kitomp initialized");
   assert(start == 0 && end == __kitomp_num_threads() &&
          "__kitomp_launch expects loop iterations in range [0,NUM_THREADS)");
