@@ -31,6 +31,14 @@ def err_kit_tt_custom: Error<
 def err_kit_launch_range: Error<
     "'kitsune::launch' attribute: value not in range [0,1024]">;
 
+// kitsune::name attribute
+def err_kit_name_empty: Error<
+    "'kitsune::name' attribute: name cannot be an empty string">;
+def err_kit_name_space: Error<
+    "'kitsune::name' attribute: name cannot contain spaces">;
+def err_kit_name_printable: Error<
+    "'kitsune::name' attribute: name must contain only printable characters">;
+
 // spawn statement
 def warn_kit_spawn_as_loop_body: Warning<
     "%0 loop with spawn statement body has undefined behavior">,

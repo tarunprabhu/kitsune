@@ -70,3 +70,11 @@ def KitsuneMobile : TypeAttr {
                    C23<"kitsune", "mobile">];
   let Documentation = [KitsuneMobileDocs];
 }
+
+def KitsuneStmtName : StmtAttr {
+  let Spellings = [CXX11<"kitsune", "name">, C23<"kitsune", "name">];
+  let Subjects = SubjectList<[ForallStmt, CXXForallRangeStmt],
+                             ErrorDiag, "'forall' statement">;
+  let Args = [StringArgument<"Name">];
+  let Documentation = [KitsuneStmtNameDocs];
+}

@@ -40,6 +40,8 @@ protected:
 
   Attr *handleTTAttr(Stmt *stmt, const ParsedAttr &attr, SourceRange range);
   Attr *handleLaunchAttr(Stmt *stmt, const ParsedAttr &attr, SourceRange range);
+  Attr *handleStmtNameAttr(Stmt *stmt, const ParsedAttr &attr,
+                           SourceRange range);
 
   QualType handleMemAccessAttr(QualType type, const ParsedAttr &attr);
   QualType handleMobileAttr(QualType type, const ParsedAttr &attr);

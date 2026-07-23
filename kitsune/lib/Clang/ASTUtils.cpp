@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Clang/ASTUtils.h"
+#include "clang/AST/Attr.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/Type.h"
@@ -30,7 +31,9 @@ const clang::Type *clang::getUnqualifiedDesugaredType(const Expr *expr) {
   return expr->getType()->getUnqualifiedDesugaredType();
 }
 
-std::string clang::getNameFrom(FullSourceLoc origLoc) {
+// Compute a name from the given source location. The returned name is usually
+// of the form "<name>:<line>:<col>", but it need not be.
+static std::string getNameFrom(FullSourceLoc origLoc) {
   assert(origLoc.hasManager() && "Source location must have source manager");
 
   std::string buf;
@@ -42,4 +45,16 @@ std::string clang::getNameFrom(FullSourceLoc origLoc) {
   os.flush();
 
   return buf;
+}
+
+std::string clang::getNameFor(const Stmt &stmt,
+                              llvm::ArrayRef<const Attr *> attrs,
+                              ASTContext &ast) {
+  for (const Attr *attr : attrs)
+    if (const auto *nameAttr = dyn_cast<KitsuneStmtNameAttr>(attr))
+      return nameAttr->getName().str();
+
+  const SourceManager &srcMgr = ast.getSourceManager();
+  FullSourceLoc Loc(stmt.getBeginLoc(), srcMgr);
+  return getNameFrom(Loc);
 }

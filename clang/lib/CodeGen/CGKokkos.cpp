@@ -296,9 +296,7 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
   if (TT != llvm::TTID::Nolo) {
     LoopStack.setTapirTarget(TT);
     LoopStack.setTapirSpawnStrategy(getSpawnStrategyFor(TT));
-
-    FullSourceLoc Loc(CE->getBeginLoc(), getContext().getSourceManager());
-    LoopStack.setTapirLoopName(getNameFrom(Loc));
+    LoopStack.setTapirLoopName(getNameFor(*CE, Attrs, getContext()));
   }
 
   if (isGPUTT(TT))
