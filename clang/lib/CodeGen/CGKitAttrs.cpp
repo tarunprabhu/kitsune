@@ -17,13 +17,13 @@
 using namespace clang;
 using namespace CodeGen;
 
-static StringRef getLLVMAttrNameFor(const KitsuneMemAccessAttr &Attr) {
+static StringRef getLLVMAttrNameFor(const KitMemAccessAttr &Attr) {
   if (Attr.isWriteOnly())
-    return "kitsune.writeonly";
+    return "kit.writeonly";
   else if (Attr.isReadWrite())
-    return "kitsune.readwrite";
+    return "kit.readwrite";
   else if (Attr.isReadOnly())
-    return "kitsune.readonly";
+    return "kit.readonly";
   llvm_unreachable("Unknown kitsune memory access attribute");
 }
 
@@ -31,7 +31,7 @@ static void addKitMemAccessAttr(CodeGenModule &cgm, const FunctionDecl &fd,
                                 llvm::Function &f) {
   llvm::LLVMContext &ctx = f.getContext();
 
-  if (const auto *attr = fd.getAttr<KitsuneMemAccessAttr>())
+  if (const auto *attr = fd.getAttr<KitMemAccessAttr>())
     f.addFnAttr(getLLVMAttrNameFor(*attr));
 
   for (unsigned i = 0, n = fd.getNumParams(); i < n; ++i) {
@@ -41,7 +41,7 @@ static void addKitMemAccessAttr(CodeGenModule &cgm, const FunctionDecl &fd,
     if (const auto *typdef = dyn_cast<TypedefType>(paramTy))
       pDecl = typdef->getDecl();
 
-    if (const auto *attr = pDecl->getAttr<KitsuneMemAccessAttr>()) {
+    if (const auto *attr = pDecl->getAttr<KitMemAccessAttr>()) {
       if (paramTy.getTypePtr()->isStructureOrClassType()) {
         cgm.ErrorUnsupported(
             param,
@@ -65,7 +65,7 @@ void clang::CodeGen::AddKitAttributes(CodeGenModule &cgm, const VarDecl &vd,
   if (!cgm.getKitOpts().hasTTID())
     return;
 
-  if (const auto *attr = vd.getAttr<KitsuneMemAccessAttr>())
+  if (const auto *attr = vd.getAttr<KitMemAccessAttr>())
     g.addAttribute(getLLVMAttrNameFor(*attr));
 }
 

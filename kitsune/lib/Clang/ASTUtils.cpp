@@ -51,7 +51,7 @@ std::string clang::getNameFor(const Stmt &stmt,
                               llvm::ArrayRef<const Attr *> attrs,
                               ASTContext &ast) {
   for (const Attr *attr : attrs)
-    if (const auto *nameAttr = dyn_cast<KitsuneStmtNameAttr>(attr))
+    if (const auto *nameAttr = dyn_cast<KitStmtNameAttr>(attr))
       return nameAttr->getName().str();
 
   const SourceManager &srcMgr = ast.getSourceManager();

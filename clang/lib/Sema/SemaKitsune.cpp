@@ -69,7 +69,7 @@ bool SemaKitsune::handleMemAccessAttr(Decl *decl, const ParsedAttr &attr) {
     return true;
 
   // Check if there is only one access qualifier.
-  if (auto *existingAttr = decl->getAttr<KitsuneMemAccessAttr>()) {
+  if (auto *existingAttr = decl->getAttr<KitMemAccessAttr>()) {
     if (existingAttr->getSemanticSpelling() == attr.getSemanticSpelling()) {
       Diag(attr.getLoc(), diag::warn_duplicate_declspec)
           << attr.getAttrName()->getName() << attr.getRange();
@@ -82,7 +82,7 @@ bool SemaKitsune::handleMemAccessAttr(Decl *decl, const ParsedAttr &attr) {
   }
 
   ASTContext &ctx = sema.Context;
-  decl->addAttr(::new (ctx) KitsuneMemAccessAttr(ctx, attr));
+  decl->addAttr(::new (ctx) KitMemAccessAttr(ctx, attr));
 
   return true;
 }
@@ -90,7 +90,7 @@ bool SemaKitsune::handleMemAccessAttr(Decl *decl, const ParsedAttr &attr) {
 Handled<bool> SemaKitsune::processDeclAttribute(Decl *decl,
                                                 const ParsedAttr &attr) {
   switch (attr.getKind()) {
-  case ParsedAttr::AT_KitsuneMemAccess:
+  case ParsedAttr::AT_KitMemAccess:
     return handleMemAccessAttr(decl, attr);
   default:
     return notHandled<bool>;
@@ -171,7 +171,7 @@ Attr *SemaKitsune::handleLaunchAttr(Stmt *stmt, const ParsedAttr &attr,
     return nullptr;
   }
 
-  return ::new (ctx) KitsuneLaunchAttr(ctx, attr, val);
+  return ::new (ctx) KitLaunchAttr(ctx, attr, val);
 }
 
 Attr *SemaKitsune::handleStmtNameAttr(Stmt *stmt, const ParsedAttr &attr,
@@ -197,16 +197,16 @@ Attr *SemaKitsune::handleStmtNameAttr(Stmt *stmt, const ParsedAttr &attr,
   }
 
   ASTContext &ctx = getASTContext();
-  return ::new (ctx) KitsuneStmtNameAttr(ctx, attr, str);
+  return ::new (ctx) KitStmtNameAttr(ctx, attr, str);
 }
 
 Handled<Attr *> SemaKitsune::processStmtAttribute(Stmt *stmt,
                                                   const ParsedAttr &attr,
                                                   SourceRange range) {
   switch (attr.getKind()) {
-  case ParsedAttr::AT_KitsuneLaunch:
+  case ParsedAttr::AT_KitLaunch:
     return handleLaunchAttr(stmt, attr, range);
-  case ParsedAttr::AT_KitsuneStmtName:
+  case ParsedAttr::AT_KitStmtName:
     return handleStmtNameAttr(stmt, attr, range);
   case ParsedAttr::AT_TT:
     return handleTTAttr(stmt, attr, range);
@@ -217,8 +217,8 @@ Handled<Attr *> SemaKitsune::processStmtAttribute(Stmt *stmt,
 
 void SemaKitsune::checkAttributes(const Stmt *stmt,
                                   const SmallVectorImpl<const Attr *> &attrs) {
-  attr::Kind checkMaxOneAttrs[] = {attr::TT, attr::KitsuneLaunch,
-                                   attr::KitsuneStmtName};
+  attr::Kind checkMaxOneAttrs[] = {attr::TT, attr::KitLaunch,
+                                   attr::KitStmtName};
   for (attr::Kind kind : checkMaxOneAttrs)
     if (!checkMaxOneOccurrence(kind, attrs,
                                diag::err_kit_duplicate_attribute_stmt))
@@ -228,7 +228,7 @@ void SemaKitsune::checkAttributes(const Stmt *stmt,
 QualType SemaKitsune::handleMemAccessAttr(QualType type,
                                           const ParsedAttr &attr) {
   auto getExistingAttrName = [](const TypeDecl &typeDecl) -> StringRef {
-    if (const auto *existingAttr = typeDecl.getAttr<KitsuneMemAccessAttr>())
+    if (const auto *existingAttr = typeDecl.getAttr<KitMemAccessAttr>())
       return existingAttr->getSpelling();
     return "readwrite";
   };
@@ -262,9 +262,9 @@ QualType SemaKitsune::handleMobileAttr(QualType type, const ParsedAttr &attr) {
 Handled<QualType> SemaKitsune::processTypeAttribute(QualType type,
                                                     const ParsedAttr &attr) {
   switch (attr.getKind()) {
-  case ParsedAttr::AT_KitsuneMemAccess:
+  case ParsedAttr::AT_KitMemAccess:
     return handleMemAccessAttr(type, attr);
-  case ParsedAttr::AT_KitsuneMobile:
+  case ParsedAttr::AT_KitMobile:
     return handleMobileAttr(type, attr);
   default:
     return notHandled<QualType>;

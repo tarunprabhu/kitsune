@@ -19,7 +19,7 @@
 // HTML documentation.
 class KitDoc : Documentation {}
 
-def TTDocs : KitDoc {
+def TTAttrDoc : KitDoc {
   let Category = DocCatStmt;
   let Content = [{
 
@@ -59,7 +59,7 @@ The value of the attribute must be one of the
   }];
 }
 
-def KitsuneLaunchDocs : KitDoc {
+def KitLaunchAttrDoc : KitDoc {
   let Category = DocCatStmt;
   let Content = [{
 
@@ -84,7 +84,26 @@ and testing vs. an end-user feature.
   }];
 }
 
-def KitsuneMemAccessDocs : KitDoc {
+def KitStmtNameAttrDoc : KitDoc {
+  let Category = DocCatStmt;
+  let Content = [{
+This allows programmers to provide a name for a statement. If this is attached
+to a parallel for loop, a a `tapir.loop.name` attribute will be added to the
+loop in in LLVM-IR. This is used when emitting diagnostics from Kitsune's
+middle-end optimizations. It can also be used by Kitsune's instrumentation
+support.
+
+.. code-block:: c++
+
+  [[kitsune::name("some-useful-name")]]
+  forall (...) {
+    ...
+  }
+
+  }];
+}
+
+def KitMemAccessAttrDoc : KitDoc {
   let Category = DocCatType;
   let Heading = "_readonly, _readwrite, _writeonly";
   let Content = [{
@@ -159,7 +178,7 @@ code below will not compile.
   }];
 }
 
-def KitsuneMobileDocs : KitDoc {
+def KitMobileAttrDoc : KitDoc {
   let Category = DocCatType;
   let Heading = "mobile";
   let Content = [{
@@ -187,27 +206,6 @@ C++ spelling is also supported.
 
   void f1(int *[[kitsune::mobile]] ptr) {}
   void f2(void *__attribute__((kitsune_mobile)) ptr) {}
-
-
-
-  }];
-}
-
-def KitsuneStmtNameDocs : KitDoc {
-  let Category = DocCatStmt;
-  let Content = [{
-This allows programmers to provide a name for a statement. If this is attached
-to a parallel for loop, a a `tapir.loop.name` attribute will be added to the
-loop in in LLVM-IR. This is used when emitting diagnostics from Kitsune's
-middle-end optimizations. It can also be used by Kitsune's instrumentation
-support.
-
-.. code-block:: c++
-
-  [[kitsune::name("some-useful-name")]]
-  forall (...) {
-    ...
-  }
 
   }];
 }
