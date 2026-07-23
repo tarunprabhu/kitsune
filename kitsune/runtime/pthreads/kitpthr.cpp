@@ -110,10 +110,10 @@ struct LaunchContextImpl {
   std::unique_ptr<std::byte[]> thrdArgs;
 
   /// The size, in bytes, of the argument bundle.
-  uint64_t thrdArgSize = 0;
+  uint32_t thrdArgSize = 0;
 
 public:
-  LaunchContextImpl(size_t numThreads, void *args, uint64_t argSize)
+  LaunchContextImpl(size_t numThreads, void *args, uint32_t argSize)
       : thrds(numThreads) {
     for (size_t t = 0; t < numThreads; ++t)
       thrds[t].tid = t;
@@ -132,7 +132,7 @@ public:
   const KitPthrThread &operator[](size_t i) const { return thrds.at(i); }
   size_t size() const { return thrds.size(); }
   void *args() const { return thrdArgs.get(); }
-  uint64_t argSize() const { return thrdArgSize; }
+  uint32_t argSize() const { return thrdArgSize; }
 
   decltype(thrds)::iterator begin() { return thrds.begin(); }
   decltype(thrds)::const_iterator begin() const { return thrds.begin(); }
@@ -224,7 +224,7 @@ static void *kitpthrThrdStartFn(KitPthrThread *thread) {
 /// \ref __kitpthr_join.
 extern "C" KitPthrLaunchContext *
 __kitpthr_async_launch(KitPthrThrdFunc f, uint64_t start, uint64_t end,
-                       void *args, uint64_t argSize) {
+                       void *args, uint32_t argSize) {
   assert(__kitpthr_initialized() && "kitpthr initialized");
   assert(start == 0 && end == __kitpthr_num_threads() &&
          "__kitpthr_async_launch expects loop iterations in range [0, N)");

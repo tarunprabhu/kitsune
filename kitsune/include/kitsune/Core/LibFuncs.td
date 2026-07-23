@@ -305,12 +305,11 @@ def kitomp_initialize :
 def kitomp_num_threads :
     KitFunc<"__kitomp_num_threads", U64, []>;
 
-// FIXME: argSize should be uint32_t.
 // void __kitomp_launch(void(*thread_f)(uint64_t, uint64_t, void*),
 //                      uint64_t beg, uint64_t end, void* args,
-//                      uint64_t argSize);
+//                      uint32_t argSize);
 def kitomp_launch :
-    KitFunc<"__kitomp_launch", Void, [Ptr, U64, U64, Ptr, U64]>;
+    KitFunc<"__kitomp_launch", Void, [Ptr, U64, U64, Ptr, U32]>;
 
 def kitomp_thread_id :
     KitFunc<"__kitomp_thread_id", U64, []>;
@@ -318,12 +317,11 @@ def kitomp_thread_id :
 // -----------------------------------------------------------------------------
 // Runtime library functions for the pthreads tapir taret.
 
-// FIXME: argSize should be uint32_t.
 // void* __kitpthr_async_launch(void(*thread_f)(uint64_t, uint64_t, void*),
 //                              uint64_t beg, uint64_t end, void* args,
-//                              uint64_t argSize);
+//                              uint32_t argSize);
 def kitpthr_async_launch :
-    KitFunc<"__kitpthr_async_launch", Ptr, [Ptr, U64, U64, Ptr, U64]>;
+    KitFunc<"__kitpthr_async_launch", Ptr, [Ptr, U64, U64, Ptr, U32]>;
 
 def kitpthr_finalize :
     KitFunc<"__kitpthr_finalize", Void, []>;
@@ -353,12 +351,11 @@ def kitqthr_initialize :
 def kitqthr_num_workers :
     KitFunc<"__kitqthr_num_workers", U64, []>;
 
-// FIXME: argSize should be uint32_t.
 // void __kitqthr_launch(void(*thread_f)(uint64_t, uint64_t, void*),
 //                       uint64_t beg, uint64_t end, void* args,
-//                       uint64_t argSize);
+//                       uint32_t argSize);
 def kitqthr_launch :
-    KitFunc<"__kitqthr_launch", Void, [Ptr, U64, U64, Ptr, U64]>;
+    KitFunc<"__kitqthr_launch", Void, [Ptr, U64, U64, Ptr, U32]>;
 
 def kitqthr_worker_id :
     KitFunc<"__kitqthr_worker_id", U64, []>;
