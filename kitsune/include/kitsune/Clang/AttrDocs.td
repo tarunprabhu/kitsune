@@ -192,3 +192,22 @@ C++ spelling is also supported.
 
   }];
 }
+
+def KitsuneStmtNameDocs : KitDoc {
+  let Category = DocCatStmt;
+  let Content = [{
+This allows programmers to provide a name for a statement. If this is attached
+to a parallel for loop, a a `tapir.loop.name` attribute will be added to the
+loop in in LLVM-IR. This is used when emitting diagnostics from Kitsune's
+middle-end optimizations. It can also be used by Kitsune's instrumentation
+support.
+
+.. code-block:: c++
+
+  [[kitsune::name("some-useful-name")]]
+  forall (...) {
+    ...
+  }
+
+  }];
+}
