@@ -1,3 +1,7 @@
+include (CheckLinkerFlag)
+
+check_linker_flag(CXX "LINKER:-z,now" LINKER_SUPPORTS_Z_NOW)
+
 # This target is only present so the system tests can be added as dependencies
 # to it. This target itself is a dependency for the `check-kitsune` and
 # `check-kitrt` lit targets.
@@ -30,6 +34,10 @@ function(add_kitrt_systest source)
   target_link_libraries(${target} PUBLIC ${KITRT_DSO})
   if (ARG_LIBS)
     target_link_libraries(${target} PUBLIC ${ARG_LIBS})
+  endif ()
+
+  if (LINKER_SUPPORTS_Z_NOW)
+    target_link_options(${target} PRIVATE "LINKER:-z,now")
   endif ()
 
   add_dependencies(KitrtTests ${target})
