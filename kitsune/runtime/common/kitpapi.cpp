@@ -55,232 +55,407 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitpapi.h"
+#include "common/env.h"
 #include "common/logging.h"
+#include "common/uniqptr_iter.h"
+#include "global/singleton.h"
 
-#include <papi.h>
+#include "papi.h"
 
+#include <algorithm>
 #include <cstdarg>
-#include <cstdio>
-#include <cstring>
+#include <map>
+#include <memory>
 #include <mutex>
+#include <optional>
+#include <set>
+#include <sstream>
 #include <string>
 #include <vector>
 
-// A PAPI event context. This contains an optional that can be useful to
-// identify the source of the counters when they are printed, and an event set
-// created by a call to PAPI_create_event_set. This is intentionally opaque to
-// callers. A pointer to this will be used by most of the functions here.
-struct KitPAPIEventsContext {
-  std::string name = "<anon>";
+using PAPICounter = long long;
+using PAPIEventID = int;
+using PAPIEventSet = int;
 
-  /// The event set created by PAPI_create_event_set.
-  int evtSet = PAPI_NULL;
+template <typename T> static std::string to_hex_string(T n) {
+  std::stringstream ss;
+  ss << "0x" << std::hex << n;
+  return ss.str();
+}
 
-  /// The events added to the event set.
-  std::vector<int> evts;
-
-  /// The values for the events added to \ref evtSet.
-  std::vector<long long> values;
-
-public:
-  KitPAPIEventsContext(const char *n, int evtSet) : evtSet(evtSet) {
-    if (n && strlen(n) > 0)
-      name = n;
-  }
-};
-
-/// Handle an error returned by a call to a PAPI API function. This will print a
-/// warning message to stderr. \p what is an optional label to print before
-/// printing the actual PAPI error message. \p err is the error code returned
-/// by PAPI.
+// Handle an error returned by a call to a PAPI API function. This will print a
+// warning message to stderr. \p what is an optional label to print before
+// printing the actual PAPI error message. \p err is the error code returned by
+// PAPI.
 static void handleError(const char *what, int err) {
   WARN("%s. %s", what, PAPI_strerror(err));
 }
 
-static std::string getEventSymbol(int evt) {
-  PAPI_event_info_t info;
-  int err = PAPI_get_event_info(evt, &info);
-  if (!err)
-    return info.symbol;
-  handleError("Could not get event info", err);
-  return "<unknown>";
+static std::optional<PAPI_event_info_t> getEventInfo(PAPIEventID evt) {
+  PAPI_event_info_t evtInfo;
+  if (int err = PAPI_get_event_info(evt, &evtInfo)) {
+    handleError("Could not get event info", err);
+    return std::nullopt;
+  }
+  return evtInfo;
 }
 
-static std::string getEventLabel(int evt) {
-  PAPI_event_info_t info;
-  int err = PAPI_get_event_info(evt, &info);
-  if (!err)
-    return info.short_descr;
-  handleError("Could not get event info", err);
-  return "<unknown>";
+static std::string getEventShortDescr(PAPIEventID evt) {
+  if (std::optional<PAPI_event_info_t> evtInfo = getEventInfo(evt))
+    return evtInfo->short_descr;
+  return to_hex_string(evt);
 }
 
-static void __kitpapi_add_event_impl(KitPAPIEventsContext *ctx,
-                                     const char *name, int evt) {
-  std::string evtSymbol = getEventSymbol(evt);
-  std::string evtLabel = getEventLabel(evt);
-  if (int err = PAPI_add_event(ctx->evtSet, evt)) {
-    WARN("Could not add event '%s'. Mapped to %s (%s). %s", name,
-         evtSymbol.c_str(), evtLabel.c_str(), PAPI_strerror(err));
-    return;
+static std::string getEventSymbol(PAPIEventID evt) {
+  if (std::optional<PAPI_event_info_t> evtInfo = getEventInfo(evt))
+    return evtInfo->symbol;
+  return to_hex_string(evt);
+}
+
+namespace {
+
+using KitPAPIEpochID = uint64_t;
+
+// Information for an epoch. This wraps the name and the list of events that are
+// recorded in an epoch. We don't use the PAPI event set because those are
+// created and destroyed on demand. An ID is automatically generated for each
+// uniquely named epoch.
+struct KitPAPIEpochInfo {
+  const KitPAPIEpochID id;
+  const std::string name;
+  const std::vector<PAPIEventID> evts;
+
+  KitPAPIEpochInfo(KitPAPIEpochID id, const std::string &name,
+                   std::vector<PAPIEventID> &&evts)
+      : id(id), name(name), evts(std::move(evts)) {}
+};
+
+// An epoch object. This is created each time __kitpapi_new is called.
+class KitPAPIEpochImpl {
+private:
+  const KitPAPIEpochInfo &info;
+
+  // The ID of the thread on which this epoch will measure counters.
+  PAPIThreadID thrd_;
+
+  // The event set for this epoch.
+  PAPIEventSet evtSet = PAPI_NULL;
+
+  // The initial values of the counters. These are read after PAPI_start is
+  // called with the event set associated with this epoch.
+  PAPICounter *initValues = nullptr;
+
+  // The final values of the counters. These are read by __kitpapi_stop. After
+  // __kitpapi_stop returns, the corresponding value in \ref initValues will be
+  // subtracted from this.
+  PAPICounter *finalValues = nullptr;
+
+public:
+  KitPAPIEpochImpl() = delete;
+  KitPAPIEpochImpl(const KitPAPIEpochImpl &) = delete;
+  KitPAPIEpochImpl(KitPAPIEpochImpl &&) = delete;
+  KitPAPIEpochImpl &operator=(const KitPAPIEpochImpl &) = delete;
+  KitPAPIEpochImpl &operator=(KitPAPIEpochImpl &&) = delete;
+
+  KitPAPIEpochImpl(const KitPAPIEpochInfo &info, PAPIThreadID thrd,
+                   PAPIEventSet evtSet)
+      : info(info), thrd_(thrd), evtSet(evtSet) {
+    int n = size();
+    initValues = (PAPICounter *)std::calloc(n, sizeof(PAPICounter));
+    finalValues = (PAPICounter *)std::calloc(n, sizeof(PAPICounter));
   }
 
-  ctx->evts.push_back(evt);
-  ctx->values.push_back(0);
-  LOG("Added event '%s'. Mapped to %s (%s)", name, evtSymbol.c_str(),
-      evtLabel.c_str());
-}
+  ~KitPAPIEpochImpl() { delete finalValues; }
 
-#define MAYBE_ADD_EVENT(ctx, name, evtName, evtCode)                           \
-  do {                                                                         \
-    if (strcmp(name, evtName) == 0)                                            \
-      return __kitpapi_add_event_impl(ctx, name, evtCode);                     \
-  } while (0)
+  inline const std::string &name() const { return info.name; }
+  inline KitPAPIEpochID id() const { return info.id; }
+  inline PAPIThreadID thrd() const { return thrd_; }
+  inline unsigned size() const { return info.evts.size(); }
+  inline PAPIEventID event(unsigned i) const { return info.evts[i]; }
+  inline PAPICounter value(unsigned i) const { return finalValues[i]; }
 
-extern "C" void __kitpapi_add_event(KitPAPIEventsContext *ctx,
-                                    const char *name) {
-  if (!ctx)
-    return;
+  inline void start() {
+    LOG("Starting PAPI counters");
 
-  if (!name) {
-    ERROR("Event name cannot be null");
-    return;
+    // Calling PAPI_start the first time can be expensive because PAPI has to
+    // make calls into the kernel. Unless we make the compiler do some extra
+    // work, we can't know if this is the first time PAPI_start is being called.
+    // Instead, we call PAPI_start right away, but read the value of the
+    // counters immediately after it returns. These values will be subtracted
+    // from those obtained when PAPI_stop is called in __kitpapi_stop.
+    if (int err = PAPI_start(evtSet))
+      return handleError("Could not start PAPI counters", err);
+
+    if (int err = PAPI_read(evtSet, initValues))
+      return handleError("Could not read initial values of PAPI counters", err);
   }
 
-  MAYBE_ADD_EVENT(ctx, name, __kitpapi_l1_dcm, PAPI_L1_DCM);
-  MAYBE_ADD_EVENT(ctx, name, __kitpapi_l2_dcm, PAPI_L2_DCM);
-  MAYBE_ADD_EVENT(ctx, name, __kitpapi_l3_dcm, PAPI_L3_DCM);
-  MAYBE_ADD_EVENT(ctx, name, __kitpapi_l1_icm, PAPI_L1_ICM);
-  MAYBE_ADD_EVENT(ctx, name, __kitpapi_l2_icm, PAPI_L2_ICM);
-  MAYBE_ADD_EVENT(ctx, name, __kitpapi_l3_icm, PAPI_L3_ICM);
-  MAYBE_ADD_EVENT(ctx, name, __kitpapi_l1_tcm, PAPI_L1_TCM);
-  MAYBE_ADD_EVENT(ctx, name, __kitpapi_l2_tcm, PAPI_L2_TCM);
-  MAYBE_ADD_EVENT(ctx, name, __kitpapi_l3_tcm, PAPI_L3_TCM);
-  MAYBE_ADD_EVENT(ctx, name, __kitpapi_tot_inst, PAPI_TOT_INS);
-  MAYBE_ADD_EVENT(ctx, name, __kitpapi_vec_inst, PAPI_VEC_INS);
-  MAYBE_ADD_EVENT(ctx, name, __kitpapi_load_inst, PAPI_LD_INS);
-  MAYBE_ADD_EVENT(ctx, name, __kitpapi_store_inst, PAPI_SR_INS);
-  MAYBE_ADD_EVENT(ctx, name, __kitpapi_br_inst, PAPI_BR_INS);
-  MAYBE_ADD_EVENT(ctx, name, __kitpapi_int_inst, PAPI_INT_INS);
-  MAYBE_ADD_EVENT(ctx, name, __kitpapi_fp_inst, PAPI_FP_INS);
-  MAYBE_ADD_EVENT(ctx, name, __kitpapi_fma_inst, PAPI_FMA_INS);
-  MAYBE_ADD_EVENT(ctx, name, __kitpapi_tot_cyc, PAPI_TOT_CYC);
-  MAYBE_ADD_EVENT(ctx, name, __kitpapi_ref_cyc, PAPI_REF_CYC);
+  inline void stop() {
+    LOG("Stopping PAPI counters");
 
-  WARN("Ignoring unknown event '%s'", name);
-}
+    if (int err = PAPI_stop(evtSet, finalValues))
+      return handleError("Could not read final values of PAPI counters", err);
+    for (unsigned i = 0, e = size(); i < e; ++i)
+      finalValues[i] -= initValues[i];
 
-static KitPAPIEventsContext *newContext(const char *name) {
-  int evtSet = PAPI_NULL;
-  if (int err = PAPI_create_eventset(&evtSet)) {
-    handleError("Could not create PAPI event set", err);
-    return nullptr;
+    if (int err = PAPI_cleanup_eventset(evtSet))
+      handleError("Could not cleanup event set", err);
+    if (int err = PAPI_destroy_eventset(&evtSet))
+      handleError("Could not destroy event set", err);
+    evtSet = PAPI_NULL;
+
+    delete initValues;
   }
-  return new KitPAPIEventsContext(name, evtSet);
+};
+
+} // namespace
+
+namespace kitrt {
+
+// The global singleton context for all PAPI events in this context.
+class KitPAPIContext : public KitContextMixin<KitPAPIContext> {
+private:
+  // A mutex that controls all accesses to the mutable members of this class.
+  std::mutex mtx;
+
+  // Information about each unique epoch.
+  std::map<std::string, std::unique_ptr<const KitPAPIEpochInfo>> epochInfo;
+
+  // All PAPI epochs that have been created. When __kitpapi_start is called, an
+  // epoch will be added to the end of this vector, and a pointer to that
+  // object will be returned. If this were a vector of KitPAPIEpoch objects,
+  // returning a reference to that element would be unsafe. A later call could
+  // result in the array being resized and reallocated. In this case, the
+  // previously returned reference would end up dangling, and would no longer be
+  // valid. By wrapping everything in a unique pointer, the vector may be safely
+  // resized without invalidating any outstanding references (or pointers).
+  std::vector<std::unique_ptr<KitPAPIEpochImpl>> epochs;
+
+public:
+  using Iterator = UniqPtrIterator<decltype(epochs)::const_iterator>;
+
+public:
+  PAPIEventSet createEventSet(const KitPAPIEpochInfo &info) {
+    PAPIEventSet evtSet = PAPI_NULL;
+    if (int err = PAPI_create_eventset(&evtSet)) {
+      handleError("Could not create PAPI event set", err);
+      return PAPI_NULL;
+    }
+
+    for (PAPIEventID evt : info.evts)
+      if (int err = PAPI_add_event(evtSet, evt))
+        WARN("Could not add event '%s'. %s", getEventSymbol(evt).c_str(),
+             PAPI_strerror(err));
+    return evtSet;
+  }
+
+  const KitPAPIEpochInfo &registerEpoch(const std::string &name,
+                                        std::vector<PAPIEventID> &&evts) {
+    std::lock_guard<std::mutex> guard(mtx);
+
+    decltype(epochInfo)::const_iterator it = epochInfo.find(name);
+    if (it != epochInfo.end())
+      return *it->second;
+
+    // Generate an integer ID for the epoch since this is the first time that it
+    // has been seen. This ensures that the epochs are numbered in the order in
+    // in which they appear in the progam. It is not clear why this is useful,
+    // beyond the epochs appearing in order in the final JSON output. But that
+    // is not the nicest to read anyway.
+    KitPAPIEpochID id = epochInfo.size() + 1;
+    auto info = std::make_unique<KitPAPIEpochInfo>(id, name, std::move(evts));
+
+    // This returns a pair of an iterator and a boolean. The iterator itself is
+    // a pair consisting of the key and the value. We want the value here, so
+    // we have `first->second` at the end. The value is a `std::unique_ptr`, but
+    // we must return a reference to that object, hence the dereference at the
+    // start. Perfectly obvious, isn't it?
+    return *epochInfo.emplace(name, std::move(info)).first->second;
+  }
+
+  KitPAPIEpochImpl *addEpoch(const KitPAPIEpochInfo &info) {
+    std::lock_guard<std::mutex> guard(mtx);
+
+    PAPIThreadID thrd = PAPI_thread_id();
+    PAPIEventSet evtSet = createEventSet(info);
+    auto epoch = std::make_unique<KitPAPIEpochImpl>(info, thrd, evtSet);
+
+    // Emplace returns a reference to the unique pointer that was just added to
+    // the epochs vector. We want to return the underlying pointer, so call
+    // get on the result.
+    return epochs.emplace_back(std::move(epoch)).get();
+  }
+
+  size_t size() const { return epochs.size(); }
+  bool empty() const { return epochs.empty(); }
+  Iterator begin() const { return epochs.cbegin(); }
+  Iterator end() const { return epochs.cend(); }
+};
+
+} // namespace kitrt
+
+using namespace kitrt;
+
+static FILE *getFile() {
+  if (std::optional<std::string> fname = envLookup(envPAPIFile)) {
+    if (fname == "-")
+      return stdout;
+
+    LOG("Writing timings to file: %s", fname->c_str());
+    FILE *fp = fopen(fname->c_str(), "wt");
+    if (!fp)
+      WARN("Could not open file for writing");
+    return fp;
+  } else {
+    return stderr;
+  }
 }
 
-static void deleteContext(KitPAPIEventsContext *ctx) {
-  if (int err = PAPI_cleanup_eventset(ctx->evtSet))
-    handleError("Could not cleanup event set", err);
-  if (int err = PAPI_destroy_eventset(&ctx->evtSet))
-    handleError("Could not destroy event set", err);
-  delete ctx;
+static void writeCounters(FILE *fp, const KitPAPIEpochImpl &epoch) {
+  fprintf(fp, "\n      {");
+  for (unsigned i = 0, e = epoch.size(); i < e; ++i) {
+    if (i)
+      fprintf(fp, ", ");
+    std::string descr = getEventShortDescr(epoch.event(i));
+    fprintf(fp, "\"%s\": %lld", descr.c_str(), epoch.value(i));
+  }
+  fprintf(fp, "}");
 }
 
-extern "C" KitPAPIEventsContext *__kitpapi_new(const char *name, ...) {
-  if (!PAPI_is_initialized())
-    return nullptr;
+static void writeEpochs(FILE *fp,
+                        const std::vector<const KitPAPIEpochImpl *> &epochs) {
+  std::optional<KitPAPIEpochID> currEpoch = std::nullopt;
+  std::optional<PAPIThreadID> currThrd = std::nullopt;
+  bool firstThrd = false;
 
-  KitPAPIEventsContext *ctx = newContext(name);
-  if (!ctx)
-    return nullptr;
+  fprintf(fp, "{");
+  for (const KitPAPIEpochImpl *epoch : epochs) {
+    if (currEpoch != epoch->id()) {
+      if (currEpoch) {
+        fprintf(fp, "\n    ]");
+        fprintf(fp, "\n  },");
+      }
+      fprintf(fp, "\n  \"%s\": {", epoch->name().c_str());
+      currEpoch = epoch->id();
+      currThrd = std::nullopt;
+    }
 
-  va_list args;
-  va_start(args, name);
-  const char *evt = nullptr;
-  do {
-    evt = va_arg(args, const char *);
-    if (evt)
-      __kitpapi_add_event(ctx, evt);
-  } while (evt);
-  va_end(args);
+    if (currThrd != epoch->thrd()) {
+      if (currThrd)
+        fprintf(fp, "\n    ],");
+      fprintf(fp, "\n    \"%ld\": [", epoch->thrd());
+      currThrd = epoch->thrd();
+      firstThrd = true;
+    }
 
-  return ctx;
+    if (!firstThrd)
+      fprintf(fp, ",");
+
+    writeCounters(fp, *epoch);
+    firstThrd = false;
+  }
+  fprintf(fp, "\n    ]");
+  fprintf(fp, "\n  }");
+  fprintf(fp, "\n}");
+  fprintf(fp, "\n");
+  fclose(fp);
 }
 
-extern "C" void __kitpapi_start(KitPAPIEventsContext *ctx) {
-  if (!ctx)
+static void writeCounters(const KitPAPIContext &ctx) {
+  if (ctx.empty())
     return;
 
-  LOG("Starting PAPI counters");
-  if (int err = PAPI_start(ctx->evtSet))
-    return handleError("Could not start PAPI counters", err);
+  std::vector<const KitPAPIEpochImpl *> epochs;
+  for (const KitPAPIEpochImpl &epoch : ctx)
+    epochs.push_back(&epoch);
+
+  std::stable_sort(
+      epochs.begin(), epochs.end(),
+      [](const KitPAPIEpochImpl *l, const KitPAPIEpochImpl *r) -> bool {
+        if (l->id() < r->id())
+          return true;
+        else if (l->id() == r->id())
+          return l->thrd() < r->thrd();
+        return false;
+      });
+
+  if (FILE *fp = getFile())
+    writeEpochs(fp, epochs);
 }
 
-extern "C" void __kitpapi_stop(KitPAPIEventsContext *ctx) {
-  if (!ctx)
-    return;
+// The default thread ID that is used when a thread function is not provided
+// to __kitpapi_initialize(). Always returns 0.
+static unsigned long getDefaultThreadID(void) { return 0; }
 
-  if (int err = PAPI_stop(ctx->evtSet, ctx->values.data())) {
-    handleError("Could not stop PAPI counters", err);
-    return deleteContext(ctx);
-  }
-  LOG("Stopped PAPI counters");
+extern "C" KitPAPIEpoch *__kitpapi_new(const char *name, ...) {
+  assert(name && "Name of a PAPI epoch must not be NULL");
 
-  // FIXME: Move this to the destructor after a global context has been set
-  // up that will live for the duration of the calling application.
-  static std::mutex mtx;
-  std::lock_guard<std::mutex> guard(mtx);
-  fprintf(stderr, "PAPI event set '%s' on thread %ld\n", ctx->name.c_str(),
-          std::max((long)PAPI_thread_id(), 0L));
-  for (unsigned i = 0, numEvts = ctx->evts.size(); i < numEvts; ++i) {
-    // We compute the event label out-of-line with the printf because it may
-    // print an error message if the event's label could not be computed. In
-    // that case, we would still like the output to look somewhat reasonable.
-    // If the label could not be computed, a default label will be returned.
-    std::string evtLabel = getEventLabel(ctx->evts[i]);
-    fprintf(stderr, "  %-32s  %lld\n", evtLabel.c_str(), ctx->values[i]);
-  }
+  std::vector<PAPIEventID> evts;
+  va_list va;
+  va_start(va, name);
+  while (PAPIEventID evt = va_arg(va, PAPIEventID))
+    evts.push_back(evt);
+  va_end(va);
 
-  deleteContext(ctx);
+  KitPAPIContext &ctx = KitPAPIContext::mutSingleton();
+  const KitPAPIEpochInfo &info = ctx.registerEpoch(name, std::move(evts));
+  return reinterpret_cast<KitPAPIEpoch *>(ctx.addEpoch(info));
 }
 
-/// Initialize PAPI and any Kitsune-specific global state that we use when
-/// recording information with PAPI. This is intended to be called from the
-/// initializers of Kitsune's target-specific runtimes. Those, in turn are
-/// called from global constructors generated by Kitsune.
+extern "C" void __kitpapi_start(KitPAPIEpoch *handle) {
+  if (KitPAPIEpochImpl *epoch = reinterpret_cast<KitPAPIEpochImpl *>(handle))
+    epoch->start();
+}
+
+extern "C" void __kitpapi_stop(KitPAPIEpoch *handle) {
+  if (KitPAPIEpochImpl *epoch = reinterpret_cast<KitPAPIEpochImpl *>(handle))
+    epoch->stop();
+}
+
+extern "C" bool __kitpapi_initialized(void) {
+  return KitPAPIContext::hasSingleton();
+}
+
 extern "C" void __kitpapi_initialize(PAPIThreadIDFunc getThreadID) {
-  if (PAPI_is_initialized()) {
+  auto getThreadIDFuncOrDefault = [](PAPIThreadIDFunc f) -> PAPIThreadIDFunc {
+    if (f)
+      return f;
+    return getDefaultThreadID;
+  };
+
+  if (__kitpapi_initialized()) {
     LOG("PAPI library already initialized");
     return;
   }
 
   LOG("Initializing PAPI library");
-  if (int rv = PAPI_library_init(PAPI_VER_CURRENT)) {
+  if (int rv = PAPI_library_init(PAPI_VER_CURRENT))
     if (rv != PAPI_VER_CURRENT)
       return handleError("Could not initialize PAPI", rv);
 
-    if (getThreadID) {
-      LOG("Initializing PAPI threading support");
-      if (int err = PAPI_thread_init(getThreadID))
-        return handleError("Could not initialize PAPI threading support", err);
-      LOG("Initialized PAPI threading support");
-    }
-  }
+  // Only create the singleton instance if the PAPI library was initialized.
+  KitPAPIContext::addSingleton();
+
+  LOG("Initializing PAPI threading support");
+  if (int e = PAPI_thread_init(getThreadIDFuncOrDefault(getThreadID)))
+    handleError("Could not initialize PAPI threading support", e);
+  else
+    LOG("Initialized PAPI threading support");
+
   LOG("Initialized PAPI library");
 }
 
-/// Shutdown PAPI and clean up any Kitsune-specific global state that we use
-/// when recording information with PAPI. This is intended to be called from the
-/// finalizers of Kitsune's target-specific runtimes. Those, in turn are called
-/// from global destructors generated by Kitsune.
 extern "C" void __kitpapi_finalize(void) {
-  if (!PAPI_is_initialized()) {
+  if (!__kitpapi_initialized()) {
     LOG("Cannot finalize PAPI library. Not initialized");
     return;
   }
 
   LOG("Finalizing PAPI library");
+
+  writeCounters(KitPAPIContext::getSingleton());
+  KitPAPIContext::delSingleton();
   PAPI_shutdown();
+
   LOG("Finalized PAPI library");
 }

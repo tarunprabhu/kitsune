@@ -36,9 +36,21 @@ set(TESTS
 # These tests call PAPI's API functions directly, and require appropriate
 # include and link options.
 set(TESTS_WITH_PAPI
-  RTPAPIInitFini.c
+  PAPIBasic.c
+  PAPICannotWriteToFile.c
+  PAPIDefaultStderr.c
+  PAPIEmpty.c
+  PAPIInitialized.c
+  PAPIIterateSingleThread.c
+  PAPIIterateThreads.c
   PAPIMultipleFini.c
   PAPIMultipleInit.c
+  PAPINested.c
+  PAPISingleThread.c
+  PAPIThreads.c
+  PAPIWriteNothingToFile.c
+  PAPIWriteToFile.c
+  RTPAPIInitFini.c
 )
 
 add_kitrt_systests("${TESTS}")
