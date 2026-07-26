@@ -5,6 +5,10 @@
 # license.
 #
 
+include (CheckLinkerFlag)
+
+check_linker_flag(CXX "LINKER:-z,now" LINKER_SUPPORTS_Z_NOW)
+
 set(KITRT_OBJLIB "kitrt_objlib")
 
 set(KITSUNE_CPU_TERMCOLOR "nullptr")
@@ -233,6 +237,10 @@ endforeach()
 set_target_properties(${KITRT_DSO} PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${KITSUNE_RESOURCE_INTDIR}/lib
   INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+if (LINKER_SUPPORTS_Z_NOW)
+  target_link_options(${KITRT_DSO} PRIVATE "LINKER:-z,now")
+endif ()
 
 # libkitrt is installed alongside the libraries that it depends on such as
 # libqthread, libomp etc. in Kitsune's internal resource directory. Ensure that
