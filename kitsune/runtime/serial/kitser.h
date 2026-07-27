@@ -62,6 +62,8 @@
 #ifndef KITRT_SERIAL_KITSER_H
 #define KITRT_SERIAL_KITSER_H
 
+#include "common/thread.h"
+
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -72,7 +74,7 @@ extern "C" {
 void __kitser_finalize(void);
 void __kitser_initialize(void);
 bool __kitser_initialized(void);
-uint64_t __kitser_thread_id(void);
+KitThreadID __kitser_thread_id(void);
 
 #ifdef __cplusplus
 } // extern "C"

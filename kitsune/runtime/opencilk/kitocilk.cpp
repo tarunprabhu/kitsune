@@ -96,7 +96,7 @@ extern "C" uint64_t __kitocilk_num_workers(void) {
 }
 
 /// Get the ID of the worker from which this is called.
-extern "C" uint64_t __kitocilk_worker_id(void) {
+extern "C" KitThreadID __kitocilk_worker_id(void) {
   return __cilkrts_get_worker_number();
 }
 

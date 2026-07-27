@@ -51,6 +51,8 @@
 #ifndef KITRT_COMMON_TIMER_H
 #define KITRT_COMMON_TIMER_H
 
+#include "common/thread.h"
+
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -68,9 +70,6 @@ extern "C" {
 /// \ref __kittimer_start. It can be used, exactly once, to stop the timer.
 struct KitTimerEpoch;
 typedef struct KitTimerEpoch KitTimerEpoch;
-
-/// The ID of the thread in which a timer is running.
-typedef uint64_t KitThreadID;
 
 /// A time span. This is expected to be the wallclock time, in nanoseconds, that
 /// have elapsed between a pair of calls to \ref __kittimer_start and

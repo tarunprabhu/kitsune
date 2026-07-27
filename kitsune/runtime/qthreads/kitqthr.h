@@ -60,6 +60,8 @@
 #ifndef KITRT_QTHREADS_KITQTHR_H
 #define KITRT_QTHREADS_KITQTHR_H
 
+#include "common/thread.h"
+
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -79,7 +81,7 @@ bool __kitqthr_initialized(void);
 void __kitqthr_launch(KitQthrThrdFunc f, uint64_t start, uint64_t end,
                       void *args, uint32_t argSize);
 uint64_t __kitqthr_num_workers(void);
-uint64_t __kitqthr_worker_id(void);
+KitThreadID __kitqthr_worker_id(void);
 
 #ifdef __cplusplus
 } // extern "C"

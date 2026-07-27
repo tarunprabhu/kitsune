@@ -60,6 +60,8 @@
 #ifndef KITRT_OPENMP_KITOMP_H
 #define KITRT_OPENMP_KITOMP_H
 
+#include "common/thread.h"
+
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -79,7 +81,7 @@ bool __kitomp_initialized(void);
 void __kitomp_launch(KitOMPThrdFunc f, uint64_t start, uint64_t end, void *args,
                      uint32_t argsSize);
 uint64_t __kitomp_num_threads(void);
-uint64_t __kitomp_thread_id(void);
+KitThreadID __kitomp_thread_id(void);
 
 #ifdef __cplusplus
 } // extern "C"

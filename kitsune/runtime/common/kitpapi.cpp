@@ -123,7 +123,7 @@ private:
   const KitPAPIEpochInfo &info;
 
   // The ID of the thread on which this epoch will measure counters.
-  PAPIThreadID thrd_;
+  KitThreadID thrd_;
 
   // The event set for this epoch.
   PAPIEventSet evtSet = PAPI_NULL;
@@ -144,7 +144,7 @@ public:
   KitPAPIEpochImpl &operator=(const KitPAPIEpochImpl &) = delete;
   KitPAPIEpochImpl &operator=(KitPAPIEpochImpl &&) = delete;
 
-  KitPAPIEpochImpl(const KitPAPIEpochInfo &info, PAPIThreadID thrd,
+  KitPAPIEpochImpl(const KitPAPIEpochInfo &info, KitThreadID thrd,
                    PAPIEventSet evtSet)
       : info(info), thrd_(thrd), evtSet(evtSet) {
     int n = size();
@@ -155,7 +155,7 @@ public:
   ~KitPAPIEpochImpl() { delete finalValues; }
 
   inline const std::string &name() const { return info.name; }
-  inline PAPIThreadID thrd() const { return thrd_; }
+  inline KitThreadID thrd() const { return thrd_; }
   inline unsigned size() const { return info.evts.size(); }
   inline PAPIEventID event(unsigned i) const { return info.evts[i]; }
   inline PAPICounter value(unsigned i) const { return finalValues[i]; }
@@ -199,7 +199,7 @@ public:
 namespace kitrt {
 
 using KitPAPIContextBase = KitInstrBase<KitPAPIContext, KitPAPIEpochImpl,
-                                        KitPAPIEpochInfo, PAPIThreadID>;
+                                        KitPAPIEpochInfo, KitThreadID>;
 
 // The global singleton context for all PAPI events in this context.
 class KitPAPIContext : public KitPAPIContextBase {
