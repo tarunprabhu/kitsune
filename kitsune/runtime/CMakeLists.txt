@@ -25,6 +25,7 @@ add_library(${KITRT_OBJLIB} OBJECT
   memory.cpp
   memory_map.cpp
   common/env.cpp
+  common/instrutils.cpp
   common/logging.cpp
   common/timer.cpp
   common/utils.cpp
