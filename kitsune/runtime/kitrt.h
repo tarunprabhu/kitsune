@@ -54,13 +54,12 @@
 #include "common/kitpapi.h"
 #include "common/timer.h"
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
-#else
-#include <stdbool.h>
-#endif
+#endif // __cplusplus
 
 /// Initialize the core kitsune runtime components that are shared across all
 /// the tapir-target-specific runtimes. This is typically called in the global

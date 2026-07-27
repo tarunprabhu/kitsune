@@ -52,6 +52,7 @@
 #ifndef __KITHIP_H_
 #define __KITHIP_H_
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -66,9 +67,7 @@
 
 #ifdef __cplusplus
 extern "C" {
-#else
-#include <stdbool.h>
-#endif
+#endif // __cplusplus
 
 /**
  * Initialize the HIP portion of the Kitsune runtime library. The
@@ -403,7 +402,7 @@ bool __kithip_is_initialized(void);
 
 #ifdef __cplusplus
 } // extern "C"
-#endif
+#endif // __cplusplus
 
 #define HIP_SAFE_CALL(x)                                                       \
   {                                                                            \

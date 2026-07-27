@@ -53,6 +53,7 @@
 #define __KITCUDA_H__
 
 #include <assert.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -63,9 +64,7 @@
 
 #ifdef __cplusplus
 extern "C" {
-#else
-#include <stdbool.h>
-#endif
+#endif // __cplusplus
 
 /**
  * Initialize the CUDA portion of the Kitsune runtime library.  The
@@ -468,7 +467,7 @@ inline CUcontext __kitcuda_get_context(void) {
 
 #ifdef __cplusplus
 } // extern "C"
-#endif
+#endif // __cplusplus
 
 extern CUdevice _kitcuda_device;
 extern CUmemLocation _kitcuda_mem_location;

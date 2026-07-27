@@ -91,11 +91,7 @@ typedef std::deque<hipStream_t> KitHipStreamList;
 static KitHipStreamList _kithip_streams;
 static std::mutex _kithip_stream_mutex;
 
-#ifdef __cplusplus
 extern "C" {
-#else
-#include <stdbool.h>
-#endif
 
 void *__kithip_get_thread_stream(void) {
   using namespace kithip_rt;
