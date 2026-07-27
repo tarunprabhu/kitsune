@@ -52,6 +52,7 @@
 #define __KITRT_H__
 
 #include "common/kitpapi.h"
+#include "common/thread.h"
 #include "common/timer.h"
 
 #include <stdbool.h>

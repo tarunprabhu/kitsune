@@ -76,7 +76,7 @@ public:
 } // namespace kitrt
 
 /// Get the ID of the thread from which this is called. Always return 0.
-extern "C" uint64_t __kitser_thread_id(void) { return 0; }
+extern "C" KitThreadID __kitser_thread_id(void) { return 0; }
 
 /// Check if this runtime has already been initialized.
 extern "C" bool __kitser_initialized(void) {

@@ -60,6 +60,8 @@
 #ifndef KITRT_PTHREADS_KITPTHR_H
 #define KITRT_PTHREADS_KITPTHR_H
 
+#include "common/thread.h"
+
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -82,7 +84,7 @@ KitPthrLaunchContext *__kitpthr_async_launch(KitPthrThrdFunc f, uint64_t start,
                                              uint64_t end, void *args,
                                              uint32_t argSize);
 uint64_t __kitpthr_num_threads(void);
-uint64_t __kitpthr_thread_id(void);
+KitThreadID __kitpthr_thread_id(void);
 void __kitpthr_sync(KitPthrLaunchContext *ctx);
 
 #ifdef __cplusplus

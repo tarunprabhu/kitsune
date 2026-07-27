@@ -56,6 +56,8 @@
 #ifndef KITRT_COMMON_KITPAPI_H
 #define KITRT_COMMON_KITPAPI_H
 
+#include "common/thread.h"
+
 #include <stdbool.h>
 
 #ifdef __cplusplus
