@@ -8,63 +8,85 @@ add_custom_target(kitsune-docs)
 add_dependencies(kitsune-docs kitsune-doc)
 
 # Generate a .rst file from a .td file from a Kitsune-specific tablegen file.
+# The name of the .rst file will be same as the .td file, except with the .td
+# extension replaced with .rst. The .rst file will be written to
+# ${HTML_SOURCE_DIR}.
 #
-# RST         The output .rst file
-# TD          The input .td file from which the .rst file is generated
-# COMMAND     The command to pass to llvm-tblgen
-# TARGET_RST  The custom target that builds the .rst file. The target itself
-#             will be created in this function
-# TARGET_DIR  The name of the custom target that makes the directory into which
-#             the .rst file will be written. This target should have been
-#             created before this function is called
-function(gen_kit_rst rst td command target_rst target_dir)
-  kitsune_tablegen(${td} ${rst} ${command}
-    TARGET ${target_rst})
+#     TD          The input .td file from which the .rst file is generated
+#     COMMAND     The command to pass to llvm-tblgen
+#     TARGET      The custom target that builds the .rst file. The target itself
+#                 will be created in this function
+#
+function(gen_kit_rst td command target)
+  string(REGEX REPLACE "[.]td$" ".rst" RST "${td}")
+  kitsune_tablegen(${CMAKE_CURRENT_SOURCE_DIR}/${td} ${HTML_SOURCE_DIR}/${RST}
+    ${command}
+    TARGET ${target})
 
-  add_dependencies(${target_rst} ${target_dir})
+  add_dependencies(${target} kitsune-html-source-dir)
+  add_dependencies(docs-kitsune-html ${target})
 endfunction ()
 
 # Generate a .rst file from a .td file that serves as documentation for
-# Kitsune's C/C++ attributes.
+# Kitsune's C/C++ attributes. The name of the .rst file will be the same as the
+# .td file, but with the .td extension replaced with .rst. The .rst file will
+# be written ${HTML_SOURCE_DIR}.
 #
-# RST         The output .rst file
-# TD          The input .td file from which the .rst file is generated
-# TARGET_RST  The custom target that builds the .rst file. The target itself
-#             will be created in this function
-# TARGET_DIR  The name of the custom target that makes the directory into which
-#             the .rst file will be written. This target should have been
-#             created before this function is called.
-function (gen_attrs_rst rst td target_rst target_dir)
-  get_filename_component(TABLEGEN_INCLUDE_DIR ${td} DIRECTORY)
+#     TD        The input .td file from which the .rst file is generated
+#     TARGET    The custom target that builds the .rst file. The target itself
+#               will be created in this function
+#
+function (gen_attrs_rst td target)
   list(APPEND LLVM_TABLEGEN_FLAGS
-    "-I${TABLEGEN_INCLUDE_DIR}"
+    "-I${CMAKE_CURRENT_SOURCE_DIR}"
     "-I${LLVM_MONOREPO_SOURCE_DIR}/clang/include"
     "-I${LLVM_MONOREPO_SOURCE_DIR}/kitsune/include")
-  clang_tablegen(${rst} -gen-kitsune-attr-docs
-    SOURCE ${td}
-    TARGET ${target_rst})
-  add_dependencies(${target_rst} ${target_dir})
+
+  string(REGEX REPLACE "[.]td$" ".rst" RST "${td}")
+  clang_tablegen(${HTML_SOURCE_DIR}/${RST} -gen-kitsune-attr-docs
+    SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/${td}
+    TARGET ${target})
+
+  add_dependencies(${target} kitsune-html-source-dir)
+  add_dependencies(docs-kitsune-html ${target})
 endfunction()
 
 # Generate a .rst file from a .td file that serves as documentation for
-# command-line options supported by Kitsune's drivers.
+# command-line options supported by Kitsune's drivers. The name of the .rst
+# file will be the same as the .td file, except with the .td extension replaced
+# with .rst. If the HTML option is given, the .rst file will be written to
+# ${HTML_SOURCE_DIR}, otherwise, if the MAN option is given, the .rst file will
+# be written to ${MAN_SOURCE_DIR}. Exactly one of HTML, or MAN, must be given.
 #
-# RST         The output .rst file
-# TD          The input .td file from which the .rst file is generated
-# TARGET_RST  The custom target that builds the .rst file. The target itself
-#             will be created in this function
-# TARGET_DIR  The name of the custom target that makes the directory into which
-#             the .rst file will be written. This target should have been
-#             created before this function is called.
-function (gen_options_rst rst td target_rst target_dir)
-  get_filename_component(TABLEGEN_INCLUDE_DIR ${td} DIRECTORY)
-  list(APPEND LLVM_TABLEGEN_FLAGS "-I${TABLEGEN_INCLUDE_DIR}")
+#     TD        The input .td file from which the .rst file is generated
+#     TARGET    The custom target that builds the .rst file. The target itself
+#               will be created in this function
+#
+function (gen_options_rst td target)
+  cmake_parse_arguments(KIT "HTML;MAN" "" "" ${ARGN})
+
+  if ((KIT_HTML AND KIT_MAN) OR (NOT KIT_HTML AND NOT KIT_MAN))
+    message(FATAL_ERROR "Exactly one of HTML or MAN must be specified")
+  endif ()
+
+  list(APPEND LLVM_TABLEGEN_FLAGS "-I${CMAKE_CURRENT_SOURCE_DIR}")
   list(APPEND LLVM_TABLEGEN_FLAGS
     "-I${CMAKE_CURRENT_SOURCE_DIR}/../../clang/include/clang/Driver/")
-  clang_tablegen(${rst} -gen-kitsune-opt-docs
-    SOURCE ${td}
-    TARGET ${target_rst})
-  add_dependencies(${target_rst} ${target_dir})
+
+  string(REGEX REPLACE "[.]td$" ".rst" RST "${td}")
+  if (KIT_HTML)
+    clang_tablegen(${HTML_SOURCE_DIR}/${RST} -gen-kitsune-opt-docs
+      SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/${td}
+      TARGET ${target})
+    add_dependencies(${target} kitsune-html-source-dir)
+    add_dependencies(docs-kitsune-html ${target})
+  else ()
+    clang_tablegen(${MAN_SOURCE_DIR}/${RST} -gen-kitsune-opt-docs
+      SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/${td}
+      TARGET ${target})
+    add_dependencies(${target} kitsune-man-source-dir)
+    add_dependencies(docs-kitsune-man ${target})
+  endif ()
 endfunction()
 
 # Shorter variables for cmake -E commands.
@@ -225,79 +247,33 @@ if (KITSUNE_ENABLE_SPHINX)
       add_sphinx_target(html kitsune SOURCE_DIR "${HTML_SOURCE_DIR}"
         ENV_VARS "${ENV_VARS}")
 
-      gen_attrs_rst(${HTML_SOURCE_DIR}/KitAttrsDoc.rst
-        ${CMAKE_CURRENT_SOURCE_DIR}/KitAttrsDoc.td
-        kitsune-attrs-doc
-        kitsune-html-source-dir)
+      gen_attrs_rst(KitAttrsDoc.td kitsune-attrs-doc)
 
-      gen_kit_rst(${HTML_SOURCE_DIR}/KitCBuiltinsDoc.rst
-        ${CMAKE_CURRENT_SOURCE_DIR}/KitCBuiltinsDoc.td
-        -gen-kit-cbuiltins-doc
-        kitsune-cbuiltins-doc
-        kitsune-html-source-dir)
+      gen_kit_rst(KitArgAttrsDoc.td -gen-kit-arg-attr-doc
+        kitsune-arg-attrs-doc)
+      gen_kit_rst(KitCBuiltinsDoc.td -gen-kit-cbuiltins-doc
+        kitsune-cbuiltins-doc)
+      gen_kit_rst(KitFuncAttrsDoc.td -gen-kit-func-attr-doc
+        kitsune-func-attrs-doc)
+      gen_kit_rst(KitGVAttrsDoc.td -gen-kit-gv-attr-doc
+        kitsune-gv-attrs-doc)
+      gen_kit_rst(KitInstAttrsDoc.td -gen-kit-inst-attr-doc
+        kitsune-inst-attrs-doc)
+      gen_kit_rst(KitIntrinsicsDoc.td -gen-kit-intrinsics-doc
+        kitsune-intrinsics-doc)
+      gen_kit_rst(KitLoopAttrsDoc.td -gen-kit-loop-attr-doc
+        kitsune-loop-attrs-doc)
+      gen_kit_rst(KitModuleAttrsDoc.td -gen-kit-module-attr-doc
+        kitsune-module-attrs-doc)
 
-      gen_kit_rst(${HTML_SOURCE_DIR}/KitIntrinsicsDoc.rst
-        ${CMAKE_CURRENT_SOURCE_DIR}/KitIntrinsicsDoc.td
-        -gen-kit-intrinsics-doc
-        kitsune-intrinsics-doc
-        kitsune-html-source-dir)
+      gen_options_rst(KitClangOptionsDoc.td kitsune-clang-options-doc HTML)
+      gen_options_rst(KitFlangOptionsDoc.td kitsune-flang-options-doc HTML)
+      gen_options_rst(KitCC1OptionsDoc.td kitsune-cc1-options-doc HTML)
+      gen_options_rst(KitFC1OptionsDoc.td kitsune-fc1-options-doc HTML)
 
-      gen_kit_rst(${HTML_SOURCE_DIR}/KitArgAttrsDoc.rst
-        ${CMAKE_CURRENT_SOURCE_DIR}/KitArgAttrsDoc.td
-        -gen-kit-arg-attr-doc
-        kitsune-arg-attrs-doc
-        kitsune-html-source-dir)
-
-      gen_kit_rst(${HTML_SOURCE_DIR}/KitFuncAttrsDoc.rst
-        ${CMAKE_CURRENT_SOURCE_DIR}/KitFuncAttrsDoc.td
-        -gen-kit-func-attr-doc
-        kitsune-func-attrs-doc
-        kitsune-html-source-dir)
-
-      gen_kit_rst(${HTML_SOURCE_DIR}/KitGVAttrsDoc.rst
-        ${CMAKE_CURRENT_SOURCE_DIR}/KitGVAttrsDoc.td
-        -gen-kit-gv-attr-doc
-        kitsune-gv-attrs-doc
-        kitsune-html-source-dir)
-
-      gen_kit_rst(${HTML_SOURCE_DIR}/KitInstAttrsDoc.rst
-        ${CMAKE_CURRENT_SOURCE_DIR}/KitInstAttrsDoc.td
-        -gen-kit-inst-attr-doc
-        kitsune-inst-attrs-doc
-        kitsune-html-source-dir)
-
-      gen_kit_rst(${HTML_SOURCE_DIR}/KitLoopAttrsDoc.rst
-        ${CMAKE_CURRENT_SOURCE_DIR}/KitLoopAttrsDoc.td
-        -gen-kit-loop-attr-doc
-        kitsune-loop-attrs-doc
-        kitsune-html-source-dir)
-
-      gen_kit_rst(${HTML_SOURCE_DIR}/KitModuleAttrsDoc.rst
-        ${CMAKE_CURRENT_SOURCE_DIR}/KitModuleAttrsDoc.td
-        -gen-kit-module-attr-doc
-        kitsune-module-attrs-doc
-        kitsune-html-source-dir)
-
-      gen_options_rst(${HTML_SOURCE_DIR}/KitClangOptionsDoc.rst
-        ${CMAKE_CURRENT_SOURCE_DIR}/KitClangOptionsDoc.td
-        kitsune-clang-options-doc
-        kitsune-html-source-dir)
-
-      gen_options_rst(${HTML_SOURCE_DIR}/KitCC1OptionsDoc.rst
-        ${CMAKE_CURRENT_SOURCE_DIR}/KitCC1OptionsDoc.td
-        kitsune-cc1-options-doc
-        kitsune-html-source-dir)
-
-      gen_options_rst(${HTML_SOURCE_DIR}/KitFlangOptionsDoc.rst
-        ${CMAKE_CURRENT_SOURCE_DIR}/KitFlangOptionsDoc.td
-        kitsune-flang-options-doc
-        kitsune-html-source-dir)
-
-      gen_options_rst(${HTML_SOURCE_DIR}/KitFC1OptionsDoc.rst
-        ${CMAKE_CURRENT_SOURCE_DIR}/KitFC1OptionsDoc.td
-        kitsune-fc1-options-doc
-        kitsune-html-source-dir)
-
+      # Whenever a new .md page is added to the documentation, it must be added
+      # to this list. If the .md file is not included in any other .md file, it
+      # must also be added to the table of contents in index.md.
       set(MDS
         AddingCommandLineOption.md
         AddingKitsuneIntrinsic.md
@@ -346,21 +322,7 @@ if (KITSUNE_ENABLE_SPHINX)
         DEPENDS kitsune-html-source-dir
         USES_TERMINAL VERBATIM)
 
-      add_dependencies(docs-kitsune-html
-        kitsune-attrs-doc
-        kitsune-cbuiltins-doc
-        kitsune-clang-options-doc
-        kitsune-cc1-options-doc
-        kitsune-flang-options-doc
-        kitsune-fc1-options-doc
-        kitsune-arg-attrs-doc
-        kitsune-func-attrs-doc
-        kitsune-gv-attrs-doc
-        kitsune-inst-attrs-doc
-        kitsune-intrinsics-doc
-        kitsune-loop-attrs-doc
-        kitsune-module-attrs-doc
-        copy-html-inputs)
+      add_dependencies(docs-kitsune-html copy-html-inputs)
 
       # If Kitsune's API reference is to be built, the doxygen/ directory will
       # be contain the generated documents. Otherwise, copy the contents of
@@ -428,15 +390,8 @@ Run `${MAKE} kitsune-docs-html` (or `${MAKE} kitsune-docs`) before installing\")
       add_sphinx_target(man kitsune SOURCE_DIR "${MAN_SOURCE_DIR}"
         ENV_VARS "${ENV_VARS}")
 
-      gen_options_rst(${MAN_SOURCE_DIR}/KitClangOptionsMan.rst
-        ${CMAKE_CURRENT_SOURCE_DIR}/KitClangOptionsMan.td
-        kitsune-clang-options-man
-        kitsune-man-source-dir)
-
-      gen_options_rst(${MAN_SOURCE_DIR}/KitFlangOptionsMan.rst
-        ${CMAKE_CURRENT_SOURCE_DIR}/KitFlangOptionsMan.td
-        kitsune-flang-options-man
-        kitsune-man-source-dir)
+      gen_options_rst(KitClangOptionsMan.td kitsune-clang-options-man MAN)
+      gen_options_rst(KitFlangOptionsMan.td kitsune-flang-options-man MAN)
 
       set(RSTS
         man/index.rst
@@ -451,10 +406,7 @@ Run `${MAKE} kitsune-docs-html` (or `${MAKE} kitsune-docs`) before installing\")
         DEPENDS kitsune-man-source-dir
         USES_TERMINAL VERBATIM)
 
-      add_dependencies(docs-kitsune-man
-        kitsune-clang-options-man
-        kitsune-flang-options-man
-        copy-man-inputs)
+      add_dependencies(docs-kitsune-man copy-man-inputs)
       add_dependencies(kitsune-doc docs-kitsune-man)
 
       # docs-kitsune-man is generated by add_sphinx_target. Create an alias for
