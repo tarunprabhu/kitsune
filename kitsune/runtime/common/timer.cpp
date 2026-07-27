@@ -62,33 +62,29 @@
 
 #include "common/timer.h"
 #include "common/env.h"
-#include "common/instrutils.h"
+#include "common/instrbase.h"
 #include "common/logging.h"
-#include "common/ptriter.h"
 #include "global/singleton.h"
 
 #include <ctime>
-#include <map>
-#include <memory>
-#include <mutex>
-#include <string>
-#include <vector>
 
 namespace {
 
 // A time point. This is usually the number of nanoseconds since the epoch.
 using KitTimePoint = uint64_t;
 
+// The number of nanoseconds since the epoch. This uses CLOCK_REALTIME to get
+// wall-clock time. This is susceptible to changes to the system time. This is
+// not a situation that we need to defend against.
 static KitTimePoint nsecs() {
   timespec ts;
   clock_gettime(CLOCK_REALTIME, &ts);
   return ts.tv_sec * 1000000000 + ts.tv_nsec;
 }
 
+// The information unique to an epoch.
 struct KitTimerEpochInfo {
   const std::string name;
-
-  KitTimerEpochInfo(const std::string &name) : name(name) {}
 };
 
 class KitTimerEpochImpl {
@@ -123,64 +119,25 @@ public:
 
 namespace kitrt {
 
+using KitTimerContextBase = KitInstrBase<KitTimerContext, KitTimerEpochImpl,
+                                         KitTimerEpochInfo, KitThreadID>;
+
 // A class that wraps all the timers created in the application. A singleton
 // instance of this class will be created in the global constructor and will
 // live till the global destructor is run.
-class KitTimerContext : public KitContextMixin<KitTimerContext> {
-public:
-  using EpochImpl = KitTimerEpochImpl;
-  using ThreadID = KitThreadID;
+class KitTimerContext : public KitTimerContextBase {
+  friend KitTimerContextBase;
 
-public:
-  static constexpr const char *envVarOutFile = envTimingFile;
-
-private:
-  // A mutex that controls all accesses to the mutable members of this class.
-  std::mutex mtx;
-
-  // The names of the timers. These are used to print the results. The timer
-  // name cannot be inferred from the id.
-  std::map<std::string, std::unique_ptr<KitTimerEpochInfo>> epochInfo;
-
-  // The actual times that have been recorded.
-  std::vector<std::unique_ptr<KitTimerEpochImpl>> epochs;
-
-public:
-  using Iterator = PtrIterator<decltype(epochs)::const_iterator>;
-
-public:
-  const KitTimerEpochInfo &registerEpoch(const std::string &name) {
-    std::lock_guard<std::mutex> guard(mtx);
-
-    decltype(epochInfo)::const_iterator it = epochInfo.find(name);
-    if (it != epochInfo.end())
-      return *it->second;
-
-    auto info = std::make_unique<KitTimerEpochInfo>(name);
-
-    // This returns a pair of an iterator and a boolean. The iterator itself is
-    // a pair consisting of the key and the value. We want the value here, so
-    // we have `first->second` at the end. The value is a `std::unique_ptr`, but
-    // we need to return a reference to that object, hence the dereference at
-    // the start. Perfectly obvious, isn't it?
-    return *epochInfo.emplace(name, std::move(info)).first->second;
+protected:
+  static KitTimerEpochImpl *makeEpoch(const KitTimerEpochInfo &info,
+                                      KitThreadID thrd) {
+    return new KitTimerEpochImpl(info, thrd);
   }
 
-  KitTimerEpochImpl *addEpoch(const KitTimerEpochInfo &info, KitThreadID thrd) {
-    std::lock_guard<std::mutex> guard(mtx);
-
-    // Emplace returns a reference to the unique pointer that was just added to
-    // the epochs vector. We need to return the underlying pointer, so call
-    // get() on the result.
-    auto epoch = std::make_unique<KitTimerEpochImpl>(info, thrd);
-    return epochs.emplace_back(std::move(epoch)).get();
+  static KitTimerEpochInfo *makeEpochInfo(const std::string &name) {
+    return new KitTimerEpochInfo{name};
   }
 
-  bool empty() const { return epochs.empty(); }
-  Iterator begin() const { return epochs.begin(); }
-  Iterator end() const { return epochs.end(); }
-
-public:
   static void writeEpoch(FILE *fp, const KitTimerEpochImpl &epoch) {
     fprintf(fp, "\n      %ld", epoch.span());
   }
@@ -230,7 +187,7 @@ extern "C" void __kittimer_finalize(void) {
 
   LOG("Finalizing Kitsune timing context");
 
-  writeInstrumentation(KitTimerContext::getSingleton());
+  KitTimerContext::getSingleton().writeJSON(envTimingFile);
   KitTimerContext::delSingleton();
 
   LOG("Finalized Kitsune timing context");
