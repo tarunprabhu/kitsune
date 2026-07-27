@@ -39,6 +39,8 @@ depending on what is of interest to you.
     KokkosSupport
     ConfigurationFiles
     StaticLinking
+    Instrumentation
+    RuntimeEnvVar
     FAQ
 ```
 
@@ -87,6 +89,7 @@ depending on what is of interest to you.
     CommandLineOptions
     DriverDesign
     EmbeddedBitcode
+    InstrumentationDesign
     PassPipeline
     LTO
 ```

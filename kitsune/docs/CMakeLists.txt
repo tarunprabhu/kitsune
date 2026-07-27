@@ -291,6 +291,8 @@ if (KITSUNE_ENABLE_SPHINX)
         GettingStarted.md
         Glossary.md
         index.md
+        Instrumentation.md
+        InstrumentationDesign.md
         KitInstructionsDoc.md
         KitPassesDoc.md
         KitsuneTestSuite.md
@@ -305,6 +307,7 @@ if (KITSUNE_ENABLE_SPHINX)
         PassPipeline.md
         RegisteringLibraryFunction.md
         ReleaseNotes.md
+        RuntimeEnvVar.md
         StaticLinking.md
         TapirPassesDoc.md
         TapirTargets.md
