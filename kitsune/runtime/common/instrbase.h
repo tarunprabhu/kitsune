@@ -102,12 +102,11 @@ namespace kitrt {
 /// epoch object will be created each time the callsite is reached. In the final
 /// output that is written out on program termination, any data collected during
 /// these epochs will *NOT* be merged, but will be recorded separately.
-template <typename T, typename EpochT, typename EpochInfoT, typename ThreadIDT>
+template <typename T, typename EpochT, typename EpochInfoT>
 class KitInstrBase : public KitContextMixin<T> {
 protected:
   using Epoch = EpochT;
   using EpochInfo = EpochInfoT;
-  using ThreadID = ThreadIDT;
 
 protected:
   // A mutex that controls all accesses to the mutable members of this class.
