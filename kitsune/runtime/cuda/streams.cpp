@@ -48,28 +48,23 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "common/logging.h"
 #include "kitcuda.h"
 #include "kitcuda_dylib.h"
-#include "common/logging.h"
 
+#include <algorithm>
+#include <deque>
 #include <mutex>
 #include <stdio.h>
 #include <sys/syscall.h>
 #include <unistd.h>
-#include <deque>
-#include <algorithm>
-
 
 // Stream creation can be expensive.  We "recycle" them when possible.
 typedef std::deque<CUstream> KitCudaStreamList;
 static KitCudaStreamList _kitcuda_streams;
 static std::mutex _kitcuda_stream_mutex;
 
-#ifdef __cplusplus
 extern "C" {
-#else
-#include <stdbool.h>
-#endif
 
 void *__kitcuda_get_thread_stream(void) {
   KIT_NVTX_PUSH("kitcuda:get_thread_stream", KIT_NVTX_STREAM);
@@ -125,7 +120,8 @@ void __kitcuda_delete_thread_stream(void *opaque_stream) {
 
   // LOCK
   _kitcuda_stream_mutex.lock();
-  auto sit = std::find(_kitcuda_streams.begin(), _kitcuda_streams.end(), stream);
+  auto sit =
+      std::find(_kitcuda_streams.begin(), _kitcuda_streams.end(), stream);
   if (sit != _kitcuda_streams.end()) {
     _kitcuda_streams.erase(sit);
   }
