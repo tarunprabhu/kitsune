@@ -39,14 +39,14 @@ recognized by `clang`.
   // We *must* use DefaultVis here. We cannot use the alias 'ClangOptions' since
   // the former is the name of the actual TableGen record. There is probably a
   // reason why the alias will not work, but I don't know what that is.
-  list<string> VisibilityMask = ["KitsuneOption", "DefaultVis"];
+  list<string> VisibilityMask = ["DefaultVis"];
 
   // Some options are present in the driver, but are intended for developers.
   // Don't display those.
   list<string> IgnoreFlags = ["HelpHidden", "Unsupported", "Ignored"];
 
   // Ignore groups that are either not relevant for Kitsune, or contain options
-  // that are explicitly not supported by Kitsune.
+  // that are not supported by Kitsune.
   list<string> IgnoreGroups = ["cuda_Group", "dxc_Group", "gfortran_Group", "hip_Group", "offload_Group", "opencl_Group", "sycl_Group", "hlsl_Group"];
 }
 

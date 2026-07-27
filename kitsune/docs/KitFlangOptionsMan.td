@@ -1,4 +1,4 @@
-//==- KitFlangOptionsMan.td - Docs for Kitsune's Fortran frontend options --==//
+//===- KitFlangOptionsMan.td - Man page for Kitsune's Fortran frontend ----===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -21,14 +21,14 @@ def GlobalDocumentation {
 
   string Program = "Kitsune (Fortran)";
 
-  list<string> VisibilityMask = ["KitsuneOption", "FlangOption"];
+  list<string> VisibilityMask = ["FlangOption"];
 
   // Some options are present in the driver, but are intended for developers.
   // Don't display those.
   list<string> IgnoreFlags = ["HelpHidden", "Unsupported", "Ignored"];
 
   // Ignore groups that are either not relevant for Kitsune, or contain options
-  // that are explicitly not supported by Kitsune.
+  // that are not supported by Kitsune.
   list<string> IgnoreGroups = ["cuda_Group", "dxc_Group", "gfortran_Group", "hip_Group", "offload_Group", "opencl_Group", "sycl_Group", "hlsl_Group"];
 }
 

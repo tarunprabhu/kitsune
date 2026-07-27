@@ -1,4 +1,4 @@
-//===- KitClangOptionsMan.td - Docs for Kitsune's C/C++ frontend options --===//
+//===- KitClangOptionsMan.td - Man page for Kitsune's C/C++ frontend ------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 //
 // Documentation for options available in Kitsune's C and C++ frontends. This
-// is used to generate the HTML options reference page.
+// is used to generate man pages for kitcc and kit++.
 //
 //===----------------------------------------------------------------------===//
 
@@ -24,14 +24,14 @@ def GlobalDocumentation {
   // We *must* use DefaultVis here. We cannot use the alias 'ClangOptions' since
   // the former is the name of the actual TableGen record. There is probably a
   // reason why the alias will not work, but I don't know what that is.
-  list<string> VisibilityMask = ["KitsuneOption", "DefaultVis"];
+  list<string> VisibilityMask = ["DefaultVis"];
 
   // Some options are present in the driver, but are intended for developers.
   // Don't display those.
   list<string> IgnoreFlags = ["HelpHidden", "Unsupported", "Ignored"];
 
   // Ignore groups that are either not relevant for Kitsune, or contain options
-  // that are explicitly not supported by Kitsune.
+  // that are not supported by Kitsune.
   list<string> IgnoreGroups = ["cuda_Group", "dxc_Group", "gfortran_Group", "hip_Group", "offload_Group", "opencl_Group", "sycl_Group", "hlsl_Group"];
 }
 
