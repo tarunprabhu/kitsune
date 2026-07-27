@@ -1,4 +1,4 @@
-//===- instrutils.h - Base class for runtime instrumentation ----*- C++ -*-===//
+//===- instrutils.h - Utilities for Kitsune's instrumentation ---*- C++ -*-===//
 //
 // Copyright (c) 2021, 2023 Los Alamos National Security, LLC.
 // All rights reserved.
@@ -49,92 +49,28 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Utilities for the instrumentation supported by Kitsune's runtime
+// Utilities for compiler-inserted instrumentation backed by Kitsune's runtime.
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef KITRT_COMMON_INSTR_UTILS_H
 #define KITRT_COMMON_INSTR_UTILS_H
 
-#include "common/env.h"
-#include "common/logging.h"
-
-#include <algorithm>
-#include <functional>
-#include <optional>
-#include <vector>
+#include <cstdio>
 
 namespace kitrt {
 
-FILE *getInstrOutFile(const char *envVarOutFile);
-
-template <typename KitInstrContext>
-void writeEpochs(
-    FILE *fp,
-    const std::vector<const typename KitInstrContext::EpochImpl *> &epochs) {
-  using EpochImpl = typename KitInstrContext::EpochImpl;
-  using ThreadID = typename KitInstrContext::ThreadID;
-
-  std::optional<std::string> currEpoch = std::nullopt;
-  std::optional<ThreadID> currThrd = std::nullopt;
-  bool firstThrd = false;
-
-  fprintf(fp, "{");
-  for (const EpochImpl *epoch : epochs) {
-    if (currEpoch != epoch->name()) {
-      if (currEpoch) {
-        fprintf(fp, "\n    ]");
-        fprintf(fp, "\n  },");
-      }
-      fprintf(fp, "\n  \"%s\": {", epoch->name().c_str());
-      currEpoch = epoch->name();
-      currThrd = std::nullopt;
-    }
-
-    if (currThrd != epoch->thrd()) {
-      if (currThrd)
-        fprintf(fp, "\n    ],");
-      fprintf(fp, "\n    \"%ld\": [", epoch->thrd());
-      currThrd = epoch->thrd();
-      firstThrd = true;
-    }
-
-    if (!firstThrd)
-      fprintf(fp, ",");
-
-    KitInstrContext::writeEpoch(fp, *epoch);
-    firstThrd = false;
-  }
-  fprintf(fp, "\n    ]");
-  fprintf(fp, "\n  }");
-  fprintf(fp, "\n}");
-  fprintf(fp, "\n");
-  fclose(fp);
-}
-
-template <typename KitInstrContext>
-void writeInstrumentation(const KitInstrContext &ctx) {
-  using EpochImpl = typename KitInstrContext::EpochImpl;
-
-  if (ctx.empty())
-    return;
-
-  std::vector<const EpochImpl *> epochs;
-  for (const EpochImpl &epoch : ctx)
-    epochs.push_back(&epoch);
-
-  std::stable_sort(epochs.begin(), epochs.end(),
-                   [](const EpochImpl *l, const EpochImpl *r) -> bool {
-                     if (l->name() < r->name())
-                       return true;
-                     else if (l->name() == r->name())
-                       return l->thrd() < r->thrd();
-                     return false;
-                   });
-
-  if (FILE *fp = getInstrOutFile(KitInstrContext::envVarOutFile))
-    writeEpochs<KitInstrContext>(fp, epochs);
-}
+/// If the environment variable, \p envVar is set to a non-empty string, it is
+/// assumed to the name (or absolute path) of a file to which the recorded
+/// instrumentation is to be written. A special case is if the environment
+/// variable is set to "-". In this case, the FILE object corresponding to
+/// stdout will be returned. Otherwise, an attempt will be made to open the file
+/// named by \p envVar for writing. If it succeeds, the contents of the file
+/// will be deleted and a FILE object pointing to the start of the file will be
+/// returned. If the file could not be opened for writing for any reason, NULL
+/// will be returned. if \p envVarOutFile is not set in the environment, a FILE
+/// object corresponding to stderr will be returned.
+FILE *getInstrumentationOutputFile(const char *envVar);
 
 } // namespace kitrt
 
