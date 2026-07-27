@@ -63,14 +63,67 @@
 #include "common/timer.h"
 #include "common/env.h"
 #include "common/logging.h"
+#include "common/uniqptr_iter.h"
 #include "global/singleton.h"
 
 #include <algorithm>
 #include <ctime>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
+
+namespace {
+
+// A time point. This is usually the number of nanoseconds since the epoch.
+using KitTimePoint = uint64_t;
+using KitTimerID = uint64_t;
+
+static KitTimePoint nsecs() {
+  timespec ts;
+  clock_gettime(CLOCK_REALTIME, &ts);
+  return ts.tv_sec * 1000000000 + ts.tv_nsec;
+}
+
+struct KitTimerEpochInfo {
+  const KitTimerID id;
+  const std::string name;
+
+  KitTimerEpochInfo(KitTimerID id, const std::string &name)
+      : id(id), name(name) {}
+};
+
+class KitTimerEpochImpl {
+public:
+  const KitTimerEpochInfo &info;
+  const KitThreadID thrd_;
+  KitTimeSpan span_;
+
+public:
+  KitTimerEpochImpl() = delete;
+  KitTimerEpochImpl(const KitTimerEpoch &) = delete;
+  KitTimerEpochImpl(KitTimerEpoch &&) = delete;
+  KitTimerEpochImpl &operator=(const KitTimerEpoch &) = delete;
+  KitTimerEpochImpl &operator=(KitTimerEpoch &&) = delete;
+
+  KitTimerEpochImpl(const KitTimerEpochInfo &info, KitThreadID thrd)
+      : info(info), thrd_(thrd), span_(0) {}
+
+  inline KitTimerID id() const { return info.id; }
+  inline const std::string &name() const { return info.name; }
+  inline KitThreadID thrd() const { return thrd_; }
+  inline KitTimeSpan span() const { return span_; }
+
+  inline void start() { span_ = nsecs(); }
+
+  inline KitTimeSpan stop() {
+    span_ = nsecs() - span_;
+    return span_;
+  }
+};
+
+} // namespace
 
 namespace kitrt {
 
@@ -78,116 +131,58 @@ namespace kitrt {
 // instance of this class will be created in the global constructor and will
 // live till the global destructor is run.
 class KitTimerContext : public KitContextMixin<KitTimerContext> {
-public:
-  // Each timer will record a number of intervals - one for each occasion when
-  // the timer was started and stopped.
-  using Intervals = std::vector<TimeSpan>;
-
-  // The key for a timer in the timer map is a combination of the timer id and
-  // the thread id.
-  using TimerKey = std::pair<TimerID, ThreadID>;
-
-  // The timers in a timer context.
-  using Timers = std::map<TimerKey, Intervals>;
-
 private:
-  // The mutex that guards access to \ref tmap. Depending on how many threads
-  // are in flight, tmap may be being modified while another thread tries to
-  // read from it - which can have unpleasant consequences.
+  // A mutex that controls all accesses to the mutable members of this class.
   std::mutex mtx;
 
   // The names of the timers. These are used to print the results. The timer
   // name cannot be inferred from the id.
-  std::map<TimerID, std::string> names;
+  std::map<std::string, std::unique_ptr<KitTimerEpochInfo>> epochInfo;
 
-  // The actual timers. The key is a pair of the TimerID and ThreadID. Each
-  // ID consists of a number of intervals - each of which is the wallclock time
-  // that has elapsed between a pair of calls to \ref __kittimer_start, and
-  // \ref __kittimer_stop.
-  std::map<TimerKey, Intervals> timers;
+  // The actual times that have been recorded.
+  std::vector<std::unique_ptr<KitTimerEpochImpl>> epochs;
 
 public:
-  void add(TimeSpan span, TimerID timer, ThreadID thrd, const char *name) {
+  using Iterator = UniqPtrIterator<decltype(epochs)::const_iterator>;
+
+public:
+  const KitTimerEpochInfo &registerEpoch(const std::string &name) {
     std::lock_guard<std::mutex> guard(mtx);
-    TimerKey key(timer, thrd);
-    if (timers.find(key) == timers.end()) {
-      names[timer] = name;
-      timers.try_emplace(key);
-    }
-    timers.at(key).push_back(span);
+
+    decltype(epochInfo)::const_iterator it = epochInfo.find(name);
+    if (it != epochInfo.end())
+      return *it->second;
+
+    KitTimerID id = epochInfo.size() + 1;
+    auto info = std::make_unique<KitTimerEpochInfo>(id, name);
+
+    // This returns a pair of an iterator and a boolean. The iterator itself is
+    // a pair consisting of the key and the value. We want the value here, so
+    // we have `first->second` at the end. The value is a `std::unique_ptr`, but
+    // we must return a reference to that object, hence the dereference at the
+    // start. Perfectly obvious, isn't it?
+    return *epochInfo.emplace(name, std::move(info)).first->second;
   }
 
-  const Intervals &get(TimerID timer, ThreadID thrd) const {
-    // We don't guard this with a lock because this will only ever be called
-    // from the global destructor, __kittimer_finalize(), and that is guaranteed
-    // to only run from a single thread.
-    return timers.at({timer, thrd});
+  KitTimerEpochImpl *addEpoch(const KitTimerEpochInfo &info, KitThreadID thrd) {
+    std::lock_guard<std::mutex> guard(mtx);
+
+    // Emplace returns a reference to the unique pointer that was just added to
+    // the epochs vector. We need to return the underlying pointer, so call
+    // get() on the result.
+    auto epoch = std::make_unique<KitTimerEpochImpl>(info, thrd);
+    return epochs.emplace_back(std::move(epoch)).get();
   }
 
-  const std::string &name(TimerID timer) const { return names.at(timer); }
-  bool empty() const { return timers.empty(); }
-  size_t size() const { return timers.size(); }
-  Timers::const_iterator begin() const { return timers.begin(); }
-  Timers::const_iterator end() const { return timers.end(); }
+  bool empty() const { return epochs.empty(); }
+  size_t size() const { return epochs.size(); }
+  Iterator begin() const { return epochs.begin(); }
+  Iterator end() const { return epochs.end(); }
 };
 
 } // namespace kitrt
 
 using namespace kitrt;
-
-static TimePoint nsecs() {
-  timespec ts;
-  clock_gettime(CLOCK_REALTIME, &ts);
-  return ts.tv_sec * 1000000000 + ts.tv_nsec;
-}
-
-using ThreadIDs = std::vector<ThreadID>;
-using Timers = std::vector<std::tuple<TimerID, ThreadIDs>>;
-
-static void printTimes(FILE *file, const KitTimerContext::Intervals &spans) {
-  bool comma = false;
-
-  fprintf(file, "[");
-  for (TimeSpan t : spans) {
-    if (comma)
-      fprintf(file, ", ");
-    fprintf(file, "%lu", t);
-    comma = true;
-  }
-  fprintf(file, "]");
-}
-
-static void printThreads(const KitTimerContext &timerCtx, FILE *fp,
-                         TimerID timerID, const ThreadIDs &thrdIDs) {
-  bool comma = false;
-
-  fprintf(fp, "{");
-  for (ThreadID threadID : thrdIDs) {
-    if (comma)
-      fprintf(fp, ",");
-    fprintf(fp, "\n");
-    fprintf(fp, "    \"%ld\": ", threadID);
-    printTimes(fp, timerCtx.get(timerID, threadID));
-    comma = true;
-  }
-  fprintf(fp, "\n  }");
-}
-
-static void printTimers(const KitTimerContext &timerCtx, FILE *fp,
-                        const Timers &timers) {
-  bool comma = false;
-
-  fprintf(fp, "{");
-  for (const auto &[timerID, thrdIDs] : timers) {
-    if (comma)
-      fprintf(fp, ",");
-    fprintf(fp, "\n");
-    fprintf(fp, "  \"%s\": ", timerCtx.name(timerID).c_str());
-    printThreads(timerCtx, fp, timerID, thrdIDs);
-    comma = true;
-  }
-  fprintf(fp, "\n}\n");
-}
 
 static FILE *getFile() {
   if (std::optional<std::string> fname = envLookup(envTimingFile)) {
@@ -204,70 +199,84 @@ static FILE *getFile() {
   }
 }
 
-static void writeTimings(const KitTimerContext &timerCtx) {
-  if (timerCtx.empty())
-    return;
-
-  // Sort the timers by name. At the end of this, the vector of pairs might look
-  // something like this:
-  //
-  //     [{57, 0},   // name = "main"
-  //      {9,  43},  // name = "timer1"
-  //      {9,  12},  // name = "timer1"
-  //      {9,  27},  // name = "timer1"
-  //      {98, 0}]   // name = "write"
-  //
-  // Note that the timers are sorted by their name, not the IDs. However, the
-  // threads within each timer may not be sorted.
-  //
-  std::vector<std::pair<TimerID, ThreadID>> ordered;
-  for (const auto &[key, _] : timerCtx)
-    ordered.emplace_back(key.first, key.second);
-  std::sort(ordered.begin(), ordered.end(),
-            [&timerCtx](const auto &p1, const auto &p2) -> bool {
-              return timerCtx.name(p1.first) < timerCtx.name(p2.first);
-            });
-
-  // Collect the thread id's for each timer. At the end of this, the `ids`
-  // variable will look like this:
-  //
-  //    [{57, [0]},
-  //     {9,  [43, 12, 27]},
-  //     {98, [0]}]
-  //
-  Timers timers = {{ordered.front().first, {}}};
-  for (const auto &[timerID, thrdID] : ordered) {
-    if (timerID != std::get<TimerID>(timers.back()))
-      timers.emplace_back(timerID, ThreadIDs());
-    std::get<ThreadIDs>(timers.back()).push_back(thrdID);
-  }
-
-  // Sort the thread IDs, just because.
-  for (auto &[timerID, thrdIDs] : timers)
-    std::sort(thrdIDs.begin(), thrdIDs.end());
-
-  // If a timing file is not provided, write timings to stderr. If the name of
-  // the timings file is "-", write to stdout. Otherwise, try to write to the
-  // file.
-  //
-  // If the file could not be opened, fp will be nullptr.
-  if (FILE *fp = getFile()) {
-    printTimers(timerCtx, fp, timers);
-    if (fp != stdout && fp != stderr) {
-      fclose(fp);
-      LOG("Timings written to file");
-    }
-  }
+static void writeTiming(FILE *fp, const KitTimerEpochImpl &epoch) {
+  fprintf(fp, "\n      %ld", epoch.span());
 }
 
-extern "C" TimePoint __kittimer_start(void) { return nsecs(); }
+static void writeEpochs(FILE *fp,
+                        const std::vector<const KitTimerEpochImpl *> &epochs) {
+  std::optional<KitTimerID> currEpoch = std::nullopt;
+  std::optional<KitThreadID> currThrd = std::nullopt;
+  bool firstThrd = false;
 
-extern "C" TimeSpan __kittimer_stop(TimePoint start, TimerID timer,
-                                    ThreadID thrd, const char *name) {
-  TimeSpan span = nsecs() - start;
-  KitTimerContext::mutSingleton().add(span, timer, thrd, name);
+  fprintf(fp, "{");
+  for (const KitTimerEpochImpl *epoch : epochs) {
+    if (currEpoch != epoch->id()) {
+      if (currEpoch) {
+        fprintf(fp, "\n    ]");
+        fprintf(fp, "\n  },");
+      }
+      fprintf(fp, "\n  \"%s\": {", epoch->name().c_str());
+      currEpoch = epoch->id();
+      currThrd = std::nullopt;
+    }
 
-  return span;
+    if (currThrd != epoch->thrd()) {
+      if (currThrd)
+        fprintf(fp, "\n    ],");
+      fprintf(fp, "\n    \"%ld\": [", epoch->thrd());
+      currThrd = epoch->thrd();
+      firstThrd = true;
+    }
+
+    if (!firstThrd)
+      fprintf(fp, ",");
+
+    writeTiming(fp, *epoch);
+    firstThrd = false;
+  }
+  fprintf(fp, "\n    ]");
+  fprintf(fp, "\n  }");
+  fprintf(fp, "\n}");
+  fprintf(fp, "\n");
+  fclose(fp);
+}
+
+static void writeTimings(const KitTimerContext &ctx) {
+  if (ctx.empty())
+    return;
+
+  std::vector<const KitTimerEpochImpl *> epochs;
+  for (const KitTimerEpochImpl &epoch : ctx)
+    epochs.push_back(&epoch);
+
+  std::stable_sort(
+      epochs.begin(), epochs.end(),
+      [](const KitTimerEpochImpl *l, const KitTimerEpochImpl *r) -> bool {
+        if (l->id() < r->id())
+          return true;
+        else if (l->id() == r->id())
+          return l->thrd() < r->thrd();
+        return false;
+      });
+
+  if (FILE *fp = getFile())
+    writeEpochs(fp, epochs);
+}
+
+extern "C" KitTimerEpoch *__kittimer_start(const char *name, KitThreadID thrd) {
+  KitTimerContext &ctx = KitTimerContext::mutSingleton();
+  const KitTimerEpochInfo &info = ctx.registerEpoch(name);
+  KitTimerEpochImpl *epoch = ctx.addEpoch(info, thrd);
+
+  epoch->start();
+  return reinterpret_cast<KitTimerEpoch *>(epoch);
+}
+
+extern "C" KitTimeSpan __kittimer_stop(KitTimerEpoch *handle) {
+  if (KitTimerEpochImpl *epoch = reinterpret_cast<KitTimerEpochImpl *>(handle))
+    return epoch->stop();
+  return 0;
 }
 
 extern "C" bool __kittimer_initialized(void) {

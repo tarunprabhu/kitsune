@@ -1,19 +1,33 @@
 // Check that the output of per-thread timers started and stopped multiple times
 // is as expected. We use Kitsune's OpenMP runtime because it is guaranteed to
 // be built. Also, omp_get_thread_num() returns an integer in
-// [0, KIT_NUM_THREADS), so one can reasonably collect times across iterations.
+// [0, KIT_NUM_THREADS), so we can match against thread ids.
 //
 // RUN: env KIT_NUM_THREADS=3 %exe 2>&1 | FileCheck %s
 //
-// CHECK: {
-// CHECK-NEXT: "fork": {
-// CHECK-NEXT: "0": [{{[0-9]+}}]
-// CHECK-NEXT: },
-// CHECK-NEXT: "tine": {
-// CHECK-DAG: "0": [{{[0-9]+}}, {{[0-9]+}}, {{[0-9]+}}]
-// CHECK-DAG: "1": [{{[0-9]+}}, {{[0-9]+}}, {{[0-9]+}}]
-// CHECK-DAG: "2": [{{[0-9]+}}, {{[0-9]+}}, {{[0-9]+}}]
-// CHECK-NEXT: }
+// CHECK:      {
+// CHECK-NEXT:   "fork": {
+// CHECK-NEXT:     "0": [
+// CHECK-NEXT:       {{[0-9]+}}
+// CHECK-NEXT:     ]
+// CHECK-NEXT:   },
+// CHECK-NEXT:   "tine": {
+// CHECK-NEXT:     "0": [
+// CHECK-NEXT:       {{[0-9]+}},
+// CHECK-NEXT:       {{[0-9]+}},
+// CHECK-NEXT:       {{[0-9]+}}
+// CHECK-NEXT:     ]
+// CHECK-NEXT:     "1": [
+// CHECK-NEXT:       {{[0-9]+}},
+// CHECK-NEXT:       {{[0-9]+}},
+// CHECK-NEXT:       {{[0-9]+}}
+// CHECK-NEXT:     ]
+// CHECK-NEXT:     "2": [
+// CHECK-NEXT:       {{[0-9]+}},
+// CHECK-NEXT:       {{[0-9]+}},
+// CHECK-NEXT:       {{[0-9]+}}
+// CHECK-NEXT:     ]
+// CHECK-NEXT:   }
 // CHECK-NEXT: }
 
 #include "common/timer.h"
@@ -28,15 +42,15 @@ __attribute__((constructor)) static void ctor(void) { __kitomp_initialize(); }
 __attribute__((destructor)) static void dtor(void) { __kitomp_finalize(); }
 
 static void thrdFn(uint64_t start, uint64_t stop, void *args) {
-  TimePoint tick = __kittimer_start();
-  __kittimer_stop(tick, 92, omp_get_thread_num(), "tine");
+  KitTimerEpoch *e = __kittimer_start("tine", omp_get_thread_num());
+  __kittimer_stop(e);
 }
 
 int main(int argc, char *argv[]) {
-  TimePoint tick = __kittimer_start();
+  KitTimerEpoch *e = __kittimer_start("fork", /*thread=*/0);
   for (unsigned i = 0; i < 3; ++i)
     __kitomp_launch(thrdFn, /*beg=*/0, /*end=*/3, /*args=*/NULL, /*argSize=*/0);
-  __kittimer_stop(tick, 11, 0, "fork");
+  __kittimer_stop(e);
 
   return 0;
 }

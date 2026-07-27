@@ -29,19 +29,32 @@
 // -----------------------------------------------------------------------------
 // STDERR-NOT: {{^.+$}}
 //
-// FILE_NUM_LINES: 10
+// FILE_NUM_LINES: 24
 //
-// FILE: {
-// FILE-NEXT: "kinder": {
-// FILE-DAG: "0": [{{[0-9]+}}, {{[0-9]+}}, {{[0-9]+}}]
-// FILE-DAG: "1": [{{[0-9]+}}, {{[0-9]+}}, {{[0-9]+}}]
-// FILE-DAG: "2": [{{[0-9]+}}, {{[0-9]+}}, {{[0-9]+}}]
-// FILE-NEXT: },
-// FILE-NEXT: "papagena": {
-// FILE-NEXT: "0": [{{[0-9]+}}]
+// FILE:      {
+// FILE-NEXT:   "papagena": {
+// FILE-NEXT:     "0": [
+// FILE-NEXT:       {{[0-9]+}}
+// FILE-NEXT:     ]
+// FILE-NEXT:   },
+// FILE-NEXT:   "kinder": {
+// FILE-NEXT:     "0": [
+// FILE-NEXT:       {{[0-9]+}},
+// FILE-NEXT:       {{[0-9]+}},
+// FILE-NEXT:       {{[0-9]+}}
+// FILE-NEXT:     ]
+// FILE-NEXT:     "1": [
+// FILE-NEXT:       {{[0-9]+}},
+// FILE-NEXT:       {{[0-9]+}},
+// FILE-NEXT:       {{[0-9]+}}
+// FILE-NEXT:     ]
+// FILE-NEXT:     "2": [
+// FILE-NEXT:       {{[0-9]+}},
+// FILE-NEXT:       {{[0-9]+}},
+// FILE-NEXT:       {{[0-9]+}}
+// FILE-NEXT:     ]
+// FILE-NEXT:   }
 // FILE-NEXT: }
-// FILE-NEXT: }
-// FILE-NOT: {{^.+$}}
 //
 // EXISTING: Contents
 // EXISTING-NOT: {{^.+$}}
@@ -59,16 +72,15 @@ __attribute__((constructor)) static void ctor(void) { __kitomp_initialize(); }
 __attribute__((destructor)) static void dtor(void) { __kitomp_finalize(); }
 
 static void thrdFn(uint64_t start, uint64_t stop, void *args) {
-  TimePoint tick = __kittimer_start();
-  __kittimer_stop(tick, /*timerID=*/92, /*threadID=*/omp_get_thread_num(),
-                  "kinder");
+  KitTimerEpoch *e = __kittimer_start("kinder", omp_get_thread_num());
+  __kittimer_stop(e);
 }
 
 int main(int argc, char *argv[]) {
-  TimePoint tick = __kittimer_start();
+  KitTimerEpoch *e = __kittimer_start("papagena", /*thread=*/0);
   for (unsigned i = 0; i < 3; ++i)
     __kitomp_launch(thrdFn, /*beg=*/0, /*end=*/3, /*args=*/NULL, /*argSize=*/0);
-  __kittimer_stop(tick, /*timerID=*/11, /*threadID=*/0, "papagena");
+  __kittimer_stop(e);
 
   return 0;
 }
