@@ -5,13 +5,13 @@
 // RUN: %exe 2>&1 > /dev/null | FileCheck %s --check-prefix=STDERR
 // RUN: %exe 2> /dev/null | FileCheck %s --check-prefix=STDOUT --allow-empty
 //
-// STDERR:      {
-// STDERR-NEXT:   "micaela": {
-// STDERR-NEXT:     "0": [
-// STDERR-NEXT:       {"Instr completed": {{[0-9]+}}, "Total cycles": {{[0-9]+}}}
-// STDERR-NEXT:     ]
-// STDERR-NEXT:   }
-// STDERR-NEXT: }
+// STDERR:     {
+// STDERR-NEXT:  "micaela": {
+// STDERR-NEXT:    "0": [
+// STDERR-NEXT:      {"Instr completed": {{[0-9]+}}, "Total cycles": {{[0-9]+}}}
+// STDERR-NEXT:    ]
+// STDERR-NEXT:  }
+// STDERR-NEXT:}
 //
 // STDOUT-NOT: {{^.+$}}
 
@@ -31,7 +31,8 @@ __attribute__((destructor)) static void dtor(void) {
 }
 
 int main(int argc, char *argv[]) {
-  KitPAPIEpoch *e = __kitpapi_new("micaela", PAPI_TOT_INS, PAPI_TOT_CYC, 0);
+  KitPAPIEpoch *e =
+      __kitpapi_new("micaela", /*thread=*/0, PAPI_TOT_INS, PAPI_TOT_CYC, 0);
   __kitpapi_start(e);
   __kitpapi_stop(e);
 

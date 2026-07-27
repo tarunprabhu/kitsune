@@ -6,7 +6,7 @@
 //
 // CHECK:      {
 // CHECK-NEXT:   "dancaire": {
-// CHECK-NEXT:     "0": [
+// CHECK-NEXT:     "67": [
 // CHECK-NEXT:       {"Instr completed": {{[0-9]+}}, "Total cycles": {{[0-9]+}}}
 // CHECK-NEXT:     ]
 // CHECK-NEXT:   }
@@ -30,7 +30,8 @@ __attribute__((destructor)) static void dtor(void) {
 int main(int argc, char *argv[]) {
   // The total number of instructions and the total number of cycles ought to be
   // available on all platforms - one would think.
-  KitPAPIEpoch *e = __kitpapi_new("dancaire", PAPI_TOT_INS, PAPI_TOT_CYC, 0);
+  KitPAPIEpoch *e =
+      __kitpapi_new("dancaire", /*thread=*/67, PAPI_TOT_INS, PAPI_TOT_CYC, 0);
   __kitpapi_start(e);
   __kitpapi_stop(e);
 
