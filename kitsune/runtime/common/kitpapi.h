@@ -77,11 +77,8 @@ extern "C" {
 struct KitPAPIEpoch;
 typedef struct KitPAPIEpoch KitPAPIEpoch;
 
-/// The ID of the thread on which a PAPI epoch has been started.
-typedef unsigned long PAPIThreadID;
-
 /// The type of the function that returns the ID of a thread.
-typedef PAPIThreadID (*PAPIThreadIDFunc)(void);
+typedef unsigned long (*PAPIThreadIDFunc)(void);
 
 /// Check if the PAPI context has been initialized.
 bool __kitpapi_initialized(void);
@@ -105,7 +102,7 @@ void __kitpapi_finalize(void);
 /// must be a valid event that can be recorded. If any of these are not valid
 /// PAPI events, a warning message will be printed. The very last argument must
 /// be 0.
-KitPAPIEpoch *__kitpapi_new(const char *name, ...);
+KitPAPIEpoch *__kitpapi_new(const char *name, KitThreadID thrd, ...);
 
 /// Start collecting events. \p epoch must be an epoch previously created by
 /// __kitpapi_new.
