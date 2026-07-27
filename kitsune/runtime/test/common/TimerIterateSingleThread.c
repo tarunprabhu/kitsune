@@ -4,15 +4,15 @@
 // RUN: %exe 2>&1 | FileCheck %s
 //
 // CHECK:      {
-// CHECK-NEXT:   "papageno": {
-// CHECK-NEXT:     "0": [
-// CHECK-NEXT:       {{[0-9]+}}
-// CHECK-NEXT:     ]
-// CHECK-NEXT:   },
 // CHECK-NEXT:   "kinder": {
 // CHECK-NEXT:     "0": [
 // CHECK-NEXT:       {{[0-9]+}},
 // CHECK-NEXT:       {{[0-9]+}},
+// CHECK-NEXT:       {{[0-9]+}}
+// CHECK-NEXT:     ]
+// CHECK-NEXT:   },
+// CHECK-NEXT:   "papageno": {
+// CHECK-NEXT:     "0": [
 // CHECK-NEXT:       {{[0-9]+}}
 // CHECK-NEXT:     ]
 // CHECK-NEXT:   }
