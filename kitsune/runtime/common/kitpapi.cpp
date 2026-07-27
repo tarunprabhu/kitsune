@@ -57,7 +57,7 @@
 #include "kitpapi.h"
 #include "common/env.h"
 #include "common/logging.h"
-#include "common/uniqptr_iter.h"
+#include "common/ptriter.h"
 #include "global/singleton.h"
 
 #include "papi.h"
@@ -232,7 +232,7 @@ private:
   std::vector<std::unique_ptr<KitPAPIEpochImpl>> epochs;
 
 public:
-  using Iterator = UniqPtrIterator<decltype(epochs)::const_iterator>;
+  using Iterator = PtrIterator<decltype(epochs)::const_iterator>;
 
 public:
   PAPIEventSet createEventSet(const KitPAPIEpochInfo &info) {
