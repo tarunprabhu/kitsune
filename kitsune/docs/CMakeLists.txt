@@ -283,9 +283,19 @@ if (KITSUNE_ENABLE_SPHINX)
         kitsune-clang-options-doc
         kitsune-html-source-dir)
 
+      gen_options_rst(${HTML_SOURCE_DIR}/KitCC1OptionsDoc.rst
+        ${CMAKE_CURRENT_SOURCE_DIR}/KitCC1OptionsDoc.td
+        kitsune-cc1-options-doc
+        kitsune-html-source-dir)
+
       gen_options_rst(${HTML_SOURCE_DIR}/KitFlangOptionsDoc.rst
         ${CMAKE_CURRENT_SOURCE_DIR}/KitFlangOptionsDoc.td
         kitsune-flang-options-doc
+        kitsune-html-source-dir)
+
+      gen_options_rst(${HTML_SOURCE_DIR}/KitFC1OptionsDoc.rst
+        ${CMAKE_CURRENT_SOURCE_DIR}/KitFC1OptionsDoc.td
+        kitsune-fc1-options-doc
         kitsune-html-source-dir)
 
       set(MDS
@@ -340,7 +350,9 @@ if (KITSUNE_ENABLE_SPHINX)
         kitsune-attrs-doc
         kitsune-cbuiltins-doc
         kitsune-clang-options-doc
+        kitsune-cc1-options-doc
         kitsune-flang-options-doc
+        kitsune-fc1-options-doc
         kitsune-arg-attrs-doc
         kitsune-func-attrs-doc
         kitsune-gv-attrs-doc
