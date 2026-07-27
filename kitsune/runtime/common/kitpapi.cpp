@@ -56,20 +56,15 @@
 
 #include "kitpapi.h"
 #include "common/env.h"
-#include "common/instrutils.h"
+#include "common/instrbase.h"
 #include "common/logging.h"
-#include "common/ptriter.h"
 #include "global/singleton.h"
 
 #include "papi.h"
 
 #include <cstdarg>
-#include <map>
-#include <memory>
-#include <mutex>
 #include <optional>
 #include <sstream>
-#include <string>
 #include <vector>
 
 using PAPICounter = long long;
@@ -120,9 +115,6 @@ namespace {
 struct KitPAPIEpochInfo {
   const std::string name;
   const std::vector<PAPIEventID> evts;
-
-  KitPAPIEpochInfo(const std::string &name, std::vector<PAPIEventID> &&evts)
-      : name(name), evts(std::move(evts)) {}
 };
 
 // An epoch object. This is created each time __kitpapi_new is called.
@@ -206,37 +198,20 @@ public:
 
 namespace kitrt {
 
+using KitPAPIContextBase = KitInstrBase<KitPAPIContext, KitPAPIEpochImpl,
+                                        KitPAPIEpochInfo, PAPIThreadID>;
+
 // The global singleton context for all PAPI events in this context.
-class KitPAPIContext : public KitContextMixin<KitPAPIContext> {
-public:
-  using EpochImpl = KitPAPIEpochImpl;
-  using ThreadID = PAPIThreadID;
+class KitPAPIContext : public KitPAPIContextBase {
+  friend KitPAPIContextBase;
 
-public:
-  static constexpr const char *envVarOutFile = envPAPIFile;
+protected:
+  static KitPAPIEpochInfo *makeEpochInfo(const std::string &name,
+                                         const std::vector<PAPIEventID> &evts) {
+    return new KitPAPIEpochInfo{name, evts};
+  }
 
-private:
-  // A mutex that controls all accesses to the mutable members of this class.
-  std::mutex mtx;
-
-  // Information about each unique epoch.
-  std::map<std::string, std::unique_ptr<const KitPAPIEpochInfo>> epochInfo;
-
-  // All PAPI epochs that have been created. When __kitpapi_start is called, an
-  // epoch will be added to the end of this vector, and a pointer to that
-  // object will be returned. If this were a vector of KitPAPIEpoch objects,
-  // returning a reference to that element would be unsafe. A later call could
-  // result in the array being resized and reallocated. In this case, the
-  // previously returned reference would end up dangling, and would no longer be
-  // valid. By wrapping everything in a unique pointer, the vector may be safely
-  // resized without invalidating any outstanding references (or pointers).
-  std::vector<std::unique_ptr<KitPAPIEpochImpl>> epochs;
-
-public:
-  using Iterator = PtrIterator<decltype(epochs)::const_iterator>;
-
-public:
-  PAPIEventSet createEventSet(const KitPAPIEpochInfo &info) {
+  static PAPIEventSet createEventSet(const KitPAPIEpochInfo &info) {
     PAPIEventSet evtSet = PAPI_NULL;
     if (int err = PAPI_create_eventset(&evtSet)) {
       handleError("Could not create PAPI event set", err);
@@ -250,42 +225,12 @@ public:
     return evtSet;
   }
 
-  const KitPAPIEpochInfo &registerEpoch(const std::string &name,
-                                        std::vector<PAPIEventID> &&evts) {
-    std::lock_guard<std::mutex> guard(mtx);
-
-    decltype(epochInfo)::const_iterator it = epochInfo.find(name);
-    if (it != epochInfo.end())
-      return *it->second;
-
-    auto info = std::make_unique<KitPAPIEpochInfo>(name, std::move(evts));
-
-    // This returns a pair of an iterator and a boolean. The iterator itself is
-    // a pair consisting of the key and the value. We want the value here, so
-    // we have `first->second` at the end. The value is a `std::unique_ptr`, but
-    // we need to return a reference to that object, hence the dereference at
-    // the start. Perfectly obvious, isn't it?
-    return *epochInfo.emplace(name, std::move(info)).first->second;
-  }
-
-  KitPAPIEpochImpl *addEpoch(const KitPAPIEpochInfo &info) {
-    std::lock_guard<std::mutex> guard(mtx);
-
+  static KitPAPIEpochImpl *makeEpoch(const KitPAPIEpochInfo &info) {
     PAPIThreadID thrd = PAPI_thread_id();
     PAPIEventSet evtSet = createEventSet(info);
-    auto epoch = std::make_unique<KitPAPIEpochImpl>(info, thrd, evtSet);
-
-    // Emplace returns a reference to the unique pointer that was just added to
-    // the epochs vector. We want to return the underlying pointer, so call
-    // get on the result.
-    return epochs.emplace_back(std::move(epoch)).get();
+    return new KitPAPIEpochImpl(info, thrd, evtSet);
   }
 
-  bool empty() const { return epochs.empty(); }
-  Iterator begin() const { return epochs.cbegin(); }
-  Iterator end() const { return epochs.cend(); }
-
-public:
   static void writeEpoch(FILE *fp, const KitPAPIEpochImpl &epoch) {
     fprintf(fp, "\n      {");
     for (unsigned i = 0, e = epoch.size(); i < e; ++i) {
@@ -317,7 +262,7 @@ extern "C" KitPAPIEpoch *__kitpapi_new(const char *name, ...) {
   va_end(va);
 
   KitPAPIContext &ctx = KitPAPIContext::mutSingleton();
-  const KitPAPIEpochInfo &info = ctx.registerEpoch(name, std::move(evts));
+  const KitPAPIEpochInfo &info = ctx.registerEpoch(name, evts);
   KitPAPIEpochImpl *epoch = ctx.addEpoch(info);
 
   return reinterpret_cast<KitPAPIEpoch *>(epoch);
@@ -374,7 +319,7 @@ extern "C" void __kitpapi_finalize(void) {
 
   LOG("Finalizing PAPI library");
 
-  writeInstrumentation(KitPAPIContext::getSingleton());
+  KitPAPIContext::getSingleton().writeJSON(envPAPIFile);
   KitPAPIContext::delSingleton();
   PAPI_shutdown();
 

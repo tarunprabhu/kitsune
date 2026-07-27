@@ -1,4 +1,4 @@
-//===- instrutils.cpp - Base class for runtime instrumentation ------------===//
+//===- instrutils.cpp - Utilities for Kitsune's instrumentation support ---===//
 //
 // Copyright (c) 2021, 2023 Los Alamos National Security, LLC.
 // All rights reserved.
@@ -49,7 +49,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Utilities for the instrumentation supported by Kitsune's runtime
+// Utilities for compiler-inserted instrumentation backed by Kitsune's runtime.
 //
 //===----------------------------------------------------------------------===//
 
@@ -59,8 +59,8 @@
 
 using namespace kitrt;
 
-FILE *kitrt::getInstrOutFile(const char *envVarOutFile) {
-  if (std::optional<std::string> fname = envLookup(envVarOutFile)) {
+FILE *kitrt::getInstrumentationOutputFile(const char *envVar) {
+  if (std::optional<std::string> fname = envLookup(envVar)) {
     if (fname == "-")
       return stdout;
 
