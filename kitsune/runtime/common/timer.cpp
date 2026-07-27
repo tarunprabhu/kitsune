@@ -63,7 +63,7 @@
 #include "common/timer.h"
 #include "common/env.h"
 #include "common/logging.h"
-#include "common/uniqptr_iter.h"
+#include "common/ptriter.h"
 #include "global/singleton.h"
 
 #include <algorithm>
@@ -143,7 +143,7 @@ private:
   std::vector<std::unique_ptr<KitTimerEpochImpl>> epochs;
 
 public:
-  using Iterator = UniqPtrIterator<decltype(epochs)::const_iterator>;
+  using Iterator = PtrIterator<decltype(epochs)::const_iterator>;
 
 public:
   const KitTimerEpochInfo &registerEpoch(const std::string &name) {
