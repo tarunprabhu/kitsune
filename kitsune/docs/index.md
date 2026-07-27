@@ -57,7 +57,9 @@ depending on what is of interest to you.
     :titlesonly:
 
     KitClangOptionsDoc
+    KitCC1OptionsDoc
     KitFlangOptionsDoc
+    KitFC1OptionsDoc
     KitAttrsDoc
     KitCBuiltinsDoc
     KitArgAttrsDoc
