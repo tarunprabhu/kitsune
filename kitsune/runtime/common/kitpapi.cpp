@@ -198,8 +198,8 @@ public:
 
 namespace kitrt {
 
-using KitPAPIContextBase = KitInstrBase<KitPAPIContext, KitPAPIEpochImpl,
-                                        KitPAPIEpochInfo, KitThreadID>;
+using KitPAPIContextBase =
+    KitInstrBase<KitPAPIContext, KitPAPIEpochImpl, KitPAPIEpochInfo>;
 
 // The global singleton context for all PAPI events in this context.
 class KitPAPIContext : public KitPAPIContextBase {
