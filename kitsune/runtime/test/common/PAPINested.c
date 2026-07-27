@@ -9,14 +9,14 @@
 // CHECK: Could not start PAPI counters
 // CHECK: Could not read final values of PAPI counters
 // CHECK:      {
-// CHECK-NEXT:   "pastia": {
-// CHECK-NEXT:     "0": [
-// CHECK-NEXT:       {"Instr completed": {{[0-9]+}}}
-// CHECK-NEXT:     ]
-// CHECK-NEXT:   },
 // CHECK-NEXT:   "jose": {
 // CHECK-NEXT:     "0": [
 // CHECK-NEXT:       {"Instr completed": 0}
+// CHECK-NEXT:     ]
+// CHECK-NEXT:   },
+// CHECK-NEXT:   "pastia": {
+// CHECK-NEXT:     "0": [
+// CHECK-NEXT:       {"Instr completed": {{[0-9]+}}}
 // CHECK-NEXT:     ]
 // CHECK-NEXT:   }
 // CHECK-NEXT: }
