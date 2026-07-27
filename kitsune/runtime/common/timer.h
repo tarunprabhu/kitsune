@@ -60,19 +60,24 @@
 extern "C" {
 #endif // __cplusplus
 
-/// Unique identifier for a timer.
-typedef uint64_t TimerID;
+/// A timer epoch is a Single-Entry-Single-Exit (SESE) region of code, bounded
+/// by calls to \ref __kittimer_start and \ref __kittimer_stop, whose execution
+/// time is recorded. The epoch is given a name that ought to be meaningful to
+/// the user. An epoch may be started on each thread in a multi-threaded
+/// context, or on the main thread of a single-threaded program.
+///
+/// This struct represents a single epoch. An instance is created by
+/// \ref __kittimer_start. It can be used, exactly once, to stop the timer.
+struct KitTimerEpoch;
+typedef struct KitTimerEpoch KitTimerEpoch;
 
 /// The ID of the thread in which a timer is running.
-typedef uint64_t ThreadID;
-
-/// A time point. This is usually the number of nanoseconds since the epoch.
-typedef uint64_t TimePoint;
+typedef uint64_t KitThreadID;
 
 /// A time span. This is expected to be the wallclock time, in nanoseconds, that
 /// have elapsed between a pair of calls to \ref __kittimer_start and
 /// \ref __kittimer_stop.
-typedef uint64_t TimeSpan;
+typedef uint64_t KitTimeSpan;
 
 /// Check if the timing context has been initialized.
 bool __kittimer_initialized(void);
@@ -81,14 +86,14 @@ bool __kittimer_initialized(void);
 void __kittimer_initialize(void);
 
 /// Cleanup Kitsune's timing context. If any timings were collected, print them
-/// to stdout.
+/// to stderr.
 void __kittimer_finalize(void);
 
 /// Start the timer \p timer. \p thrd is the ID of the thread on which the
 /// timer is running. \p name is the name of the timer.
-TimePoint __kittimer_start(void);
+KitTimerEpoch *__kittimer_start(const char *name, KitThreadID span);
 
-/// Stop the timer \p timer running on a thread with ID \p thrd. The runtime
+/// Stop a timer running on a thread with ID \p thrd. The runtime
 /// will create a mapping between \p timer and \p name, but only if \p timer was
 /// not used in an earlier call to this function. Multiple threads can
 /// share the a timer ID. This is useful when measuring the times for individual
@@ -97,8 +102,7 @@ TimePoint __kittimer_start(void);
 /// \ref __kittimer_start. Returns the wallclock time, in nanoseconds, that have
 /// elapsed between the time this is called, and the time that \p start was
 /// recorded.
-TimeSpan __kittimer_stop(TimePoint start, TimerID timer, ThreadID thrd,
-                         const char *name);
+KitTimeSpan __kittimer_stop(KitTimerEpoch *handle);
 
 #ifdef __cplusplus
 } // extern "C"
