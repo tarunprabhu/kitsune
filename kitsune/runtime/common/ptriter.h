@@ -1,4 +1,4 @@
-//=- uniqptr_iter.h - Iterator over containers of std::unique_ptr -*- C++ -*-=//
+//===- ptriter.h - Iterator for containers of pointers ----------*- C++ -*-===//
 //
 // Copyright (c) 2021, 2023 Los Alamos National Security, LLC.
 // All rights reserved.
@@ -54,51 +54,63 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef KITRT_COMMON_UNIQ_PTR_ITER_H
-#define KITRT_COMMON_UNIQ_PTR_ITER_H
+#ifndef KITRT_COMMON_PTRITER_H
+#define KITRT_COMMON_PTRITER_H
 
 #include <iterator>
 
 namespace kitrt {
 
-/// An iterator over containers of unique pointers. This is
-template <typename It, typename T = typename It::value_type::element_type>
-class UniqPtrIterator {
+/// An iterator to iterate over containers of pointers. This is mainly
+/// designed to work with standard STL containers where the element is a type
+/// that has the semantics of a pointer. For instance, this is known to work on
+/// both of the following containers:
+///
+///     std::vector<std::unique_ptr<T>>
+///
+///     std::set<T*>
+///
+/// It might not be suitable for other uses.
+///
+/// This takes an iterator that would normally yield a pointer, and yields a
+/// reference to the object pointed to by the pointer instead. \tparam It is the
+/// type of this iterator.
+template <typename It> class PtrIterator {
 private:
   It it;
 
 public:
   using iterator_category = std::forward_iterator_tag;
   using difference_type = std::ptrdiff_t;
-  using value = T &;
-  using pointer = T *;
-  using reference = T &;
+  using value = decltype(**it) &;
+  using pointer = decltype(&**it);
+  using reference = decltype(**it) &;
 
-  UniqPtrIterator(It it) : it(it) {}
+  PtrIterator(It it) : it(it) {}
 
   reference operator*() const { return **it; }
-  pointer operator->() const { return it->get(); }
+  pointer operator->() const { return &**it; }
 
-  UniqPtrIterator &operator++() {
+  PtrIterator &operator++() {
     it++;
     return *this;
   }
 
-  UniqPtrIterator operator++(int) {
-    UniqPtrIterator tmp = *this;
+  PtrIterator operator++(int) {
+    PtrIterator tmp = *this;
     ++(*this);
     return tmp;
   }
 
-  friend bool operator==(const UniqPtrIterator &l, const UniqPtrIterator &r) {
+  friend bool operator==(const PtrIterator &l, const PtrIterator &r) {
     return l.it == r.it;
   }
 
-  friend bool operator!=(const UniqPtrIterator &l, const UniqPtrIterator &r) {
+  friend bool operator!=(const PtrIterator &l, const PtrIterator &r) {
     return l.it != r.it;
   }
 };
 
 } // namespace kitrt
 
-#endif // KITRT_COMMON_UNIQ_PTR_ITER_H
+#endif // KITRT_COMMON_PTRITER_H
