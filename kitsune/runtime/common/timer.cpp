@@ -119,8 +119,8 @@ public:
 
 namespace kitrt {
 
-using KitTimerContextBase = KitInstrBase<KitTimerContext, KitTimerEpochImpl,
-                                         KitTimerEpochInfo, KitThreadID>;
+using KitTimerContextBase =
+    KitInstrBase<KitTimerContext, KitTimerEpochImpl, KitTimerEpochInfo>;
 
 // A class that wraps all the timers created in the application. A singleton
 // instance of this class will be created in the global constructor and will
