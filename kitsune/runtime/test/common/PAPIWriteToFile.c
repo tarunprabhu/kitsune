@@ -62,12 +62,15 @@
 
 #include "papi.h"
 
+unsigned omp_get_thread_num(void);
+
 __attribute__((constructor)) static void ctor(void) { __kitomp_initialize(); }
 
 __attribute__((destructor)) static void dtor(void) { __kitomp_finalize(); }
 
 static void thrdFn(uint64_t start, uint64_t stop, void *args) {
-  KitPAPIEpoch *e = __kitpapi_new("mercedes", PAPI_TOT_INS, PAPI_TOT_CYC, 0);
+  KitPAPIEpoch *e = __kitpapi_new("mercedes", omp_get_thread_num(),
+                                  PAPI_TOT_INS, PAPI_TOT_CYC, 0);
   __kitpapi_start(e);
   __kitpapi_stop(e);
 }

@@ -225,13 +225,13 @@ public:
   }
 
   template <typename... Args>
-  Epoch *addEpoch(const EpochInfo &info, Args &&...args) {
+  Epoch *addEpoch(const EpochInfo &info, KitThreadID thrd, Args &&...args) {
     std::lock_guard<std::mutex> guard(mtx);
 
     // The call to emplace returns a reference to the unique pointer that was
     // just added to the epochs vector. We want to return the underlying
     // pointer, so call get on the result.
-    std::unique_ptr<Epoch> epoch(T::makeEpoch(info, args...));
+    std::unique_ptr<Epoch> epoch(T::makeEpoch(info, thrd, args...));
     return epochs.emplace_back(std::move(epoch)).get();
   }
 

@@ -225,8 +225,8 @@ protected:
     return evtSet;
   }
 
-  static KitPAPIEpochImpl *makeEpoch(const KitPAPIEpochInfo &info) {
-    PAPIThreadID thrd = PAPI_thread_id();
+  static KitPAPIEpochImpl *makeEpoch(const KitPAPIEpochInfo &info,
+                                     KitThreadID thrd) {
     PAPIEventSet evtSet = createEventSet(info);
     return new KitPAPIEpochImpl(info, thrd, evtSet);
   }
@@ -251,19 +251,20 @@ using namespace kitrt;
 // to __kitpapi_initialize(). Always returns 0.
 static unsigned long getDefaultThreadID(void) { return 0; }
 
-extern "C" KitPAPIEpoch *__kitpapi_new(const char *name, ...) {
+extern "C" KitPAPIEpoch *__kitpapi_new(const char *name, KitThreadID thrd,
+                                       ...) {
   assert(name && "Name of a PAPI epoch must not be NULL");
 
   std::vector<PAPIEventID> evts;
   va_list va;
-  va_start(va, name);
+  va_start(va, thrd);
   while (PAPIEventID evt = va_arg(va, PAPIEventID))
     evts.push_back(evt);
   va_end(va);
 
   KitPAPIContext &ctx = KitPAPIContext::mutSingleton();
   const KitPAPIEpochInfo &info = ctx.registerEpoch(name, evts);
-  KitPAPIEpochImpl *epoch = ctx.addEpoch(info);
+  KitPAPIEpochImpl *epoch = ctx.addEpoch(info, thrd);
 
   return reinterpret_cast<KitPAPIEpoch *>(epoch);
 }

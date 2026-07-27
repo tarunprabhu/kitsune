@@ -32,7 +32,8 @@ __attribute__((destructor)) static void dtor(void) {
 
 int main(int argc, char *argv[]) {
   for (unsigned i = 0; i < 3; ++i) {
-    KitPAPIEpoch *e = __kitpapi_new("carmen", PAPI_TOT_INS, PAPI_TOT_CYC, 0);
+    KitPAPIEpoch *e =
+        __kitpapi_new("carmen", /*thread=*/0, PAPI_TOT_INS, PAPI_TOT_CYC, 0);
     __kitpapi_start(e);
     __kitpapi_stop(e);
   }
