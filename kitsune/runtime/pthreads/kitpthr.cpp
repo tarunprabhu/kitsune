@@ -177,7 +177,7 @@ extern "C" uint64_t __kitpthr_num_threads(void) {
 }
 
 /// Get the ID of the thread from which this is called.
-extern "C" uint64_t __kitpthr_thread_id(void) { return pthread_self(); }
+extern "C" KitThreadID __kitpthr_thread_id(void) { return pthread_self(); }
 
 /// The function that is launched by each thread. This simply finds the "actual"
 /// function that is to be run in \p thrdInfo and calls it. The arguments to the

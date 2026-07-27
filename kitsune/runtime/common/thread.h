@@ -1,4 +1,4 @@
-//=- kitrt.h - Routines common to several of Kitsune's runtimes --*- C++ -*--=//
+//===- thread.h - Utilities for threads in Kitsune's runtime ----*- C++ -*-===//
 //
 // Copyright (c) 2021, Los Alamos National Security, LLC.
 // All rights reserved.
@@ -47,60 +47,25 @@
 //  SUCH DAMAGE.
 //
 //===----------------------------------------------------------------------===//
+//
+// Utilities for threads in Kitsune's runtime.
+//
+//===----------------------------------------------------------------------===//
 
-#ifndef __KITRT_H__
-#define __KITRT_H__
+#ifndef KITRT_COMMON_THREAD_H
+#define KITRT_COMMON_THREAD_H
 
-#include "common/kitpapi.h"
-#include "common/thread.h"
-#include "common/timer.h"
-
-#include <stdbool.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
 
-/// Initialize the core kitsune runtime components that are shared across all
-/// the tapir-target-specific runtimes. This is typically called in the global
-/// constructor for each target-specific runtime. It is safe to call this
-/// multiple times, though this should be avoided.
-void __kitrt_initialize(void);
-
-/// Finalize Kitsune's runtime. This is typically called from the global
-/// destructors for individual runtimes such as kitcuda, or kitomp. This can be
-/// safely called multiple times.
-void __kitrt_finalize(void);
-
-/// Check if Kitsune's runtime has been initialized.
-bool __kitrt_initialized(void);
-
-/// Allocate \p bytes on the heap. This simply calls malloc to allocate the
-/// memory, but keeps track of it within this runtime..
-void *__kitrt_default_mem_alloc(uint64_t bytes);
-
-/// Free a pointer previously allocated by \ref __kitrt_default_mem_free.
-void __kitrt_default_mem_free(void *ptr);
-
-/// *** EXPERIMENTAL: This is a new interface between the compiler and
-/// the runtime.  It is a quick set of details regarding the particular
-/// instruction mix of a kernel and any device-side functions it calls.
-/// It is gathered from the LLVM form of the code (not ptx/s-code) and
-/// at this point is limited.  In general we are using to explore
-/// impacts on launch parameters.
-/// NOTE: Changing this structure has implications on code generation
-/// inside the CudaABI component of the compiler -- both must be kept
-/// up-to-date.
-typedef struct _kitrt_inst_mix_info {
-  uint64_t numMemoryOps; // Number of memory (read/write) ops.
-  uint64_t numFlops;     // Floating point operations.
-  uint64_t numIntOps;    // Integer operations.
-  uint64_t numOtherOps;  // Other operations.
-} KitRTInstMix;
+/// Thread ID's in Kitsune are always 64-bit integers.
+typedef uint64_t KitThreadID;
 
 #ifdef __cplusplus
 } // extern "C"
 #endif // __cplusplus
 
-#endif // __KITRT_H__
+#endif // KITRT_COMMON_THREAD_H

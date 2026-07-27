@@ -105,7 +105,7 @@ extern "C" uint64_t __kitqthr_num_workers(void) {
 }
 
 /// Get the ID of the worker from which this is called.
-extern "C" uint64_t __kitqthr_worker_id(void) {
+extern "C" KitThreadID __kitqthr_worker_id(void) {
   return qthread_worker(nullptr);
 }
 

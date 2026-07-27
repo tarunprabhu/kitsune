@@ -139,7 +139,7 @@ extern "C" uint64_t __kitomp_num_threads(void) {
 }
 
 /// Get the ID of the thread from which this is called.
-extern "C" uint64_t __kitomp_thread_id(void) { return omp_get_thread_num(); }
+extern "C" KitThreadID __kitomp_thread_id(void) { return omp_get_thread_num(); }
 
 /// This wraps the function \p f that will be launched on each thread. It
 /// calculates the range of iterations that should be executed by \p f, then,
