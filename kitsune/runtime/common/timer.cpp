@@ -78,7 +78,6 @@ namespace {
 
 // A time point. This is usually the number of nanoseconds since the epoch.
 using KitTimePoint = uint64_t;
-using KitTimerEpochID = uint64_t;
 
 static KitTimePoint nsecs() {
   timespec ts;
@@ -87,11 +86,9 @@ static KitTimePoint nsecs() {
 }
 
 struct KitTimerEpochInfo {
-  const KitTimerEpochID id;
   const std::string name;
 
-  KitTimerEpochInfo(KitTimerEpochID id, const std::string &name)
-      : id(id), name(name) {}
+  KitTimerEpochInfo(const std::string &name) : name(name) {}
 };
 
 class KitTimerEpochImpl {
@@ -110,7 +107,6 @@ public:
   KitTimerEpochImpl(const KitTimerEpochInfo &info, KitThreadID thrd)
       : info(info), thrd_(thrd), span_(0) {}
 
-  inline KitTimerEpochID id() const { return info.id; }
   inline const std::string &name() const { return info.name; }
   inline KitThreadID thrd() const { return thrd_; }
   inline KitTimeSpan span() const { return span_; }
@@ -132,7 +128,6 @@ namespace kitrt {
 // live till the global destructor is run.
 class KitTimerContext : public KitContextMixin<KitTimerContext> {
 public:
-  using EpochID = KitTimerEpochID;
   using EpochImpl = KitTimerEpochImpl;
   using ThreadID = KitThreadID;
 
@@ -161,14 +156,13 @@ public:
     if (it != epochInfo.end())
       return *it->second;
 
-    KitTimerEpochID id = epochInfo.size() + 1;
-    auto info = std::make_unique<KitTimerEpochInfo>(id, name);
+    auto info = std::make_unique<KitTimerEpochInfo>(name);
 
     // This returns a pair of an iterator and a boolean. The iterator itself is
     // a pair consisting of the key and the value. We want the value here, so
     // we have `first->second` at the end. The value is a `std::unique_ptr`, but
-    // we must return a reference to that object, hence the dereference at the
-    // start. Perfectly obvious, isn't it?
+    // we need to return a reference to that object, hence the dereference at
+    // the start. Perfectly obvious, isn't it?
     return *epochInfo.emplace(name, std::move(info)).first->second;
   }
 

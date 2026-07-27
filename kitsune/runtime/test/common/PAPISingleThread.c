@@ -6,12 +6,12 @@
 // RUN: %exe 2>&1 | FileCheck %s --match-full-lines
 //
 // CHECK:      {
-// CHECK-NEXT:   "frasquita": {
+// CHECK-NEXT:   "escamilo": {
 // CHECK-NEXT:     "0": [
 // CHECK-NEXT:       {"Instr completed": {{[0-9]+}}, "Total cycles": {{[0-9]+}}}
 // CHECK-NEXT:     ]
 // CHECK-NEXT:   },
-// CHECK-NEXT:   "escamilo": {
+// CHECK-NEXT:   "frasquita": {
 // CHECK-NEXT:     "0": [
 // CHECK-NEXT:       {"Instr completed": {{[0-9]+}}, "Total cycles": {{[0-9]+}}}
 // CHECK-NEXT:     ]

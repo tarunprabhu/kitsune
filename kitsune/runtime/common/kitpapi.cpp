@@ -113,20 +113,16 @@ static std::string getEventSymbol(PAPIEventID evt) {
 
 namespace {
 
-using KitPAPIEpochID = uint64_t;
-
 // Information for an epoch. This wraps the name and the list of events that are
 // recorded in an epoch. We don't use the PAPI event set because those are
 // created and destroyed on demand. An ID is automatically generated for each
 // uniquely named epoch.
 struct KitPAPIEpochInfo {
-  const KitPAPIEpochID id;
   const std::string name;
   const std::vector<PAPIEventID> evts;
 
-  KitPAPIEpochInfo(KitPAPIEpochID id, const std::string &name,
-                   std::vector<PAPIEventID> &&evts)
-      : id(id), name(name), evts(std::move(evts)) {}
+  KitPAPIEpochInfo(const std::string &name, std::vector<PAPIEventID> &&evts)
+      : name(name), evts(std::move(evts)) {}
 };
 
 // An epoch object. This is created each time __kitpapi_new is called.
@@ -167,7 +163,6 @@ public:
   ~KitPAPIEpochImpl() { delete finalValues; }
 
   inline const std::string &name() const { return info.name; }
-  inline KitPAPIEpochID id() const { return info.id; }
   inline PAPIThreadID thrd() const { return thrd_; }
   inline unsigned size() const { return info.evts.size(); }
   inline PAPIEventID event(unsigned i) const { return info.evts[i]; }
@@ -214,7 +209,6 @@ namespace kitrt {
 // The global singleton context for all PAPI events in this context.
 class KitPAPIContext : public KitContextMixin<KitPAPIContext> {
 public:
-  using EpochID = KitPAPIEpochID;
   using EpochImpl = KitPAPIEpochImpl;
   using ThreadID = PAPIThreadID;
 
@@ -264,19 +258,13 @@ public:
     if (it != epochInfo.end())
       return *it->second;
 
-    // Generate an integer ID for the epoch since this is the first time that it
-    // has been seen. This ensures that the epochs are numbered in the order in
-    // in which they appear in the progam. It is not clear why this is useful,
-    // beyond the epochs appearing in order in the final JSON output. But that
-    // is not the nicest to read anyway.
-    KitPAPIEpochID id = epochInfo.size() + 1;
-    auto info = std::make_unique<KitPAPIEpochInfo>(id, name, std::move(evts));
+    auto info = std::make_unique<KitPAPIEpochInfo>(name, std::move(evts));
 
     // This returns a pair of an iterator and a boolean. The iterator itself is
     // a pair consisting of the key and the value. We want the value here, so
     // we have `first->second` at the end. The value is a `std::unique_ptr`, but
-    // we must return a reference to that object, hence the dereference at the
-    // start. Perfectly obvious, isn't it?
+    // we need to return a reference to that object, hence the dereference at
+    // the start. Perfectly obvious, isn't it?
     return *epochInfo.emplace(name, std::move(info)).first->second;
   }
 
@@ -330,7 +318,9 @@ extern "C" KitPAPIEpoch *__kitpapi_new(const char *name, ...) {
 
   KitPAPIContext &ctx = KitPAPIContext::mutSingleton();
   const KitPAPIEpochInfo &info = ctx.registerEpoch(name, std::move(evts));
-  return reinterpret_cast<KitPAPIEpoch *>(ctx.addEpoch(info));
+  KitPAPIEpochImpl *epoch = ctx.addEpoch(info);
+
+  return reinterpret_cast<KitPAPIEpoch *>(epoch);
 }
 
 extern "C" void __kitpapi_start(KitPAPIEpoch *handle) {

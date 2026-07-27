@@ -72,23 +72,22 @@ template <typename KitInstrContext>
 void writeEpochs(
     FILE *fp,
     const std::vector<const typename KitInstrContext::EpochImpl *> &epochs) {
-  using EpochID = typename KitInstrContext::EpochID;
   using EpochImpl = typename KitInstrContext::EpochImpl;
   using ThreadID = typename KitInstrContext::ThreadID;
 
-  std::optional<EpochID> currEpoch = std::nullopt;
+  std::optional<std::string> currEpoch = std::nullopt;
   std::optional<ThreadID> currThrd = std::nullopt;
   bool firstThrd = false;
 
   fprintf(fp, "{");
   for (const EpochImpl *epoch : epochs) {
-    if (currEpoch != epoch->id()) {
+    if (currEpoch != epoch->name()) {
       if (currEpoch) {
         fprintf(fp, "\n    ]");
         fprintf(fp, "\n  },");
       }
       fprintf(fp, "\n  \"%s\": {", epoch->name().c_str());
-      currEpoch = epoch->id();
+      currEpoch = epoch->name();
       currThrd = std::nullopt;
     }
 
@@ -126,9 +125,9 @@ void writeInstrumentation(const KitInstrContext &ctx) {
 
   std::stable_sort(epochs.begin(), epochs.end(),
                    [](const EpochImpl *l, const EpochImpl *r) -> bool {
-                     if (l->id() < r->id())
+                     if (l->name() < r->name())
                        return true;
-                     else if (l->id() == r->id())
+                     else if (l->name() == r->name())
                        return l->thrd() < r->thrd();
                      return false;
                    });

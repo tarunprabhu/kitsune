@@ -4,7 +4,7 @@
 // RUN: %exe 2>&1 | FileCheck %s
 //
 // CHECK:      {
-// CHECK-NEXT:   "tamino": {
+// CHECK-NEXT:   "monostatos": {
 // CHECK-NEXT:     "0": [
 // CHECK-NEXT:       {{[0-9]+}}
 // CHECK-NEXT:     ]
@@ -14,7 +14,7 @@
 // CHECK-NEXT:      {{[0-9]+}}
 // CHECK-NEXT:     ]
 // CHECK-NEXT:   },
-// CHECK-NEXT:   "monostatos": {
+// CHECK-NEXT:   "tamino": {
 // CHECK-NEXT:     "0": [
 // CHECK-NEXT:       {{[0-9]+}}
 // CHECK-NEXT:     ]

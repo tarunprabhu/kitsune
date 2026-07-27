@@ -32,11 +32,6 @@
 // FILE_NUM_LINES: 24
 //
 // FILE:      {
-// FILE-NEXT:   "papagena": {
-// FILE-NEXT:     "0": [
-// FILE-NEXT:       {{[0-9]+}}
-// FILE-NEXT:     ]
-// FILE-NEXT:   },
 // FILE-NEXT:   "kinder": {
 // FILE-NEXT:     "0": [
 // FILE-NEXT:       {{[0-9]+}},
@@ -51,6 +46,11 @@
 // FILE-NEXT:     "2": [
 // FILE-NEXT:       {{[0-9]+}},
 // FILE-NEXT:       {{[0-9]+}},
+// FILE-NEXT:       {{[0-9]+}}
+// FILE-NEXT:     ]
+// FILE-NEXT:   },
+// FILE-NEXT:   "papagena": {
+// FILE-NEXT:     "0": [
 // FILE-NEXT:       {{[0-9]+}}
 // FILE-NEXT:     ]
 // FILE-NEXT:   }
