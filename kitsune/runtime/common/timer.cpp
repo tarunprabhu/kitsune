@@ -62,11 +62,11 @@
 
 #include "common/timer.h"
 #include "common/env.h"
+#include "common/instrutils.h"
 #include "common/logging.h"
 #include "common/ptriter.h"
 #include "global/singleton.h"
 
-#include <algorithm>
 #include <ctime>
 #include <map>
 #include <memory>
@@ -78,7 +78,7 @@ namespace {
 
 // A time point. This is usually the number of nanoseconds since the epoch.
 using KitTimePoint = uint64_t;
-using KitTimerID = uint64_t;
+using KitTimerEpochID = uint64_t;
 
 static KitTimePoint nsecs() {
   timespec ts;
@@ -87,10 +87,10 @@ static KitTimePoint nsecs() {
 }
 
 struct KitTimerEpochInfo {
-  const KitTimerID id;
+  const KitTimerEpochID id;
   const std::string name;
 
-  KitTimerEpochInfo(KitTimerID id, const std::string &name)
+  KitTimerEpochInfo(KitTimerEpochID id, const std::string &name)
       : id(id), name(name) {}
 };
 
@@ -110,7 +110,7 @@ public:
   KitTimerEpochImpl(const KitTimerEpochInfo &info, KitThreadID thrd)
       : info(info), thrd_(thrd), span_(0) {}
 
-  inline KitTimerID id() const { return info.id; }
+  inline KitTimerEpochID id() const { return info.id; }
   inline const std::string &name() const { return info.name; }
   inline KitThreadID thrd() const { return thrd_; }
   inline KitTimeSpan span() const { return span_; }
@@ -131,6 +131,14 @@ namespace kitrt {
 // instance of this class will be created in the global constructor and will
 // live till the global destructor is run.
 class KitTimerContext : public KitContextMixin<KitTimerContext> {
+public:
+  using EpochID = KitTimerEpochID;
+  using EpochImpl = KitTimerEpochImpl;
+  using ThreadID = KitThreadID;
+
+public:
+  static constexpr const char *envVarOutFile = envTimingFile;
+
 private:
   // A mutex that controls all accesses to the mutable members of this class.
   std::mutex mtx;
@@ -153,7 +161,7 @@ public:
     if (it != epochInfo.end())
       return *it->second;
 
-    KitTimerID id = epochInfo.size() + 1;
+    KitTimerEpochID id = epochInfo.size() + 1;
     auto info = std::make_unique<KitTimerEpochInfo>(id, name);
 
     // This returns a pair of an iterator and a boolean. The iterator itself is
@@ -175,94 +183,18 @@ public:
   }
 
   bool empty() const { return epochs.empty(); }
-  size_t size() const { return epochs.size(); }
   Iterator begin() const { return epochs.begin(); }
   Iterator end() const { return epochs.end(); }
+
+public:
+  static void writeEpoch(FILE *fp, const KitTimerEpochImpl &epoch) {
+    fprintf(fp, "\n      %ld", epoch.span());
+  }
 };
 
 } // namespace kitrt
 
 using namespace kitrt;
-
-static FILE *getFile() {
-  if (std::optional<std::string> fname = envLookup(envTimingFile)) {
-    if (fname == "-")
-      return stdout;
-
-    LOG("Writing timings to file: %s", fname->c_str());
-    FILE *fp = fopen(fname->c_str(), "wt");
-    if (!fp)
-      WARN("Could not open file for writing");
-    return fp;
-  } else {
-    return stderr;
-  }
-}
-
-static void writeTiming(FILE *fp, const KitTimerEpochImpl &epoch) {
-  fprintf(fp, "\n      %ld", epoch.span());
-}
-
-static void writeEpochs(FILE *fp,
-                        const std::vector<const KitTimerEpochImpl *> &epochs) {
-  std::optional<KitTimerID> currEpoch = std::nullopt;
-  std::optional<KitThreadID> currThrd = std::nullopt;
-  bool firstThrd = false;
-
-  fprintf(fp, "{");
-  for (const KitTimerEpochImpl *epoch : epochs) {
-    if (currEpoch != epoch->id()) {
-      if (currEpoch) {
-        fprintf(fp, "\n    ]");
-        fprintf(fp, "\n  },");
-      }
-      fprintf(fp, "\n  \"%s\": {", epoch->name().c_str());
-      currEpoch = epoch->id();
-      currThrd = std::nullopt;
-    }
-
-    if (currThrd != epoch->thrd()) {
-      if (currThrd)
-        fprintf(fp, "\n    ],");
-      fprintf(fp, "\n    \"%ld\": [", epoch->thrd());
-      currThrd = epoch->thrd();
-      firstThrd = true;
-    }
-
-    if (!firstThrd)
-      fprintf(fp, ",");
-
-    writeTiming(fp, *epoch);
-    firstThrd = false;
-  }
-  fprintf(fp, "\n    ]");
-  fprintf(fp, "\n  }");
-  fprintf(fp, "\n}");
-  fprintf(fp, "\n");
-  fclose(fp);
-}
-
-static void writeTimings(const KitTimerContext &ctx) {
-  if (ctx.empty())
-    return;
-
-  std::vector<const KitTimerEpochImpl *> epochs;
-  for (const KitTimerEpochImpl &epoch : ctx)
-    epochs.push_back(&epoch);
-
-  std::stable_sort(
-      epochs.begin(), epochs.end(),
-      [](const KitTimerEpochImpl *l, const KitTimerEpochImpl *r) -> bool {
-        if (l->id() < r->id())
-          return true;
-        else if (l->id() == r->id())
-          return l->thrd() < r->thrd();
-        return false;
-      });
-
-  if (FILE *fp = getFile())
-    writeEpochs(fp, epochs);
-}
 
 extern "C" KitTimerEpoch *__kittimer_start(const char *name, KitThreadID thrd) {
   KitTimerContext &ctx = KitTimerContext::mutSingleton();
@@ -304,7 +236,7 @@ extern "C" void __kittimer_finalize(void) {
 
   LOG("Finalizing Kitsune timing context");
 
-  writeTimings(KitTimerContext::getSingleton());
+  writeInstrumentation(KitTimerContext::getSingleton());
   KitTimerContext::delSingleton();
 
   LOG("Finalized Kitsune timing context");

@@ -56,19 +56,18 @@
 
 #include "kitpapi.h"
 #include "common/env.h"
+#include "common/instrutils.h"
 #include "common/logging.h"
 #include "common/ptriter.h"
 #include "global/singleton.h"
 
 #include "papi.h"
 
-#include <algorithm>
 #include <cstdarg>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <optional>
-#include <set>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -214,6 +213,14 @@ namespace kitrt {
 
 // The global singleton context for all PAPI events in this context.
 class KitPAPIContext : public KitContextMixin<KitPAPIContext> {
+public:
+  using EpochID = KitPAPIEpochID;
+  using EpochImpl = KitPAPIEpochImpl;
+  using ThreadID = PAPIThreadID;
+
+public:
+  static constexpr const char *envVarOutFile = envPAPIFile;
+
 private:
   // A mutex that controls all accesses to the mutable members of this class.
   std::mutex mtx;
@@ -286,102 +293,26 @@ public:
     return epochs.emplace_back(std::move(epoch)).get();
   }
 
-  size_t size() const { return epochs.size(); }
   bool empty() const { return epochs.empty(); }
   Iterator begin() const { return epochs.cbegin(); }
   Iterator end() const { return epochs.cend(); }
+
+public:
+  static void writeEpoch(FILE *fp, const KitPAPIEpochImpl &epoch) {
+    fprintf(fp, "\n      {");
+    for (unsigned i = 0, e = epoch.size(); i < e; ++i) {
+      if (i)
+        fprintf(fp, ", ");
+      std::string descr = getEventShortDescr(epoch.event(i));
+      fprintf(fp, "\"%s\": %lld", descr.c_str(), epoch.value(i));
+    }
+    fprintf(fp, "}");
+  }
 };
 
 } // namespace kitrt
 
 using namespace kitrt;
-
-static FILE *getFile() {
-  if (std::optional<std::string> fname = envLookup(envPAPIFile)) {
-    if (fname == "-")
-      return stdout;
-
-    LOG("Writing timings to file: %s", fname->c_str());
-    FILE *fp = fopen(fname->c_str(), "wt");
-    if (!fp)
-      WARN("Could not open file for writing");
-    return fp;
-  } else {
-    return stderr;
-  }
-}
-
-static void writeCounters(FILE *fp, const KitPAPIEpochImpl &epoch) {
-  fprintf(fp, "\n      {");
-  for (unsigned i = 0, e = epoch.size(); i < e; ++i) {
-    if (i)
-      fprintf(fp, ", ");
-    std::string descr = getEventShortDescr(epoch.event(i));
-    fprintf(fp, "\"%s\": %lld", descr.c_str(), epoch.value(i));
-  }
-  fprintf(fp, "}");
-}
-
-static void writeEpochs(FILE *fp,
-                        const std::vector<const KitPAPIEpochImpl *> &epochs) {
-  std::optional<KitPAPIEpochID> currEpoch = std::nullopt;
-  std::optional<PAPIThreadID> currThrd = std::nullopt;
-  bool firstThrd = false;
-
-  fprintf(fp, "{");
-  for (const KitPAPIEpochImpl *epoch : epochs) {
-    if (currEpoch != epoch->id()) {
-      if (currEpoch) {
-        fprintf(fp, "\n    ]");
-        fprintf(fp, "\n  },");
-      }
-      fprintf(fp, "\n  \"%s\": {", epoch->name().c_str());
-      currEpoch = epoch->id();
-      currThrd = std::nullopt;
-    }
-
-    if (currThrd != epoch->thrd()) {
-      if (currThrd)
-        fprintf(fp, "\n    ],");
-      fprintf(fp, "\n    \"%ld\": [", epoch->thrd());
-      currThrd = epoch->thrd();
-      firstThrd = true;
-    }
-
-    if (!firstThrd)
-      fprintf(fp, ",");
-
-    writeCounters(fp, *epoch);
-    firstThrd = false;
-  }
-  fprintf(fp, "\n    ]");
-  fprintf(fp, "\n  }");
-  fprintf(fp, "\n}");
-  fprintf(fp, "\n");
-  fclose(fp);
-}
-
-static void writeCounters(const KitPAPIContext &ctx) {
-  if (ctx.empty())
-    return;
-
-  std::vector<const KitPAPIEpochImpl *> epochs;
-  for (const KitPAPIEpochImpl &epoch : ctx)
-    epochs.push_back(&epoch);
-
-  std::stable_sort(
-      epochs.begin(), epochs.end(),
-      [](const KitPAPIEpochImpl *l, const KitPAPIEpochImpl *r) -> bool {
-        if (l->id() < r->id())
-          return true;
-        else if (l->id() == r->id())
-          return l->thrd() < r->thrd();
-        return false;
-      });
-
-  if (FILE *fp = getFile())
-    writeEpochs(fp, epochs);
-}
 
 // The default thread ID that is used when a thread function is not provided
 // to __kitpapi_initialize(). Always returns 0.
@@ -453,7 +384,7 @@ extern "C" void __kitpapi_finalize(void) {
 
   LOG("Finalizing PAPI library");
 
-  writeCounters(KitPAPIContext::getSingleton());
+  writeInstrumentation(KitPAPIContext::getSingleton());
   KitPAPIContext::delSingleton();
   PAPI_shutdown();
 
