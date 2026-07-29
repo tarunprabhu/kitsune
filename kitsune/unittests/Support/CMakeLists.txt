@@ -8,5 +8,6 @@ add_kitsune_unittest(KitSupport
   FromIntTest.cpp
   FromStringTest.cpp
   MaybeBoolTest.cpp
+  ToStringTest.cpp
   TypeTraitsTest.cpp
 )
