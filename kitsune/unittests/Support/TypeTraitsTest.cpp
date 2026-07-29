@@ -88,4 +88,26 @@ TEST(KitTypeTraits, isInteger) {
   EXPECT_FALSE(std::is_integer_v<Bool>);
 }
 
+struct Iterable {
+  int begin();
+  int end();
+};
+
+struct NotIterableB {
+  int begin();
+};
+
+struct NotIterableE {
+  int end();
+};
+
+struct NotIterable2 {};
+
+TEST(KitTypeTraits, isIterable) {
+  EXPECT_FALSE(std::is_iterable_v<NotIterable2>);
+  EXPECT_FALSE(std::is_iterable_v<NotIterableB>);
+  EXPECT_FALSE(std::is_iterable_v<NotIterableE>);
+  EXPECT_TRUE(std::is_iterable_v<Iterable>);
+}
+
 } // namespace
