@@ -6,6 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/TableGen/Error.h"
 #include "llvm/TableGen/Record.h"
 #include "llvm/TableGen/TableGenBackend.h"
 
@@ -100,8 +101,13 @@ raw_ostream &KitLibFuncEmitter::emitLibFuncs(raw_ostream &os) {
     os << func->getName() << ", ";
     os << "\"" << func->getValueAsString("Name") << "\", ";
     os << func->getValueAsDef("Ret")->getName();
-    for (const Record *param : func->getValueAsListOfDefs("Params"))
+    std::vector<const Record *> params = func->getValueAsListOfDefs("Params");
+    for (unsigned i = 0, e = params.size(); i < e; ++i) {
+      const Record *param = params[i];
+      if (param->getName() == "VarArgs" && i != e - 1)
+        PrintFatalError(param->getLoc(), "VarArgs must be the last type");
       os << ", " << param->getName();
+    }
     os << ")\n";
   }
 

@@ -31,13 +31,26 @@ TEST(LibFunc, getLibFuncName) {
           22U, 21U, 20U, 19U, 18U, 17U, 16U, 15U, 14U, 13U, 12U, 11U, 10U, 9U, \
           8U, 7U, 6U, 5U, 4U, 3U, 2U, 1U, X)
 
+TEST(LibFunc, isVarArg) {
+  // Check that the function type of functions that are known to be vararg  are
+  // actually vararg.
+  LLVMContext ctx;
+  EXPECT_TRUE(getLibFuncType(KitFunc::kitpapi_start, ctx)->isVarArg());
+}
+
 TEST(LibFunc, getLibFuncType) {
   LLVMContext ctx;
 
 #define GET_LIBFUNCS
 #define LIBFUNC(NAME, LINKAGE_NAME, ...)                                       \
-  EXPECT_EQ(getLibFuncType(KitFunc::NAME, ctx)->getNumParams(),                \
-            NTYPES(__VA_ARGS__) - 1);
+  do {                                                                         \
+    FunctionType *fty = getLibFuncType(KitFunc::NAME, ctx);                    \
+    if (fty->isVarArg()) {                                                     \
+      EXPECT_EQ(fty->getNumParams(), NTYPES(__VA_ARGS__) - 2);                 \
+    } else {                                                                   \
+      EXPECT_EQ(fty->getNumParams(), NTYPES(__VA_ARGS__) - 1);                 \
+    }                                                                          \
+  } while (0);
 #include "kitsune/Core/LibFuncs.inc"
 }
 

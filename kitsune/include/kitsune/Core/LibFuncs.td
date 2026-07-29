@@ -30,6 +30,7 @@ def U32 : CType<"uint32_t">;
 def U64 : CType<"uint64_t">;
 def Float : CType<"float">;
 def Double : CType<"double">;
+def VarArgs : CType<"...">;
 
 // A function from Kitsune's runtime.
 class KitFunc<string NameParam, CType RetType, list<CType> ParamTypes> {
@@ -40,6 +41,22 @@ class KitFunc<string NameParam, CType RetType, list<CType> ParamTypes> {
 
 // -----------------------------------------------------------------------------
 // Runtime library functions common to several, or all, tapir targets.
+
+// void *__kit_instr_start(const char *name, uint64_t thrd)
+def kit_instr_start :
+    KitFunc<"__kit_instr_start", Ptr, [Ptr, U64]>;
+
+// void __kit_instr_stop(void *epoch)
+def kit_instr_stop :
+    KitFunc<"__kit_instr_stop", Void, [Ptr]>;
+
+// void *__kitpapi_start(const char *name, uint64_t thrd, ...)
+def kitpapi_start :
+    KitFunc<"__kitpapi_start", Ptr, [Ptr, U64, VarArgs]>;
+
+// void __kitpapi_stop(void* epoch)
+def kitpapi_stop :
+    KitFunc<"__kitpapi_stop", Void, [Ptr]>;
 
 // void *__kitrt_default_mem_alloc(uint64_t bytes)
 def kitrt_malloc :
@@ -81,6 +98,14 @@ def kitrt_mobile_init_double :
 //                               uint32_t objSize)
 def kitrt_mobile_init_from :
     KitFunc<"__kitrt_mobile_init_from", Void, [Ptr, U64, Ptr, U32]>;
+
+// void* __kittimer_start(const char *name, uint64_t thrd)
+def kittimer_start :
+    KitFunc<"__kittimer_start", Ptr, [Ptr, U64]>;
+
+// uint64_t __kittimer_stop(void *epoch)
+def kittimer_stop :
+    KitFunc<"__kittimer_stop", U64, [Ptr]>;
 
 // -----------------------------------------------------------------------------
 // Runtime library functions for the cuda tapir taret.
