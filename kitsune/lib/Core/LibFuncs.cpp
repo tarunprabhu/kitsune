@@ -51,6 +51,8 @@ static Type *getLLVMType(CType ctype, LLVMContext &ctx) {
     return Type::getFloatTy(ctx);
   case CType::Double:
     return Type::getDoubleTy(ctx);
+  case CType::VarArgs:
+    return nullptr;
   }
   llvm_unreachable("getLLVMType: CType not handled");
 }
@@ -59,11 +61,18 @@ static Type *getLLVMType(CType ctype, LLVMContext &ctx) {
 // the return type. The remaining parameter types. Vararg functions are not
 // supported.
 static FunctionType *getLibFuncType(ArrayRef<CType> ctypes, LLVMContext &ctx) {
+  bool isVarArg = false;
   Type *ret = getLLVMType(ctypes[0], ctx);
   SmallVector<Type *, 4> params;
-  for (CType param : ctypes.drop_front())
-    params.push_back(getLLVMType(param, ctx));
-  return FunctionType::get(ret, params, /*isVarArg=*/false);
+  for (CType param : ctypes.drop_front()) {
+    // getLLVMType will return null if the type is CType::VarArgs. Tablgen will
+    // have ensured that a VarArg type is the last type in the specification.
+    if (Type *paramTy = getLLVMType(param, ctx))
+      params.push_back(paramTy);
+    else
+      isVarArg = true;
+  }
+  return FunctionType::get(ret, params, isVarArg);
 }
 
 // Because of the way the LIBFUNC macros are emitted, we are guaranteed to have
