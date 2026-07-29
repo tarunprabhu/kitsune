@@ -22,6 +22,20 @@ namespace std {
 /// \addtogroup kitsune
 /// @{
 
+template <typename T, typename = void>
+struct is_iterable_t : std::false_type {};
+
+template <typename T>
+struct is_iterable_t<T, std::void_t<decltype(std::declval<T>().begin()),
+                                    decltype(std::declval<T>().end())>>
+    : std::true_type {};
+
+/// Return true if the type is iterable. This will be the case if the type has
+/// begin() and end() members. This makes the type suitable to be used in a
+/// range-based for loop.
+template <typename T>
+static constexpr bool is_iterable_v = is_iterable_t<T>::value;
+
 /// Return true if the type is a boolean. This will not return true if `T` is
 /// bool&.
 template <typename T>
