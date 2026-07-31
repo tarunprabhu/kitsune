@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Support/FromString.h"
+#include "kitsune/Core/Instrumentation.h"
 #include "kitsune/Core/Tapir.h"
 #include "kitsune/Support/MaybeBool.h"
 #include "llvm/ADT/StringSwitch.h"
@@ -48,5 +49,20 @@ template <> std::optional<MaybeBool> llvm::fromString(StringRef s) {
       .Case("off", MaybeBool::Off)
       .Case("on", MaybeBool::On)
       .Case("any", MaybeBool::Any)
+      .Default(std::nullopt);
+}
+
+template <> std::optional<InstrumentKind> llvm::fromString(StringRef s) {
+  return StringSwitch<std::optional<InstrumentKind>>(s)
+      .Case("generic", InstrumentKind::Generic)
+      .Case("papi", InstrumentKind::PAPI)
+      .Case("timer", InstrumentKind::Timer)
+      .Default(std::nullopt);
+}
+
+template <> std::optional<InstrumentUnit> llvm::fromString(StringRef s) {
+  return StringSwitch<std::optional<InstrumentUnit>>(s)
+      .Case("loop", InstrumentUnit::Loop)
+      .Case("thread", InstrumentUnit::Thread)
       .Default(std::nullopt);
 }

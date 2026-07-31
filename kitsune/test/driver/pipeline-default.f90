@@ -52,14 +52,10 @@
 ! </KIT-PRE-TAPIR>
 !
 ! <KIT-PRE-LOOP-SPAWNING>
-! We add LoopSimplify, LoopRotate and LoopLCSSA to the pipeline before
-! PrepareReductionLoops, but it is difficult to check for them because they
-! match runs of the pass from earlier in the pipeline. PrepareReductionLoops
-! will fail if any of these are not run, so something will at least catch it
-! if they are ever removed from the pipeline.
 ! O123S:      Running pass:     PreLowerPreparePass
 ! O123S:      Running pass:     SecondaryIVEliminationPass
 ! O123S:      Running pass:     PrepareTapirLoopsPass
+! O123S:      Running pass:     InstrumentPass
 ! O123S:      Running pass:     LowerKitReduceIntrinsicsPass
 ! O123S:      Running pass:     DeLICMPass
 ! O123S:      Running pass:     SimplifyCFGPass
@@ -85,6 +81,30 @@
 ! </KIT-POST-TAPIR>
 !
 ! O123S:      Running pass:     BitcodeWriterPass
+!
+! ------------------------------------------------------------------------------
+! The instrumentation pass will only run if instrumentation is explicitly
+! enabled.
+!
+! RUN: %kitfc --tapir=serial -O1 -c -emit-llvm -o /dev/null %s \
+! RUN:     --kit-instr=timer \
+! RUN:     -Xflang -fdebug-pass-manager 2>&1 \
+! RUN:     | FileCheck %s -check-prefix INSTR
+!
+! RUN: %kitfc --tapir=serial -O2 -c -emit-llvm -o /dev/null %s \
+! RUN:     --kit-instr=generic \
+! RUN:     -Xflang -fdebug-pass-manager 2>&1 \
+! RUN:     | FileCheck %s -check-prefix INSTR
+!
+! RUN: %kitfc --tapir=serial -O3 -c -emit-llvm -o /dev/null %s \
+! RUN:     --kit-instr=papi \
+! RUN:     -Xflang -fdebug-pass-manager 2>&1 \
+! RUN:     | FileCheck %s -check-prefix INSTR
+!
+! INSTR:      Running pass:     PrepareTapirLoopsPass
+! INSTR:      Running pass:     InstrumentPass
+!
+! ------------------------------------------------------------------------------
 
 ! XFAIL: *
 ! NOTE: This test will only work if there is a tapir loop in the body of

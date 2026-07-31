@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "NewPMDriver.h"
+#include "kitsune/Core/Instrumentation.h"
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Support/ErrorUtils.h"
 #include "llvm/ADT/SmallVector.h"
@@ -507,6 +508,7 @@ bool llvm::runPassPipeline(
   PTO.UnifiedLTO = UnifiedLTO;
   PTO.LoopFusion = EnableLoopFusion;
   PTO.TTOpts = createTTOptions(TM, PassPipeline);
+  PTO.KitInstrOpts = KitInstrOptions::createFromCommandLine();
   PassBuilder PB(TM, PTO, P, &PIC);
   registerEPCallbacks(PB);
 

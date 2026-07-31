@@ -28,6 +28,7 @@ add_kitsune_unittest(KitCore
   MetadataUtilsTest.cpp
   ModuleAttrsTest.cpp
   ModuleUtilsTest.cpp
+  PrintfDebuggingTest.cpp
   TapirCoreTest.cpp
   TestUtils.cpp
   TypeUtilsTest.cpp

@@ -51,6 +51,62 @@ let Group = kitsune_Group in {
 // C/C++ and Fortran.
 let Visibility = [ClangOption, CC1Option, FlangOption, FC1Option] in {
 
+def kit_instr_EQ : Joined<["--"], "kit-instr=">,
+    MetaVarName<"<kinds>">,
+    HelpText<"Add Kitsune's instrumentation">,
+    DocBrief<[{
+Add Kitsune's instrumentation. This is a comma-separated list of 1 or more of
+the values specified in the table below.
+
++------------+-----------------------------+
+| generic    | Add generic instrumentation |
++------------+-----------------------------+
+| papi       | Add PAPI instrumentation    |
++------------+-----------------------------+
+| timer      | Add timers                  |
++------------+-----------------------------+
+
+}]>;
+
+def kit_instr_only_EQ : Joined<["--"], "kit-instr-only=">,
+    MetaVarName<"<names>">,
+    HelpText<"Comma-separated list of names of entities to instrument">,
+    DocBrief<[{
+Comma-separated list of names of entities to which to add Kitsune's generic
+instrumentation. If this is not given, all entities that match the units given
+by `--kit-instr-unit=` will be instrumented.
+}]>;
+
+def kit_instr_unit_EQ : Joined<["--"], "kit-instr-unit=">,
+    MetaVarName<"<units>">,
+    HelpText<"The unit to which Kitsune's instrumentation should be added">,
+    DocBrief<[{
+Comma-separated list of units to which Kitsune's instrumentation is to be added.
+The table below shows the valid values that may appear in this list and
+describes where instrumentation will be added.
+
++------------+-----------------------------------------------------------------+
+| loop       | Add instrumentation around tapir loops only                     |
++------------+-----------------------------------------------------------------+
+| thread     | Add instrumentation to the body of tapir loops with a parallel, |
+|            | CPU-centric tapir target. In this case, the instrumentation's   |
+|            | "start" and "stop" functions will be run on each CPU thread     |
++------------+-----------------------------------------------------------------+
+
+In addition, two special values are also accepted. These must be used on their
+own - they cannot appear with each other, or in a list. These are:
+
++------------+-----------------------------------------------------------------+
+| all        | Add all supported instrumentation. This adds instrumentation    |
+|            | around all supported Kitsune constructs, as well as per-thread  |
+|            | instrumentation to the body of tapir loops                      |
++------------+-----------------------------------------------------------------+
+| default    | Add instrumentation *around* all supported Kitsune constructs.  |
+|            | Per-thread instrumentation is *not* added                       |
++------------+-----------------------------------------------------------------+
+
+}]>;
+
 def tapir_EQ : Joined<["--"], "tapir=">,
     MetaVarName<"<target>">,
     Values<"cuda,custom,hip,nolo,opencilk,pthreads,serial">,

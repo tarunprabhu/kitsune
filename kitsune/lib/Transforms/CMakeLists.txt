@@ -14,6 +14,7 @@ add_llvm_component_library(LLVMKitTransforms
   GenerateCtorsCommon.cpp
   GenerateCtorsCPU.cpp
   GenerateCtorsGPU.cpp
+  Instrument.cpp
   LoopWrapping.cpp
   LowerKitReduceIntrinsics.cpp
   NormalizeLoopControlBlocks.cpp

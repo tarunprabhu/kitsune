@@ -8,9 +8,6 @@
 
 #include "kitsune/Core/Instrumentation.h"
 #include "llvm/ADT/StringExtras.h"
-#include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/Module.h"
-#include "llvm/Support/FormatVariadic.h"
 
 #include "gtest/gtest.h"
 
@@ -18,69 +15,109 @@ using namespace llvm;
 
 namespace {
 
-static void checkInsertPrintf(Function &f, StringRef stream) {
-  std::string buf;
-  raw_string_ostream os(buf);
-  os << f << "\n";
-  os.flush();
+template <typename T> SmallVector<T, 1> vec(std::initializer_list<T> list) {
+  return SmallVector<T, 1>(list);
+}
 
-  SmallVector<StringRef, 8> lines;
-  SplitString(buf, lines, "\n\r");
-
-  SmallVector<std::string, 8> expected = {
-      "define void @f() {",
-      llvm::formatv("  %1 = load ptr, ptr @{0}", stream),
-      "  %2 = call i32 (ptr, ptr, ...) @fprintf(ptr %1, ptr @0, i32 21)",
-      "  ret void",
-      "}",
+TEST(KitInstrumentation, enabled) {
+  auto opts = [](InstrumentKind kind) -> KitInstrOptions {
+    KitInstrOptions opts;
+    opts.addKind(kind);
+    return opts;
   };
 
-  EXPECT_EQ(lines.size(), expected.size());
-  for (unsigned i = 0, e = lines.size(); i < e; ++i)
-    EXPECT_TRUE(lines[i].starts_with(expected[i]));
+  EXPECT_FALSE(KitInstrOptions().enabled());
+  EXPECT_TRUE(opts(InstrumentKind::Generic).enabled());
+  EXPECT_TRUE(opts(InstrumentKind::PAPI).enabled());
+  EXPECT_TRUE(opts(InstrumentKind::Timer).enabled());
 }
 
-#define TEST_INSERT_PRINTF_HEADER                                              \
-  LLVMContext ctx;                                                             \
-  Module m("", ctx);                                                           \
-                                                                               \
-  Type *voidTy = Type::getVoidTy(ctx);                                         \
-  Type *i32 = Type::getInt32Ty(ctx);                                           \
-  FunctionType *fty = FunctionType::get(voidTy, {}, /*IsVarArg=*/false);       \
-                                                                               \
-  Constant *c = ConstantInt::get(i32, 21, /*isSigned=*/true);                  \
-  Function *f = Function::Create(fty, GlobalValue::ExternalLinkage, "f", m);   \
-  BasicBlock *bb = BasicBlock::Create(ctx, "", f);                             \
-  ReturnInst *ret = ReturnInst::Create(ctx, bb);
+TEST(KitInstrumentation, enabledKind) {
+  KitInstrOptions opts;
+  EXPECT_FALSE(opts.enabled(InstrumentKind::Generic));
+  EXPECT_FALSE(opts.enabled(InstrumentKind::PAPI));
+  EXPECT_FALSE(opts.enabled(InstrumentKind::Timer));
 
-TEST(KitInstrumentation, insertPrintfStdoutBuilder) {
-  TEST_INSERT_PRINTF_HEADER
+  opts.addKind(InstrumentKind::Generic);
+  opts.addKind(InstrumentKind::Timer);
 
-  IRBuilder<> builder(ret);
-  insertPrintStdout(builder, "write: %d\n", {c});
-  checkInsertPrintf(*f, "stdout");
+  EXPECT_TRUE(opts.enabled(InstrumentKind::Generic));
+  EXPECT_FALSE(opts.enabled(InstrumentKind::PAPI));
+  EXPECT_TRUE(opts.enabled(InstrumentKind::Timer));
 }
 
-TEST(KitInstrumentation, insertPrintfStderrBuilder) {
-  TEST_INSERT_PRINTF_HEADER
+TEST(KitInstrumentation, shouldInstrument) {
+  KitInstrOptions opts;
 
-  IRBuilder<> builder(ret);
-  insertPrintStderr(builder, "write: %d\n", {c});
-  checkInsertPrintf(*f, "stderr");
+  // No names have been added. Any name is legal.
+  EXPECT_TRUE(opts.shouldInstrument(""));
+  EXPECT_TRUE(opts.shouldInstrument("sesotho"));
+
+  // If even one name has been added, only that name should be instrumented.
+  opts.addName("ndebele");
+  EXPECT_FALSE(opts.shouldInstrument("sesotho"));
+  EXPECT_TRUE(opts.shouldInstrument("ndebele"));
+
+  // Names are case-sensitive.
+  EXPECT_FALSE(opts.shouldInstrument("Ndebele"));
 }
 
-TEST(KitInstrumentation, insertPrintfStdoutInsertPt) {
-  TEST_INSERT_PRINTF_HEADER
+TEST(KitInstrumentation, setUnitsAll) {
+  KitInstrOptions opts;
+  opts.setUnitsAll();
 
-  insertPrintStdout(ret->getIterator(), "write: %d\n", {c});
-  checkInsertPrintf(*f, "stdout");
+  EXPECT_TRUE(opts.enabled(InstrumentUnit::Thread));
+  EXPECT_TRUE(opts.enabled(InstrumentUnit::Loop));
 }
 
-TEST(KitInstrumentation, insertPrintfStderrInsertPt) {
-  TEST_INSERT_PRINTF_HEADER
+TEST(KitInstrumentation, setUnitsDefault) {
+  KitInstrOptions opts;
+  opts.setUnitsDefault();
 
-  insertPrintStderr(ret->getIterator(), "write: %d\n", {c});
-  checkInsertPrintf(*f, "stderr");
+  EXPECT_FALSE(opts.enabled(InstrumentUnit::Thread));
+  EXPECT_TRUE(opts.enabled(InstrumentUnit::Loop));
+}
+
+TEST(KitInstrumentation, getKinds) {
+  KitInstrOptions opts;
+
+  EXPECT_EQ(opts.getKinds(), vec<InstrumentKind>({}));
+
+  opts.addKind(InstrumentKind::PAPI);
+  EXPECT_EQ(opts.getKinds(), vec({InstrumentKind::PAPI}));
+
+  opts.addKind(InstrumentKind::Generic);
+  EXPECT_EQ(opts.getKinds(),
+            vec({InstrumentKind::Generic, InstrumentKind::PAPI}));
+
+  // Adding it again should have no effect.
+  opts.addKind(InstrumentKind::Generic);
+  EXPECT_EQ(opts.getKinds(),
+            vec({InstrumentKind::Generic, InstrumentKind::PAPI}));
+
+  opts.addKind(InstrumentKind::Timer);
+  EXPECT_EQ(opts.getKinds(), vec({InstrumentKind::Generic, InstrumentKind::PAPI,
+                                  InstrumentKind::Timer}));
+}
+
+TEST(KitInstrumentation, getUnits) {
+  KitInstrOptions opts;
+
+  // If nothing has been set explicitly, the default set of units will be
+  // returned.
+  EXPECT_EQ(opts.getUnits(), vec({InstrumentUnit::Loop}));
+
+  // If a unit is added, it will override the defaults.
+  opts.addUnit(InstrumentUnit::Thread);
+  EXPECT_EQ(opts.getUnits(), vec({InstrumentUnit::Thread}));
+
+  // Adding it again should have no effect.
+  opts.addUnit(InstrumentUnit::Thread);
+  EXPECT_EQ(opts.getUnits(), vec({InstrumentUnit::Thread}));
+
+  opts.addUnit(InstrumentUnit::Loop);
+  EXPECT_EQ(opts.getUnits(),
+            vec({InstrumentUnit::Thread, InstrumentUnit::Loop}));
 }
 
 } // namespace
