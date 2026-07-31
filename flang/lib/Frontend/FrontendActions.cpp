@@ -992,6 +992,7 @@ void CodeGenAction::runOptimizationPipeline(llvm::raw_pwrite_stream &os) {
   pto.SLPVectorization = opts.VectorizeSLP;
   pto.LoopStripmine = kitOpts.getStripmineLoops();
   pto.TTOpts = getTTOptions(ci);
+  pto.KitInstrOpts = kitOpts.getKitInstrOpts();
   llvm::PassBuilder pb(targetMachine, pto, pgoOpt, &pic);
 
   // Attempt to load pass plugins and register their callbacks with PB.

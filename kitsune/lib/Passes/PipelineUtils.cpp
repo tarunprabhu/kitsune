@@ -26,6 +26,7 @@
 #include "kitsune/Transforms/EmbPrepare.h"
 #include "kitsune/Transforms/EmbResolveLibDeviceCalls.h"
 #include "kitsune/Transforms/GenerateCtors.h"
+#include "kitsune/Transforms/Instrument.h"
 #include "kitsune/Transforms/LowerKitReduceIntrinsics.h"
 #include "kitsune/Transforms/NormalizeLoopControlBlocks.h"
 #include "kitsune/Transforms/PreLowerAnnotate.h"
@@ -234,6 +235,10 @@ llvm::populateKitPreparePasses(PassBuilder &pb, OptimizationLevel optLevel,
     // cleaned up.
     addModulePass<ModuleInlinerPass>(mpm);
     populateSimplifyPasses(mpm, pto);
+
+    if (pto.KitInstrOpts.enabled())
+      addModulePass<InstrumentPass>(mpm, pto.KitInstrOpts);
+    addFunctionPass<SimplifyCFGPass>(mpm);
   }
 
   return mpm;

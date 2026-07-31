@@ -28,8 +28,11 @@
 !
 ! CHECK:      Running pass:      EarlyVerificationPass
 ! CHECK:      Running pass:      EarlyAnnotatePass
+! CHECK:      Running pass:      NormalizeLoopControlBlocksPass
+! CHECK:      Running pass:      SecondaryIVEliminationPass
 ! CHECK:      Running pass:      PrepareTapirLoopsPass
 ! CHECK:      Running pass:      LowerKitReduceIntrinsicsPass
+! CHECK-NOT:  Running pass:      InstrumentPass
 !
 ! CHECK-NOT:  Running pass:      PreLowerPreparePass
 ! CHECK-NOT:  Running pass:      SecondaryIVEliminationPass
@@ -45,6 +48,28 @@
 ! CHECK-NOT:  Running pass:      RecomputeKernelPropertiesPass
 ! CHECK-NOT:  Running pass:      GenerateCtorsPass
 ! CHECK-NOT:  Running pass:      LowerRuntimeIntrinsicsPass
+!
+! -----------------------------------------------------------------------------
+! The instrumentation pass will only run if instrumentation is explicitly
+! enabled.
+!
+! RUN: %kitfc -O2 --tapir=serial -c -emit-llvm -o /dev/null %s \
+! RUN:     --kit-instr=generic \
+! RUN:     -flto -Xflang -fdebug-pass-manager 2>&1 \
+! RUN:     | FileCheck %s --check-prefix=INSTR
+!
+! RUN: %kitfc -O3 --tapir=serial -c -emit-llvm -o /dev/null %s \
+! RUN:     --kit-instr=timer \
+! RUN:     -flto -Xflang -fdebug-pass-manager 2>&1 \
+! RUN:     | FileCheck %s --check-prefix=INSTR
+!
+! INSTR:      Running pass:      NormalizeLoopControlBlocksPass
+! INSTR:      Running pass:      SecondaryIVEliminationPass
+! INSTR:      Running pass:      PrepareTapirLoopsPass
+! INSTR:      Running pass:      LowerKitReduceIntrinsicsPass
+! INSTR:      Running pass:      InstrumentPass
+!
+! -----------------------------------------------------------------------------
 
 subroutine f
 end subroutine f

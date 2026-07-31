@@ -15,6 +15,7 @@
 #define KITSUNE_CORE_KIT_OPTIONS_H
 
 #include "kitsune/Config/Config.h"
+#include "kitsune/Core/Instrumentation.h"
 #include "kitsune/Core/Tapir.h"
 #include "kitsune/Support/MaybeBool.h"
 #include "llvm/ADT/ArrayRef.h"
@@ -105,11 +106,14 @@ private:
   /// no benefit to doing so.
   unsigned gpuPrefetch : 1;
 
+  /// Options for Kitsune-specific instrumentation.
+  KitInstrOptions kitInstrOpts;
+
   /// The "primary" tapir target for code generation. The "inline" tapir
   /// targets that are attached to specific constructs are separate from this.
   /// This is set to the value of the the --tapir option passed on the command
   /// line. It is optional because we may not have a default tapir target
-  std::optional<llvm::TTID> tt = llvm::defaultTapirTarget;
+  std::optional<TTID> tt = defaultTapirTarget;
 
   /// If this is not std::nullopt, it must be the path to a dynamic shared
   /// object that can be loaded as a tapir target plugin.
@@ -157,7 +161,7 @@ private:
   /// backend when the hip tapir target is enabled. The contents of the list are
   /// computed by the driver based on @ref hipArch and any other target-specific
   /// options that were provided.
-  llvm::SmallVector<std::string, 4> hipRuntimeBCFiles;
+  SmallVector<std::string, 4> hipRuntimeBCFiles;
 
   /// The value of the sramecc feature. The map of values to target features is
   /// as follows:
@@ -200,13 +204,28 @@ public:
     this->kokkosNoInit = kokkosNoInit;
   }
 
-  void setTTID(llvm::TTID tt) { this->tt = tt; }
+  void setTTID(TTID tt) { this->tt = tt; }
 
   void setTTPlugin(StringRef path) { this->ttPlugin = path; }
 
   void setStripmineLoops(bool stripmineLoops = true) {
     this->stripmineLoops = stripmineLoops;
   }
+
+  /// @}
+  /// Setters for instrumentation-related options.
+
+  /// @{
+
+  void addInstrKind(InstrumentKind k) { this->kitInstrOpts.addKind(k); }
+
+  void addInstrUnit(InstrumentUnit u) { this->kitInstrOpts.addUnit(u); }
+
+  void addInstrName(StringRef name) { this->kitInstrOpts.addName(name.str()); }
+
+  void setInstrUnitsAll() { this->kitInstrOpts.setUnitsAll(); }
+
+  void setInstrUnitsDefault() { this->kitInstrOpts.setUnitsDefault(); }
 
   /// @}
 
@@ -305,6 +324,8 @@ public:
   }
 
   StringRef getOpenCilkRuntimeBCFile() const { return openCilkRuntimeBCFile; }
+
+  const KitInstrOptions &getKitInstrOpts() const { return kitInstrOpts; }
 };
 
 /// @}

@@ -14,6 +14,7 @@
 #ifndef KITSUNE_SUPPORT_TO_STRING_H
 #define KITSUNE_SUPPORT_TO_STRING_H
 
+#include "kitsune/Core/Instrumentation.h"
 #include "kitsune/Core/OptznLevel.h"
 #include "kitsune/Core/Tapir.h"
 #include "kitsune/Support/MaybeBool.h"
@@ -43,6 +44,8 @@ std::string toString(const StringRef &);
 std::string toString(const TTID &);
 std::string toString(const MaybeBool &);
 std::string toString(const OptznLevel &);
+std::string toString(const InstrumentKind &);
+std::string toString(const InstrumentUnit &);
 
 template <typename T, std::enable_if_t<std::is_iterable_v<T>, int> = 0>
 std::string toString(const T &container, StringRef sep = ",") {

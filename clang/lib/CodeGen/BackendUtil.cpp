@@ -9,6 +9,7 @@
 #include "clang/CodeGen/BackendUtil.h"
 #include "BackendConsumer.h"
 #include "LinkInModulesPass.h"
+#include "kitsune/Core/Instrumentation.h"
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Passes/PipelineUtils.h"
 #include "kitsune/Support/OptznLevelUtils.h"
@@ -930,6 +931,7 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
   PTO.UnifiedLTO = CodeGenOpts.UnifiedLTO;
   PTO.LoopStripmine = KitOpts.getStripmineLoops();
   PTO.TTOpts = getTTOptions();
+  PTO.KitInstrOpts = KitOpts.getKitInstrOpts();
 
   LoopAnalysisManager LAM;
   FunctionAnalysisManager FAM;
@@ -1373,6 +1375,7 @@ runThinLTOBackend(CompilerInstance &CI, ModuleSummaryIndex *CombinedIndex,
   Conf.PTO.TTOpts =
       createTTOptions(KitOpts, CGOpts.OptimizationLevel, CGOpts.OptimizeSize,
                       Conf.Options.AllowFPOpFusion);
+  Conf.PTO.KitInstrOpts = KitOpts.getKitInstrOpts();
 
   // Context sensitive profile.
   if (CGOpts.hasProfileCSIRInstr()) {

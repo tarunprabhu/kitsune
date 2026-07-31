@@ -50,11 +50,6 @@
 ; </KIT-PRE-TAPIR>
 ;
 ; <KIT-PRE-LOOP-SPAWNING>
-; We add LoopSimplify, LoopRotate and LoopLCSSA to the pipeline before
-; PrepareReductionLoops, but it is difficult to check for them because they
-; match runs of the pass from earlier in the pipeline. PrepareReductionLoops
-; will fail if any of these are not run, so something will at least catch it
-; if they are ever removed from the pipeline.
 ; O123S:      Running pass:     NormalizeLoopControlBlocksPass
 ; O123S:      Running pass:     SecondaryIVEliminationPass
 ; O123S:      Running pass:     DeLICMPass

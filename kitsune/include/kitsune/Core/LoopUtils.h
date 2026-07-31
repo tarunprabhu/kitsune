@@ -178,15 +178,33 @@ bool isInLoop(const Instruction &inst, const Loop &loop, LoopInfo &li,
 /// \p loop.
 bool isUsedOutsideLoop(const PHINode &iv, const Loop &loop, LoopInfo &li);
 
-/// Get the sync region for the tapir loop. This simply looks at the terminator
+/// Get the sync region for a tapir loop. This simply looks at the terminator
 /// of the tapir loop header, which is expected to be a detach instruction and
 /// returns the syncregion associated with that instruction. It is an error if
 /// the terminator of the loop header is not a detach instruction.
 Value *getTapirLoopSyncRegion(Loop &loop);
 
+/// Get the detach instruction for a tapir loop. This simply looks at the
+/// terminator of the tapir loop header, which is expected to be a detach
+/// instruction and returns that.
+DetachInst *getTapirLoopDetachInst(Loop &loop);
+
+/// Get the reattach instruction for a tapir loop. This simply looks at the
+/// sole predecessor of the unique loop latch, whose terminator is expected to
+/// be a reattach instruction.
+ReattachInst *getTapirLoopReattachInst(Loop &loop);
+
+/// Get the unique sync instruction for a tapir loop. This is the sole sync
+/// instruction that is unconditionally reachable from the loop exit blocks. An
+/// instruction is unconditionally reachable from an exit block if there exists
+/// a unique path from the first instruction of the exit block to the sync
+/// instruction. If more than one sync instruction is reachable from the loop's
+/// exit blocks, returns nullptr.
+SyncInst *getTapirLoopUniqueSyncInst(Loop &loop);
+
 /// Get the "entry block" of the tapir loop body. This is the block that is
-/// detached from the tapir loop header. For instance, for the tapir loop below,
-/// this will return the basic block named "body".
+/// detached from the tapir loop header. For instance, for the tapir loop
+/// below, this will return the basic block named "body".
 ///
 ///   header:
 ///     %i = phi i64 [ 0, %entry ], [ %next.i, %latch ]
@@ -199,6 +217,9 @@ BasicBlock *getTapirLoopDetachedBlock(Loop &loop);
 
 /// Get all blocks inside the loop that have successors outside the loop.
 SmallVector<BasicBlock *, 2> getExitingBlocks(const Loop &loop);
+
+/// Get all successor blocks of the loop.
+SmallVector<BasicBlock *, 2> getExitBlocks(const Loop &loop);
 
 /// If \p loop has exactly one exit block that is not a dead-end, return its
 /// corresponding exiting block. If no such exiting block exists, return

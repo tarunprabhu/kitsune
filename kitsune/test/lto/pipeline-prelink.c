@@ -30,8 +30,11 @@
 //
 // CHECK:      Running pass:      EarlyVerificationPass
 // CHECK:      Running pass:      EarlyAnnotatePass
+// CHECK:      Running pass:      NormalizeLoopControlBlocksPass
+// CHECK:      Running pass:      SecondaryIVEliminationPass
 // CHECK:      Running pass:      PrepareTapirLoopsPass
 // CHECK:      Running pass:      LowerKitReduceIntrinsicsPass
+// CHECK-NOT:  Running pass:      InstrumentPass
 //
 // CHECK-NOT:  Running pass:      PreLowerPreparePass
 // CHECK-NOT:  Running pass:      SecondaryIVEliminationPass
@@ -49,6 +52,33 @@
 // CHECK-NOT:  Running pass:      LowerRuntimeIntrinsicsPass
 //
 // ERROR: unsupported optimization level '-Oz'
+//
+// -----------------------------------------------------------------------------
+// The instrumentation pass will only run if instrumentation is explicitly
+// enabled.
+//
+// RUN: %kitcc -O2 --tapir=serial -c -emit-llvm -o /dev/null %s \
+// RUN:     --kit-instr=generic \
+// RUN:     -flto -Xclang -fdebug-pass-manager 2>&1 \
+// RUN:     | FileCheck %s --check-prefix=INSTR
+//
+// RUN: %kitcc -O3 --tapir=serial -c -emit-llvm -o /dev/null %s \
+// RUN:     --kit-instr=papi \
+// RUN:     -flto -Xclang -fdebug-pass-manager 2>&1 \
+// RUN:     | FileCheck %s --check-prefix=INSTR
+//
+// RUN: %kitcc -Os --tapir=serial -c -emit-llvm -o /dev/null %s \
+// RUN:     --kit-instr=timer \
+// RUN:     -flto -Xclang -fdebug-pass-manager 2>&1 \
+// RUN:     | FileCheck %s --check-prefix=INSTR
+//
+// INSTR:      Running pass:      NormalizeLoopControlBlocksPass
+// INSTR:      Running pass:      SecondaryIVEliminationPass
+// INSTR:      Running pass:      PrepareTapirLoopsPass
+// INSTR:      Running pass:      LowerKitReduceIntrinsicsPass
+// INSTR:      Running pass:      InstrumentPass
+//
+// -----------------------------------------------------------------------------
 
 #include <kitsune.h>
 

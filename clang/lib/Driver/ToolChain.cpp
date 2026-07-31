@@ -2331,6 +2331,10 @@ void ToolChain::AddKitsuneCompilerArgs(const ArgList &Args,
       CmdArgs.push_back("-fstripmine");
     }
   }
+
+  Args.AddLastArg(CmdArgs, options::OPT_kit_instr_EQ);
+  Args.AddLastArg(CmdArgs, options::OPT_kit_instr_only_EQ);
+  Args.AddLastArg(CmdArgs, options::OPT_kit_instr_unit_EQ);
 }
 
 void ToolChain::AddKitsuneCustomLinkerArgs(const ArgList &Args,

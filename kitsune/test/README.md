@@ -72,6 +72,11 @@ directories include:
     For instance, `lang/forall` contains tests of the `forall` construct,
     `lang/attr/` contains tests for Kitsune-specific attributes etc.
 
+  - `lower`: This contains tests of the handling of command-line options in the
+    underlying compiler (`-cc1`/`-fc1`), as opposed to the driver. This can
+    also contains tests for LLVM-IR generation of constructs that are not tied
+    to a specific tapir target.
+
   - `lto/`: This contains tests of the handling of command-line options and
     basic when using LTO. Each tapir target that supports LTO has a dedicated
     subdirectory. The tests in these subdirectory should only contain

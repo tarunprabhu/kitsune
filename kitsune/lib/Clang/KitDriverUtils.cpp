@@ -35,6 +35,15 @@ using namespace llvm::opt;
 
 using llvm::driver::KitOptions;
 
+static SmallVector<std::string, 4> parseCommaSeparatedList(StringRef s) {
+  SmallVector<std::string, 4> list;
+  std::string tok;
+  std::istringstream iss(s.str());
+  while (std::getline(iss, tok, ','))
+    list.push_back(tok);
+  return list;
+}
+
 bool clang::driver::isKitsuneFrontend(StringRef prog) {
   // Yes, the name of the compiler is actually the "ModeSuffix". Don't ask ...
   std::string suffix =
@@ -74,18 +83,6 @@ static bool checkOptLevel(const ArgList &args) {
   }
   // An explicit optimization level was not provided. This is ok.
   return true;
-}
-
-static void checkThreadsPerBlock(const Arg &a, const ArgList &args,
-                                 DiagnosticsEngine &diags) {
-  int n = 0;
-  StringRef val = a.getValue();
-  if (val.empty())
-    diags.Report(diag::err_drv_missing_argument) << a.getAsString(args) << 1;
-  else if (val.getAsInteger(10, n))
-    diags.Report(diag::err_drv_invalid_int_value) << a.getAsString(args) << val;
-  else if (n < 1 || n > 1024)
-    diags.Report(diag::err_drv_kit_threads_per_block) << a.getAsString(args);
 }
 
 void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
@@ -152,6 +149,43 @@ void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
     }
   }
 
+  // Validate --kit-instr=
+  if (Arg *a = args.getLastArg(options::OPT_kit_instr_EQ)) {
+    if (StringRef(a->getValue()).empty())
+      diags.Report(diag::err_drv_missing_list) << a->getAsString(args);
+    for (StringRef kind : parseCommaSeparatedList(a->getValue()))
+      if (not llvm::fromString<llvm::InstrumentKind>(kind))
+        diags.Report(diag::err_drv_invalid_value)
+            << a->getAsString(args) << kind;
+  }
+
+  // Validate --kit-instr-only=
+  if (Arg *a = args.getLastArg(options::OPT_kit_instr_only_EQ)) {
+    if (StringRef(a->getValue()).empty())
+      diags.Report(diag::err_drv_missing_list) << a->getAsString(args);
+    for (StringRef name : parseCommaSeparatedList(a->getValue()))
+      if (name.empty())
+        diags.Report(diag::err_drv_invalid_value) << a->getAsString(args) << "";
+  }
+
+  // Validate --kit-instr-unit=
+  if (Arg *a = args.getLastArg(options::OPT_kit_instr_unit_EQ)) {
+    StringRef v = a->getValue();
+    if (v.empty())
+      diags.Report(diag::err_drv_missing_list) << a->getAsString(args);
+    // If the value of the option is all, or default, that is fine, we should
+    // not expect a list.
+    if (v != "all" && v != "default") {
+      for (StringRef unit : parseCommaSeparatedList(a->getValue()))
+        if (unit == "all" || unit == "default")
+          diags.Report(diag::err_drv_kit_instr_special_unit)
+              << unit << a->getAsString(args);
+        else if (not llvm::fromString<llvm::InstrumentUnit>(unit))
+          diags.Report(diag::err_drv_invalid_value)
+              << a->getAsString(args) << unit;
+    }
+  }
+
   // If --tapir-plugin= is provided, then a tapir target must also be provided.
   // That target must be 'custom', but that will be checked later.
   if (args.hasArg(options::OPT_tapir_plugin_EQ))
@@ -161,7 +195,7 @@ void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
   // Check that the --tapir flag has a valid value. This stops us from
   // reporting multiple errors because the flag is examined in several places.
   if (const Arg *a = args.getLastArg(options::OPT_tapir_EQ)) {
-    std::optional<llvm::TTID> tt = llvm::fromString<llvm::TTID>(a->getValue());
+    std::optional<TTID> tt = llvm::fromString<TTID>(a->getValue());
     if (not tt) {
       diags.Report(diag::err_drv_invalid_value)
           << a->getAsString(args) << a->getValue();
@@ -169,13 +203,13 @@ void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
     }
 
     if (args.hasArg(options::OPT_tapir_plugin_EQ))
-      if (*tt != llvm::TTID::Custom)
+      if (*tt != TTID::Custom)
         diags.Report(diag::err_drv_kit_plugin_wrong_target);
 
     if (!isEnabledTT(*tt))
       diags.Report(diag::err_drv_kit_target_not_enabled) << llvm::toString(*tt);
 
-    if (*tt == llvm::TTID::Custom) {
+    if (*tt == TTID::Custom) {
       const Arg *a = args.getLastArg(options::OPT_tapir_plugin_EQ);
       if (!a)
         diags.Report(diag::err_drv_kit_plugin_missing);
@@ -187,7 +221,7 @@ void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
       } else {
         diags.Report(diag::err_drv_kit_plugin_multiple);
       }
-    } else if (*tt == llvm::TTID::OpenCilk) {
+    } else if (*tt == TTID::OpenCilk) {
       if (!triple.isOSLinux() && !triple.isOSFreeBSD() && !triple.isMacOSX())
         diags.Report(diag::err_drv_kit_tt_system)
             << llvm::toString(*tt) << triple.getOSName();
@@ -205,7 +239,7 @@ void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
             << llvm::toString(*tt) << triple.getArchName();
         break;
       }
-    } else if (*tt == llvm::TTID::Qthreads) {
+    } else if (*tt == TTID::Qthreads) {
       if (!triple.isOSLinux() && !triple.isMacOSX())
         diags.Report(diag::err_drv_kit_tt_system)
             << llvm::toString(*tt) << triple.getOSName();
@@ -242,7 +276,7 @@ void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
     // The --tapir option requires optimization level O1 or higher, unless the
     // tapir target is set to nolo. The latter allows -O0 because no lowering
     // takes place and it is very useful to just dump out "tapirized" LLVM IR.
-    if (speedupLevel == 0 && *tt != llvm::TTID::Nolo)
+    if (speedupLevel == 0 && *tt != TTID::Nolo)
       diags.Report(clang::diag::err_drv_kit_optzns_required);
 
     // The way the middle-end passes are built, the tapir passes are not run if
@@ -259,7 +293,7 @@ void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
     // run with optimizations because it does not support "optimized debugging".
     // Just emit a warning so the user is aware of the consequences of using
     // this combination of options.
-    if (*tt == llvm::TTID::Cuda && args.getLastArg(options::OPT_g_Group)) {
+    if (*tt == TTID::Cuda && args.getLastArg(options::OPT_g_Group)) {
       if (speedupLevel == 1) {
         diags.Report(clang::diag::warn_drv_kit_cuda_optzns_debug)
             << speedupLevel;
@@ -385,29 +419,39 @@ clang::driver::getTTConfigFileName(const opt::ArgList &args) {
   llvm_unreachable("getTTConfigFile: TTID not handled");
 }
 
-static std::vector<std::string>
-parseCommaSeparatedList(StringRef s, DiagnosticsEngine &diags) {
-  std::vector<std::string> list;
-  std::string tok;
-  std::istringstream iss(s.str());
-  while (std::getline(iss, tok, ','))
-    list.push_back(tok);
-  return list;
+static void parseKitInstrumentArgs(KitOptions &opts, const ArgList &args,
+                                   const OptTable &optTable,
+                                   DiagnosticsEngine &diags) {
+  if (const Arg *a = args.getLastArg(OPT_kit_instr_EQ))
+    for (StringRef kind : parseCommaSeparatedList(a->getValue()))
+      opts.addInstrKind(*llvm::fromString<InstrumentKind>(kind));
+
+  if (const Arg *a = args.getLastArg(OPT_kit_instr_only_EQ))
+    for (StringRef name : parseCommaSeparatedList(a->getValue()))
+      opts.addInstrName(name);
+
+  if (const Arg *a = args.getLastArg(OPT_kit_instr_unit_EQ)) {
+    for (StringRef unit : parseCommaSeparatedList(a->getValue()))
+      if (unit == "all")
+        opts.setInstrUnitsAll();
+      else if (unit == "default")
+        opts.setInstrUnitsDefault();
+      else
+        opts.addInstrUnit(*llvm::fromString<InstrumentUnit>(unit));
+  }
 }
 
-static void parseKitsuneCommonGPUArgs(KitOptions &opts, const ArgList &args,
-                                      const OptTable &optTable,
-                                      DiagnosticsEngine &diags) {
+static void parseKitCommonGPUArgs(KitOptions &opts, const ArgList &args,
+                                  const OptTable &optTable,
+                                  DiagnosticsEngine &diags) {
   opts.setGPUPrefetch(args.hasFlag(OPT_tapir_gpu_prefetch,
                                    OPT_tapir_gpu_no_prefetch,
                                    KitOptions::defaultGPUPrefetch));
 }
 
-static bool parseKitsuneCudaArgs(KitOptions &opts, const ArgList &args,
-                                 const OptTable &optTable,
-                                 DiagnosticsEngine &diags) {
-  unsigned numErrorsBefore = diags.getNumErrors();
-
+static void parseKitCudaArgs(KitOptions &opts, const ArgList &args,
+                             const OptTable &optTable,
+                             DiagnosticsEngine &diags) {
   const OptSpecifier requiredOpts[] = {
       OPT_tapir_cuda_arch_EQ, OPT_tapir_cuda_virt_arch_EQ,
       OPT_tapir_cuda_features_EQ, OPT_tapir_cuda_runtime_bc_EQ};
@@ -416,32 +460,28 @@ static bool parseKitsuneCudaArgs(KitOptions &opts, const ArgList &args,
       diags.Report(diag::err_drv_kit_missing_required)
           << optTable.getOptionName(opt);
 
-  if (diags.getNumErrors() > numErrorsBefore)
-    return false;
+  if (diags.getNumErrors())
+    return;
 
   opts.setCudaArch(args.getLastArgValue(OPT_tapir_cuda_arch_EQ));
   opts.setCudaVirtArch(args.getLastArgValue(OPT_tapir_cuda_virt_arch_EQ));
   opts.setCudaFeatures(args.getLastArgValue(OPT_tapir_cuda_features_EQ));
   opts.setCudaRuntimeBCFile(args.getLastArgValue(OPT_tapir_cuda_runtime_bc_EQ));
 
-  parseKitsuneCommonGPUArgs(opts, args, optTable, diags);
-
-  return diags.getNumErrors() == numErrorsBefore;
+  parseKitCommonGPUArgs(opts, args, optTable, diags);
 }
 
-static bool parseKitsuneCustomArgs(KitOptions &opts, const ArgList &args,
-                                   const OptTable &optTable,
-                                   DiagnosticsEngine &diags) {
-  unsigned numErrorsBefore = diags.getNumErrors();
-
+static void parseKitCustomArgs(KitOptions &opts, const ArgList &args,
+                               const OptTable &optTable,
+                               DiagnosticsEngine &diags) {
   const OptSpecifier requiredOpts[] = {OPT_tapir_plugin_EQ};
   for (OptSpecifier opt : requiredOpts)
     if (!args.hasArg(opt))
       diags.Report(diag::err_drv_kit_missing_required)
           << optTable.getOptionName(opt);
 
-  if (diags.getNumErrors() > numErrorsBefore)
-    return false;
+  if (diags.getNumErrors())
+    return;
 
   StringRef pluginFile = args.getLastArgValue(OPT_tapir_plugin_EQ);
   Expected<TTPlugin> ttPlugin = TTPlugin::load(pluginFile);
@@ -450,15 +490,11 @@ static bool parseKitsuneCustomArgs(KitOptions &opts, const ArgList &args,
         << toString(ttPlugin.takeError());
 
   opts.setTTPlugin(pluginFile);
-
-  return diags.getNumErrors() == numErrorsBefore;
 }
 
-static bool parseKitsuneHipArgs(KitOptions &opts, const ArgList &args,
-                                const OptTable &optTable,
-                                DiagnosticsEngine &diags) {
-  unsigned numErrorsBefore = diags.getNumErrors();
-
+static void parseKitHipArgs(KitOptions &opts, const ArgList &args,
+                            const OptTable &optTable,
+                            DiagnosticsEngine &diags) {
   const OptSpecifier requiredOpts[] = {
       OPT_tapir_hip_arch_EQ,        OPT_tapir_hip_features_EQ,
       OPT_tapir_hip_runtime_bcs_EQ, OPT_tapir_lld_EQ,
@@ -468,13 +504,13 @@ static bool parseKitsuneHipArgs(KitOptions &opts, const ArgList &args,
       diags.Report(diag::err_drv_kit_missing_required)
           << optTable.getOptionName(opt);
 
-  if (diags.getNumErrors() > numErrorsBefore)
-    return false;
+  if (diags.getNumErrors())
+    return;
 
   opts.setHipArch(args.getLastArgValue(OPT_tapir_hip_arch_EQ));
   opts.setHipFeatures(args.getLastArgValue(OPT_tapir_hip_features_EQ));
   for (StringRef file : parseCommaSeparatedList(
-           args.getLastArgValue(OPT_tapir_hip_runtime_bcs_EQ), diags))
+           args.getLastArgValue(OPT_tapir_hip_runtime_bcs_EQ)))
     opts.addHipRuntimeBCFile(file);
   opts.setLLD(args.getLastArgValue(OPT_tapir_lld_EQ));
 
@@ -498,94 +534,52 @@ static bool parseKitsuneHipArgs(KitOptions &opts, const ArgList &args,
           << val << a->getOption().getName();
   }
 
-  parseKitsuneCommonGPUArgs(opts, args, optTable, diags);
-
-  return diags.getNumErrors() == numErrorsBefore;
+  parseKitCommonGPUArgs(opts, args, optTable, diags);
 }
 
-static bool parseKitsuneLambdaArgs(KitOptions &opts, const ArgList &args,
-                                   const OptTable &optTable,
-                                   DiagnosticsEngine &diags) {
-  unsigned numErrorsBefore = diags.getNumErrors();
-
-  // Don't hit unreachable if an error has already occurred
-  if (!numErrorsBefore)
-    llvm_unreachable("NOT IMPLEMENTED: ParseKitsuneLambdaArgs");
-
-  return diags.getNumErrors() == numErrorsBefore;
-}
-
-static bool parseKitsuneOMPTaskArgs(KitOptions &opts, const ArgList &args,
-                                    const OptTable &optTable,
-                                    DiagnosticsEngine &diags) {
-  unsigned numErrorsBefore = diags.getNumErrors();
-
-  // Don't hit unreachable if an error has already occurred
-  if (!numErrorsBefore)
-    llvm_unreachable("NOT IMPLEMENTED: ParseKitsuneOMPTaskArgs");
-
-  return diags.getNumErrors() == numErrorsBefore;
-}
-
-static bool parseKitsuneOpenCilkArgs(KitOptions &opts, const ArgList &args,
-                                     const OptTable &optTable,
-                                     DiagnosticsEngine &diags) {
-  unsigned numErrorsBefore = diags.getNumErrors();
-
+static void parseKitOpenCilkArgs(KitOptions &opts, const ArgList &args,
+                                 const OptTable &optTable,
+                                 DiagnosticsEngine &diags) {
   for (OptSpecifier opt : {OPT_tapir_opencilk_runtime_bc_EQ})
     if (!args.hasArg(opt))
       diags.Report(diag::err_drv_kit_missing_required)
           << optTable.getOptionName(opt);
 
-  if (diags.getNumErrors() > numErrorsBefore)
-    return false;
+  if (diags.getNumErrors())
+    return;
 
   opts.setOpenCilkRuntimeBCFile(
       args.getLastArgValue(OPT_tapir_opencilk_runtime_bc_EQ));
-
-  return diags.getNumErrors() == numErrorsBefore;
 }
 
-static bool parseKitsuneRealmArgs(KitOptions &opts, const ArgList &args,
-                                  const OptTable &optTable,
-                                  DiagnosticsEngine &diags) {
-  unsigned numErrorsBefore = diags.getNumErrors();
-
-  // Don't hit unreachable if an error has already occurred
-  if (!numErrorsBefore)
-    llvm_unreachable("NOT IMPLEMENTED: ParseKitsuneRealmArgs");
-
-  return diags.getNumErrors() == numErrorsBefore;
-}
-
-static bool parseKitsuneTTArgs(KitOptions &kitOpts, TTID tt,
-                               const ArgList &args, const OptTable &optTable,
-                               DiagnosticsEngine &diags) {
+static void parseKitTTArgs(KitOptions &kitOpts, TTID tt, const ArgList &args,
+                           const OptTable &optTable, DiagnosticsEngine &diags) {
   switch (tt) {
-  case llvm::TTID::Nolo:
-    return true;
-  case llvm::TTID::Cuda:
-    return parseKitsuneCudaArgs(kitOpts, args, optTable, diags);
-  case llvm::TTID::Custom:
-    return parseKitsuneCustomArgs(kitOpts, args, optTable, diags);
-  case llvm::TTID::Hip:
-    return parseKitsuneHipArgs(kitOpts, args, optTable, diags);
-  case llvm::TTID::Lambda:
-    return parseKitsuneLambdaArgs(kitOpts, args, optTable, diags);
-  case llvm::TTID::OMPTask:
-    return parseKitsuneOMPTaskArgs(kitOpts, args, optTable, diags);
-  case llvm::TTID::OpenCilk:
-    return parseKitsuneOpenCilkArgs(kitOpts, args, optTable, diags);
-  case llvm::TTID::OpenMP:
-  case llvm::TTID::Pthreads:
-  case llvm::TTID::Qthreads:
-    return true;
-  case llvm::TTID::Realm:
-    return parseKitsuneRealmArgs(kitOpts, args, optTable, diags);
-  case llvm::TTID::Serial:
-    return true;
+  case TTID::Nolo:
+    return;
+  case TTID::Cuda:
+    return parseKitCudaArgs(kitOpts, args, optTable, diags);
+  case TTID::Custom:
+    return parseKitCustomArgs(kitOpts, args, optTable, diags);
+  case TTID::Hip:
+    return parseKitHipArgs(kitOpts, args, optTable, diags);
+  case TTID::OpenCilk:
+    return parseKitOpenCilkArgs(kitOpts, args, optTable, diags);
+  case TTID::OpenMP:
+  case TTID::Pthreads:
+  case TTID::Qthreads:
+  case TTID::Serial:
+    // There are no arguments specific to these tapir targets that need to be
+    // parsed.
+    return;
+  case TTID::Lambda:
+  case TTID::OMPTask:
+  case TTID::Realm:
+    // These tapir targets are not fully supported yet. But we add them to the
+    // switch to avoid compiler warnings.
+    break;
   }
-  llvm_unreachable("parseKitsuneTTArgs: TTID not handled");
+  llvm_unreachable("parseKitTTArgs: TTID not handled");
 }
 
 bool clang::driver::parseKitsuneArgs(KitOptions &kitOpts, const char *argv0,
@@ -598,14 +592,15 @@ bool clang::driver::parseKitsuneArgs(KitOptions &kitOpts, const char *argv0,
   kitOpts.setStripmineLoops(args.hasArg(OPT_fstripmine));
 
   if (const Arg *arg = args.getLastArg(OPT_tapir_EQ)) {
-    if (std::optional<llvm::TTID> tt = fromString<TTID>(arg->getValue())) {
-      parseKitsuneTTArgs(kitOpts, *tt, args, optTable, diags);
+    if (std::optional<TTID> tt = fromString<TTID>(arg->getValue())) {
+      parseKitTTArgs(kitOpts, *tt, args, optTable, diags);
       kitOpts.setTTID(*tt);
     }
   }
 
   kitOpts.setKokkos(args.hasArg(OPT_kokkos));
   kitOpts.setKokkosNoInit(args.hasArg(OPT_kokkos_no_init));
+  parseKitInstrumentArgs(kitOpts, args, optTable, diags);
 
   return diags.getNumErrors() == numErrorsBefore;
 }

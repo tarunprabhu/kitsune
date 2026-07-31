@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Support/FromString.h"
+#include "kitsune/Core/Instrumentation.h"
 #include "kitsune/Core/Tapir.h"
 #include "kitsune/Support/MaybeBool.h"
 
@@ -55,6 +56,25 @@ TEST(KitFromString, fromStringMaybeBool) {
   EXPECT_EQ(fromString<MaybeBool>("off"), MaybeBool::Off);
   EXPECT_EQ(fromString<MaybeBool>("on"), MaybeBool::On);
   EXPECT_EQ(fromString<MaybeBool>("any"), MaybeBool::Any);
+}
+
+TEST(KitFromString, fromStringInstrumentKind) {
+  EXPECT_EQ(fromString<InstrumentKind>(""), std::nullopt);
+  EXPECT_EQ(fromString<InstrumentKind>("PAPI"), std::nullopt);
+  EXPECT_EQ(fromString<InstrumentKind>("counter"), std::nullopt);
+
+  EXPECT_EQ(fromString<InstrumentKind>("generic"), InstrumentKind::Generic);
+  EXPECT_EQ(fromString<InstrumentKind>("papi"), InstrumentKind::PAPI);
+  EXPECT_EQ(fromString<InstrumentKind>("timer"), InstrumentKind::Timer);
+}
+
+TEST(KitFromString, fromStringInstrumentUnit) {
+  EXPECT_EQ(fromString<InstrumentUnit>(""), std::nullopt);
+  EXPECT_EQ(fromString<InstrumentUnit>("Loop"), std::nullopt);
+  EXPECT_EQ(fromString<InstrumentUnit>("function"), std::nullopt);
+
+  EXPECT_EQ(fromString<InstrumentUnit>("loop"), InstrumentUnit::Loop);
+  EXPECT_EQ(fromString<InstrumentUnit>("thread"), InstrumentUnit::Thread);
 }
 
 } // namespace

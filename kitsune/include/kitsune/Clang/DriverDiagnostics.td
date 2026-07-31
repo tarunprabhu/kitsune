@@ -22,6 +22,12 @@ def warn_drv_kit_multi_gpu : Warning<
   "multiple %0 GPU architectures detected: '%1'">,
   InGroup<Kitsune>;
 
+def err_drv_missing_list : Error<
+  "argument to '%0' must be comma-separated list with at least one element">;
+
+def err_drv_kit_instr_special_unit : Error<
+  "'%0' cannot appear in list in '%1'">;
+
 def err_drv_kit_tt_system: Error<
   "'%0' tapir target does not support system '%1'">;
 def err_drv_kit_tt_arch: Error<

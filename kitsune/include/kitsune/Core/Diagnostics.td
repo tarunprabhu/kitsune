@@ -333,6 +333,18 @@ def WarnSerialInParallelLoopNest
 def WarnParallelLoopImperfectlyNested
   : Warning<"parallel loop not perfectly nested">;
 
+def WarnInstrumentNestedLoop
+  : Warning<"cannot instrument tapir loop that is not a top-level loop">;
+
+def WarnInstrumentNoSync
+  : Warning<"cannot instrument loop without unique sync instruction">;
+
+def WarnInstrumentThreadsGPU
+  : Warning<"cannot instrument threads in loop with GPU-centric tapir target">;
+
+def WarnInstrumentThreadsSerial
+  : Warning<"cannot instrument threads in loop with serial tapir target">;
+
 // Generic warning that can be used to emit any warning message.
 def WarnGeneric
   : Warning<"{}">;

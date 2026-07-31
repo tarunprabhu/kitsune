@@ -15,6 +15,7 @@
 #ifndef LLVM_PASSES_PASSBUILDER_H
 #define LLVM_PASSES_PASSBUILDER_H
 
+#include "kitsune/Core/Instrumentation.h"
 #include "kitsune/Core/TTOptions.h"
 #include "llvm/Analysis/CGSCCPassManager.h"
 #include "llvm/CodeGen/MachinePassManager.h"
@@ -108,6 +109,9 @@ public:
   /// The options for the primary tapir target, if any. If this is set, the
   /// primary tapir target id can be determined from it.
   std::optional<TTOptions> TTOpts;
+
+  /// Options for Kitsune's instrumentation.
+  KitInstrOptions KitInstrOpts;
 };
 
 /// This class provides access to building LLVM's passes.

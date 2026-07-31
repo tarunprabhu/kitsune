@@ -4846,6 +4846,17 @@ void CompilerInvocationBase::GenerateKitsuneArgs(const KitOptions &Opts,
 
   if (Opts.getStripmineLoops())
     GenerateArg(Consumer, OPT_fstripmine);
+
+  if (const llvm::KitInstrOptions &InstrOpts = Opts.getKitInstrOpts()) {
+    GenerateArg(Consumer, OPT_kit_instr_EQ,
+                llvm::toString(InstrOpts.getKinds()));
+    GenerateArg(Consumer, OPT_kit_instr_unit_EQ,
+                llvm::toString(InstrOpts.getUnits()));
+
+    llvm::iterator_range Names = InstrOpts.getNames();
+    if (!Names.empty())
+      GenerateArg(Consumer, OPT_kit_instr_only_EQ, llvm::toString(Names));
+  }
 }
 
 bool CompilerInvocation::CheckKitsuneArgs(const ArgList &Args,
