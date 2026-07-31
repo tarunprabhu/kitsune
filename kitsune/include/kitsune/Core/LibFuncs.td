@@ -50,9 +50,9 @@ def kit_instr_start :
 def kit_instr_stop :
     KitFunc<"__kit_instr_stop", Void, [Ptr]>;
 
-// void *__kitpapi_start(const char *name, uint64_t thrd, ...)
+// void *__kitpapi_start(const char *name, uint64_t thrd, uint32_t n, ...)
 def kitpapi_start :
-    KitFunc<"__kitpapi_start", Ptr, [Ptr, U64, VarArgs]>;
+    KitFunc<"__kitpapi_start", Ptr, [Ptr, U64, U32, VarArgs]>;
 
 // void __kitpapi_stop(void* epoch)
 def kitpapi_stop :

@@ -38,6 +38,8 @@ set(TESTS
 set(TESTS_WITH_PAPI
   PAPIBasic.c
   PAPICannotWriteToFile.c
+  PAPIConvenience.c
+  PAPIDefaultEvents.c
   PAPIDefaultStderr.c
   PAPIEmpty.c
   PAPIInitialized.c
@@ -48,6 +50,7 @@ set(TESTS_WITH_PAPI
   PAPINested.c
   PAPISingleThread.c
   PAPIThreads.c
+  PAPIUnknown.c
   PAPIWriteNothingToFile.c
   PAPIWriteToFile.c
   RTPAPIInitFini.c

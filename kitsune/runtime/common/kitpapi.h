@@ -96,13 +96,15 @@ void __kitpapi_finalize(void);
 /// Create a new PAPI epoch. \p name must be a globally unique name for the
 /// epoch. By globally unique, we mean that it must be guaranteed not to
 /// collide with any other identifier that might be encountered during the
-/// course of program execution. If \p name must not be nullptr. The created
-/// epoch must be passed to \ref __kitpapi_start and \ref __kitpapi_stop no more
-/// than once. The optional arguments must each be of type `PAPIEventID` and
-/// must be a valid event that can be recorded. If any of these are not valid
-/// PAPI events, a warning message will be printed. The very last argument must
-/// be 0.
-KitPAPIEpoch *__kitpapi_new(const char *name, KitThreadID thrd, ...);
+/// course of program execution. \p name must not be nullptr. The created epoch
+/// must be passed to \ref __kitpapi_start and \ref __kitpapi_stop no more than
+/// once. \n is the number of optional arguments passed after \p n. The optional
+/// arguments must each be of type `const char*` and must be a recognized name
+/// of an event that can be recorded. If any of these are not recognized, or if
+/// the events are not available on the system where this is being run, a
+/// warning message will be printed.
+KitPAPIEpoch *__kitpapi_new(const char *name, KitThreadID thrd, uint32_t n,
+                            ...);
 
 /// Start collecting events. \p epoch must be an epoch previously created by
 /// __kitpapi_new.
