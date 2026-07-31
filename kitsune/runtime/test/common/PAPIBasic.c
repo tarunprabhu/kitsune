@@ -30,8 +30,7 @@ __attribute__((destructor)) static void dtor(void) {
 int main(int argc, char *argv[]) {
   // The total number of instructions and the total number of cycles ought to be
   // available on all platforms - one would think.
-  KitPAPIEpoch *e =
-      __kitpapi_new("dancaire", /*thread=*/67, PAPI_TOT_INS, PAPI_TOT_CYC, 0);
+  KitPAPIEpoch *e = __kitpapi_new("dancaire", /*thread=*/67, 2, "inst", "cyc");
   __kitpapi_start(e);
   __kitpapi_stop(e);
 

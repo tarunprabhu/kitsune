@@ -37,10 +37,10 @@ __attribute__((destructor)) static void dtor(void) {
 }
 
 int main(int argc, char *argv[]) {
-  KitPAPIEpoch *eo = __kitpapi_new("pastia", /*thread=*/0, PAPI_TOT_INS, 0);
+  KitPAPIEpoch *eo = __kitpapi_new("pastia", /*thread=*/0, 1, "ins");
   __kitpapi_start(eo);
 
-  KitPAPIEpoch *ei = __kitpapi_new("jose", /*thread=*/0, PAPI_TOT_INS, 0);
+  KitPAPIEpoch *ei = __kitpapi_new("jose", /*thread=*/0, 1, "ins");
   __kitpapi_start(ei);
   __kitpapi_stop(ei);
 

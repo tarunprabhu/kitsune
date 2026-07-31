@@ -68,7 +68,7 @@ ret:
 ; PAPI: br label %[[INSTR_START:.+]]
 ; PAPI-EMPTY:
 ; PAPI-NEXT: [[INSTR_START]]:
-; PAPI-NEXT: %[[EPOCH:.+]] = call ptr (ptr, i64, ...) @__kitpapi_start(ptr @[[PAPI]], i64 0)
+; PAPI-NEXT: %[[EPOCH:.+]] = call ptr (ptr, i64, i32, ...) @__kitpapi_start(ptr @[[PAPI]], i64 0, i32 0)
 ; PAPI-NEXT: br label %[[HEADER:.+]]
 ; PAPI-EMPTY:
 ; PAPI-NEXT: [[HEADER]]:

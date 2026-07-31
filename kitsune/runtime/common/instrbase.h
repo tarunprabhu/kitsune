@@ -134,7 +134,7 @@ private:
   }
 
   void writeEpoch(FILE *fp, const Epoch &epoch) const {
-    T::writeEpoch(fp, epoch);
+    static_cast<const T *>(this)->writeEpoch(fp, epoch);
   }
 
   void writeThreadFooter(FILE *fp, const Epoch &epoch, bool comma) const {
@@ -219,7 +219,8 @@ public:
     // the value here, so we have `first->second` at the end. The value is a
     // `std::unique_ptr`, but we need to return a reference to that object,
     // hence the dereference at the start. Perfectly obvious, isn't it?
-    std::unique_ptr<EpochInfo> info(T::makeEpochInfo(name, args...));
+    std::unique_ptr<EpochInfo> info(
+        static_cast<T *>(this)->makeEpochInfo(name, args...));
     return *epochInfo.emplace(name, std::move(info)).first->second;
   }
 
@@ -230,7 +231,8 @@ public:
     // The call to emplace returns a reference to the unique pointer that was
     // just added to the epochs vector. We want to return the underlying
     // pointer, so call get on the result.
-    std::unique_ptr<Epoch> epoch(T::makeEpoch(info, thrd, args...));
+    std::unique_ptr<Epoch> epoch(
+        static_cast<T *>(this)->makeEpoch(info, thrd, args...));
     return epochs.emplace_back(std::move(epoch)).get();
   }
 

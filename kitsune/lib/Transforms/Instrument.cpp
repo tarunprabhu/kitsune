@@ -98,7 +98,9 @@ Value *InstrumentImpl::addStart(InstrumentKind kind, StringRef name,
   }
 
   if (kind == InstrumentKind::PAPI) {
-    // TODO: Add PAPI counters to measure here.
+    // TODO: Add PAPI counters to measure here. For now, we hardcode 0 counters
+    // since the runtime function expects the number of counters.
+    args.push_back(toConstant(0U, ctx));
   }
 
   FunctionCallee startFn = getOrInsertLibFunc(m, getKitFunc(kind));
