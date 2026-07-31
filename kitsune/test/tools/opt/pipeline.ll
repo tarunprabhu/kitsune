@@ -83,14 +83,10 @@
 ; </KIT-PRE-TAPIR>
 ;
 ; <KIT-PRE-LOOP-SPAWNING>
-; We add LoopSimplify, LoopRotate and LoopLCSSA to the pipeline before
-; PrepareReductionLoops, but it is difficult to check for them because they
-; match runs of the pass from earlier in the pipeline. PrepareReductionLoops
-; will fail if any of these are not run, so something will at least catch it
-; if they are ever removed from the pipeline.
 ; O123SZ:      Running pass:     NormalizeLoopControlBlocksPass
 ; O123SZ:      Running pass:     SecondaryIVEliminationPass
 ; O123SZ:      Running pass:     PrepareTapirLoopsPass
+; O123SZ-NOT:  Running pass:     InstrumentPass
 ; O123SZ:      Running pass:     LowerKitReduceIntrinsicsPass
 ; O123SZ:      Running pass:     DeLICMPass
 ; O123SZ:      Running pass:     SimplifyCFGPass
@@ -117,6 +113,29 @@
 ;
 ; O123SZ:      Running pass:     VerifierPass
 ; O123SZ:      Running pass:     BitcodeWriterPass
+;
+; -----------------------------------------------------------------------------
+; The instrumentation pass will only run if instrumentation is explicitly
+; enabled.
+;
+; RUN: opt -O1 --tapir=serial -debug-pass-manager -o /dev/null %s \
+; RUN:     --kit-instr=generic 2>&1 \
+; RUN:     | FileCheck %s --check-prefix=INSTR
+;
+; RUN: opt -O2 --tapir=serial -debug-pass-manager -o /dev/null %s \
+; RUN:     --kit-instr=papi 2>&1 \
+; RUN:     | FileCheck %s --check-prefix=INSTR
+;
+; RUN: opt -O3 --tapir=serial -debug-pass-manager -o /dev/null %s \
+; RUN:     --kit-instr=timer 2>&1 \
+; RUN:     | FileCheck %s --check-prefix=INSTR
+;
+; RUN: opt -Os --tapir=serial -debug-pass-manager -o /dev/null %s \
+; RUN:     --kit-instr=generic,timer 2>&1 \
+; RUN:     | FileCheck %s --check-prefix=INSTR
+;
+; INSTR:      Running pass:      PrepareTapirLoopsPass
+; INSTR:      Running pass:      InstrumentPass
 ;
 ; -----------------------------------------------------------------------------
 

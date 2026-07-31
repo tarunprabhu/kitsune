@@ -13,84 +13,102 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/Instrumentation.h"
-#include "kitsune/Core/BasicBlockUtils.h"
-#include "kitsune/Core/ConstantUtils.h"
-#include "llvm/IR/Instructions.h"
-#include "llvm/IR/Module.h"
+#include "kitsune/Support/CommandLineOptions.h"
+#include "kitsune/Support/FromString.h"
+#include "kitsune/Support/ToString.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
 
-/// Get or insert a declaration for fprintf in the module \p m.
-static FunctionCallee getOrInsertPrintfDecl(Module &m) {
-  LLVMContext &ctx = m.getContext();
-  Type *i32 = Type::getInt32Ty(ctx);
-  Type *ptr = PointerType::getUnqual(ctx);
-  FunctionType *fty = FunctionType::get(i32, {ptr, ptr}, /*IsVarArg=*/true);
+static cl::list<std::string>
+    clKitInstr("kit-instr",
+               cl::desc("The list of kinds of instrumentation to add"),
+               cl::cat(cl::catKitClOpts), cl::CommaSeparated);
 
-  return m.getOrInsertFunction("fprintf", fty);
+static cl::list<std::string>
+    clKitInstrOnly("kit-instr-only",
+                   cl::desc("The list of names of the entities to instrument"),
+                   cl::cat(cl::catKitClOpts), cl::CommaSeparated);
+
+static cl::list<std::string>
+    clKitInstrUnit("kit-instr-unit",
+                   cl::desc("The list of units to instrument"),
+                   cl::cat(cl::catKitClOpts), cl::CommaSeparated);
+
+static constexpr uint32_t unitsAllMask = ~0;
+static constexpr uint32_t unitsDefaultMask = ~1;
+
+template <typename E> static SmallVector<E, 1> parseFlags(uint32_t flags) {
+  SmallVector<E, 1> ret;
+  uint32_t first = static_cast<uint32_t>(E::SentinelFirst);
+  uint32_t last = static_cast<uint32_t>(E::SentinelLast);
+  for (uint32_t flag = first; flags && flag && flag <= last;
+       flag <<= 1, flags >>= 1)
+    if (flags & 0x1)
+      ret.push_back(static_cast<E>(flag));
+  return ret;
 }
 
-/// Get or insert a declaration for a libc stream variable. The name of the
-/// variable, \p stream must be either "stdout", or "stderr".
-static GlobalVariable *getOrInsertIOStreamDecl(StringRef stream, Module &m) {
-  if (GlobalVariable *g = m.getGlobalVariable(stream))
-    return g;
-
-  LLVMContext &ctx = m.getContext();
-  Type *ptr = PointerType::getUnqual(ctx);
-  return new GlobalVariable(m, ptr, /*isConstant=*/false,
-                            GlobalValue::ExternalLinkage,
-                            /*Initializer=*/nullptr, stream);
+void KitInstrOptions::setUnitsDefault() {
+  // By default, all Kitsune-specific constructs are instrumented, but
+  // per-thread instrumentation is disabled. We are guaranteed that the value of
+  // InstrumentUnit::Thread is 0x1. This will set everything except the
+  // right-most bit to 1. It doesn't matter if the higher-order bits are 1, they
+  // are ignored for all other purposes.
+  units = unitsDefaultMask;
 }
 
-static Value *insertPrintfImpl(InsertPosition insertPt, StringRef stream,
-                               StringRef fmt, ArrayRef<Value *> args,
-                               StringRef name) {
-  assert(insertPt.getBasicBlock() &&
-         "insertBefore must be set to a valid basic block");
-
-  Module *m = getModule(*insertPt.getBasicBlock());
-  assert(m && "insertBefore must be set to a basic block in a module");
-
-  LLVMContext &ctx = m->getContext();
-  PointerType *ptr = PointerType::getUnqual(ctx);
-
-  FunctionCallee fprintf = getOrInsertPrintfDecl(*m);
-  GlobalVariable *strmDecl = getOrInsertIOStreamDecl(stream, *m);
-  GlobalVariable *fprintfFmt = createConstString(fmt, *m);
-
-  LoadInst *strm = new LoadInst(ptr, strmDecl, "", insertPt);
-  SmallVector<Value *, 4> fprintfArgs = {strm, fprintfFmt};
-  for (Value *arg : args)
-    fprintfArgs.push_back(arg);
-
-  return CallInst::Create(fprintf, fprintfArgs, name, insertPt);
+void KitInstrOptions::setUnitsAll() {
+  // This will set all the bits to 1. It doesn't matter if the higher order bits
+  // are 1. They are ignored for all other purposes anyway.
+  units = unitsAllMask;
 }
 
-static Value *insertPrintfImpl(IRBuilder<> &builder, StringRef stream,
-                               StringRef fmt, ArrayRef<Value *> args,
-                               StringRef name) {
-  assert(builder.GetInsertBlock() && "Builder must have a valid insert point");
-
-  return insertPrintfImpl(builder.GetInsertPoint(), stream, fmt, args, name);
+bool KitInstrOptions::shouldInstrument(StringRef name) const {
+  if (names.empty())
+    return true;
+  return names.contains(name.data());
 }
 
-Value *llvm::insertPrintStdout(IRBuilder<> &builder, StringRef fmt,
-                               ArrayRef<Value *> args, StringRef name) {
-  return insertPrintfImpl(builder, "stdout", fmt, args, name);
+SmallVector<InstrumentKind, 1> KitInstrOptions::getKinds() const {
+  return parseFlags<InstrumentKind>(kinds);
 }
 
-Value *llvm::insertPrintStderr(IRBuilder<> &builder, StringRef fmt,
-                               ArrayRef<Value *> args, StringRef name) {
-  return insertPrintfImpl(builder, "stderr", fmt, args, name);
+SmallVector<InstrumentUnit, 1> KitInstrOptions::getUnits() const {
+  return parseFlags<InstrumentUnit>(units ? units : unitsDefaultMask);
 }
 
-Value *llvm::insertPrintStdout(InsertPosition insertPt, StringRef fmt,
-                               ArrayRef<Value *> args, StringRef name) {
-  return insertPrintfImpl(insertPt, "stdout", fmt, args, name);
+void KitInstrOptions::print(raw_ostream &os) const {
+  os << "Kitsune instrumentation options:\n";
+  if (enabled()) {
+    os << "  Kinds: " << toString(getKinds()) << "\n";
+    os << "  Units: " << toString(getUnits()) << "\n";
+    os << "  Only:  " << toString(names) << "\n";
+  } else {
+    os << "  Kinds:\n";
+    os << "  Units:\n";
+    os << "  Only:\n";
+  }
 }
 
-Value *llvm::insertPrintStderr(InsertPosition insertPt, StringRef fmt,
-                               ArrayRef<Value *> args, StringRef name) {
-  return insertPrintfImpl(insertPt, "stderr", fmt, args, name);
+KitInstrOptions KitInstrOptions::createFromCommandLine() {
+  KitInstrOptions opts;
+  if (!clKitInstr.getNumOccurrences())
+    return opts;
+
+  for (StringRef kind : clKitInstr)
+    opts.addKind(*llvm::fromString<InstrumentKind>(kind));
+
+  if (clKitInstrUnit.size() == 1 && clKitInstrUnit[0] == "all")
+    opts.setUnitsAll();
+  else if (clKitInstrUnit.size() == 1 && clKitInstrUnit[0] == "default")
+    opts.setUnitsDefault();
+  else
+    for (StringRef unit : clKitInstrUnit)
+      opts.addUnit(*llvm::fromString<InstrumentUnit>(unit));
+
+  for (StringRef name : clKitInstrOnly)
+    opts.addName(name);
+
+  return opts;
 }

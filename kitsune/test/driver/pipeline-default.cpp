@@ -54,14 +54,10 @@
 // </KIT-PRE-TAPIR>
 //
 // <KIT-PRE-LOOP-SPAWNING>
-// We add LoopSimplify, LoopRotate and LoopLCSSA to the pipeline before
-// PrepareReductionLoops, but it is difficult to check for them because they
-// match runs of the pass from earlier in the pipeline. PrepareReductionLoops
-// will fail if any of these are not run, so something will at least catch it
-// if they are ever removed from the pipeline.
 // O123S:      Running pass:     NormalizeLoopControlBlocksPass
 // O123S:      Running pass:     SecondaryIVEliminationPass
 // O123S:      Running pass:     PrepareTapirLoopsPass
+// O123S-NOT:  Running pass:     InstrumentPass
 // O123S:      Running pass:     LowerKitReduceIntrinsicsPass
 // O123S:      Running pass:     DeLICMPass
 // O123S:      Running pass:     SimplifyCFGPass
@@ -90,6 +86,35 @@
 // O123S:      Running pass:     BitcodeWriterPass
 //
 // ERROR: unsupported optimization level '-Oz'
+//
+// -----------------------------------------------------------------------------
+// The instrumentation pass will only run if instrumentation is explicitly
+// enabled.
+//
+// RUN: %kitxx --tapir=serial -O1 -c -emit-llvm -o /dev/null %s \
+// RUN:     --kit-instr=timer \
+// RUN:     -Xclang -fdebug-pass-manager 2>&1 \
+// RUN:     | FileCheck %s -check-prefix INSTR
+//
+// RUN: %kitxx --tapir=serial -O2 -c -emit-llvm -o /dev/null %s \
+// RUN:     --kit-instr=generic \
+// RUN:     -Xclang -fdebug-pass-manager 2>&1 \
+// RUN:     | FileCheck %s -check-prefix INSTR
+//
+// RUN: %kitxx --tapir=serial -O3 -c -emit-llvm -o /dev/null %s \
+// RUN:     --kit-instr=papi \
+// RUN:     -Xclang -fdebug-pass-manager 2>&1 \
+// RUN:     | FileCheck %s -check-prefix INSTR
+//
+// RUN: %kitxx --tapir=serial -Os -c -emit-llvm -o /dev/null %s \
+// RUN:     --kit-instr=generic,timer \
+// RUN:     -Xclang -fdebug-pass-manager 2>&1 \
+// RUN:     | FileCheck %s -check-prefix INSTR
+//
+// INSTR:      Running pass:     PrepareTapirLoopsPass
+// INSTR:      Running pass:     InstrumentPass
+//
+// -----------------------------------------------------------------------------
 
 #include <kitsune.h>
 
