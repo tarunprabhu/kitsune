@@ -71,6 +71,19 @@ using PAPICounter = long long;
 using PAPIEventID = int;
 using PAPIEventSet = int;
 
+static std::pair<const char *, PAPIEventID> convenienceNames[] = {
+    {"l1d", PAPI_L1_DCM},  {"l2d", PAPI_L2_DCM},    {"l3d", PAPI_L3_DCM},
+    {"l1i", PAPI_L1_ICM},  {"l2i", PAPI_L2_ICM},    {"l3i", PAPI_L3_ICM},
+    {"l1t", PAPI_L1_TCM},  {"l2t", PAPI_L2_TCM},    {"l3t", PAPI_L3_TCM},
+    {"l1ld", PAPI_L1_LDM}, {"l1st", PAPI_L1_STM},   {"l2ld", PAPI_L2_LDM},
+    {"l2st", PAPI_L2_STM}, {"tlbd", PAPI_TLB_DM},   {"tlbi", PAPI_TLB_IM},
+    {"tlbt", PAPI_TLB_TL}, {"inst", PAPI_TOT_INS},  {"ins", PAPI_TOT_INS},
+    {"vec", PAPI_VEC_INS}, {"ld", PAPI_LD_INS},     {"st", PAPI_SR_INS},
+    {"br", PAPI_BR_INS},   {"int", PAPI_INT_INS},   {"fp", PAPI_FP_INS},
+    {"fma", PAPI_FMA_INS}, {"stall", PAPI_RES_STL}, {"cyc", PAPI_TOT_CYC},
+    {"ref", PAPI_REF_CYC},
+};
+
 template <typename T> static std::string to_hex_string(T n) {
   std::stringstream ss;
   ss << "0x" << std::hex << n;
@@ -104,6 +117,28 @@ static std::string getEventSymbol(PAPIEventID evt) {
   if (std::optional<PAPI_event_info_t> evtInfo = getEventInfo(evt))
     return evtInfo->symbol;
   return to_hex_string(evt);
+}
+
+static bool isEventAvailable(PAPIEventID evt) {
+  if (std::optional<PAPI_event_info_t> evtInfo = getEventInfo(evt))
+    if (evtInfo->count)
+      return true;
+  return false;
+}
+
+static std::vector<PAPIEventID> getAllKnownEvents() {
+  // It is not clear what or'ing with 0 is meant to signify. This is how it is
+  // implemented in papi_avail.c.
+  PAPIEventID evt = PAPI_PRESET_MASK | 0;
+  if (int err = PAPI_enum_event(&evt, PAPI_ENUM_FIRST)) {
+    handleError("Could not get any PAPI presets", err);
+    return {};
+  }
+
+  std::vector<PAPIEventID> evts = {evt};
+  while (PAPI_enum_event(&evt, PAPI_ENUM_EVENTS) == PAPI_OK)
+    evts.push_back(evt);
+  return evts;
 }
 
 namespace {
@@ -205,33 +240,64 @@ using KitPAPIContextBase =
 class KitPAPIContext : public KitPAPIContextBase {
   friend KitPAPIContextBase;
 
-protected:
-  static KitPAPIEpochInfo *makeEpochInfo(const std::string &name,
-                                         const std::vector<PAPIEventID> &evts) {
-    return new KitPAPIEpochInfo{name, evts};
+private:
+  // The names of PAPI events that are recognized by this context. Not all
+  std::map<std::string, PAPIEventID> evtNames;
+
+private:
+  void addNameForEvent(PAPIEventID evt) {
+    // Convert the symbol name to lowercase and drop the PAPI_ prefix. For
+    // example, convert "PAPI_TOT_INS" to "tot_ins"
+    std::string s = getEventSymbol(evt).substr(5);
+    for (size_t i = 0, e = s.size(); i < e; ++i)
+      s[i] = tolower(s[i]);
+    evtNames[s] = evt;
   }
 
-  static PAPIEventSet createEventSet(const KitPAPIEpochInfo &info) {
+protected:
+  PAPIEventSet createEventSet(const KitPAPIEpochInfo &info) const {
     PAPIEventSet evtSet = PAPI_NULL;
     if (int err = PAPI_create_eventset(&evtSet)) {
       handleError("Could not create PAPI event set", err);
       return PAPI_NULL;
     }
 
-    for (PAPIEventID evt : info.evts)
+    for (PAPIEventID evt : info.evts) {
       if (int err = PAPI_add_event(evtSet, evt))
         WARN("Could not add event '%s'. %s", getEventSymbol(evt).c_str(),
              PAPI_strerror(err));
+      else
+        LOG("Recording event '%s'", getEventSymbol(evt).c_str());
+    }
     return evtSet;
   }
 
-  static KitPAPIEpochImpl *makeEpoch(const KitPAPIEpochInfo &info,
-                                     KitThreadID thrd) {
+  KitPAPIEpochInfo *
+  makeEpochInfo(const std::string &name,
+                const std::vector<const char *> &names) const {
+    std::vector<PAPIEventID> evts;
+    for (const char *evtName : names) {
+      auto it = evtNames.find(evtName);
+      if (it == evtNames.end()) {
+        WARN("Unknown event name '%s'", evtName);
+      } else if (!isEventAvailable(it->second)) {
+        WARN("Event '%s' not available", getEventSymbol(it->second).c_str());
+      } else {
+        evts.push_back(it->second);
+        LOG("Event '%s' added to epoch '%s'",
+            getEventSymbol(it->second).c_str(), name.c_str());
+      }
+    }
+    return new KitPAPIEpochInfo{name, evts};
+  }
+
+  KitPAPIEpochImpl *makeEpoch(const KitPAPIEpochInfo &info,
+                              KitThreadID thrd) const {
     PAPIEventSet evtSet = createEventSet(info);
     return new KitPAPIEpochImpl(info, thrd, evtSet);
   }
 
-  static void writeEpoch(FILE *fp, const KitPAPIEpochImpl &epoch) {
+  void writeEpoch(FILE *fp, const KitPAPIEpochImpl &epoch) const {
     fprintf(fp, "\n      {");
     for (unsigned i = 0, e = epoch.size(); i < e; ++i) {
       if (i)
@@ -240,6 +306,14 @@ protected:
       fprintf(fp, "\"%s\": %lld", descr.c_str(), epoch.value(i));
     }
     fprintf(fp, "}");
+  }
+
+public:
+  KitPAPIContext() {
+    for (const auto &[name, evt] : convenienceNames)
+      evtNames[name] = evt;
+    for (PAPIEventID evt : getAllKnownEvents())
+      addNameForEvent(evt);
   }
 };
 
@@ -252,14 +326,14 @@ using namespace kitrt;
 static unsigned long getDefaultThreadID(void) { return 0; }
 
 extern "C" KitPAPIEpoch *__kitpapi_new(const char *name, KitThreadID thrd,
-                                       ...) {
+                                       uint32_t n, ...) {
   assert(name && "Name of a PAPI epoch must not be NULL");
 
-  std::vector<PAPIEventID> evts;
+  std::vector<const char *> evts;
   va_list va;
-  va_start(va, thrd);
-  while (PAPIEventID evt = va_arg(va, PAPIEventID))
-    evts.push_back(evt);
+  va_start(va, n);
+  for (uint32_t i = 0; i < n; ++i)
+    evts.push_back(va_arg(va, const char *));
   va_end(va);
 
   KitPAPIContext &ctx = KitPAPIContext::mutSingleton();

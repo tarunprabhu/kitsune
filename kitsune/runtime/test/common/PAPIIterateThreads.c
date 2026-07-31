@@ -39,8 +39,8 @@ __attribute__((constructor)) static void ctor(void) { __kitomp_initialize(); }
 __attribute__((destructor)) static void dtor(void) { __kitomp_finalize(); }
 
 static void thrdFn(uint64_t start, uint64_t stop, void *args) {
-  KitPAPIEpoch *e = __kitpapi_new("remendado", omp_get_thread_num(),
-                                  PAPI_TOT_INS, PAPI_TOT_CYC, 0);
+  KitPAPIEpoch *e =
+      __kitpapi_new("remendado", omp_get_thread_num(), 2, "ins", "cyc");
   __kitpapi_start(e);
   __kitpapi_stop(e);
 }

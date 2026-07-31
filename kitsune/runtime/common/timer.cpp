@@ -129,16 +129,16 @@ class KitTimerContext : public KitTimerContextBase {
   friend KitTimerContextBase;
 
 protected:
-  static KitTimerEpochImpl *makeEpoch(const KitTimerEpochInfo &info,
-                                      KitThreadID thrd) {
+  KitTimerEpochImpl *makeEpoch(const KitTimerEpochInfo &info,
+                               KitThreadID thrd) const {
     return new KitTimerEpochImpl(info, thrd);
   }
 
-  static KitTimerEpochInfo *makeEpochInfo(const std::string &name) {
+  KitTimerEpochInfo *makeEpochInfo(const std::string &name) const {
     return new KitTimerEpochInfo{name};
   }
 
-  static void writeEpoch(FILE *fp, const KitTimerEpochImpl &epoch) {
+  void writeEpoch(FILE *fp, const KitTimerEpochImpl &epoch) const {
     fprintf(fp, "\n      %ld", epoch.span());
   }
 };
