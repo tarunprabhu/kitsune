@@ -85,13 +85,13 @@ static KitTimePoint nsecs() {
 // The information unique to an epoch.
 struct KitTimerEpochInfo {
   const std::string name;
+  KitThreadID thrd;
 };
 
 class KitTimerEpochImpl {
 public:
   const KitTimerEpochInfo &info;
-  const KitThreadID thrd_;
-  int64_t span_;
+  int64_t span_ = 0;
 
 public:
   KitTimerEpochImpl() = delete;
@@ -100,11 +100,10 @@ public:
   KitTimerEpochImpl &operator=(const KitTimerEpoch &) = delete;
   KitTimerEpochImpl &operator=(KitTimerEpoch &&) = delete;
 
-  KitTimerEpochImpl(const KitTimerEpochInfo &info, KitThreadID thrd)
-      : info(info), thrd_(thrd), span_(0) {}
+  KitTimerEpochImpl(const KitTimerEpochInfo &info) : info(info) {}
 
-  inline const std::string &name() const { return info.name; }
-  inline KitThreadID thrd() const { return thrd_; }
+  inline const char *name() const { return info.name.c_str(); }
+  inline KitThreadID thrd() const { return info.thrd; }
   inline KitTimeSpan span() const { return span_; }
 
   inline void start() { span_ -= nsecs(); }
@@ -129,13 +128,8 @@ class KitTimerContext : public KitTimerContextBase {
   friend KitTimerContextBase;
 
 protected:
-  KitTimerEpochImpl *makeEpoch(const KitTimerEpochInfo &info,
-                               KitThreadID thrd) const {
-    return new KitTimerEpochImpl(info, thrd);
-  }
-
-  KitTimerEpochInfo *makeEpochInfo(const std::string &name) const {
-    return new KitTimerEpochInfo{name};
+  KitTimerEpochInfo *makeEpochInfo(const char *name, KitThreadID thrd) const {
+    return new KitTimerEpochInfo{name, thrd};
   }
 
   void writeEpoch(FILE *fp, const KitTimerEpochImpl &epoch) const {
@@ -149,8 +143,8 @@ using namespace kitrt;
 
 extern "C" KitTimerEpoch *__kittimer_start(const char *name, KitThreadID thrd) {
   KitTimerContext &ctx = KitTimerContext::mutSingleton();
-  const KitTimerEpochInfo &info = ctx.registerEpoch(name);
-  KitTimerEpochImpl *epoch = ctx.addEpoch(info, thrd);
+  const KitTimerEpochInfo &info = ctx.registerEpoch(name, thrd);
+  KitTimerEpochImpl *epoch = ctx.addEpoch(info);
 
   epoch->start();
   return reinterpret_cast<KitTimerEpoch *>(epoch);
