@@ -91,7 +91,7 @@ class KitTimerEpochImpl {
 public:
   const KitTimerEpochInfo &info;
   const KitThreadID thrd_;
-  KitTimeSpan span_;
+  int64_t span_;
 
 public:
   KitTimerEpochImpl() = delete;
@@ -107,10 +107,10 @@ public:
   inline KitThreadID thrd() const { return thrd_; }
   inline KitTimeSpan span() const { return span_; }
 
-  inline void start() { span_ = nsecs(); }
+  inline void start() { span_ -= nsecs(); }
 
   inline KitTimeSpan stop() {
-    span_ = nsecs() - span_;
+    span_ += nsecs();
     return span_;
   }
 };

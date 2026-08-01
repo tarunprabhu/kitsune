@@ -71,6 +71,12 @@ using PAPICounter = long long;
 using PAPIEventID = int;
 using PAPIEventSet = int;
 
+#define CHECK(call, msg)                                                       \
+  do {                                                                         \
+    if (int err = call)                                                        \
+      return handleError("Could not " msg, err);                               \
+  } while (0)
+
 static std::pair<const char *, PAPIEventID> convenienceNames[] = {
     {"l1d", PAPI_L1_DCM},  {"l2d", PAPI_L2_DCM},    {"l3d", PAPI_L3_DCM},
     {"l1i", PAPI_L1_ICM},  {"l2i", PAPI_L2_ICM},    {"l3i", PAPI_L3_ICM},
@@ -107,16 +113,16 @@ static std::optional<PAPI_event_info_t> getEventInfo(PAPIEventID evt) {
   return evtInfo;
 }
 
-static std::string getEventShortDescr(PAPIEventID evt) {
+static const char *getEventShortDescr(PAPIEventID evt) {
   if (std::optional<PAPI_event_info_t> evtInfo = getEventInfo(evt))
     return evtInfo->short_descr;
-  return to_hex_string(evt);
+  return "<unknown>";
 }
 
-static std::string getEventSymbol(PAPIEventID evt) {
+static const char *getEventSymbol(PAPIEventID evt) {
   if (std::optional<PAPI_event_info_t> evtInfo = getEventInfo(evt))
     return evtInfo->symbol;
-  return to_hex_string(evt);
+  return "<unknown>";
 }
 
 static bool isEventAvailable(PAPIEventID evt) {
@@ -164,13 +170,12 @@ private:
   PAPIEventSet evtSet = PAPI_NULL;
 
   // The initial values of the counters. These are read after PAPI_start is
-  // called with the event set associated with this epoch.
-  PAPICounter *initValues = nullptr;
+  // called with the event set associated with this epoch. This is a temporary
+  // buffer.
+  PAPICounter *init = nullptr;
 
-  // The final values of the counters. These are read by __kitpapi_stop. After
-  // __kitpapi_stop returns, the corresponding value in \ref initValues will be
-  // subtracted from this.
-  PAPICounter *finalValues = nullptr;
+  // The counters.
+  PAPICounter *counters = nullptr;
 
 public:
   KitPAPIEpochImpl() = delete;
@@ -182,21 +187,25 @@ public:
   KitPAPIEpochImpl(const KitPAPIEpochInfo &info, KitThreadID thrd,
                    PAPIEventSet evtSet)
       : info(info), thrd_(thrd), evtSet(evtSet) {
-    int n = size();
-    initValues = (PAPICounter *)std::calloc(n, sizeof(PAPICounter));
-    finalValues = (PAPICounter *)std::calloc(n, sizeof(PAPICounter));
+    counters = (PAPICounter *)std::calloc(size(), sizeof(PAPICounter));
   }
 
-  ~KitPAPIEpochImpl() { delete finalValues; }
+  ~KitPAPIEpochImpl() { delete counters; }
 
   inline const std::string &name() const { return info.name; }
   inline KitThreadID thrd() const { return thrd_; }
   inline unsigned size() const { return info.evts.size(); }
   inline PAPIEventID event(unsigned i) const { return info.evts[i]; }
-  inline PAPICounter value(unsigned i) const { return finalValues[i]; }
+  inline PAPICounter value(unsigned i) const { return counters[i]; }
 
   inline void start() {
     LOG("Starting PAPI counters");
+
+    // Allocate this before we start recording counters. Strictly speaking, this
+    // must be done before PAPI_read, it doesn't have to be done before
+    // PAPI_start, but doing it here keeps this function closer to a mirror of
+    // KitPAPIEpochImpl::stop().
+    init = new PAPICounter[size()];
 
     // Calling PAPI_start the first time can be expensive because PAPI has to
     // make calls into the kernel. Unless we make the compiler do some extra
@@ -204,28 +213,25 @@ public:
     // Instead, we call PAPI_start right away, but read the value of the
     // counters immediately after it returns. These values will be subtracted
     // from those obtained when PAPI_stop is called in __kitpapi_stop.
-    if (int err = PAPI_start(evtSet))
-      return handleError("Could not start PAPI counters", err);
-
-    if (int err = PAPI_read(evtSet, initValues))
-      return handleError("Could not read initial values of PAPI counters", err);
+    CHECK(PAPI_start(evtSet), "start PAPI counters");
+    CHECK(PAPI_read(evtSet, init), "read initial values of PAPI counters");
   }
 
   inline void stop() {
-    LOG("Stopping PAPI counters");
+    CHECK(PAPI_accum(evtSet, counters), "read final values of PAPI counters");
+    CHECK(PAPI_stop(evtSet, nullptr), "stop PAPI counters");
 
-    if (int err = PAPI_stop(evtSet, finalValues))
-      return handleError("Could not read final values of PAPI counters", err);
+    LOG("Stopped PAPI counters");
+
     for (unsigned i = 0, e = size(); i < e; ++i)
-      finalValues[i] -= initValues[i];
+      counters[i] -= init[i];
+    delete[] init;
 
     if (int err = PAPI_cleanup_eventset(evtSet))
       handleError("Could not cleanup event set", err);
     if (int err = PAPI_destroy_eventset(&evtSet))
       handleError("Could not destroy event set", err);
     evtSet = PAPI_NULL;
-
-    delete initValues;
   }
 };
 
@@ -248,7 +254,7 @@ private:
   void addNameForEvent(PAPIEventID evt) {
     // Convert the symbol name to lowercase and drop the PAPI_ prefix. For
     // example, convert "PAPI_TOT_INS" to "tot_ins"
-    std::string s = getEventSymbol(evt).substr(5);
+    std::string s = &getEventSymbol(evt)[5];
     for (size_t i = 0, e = s.size(); i < e; ++i)
       s[i] = tolower(s[i]);
     evtNames[s] = evt;
@@ -264,10 +270,9 @@ protected:
 
     for (PAPIEventID evt : info.evts) {
       if (int err = PAPI_add_event(evtSet, evt))
-        WARN("Could not add event '%s'. %s", getEventSymbol(evt).c_str(),
-             PAPI_strerror(err));
+        WARN("Event '%s'. %s", getEventSymbol(evt), PAPI_strerror(err));
       else
-        LOG("Recording event '%s'", getEventSymbol(evt).c_str());
+        LOG("Recording event '%s'", getEventSymbol(evt));
     }
     return evtSet;
   }
@@ -278,14 +283,15 @@ protected:
     std::vector<PAPIEventID> evts;
     for (const char *evtName : names) {
       auto it = evtNames.find(evtName);
+      PAPIEventID evt = it->second;
       if (it == evtNames.end()) {
         WARN("Unknown event name '%s'", evtName);
-      } else if (!isEventAvailable(it->second)) {
-        WARN("Event '%s' not available", getEventSymbol(it->second).c_str());
+      } else if (!isEventAvailable(evt)) {
+        WARN("Event '%s' not available", getEventSymbol(evt));
       } else {
-        evts.push_back(it->second);
-        LOG("Event '%s' added to epoch '%s'",
-            getEventSymbol(it->second).c_str(), name.c_str());
+        evts.push_back(evt);
+        LOG("Event '%s' added to epoch '%s'", getEventSymbol(evt),
+            name.c_str());
       }
     }
     return new KitPAPIEpochInfo{name, evts};
