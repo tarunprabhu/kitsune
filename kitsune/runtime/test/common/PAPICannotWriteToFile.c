@@ -25,8 +25,7 @@ __attribute__((destructor)) static void dtor(void) {
 }
 
 int main(int argc, char *argv[]) {
-  KitPAPIEpoch *e = __kitpapi_new("lakme", /*thread=*/0, 2, "ins", "cyc");
-  __kitpapi_start(e);
+  KitPAPIEpoch *e = __kitpapi_start("lakme", /*thread=*/0, 2, "inst", "cyc");
   __kitpapi_stop(e);
 
   return 0;
