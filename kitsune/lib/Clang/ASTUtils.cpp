@@ -33,15 +33,16 @@ const clang::Type *clang::getUnqualifiedDesugaredType(const Expr *expr) {
 
 // Compute a name from the given source location. The returned name is usually
 // of the form "<name>:<line>:<col>", but it need not be.
-static std::string getNameFrom(FullSourceLoc origLoc) {
+static std::string getNameFrom(FullSourceLoc origLoc, bool column) {
   assert(origLoc.hasManager() && "Source location must have source manager");
 
   std::string buf;
   llvm::raw_string_ostream os(buf);
   PresumedLoc loc = origLoc.getPresumedLoc();
 
-  os << llvm::sys::path::filename(loc.getFilename()) << ":" << loc.getLine()
-     << ":" << loc.getColumn();
+  os << llvm::sys::path::filename(loc.getFilename()) << ":" << loc.getLine();
+  if (column)
+    os << ":" << loc.getColumn();
   os.flush();
 
   return buf;
@@ -54,7 +55,11 @@ std::string clang::getNameFor(const Stmt &stmt,
     if (const auto *nameAttr = dyn_cast<KitStmtNameAttr>(attr))
       return nameAttr->getName().str();
 
-  const SourceManager &srcMgr = ast.getSourceManager();
-  FullSourceLoc Loc(stmt.getBeginLoc(), srcMgr);
-  return getNameFrom(Loc);
+  FullSourceLoc loc(stmt.getBeginLoc(), ast.getSourceManager());
+  return getNameFrom(loc, /*column=*/false);
+}
+
+std::string clang::getNameFor(const Expr &expr, ASTContext &ast) {
+  FullSourceLoc loc(expr.getBeginLoc(), ast.getSourceManager());
+  return getNameFrom(loc, /*column=*/true);
 }
