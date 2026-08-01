@@ -1,11 +1,10 @@
 // REQUIRES: kitsune-papi
 //
-// Check that the output of per-thread PAPI counters that are recorded multiple
-// times is as expected. We use Kitsune's OpenMP runtime because it is
-// guaranteed to be built. Also, omp_get_thread_num() returns an integer in [0,
-// KIT_NUM_THREADS), so one can have reasonable thread IDs.
+// If KIT_PAPI_FILE is set to a writable file, check that the timing output is
+// written to it.
 //
-// RUN: env KIT_PAPI_FILE=%t.json KIT_NUM_THREADS=3 %exe 2>&1 \
+// RUN: env KIT_PAPI_FILE=%t.json KIT_NUM_THREADS=3 KIT_INSTR_SEPARATE=1 \
+// RUN:     %exe 2>&1 \
 // RUN:     | FileCheck %s --allow-empty --check-prefix=STDERR
 // RUN: cat %t.json | FileCheck %s --check-prefix=FILE
 //
@@ -17,15 +16,17 @@
 // RUN: cat %t.existing.json | FileCheck %s --check-prefix=EXISTING
 // RUN: env KIT_PAPI_FILE=%t.existing.json KIT_NUM_THREADS=3 %exe 2>&1 \
 // RUN:     | FileCheck %s --allow-empty --check-prefix=STDERR
-// RUN: wc -l %t.existing.json | FileCheck %s --check-prefix=FILE_NUM_LINES
-// RUN: cat %t.existing.json | FileCheck %s --check-prefix=FILE
+// RUN: wc -l %t.existing.json | FileCheck %s --check-prefix=OVR_NUM_LINES
+// RUN: cat %t.existing.json | FileCheck %s --check-prefix=OVR
 //
 // -----------------------------------------------------------------------------
 // If KIT_PAPI_FILE is set to "-", write timings to stdout.
 //
-// RUN: env KIT_PAPI_FILE=- KIT_NUM_THREADS=3 %exe \
+// RUN: env KIT_PAPI_FILE=- KIT_NUM_THREADS=3 KIT_INSTR_SEPARATE=1 \
+// RUN:     %exe \
 // RUN:     | FileCheck %s --check-prefix=FILE
-// RUN: env KIT_PAPI_FILE=- KIT_NUM_THREADS=3 %exe 2>&1 > /dev/null \
+// RUN: env KIT_PAPI_FILE=- KIT_NUM_THREADS=3 \
+// RUN:     %exe 2>&1 > /dev/null \
 // RUN:     | FileCheck %s --allow-empty --check-prefix=STDERR
 //
 // -----------------------------------------------------------------------------
@@ -55,6 +56,23 @@
 //
 // EXISTING: Contents
 // EXISTING-NOT: {{^.+$}}
+//
+// OVR_NUM_LINES: 13
+//
+// OVR:      {
+// OVR-NEXT:   "mercedes": {
+// OVR-NEXT:     "0": [
+// OVR-NEXT:       {"Instr completed": {{[0-9]+}}, "Total cycles": {{[0-9]+}}}
+// OVR-NEXT:     ],
+// OVR-NEXT:     "1": [
+// OVR-NEXT:       {"Instr completed": {{[0-9]+}}, "Total cycles": {{[0-9]+}}}
+// OVR-NEXT:     ],
+// OVR-NEXT:     "2": [
+// OVR-NEXT:       {"Instr completed": {{[0-9]+}}, "Total cycles": {{[0-9]+}}}
+// OVR-NEXT:     ]
+// OVR-NEXT:   }
+// OVR-NEXT: }
+//
 // -----------------------------------------------------------------------------
 
 #include "common/kitpapi.h"
