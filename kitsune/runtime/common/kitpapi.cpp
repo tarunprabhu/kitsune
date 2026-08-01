@@ -318,15 +318,11 @@ static unsigned long getDefaultThreadID(void) { return 0; }
 
 extern "C" KitPAPIEpoch *__kitpapi_start(const char *name, KitThreadID thrd,
                                          uint32_t n, ...) {
-  assert(name && "Name of a PAPI epoch must not be NULL");
-
-  KitPAPIContext &ctx = KitPAPIContext::mutSingleton();
   va_list va;
   va_start(va, n);
-  const KitPAPIEpochInfo &info = ctx.registerEpoch(name, thrd, n, va);
+  KitPAPIEpochImpl *epoch =
+      KitPAPIContext::mutSingleton().addEpoch(name, thrd, n, va);
   va_end(va);
-  KitPAPIEpochImpl *epoch = ctx.addEpoch(info);
-
   epoch->start();
   return reinterpret_cast<KitPAPIEpoch *>(epoch);
 }
