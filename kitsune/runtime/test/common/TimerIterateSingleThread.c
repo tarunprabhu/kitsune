@@ -1,22 +1,39 @@
 // Check that the output of timers started and stopped multiple times is as
 // expected.
 //
-// RUN: %exe 2>&1 | FileCheck %s
+// RUN: %exe 2>&1 \
+// RUN:     | FileCheck %s --check-prefix=DEFAULT
 //
-// CHECK:      {
-// CHECK-NEXT:   "kinder": {
-// CHECK-NEXT:     "0": [
-// CHECK-NEXT:       {{[0-9]+}},
-// CHECK-NEXT:       {{[0-9]+}},
-// CHECK-NEXT:       {{[0-9]+}}
-// CHECK-NEXT:     ]
-// CHECK-NEXT:   },
-// CHECK-NEXT:   "papageno": {
-// CHECK-NEXT:     "0": [
-// CHECK-NEXT:       {{[0-9]+}}
-// CHECK-NEXT:     ]
-// CHECK-NEXT:   }
-// CHECK-NEXT: }
+// RUN: env KIT_INSTR_SEPARATE=1 %exe 2>&1 \
+// RUN:     | FileCheck %s --check-prefix=SEPARATE
+//
+// DEFAULT:      {
+// DEFAULT-NEXT:   "kinder": {
+// DEFAULT-NEXT:     "0": [
+// DEFAULT-NEXT:       {{[0-9]+}}
+// DEFAULT-NEXT:     ]
+// DEFAULT-NEXT:   },
+// DEFAULT-NEXT:   "papageno": {
+// DEFAULT-NEXT:     "0": [
+// DEFAULT-NEXT:       {{[0-9]+}}
+// DEFAULT-NEXT:     ]
+// DEFAULT-NEXT:   }
+// DEFAULT-NEXT: }
+//
+// SEPARATE:      {
+// SEPARATE-NEXT:   "kinder": {
+// SEPARATE-NEXT:     "0": [
+// SEPARATE-NEXT:       {{[0-9]+}},
+// SEPARATE-NEXT:       {{[0-9]+}},
+// SEPARATE-NEXT:       {{[0-9]+}}
+// SEPARATE-NEXT:     ]
+// SEPARATE-NEXT:   },
+// SEPARATE-NEXT:   "papageno": {
+// SEPARATE-NEXT:     "0": [
+// SEPARATE-NEXT:       {{[0-9]+}}
+// SEPARATE-NEXT:     ]
+// SEPARATE-NEXT:   }
+// SEPARATE-NEXT: }
 
 #include "common/timer.h"
 #include "kitrt.h"

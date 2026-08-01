@@ -3,32 +3,55 @@
 // be built. Also, omp_get_thread_num() returns an integer in
 // [0, KIT_NUM_THREADS), so we can match against thread ids.
 //
-// RUN: env KIT_NUM_THREADS=3 %exe 2>&1 | FileCheck %s
+// RUN: env KIT_NUM_THREADS=3 %exe 2>&1 \
+// RUN:     | FileCheck %s --check-prefix=DEFAULT
 //
-// CHECK:      {
-// CHECK-NEXT:   "fork": {
-// CHECK-NEXT:     "0": [
-// CHECK-NEXT:       {{[0-9]+}}
-// CHECK-NEXT:     ]
-// CHECK-NEXT:   },
-// CHECK-NEXT:   "tine": {
-// CHECK-NEXT:     "0": [
-// CHECK-NEXT:       {{[0-9]+}},
-// CHECK-NEXT:       {{[0-9]+}},
-// CHECK-NEXT:       {{[0-9]+}}
-// CHECK-NEXT:     ]
-// CHECK-NEXT:     "1": [
-// CHECK-NEXT:       {{[0-9]+}},
-// CHECK-NEXT:       {{[0-9]+}},
-// CHECK-NEXT:       {{[0-9]+}}
-// CHECK-NEXT:     ]
-// CHECK-NEXT:     "2": [
-// CHECK-NEXT:       {{[0-9]+}},
-// CHECK-NEXT:       {{[0-9]+}},
-// CHECK-NEXT:       {{[0-9]+}}
-// CHECK-NEXT:     ]
-// CHECK-NEXT:   }
-// CHECK-NEXT: }
+// RUN: env KIT_NUM_THREADS=3 KIT_INSTR_SEPARATE=1 %exe 2>&1 \
+// RUN:     | FileCheck %s --check-prefix=SEPARATE
+//
+// DEFAULT:      {
+// DEFAULT-NEXT:   "fork": {
+// DEFAULT-NEXT:     "0": [
+// DEFAULT-NEXT:       {{[0-9]+}}
+// DEFAULT-NEXT:     ]
+// DEFAULT-NEXT:   },
+// DEFAULT-NEXT:   "tine": {
+// DEFAULT-NEXT:     "0": [
+// DEFAULT-NEXT:       {{[0-9]+}}
+// DEFAULT-NEXT:     ]
+// DEFAULT-NEXT:     "1": [
+// DEFAULT-NEXT:       {{[0-9]+}}
+// DEFAULT-NEXT:     ]
+// DEFAULT-NEXT:     "2": [
+// DEFAULT-NEXT:       {{[0-9]+}}
+// DEFAULT-NEXT:     ]
+// DEFAULT-NEXT:   }
+// DEFAULT-NEXT: }
+//
+// SEPARATE:      {
+// SEPARATE-NEXT:   "fork": {
+// SEPARATE-NEXT:     "0": [
+// SEPARATE-NEXT:       {{[0-9]+}}
+// SEPARATE-NEXT:     ]
+// SEPARATE-NEXT:   },
+// SEPARATE-NEXT:   "tine": {
+// SEPARATE-NEXT:     "0": [
+// SEPARATE-NEXT:       {{[0-9]+}},
+// SEPARATE-NEXT:       {{[0-9]+}},
+// SEPARATE-NEXT:       {{[0-9]+}}
+// SEPARATE-NEXT:     ]
+// SEPARATE-NEXT:     "1": [
+// SEPARATE-NEXT:       {{[0-9]+}},
+// SEPARATE-NEXT:       {{[0-9]+}},
+// SEPARATE-NEXT:       {{[0-9]+}}
+// SEPARATE-NEXT:     ]
+// SEPARATE-NEXT:     "2": [
+// SEPARATE-NEXT:       {{[0-9]+}},
+// SEPARATE-NEXT:       {{[0-9]+}},
+// SEPARATE-NEXT:       {{[0-9]+}}
+// SEPARATE-NEXT:     ]
+// SEPARATE-NEXT:   }
+// SEPARATE-NEXT: }
 
 #include "common/timer.h"
 #include "openmp/kitomp.h"
