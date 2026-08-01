@@ -66,7 +66,6 @@
 #include <map>
 #include <memory>
 #include <mutex>
-#include <string>
 #include <vector>
 
 namespace kitrt {
@@ -94,17 +93,30 @@ namespace kitrt {
 /// program, "start" can be invoked on multiple threads with the same name, as
 /// long as the thread ID in each case is different.
 ///
-/// The same callsite may be reached multiple times during program execution.
-/// The most basic case is when a callsite is in a loop. In this case, a new
-/// epoch object will be created each time the callsite is reached. In the final
-/// output that is written out on program termination, any data collected during
-/// these epochs will *NOT* be merged, but will be recorded separately.
+/// The same callsite may be visited multiple times during program execution.
+/// The most basic case is when a callsite is in a loop. In this case, the
+/// events recorded during that epoch will be merged with the events recorded in
+/// previous earlier visits to the epoch. In order to record events per-visit,
+/// set the KIT_INSTR_SEPARATE environment variable. The value of this variable
+/// is not relevant, only its presence is necessary.
+///
+/// WARNING: The name of an epoch *MUST* be a string-literal. Unfortunately,
+/// there is no way for the runtime to enforce this. Failure to use a string
+/// literal may in incorrect recording of events, or a catastrophic runtime
+/// failure. Kitsune will ensure that string literals are used when
+/// automatically inserting instrumentation.
+///
 template <typename T, typename EpochT, typename EpochInfoT>
 class KitInstrBase : public KitContextMixin<T> {
 protected:
   using Epoch = EpochT;
   using EpochInfo = EpochInfoT;
-  using EpochID = std::pair<std::string, KitThreadID>;
+  using EpochID = std::pair<const char *, KitThreadID>;
+
+private:
+  // Each element of the vector is a unique_ptr so references to the epoch
+  // remain valid even if the vector is resized.
+  using OwnedEpochs = std::vector<std::unique_ptr<Epoch>>;
 
 protected:
   // If this is true, the events measured by each epoch will be recorded
@@ -121,10 +133,7 @@ protected:
   // If the events that occur during multiple visits to a callsite are
   // accumulated, a single epoch will be present for each EpochID. Otherwise, an
   // epoch will be created for each visit to a callsite.
-  //
-  // Each element of the vector is a unique_ptr so references to the epoch
-  // remain valid even if the vector is resized.
-  std::map<const EpochInfo *, std::vector<std::unique_ptr<Epoch>>> epochs;
+  std::map<const EpochInfo *, OwnedEpochs> epochs;
 
 private:
   void writeJSONHeader(FILE *fp) const { fprintf(fp, "{"); }
@@ -189,27 +198,6 @@ private:
     fprintf(fp, "\n");
   }
 
-  void sortEpochs(std::vector<const Epoch *> &epochs) const {
-    auto sortByNameThenThreadID = [](const Epoch *l, const Epoch *r) -> bool {
-      int cmp = strcmp(l->name(), r->name());
-      if (cmp < 0)
-        return true;
-      else if (cmp == 0)
-        return l->thrd() < r->thrd();
-      return false;
-    };
-
-    // Sort the epochs by name, and then by thread id.
-    // TODO: What we actually want here is to first group by name in the order
-    // in which the epochs were added, then sort by thread id *only*. This will
-    // ensure that the epochs appear in the output in the order in which they
-    // were created during execution. This is, arguably, more useful than
-    // sorting lexicographically by name. But the complexity of doing that is
-    // probably not worth it since the JSON output is not really intended for
-    // human consumption anyway.
-    std::stable_sort(epochs.begin(), epochs.end(), sortByNameThenThreadID);
-  }
-
   template <typename... Args>
   const EpochInfo &registerEpoch(const char *name, KitThreadID thrd,
                                  Args &&...args) {
@@ -240,25 +228,45 @@ public:
     std::lock_guard<std::mutex> guard(mtx);
 
     const EpochInfo &info = registerEpoch(name, thrd, args...);
-    std::vector<std::unique_ptr<Epoch>> &vec = epochs.at(&info);
+    OwnedEpochs &vec = epochs.at(&info);
     if (separate || vec.empty())
       vec.emplace_back(new Epoch(info));
     return vec.back().get();
   }
 
   void writeJSON(const char *outFileEnvVar) const {
-    if (!epochs.empty()) {
-      std::vector<const Epoch *> epochPtrs;
-      for (const auto &[_, ownedEpochs] : epochs)
-        for (const std::unique_ptr<Epoch> &epoch : ownedEpochs)
-          epochPtrs.push_back(epoch.get());
+    auto sortByNameThenThreadID = [](const Epoch *l, const Epoch *r) -> bool {
+      int cmp = strcmp(l->name(), r->name());
+      if (cmp < 0)
+        return true;
+      else if (cmp == 0)
+        return l->thrd() < r->thrd();
+      return false;
+    };
 
-      sortEpochs(epochPtrs);
-      if (FILE *fp = getInstrumentationOutputFile(outFileEnvVar)) {
-        writeJSON(fp, epochPtrs);
-        if (fp != stdout && fp != stderr)
-          fclose(fp);
-      }
+    if (epochs.empty())
+      return;
+
+    // Collect epochs.
+    std::vector<const Epoch *> epochs;
+    for (const auto &[_, ownedEpochs] : this->epochs)
+      for (const std::unique_ptr<Epoch> &epoch : ownedEpochs)
+        epochs.push_back(epoch.get());
+
+    // Sort the epochs by name, and then by thread id.
+    // TODO: What we actually want here is to first group by name in the order
+    // in which the epochs were added, then sort by thread id *only*. This will
+    // ensure that the epochs appear in the output in the order in which they
+    // were created during execution. This is, arguably, more useful than
+    // sorting lexicographically by name. But the complexity of doing that is
+    // probably not worth it since the JSON output is not really intended for
+    // human consumption anyway.
+    std::stable_sort(epochs.begin(), epochs.end(), sortByNameThenThreadID);
+
+    if (FILE *fp = getInstrumentationOutputFile(outFileEnvVar)) {
+      writeJSON(fp, epochs);
+      if (fp != stdout && fp != stderr)
+        fclose(fp);
     }
   }
 };
