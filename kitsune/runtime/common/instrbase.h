@@ -203,14 +203,11 @@ private:
     std::stable_sort(epochs.begin(), epochs.end(), sortByNameThenThreadID);
   }
 
-public:
   template <typename... Args>
   const EpochInfo &registerEpoch(const char *name, KitThreadID thrd,
                                  Args &&...args) {
-    std::lock_guard<std::mutex> guard(mtx);
-
     EpochID id = {name, thrd};
-    typename decltype(epochInfo)::const_iterator it = epochInfo.find(id);
+    auto it = epochInfo.find(id);
     if (it != epochInfo.end())
       return *it->second;
 
@@ -224,14 +221,18 @@ public:
     return *epochInfo.emplace(id, std::move(info)).first->second;
   }
 
+public:
   template <typename... Args>
-  Epoch *addEpoch(const EpochInfo &info, Args &&...args) {
+  Epoch *addEpoch(const char *name, KitThreadID thrd, Args &&...args) {
+    assert(name && "Name of an epoch must not be NULL");
+
     std::lock_guard<std::mutex> guard(mtx);
 
     // The call to emplace returns a reference to the unique pointer that was
     // just added to the epochs vector. We want to return the underlying
     // pointer, so call get on the result.
-    return epochs.emplace_back(new Epoch(info, args...)).get();
+    const EpochInfo &info = registerEpoch(name, thrd, args...);
+    return epochs.emplace_back(new Epoch(info)).get();
   }
 
   void writeJSON(const char *outFileEnvVar) const {

@@ -142,10 +142,8 @@ protected:
 using namespace kitrt;
 
 extern "C" KitTimerEpoch *__kittimer_start(const char *name, KitThreadID thrd) {
-  KitTimerContext &ctx = KitTimerContext::mutSingleton();
-  const KitTimerEpochInfo &info = ctx.registerEpoch(name, thrd);
-  KitTimerEpochImpl *epoch = ctx.addEpoch(info);
-
+  KitTimerEpochImpl *epoch =
+      KitTimerContext::mutSingleton().addEpoch(name, thrd);
   epoch->start();
   return reinterpret_cast<KitTimerEpoch *>(epoch);
 }
