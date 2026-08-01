@@ -90,12 +90,6 @@ static std::pair<const char *, PAPIEventID> convenienceNames[] = {
     {"ref", PAPI_REF_CYC},
 };
 
-template <typename T> static std::string to_hex_string(T n) {
-  std::stringstream ss;
-  ss << "0x" << std::hex << n;
-  return ss.str();
-}
-
 // Handle an error returned by a call to a PAPI API function. This will print a
 // warning message to stderr. \p what is an optional label to print before
 // printing the actual PAPI error message. \p err is the error code returned by
@@ -132,6 +126,17 @@ static bool isEventAvailable(PAPIEventID evt) {
   return false;
 }
 
+static std::vector<PAPIEventID> getEvents(PAPIEventSet evtSet) {
+  if (evtSet == PAPI_NULL)
+    return {};
+
+  int n = PAPI_num_events(evtSet);
+  std::vector<PAPIEventID> evts(n);
+  if (int err = PAPI_list_events(evtSet, evts.data(), &n))
+    handleError("Could not get events in event set", err);
+  return evts;
+}
+
 static std::vector<PAPIEventID> getAllKnownEvents() {
   // It is not clear what or'ing with 0 is meant to signify. This is how it is
   // implemented in papi_avail.c.
@@ -155,7 +160,18 @@ namespace {
 // uniquely named epoch.
 struct KitPAPIEpochInfo {
   const std::string name;
-  const std::vector<PAPIEventID> evts;
+  const KitThreadID thrd;
+  PAPIEventSet evtSet;
+
+  KitPAPIEpochInfo(const char *name, KitThreadID thrd, PAPIEventSet evtSet)
+      : name(name), thrd(thrd), evtSet(evtSet) {}
+
+  virtual ~KitPAPIEpochInfo() {
+    if (int err = PAPI_cleanup_eventset(evtSet))
+      handleError("Could not cleanup event set", err);
+    if (int err = PAPI_destroy_eventset(&evtSet))
+      handleError("Could not destroy event set", err);
+  }
 };
 
 // An epoch object. This is created each time __kitpapi_new is called.
@@ -163,18 +179,10 @@ class KitPAPIEpochImpl {
 private:
   const KitPAPIEpochInfo &info;
 
-  // The ID of the thread on which this epoch will measure counters.
-  KitThreadID thrd_;
-
-  // The event set for this epoch.
-  PAPIEventSet evtSet = PAPI_NULL;
-
   // The initial values of the counters. These are read after PAPI_start is
   // called with the event set associated with this epoch. This is a temporary
   // buffer.
   PAPICounter *init = nullptr;
-
-  // The counters.
   PAPICounter *counters = nullptr;
 
 public:
@@ -184,19 +192,17 @@ public:
   KitPAPIEpochImpl &operator=(const KitPAPIEpochImpl &) = delete;
   KitPAPIEpochImpl &operator=(KitPAPIEpochImpl &&) = delete;
 
-  KitPAPIEpochImpl(const KitPAPIEpochInfo &info, KitThreadID thrd,
-                   PAPIEventSet evtSet)
-      : info(info), thrd_(thrd), evtSet(evtSet) {
+  KitPAPIEpochImpl(const KitPAPIEpochInfo &info) : info(info) {
     counters = (PAPICounter *)std::calloc(size(), sizeof(PAPICounter));
   }
 
   ~KitPAPIEpochImpl() { delete counters; }
 
-  inline const std::string &name() const { return info.name; }
-  inline KitThreadID thrd() const { return thrd_; }
-  inline unsigned size() const { return info.evts.size(); }
-  inline PAPIEventID event(unsigned i) const { return info.evts[i]; }
-  inline PAPICounter value(unsigned i) const { return counters[i]; }
+  inline const char *name() const { return info.name.c_str(); }
+  inline KitThreadID thrd() const { return info.thrd; }
+  inline unsigned size() const { return PAPI_num_events(info.evtSet); }
+  inline PAPIEventSet evtSet() const { return info.evtSet; }
+  inline PAPICounter counter(unsigned i) const { return counters[i]; }
 
   inline void start() {
     LOG("Starting PAPI counters");
@@ -213,25 +219,19 @@ public:
     // Instead, we call PAPI_start right away, but read the value of the
     // counters immediately after it returns. These values will be subtracted
     // from those obtained when PAPI_stop is called in __kitpapi_stop.
-    CHECK(PAPI_start(evtSet), "start PAPI counters");
-    CHECK(PAPI_read(evtSet, init), "read initial values of PAPI counters");
+    CHECK(PAPI_start(evtSet()), "start PAPI counters");
+    CHECK(PAPI_read(evtSet(), init), "read initial values of PAPI counters");
   }
 
   inline void stop() {
-    CHECK(PAPI_accum(evtSet, counters), "read final values of PAPI counters");
-    CHECK(PAPI_stop(evtSet, nullptr), "stop PAPI counters");
+    CHECK(PAPI_accum(evtSet(), counters), "read final values of PAPI counters");
+    CHECK(PAPI_stop(evtSet(), nullptr), "stop PAPI counters");
 
     LOG("Stopped PAPI counters");
 
     for (unsigned i = 0, e = size(); i < e; ++i)
       counters[i] -= init[i];
     delete[] init;
-
-    if (int err = PAPI_cleanup_eventset(evtSet))
-      handleError("Could not cleanup event set", err);
-    if (int err = PAPI_destroy_eventset(&evtSet))
-      handleError("Could not destroy event set", err);
-    evtSet = PAPI_NULL;
   }
 };
 
@@ -247,13 +247,13 @@ class KitPAPIContext : public KitPAPIContextBase {
   friend KitPAPIContextBase;
 
 private:
-  // The names of PAPI events that are recognized by this context. Not all
+  // The names of PAPI events that are recognized by this context.
   std::map<std::string, PAPIEventID> evtNames;
 
 private:
   void addNameForEvent(PAPIEventID evt) {
     // Convert the symbol name to lowercase and drop the PAPI_ prefix. For
-    // example, convert "PAPI_TOT_INS" to "tot_ins"
+    // example, convert "PAPI_TOT_INS" to "tot_ins".
     std::string s = &getEventSymbol(evt)[5];
     for (size_t i = 0, e = s.size(); i < e; ++i)
       s[i] = tolower(s[i]);
@@ -261,58 +261,40 @@ private:
   }
 
 protected:
-  PAPIEventSet createEventSet(const KitPAPIEpochInfo &info) const {
+  KitPAPIEpochInfo *makeEpochInfo(const char *name, KitThreadID thrd,
+                                  uint32_t n, va_list va) const {
     PAPIEventSet evtSet = PAPI_NULL;
     if (int err = PAPI_create_eventset(&evtSet)) {
       handleError("Could not create PAPI event set", err);
-      return PAPI_NULL;
+      return new KitPAPIEpochInfo(name, thrd, PAPI_NULL);
     }
 
-    for (PAPIEventID evt : info.evts) {
-      if (int err = PAPI_add_event(evtSet, evt))
-        WARN("Event '%s'. %s", getEventSymbol(evt), PAPI_strerror(err));
-      else
-        LOG("Recording event '%s'", getEventSymbol(evt));
-    }
-    return evtSet;
-  }
-
-  KitPAPIEpochInfo *makeEpochInfo(const std::string &name, uint32_t n,
-                                  va_list va) const {
-    std::vector<const char *> names;
-    for (uint32_t i = 0; i < n; ++i)
-      names.push_back(va_arg(va, const char *));
-
-    std::vector<PAPIEventID> evts;
-    for (const char *evtName : names) {
+    for (uint32_t i = 0; i < n; ++i) {
+      const char *evtName = va_arg(va, const char *);
       auto it = evtNames.find(evtName);
       PAPIEventID evt = it->second;
-      if (it == evtNames.end()) {
+      if (it == evtNames.end())
         WARN("Unknown event name '%s'", evtName);
-      } else if (!isEventAvailable(evt)) {
+      else if (!isEventAvailable(evt))
         WARN("Event '%s' not available", getEventSymbol(evt));
-      } else {
-        evts.push_back(evt);
-        LOG("Event '%s' added to epoch '%s'", getEventSymbol(evt),
-            name.c_str());
-      }
+      else if (int err = PAPI_add_event(evtSet, evt))
+        WARN("Not Event '%s' not added to event set. %s", getEventSymbol(evt),
+             PAPI_strerror(err));
+      else
+        LOG("Event '%s' added to epoch '%s'", getEventSymbol(evt), name);
     }
-    return new KitPAPIEpochInfo{name, evts};
-  }
-
-  KitPAPIEpochImpl *makeEpoch(const KitPAPIEpochInfo &info,
-                              KitThreadID thrd) const {
-    PAPIEventSet evtSet = createEventSet(info);
-    return new KitPAPIEpochImpl(info, thrd, evtSet);
+    return new KitPAPIEpochInfo(name, thrd, evtSet);
   }
 
   void writeEpoch(FILE *fp, const KitPAPIEpochImpl &epoch) const {
+    std::vector<PAPIEventID> evts = getEvents(epoch.evtSet());
+
     fprintf(fp, "\n      {");
-    for (unsigned i = 0, e = epoch.size(); i < e; ++i) {
+    for (unsigned i = 0, e = evts.size(); i < e; ++i) {
       if (i)
         fprintf(fp, ", ");
-      std::string descr = getEventShortDescr(epoch.event(i));
-      fprintf(fp, "\"%s\": %lld", descr.c_str(), epoch.value(i));
+      fprintf(fp, "\"%s\": %lld", getEventShortDescr(evts[i]),
+              epoch.counter(i));
     }
     fprintf(fp, "}");
   }
@@ -341,9 +323,9 @@ extern "C" KitPAPIEpoch *__kitpapi_start(const char *name, KitThreadID thrd,
   KitPAPIContext &ctx = KitPAPIContext::mutSingleton();
   va_list va;
   va_start(va, n);
-  const KitPAPIEpochInfo &info = ctx.registerEpoch(name, n, va);
+  const KitPAPIEpochInfo &info = ctx.registerEpoch(name, thrd, n, va);
   va_end(va);
-  KitPAPIEpochImpl *epoch = ctx.addEpoch(info, thrd);
+  KitPAPIEpochImpl *epoch = ctx.addEpoch(info);
 
   epoch->start();
   return reinterpret_cast<KitPAPIEpoch *>(epoch);

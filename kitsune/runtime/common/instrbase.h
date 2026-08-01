@@ -61,6 +61,7 @@
 #include "global/singleton.h"
 
 #include <algorithm>
+#include <cstring>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -90,12 +91,7 @@ namespace kitrt {
 /// epoch is uniquely identified by a pair of the name and the ID of the thread
 /// in which the epoch was created. This implies that, in a multi-threaded
 /// program, "start" can be invoked on multiple threads with the same name, as
-/// long as the thread ID can be obtained when the epoch object is created.
-///
-/// By definition, this implies that an epoch is associated with a callsite.
-/// \tparam EpochInfoT is an object that maintains metadata related to the
-/// callsite from which an epoch is created. This will always have a name, but
-/// may contain additional information.
+/// long as the thread ID in each case is different.
 ///
 /// The same callsite may be reached multiple times during program execution.
 /// The most basic case is when a callsite is in a loop. In this case, a new
@@ -107,13 +103,14 @@ class KitInstrBase : public KitContextMixin<T> {
 protected:
   using Epoch = EpochT;
   using EpochInfo = EpochInfoT;
+  using EpochID = std::pair<std::string, KitThreadID>;
 
 protected:
   // A mutex that controls all accesses to the mutable members of this class.
   std::mutex mtx;
 
   // Information about each unique epoch.
-  std::map<std::string, std::unique_ptr<const EpochInfo>> epochInfo;
+  std::map<EpochID, std::unique_ptr<const EpochInfo>> epochInfo;
 
   // All Epoch objects that have been created. If this were a vector of Epoch
   // objects, returning a reference to the element would be unsafe since, if the
@@ -126,7 +123,7 @@ private:
   void writeJSONHeader(FILE *fp) const { fprintf(fp, "{"); }
 
   void writeEpochHeader(FILE *fp, const Epoch &epoch) const {
-    fprintf(fp, "\n  \"%s\": {", epoch.name().c_str());
+    fprintf(fp, "\n  \"%s\": {", epoch.name());
   }
 
   void writeThreadHeader(FILE *fp, const Epoch &epoch) const {
@@ -158,7 +155,7 @@ private:
     for (unsigned i = 1, e = epochs.size(); i != e; ++i) {
       const Epoch &prev = *epochs[i - 1];
       const Epoch &curr = *epochs[i];
-      if (prev.name() != curr.name()) {
+      if (strcmp(prev.name(), curr.name())) {
         writeThreadFooter(fp, prev, /*comma=*/false);
         writeEpochFooter(fp, prev, /*comma=*/true);
         writeEpochHeader(fp, curr);
@@ -187,9 +184,10 @@ private:
 
   void sortEpochs(std::vector<const Epoch *> &epochs) const {
     auto sortByNameThenThreadID = [](const Epoch *l, const Epoch *r) -> bool {
-      if (l->name() < r->name())
+      int cmp = strcmp(l->name(), r->name());
+      if (cmp < 0)
         return true;
-      else if (l->name() == r->name())
+      else if (cmp == 0)
         return l->thrd() < r->thrd();
       return false;
     };
@@ -207,10 +205,12 @@ private:
 
 public:
   template <typename... Args>
-  const EpochInfo &registerEpoch(const std::string &name, Args &&...args) {
+  const EpochInfo &registerEpoch(const char *name, KitThreadID thrd,
+                                 Args &&...args) {
     std::lock_guard<std::mutex> guard(mtx);
 
-    typename decltype(epochInfo)::const_iterator it = epochInfo.find(name);
+    EpochID id = {name, thrd};
+    typename decltype(epochInfo)::const_iterator it = epochInfo.find(id);
     if (it != epochInfo.end())
       return *it->second;
 
@@ -220,20 +220,18 @@ public:
     // `std::unique_ptr`, but we need to return a reference to that object,
     // hence the dereference at the start. Perfectly obvious, isn't it?
     std::unique_ptr<EpochInfo> info(
-        static_cast<T *>(this)->makeEpochInfo(name, args...));
-    return *epochInfo.emplace(name, std::move(info)).first->second;
+        static_cast<T *>(this)->makeEpochInfo(name, thrd, args...));
+    return *epochInfo.emplace(id, std::move(info)).first->second;
   }
 
   template <typename... Args>
-  Epoch *addEpoch(const EpochInfo &info, KitThreadID thrd, Args &&...args) {
+  Epoch *addEpoch(const EpochInfo &info, Args &&...args) {
     std::lock_guard<std::mutex> guard(mtx);
 
     // The call to emplace returns a reference to the unique pointer that was
     // just added to the epochs vector. We want to return the underlying
     // pointer, so call get on the result.
-    std::unique_ptr<Epoch> epoch(
-        static_cast<T *>(this)->makeEpoch(info, thrd, args...));
-    return epochs.emplace_back(std::move(epoch)).get();
+    return epochs.emplace_back(new Epoch(info, args...)).get();
   }
 
   void writeJSON(const char *outFileEnvVar) const {
