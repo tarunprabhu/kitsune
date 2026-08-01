@@ -34,12 +34,11 @@ __attribute__((destructor)) static void dtor(void) {
 }
 
 int main(int argc, char *argv[]) {
-  KitPAPIEpoch *e1 = __kitpapi_new("frasquita", /*thread=*/0, 2, "ins", "cyc");
-  __kitpapi_start(e1);
+  KitPAPIEpoch *e1 =
+      __kitpapi_start("frasquita", /*thread=*/0, 2, "ins", "cyc");
   __kitpapi_stop(e1);
 
-  KitPAPIEpoch *e2 = __kitpapi_new("escamilo", /*thread=*/0, 2, "ins", "cyc");
-  __kitpapi_start(e2);
+  KitPAPIEpoch *e2 = __kitpapi_start("escamilo", /*thread=*/0, 2, "ins", "cyc");
   __kitpapi_stop(e2);
 
   return 0;

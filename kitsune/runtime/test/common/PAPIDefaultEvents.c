@@ -58,8 +58,6 @@ int main(int argc, char *argv[]) {
     return 0;
 
   unsigned i = 0;
-  unsigned avail = 0;
-  unsigned notAvail = 0;
   Event evts[MAX_EVENTS];
 
   getEvent(evt, &evts[i++]);
@@ -77,7 +75,7 @@ int main(int argc, char *argv[]) {
       evtNotAvail = evts[i].name;
   }
 
-  (void)__kitpapi_new("hadji", /*thread=*/0, 2, evtAvail, evtNotAvail);
+  (void)__kitpapi_start("hadji", /*thread=*/0, 2, evtAvail, evtNotAvail);
 
   return 0;
 }
