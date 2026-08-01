@@ -41,6 +41,9 @@ const Type *getUnqualifiedDesugaredType(const Expr *expr);
 std::string getNameFor(const Stmt &stmt, llvm::ArrayRef<const Attr *> attrs,
                        ASTContext &ast);
 
+/// Compute a name for the expression \expr from the location of statement.
+std::string getNameFor(const Expr &expr, ASTContext &ast);
+
 /// @}
 
 } // namespace clang
