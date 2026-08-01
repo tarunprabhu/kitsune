@@ -32,7 +32,7 @@ __attribute__((destructor)) static void dtor(void) {
 }
 
 int main(int argc, char *argv[]) {
-  (void)__kitpapi_new("nilakantha", /*thread=*/19, 5, "PAPI_TOT_INS", "TOT_INS",
-                      "tot_ins", "Inst", "insts");
+  (void)__kitpapi_start("nilakantha", /*thread=*/19, 5, "PAPI_TOT_INS",
+                        "TOT_INS", "tot_ins", "Inst", "insts");
   return 0;
 }

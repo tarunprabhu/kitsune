@@ -52,10 +52,10 @@ __attribute__((destructor)) static void dtor(void) {
 }
 
 int main(int argc, char *argv[]) {
-  (void)__kitpapi_new("mallika", /*thread=*/0, 28, "l1d", "l2d", "l3d", "l1i",
-                      "l2i", "l3i", "l1t", "l2t", "l3t", "l1ld", "l1st", "l2ld",
-                      "l2st", "tlbd", "tlbi", "tlbt", "ins", "inst", "vec",
-                      "ld", "st", "br", "int", "fp", "fma", "stall", "cyc",
-                      "ref");
+  (void)__kitpapi_start("mallika", /*thread=*/0, 28, "l1d", "l2d", "l3d", "l1i",
+                        "l2i", "l3i", "l1t", "l2t", "l3t", "l1ld", "l1st",
+                        "l2ld", "l2st", "tlbd", "tlbi", "tlbt", "ins", "inst",
+                        "vec", "ld", "st", "br", "int", "fp", "fma", "stall",
+                        "cyc", "ref");
   return 0;
 }

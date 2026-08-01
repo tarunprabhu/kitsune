@@ -33,8 +33,7 @@ __attribute__((destructor)) static void dtor(void) { __kitomp_finalize(); }
 
 static void thrdFn(uint64_t start, uint64_t end, void *args) {
   KitPAPIEpoch *e =
-      __kitpapi_new("morales", omp_get_thread_num(), 2, "ins", "cyc");
-  __kitpapi_start(e);
+      __kitpapi_start("morales", omp_get_thread_num(), 2, "ins", "cyc");
   __kitpapi_stop(e);
 }
 
