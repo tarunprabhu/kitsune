@@ -7,7 +7,7 @@
 // RUN: %exe 2>&1 | FileCheck %s
 //
 // CHECK: Could not start PAPI counters
-// CHECK: Could not read final values of PAPI counters
+// CHECK: Could not stop PAPI counters
 // CHECK:      {
 // CHECK-NEXT:   "jose": {
 // CHECK-NEXT:     "0": [
