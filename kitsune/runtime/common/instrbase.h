@@ -57,6 +57,7 @@
 #ifndef KITRT_COMMON_INSTR_BASE_H
 #define KITRT_COMMON_INSTR_BASE_H
 
+#include "common/env.h"
 #include "common/instrutils.h"
 #include "global/singleton.h"
 
@@ -106,18 +107,24 @@ protected:
   using EpochID = std::pair<std::string, KitThreadID>;
 
 protected:
+  // If this is true, the events measured by each epoch will be recorded
+  // separately. Otherwise, the events will be accumulated. The default is to
+  // accumulate events in each epoch.
+  bool separate = false;
+
   // A mutex that controls all accesses to the mutable members of this class.
   std::mutex mtx;
 
   // Information about each unique epoch.
   std::map<EpochID, std::unique_ptr<const EpochInfo>> epochInfo;
 
-  // All Epoch objects that have been created. If this were a vector of Epoch
-  // objects, returning a reference to the element would be unsafe since, if the
-  // vector were to be resized and and reallocated, that reference would no
-  // longer be valid. By wrapping everything in a unique pointer, the vector may
-  // be safely resized without invalidating any pointers or references.
-  std::vector<std::unique_ptr<Epoch>> epochs;
+  // If the events that occur during multiple visits to a callsite are
+  // accumulated, a single epoch will be present for each EpochID. Otherwise, an
+  // epoch will be created for each visit to a callsite.
+  //
+  // Each element of the vector is a unique_ptr so references to the epoch
+  // remain valid even if the vector is resized.
+  std::map<const EpochInfo *, std::vector<std::unique_ptr<Epoch>>> epochs;
 
 private:
   void writeJSONHeader(FILE *fp) const { fprintf(fp, "{"); }
@@ -216,10 +223,14 @@ private:
     // the value here, so we have `first->second` at the end. The value is a
     // `std::unique_ptr`, but we need to return a reference to that object,
     // hence the dereference at the start. Perfectly obvious, isn't it?
-    std::unique_ptr<EpochInfo> info(
-        static_cast<T *>(this)->makeEpochInfo(name, thrd, args...));
-    return *epochInfo.emplace(id, std::move(info)).first->second;
+    EpochInfo *info =
+        static_cast<T *>(this)->makeEpochInfo(name, thrd, args...);
+    epochs.try_emplace(info);
+    return *epochInfo.emplace(id, info).first->second;
   }
+
+protected:
+  KitInstrBase() : separate(envContains("KIT_INSTR_SEPARATE")) {}
 
 public:
   template <typename... Args>
@@ -228,18 +239,19 @@ public:
 
     std::lock_guard<std::mutex> guard(mtx);
 
-    // The call to emplace returns a reference to the unique pointer that was
-    // just added to the epochs vector. We want to return the underlying
-    // pointer, so call get on the result.
     const EpochInfo &info = registerEpoch(name, thrd, args...);
-    return epochs.emplace_back(new Epoch(info)).get();
+    std::vector<std::unique_ptr<Epoch>> &vec = epochs.at(&info);
+    if (separate || vec.empty())
+      vec.emplace_back(new Epoch(info));
+    return vec.back().get();
   }
 
   void writeJSON(const char *outFileEnvVar) const {
     if (!epochs.empty()) {
       std::vector<const Epoch *> epochPtrs;
-      for (const std::unique_ptr<Epoch> &epoch : epochs)
-        epochPtrs.push_back(epoch.get());
+      for (const auto &[_, ownedEpochs] : epochs)
+        for (const std::unique_ptr<Epoch> &epoch : ownedEpochs)
+          epochPtrs.push_back(epoch.get());
 
       sortEpochs(epochPtrs);
       if (FILE *fp = getInstrumentationOutputFile(outFileEnvVar)) {

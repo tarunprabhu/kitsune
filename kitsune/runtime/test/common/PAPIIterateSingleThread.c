@@ -3,17 +3,29 @@
 // Check that the output of PAPI epochs started and stopped multiple times is as
 // expected.
 //
-// RUN: %exe 2>&1 | FileCheck %s
+// RUN: %exe 2>&1 \
+// RUN:     | FileCheck %s --check-prefix=DEFAULT
 //
-// CHECK:     {
-// CHECK-NEXT:  "carmen": {
-// CHECK-NEXT:    "0": [
-// CHECK-NEXT:      {"Instr completed": {{[0-9]+}}, "Total cycles": {{[0-9]+}}},
-// CHECK-NEXT:      {"Instr completed": {{[0-9]+}}, "Total cycles": {{[0-9]+}}},
-// CHECK-NEXT:      {"Instr completed": {{[0-9]+}}, "Total cycles": {{[0-9]+}}}
-// CHECK-NEXT:    ]
-// CHECK-NEXT:  }
-// CHECK-NEXT:}
+// RUN: env KIT_INSTR_SEPARATE=1 %exe 2>&1 \
+// RUN:     | FileCheck %s --check-prefix=SEPARATE
+//
+// DEFAULT:      {
+// DEFAULT-NEXT:   "carmen": {
+// DEFAULT-NEXT:     "0": [
+// DEFAULT-NEXT:       {"Total cycles": {{[0-9]+}}}
+// DEFAULT-NEXT:     ]
+// DEFAULT-NEXT:   }
+// DEFAULT-NEXT: }
+//
+// SEPARATE:      {
+// SEPARATE-NEXT:   "carmen": {
+// SEPARATE-NEXT:     "0": [
+// SEPARATE-NEXT:       {"Total cycles": {{[0-9]+}}},
+// SEPARATE-NEXT:       {"Total cycles": {{[0-9]+}}},
+// SEPARATE-NEXT:       {"Total cycles": {{[0-9]+}}}
+// SEPARATE-NEXT:     ]
+// SEPARATE-NEXT:   }
+// SEPARATE-NEXT: }
 
 #include "common/kitpapi.h"
 #include "kitrt.h"
@@ -32,7 +44,7 @@ __attribute__((destructor)) static void dtor(void) {
 
 int main(int argc, char *argv[]) {
   for (unsigned i = 0; i < 3; ++i) {
-    KitPAPIEpoch *e = __kitpapi_start("carmen", /*thread=*/0, 2, "ins", "cyc");
+    KitPAPIEpoch *e = __kitpapi_start("carmen", /*thread=*/0, 1, "cyc");
     __kitpapi_stop(e);
   }
 

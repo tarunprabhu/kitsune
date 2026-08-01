@@ -5,27 +5,45 @@
 // guaranteed to be built. Also, omp_get_thread_num() returns an integer in [0,
 // KIT_NUM_THREADS), so one can have reasonable thread IDs.
 //
-// RUN: env KIT_NUM_THREADS=3 %exe 2>&1 | FileCheck %s
+// RUN: env KIT_NUM_THREADS=3 %exe 2>&1 \
+// RUN:     | FileCheck %s --check-prefix=DEFAULT
 //
-// CHECK:     {
-// CHECK-NEXT:  "remendado": {
-// CHECK-NEXT:    "0": [
-// CHECK-NEXT:      {"Instr completed": {{[0-9]+}}, "Total cycles": {{[0-9]+}}},
-// CHECK-NEXT:      {"Instr completed": {{[0-9]+}}, "Total cycles": {{[0-9]+}}},
-// CHECK-NEXT:      {"Instr completed": {{[0-9]+}}, "Total cycles": {{[0-9]+}}}
-// CHECK-NEXT:    ],
-// CHECK-NEXT:    "1": [
-// CHECK-NEXT:      {"Instr completed": {{[0-9]+}}, "Total cycles": {{[0-9]+}}},
-// CHECK-NEXT:      {"Instr completed": {{[0-9]+}}, "Total cycles": {{[0-9]+}}},
-// CHECK-NEXT:      {"Instr completed": {{[0-9]+}}, "Total cycles": {{[0-9]+}}}
-// CHECK-NEXT:    ],
-// CHECK-NEXT:    "2": [
-// CHECK-NEXT:      {"Instr completed": {{[0-9]+}}, "Total cycles": {{[0-9]+}}},
-// CHECK-NEXT:      {"Instr completed": {{[0-9]+}}, "Total cycles": {{[0-9]+}}},
-// CHECK-NEXT:      {"Instr completed": {{[0-9]+}}, "Total cycles": {{[0-9]+}}}
-// CHECK-NEXT:    ]
-// CHECK-NEXT:  }
-// CHECK-NEXT:}
+// RUN: env KIT_NUM_THREADS=3 KIT_INSTR_SEPARATE=1 %exe 2>&1 \
+// RUN:     | FileCheck %s --check-prefix=SEPARATE
+//
+// DEFAULT:     {
+// DEFAULT-NEXT:  "remendado": {
+// DEFAULT-NEXT:    "0": [
+// DEFAULT-NEXT:      {"Total cycles": {{[0-9]+}}}
+// DEFAULT-NEXT:    ],
+// DEFAULT-NEXT:    "1": [
+// DEFAULT-NEXT:      {"Total cycles": {{[0-9]+}}}
+// DEFAULT-NEXT:    ],
+// DEFAULT-NEXT:    "2": [
+// DEFAULT-NEXT:      {"Total cycles": {{[0-9]+}}}
+// DEFAULT-NEXT:    ]
+// DEFAULT-NEXT:  }
+// DEFAULT-NEXT:}
+//
+// SEPARATE:     {
+// SEPARATE-NEXT:  "remendado": {
+// SEPARATE-NEXT:    "0": [
+// SEPARATE-NEXT:      {"Total cycles": {{[0-9]+}}},
+// SEPARATE-NEXT:      {"Total cycles": {{[0-9]+}}},
+// SEPARATE-NEXT:      {"Total cycles": {{[0-9]+}}}
+// SEPARATE-NEXT:    ],
+// SEPARATE-NEXT:    "1": [
+// SEPARATE-NEXT:      {"Total cycles": {{[0-9]+}}},
+// SEPARATE-NEXT:      {"Total cycles": {{[0-9]+}}},
+// SEPARATE-NEXT:      {"Total cycles": {{[0-9]+}}}
+// SEPARATE-NEXT:    ],
+// SEPARATE-NEXT:    "2": [
+// SEPARATE-NEXT:      {"Total cycles": {{[0-9]+}}},
+// SEPARATE-NEXT:      {"Total cycles": {{[0-9]+}}},
+// SEPARATE-NEXT:      {"Total cycles": {{[0-9]+}}}
+// SEPARATE-NEXT:    ]
+// SEPARATE-NEXT:  }
+// SEPARATE-NEXT:}
 
 #include "common/kitpapi.h"
 #include "openmp/kitomp.h"
@@ -40,7 +58,7 @@ __attribute__((destructor)) static void dtor(void) { __kitomp_finalize(); }
 
 static void thrdFn(uint64_t start, uint64_t stop, void *args) {
   KitPAPIEpoch *e =
-      __kitpapi_start("remendado", omp_get_thread_num(), 2, "ins", "cyc");
+      __kitpapi_start("remendado", omp_get_thread_num(), 1, "cyc");
   __kitpapi_stop(e);
 }
 
