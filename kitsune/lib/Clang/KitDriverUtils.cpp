@@ -186,6 +186,18 @@ void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
     }
   }
 
+  // Validate --kit-instr-papi=
+  if (Arg *a = args.getLastArg(options::OPT_kit_instr_papi_EQ)) {
+    StringRef v = a->getValue();
+    if (v.empty())
+      diags.Report(diag::err_drv_missing_list) << a->getAsString(args);
+    for (StringRef evtName : parseCommaSeparatedList(a->getValue()))
+      if (evtName.empty())
+        diags.Report(diag::err_drv_invalid_value) << a->getAsString(args) << "";
+    // We don't check the actual values because that is only known to the
+    // runtime.
+  }
+
   // If --tapir-plugin= is provided, then a tapir target must also be provided.
   // That target must be 'custom', but that will be checked later.
   if (args.hasArg(options::OPT_tapir_plugin_EQ))
@@ -439,6 +451,15 @@ static void parseKitInstrumentArgs(KitOptions &opts, const ArgList &args,
       else
         opts.addInstrUnit(*llvm::fromString<InstrumentUnit>(unit));
   }
+
+  if (const Arg *a = args.getLastArg(OPT_kit_instr_papi_EQ))
+    for (StringRef evt : parseCommaSeparatedList(a->getValue()))
+      opts.addInstrPAPIEvent(evt);
+
+  if (opts.getKitInstrOpts().enabled(InstrumentKind::PAPI))
+    if (!args.hasArg(OPT_kit_instr_papi_EQ))
+      diags.Report(diag::err_drv_kit_missing_required)
+          << optTable.getOptionName(OPT_kit_instr_papi_EQ);
 }
 
 static void parseKitCommonGPUArgs(KitOptions &opts, const ArgList &args,

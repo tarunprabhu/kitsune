@@ -104,7 +104,66 @@ own - they cannot appear with each other, or in a list. These are:
 | default    | Add instrumentation *around* all supported Kitsune constructs.  |
 |            | Per-thread instrumentation is *not* added                       |
 +------------+-----------------------------------------------------------------+
+}]>;
 
+def kit_instr_papi_EQ : Joined<["--"], "kit-instr-papi=">,
+    MetaVarName<"<events>">,
+    HelpText<"The PAPI events to record">,
+    DocBrief<[{
+Comma-separated list of PAPI events to be recorded. This option must be provided
+if "papi" is present in the list given to `--kit-instr=`. The table below lists
+the convenience names recognized by Kitsune and the PAPI events to which they
+correspond.
+
++-------+----------------+----------------------------------+
+| l1d   | `PAPI_L1_DCM`  | Level 1 data cache misses        |
+| l2d   | `PAPI_L2_DCM`  | Level 2 data cache misses        |
+| l3d   | `PAPI_L3_DCM`  | Level 3 data cache misses        |
+| l1i   | `PAPI_L1_ICM`  | Level 1 instruction cache misses |
+| l2i   | `PAPI_L2_ICM`  | Level 2 instruction cache misses |
+| l3i   | `PAPI_L3_ICM`  | Level 3 instruction cache misses |
+| l1t   | `PAPI_L1_TCM`  | Level 1 cache misses             |
+| l2t   | `PAPI_L2_TCM`  | Level 2 cache misses             |
+| l3t   | `PAPI_L3_TCM`  | Level 3 cache misses             |
+| l1ld  | `PAPI_L1_LDM`  | Level 1 load misses              |
+| l2ld  | `PAPI_L2_LDM`  | Level 2 load misses              |
+| l3ld  | `PAPI_L3_LDM`  | Level 3 load misses              |
+| l1st  | `PAPI_L1_STM`  | Level 1 store misses             |
+| l2st  | `PAPI_L2_STM`  | Level 2 store misses             |
+| l3st  | `PAPI_L3_STM`  | Level 3 store misses             |
+| tlbd  | `PAPI_TLB_DM`  | Data TLB misses                  |
+| tlbi  | `PAPI_TLB_IM`  | Instruction TLB misses           |
+| tlbt  | `PAPI_TLB_TL`  | Total TLB misses                 |
+| inst  | `PAPI_TOT_INS` | Instructions completed           |
+| ins   | `PAPI_TOT_INS` | Instructions completed           |
+| vec   | `PAPI_VEC_INS` | Vector/SIMD instructions         |
+| ld    | `PAPI_LD_INS`  | Load instructions completed      |
+| st    | `PAPI_SR_INS`  | Store instructions completed     |
+| br    | `PAPI_BR_INS`  | Branch instructions completed    |
+| int   | `PAPI_INT_INS` | Integer instructions completed   |
+| fp    | `PAPI_FP_INS`  | Floating point instructions      |
+| fma   | `PAPI_FMA_INS` | FMA instructions completed       |
+| stall | `PAPI_RES_STL` | Cycles stalled on any resource   |
+| cyc   | `PAPI_TOT_CYC` | Total cycles                     |
+| ref   | `PAPI_REF_CYC` | Reference clock cycles           |
++-------+----------------+----------------------------------+
+
+In addition to these, any PAPI event can be specified by dropping the leading
+`PAPI_` prefix from the event enum, and converting everything else to lowercase.
+For example, "l1_dcm", and "ref_cyc" correspond to the `PAPI_L1_DCM` and
+`PAPI_REF_CYC` events respectively.
+
+The same event must not be specified more than once in the list given to this
+option, even if different, but equivalent spelling are used. The compiler will
+not issue any warnings if this is done. However, this may result in unexpected
+behavior at run-time.
+
+```
+  --kit-instr-papi="ins,tot_ins"
+```
+
+An empty list is not allowed. If "papi" is not in the list given to
+`--kit-instr=`, this option has no effect.
 }]>;
 
 def tapir_EQ : Joined<["--"], "tapir=">,

@@ -2335,6 +2335,7 @@ void ToolChain::AddKitsuneCompilerArgs(const ArgList &Args,
   Args.AddLastArg(CmdArgs, options::OPT_kit_instr_EQ);
   Args.AddLastArg(CmdArgs, options::OPT_kit_instr_only_EQ);
   Args.AddLastArg(CmdArgs, options::OPT_kit_instr_unit_EQ);
+  Args.AddLastArg(CmdArgs, options::OPT_kit_instr_papi_EQ);
 }
 
 void ToolChain::AddKitsuneCustomLinkerArgs(const ArgList &Args,

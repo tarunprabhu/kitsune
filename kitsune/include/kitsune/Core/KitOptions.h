@@ -217,11 +217,13 @@ public:
 
   /// @{
 
-  void addInstrKind(InstrumentKind k) { this->kitInstrOpts.addKind(k); }
+  void addInstrKind(InstrumentKind k) { kitInstrOpts.addKind(k); }
 
-  void addInstrUnit(InstrumentUnit u) { this->kitInstrOpts.addUnit(u); }
+  void addInstrUnit(InstrumentUnit u) { kitInstrOpts.addUnit(u); }
 
-  void addInstrName(StringRef name) { this->kitInstrOpts.addName(name.str()); }
+  void addInstrName(StringRef name) { kitInstrOpts.addName(name); }
+
+  void addInstrPAPIEvent(StringRef evt) { kitInstrOpts.addPAPIEvent(evt); }
 
   void setInstrUnitsAll() { this->kitInstrOpts.setUnitsAll(); }
 

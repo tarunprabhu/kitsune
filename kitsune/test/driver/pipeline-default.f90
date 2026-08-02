@@ -97,7 +97,7 @@
 ! RUN:     | FileCheck %s -check-prefix INSTR
 !
 ! RUN: %kitfc --tapir=serial -O3 -c -emit-llvm -o /dev/null %s \
-! RUN:     --kit-instr=papi \
+! RUN:     --kit-instr=generic,timer \
 ! RUN:     -Xflang -fdebug-pass-manager 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix INSTR
 !
