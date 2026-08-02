@@ -58,6 +58,9 @@
 #ifndef KITRT_COMMON_LOGGING_H
 #define KITRT_COMMON_LOGGING_H
 
+#include "common/env.h"
+#include "global/global.h"
+
 namespace kitrt {
 
 /**
@@ -142,12 +145,14 @@ void warn(const char *color, const char *tag, const char *msg, ...);
 
 #define LOG(...)                                                               \
   do {                                                                         \
-    kitrt::log(KITRT_LOG_COLOR, KITRT_LOG_TAG, __VA_ARGS__);                   \
+    if (kitrt::gctx.verbose)                                                   \
+      kitrt::log(KITRT_LOG_COLOR, KITRT_LOG_TAG, __VA_ARGS__);                 \
   } while (0)
 
 #define LOG_IF_VERBOSE(...)                                                    \
   do {                                                                         \
-    kitrt::logIfVerbose(KITRT_LOG_TAG, __VA_ARGS__);                           \
+    if (kitrt::envLookupOr(kitrt::envVerbose, kitrt::envVerboseLegacy, false)) \
+      kitrt::logIfVerbose(KITRT_LOG_TAG, __VA_ARGS__);                         \
   } while (0)
 
 #define WARN(...)                                                              \
