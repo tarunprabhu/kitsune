@@ -35,6 +35,11 @@ static cl::list<std::string>
                    cl::desc("The list of units to instrument"),
                    cl::cat(cl::catKitClOpts), cl::CommaSeparated);
 
+static cl::list<std::string>
+    clKitInstrPAPI("kit-instr-papi",
+                   cl::desc("The list of PAPI events to record"),
+                   cl::cat(cl::catKitClOpts), cl::CommaSeparated);
+
 static constexpr uint32_t unitsAllMask = ~0;
 static constexpr uint32_t unitsDefaultMask = ~1;
 
@@ -84,10 +89,12 @@ void KitInstrOptions::print(raw_ostream &os) const {
     os << "  Kinds: " << toString(getKinds()) << "\n";
     os << "  Units: " << toString(getUnits()) << "\n";
     os << "  Only:  " << toString(names) << "\n";
+    os << "  PAPI:  " << toString(papiEvts) << "\n";
   } else {
     os << "  Kinds:\n";
     os << "  Units:\n";
     os << "  Only:\n";
+    os << "  PAPI:\n";
   }
 }
 
@@ -109,6 +116,9 @@ KitInstrOptions KitInstrOptions::createFromCommandLine() {
 
   for (StringRef name : clKitInstrOnly)
     opts.addName(name);
+
+  for (StringRef evt : clKitInstrPAPI)
+    opts.addPAPIEvent(evt);
 
   return opts;
 }

@@ -67,7 +67,10 @@ private:
   uint32_t units = 0;
 
   /// The names of the entities to which to attach instrumentation.
-  SmallSet<std::string, 1> names;
+  SmallSet<std::string, 0> names;
+
+  /// The PAPI events to record.
+  SmallSet<std::string, 0> papiEvts;
 
 public:
   KitInstrOptions() = default;
@@ -79,6 +82,8 @@ public:
   void addUnit(InstrumentUnit unit) { units |= static_cast<uint32_t>(unit); }
 
   void addName(StringRef name) { names.insert(name.str()); }
+
+  void addPAPIEvent(StringRef evtName) { papiEvts.insert(evtName.str()); }
 
   // Override existing units and set all units.
   void setUnitsAll();
@@ -102,6 +107,14 @@ public:
   iterator_range<decltype(names)::const_iterator> getNames() const {
     return names;
   }
+
+  /// Get the PAPI events to be recorded.
+  iterator_range<decltype(papiEvts)::const_iterator> getPAPIEvents() const {
+    return papiEvts;
+  }
+
+  /// Get the number of PAPI events to be recorded.
+  unsigned getNumPAPIEvents() const { return papiEvts.size(); }
 
   /// Get the kinds of instrumentation that should be added.
   SmallVector<InstrumentKind, 1> getKinds() const;

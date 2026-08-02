@@ -4815,6 +4815,10 @@ void CompilerInvocationBase::GenerateKitsuneArgs(const KitOptions &Opts,
     llvm::iterator_range Names = InstrOpts.getNames();
     if (!Names.empty())
       GenerateArg(Consumer, OPT_kit_instr_only_EQ, llvm::toString(Names));
+
+    llvm::iterator_range PAPIEvents = InstrOpts.getPAPIEvents();
+    if (!PAPIEvents.empty())
+      GenerateArg(Consumer, OPT_kit_instr_papi_EQ, llvm::toString(PAPIEvents));
   }
 }
 

@@ -5,7 +5,7 @@
 ; RUN:     | FileCheck %s --check-prefix=GENERIC
 ;
 ; RUN: opt -passes=kit-instrument -S %s \
-; RUN:     --kit-instr=papi --kit-instr-only=fp \
+; RUN:     --kit-instr=papi --kit-instr-only=fp --kit-instr-papi=br,lst_ins \
 ; RUN:     | FileCheck %s --check-prefix=PAPI
 ;
 ; RUN: opt -passes=kit-instrument -S %s \
@@ -13,7 +13,9 @@
 ; RUN:     | FileCheck %s --check-prefix=TIMER
 ;
 ; GENERIC: @[[GENERIC:.+]] = private{{.*}} constant [3 x i8] c"fg\00"
-; PAPI: @[[PAPI:.+]] = private{{.*}} constant [3 x i8] c"fp\00"
+; PAPI-DAG: @[[PAPI:.+]] = private{{.*}} constant [3 x i8] c"fp\00"
+; PAPI-DAG: @[[BR:.+]] = private{{.*}} constant [3 x i8] c"br\00"
+; PAPI-DAG: @[[LST_INS:.+]] = private{{.*}} constant [8 x i8] c"lst_ins\00"
 ; TIMER: @[[TIMER:.+]] = private{{.*}} constant [3 x i8] c"ft\00"
 ;
 ; GENERIC-LABEL: @generic
@@ -68,7 +70,7 @@ ret:
 ; PAPI: br label %[[INSTR_START:.+]]
 ; PAPI-EMPTY:
 ; PAPI-NEXT: [[INSTR_START]]:
-; PAPI-NEXT: %[[EPOCH:.+]] = call ptr (ptr, i64, i32, ...) @__kitpapi_start(ptr @[[PAPI]], i64 0, i32 0)
+; PAPI-NEXT: %[[EPOCH:.+]] = call ptr (ptr, i64, i32, ...) @__kitpapi_start(ptr @[[PAPI]], i64 0, i32 2, ptr @[[BR]], ptr @[[LST_INS]])
 ; PAPI-NEXT: br label %[[HEADER:.+]]
 ; PAPI-EMPTY:
 ; PAPI-NEXT: [[HEADER]]:

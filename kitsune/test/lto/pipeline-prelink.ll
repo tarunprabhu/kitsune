@@ -63,12 +63,12 @@
 ; RUN:     | FileCheck %s --check-prefix=INSTR
 ;
 ; RUN: %kitcc -O3 --tapir=serial -c -emit-llvm -o /dev/null %s \
-; RUN:     --kit-instr=papi \
+; RUN:     --kit-instr=timer \
 ; RUN:     -flto -Xclang -fdebug-pass-manager 2>&1 \
 ; RUN:     | FileCheck %s --check-prefix=INSTR
 ;
 ; RUN: %kitcc -Os --tapir=serial -c -emit-llvm -o /dev/null %s \
-; RUN:     --kit-instr=timer \
+; RUN:     --kit-instr=timer,generic \
 ; RUN:     -flto -Xclang -fdebug-pass-manager 2>&1 \
 ; RUN:     | FileCheck %s --check-prefix=INSTR
 ;

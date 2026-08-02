@@ -139,3 +139,33 @@
 // UNIT-DEFAULT-LIST: 'default' cannot appear in list in '--kit-instr-unit={{.+}}'
 //
 // -----------------------------------------------------------------------------
+// --kit-instr-papi= valid
+//
+// RUN: %kitxx -### %s 2>&1 | FileCheck %s --check-prefixes=CC1,PAPI-DEFAULT
+//
+// RUN: %kitxx -### --kit-instr-papi=vec %s 2>&1 \
+// RUN:     | FileCheck %s --check-prefixes=CC1,PAPI-ONE
+//
+// RUN: %kitxx -### --kit-instr-papi=tlbt,ca_itv,three %s 2>&1 \
+// RUN:     | FileCheck %s --check-prefixes=CC1,PAPI-THREE
+//
+// PAPI-DEFAULT-NOT: --kit-instr-papi
+// PAPI-ONE-SAME: "--kit-instr-papi=vec"
+// PAPI-THREE-SAME: "--kit-instr-papi=tlbt,ca_itv,three"
+//
+// -----------------------------------------------------------------------------
+// --kit-instr-papi= invalid
+//
+// RUN: not %kitxx -### --kit-instr-papi= %s 2>&1 \
+// RUN:     | FileCheck %s --check-prefix=EMPTY-LIST
+//
+// RUN: not %kitxx -### --kit-instr-papi="fma,,l1_icw" %s 2>&1 \
+// RUN:     | FileCheck %s --check-prefix=PAPI-INVALID-EMPTY
+//
+// RUN: not %kitxx -cc1 -fsyntax-only --kit-instr=papi %s 2>&1 \
+// RUN:     | FileCheck %s --check-prefix=PAPI-MISSING
+//
+// PAPI-INVALID-EMPTY: invalid value '' in '{{.+}}'
+// PAPI-MISSING: missing required option
+//
+// -----------------------------------------------------------------------------
