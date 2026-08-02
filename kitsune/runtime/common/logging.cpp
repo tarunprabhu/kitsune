@@ -54,8 +54,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "common/logging.h"
-#include "common/env.h"
-#include "global/global.h"
 #include "kitrt.h"
 
 #include <cstdarg>
@@ -139,19 +137,19 @@ void kitrt::warn(const char *color, const char *tag, const char *msg, ...) {
 }
 
 void kitrt::log(const char *color, const char *tag, const char *msg, ...) {
-  if (gctx.verbose) {
-    va_list args;
-    va_start(args, msg);
-    logImpl(color, tag, nullptr, msg, args);
-    va_end(args);
-  }
+  // The macro used by callers will already have checked if gctx.verbose has
+  // been set. If this is called, we should just print.
+  va_list args;
+  va_start(args, msg);
+  logImpl(color, tag, nullptr, msg, args);
+  va_end(args);
 }
 
 void kitrt::logIfVerbose(const char *tag, const char *msg, ...) {
-  if (envLookupOr(envVerbose, envVerboseLegacy, false)) {
-    va_list args;
-    va_start(args, msg);
-    logImpl(nullptr, tag, nullptr, msg, args);
-    va_end(args);
-  }
+  // The macro used by callers will already have checked if verbose mode has
+  // been enabled. If this is called, we should just print.
+  va_list args;
+  va_start(args, msg);
+  logImpl(nullptr, tag, nullptr, msg, args);
+  va_end(args);
 }
