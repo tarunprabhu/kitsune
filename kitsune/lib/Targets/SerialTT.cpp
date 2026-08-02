@@ -38,14 +38,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Targets/SerialTT.h"
+#include "kitsune/Core/IntrinsicUtils.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
-#include "kitsune/Core/Tapir.h"
 #include "llvm/Analysis/LoopInfo.h"
-#include "llvm/IR/Constants.h"
+#include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/IR/Dominators.h"
-#include "llvm/IR/Instructions.h"
-#include "llvm/Transforms/Tapir/TapirLoopInfo.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
 
@@ -88,10 +86,36 @@ void SerialTT::postProcessFunction(Function &f, bool processingTapirLoops) {
   DominatorTree dt(f);
   LoopInfo li(dt);
 
+  // Lower calls to llvm.kit.cpu.num.threads intrinsic. We want this tapir
+  // target to produce code that, to the extent possible, looks as if it was the
+  // result of compiling a standard serial loop. Since some simplification
+  // passes are run after the loop-spawning pass, lowering this intrinsic here
+  // will ensure that that is the case.
+  if (Function *numThreadsFn = Intrinsic::getDeclarationIfExists(
+          &M, Intrinsic::kit_cpu_num_threads)) {
+    std::vector<CallInst *> calls;
+    // Only replace calls in this function. Although unlikely, the intrinsic
+    // could be passed as an argument to another function, so check that it is
+    // actually called where it is used.
+    for (Use &u : numThreadsFn->uses())
+      if (auto *call = dyn_cast<CallInst>(u.getUser()))
+        if (call->getFunction() == &f &&
+            call->getIntrinsicID() == Intrinsic::kit_cpu_num_threads &&
+            *getTTIDFromKitIntrCall(*call) == TTID::Serial)
+          calls.push_back(call);
+
+    Type *type = numThreadsFn->getReturnType();
+    Value *one = ConstantInt::get(type, 1, /*isSigned=*/false);
+    for (CallInst *call : calls) {
+      call->replaceAllUsesWith(one);
+      call->eraseFromParent();
+    }
+  }
+
   ti.recalculate(f, dt);
 
   for (Loop *loop : li.getLoopsInPreorder())
-    if (Task *task = getTaskIfTapirLoop(loop, &ti))
-      if (getTargetAttr(*loop) == TTID::Serial)
+    if (getTargetAttr(*loop) == TTID::Serial)
+      if (Task *task = getTaskIfTapirLoop(loop, &ti))
         serializeTapirLoop(*loop, *task);
 }

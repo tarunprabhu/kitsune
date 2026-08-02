@@ -41,7 +41,10 @@ public:
 
   /// This will serialize all tapir loops with the serial tapir target in the
   /// function, implying that all the functionality of this tapir target is in
-  /// this callback.
+  /// this callback. This will be done regardless of the value of
+  /// \p processingTapirLoops. This tapir target will do nothing until the
+  /// post-processing functions are run, so, unlike most other tapir targets,
+  /// the tapir loops will be present when this is called.
   void postProcessFunction(Function &f,
                            bool processingTapirLoops) override final;
 

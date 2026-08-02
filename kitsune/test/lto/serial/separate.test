@@ -12,11 +12,9 @@
 # RUN:     -o %t/add.o  %S/../input/add.cpp
 # RUN: llvm-dis -o - %t/add.o | FileCheck %s --check-prefix TAPIR
 #
-# The prepare passes for the serial tapir target will have effectively
-# serialized the tapir loop.
-# TAPIR-NOT: detach within
-# TAPIR-NOT: reattach within
-# TAPIR-NOT: sync within
+# TAPIR: detach within
+# TAPIR: reattach within
+# TAPIR: sync within
 #
 #
 # RUN: %kitxx -c -flto --tapir=serial -O2 %sysroot \
