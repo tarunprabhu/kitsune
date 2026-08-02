@@ -230,16 +230,16 @@ public:
 
 KitPAPIContext::KitPAPIContext() {
   static const std::pair<const char *, PAPIEventID> convenienceNames[] = {
-      {"l1d", PAPI_L1_DCM},  {"l2d", PAPI_L2_DCM},    {"l3d", PAPI_L3_DCM},
-      {"l1i", PAPI_L1_ICM},  {"l2i", PAPI_L2_ICM},    {"l3i", PAPI_L3_ICM},
-      {"l1t", PAPI_L1_TCM},  {"l2t", PAPI_L2_TCM},    {"l3t", PAPI_L3_TCM},
-      {"l1ld", PAPI_L1_LDM}, {"l1st", PAPI_L1_STM},   {"l2ld", PAPI_L2_LDM},
-      {"l2st", PAPI_L2_STM}, {"tlbd", PAPI_TLB_DM},   {"tlbi", PAPI_TLB_IM},
-      {"tlbt", PAPI_TLB_TL}, {"inst", PAPI_TOT_INS},  {"ins", PAPI_TOT_INS},
-      {"vec", PAPI_VEC_INS}, {"ld", PAPI_LD_INS},     {"st", PAPI_SR_INS},
-      {"br", PAPI_BR_INS},   {"int", PAPI_INT_INS},   {"fp", PAPI_FP_INS},
-      {"fma", PAPI_FMA_INS}, {"stall", PAPI_RES_STL}, {"cyc", PAPI_TOT_CYC},
-      {"ref", PAPI_REF_CYC},
+      {"l1d", PAPI_L1_DCM},    {"l2d", PAPI_L2_DCM},  {"l3d", PAPI_L3_DCM},
+      {"l1i", PAPI_L1_ICM},    {"l2i", PAPI_L2_ICM},  {"l3i", PAPI_L3_ICM},
+      {"l1t", PAPI_L1_TCM},    {"l2t", PAPI_L2_TCM},  {"l3t", PAPI_L3_TCM},
+      {"l1ld", PAPI_L1_LDM},   {"l2ld", PAPI_L2_LDM}, {"l3ld", PAPI_L3_LDM},
+      {"l1st", PAPI_L1_STM},   {"l2st", PAPI_L2_STM}, {"l3st", PAPI_L3_STM},
+      {"tlbd", PAPI_TLB_DM},   {"tlbi", PAPI_TLB_IM}, {"tlbt", PAPI_TLB_TL},
+      {"inst", PAPI_TOT_INS},  {"ins", PAPI_TOT_INS}, {"vec", PAPI_VEC_INS},
+      {"ld", PAPI_LD_INS},     {"st", PAPI_SR_INS},   {"br", PAPI_BR_INS},
+      {"int", PAPI_INT_INS},   {"fp", PAPI_FP_INS},   {"fma", PAPI_FMA_INS},
+      {"stall", PAPI_RES_STL}, {"cyc", PAPI_TOT_CYC}, {"ref", PAPI_REF_CYC},
   };
 
   for (const auto &[name, evt] : convenienceNames)
