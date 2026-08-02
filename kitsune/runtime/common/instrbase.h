@@ -49,7 +49,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// A base class for compiler-inserted instrumentation backed by Kitsune's
+// Base classes for compiler-inserted instrumentation backed by Kitsune's
 // runtime.
 //
 //===----------------------------------------------------------------------===//
@@ -69,6 +69,21 @@
 #include <vector>
 
 namespace kitrt {
+
+/// Base class for Epoch objects. This simply provides some wrappers around the
+/// members of the base class info objects.
+class KitEpochBase {
+protected:
+  const char *const name_;
+  const KitThreadID thrd_;
+
+protected:
+  KitEpochBase(const char *name, KitThreadID thrd) : name_(name), thrd_(thrd) {}
+
+public:
+  const char *name() const { return name_; }
+  KitThreadID thrd() const { return thrd_; }
+};
 
 /// Base class for compiler-inserted instrumentation backed by Kitsune's
 /// runtime. This provides the common infrastructure to create epochs and write
@@ -106,11 +121,10 @@ namespace kitrt {
 /// failure. Kitsune will ensure that string literals are used when
 /// automatically inserting instrumentation.
 ///
-template <typename T, typename EpochT, typename EpochInfoT>
+template <typename T, typename EpochT>
 class KitInstrBase : public KitContextMixin<T> {
 protected:
   using Epoch = EpochT;
-  using EpochInfo = EpochInfoT;
   using EpochID = std::pair<const char *, KitThreadID>;
 
 private:
@@ -127,13 +141,10 @@ protected:
   // A mutex that controls all accesses to the mutable members of this class.
   std::mutex mtx;
 
-  // Information about each unique epoch.
-  std::map<EpochID, std::unique_ptr<const EpochInfo>> epochInfo;
-
   // If the events that occur during multiple visits to a callsite are
   // accumulated, a single epoch will be present for each EpochID. Otherwise, an
   // epoch will be created for each visit to a callsite.
-  std::map<const EpochInfo *, OwnedEpochs> epochs;
+  std::map<EpochID, OwnedEpochs> epochs;
 
 private:
   void writeJSONHeader(FILE *fp) const { fprintf(fp, "{"); }
@@ -147,7 +158,7 @@ private:
   }
 
   void writeEpoch(FILE *fp, const Epoch &epoch) const {
-    static_cast<const T *>(this)->writeEpoch(fp, epoch);
+    epoch.writeJSON(fp);
   }
 
   void writeThreadFooter(FILE *fp, const Epoch &epoch, bool comma) const {
@@ -198,25 +209,6 @@ private:
     fprintf(fp, "\n");
   }
 
-  template <typename... Args>
-  const EpochInfo &registerEpoch(const char *name, KitThreadID thrd,
-                                 Args &&...args) {
-    EpochID id = {name, thrd};
-    auto it = epochInfo.find(id);
-    if (it != epochInfo.end())
-      return *it->second;
-
-    // The call to emplace returns a pair of an iterator and a boolean. The
-    // iterator itself is a pair consisting of the key and the value. We want
-    // the value here, so we have `first->second` at the end. The value is a
-    // `std::unique_ptr`, but we need to return a reference to that object,
-    // hence the dereference at the start. Perfectly obvious, isn't it?
-    EpochInfo *info =
-        static_cast<T *>(this)->makeEpochInfo(name, thrd, args...);
-    epochs.try_emplace(info);
-    return *epochInfo.emplace(id, info).first->second;
-  }
-
 protected:
   KitInstrBase() : separate(envContains("KIT_INSTR_SEPARATE")) {}
 
@@ -227,10 +219,11 @@ public:
 
     std::lock_guard<std::mutex> guard(mtx);
 
-    const EpochInfo &info = registerEpoch(name, thrd, args...);
-    OwnedEpochs &vec = epochs.at(&info);
+    EpochID id = {name, thrd};
+    epochs.try_emplace(id);
+    OwnedEpochs &vec = epochs.at(id);
     if (separate || vec.empty())
-      vec.emplace_back(new Epoch(info));
+      vec.emplace_back(static_cast<T *>(this)->makeEpoch(name, thrd, args...));
     return vec.back().get();
   }
 
