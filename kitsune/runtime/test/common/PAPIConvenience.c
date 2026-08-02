@@ -17,9 +17,11 @@
 // CHECK: Event 'PAPI_L2_TCM'
 // CHECK: Event 'PAPI_L3_TCM'
 // CHECK: Event 'PAPI_L1_LDM'
-// CHECK: Event 'PAPI_L1_STM'
 // CHECK: Event 'PAPI_L2_LDM'
+// CHECK: Event 'PAPI_L3_LDM'
+// CHECK: Event 'PAPI_L1_STM'
 // CHECK: Event 'PAPI_L2_STM'
+// CHECK: Event 'PAPI_L3_STM'
 // CHECK: Event 'PAPI_TLB_DM'
 // CHECK: Event 'PAPI_TLB_IM'
 // CHECK: Event 'PAPI_TLB_TL'
@@ -52,10 +54,10 @@ __attribute__((destructor)) static void dtor(void) {
 }
 
 int main(int argc, char *argv[]) {
-  (void)__kitpapi_start("mallika", /*thread=*/0, 28, "l1d", "l2d", "l3d", "l1i",
-                        "l2i", "l3i", "l1t", "l2t", "l3t", "l1ld", "l1st",
-                        "l2ld", "l2st", "tlbd", "tlbi", "tlbt", "ins", "inst",
-                        "vec", "ld", "st", "br", "int", "fp", "fma", "stall",
-                        "cyc", "ref");
+  (void)__kitpapi_start("mallika", /*thread=*/0, 30, "l1d", "l2d", "l3d", "l1i",
+                        "l2i", "l3i", "l1t", "l2t", "l3t", "l1ld", "l2ld",
+                        "l3ld", "l1st", "l2st", "l3st", "tlbd", "tlbi", "tlbt",
+                        "ins", "inst", "vec", "ld", "st", "br", "int", "fp",
+                        "fma", "stall", "cyc", "ref");
   return 0;
 }
