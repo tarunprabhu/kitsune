@@ -16,8 +16,7 @@
 // CHECK: br i1 %[[CMP]], label %{{[^,]+}}, label %[[HEADER]]
 // CHECK-SAME: !llvm.loop ![[LOOP:[0-9]+]]
 //
-// CHECK-DAG: ![[SERIALIZED:.+]] = !{!"tapir.loop.serialized"}
-// CHECK-DAG: ![[LOOP]] = distinct !{![[LOOP]], ![[SERIALIZED]]}
+// CHECK-DAG: ![[LOOP]] = distinct !{![[LOOP]]}
 
 #include <kitsune.h>
 

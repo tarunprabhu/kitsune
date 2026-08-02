@@ -9,6 +9,7 @@
 ; CHECK-NEXT: br label %[[PH_WRAP:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[PH_WRAP]]:
+; CHECK-NEXT: %[[NUMTHRDS:.+]] = call i64 @llvm.kit.cpu.num.threads(i32 1)
 ; CHECK-NEXT: br label %[[HEADER_WRAP:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[HEADER_WRAP]]:
@@ -18,9 +19,9 @@
 ; CHECK-NEXT: detach within %[[SYNCREG]], label %[[BODY_WRAP:.+]], label %[[LATCH_WRAP]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[BODY_WRAP]]:
-; CHECK-NEXT: %[[THRDS_PLUS_N:.+]] = add i64 %[[N]], 1
+; CHECK-NEXT: %[[THRDS_PLUS_N:.+]] = add i64 %[[N]], %[[NUMTHRDS]]
 ; CHECK-NEXT: %[[THRDS_PLUS_N_1:.+]] = sub i64 %[[THRDS_PLUS_N]], 1
-; CHECK-NEXT: %[[PER_THRD:.+]] = udiv i64 %[[THRDS_PLUS_N_1]], 1
+; CHECK-NEXT: %[[PER_THRD:.+]] = udiv i64 %[[THRDS_PLUS_N_1]], %[[NUMTHRDS]]
 ; CHECK-NEXT: %[[START:.+]] = mul i64 %[[IV_WRAP]], %[[PER_THRD]]
 ; CHECK-NEXT: %[[ENDMAX:.+]] = add i64 %[[START]], %[[PER_THRD]]
 ; CHECK-NEXT: %[[STOP:.+]] = call i64 @llvm.umin.i64(i64 %[[ENDMAX]], i64 %[[N]])
@@ -56,7 +57,7 @@
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[LATCH_WRAP]]:
 ; CHECK-NEXT: %[[NEXTV_WRAP]] = add i64 %[[IV_WRAP]], 1
-; CHECK-NEXT: %[[CMP_WRAP:.+]] = icmp eq i64 %[[NEXTV_WRAP]], 1
+; CHECK-NEXT: %[[CMP_WRAP:.+]] = icmp eq i64 %[[NEXTV_WRAP]], %[[NUMTHRDS]]
 ; CHECK-NEXT: br i1 %[[CMP_WRAP]], label %[[EXIT_WRAP:.+]], label %[[HEADER_WRAP]]
 ; CHECK-SAME: !llvm.loop ![[LOOP_WRAP:[0-9]+]]
 ; CHECK-EMPTY:
@@ -71,9 +72,8 @@
 ;
 ; CHECK-DAG: ![[TARGET:.+]] = !{!"tapir.loop.target", i32 1}
 ; CHECK-DAG: ![[PREPARED:.+]] = !{!"tapir.loop.prepared"}
-; CHECK-DAG: ![[SERIALIZED:.+]] = !{!"tapir.loop.serialized"}
 ; CHECK-DAG: ![[LOOP_WRAP]] = distinct !{![[LOOP_WRAP]], ![[TARGET]], ![[PREPARED]]}
-; CHECK-DAG: ![[LOOP]] = distinct !{![[LOOP]], ![[SERIALIZED]]}
+; CHECK-DAG: ![[LOOP]] = distinct !{![[LOOP]]}
 
 define void @f(i64 %n) {
 entry:
