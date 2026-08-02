@@ -68,6 +68,8 @@
 
 #include <ctime>
 
+using namespace kitrt;
+
 namespace {
 
 // A time point. This is usually the number of nanoseconds since the epoch.
@@ -82,16 +84,9 @@ static KitTimePoint nsecs() {
   return ts.tv_sec * 1000000000 + ts.tv_nsec;
 }
 
-// The information unique to an epoch.
-struct KitTimerEpochInfo {
-  const std::string name;
-  KitThreadID thrd;
-};
-
-class KitTimerEpochImpl {
-public:
-  const KitTimerEpochInfo &info;
-  int64_t span_ = 0;
+class KitTimerEpochImpl : public KitEpochBase {
+private:
+  int64_t span = 0;
 
 public:
   KitTimerEpochImpl() = delete;
@@ -100,26 +95,21 @@ public:
   KitTimerEpochImpl &operator=(const KitTimerEpoch &) = delete;
   KitTimerEpochImpl &operator=(KitTimerEpoch &&) = delete;
 
-  KitTimerEpochImpl(const KitTimerEpochInfo &info) : info(info) {}
+  KitTimerEpochImpl(const char *name, KitThreadID thrd)
+      : KitEpochBase(name, thrd) {}
 
-  inline const char *name() const { return info.name.c_str(); }
-  inline KitThreadID thrd() const { return info.thrd; }
-  inline KitTimeSpan span() const { return span_; }
+  inline void start() { span -= nsecs(); }
 
-  inline void start() { span_ -= nsecs(); }
+  inline KitTimeSpan stop() { return span += nsecs(); }
 
-  inline KitTimeSpan stop() {
-    span_ += nsecs();
-    return span_;
-  }
+  void writeJSON(FILE *fp) const { fprintf(fp, "\n      %ld", span); }
 };
 
 } // namespace
 
 namespace kitrt {
 
-using KitTimerContextBase =
-    KitInstrBase<KitTimerContext, KitTimerEpochImpl, KitTimerEpochInfo>;
+using KitTimerContextBase = KitInstrBase<KitTimerContext, KitTimerEpochImpl>;
 
 // A class that wraps all the timers created in the application. A singleton
 // instance of this class will be created in the global constructor and will
@@ -128,18 +118,12 @@ class KitTimerContext : public KitTimerContextBase {
   friend KitTimerContextBase;
 
 protected:
-  KitTimerEpochInfo *makeEpochInfo(const char *name, KitThreadID thrd) const {
-    return new KitTimerEpochInfo{name, thrd};
-  }
-
-  void writeEpoch(FILE *fp, const KitTimerEpochImpl &epoch) const {
-    fprintf(fp, "\n      %ld", epoch.span());
+  KitTimerEpochImpl *makeEpoch(const char *name, KitThreadID thrd) {
+    return new KitTimerEpochImpl(name, thrd);
   }
 };
 
 } // namespace kitrt
-
-using namespace kitrt;
 
 extern "C" KitTimerEpoch *__kittimer_start(const char *name, KitThreadID thrd) {
   KitTimerEpochImpl *epoch =
