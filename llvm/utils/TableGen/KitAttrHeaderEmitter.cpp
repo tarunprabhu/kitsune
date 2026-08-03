@@ -26,6 +26,10 @@ static bool isBasic(const Record &type) {
   return type.isSubClassOf("BasicType");
 }
 
+static bool isList(const Record &type) { return type.isSubClassOf("ListType"); }
+
+static bool isSet(const Record &type) { return type.isSubClassOf("SetType"); }
+
 static bool isTuple(const Record &type) {
   return type.isSubClassOf("TupleType");
 }
@@ -72,8 +76,22 @@ std::string KitAttrHeaderEmitter::getMacroName(const Record &type) const {
       os << 0;
     else
       os << 1;
+  else if (isList(type))
+    os << "L";
+  else if (isSet(type))
+    os << "S";
   else if (isTuple(type))
     os << type.getValueAsListOfDefs("Elements").size();
+  os.flush();
+
+  return buf;
+}
+
+std::string KitAttrHeaderEmitter::getMacroName(StringRef kind) const {
+  std::string buf;
+  raw_string_ostream os(buf);
+
+  os << getBaseMacroName() << "_" << kind;
   os.flush();
 
   return buf;
@@ -98,6 +116,16 @@ std::string KitAttrHeaderEmitter::getMacroArgs(unsigned n) const {
     }
     os << ")";
   }
+  os.flush();
+
+  return buf;
+}
+
+std::string KitAttrHeaderEmitter::getMacroArgs(StringRef kind) const {
+  std::string buf;
+  raw_string_ostream os(buf);
+
+  os << "(NAME, IRNAME, CUSTOMVERIFY, TYPE)";
   os.flush();
 
   return buf;
@@ -134,6 +162,20 @@ void KitAttrHeaderEmitter::emitMacroDefn(raw_ostream &os, unsigned n) {
   os << "\n";
 }
 
+void KitAttrHeaderEmitter::emitMacroDefn(raw_ostream &os, StringRef kind) {
+  std::string baseMacroName = getBaseMacroName();
+  std::string elemMacroName = getElemMacroName();
+  std::string macroName = getMacroName(kind);
+  std::string macroArgs = getMacroArgs(kind);
+
+  os << "#ifndef " << macroName << "\n";
+  os << "#define " << macroName << macroArgs;
+  os << " \\\n    " << baseMacroName << "(NAME, IRNAME, CUSTOMVERIFY, TYPE)";
+  os << "\n";
+  os << "#endif // " << macroName << "\n";
+  os << "\n";
+}
+
 void KitAttrHeaderEmitter::emitAttr(raw_ostream &os, const Record &attr) {
   const Record *type = attr.getValueAsDef("ValueType");
 
@@ -142,6 +184,10 @@ void KitAttrHeaderEmitter::emitAttr(raw_ostream &os, const Record &attr) {
     StringRef typeName = type->getValueAsString("Name");
     if (typeName != "void")
       args.push_back(typeName.str());
+  } else if (isList(*type) || isSet(*type)) {
+    const Record *elemType = type->getValueAsDef("ElemType");
+    StringRef elemTypeName = elemType->getValueAsString("Name");
+    args.push_back(elemTypeName.str());
   } else if (isTuple(*type)) {
     std::vector<const Record *> elems = type->getValueAsListOfDefs("Elements");
     for (size_t i = 0; i < elems.size(); ++i) {
@@ -153,6 +199,8 @@ void KitAttrHeaderEmitter::emitAttr(raw_ostream &os, const Record &attr) {
       args.push_back(elemName.str());
       args.push_back(std::to_string(i));
     }
+  } else {
+    PrintFatalError(attr.getLoc(), "Attribute type is not supported");
   }
 
   StringRef attrName = attr.getName();
@@ -193,6 +241,8 @@ void KitAttrHeaderEmitter::emitBaseMacroDef(raw_ostream &os) {
 void KitAttrHeaderEmitter::emitMacroDefs(raw_ostream &os) {
   for (unsigned i = 0; i <= MaxTupleElements; ++i)
     emitMacroDefn(os, i);
+  emitMacroDefn(os, "L");
+  emitMacroDefn(os, "S");
 }
 
 void KitAttrHeaderEmitter::emitAttrs(raw_ostream &os) {
@@ -202,19 +252,19 @@ void KitAttrHeaderEmitter::emitAttrs(raw_ostream &os) {
 }
 
 void KitAttrHeaderEmitter::emitMacroUndefs(raw_ostream &os) {
+  os << "#undef " << getMacroName("S") << "\n";
+  os << "#undef " << getMacroName("L") << "\n";
   for (unsigned i = MaxTupleElements + 1; i > 0; --i)
     os << "#undef " << getMacroName(i - 1) << "\n";
-  os << "\n";
 }
 
 void KitAttrHeaderEmitter::emitBaseMacroUndef(raw_ostream &os) {
   os << "#undef " << getElemMacroName() << "\n";
   os << "#undef " << getBaseMacroName() << "\n";
-  os << "\n";
 }
 
 void KitAttrHeaderEmitter::emitAttrsGuardOut(raw_ostream &os) {
-  os << "#endif // GET_" << getMacroRoot() << "_ATTRS\n";
+  os << "\n" << "#endif // GET_" << getMacroRoot() << "_ATTRS\n";
 }
 
 void KitAttrHeaderEmitter::emitEnums(raw_ostream &os) {
@@ -235,6 +285,13 @@ void KitAttrHeaderEmitter::emitEnums(raw_ostream &os) {
 }
 
 void KitAttrHeaderEmitter::run(raw_ostream &os) {
+  auto checkBasicType = [](const Record &type, const Record &attr) -> void {
+    StringRef typeName = type.getValueAsString("Name");
+    if (typeName.ends_with("*") && typeName != "llvm::MDNode*")
+      PrintFatalError(attr.getLoc(),
+                      "Only pointers to raw MDNode's are supported");
+  };
+
   for (const Record *attr : records.getAllDerivedDefinitions(getAttrBase())) {
     const Record *type = attr->getValueAsDef("ValueType");
     if (isTuple(*type)) {
@@ -244,10 +301,16 @@ void KitAttrHeaderEmitter::run(raw_ostream &os) {
       else if (n > MaxTupleElements)
         PrintFatalError(attr->getLoc(), "Too many elements in tuple");
     } else if (isBasic(*type)) {
-      StringRef typeName = type->getValueAsString("Name");
-      if (typeName.ends_with("*") && typeName != "llvm::MDNode*")
+      checkBasicType(*type, *attr);
+    } else if (isList(*type) || isSet(*type)) {
+      const Record *elemType = type->getValueAsDef("ElemType");
+      if (!isBasic(*elemType))
         PrintFatalError(attr->getLoc(),
-                        "Only pointers to raw MDNode's are supported");
+                        "Element of attribute not a basic type");
+      checkBasicType(*elemType, *attr);
+      StringRef typeName = elemType->getValueAsString("Name");
+      if (typeName == "void")
+        PrintFatalError(attr->getLoc(), "Element type cannot be void");
     } else {
       PrintFatalError(attr->getLoc(),
                       "Type of value not a basic or tuple type");

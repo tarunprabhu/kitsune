@@ -64,6 +64,11 @@ void verifyAttr(KitVerifier &v, const Loop &loop, StringRef attrName);
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
 
+#define LOOP_ATTR_L(...) DECL_ATTR_IMPL_L(Loop, __VA_ARGS__)
+#define LOOP_ATTR_S(...) DECL_ATTR_IMPL_S(Loop, __VA_ARGS__)
+#define GET_LOOP_ATTRS
+#include "kitsune/Core/LoopAttrs.inc"
+
 #define LOOP_ATTR_0(...) DECL_ATTR_IMPL_0(Loop, __VA_ARGS__)
 #define LOOP_ATTR_1(...) DECL_ATTR_IMPL_1(Loop, __VA_ARGS__)
 #define LOOP_ATTR_2(...) DECL_ATTR_IMPL_2(Loop, __VA_ARGS__)

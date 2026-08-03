@@ -201,6 +201,103 @@ for.i.exit:
   EXPECT_EXIT(addAttr(OBJ, KIND::NAME), ::testing::ExitedWithCode(1),          \
               "error: cannot add attribute");
 
+#define TEST_ATTR_L(OBJ, KIND, NAME, IRNAME, CUSTOMVERIFY, TYPE)               \
+  EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
+  TEST_VERIFY_TRUE(OBJ, NAME);                                                 \
+                                                                               \
+  {                                                                            \
+    SmallVector<TYPE, 0> vec;                                                  \
+                                                                               \
+    TYPE v1 = get<TYPE, KIND::NAME>(0);                                        \
+    vec.push_back(v1);                                                         \
+                                                                               \
+    add##NAME##Attr(OBJ, vec);                                                 \
+    EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
+    if constexpr (verifyAttr(KIND::NAME))                                      \
+      TEST_VERIFY_TRUE(OBJ, NAME);                                             \
+    EXPECT_EQ(get##NAME##Attr(OBJ), vec);                                      \
+                                                                               \
+    TYPE v2 = get<TYPE, KIND::NAME>(1);                                        \
+    vec.push_back(v2);                                                         \
+                                                                               \
+    addTo##NAME##Attr(OBJ, v2);                                                \
+    EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
+    if constexpr (verifyAttr(KIND::NAME))                                      \
+      TEST_VERIFY_TRUE(OBJ, NAME);                                             \
+    EXPECT_EQ(get##NAME##Attr(OBJ), vec);                                      \
+                                                                               \
+    add##NAME##Attr(OBJ, {});                                                  \
+    EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
+    if constexpr (verifyAttr(KIND::NAME))                                      \
+      TEST_VERIFY_TRUE(OBJ, NAME);                                             \
+    EXPECT_TRUE(get##NAME##Attr(OBJ)->empty());                                \
+  }                                                                            \
+                                                                               \
+  remove##NAME##Attr(OBJ);                                                     \
+  EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
+  TEST_VERIFY_TRUE(OBJ, NAME);                                                 \
+                                                                               \
+  llvm::detail::addAttr(OBJ, IRNAME, SmallVector<Metadata *, 8>(1, nullptr));  \
+  TEST_VERIFY_FALSE(OBJ, NAME);                                                \
+  TEST_VERIFY_ERR(OBJ, NAME, "missing value of type");                         \
+  remove##NAME##Attr(OBJ);
+
+#define TEST_ATTR_S(OBJ, KIND, NAME, IRNAME, CUSTOMVERIFY, TYPE)               \
+  EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
+  TEST_VERIFY_TRUE(OBJ, NAME);                                                 \
+                                                                               \
+  {                                                                            \
+    SmallSet<TYPE, 0> set;                                                     \
+                                                                               \
+    TYPE v1 = get<TYPE, KIND::NAME>(0);                                        \
+    set.insert(v1);                                                            \
+                                                                               \
+    add##NAME##Attr(OBJ, set);                                                 \
+    EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
+    if constexpr (verifyAttr(KIND::NAME))                                      \
+      TEST_VERIFY_TRUE(OBJ, NAME);                                             \
+    EXPECT_EQ(get##NAME##Attr(OBJ), set);                                      \
+                                                                               \
+    TYPE v2 = get<TYPE, KIND::NAME>(1);                                        \
+    set.insert(v2);                                                            \
+                                                                               \
+    addTo##NAME##Attr(OBJ, v2);                                                \
+    EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
+    if constexpr (verifyAttr(KIND::NAME))                                      \
+      TEST_VERIFY_TRUE(OBJ, NAME);                                             \
+    EXPECT_EQ(get##NAME##Attr(OBJ), set);                                      \
+                                                                               \
+    removeFrom##NAME##Attr(OBJ, v2);                                           \
+    EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
+    if constexpr (verifyAttr(KIND::NAME))                                      \
+      TEST_VERIFY_TRUE(OBJ, NAME);                                             \
+    EXPECT_EQ(get##NAME##Attr(OBJ), (SmallSet<TYPE, 0>{v1}));                  \
+                                                                               \
+    removeFrom##NAME##Attr(OBJ, v1);                                           \
+    EXPECT_FALSE(has##NAME##Attr(OBJ));                                        \
+                                                                               \
+    addTo##NAME##Attr(OBJ, v2);                                                \
+    EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
+    if constexpr (verifyAttr(KIND::NAME))                                      \
+      TEST_VERIFY_TRUE(OBJ, NAME);                                             \
+    EXPECT_EQ(get##NAME##Attr(OBJ)->size(), 1U);                               \
+                                                                               \
+    add##NAME##Attr(OBJ, {});                                                  \
+    EXPECT_TRUE(has##NAME##Attr(OBJ));                                         \
+    if constexpr (verifyAttr(KIND::NAME))                                      \
+      TEST_VERIFY_TRUE(OBJ, NAME);                                             \
+    EXPECT_TRUE(get##NAME##Attr(OBJ)->empty());                                \
+  }                                                                            \
+                                                                               \
+  remove##NAME##Attr(OBJ);                                                     \
+  EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
+  TEST_VERIFY_TRUE(OBJ, NAME);                                                 \
+                                                                               \
+  llvm::detail::addAttr(OBJ, IRNAME, SmallVector<Metadata *, 8>(1, nullptr));  \
+  TEST_VERIFY_FALSE(OBJ, NAME);                                                \
+  TEST_VERIFY_ERR(OBJ, NAME, "missing value of type");                         \
+  remove##NAME##Attr(OBJ);
+
 #define TEST_ATTR_0(OBJ, KIND, NAME, IRNAME, CUSTOMVERIFY)                     \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
   TEST_VERIFY_TRUE(OBJ, NAME);                                                 \

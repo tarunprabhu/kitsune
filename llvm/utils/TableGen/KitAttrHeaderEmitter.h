@@ -136,15 +136,27 @@ protected:
   /// Get the <MACRO_NAME_*> from the type of an attribute.
   virtual std::string getMacroName(const llvm::Record &type) const;
 
+  /// Get the <MACRO_NAME_*> from the kind of an attribute. The kind must be one
+  /// of "L", or "S" indicating list and set kinds respectively.
+  virtual std::string getMacroName(llvm::StringRef kind) const;
+
   /// Get the arguments for <MACRO_NAME_*> for the given number of tuple
   /// elements.
   virtual std::string getMacroArgs(unsigned n) const;
+
+  /// Get the arguments for <MACRO_NAME_*> for the given kind. Kind must be one
+  /// of "L", or "S" indicating list and set types respectively.
+  virtual std::string getMacroArgs(llvm::StringRef kind) const;
 
   /// Get the full name of the attribute as it will appear in LLVM-IR.
   virtual std::string getIRName(const llvm::Record &attr) const;
 
   /// Emit the definition of a macro for the given number of tuple elements.
   virtual void emitMacroDefn(llvm::raw_ostream &os, unsigned n);
+
+  /// Emit the definition of a macro for the given kind. The kind must be one of
+  /// "L", or "S" indicating list and set kinds respectively.
+  virtual void emitMacroDefn(llvm::raw_ostream &os, llvm::StringRef kind);
 
   virtual void emitAttrsGuardIn(llvm::raw_ostream &os);
   virtual void emitBaseMacroDef(llvm::raw_ostream &os);

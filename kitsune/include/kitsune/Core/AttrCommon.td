@@ -81,6 +81,23 @@ def StrTy : BasicType<"llvm::StringRef">;
 def TTIDTy : BasicType<"llvm::TTID", true>;
 def SpawnStrategyTy : BasicType<"llvm::TapirSpawnStrategy", true>;
 
+//------------------------------------------------------------------------------
+//
+// A list type. This allows the attribute to have multiple values of the same
+// type. Each value of the attribute must be a basic type.
+class ListType<BasicType TypeParam> : Type {
+  BasicType ElemType = TypeParam;
+}
+
+//------------------------------------------------------------------------------
+//
+// A set type. This allows the attribute to have multiple values of the same
+// type, but each value can appear at most once. Each value of the attribute
+// must be a basic type.
+class SetType<BasicType TypeParam> : Type {
+  BasicType ElemType = TypeParam;
+}
+
 //-----------------------------------------------------------------------------
 //
 // An element of a the tuple type defined below. This consists of a basic type
