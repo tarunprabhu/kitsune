@@ -26,9 +26,6 @@ template <> StringRef llvm::toString<uint64_t>() { return "uint64_t"; }
 template <> StringRef llvm::toString<float>() { return "float"; }
 template <> StringRef llvm::toString<double>() { return "double"; }
 
-template <> StringRef llvm::toString<std::string>() { return "std::string"; }
-template <> StringRef llvm::toString<StringRef>() { return "llvm::StringRef"; }
-
 template <> StringRef llvm::toString<TTID>() { return "llvm::TTID"; }
 template <> StringRef llvm::toString<TapirSpawnStrategy>() {
   return "llvm::TapirSpawnStrategy";

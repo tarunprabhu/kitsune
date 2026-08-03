@@ -66,7 +66,29 @@ std::string toString(const T &container, StringRef sep = ",") {
 
 /// Convert the name of the type to a string suitable for printing. For example,
 /// int32_t will be rendered to the string "int32_t".
-template <typename T> StringRef toString();
+template <typename T, std::enable_if_t<std::is_scalar_v<T>, int> = 0>
+StringRef toString();
+
+template <typename T, std::enable_if_t<std::is_same_v<T, std::string>, int> = 0>
+StringRef toString() {
+  return "std::string";
+}
+
+template <typename T,
+          std::enable_if_t<std::is_same_v<T, llvm::StringRef>, int> = 0>
+StringRef toString() {
+  return "StringRef";
+}
+
+template <typename T, std::enable_if_t<std::is_small_vector_v<T>, int> = 0>
+StringRef toString() {
+  return "SmallVector";
+}
+
+template <typename T, std::enable_if_t<std::is_small_set_v<T>, int> = 0>
+StringRef toString() {
+  return "SmallSet";
+}
 
 /// @}
 
