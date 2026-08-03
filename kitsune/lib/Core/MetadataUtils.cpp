@@ -14,10 +14,7 @@
 
 using namespace llvm;
 
-template <typename T, std::enable_if_t<std::is_same_v<T, StringRef> ||
-                                           std::is_same_v<T, StringLiteral> ||
-                                           std::is_same_v<T, std::string>,
-                                       int>>
+template <typename T, std::enable_if_t<std::is_string_like_v<T>, int>>
 Metadata *llvm::toMetadata(const T &val, LLVMContext &ctx) {
   return MDString::get(ctx, val);
 }

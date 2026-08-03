@@ -87,4 +87,48 @@ TEST(KitMetadataUtils, toMetadata) {
   EXPECT_EQ(fromMetadata<StringRef>(mlit), "heriot-watt");
 }
 
+TEST(KitMetadata, toFromVec) {
+  LLVMContext ctx;
+  SmallVector<int, 0> v;
+
+  Metadata *md0 = toMetadata(v, ctx);
+  EXPECT_TRUE(isa<MDNode>(md0));
+  EXPECT_EQ(cast<MDNode>(md0)->getNumOperands(), 0U);
+  EXPECT_EQ((fromMetadata<SmallVector<int, 0>>(md0)), v);
+
+  v.push_back(11);
+  Metadata *md1 = toMetadata(v, ctx);
+  EXPECT_TRUE(isa<MDNode>(md1));
+  EXPECT_EQ(cast<MDNode>(md1)->getNumOperands(), 1U);
+  EXPECT_EQ((fromMetadata<SmallVector<int, 0>>(md1)), v);
+
+  v.push_back(22);
+  Metadata *md2 = toMetadata(v, ctx);
+  EXPECT_TRUE(isa<MDNode>(md2));
+  EXPECT_EQ(cast<MDNode>(md2)->getNumOperands(), 2U);
+  EXPECT_EQ((fromMetadata<SmallVector<int, 0>>(md2)), v);
+}
+
+TEST(KitMetadata, toFromSet) {
+  LLVMContext ctx;
+  SmallSet<int, 0> v;
+
+  Metadata *md0 = toMetadata(v, ctx);
+  EXPECT_TRUE(isa<MDNode>(md0));
+  EXPECT_EQ(cast<MDNode>(md0)->getNumOperands(), 0U);
+  EXPECT_EQ((fromMetadata<SmallSet<int, 0>>(md0)), v);
+
+  v.insert(11);
+  Metadata *md1 = toMetadata(v, ctx);
+  EXPECT_TRUE(isa<MDNode>(md1));
+  EXPECT_EQ(cast<MDNode>(md1)->getNumOperands(), 1U);
+  EXPECT_EQ((fromMetadata<SmallSet<int, 0>>(md1)), v);
+
+  v.insert(22);
+  Metadata *md2 = toMetadata(v, ctx);
+  EXPECT_TRUE(isa<MDNode>(md2));
+  EXPECT_EQ(cast<MDNode>(md2)->getNumOperands(), 2U);
+  EXPECT_EQ((fromMetadata<SmallSet<int, 0>>(md2)), v);
+}
+
 } // namespace
