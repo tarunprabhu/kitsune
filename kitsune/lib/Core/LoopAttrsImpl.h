@@ -32,6 +32,10 @@ class KitVerifier;
 
 namespace detail {
 
+/// Get the MDNode, if it exists, for an attribute named \p attrName for the
+/// loop \p loop. Otherwise, return nullptr.
+MDNode *getRawAttr(const Loop &loop, StringRef attrName);
+
 /// Get the raw list of attributes from a loop. The list will contain both
 /// Kitsune-specific and core LLVM "attributes".
 MDNode *getRawAttrList(const Loop &loop);

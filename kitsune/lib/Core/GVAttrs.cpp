@@ -32,6 +32,10 @@ using namespace llvm;
 
 //------------------------------------------------------------------------------
 
+MDNode *llvm::detail::getRawAttr(const GlobalVariable &g, StringRef attrName) {
+  return getRawAttr(attrName, getRawAttrList(g));
+}
+
 MDNode *llvm::detail::getRawAttrList(const GlobalVariable &g) {
   return g.getMetadata(LLVMContext::MD_kit_gv_attrs);
 }

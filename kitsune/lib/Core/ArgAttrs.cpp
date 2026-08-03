@@ -25,6 +25,10 @@ using namespace llvm;
 
 //------------------------------------------------------------------------------
 
+MDNode *llvm::detail::getRawAttr(const Argument &a, StringRef attrName) {
+  return getRawAttr(attrName, getRawAttrList(a));
+}
+
 MDNode *llvm::detail::getRawAttrList(const Argument &a) {
   assert(a.getParent() && "Argument must have a parent");
 

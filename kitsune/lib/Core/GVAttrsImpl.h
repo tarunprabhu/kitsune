@@ -32,6 +32,10 @@ class KitVerifier;
 
 namespace detail {
 
+/// Get the MDNode, if it exists, for an attribute named \p attrName for the
+/// global variable \p g. Otherwise, return nullptr.
+MDNode *getRawAttr(const GlobalVariable &g, StringRef attrName);
+
 /// Get the raw list of Kitsune-specific attributes from a global variable.
 MDNode *getRawAttrList(const GlobalVariable &g);
 

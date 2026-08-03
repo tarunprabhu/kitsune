@@ -26,6 +26,10 @@ using namespace llvm;
 
 //------------------------------------------------------------------------------
 
+MDNode *llvm::detail::getRawAttr(const Module &m, StringRef attrName) {
+  return getRawAttr(attrName, getRawAttrList(m));
+}
+
 MDNode *llvm::detail::getRawAttrList(const Module &m) {
   if (NamedMDNode *nmd = m.getNamedMetadata("kit.module"))
     if (nmd->getNumOperands())
