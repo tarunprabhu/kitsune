@@ -35,6 +35,9 @@
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[END]]:
 ; CHECK-NEXT: ret void
+;
+; CHECK-DAG: !{!"kit.module.tts", ![[TTS:[0-9]+]]}
+; CHECK-DAG: !{i32 32}
 
 define void @f(ptr %a, i64 %n) {
 entry:

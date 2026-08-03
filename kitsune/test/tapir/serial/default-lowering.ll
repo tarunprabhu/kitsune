@@ -42,6 +42,8 @@
 ;
 ; CHECK-DAG: ![[SERIALIZED:.+]] = !{!"tapir.loop.serialized"}
 ; CHECK-DAG: ![[MD]] = distinct !{![[MD]], ![[SERIALIZED]]}
+; CHECK-DAG: !{!"kit.module.tts", ![[TTS:[0-9]+]]}
+; CHECK-DAG: !{i32 1}
 
 define void @p(i64 %n) {
 entry:
