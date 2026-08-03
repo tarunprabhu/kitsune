@@ -26,6 +26,10 @@ using namespace llvm;
 
 //------------------------------------------------------------------------------
 
+MDNode *llvm::detail::getRawAttr(const Instruction &inst, StringRef attrName) {
+  return getRawAttr(attrName, getRawAttrList(inst));
+}
+
 MDNode *llvm::detail::getRawAttrList(const Instruction &inst) {
   return inst.getMetadata(LLVMContext::MD_kit_inst_attrs);
 }
