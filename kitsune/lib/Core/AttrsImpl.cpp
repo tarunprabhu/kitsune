@@ -246,6 +246,9 @@ MDNode *llvm::detail::getAttrListWithout(StringRef attrName, MDNode *attrList) {
     return makeAttrList(ctx, newAttrs);
 }
 
+using SetTTID = SmallSet<TTID, 0>;
+
+using MaybeSetTTID = std::optional<SetTTID>;
 using MaybeTTID = std::optional<TTID>;
 using MaybeSpawnStrategy = std::optional<TapirSpawnStrategy>;
 
@@ -273,6 +276,8 @@ template Metadata *llvm::detail::makeRawAttrValue(LLVMContext &,
 template Metadata *llvm::detail::makeRawAttrValue(LLVMContext &, const TTID &);
 template Metadata *llvm::detail::makeRawAttrValue(LLVMContext &,
                                                   const TapirSpawnStrategy &);
+template Metadata *llvm::detail::makeRawAttrValue(LLVMContext &,
+                                                  const SetTTID &);
 
 template MaybeI8 llvm::detail::getRawAttrValue(const MDNode &, unsigned);
 template MaybeU8 llvm::detail::getRawAttrValue(const MDNode &, unsigned);
@@ -288,6 +293,7 @@ template MaybeStr llvm::detail::getRawAttrValue(const MDNode &, unsigned);
 template MaybeTTID llvm::detail::getRawAttrValue(const MDNode &, unsigned);
 template MaybeSpawnStrategy llvm::detail::getRawAttrValue(const MDNode &,
                                                           unsigned);
+template MaybeSetTTID llvm::detail::getRawAttrValue(const MDNode &, unsigned);
 
 template bool llvm::detail::verifyRawAttrValueAt(KitVerifier &, const MDNode &,
                                                  unsigned, const MaybeI8 &);
@@ -317,3 +323,6 @@ template bool llvm::detail::verifyRawAttrValueAt(KitVerifier &, const MDNode &,
 template bool llvm::detail::verifyRawAttrValueAt(KitVerifier &, const MDNode &,
                                                  unsigned,
                                                  const MaybeSpawnStrategy &);
+template bool llvm::detail::verifyRawAttrValueAt(KitVerifier &, const MDNode &,
+                                                 unsigned,
+                                                 const MaybeSetTTID &);
