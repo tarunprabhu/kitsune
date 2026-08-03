@@ -7,6 +7,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Support/TypeTraits.h"
+#include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringRef.h"
 
 #include "gtest/gtest.h"
 
@@ -108,6 +112,44 @@ TEST(KitTypeTraits, isIterable) {
   EXPECT_FALSE(std::is_iterable_v<NotIterableB>);
   EXPECT_FALSE(std::is_iterable_v<NotIterableE>);
   EXPECT_TRUE(std::is_iterable_v<Iterable>);
+}
+
+TEST(KitTypeTraits, isStringLike) {
+  EXPECT_FALSE(std::is_string_like_v<const char *>);
+  EXPECT_FALSE(std::is_string_like_v<char[12]>);
+
+  EXPECT_TRUE(std::is_string_like_v<std::string>);
+  EXPECT_TRUE(std::is_string_like_v<llvm::StringRef>);
+  EXPECT_TRUE(std::is_string_like_v<llvm::StringLiteral>);
+  EXPECT_TRUE(std::is_string_like_v<llvm::SmallString<0>>);
+  EXPECT_TRUE(std::is_string_like_v<llvm::SmallString<8>>);
+}
+
+TEST(KitTypeTraits, isSmallString) {
+  EXPECT_TRUE(std::is_small_string_v<llvm::SmallString<8>>);
+  EXPECT_TRUE(std::is_small_string_v<llvm::SmallString<0>>);
+
+  EXPECT_FALSE(std::is_small_string_v<std::string>);
+  EXPECT_FALSE(std::is_small_string_v<llvm::StringRef>);
+  EXPECT_FALSE(std::is_small_string_v<llvm::StringLiteral>);
+}
+
+TEST(KitTypeTraits, isSmallSet) {
+  EXPECT_TRUE((std::is_small_set_v<llvm::SmallSet<int, 0>>));
+  EXPECT_TRUE((std::is_small_set_v<llvm::SmallSet<llvm::StringRef, 4>>));
+
+  EXPECT_FALSE((std::is_small_set_v<llvm::SmallVector<int, 2>>));
+  EXPECT_FALSE(std::is_small_set_v<llvm::SmallString<1024>>);
+  EXPECT_FALSE(std::is_small_set_v<std::set<int>>);
+}
+
+TEST(KitTypeTraits, isSmallVector) {
+  EXPECT_TRUE((std::is_small_vector_v<llvm::SmallVector<int, 0>>));
+  EXPECT_TRUE((std::is_small_vector_v<llvm::SmallVector<llvm::StringRef, 0>>));
+
+  EXPECT_FALSE((std::is_small_vector_v<llvm::SmallSet<int, 2>>));
+  EXPECT_FALSE(std::is_small_vector_v<llvm::SmallString<8>>);
+  EXPECT_FALSE(std::is_small_vector_v<std::vector<int>>);
 }
 
 } // namespace
