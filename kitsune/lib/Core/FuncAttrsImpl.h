@@ -32,6 +32,10 @@ class KitVerifier;
 
 namespace detail {
 
+/// Get the MDNode, if it exists, for an attribute named \p attrName for the
+/// function \p f. Otherwise, return nullptr.
+MDNode *getRawAttr(const Function &f, StringRef attrName);
+
 /// Get the raw list of Kitsune-specific attributes from a function.
 MDNode *getRawAttrList(const Function &f);
 

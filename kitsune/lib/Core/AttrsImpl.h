@@ -194,7 +194,7 @@ bool verifyRawAttrValues(KitVerifier &v, const MDNode &attr,
 
 #define DEFN_ATTR_GENERIC(IRELEM, KIND)                                        \
   bool llvm::hasAttr(const IRELEM &ir, KIND attr) {                            \
-    return detail::getRawAttr(getAttrName(attr), detail::getRawAttrList(ir));  \
+    return detail::getRawAttr(ir, getAttrName(attr));                          \
   }                                                                            \
                                                                                \
   void llvm::removeAttr(IRELEM &ir, KIND attr) {                               \
@@ -207,7 +207,7 @@ bool verifyRawAttrValues(KitVerifier &v, const MDNode &attr,
 
 #define DEFN_ATTR_COMMON(IRELEM, KIND, NAME, IRNAME, CUSTOMVERIFY, TYPE)       \
   bool llvm::has##NAME##Attr(const IRELEM &ir) {                               \
-    return detail::getRawAttr(IRNAME, detail::getRawAttrList(ir));             \
+    return detail::getRawAttr(ir, IRNAME);                                     \
   }                                                                            \
                                                                                \
   void llvm::remove##NAME##Attr(IRELEM &ir) { detail::removeAttr(ir, IRNAME); }
@@ -215,8 +215,7 @@ bool verifyRawAttrValues(KitVerifier &v, const MDNode &attr,
 #define DEFN_ATTR_L(IRELEM, NAME, IRNAME, CUSTOMVERIFY, TYPE)                  \
   std::optional<SmallVector<TYPE, 0>> llvm::get##NAME##Attr(                   \
       const IRELEM &ir) {                                                      \
-    if (const MDNode *attr =                                                   \
-            detail::getRawAttr(IRNAME, detail::getRawAttrList(ir)))            \
+    if (const MDNode *attr = detail::getRawAttr(ir, IRNAME))                   \
       if (attr->getNumOperands() == 2)                                         \
         return detail::getRawAttrValue<SmallVector<TYPE, 0>>(*attr, 0);        \
     return std::nullopt;                                                       \
@@ -240,8 +239,7 @@ bool verifyRawAttrValues(KitVerifier &v, const MDNode &attr,
   }                                                                            \
                                                                                \
   void llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
-    if (const MDNode *attr =                                                   \
-            detail::getRawAttr(IRNAME, detail::getRawAttrList(ir))) {          \
+    if (const MDNode *attr = detail::getRawAttr(ir, IRNAME)) {                 \
       if (!detail::verifyRawAttrValueCount(v, *attr, 1))                       \
         return;                                                                \
                                                                                \
@@ -257,8 +255,7 @@ bool verifyRawAttrValues(KitVerifier &v, const MDNode &attr,
 
 #define DEFN_ATTR_S(IRELEM, NAME, IRNAME, CUSTOMVERIFY, TYPE)                  \
   std::optional<SmallSet<TYPE, 0>> llvm::get##NAME##Attr(const IRELEM &ir) {   \
-    if (const MDNode *attr =                                                   \
-            detail::getRawAttr(IRNAME, detail::getRawAttrList(ir)))            \
+    if (const MDNode *attr = detail::getRawAttr(ir, IRNAME))                   \
       if (attr->getNumOperands() == 2)                                         \
         return detail::getRawAttrValue<SmallSet<TYPE, 0>>(*attr, 0);           \
     return std::nullopt;                                                       \
@@ -299,8 +296,7 @@ bool verifyRawAttrValues(KitVerifier &v, const MDNode &attr,
   }                                                                            \
                                                                                \
   void llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
-    if (const MDNode *attr =                                                   \
-            detail::getRawAttr(IRNAME, detail::getRawAttrList(ir))) {          \
+    if (const MDNode *attr = detail::getRawAttr(ir, IRNAME)) {                 \
       if (!detail::verifyRawAttrValueCount(v, *attr, 1))                       \
         return;                                                                \
                                                                                \
@@ -318,8 +314,7 @@ bool verifyRawAttrValues(KitVerifier &v, const MDNode &attr,
   void llvm::add##NAME##Attr(IRELEM &ir) { detail::addAttr(ir, IRNAME, {}); }  \
                                                                                \
   void llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
-    if (const MDNode *attr =                                                   \
-            detail::getRawAttr(IRNAME, detail::getRawAttrList(ir))) {          \
+    if (const MDNode *attr = detail::getRawAttr(ir, IRNAME)) {                 \
       if (!detail::verifyRawAttrValueCount(v, *attr, 0))                       \
         return;                                                                \
                                                                                \
@@ -330,8 +325,7 @@ bool verifyRawAttrValues(KitVerifier &v, const MDNode &attr,
 
 #define DEFN_ATTR_1(IRELEM, NAME, IRNAME, CUSTOMVERIFY, TYPE)                  \
   std::optional<TYPE> llvm::get##NAME##Attr(const IRELEM &ir) {                \
-    if (const MDNode *attr =                                                   \
-            detail::getRawAttr(IRNAME, detail::getRawAttrList(ir)))            \
+    if (const MDNode *attr = detail::getRawAttr(ir, IRNAME))                   \
       if (attr->getNumOperands() == 2)                                         \
         return detail::getRawAttrValue<TYPE>(*attr, 0);                        \
     return std::nullopt;                                                       \
@@ -344,8 +338,7 @@ bool verifyRawAttrValues(KitVerifier &v, const MDNode &attr,
   }                                                                            \
                                                                                \
   void llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
-    if (const MDNode *attr =                                                   \
-            detail::getRawAttr(IRNAME, detail::getRawAttrList(ir))) {          \
+    if (const MDNode *attr = detail::getRawAttr(ir, IRNAME)) {                 \
       if (!detail::verifyRawAttrValueCount(v, *attr, 1))                       \
         return;                                                                \
                                                                                \
@@ -368,8 +361,7 @@ bool verifyRawAttrValues(KitVerifier &v, const MDNode &attr,
   }                                                                            \
                                                                                \
   void llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
-    if (const MDNode *attr =                                                   \
-            detail::getRawAttr(IRNAME, detail::getRawAttrList(ir))) {          \
+    if (const MDNode *attr = detail::getRawAttr(ir, IRNAME)) {                 \
       if (!detail::verifyRawAttrValueCount(v, *attr, 2))                       \
         return;                                                                \
                                                                                \
@@ -395,8 +387,7 @@ bool verifyRawAttrValues(KitVerifier &v, const MDNode &attr,
   }                                                                            \
                                                                                \
   void llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
-    if (const MDNode *attr =                                                   \
-            detail::getRawAttr(IRNAME, detail::getRawAttrList(ir))) {          \
+    if (const MDNode *attr = detail::getRawAttr(ir, IRNAME)) {                 \
       if (!detail::verifyRawAttrValueCount(v, *attr, 3))                       \
         return;                                                                \
                                                                                \
@@ -423,8 +414,7 @@ bool verifyRawAttrValues(KitVerifier &v, const MDNode &attr,
   }                                                                            \
                                                                                \
   void llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
-    if (const MDNode *attr =                                                   \
-            detail::getRawAttr(IRNAME, detail::getRawAttrList(ir))) {          \
+    if (const MDNode *attr = detail::getRawAttr(ir, IRNAME)) {                 \
       if (!detail::verifyRawAttrValueCount(v, *attr, 4))                       \
         return;                                                                \
                                                                                \
@@ -454,8 +444,7 @@ bool verifyRawAttrValues(KitVerifier &v, const MDNode &attr,
   }                                                                            \
                                                                                \
   void llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
-    if (const MDNode *attr =                                                   \
-            detail::getRawAttr(IRNAME, detail::getRawAttrList(ir))) {          \
+    if (const MDNode *attr = detail::getRawAttr(ir, IRNAME)) {                 \
       if (!detail::verifyRawAttrValueCount(v, *attr, 5))                       \
         return;                                                                \
                                                                                \
@@ -487,9 +476,7 @@ bool verifyRawAttrValues(KitVerifier &v, const MDNode &attr,
   }                                                                            \
                                                                                \
   void llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
-                                                                               \
-    if (const MDNode *attr =                                                   \
-            detail::getRawAttr(IRNAME, detail::getRawAttrList(ir))) {          \
+    if (const MDNode *attr = detail::getRawAttr(ir, IRNAME)) {                 \
       if (!detail::verifyRawAttrValueCount(v, *attr, 6))                       \
         return;                                                                \
                                                                                \
@@ -523,8 +510,7 @@ bool verifyRawAttrValues(KitVerifier &v, const MDNode &attr,
   }                                                                            \
                                                                                \
   void llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
-    if (const MDNode *attr =                                                   \
-            detail::getRawAttr(IRNAME, detail::getRawAttrList(ir))) {          \
+    if (const MDNode *attr = detail::getRawAttr(ir, IRNAME)) {                 \
       if (!detail::verifyRawAttrValueCount(v, *attr, 7))                       \
         return;                                                                \
                                                                                \
@@ -560,8 +546,7 @@ bool verifyRawAttrValues(KitVerifier &v, const MDNode &attr,
   }                                                                            \
                                                                                \
   void llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
-    if (const MDNode *attr =                                                   \
-            detail::getRawAttr(IRNAME, detail::getRawAttrList(ir))) {          \
+    if (const MDNode *attr = detail::getRawAttr(ir, IRNAME)) {                 \
       if (!detail::verifyRawAttrValueCount(v, *attr, 8))                       \
         return;                                                                \
                                                                                \
@@ -585,8 +570,7 @@ bool verifyRawAttrValues(KitVerifier &v, const MDNode &attr,
 
 #define DEFN_ATTR_N(IRELEM, NAME, IRNAME, ETY, ENAME, EN, NELEMS)              \
   std::optional<ETY> llvm::get##ENAME##From##NAME##Attr(const IRELEM &ir) {    \
-    if (const MDNode *attr =                                                   \
-            detail::getRawAttr(IRNAME, detail::getRawAttrList(ir)))            \
+    if (const MDNode *attr = detail::getRawAttr(ir, IRNAME))                   \
       if (attr->getNumOperands() == NELEMS + 1)                                \
         return detail::getRawAttrValue<ETY>(*attr, EN);                        \
     return std::nullopt;                                                       \

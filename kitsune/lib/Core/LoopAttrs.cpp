@@ -26,6 +26,10 @@ using namespace llvm;
 
 //------------------------------------------------------------------------------
 
+MDNode *llvm::detail::getRawAttr(const Loop &loop, StringRef attrName) {
+  return getRawAttr(attrName, getRawAttrList(loop));
+}
+
 MDNode *llvm::detail::getRawAttrList(const Loop &loop) {
   return loop.getLoopID();
 }
