@@ -76,6 +76,20 @@ TEST_F(KitLoopAttrs, attrsGeneric) {
 #include "kitsune/Core/LoopAttrs.inc"
 }
 
+TEST_F(KitLoopAttrs, attrList) {
+  DECLS;
+#define LOOP_ATTR_L(...) TEST_ATTR_L(*loop, LoopAttrKind, __VA_ARGS__)
+#define GET_LOOP_ATTRS
+#include "kitsune/Core/LoopAttrs.inc"
+}
+
+TEST_F(KitLoopAttrs, attrSet) {
+  DECLS;
+#define LOOP_ATTR_S(...) TEST_ATTR_S(*loop, LoopAttrKind, __VA_ARGS__)
+#define GET_LOOP_ATTRS
+#include "kitsune/Core/LoopAttrs.inc"
+}
+
 TEST_F(KitLoopAttrs, attr0) {
   DECLS;
 #define LOOP_ATTR_0(...) TEST_ATTR_0(*loop, LoopAttrKind, __VA_ARGS__)

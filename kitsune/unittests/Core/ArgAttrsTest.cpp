@@ -64,6 +64,20 @@ TEST_F(KitArgAttrs, attrsGeneric) {
 #include "kitsune/Core/ArgAttrs.inc"
 }
 
+TEST_F(KitArgAttrs, attrList) {
+  DECLS;
+#define ARG_ATTR_L(...) TEST_ATTR_L(*a, ArgAttrKind, __VA_ARGS__)
+#define GET_ARG_ATTRS
+#include "kitsune/Core/ArgAttrs.inc"
+}
+
+TEST_F(KitArgAttrs, attrSet) {
+  DECLS;
+#define ARG_ATTR_S(...) TEST_ATTR_S(*a, ArgAttrKind, __VA_ARGS__)
+#define GET_ARG_ATTRS
+#include "kitsune/Core/ArgAttrs.inc"
+}
+
 TEST_F(KitArgAttrs, attr0) {
   DECLS;
 #define ARG_ATTR_0(...) TEST_ATTR_0(*a, ArgAttrKind, __VA_ARGS__)

@@ -56,6 +56,11 @@ void removeAttr(Function &f, FuncAttrKind attr);
 #define GET_FUNC_ATTRS
 #include "kitsune/Core/FuncAttrs.inc"
 
+#define FUNC_ATTR_L(...) DECL_ATTR_L(Function, __VA_ARGS__)
+#define FUNC_ATTR_S(...) DECL_ATTR_S(Function, __VA_ARGS__)
+#define GET_FUNC_ATTRS
+#include "kitsune/Core/FuncAttrs.inc"
+
 #define FUNC_ATTR_0(...) DECL_ATTR_0(Function, __VA_ARGS__)
 #define FUNC_ATTR_1(...) DECL_ATTR_1(Function, __VA_ARGS__)
 #define FUNC_ATTR_2(...) DECL_ATTR_2(Function, __VA_ARGS__)
