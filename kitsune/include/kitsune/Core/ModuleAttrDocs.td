@@ -28,3 +28,11 @@ of the attribute value. In the future, this may be expanded to include other
 information if having them is determined to be useful.
 }];
 }
+
+def KitTTsDoc : KitDocAttr {
+  let Documentation = [{
+This is a set-valued attribute added by the
+:ref:`loop-spawning <passes-loop-spawning>` pass. Each element is the ID of a
+tapir target that transformed at least one construct in the module.
+}];
+}

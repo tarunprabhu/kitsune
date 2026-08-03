@@ -63,3 +63,8 @@ def DeviceModuleFlags : ModuleAttr<DeviceModuleFlagsTy> {
   let HasCustomVerifier = true;
   let Documentation = KitDeviceModuleFlagsDoc;
 }
+
+def TTs : ModuleAttr<SetType<TTIDTy>> {
+  let HasCustomVerifier = false;
+  let Documentation = KitTTsDoc;
+}

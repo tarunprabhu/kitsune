@@ -13,6 +13,7 @@
 #include "llvm/Transforms/Tapir/LoopSpawningTI.h"
 #include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/Core/LoopAttrs.h"
+#include "kitsune/Core/ModuleAttrs.h"
 #include "kitsune/Core/MetadataUtils.h"
 #include "kitsune/Core/Tapir.h"
 #include "llvm/ADT/DenseMap.h"
@@ -1890,6 +1891,15 @@ PreservedAnalyses LoopSpawningPass::run(Module &M, ModuleAnalysisManager &AM) {
   // a bad idea to get rid of this and switch back to single-target execution.
   for (TTID ID : TTObjs.getRequiredTTs(M))
     TTObjs.getTT(ID)->postProcessModule();
+
+  // Add the TTID's that are required by the module to the module itself. This
+  // allows later passes to determine which TT's were used. Since there may not
+  // be any tapir loops available beyond this point, this is not always easy.
+  // Once cannot rely on the presence of any specific intrinsics since not all
+  // tapir targets use them - opencilk, for instance, does not, and neither does
+  // the serial tapir target.
+  for (TTID TT : TTObjs.getRequiredTTs(M))
+    addToTTsAttr(M, TT);
 
   if (Changed)
     return PreservedAnalyses::none();
