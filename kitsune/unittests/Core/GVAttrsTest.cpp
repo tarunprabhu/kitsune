@@ -75,6 +75,20 @@ TEST_F(KitGVAttrs, attrsGeneric) {
 #include "kitsune/Core/GVAttrs.inc"
 }
 
+TEST_F(KitGVAttrs, attrList) {
+  DECLS;
+#define GV_ATTR_L(...) TEST_ATTR_L(*g, GVAttrKind, __VA_ARGS__)
+#define GET_GV_ATTRS
+#include "kitsune/Core/GVAttrs.inc"
+}
+
+TEST_F(KitGVAttrs, attrSet) {
+  DECLS;
+#define GV_ATTR_S(...) TEST_ATTR_S(*g, GVAttrKind, __VA_ARGS__)
+#define GET_GV_ATTRS
+#include "kitsune/Core/GVAttrs.inc"
+}
+
 TEST_F(KitGVAttrs, attr0) {
   DECLS;
 #define GV_ATTR_0(...) TEST_ATTR_0(*g, GVAttrKind, __VA_ARGS__)

@@ -14,6 +14,9 @@
 #ifndef KITSUNE_LIB_CORE_ATTR_IMPL_DECL_MACROS_H
 #define KITSUNE_LIB_CORE_ATTR_IMPL_DECL_MACROS_H
 
+#include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/SmallVector.h"
+
 namespace llvm {
 
 class MDNode;
@@ -24,6 +27,14 @@ class KitVerifier;
 
 #define DECL_ATTR_IMPL_COMMON(IRELEM, NAME, IRNAME, CUSTOMVERIFY, TYPE)        \
   void verify##NAME##Attr(KitVerifier &v, const IRELEM &ir);
+
+#define DECL_ATTR_IMPL_L(IRELEM, NAME, IRNAME, CUSTOMVERIFY, TYPE)             \
+  void verify##NAME##Attr(KitVerifier &v, const IRELEM &ir,                    \
+                          const SmallVector<TYPE, 0> &elems);
+
+#define DECL_ATTR_IMPL_S(IRELEM, NAME, IRNAME, CUSTOMVERIFY, TYPE)             \
+  void verify##NAME##Attr(KitVerifier &v, const IRELEM &ir,                    \
+                          const SmallSet<TYPE, 0> &elems);
 
 #define DECL_ATTR_IMPL_0(IRELEM, NAME, IRNAME, CUSTOMVERIFY)                   \
   void verify##NAME##Attr(KitVerifier &v, const IRELEM &ir, const bool &t);

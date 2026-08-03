@@ -62,6 +62,11 @@ void verifyAttr(KitVerifier &v, const Argument &a, StringRef attrName);
 #define GET_ARG_ATTRS
 #include "kitsune/Core/ArgAttrs.inc"
 
+#define ARG_ATTR_L(...) DECL_ATTR_IMPL_L(Argument, __VA_ARGS__)
+#define ARG_ATTR_S(...) DECL_ATTR_IMPL_S(Argument, __VA_ARGS__)
+#define GET_ARG_ATTRS
+#include "kitsune/Core/ArgAttrs.inc"
+
 #define ARG_ATTR_0(...) DECL_ATTR_IMPL_0(Argument, __VA_ARGS__)
 #define ARG_ATTR_1(...) DECL_ATTR_IMPL_1(Argument, __VA_ARGS__)
 #define ARG_ATTR_2(...) DECL_ATTR_IMPL_2(Argument, __VA_ARGS__)

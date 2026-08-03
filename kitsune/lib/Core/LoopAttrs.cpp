@@ -104,6 +104,11 @@ DEFN_ATTR_GENERIC(Loop, LoopAttrKind)
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
 
+#define LOOP_ATTR_L(...) DEFN_ATTR_L(Loop, __VA_ARGS__)
+#define LOOP_ATTR_S(...) DEFN_ATTR_S(Loop, __VA_ARGS__)
+#define GET_LOOP_ATTRS
+#include "kitsune/Core/LoopAttrs.inc"
+
 #define LOOP_ATTR_0(...) DEFN_ATTR_0(Loop, __VA_ARGS__)
 #define LOOP_ATTR_1(...) DEFN_ATTR_1(Loop, __VA_ARGS__)
 #define LOOP_ATTR_2(...) DEFN_ATTR_2(Loop, __VA_ARGS__)

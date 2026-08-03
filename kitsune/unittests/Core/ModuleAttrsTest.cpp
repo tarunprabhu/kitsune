@@ -63,6 +63,20 @@ TEST_F(KitModuleAttrs, attrsGeneric) {
 #include "kitsune/Core/ModuleAttrs.inc"
 }
 
+TEST_F(KitModuleAttrs, attrList) {
+  DECLS;
+#define MODULE_ATTR_L(...) TEST_ATTR_L(*m, ModuleAttrKind, __VA_ARGS__)
+#define GET_MODULE_ATTRS
+#include "kitsune/Core/ModuleAttrs.inc"
+}
+
+TEST_F(KitModuleAttrs, attrSet) {
+  DECLS;
+#define MODULE_ATTR_S(...) TEST_ATTR_S(*m, ModuleAttrKind, __VA_ARGS__)
+#define GET_MODULE_ATTRS
+#include "kitsune/Core/ModuleAttrs.inc"
+}
+
 TEST_F(KitModuleAttrs, attr0) {
   DECLS;
 #define MODULE_ATTR_0(...) TEST_ATTR_0(*m, ModuleAttrKind, __VA_ARGS__)

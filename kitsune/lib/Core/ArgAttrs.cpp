@@ -122,6 +122,11 @@ DEFN_ATTR_GENERIC(Argument, ArgAttrKind)
 #define GET_ARG_ATTRS
 #include "kitsune/Core/ArgAttrs.inc"
 
+#define ARG_ATTR_L(...) DEFN_ATTR_L(Argument, __VA_ARGS__)
+#define ARG_ATTR_S(...) DEFN_ATTR_S(Argument, __VA_ARGS__)
+#define GET_ARG_ATTRS
+#include "kitsune/Core/ArgAttrs.inc"
+
 #define ARG_ATTR_0(...) DEFN_ATTR_0(Argument, __VA_ARGS__)
 #define ARG_ATTR_1(...) DEFN_ATTR_1(Argument, __VA_ARGS__)
 #define ARG_ATTR_2(...) DEFN_ATTR_2(Argument, __VA_ARGS__)

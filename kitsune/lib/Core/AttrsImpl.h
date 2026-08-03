@@ -16,6 +16,8 @@
 #include "AttrsIterator.h"
 #include "kitsune/Core/MetadataUtils.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Analysis/LoopInfo.h"
 
@@ -209,6 +211,108 @@ bool verifyRawAttrValues(KitVerifier &v, const MDNode &attr,
   }                                                                            \
                                                                                \
   void llvm::remove##NAME##Attr(IRELEM &ir) { detail::removeAttr(ir, IRNAME); }
+
+#define DEFN_ATTR_L(IRELEM, NAME, IRNAME, CUSTOMVERIFY, TYPE)                  \
+  std::optional<SmallVector<TYPE, 0>> llvm::get##NAME##Attr(                   \
+      const IRELEM &ir) {                                                      \
+    if (const MDNode *attr =                                                   \
+            detail::getRawAttr(IRNAME, detail::getRawAttrList(ir)))            \
+      if (attr->getNumOperands() == 2)                                         \
+        return detail::getRawAttrValue<SmallVector<TYPE, 0>>(*attr, 0);        \
+    return std::nullopt;                                                       \
+  }                                                                            \
+                                                                               \
+  void llvm::add##NAME##Attr(IRELEM &ir, SmallVector<TYPE, 0> const &cont) {   \
+    LLVMContext &ctx = getContext(ir);                                         \
+    Metadata *attrVals[] = {detail::makeRawAttrValue(ctx, cont)};              \
+    detail::addAttr(ir, IRNAME, attrVals);                                     \
+  }                                                                            \
+                                                                               \
+  void llvm::addTo##NAME##Attr(IRELEM &ir, TYPE const &val) {                  \
+    SmallVector<TYPE, 0> vec;                                                  \
+    if (std::optional<SmallVector<TYPE, 0>> cont = get##NAME##Attr(ir))        \
+      vec.append(cont->begin(), cont->end());                                  \
+    vec.push_back(val);                                                        \
+                                                                               \
+    LLVMContext &ctx = getContext(ir);                                         \
+    Metadata *attrVals[] = {detail::makeRawAttrValue(ctx, vec)};               \
+    detail::addAttr(ir, IRNAME, attrVals);                                     \
+  }                                                                            \
+                                                                               \
+  void llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
+    if (const MDNode *attr =                                                   \
+            detail::getRawAttr(IRNAME, detail::getRawAttrList(ir))) {          \
+      if (!detail::verifyRawAttrValueCount(v, *attr, 1))                       \
+        return;                                                                \
+                                                                               \
+      std::optional<SmallVector<TYPE, 0>> val =                                \
+          detail::getRawAttrValue<SmallVector<TYPE, 0>>(*attr, 0);             \
+      if (!detail::verifyRawAttrValues(v, *attr, val))                         \
+        return;                                                                \
+                                                                               \
+      if constexpr (CUSTOMVERIFY)                                              \
+        verify##NAME##Attr(v, ir, *val);                                       \
+    }                                                                          \
+  }
+
+#define DEFN_ATTR_S(IRELEM, NAME, IRNAME, CUSTOMVERIFY, TYPE)                  \
+  std::optional<SmallSet<TYPE, 0>> llvm::get##NAME##Attr(const IRELEM &ir) {   \
+    if (const MDNode *attr =                                                   \
+            detail::getRawAttr(IRNAME, detail::getRawAttrList(ir)))            \
+      if (attr->getNumOperands() == 2)                                         \
+        return detail::getRawAttrValue<SmallSet<TYPE, 0>>(*attr, 0);           \
+    return std::nullopt;                                                       \
+  }                                                                            \
+                                                                               \
+  void llvm::add##NAME##Attr(IRELEM &ir, SmallSet<TYPE, 0> const &cont) {      \
+    LLVMContext &ctx = getContext(ir);                                         \
+    Metadata *attrVals[] = {detail::makeRawAttrValue(ctx, cont)};              \
+    detail::addAttr(ir, IRNAME, attrVals);                                     \
+  }                                                                            \
+                                                                               \
+  void llvm::addTo##NAME##Attr(IRELEM &ir, TYPE const &val) {                  \
+    LLVMContext &ctx = getContext(ir);                                         \
+    if (std::optional<SmallSet<TYPE, 0>> cont = llvm::get##NAME##Attr(ir)) {   \
+      if (cont->insert(val).second) {                                          \
+        Metadata *attrVals[] = {detail::makeRawAttrValue(ctx, *cont)};         \
+        detail::addAttr(ir, IRNAME, attrVals);                                 \
+      }                                                                        \
+    } else {                                                                   \
+      SmallSet<TYPE, 0> set = {val};                                           \
+      Metadata *attrVals[] = {detail::makeRawAttrValue(ctx, set)};             \
+      detail::addAttr(ir, IRNAME, attrVals);                                   \
+    }                                                                          \
+  }                                                                            \
+                                                                               \
+  void llvm::removeFrom##NAME##Attr(IRELEM &ir, TYPE const &val) {             \
+    if (std::optional<SmallSet<TYPE, 0>> cont = llvm::get##NAME##Attr(ir)) {   \
+      if (cont->erase(val)) {                                                  \
+        if (cont->empty()) {                                                   \
+          remove##NAME##Attr(ir);                                              \
+        } else {                                                               \
+          LLVMContext &ctx = getContext(ir);                                   \
+          Metadata *attrVals[] = {detail::makeRawAttrValue(ctx, *cont)};       \
+          detail::addAttr(ir, IRNAME, attrVals);                               \
+        }                                                                      \
+      }                                                                        \
+    }                                                                          \
+  }                                                                            \
+                                                                               \
+  void llvm::verify##NAME##Attr(KitVerifier &v, const IRELEM &ir) {            \
+    if (const MDNode *attr =                                                   \
+            detail::getRawAttr(IRNAME, detail::getRawAttrList(ir))) {          \
+      if (!detail::verifyRawAttrValueCount(v, *attr, 1))                       \
+        return;                                                                \
+                                                                               \
+      std::optional<SmallSet<TYPE, 0>> val =                                   \
+          detail::getRawAttrValue<SmallSet<TYPE, 0>>(*attr, 0);                \
+      if (!detail::verifyRawAttrValues(v, *attr, val))                         \
+        return;                                                                \
+                                                                               \
+      if constexpr (CUSTOMVERIFY)                                              \
+        verify##NAME##Attr(v, ir, *val);                                       \
+    }                                                                          \
+  }
 
 #define DEFN_ATTR_0(IRELEM, NAME, IRNAME, CUSTOMVERIFY)                        \
   void llvm::add##NAME##Attr(IRELEM &ir) { detail::addAttr(ir, IRNAME, {}); }  \

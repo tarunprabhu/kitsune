@@ -13,6 +13,9 @@
 #ifndef KITSUNE_CORE_ATTRS_DECL_MACROS_H
 #define KITSUNE_CORE_ATTRS_DECL_MACROS_H
 
+#include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/SmallVector.h"
+
 namespace llvm {
 
 class Loop;
@@ -25,13 +28,25 @@ class MDNode;
   void remove##NAME##Attr(IRELEM &ir);
 
 #define DECL_ATTR_N(IRELEM, NAME, IRNAME, ETY, ENAME, EN, NELEMS)              \
-  std::optional<ETY> get##ENAME##From##NAME##Attr(const IRELEM &);
+  std::optional<ETY> get##ENAME##From##NAME##Attr(const IRELEM &ir);
+
+#define DECL_ATTR_L(IRELEM, NAME, IRNAME, CUSTOMVERIFY, TYPE)                  \
+  std::optional<SmallVector<TYPE, 0>> get##NAME##Attr(const IRELEM &ir);       \
+  void add##NAME##Attr(IRELEM &ir, SmallVector<TYPE, 0> const &ont);           \
+  void addTo##NAME##Attr(IRELEM &ir, TYPE const &val);                         \
+  void removeFrom##NAME##Attr(IRELEM &ir, TYPE const &val);
+
+#define DECL_ATTR_S(IRELEM, NAME, IRNAME, CUSTOMVERIFY, TYPE)                  \
+  std::optional<SmallSet<TYPE, 0>> get##NAME##Attr(const IRELEM &ir);          \
+  void add##NAME##Attr(IRELEM &ir, SmallSet<TYPE, 0> const &cont);             \
+  void addTo##NAME##Attr(IRELEM &ir, TYPE const &val);                         \
+  void removeFrom##NAME##Attr(IRELEM &ir, TYPE const &val);
 
 #define DECL_ATTR_0(IRELEM, NAME, IRNAME, CUSTOMVERIFY)                        \
   void add##NAME##Attr(IRELEM &ir);
 
 #define DECL_ATTR_1(IRELEM, NAME, IRNAME, CUSTOMVERIFY, TYPE)                  \
-  std::optional<TYPE> get##NAME##Attr(const IRELEM &f);                        \
+  std::optional<TYPE> get##NAME##Attr(const IRELEM &ir);                       \
   void add##NAME##Attr(IRELEM &ir, TYPE const &val);
 
 #define DECL_ATTR_2(IRELEM, NAME, IRNAME, CUSTOMVERIFY, ETY0, ENAME0, EN0,     \

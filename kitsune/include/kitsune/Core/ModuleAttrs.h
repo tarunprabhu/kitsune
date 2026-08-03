@@ -58,6 +58,11 @@ void removeAttr(Module &m, ModuleAttrKind attr);
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
 
+#define MODULE_ATTR_L(...) DECL_ATTR_L(Module, __VA_ARGS__)
+#define MODULE_ATTR_S(...) DECL_ATTR_S(Module, __VA_ARGS__)
+#define GET_MODULE_ATTRS
+#include "kitsune/Core/ModuleAttrs.inc"
+
 #define MODULE_ATTR_0(...) DECL_ATTR_0(Module, __VA_ARGS__)
 #define MODULE_ATTR_1(...) DECL_ATTR_1(Module, __VA_ARGS__)
 #define MODULE_ATTR_2(...) DECL_ATTR_2(Module, __VA_ARGS__)

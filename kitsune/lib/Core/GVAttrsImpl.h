@@ -63,6 +63,11 @@ void verifyAttr(KitVerifier &v, const GlobalVariable &g, StringRef attrName);
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"
 
+#define GV_ATTR_L(...) DECL_ATTR_IMPL_L(GlobalVariable, __VA_ARGS__)
+#define GV_ATTR_S(...) DECL_ATTR_IMPL_S(GlobalVariable, __VA_ARGS__)
+#define GET_GV_ATTRS
+#include "kitsune/Core/GVAttrs.inc"
+
 #define GV_ATTR_0(...) DECL_ATTR_IMPL_0(GlobalVariable, __VA_ARGS__)
 #define GV_ATTR_1(...) DECL_ATTR_IMPL_1(GlobalVariable, __VA_ARGS__)
 #define GV_ATTR_2(...) DECL_ATTR_IMPL_2(GlobalVariable, __VA_ARGS__)

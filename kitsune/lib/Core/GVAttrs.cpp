@@ -110,6 +110,11 @@ DEFN_ATTR_GENERIC(GlobalVariable, GVAttrKind)
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"
 
+#define GV_ATTR_L(...) DEFN_ATTR_L(GlobalVariable, __VA_ARGS__)
+#define GV_ATTR_S(...) DEFN_ATTR_S(GlobalVariable, __VA_ARGS__)
+#define GET_GV_ATTRS
+#include "kitsune/Core/GVAttrs.inc"
+
 #define GV_ATTR_0(...) DEFN_ATTR_0(GlobalVariable, __VA_ARGS__)
 #define GV_ATTR_1(...) DEFN_ATTR_1(GlobalVariable, __VA_ARGS__)
 #define GV_ATTR_2(...) DEFN_ATTR_2(GlobalVariable, __VA_ARGS__)
