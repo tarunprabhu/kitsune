@@ -14,11 +14,10 @@
 
 #include <stdio.h>
 
-// hip/kithip.h is not safe to be included in C source files. That header
-// should be modified, but that might be a non-trivial change, so for now, this
-// is easier.
-void __kithip_initialize(void);
-void __kithip_finalize(void);
+// hip/kithip.h pulls in the hip headers. Since we don't need any of that, just
+// declare what we need.
+extern "C" void __kithip_initialize(void);
+extern "C" void __kithip_finalize(void);
 
 __attribute__((constructor)) static void ctor(void) {
   printf("Before __kithip_initialize: %d\n", PAPI_is_initialized());

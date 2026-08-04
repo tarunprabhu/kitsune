@@ -1,6 +1,6 @@
 set(TESTS
   EnvNumThreads.cpp
-  EnvVerbose.c
+  EnvVerbose.cpp
 
   LogError.cpp
   LogErrorNoTag.cpp
@@ -13,47 +13,47 @@ set(TESTS
   LogWarning.cpp
   LogWarningNoTag.cpp
 
-  RTInitialized.c
-  RTMultipleInit.c
-  RTMultipleFini.c
+  RTInitialized.cpp
+  RTMultipleInit.cpp
+  RTMultipleFini.cpp
 
-  TimerBasic.c
-  TimerCannotWriteToFile.c
-  TimerDefaultStderr.c
-  TimerEmpty.c
-  TimerInitFini.c
-  TimerInitialized.c
-  TimerIterateSingleThread.c
-  TimerIterateThreads.c
-  TimerMultipleFini.c
-  TimerMultipleInit.c
-  TimerSingleThread.c
-  TimerThreads.c
-  TimerWriteToFile.c
-  TimerWriteNothingToFile.c
+  TimerBasic.cpp
+  TimerCannotWriteToFile.cpp
+  TimerDefaultStderr.cpp
+  TimerEmpty.cpp
+  TimerInitFini.cpp
+  TimerInitialized.cpp
+  TimerIterateSingleThread.cpp
+  TimerIterateThreads.cpp
+  TimerMultipleFini.cpp
+  TimerMultipleInit.cpp
+  TimerSingleThread.cpp
+  TimerThreads.cpp
+  TimerWriteToFile.cpp
+  TimerWriteNothingToFile.cpp
 )
 
 # These tests call PAPI's API functions directly, and require appropriate
 # include and link options.
 set(TESTS_WITH_PAPI
-  PAPIBasic.c
-  PAPICannotWriteToFile.c
-  PAPIConvenience.c
-  PAPIDefaultEvents.c
-  PAPIDefaultStderr.c
-  PAPIEmpty.c
-  PAPIInitialized.c
-  PAPIIterateSingleThread.c
-  PAPIIterateThreads.c
-  PAPIMultipleFini.c
-  PAPIMultipleInit.c
-  PAPINested.c
-  PAPISingleThread.c
-  PAPIThreads.c
-  PAPIUnknown.c
-  PAPIWriteNothingToFile.c
-  PAPIWriteToFile.c
-  RTPAPIInitFini.c
+  PAPIBasic.cpp
+  PAPICannotWriteToFile.cpp
+  PAPIConvenience.cpp
+  PAPIDefaultEvents.cpp
+  PAPIDefaultStderr.cpp
+  PAPIEmpty.cpp
+  PAPIInitialized.cpp
+  PAPIIterateSingleThread.cpp
+  PAPIIterateThreads.cpp
+  PAPIMultipleFini.cpp
+  PAPIMultipleInit.cpp
+  PAPINested.cpp
+  PAPISingleThread.cpp
+  PAPIThreads.cpp
+  PAPIUnknown.cpp
+  PAPIWriteNothingToFile.cpp
+  PAPIWriteToFile.cpp
+  RTPAPIInitFini.cpp
 )
 
 add_kitrt_systests("${TESTS}")
