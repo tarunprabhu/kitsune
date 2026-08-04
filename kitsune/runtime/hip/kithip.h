@@ -58,6 +58,7 @@
 
 #include "common/utils.h"
 #include "kitrt.h"
+#include "kitsune/Shared/KernelInstMix.h"
 
 #define __HIP_DISABLE_CPP_FUNCTIONS__ // skip extra c++ cruft
 // we're only interested in AMD GPUs and HIP (no CUDA).
@@ -316,8 +317,8 @@ void __kithip_memcpy_sym_to_device(void *dev_sym, void *host_sym, size_t bytes);
  */
 void *__kithip_launch_kernel(const void *fatbin, const char *name, int64_t tc_z,
                              int64_t tc_y, int64_t tc_x, int tpb,
-                             const KitRTInstMix *inst_mix, void *stream_in,
-                             void **args);
+                             const kitrt::KernelInstMix *inst_mix,
+                             void *stream_in, void **args);
 
 /**
  * Set the runtime's value for the number of threads-per-block used in simple
