@@ -12,15 +12,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/KernelProperties.h"
-#include "kitsune/Common/Types.h"
+#include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/GVAttrs.h"
+#include "kitsune/Shared/KernelInstMix.h"
 #include "llvm/ADT/SmallSet.h"
-#include "llvm/IR/Attributes.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instructions.h"
-#include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 
 #include <map>
@@ -50,7 +49,7 @@ private:
   /// NOTE: The values here are for just the function alone, not including the
   /// the values of the instructions mixes for any functions reachable from it.
   /// This trades off a bit of efficiency but keeps the implementation simple.
-  std::map<const Function *, std::unique_ptr<KernelInstMixData>> instMixes;
+  std::map<const Function *, std::unique_ptr<kitrt::KernelInstMix>> instMixes;
 
 private:
   /// Find the functions with definitions that are reachable from the given
@@ -85,9 +84,16 @@ private:
     return seen;
   }
 
-  const KernelInstMixData &calculate(const Function &f) {
+  const kitrt::KernelInstMix &calculate(const Function &f) {
     if (instMixes.find(&f) == instMixes.end()) {
-      auto instMix = std::make_unique<KernelInstMixData>();
+      // The {} at the end of the new statement are required to ensure that the
+      // object is zero-initialized. emplace returns a pair, the first element
+      // of which is an iterator to the mapping that was just added. The mapping
+      // is itself a pair of a function and the unique_ptr containing the
+      // instruction mix object.
+      kitrt::KernelInstMix &instMix =
+          *instMixes.emplace(&f, new kitrt::KernelInstMix{}).first->second;
+
       for (const_inst_iterator i = inst_begin(f), e = inst_end(f); i != e;
            ++i) {
         // For now, we only treat certain instructions as memory ops. This may
@@ -95,17 +101,16 @@ private:
         // this calculator.
         if (isa<LoadInst>(*i) or isa<StoreInst>(*i) or isa<AtomicRMWInst>(*i) or
             isa<AtomicCmpXchgInst>(*i)) {
-          instMix->memOps += 1;
+          instMix.memOps += 1;
         } else if (i->isUnaryOp() or i->isBinaryOp()) {
           if (i->getType()->isFPOrFPVectorTy())
-            instMix->fpOps += 1;
+            instMix.fpOps += 1;
           else if (i->getType()->isIntegerTy())
-            instMix->intOps += 1;
+            instMix.intOps += 1;
           else
-            instMix->otherOps += 1;
+            instMix.otherOps += 1;
         }
       }
-      instMixes.emplace(&f, std::move(instMix));
     }
     return *instMixes.at(&f);
   }
@@ -119,11 +124,15 @@ public:
   /// applies if any of the callees are recursive (the function itself is
   /// unlikely to be recursive since it will have been outlined from a tapir
   /// loop).
-  KernelInstMixData run(const Function &f) {
-    KernelInstMixData res;
+  kitrt::KernelInstMix run(const Function &f) {
+    // The {} after the variable is required to ensure that the object is
+    // zero-initialized.
+    kitrt::KernelInstMix res{};
+
     // The set of reachable functions will contain the given function.
-    for (const Function *f : reachable(f))
-      res += calculate(*f);
+    for (const Function *fn : reachable(f))
+      res += calculate(*fn);
+
     return res;
   }
 };
@@ -154,14 +163,12 @@ GlobalVariable *llvm::createKernelPropertiesGlobal(StringRef kernelName,
 
 ConstantStruct *llvm::getKernelPropertiesConstant(const Function &f) {
   LLVMContext &ctx = f.getContext();
-  Type *i64 = Type::getInt64Ty(ctx);
   StructType *propertiesType = getKernelPropertiesType(ctx);
 
-  KernelInstMixData instMix = InstMixCalculator().run(f);
+  kitrt::KernelInstMix instMix = InstMixCalculator().run(f);
 
-  return cast<ConstantStruct>(
-      ConstantStruct::get(propertiesType, ConstantInt::get(i64, instMix.memOps),
-                          ConstantInt::get(i64, instMix.fpOps),
-                          ConstantInt::get(i64, instMix.intOps),
-                          ConstantInt::get(i64, instMix.otherOps)));
+  return cast<ConstantStruct>(ConstantStruct::get(
+      propertiesType, toConstant(instMix.memOps, ctx),
+      toConstant(instMix.fpOps, ctx), toConstant(instMix.intOps, ctx),
+      toConstant(instMix.otherOps, ctx)));
 }

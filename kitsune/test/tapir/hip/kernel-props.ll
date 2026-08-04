@@ -6,15 +6,17 @@
 ; kernel. The first two elements of the properties struct are the number of
 ; memory operations and the number of floating point operations. We only check
 ; for these since this particular kernel has been crafted such that those values
-; can be computed easily. If we change the kernel properties that are computed,
-; this test, and the type of the global variable will have to be updated.
+; can be computed easily. The third element is the number of integer operations,
+; but that ends up including operations to compute the thread index as well as
+; the operations in the loop latch. Those are not strictly relevant to the
+; kernel, and may change depending on the underlying implementation of the
+; compiler, so we don't check for those here.
 ;
 ; RUN: opt --tapir=hip -passes='loop-spawning,kit-kernel-properties' -S %s \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: @{{.+}} = private unnamed_addr constant {
-; CHECK-SAME: i64, i64, i64, i64 }
-; CHECK-SAME: { i64 2, i64 1, {{.+}} }
+; CHECK-SAME: { i64 2, i64 1, i64 {{[0-9]+}}, i64 {{[0-9]+}} }
 ; CHECK-SAME: !kit.gv ![[MD:[0-9]+]]
 ;
 ; CHECK-DAG: ![[MD]] = distinct !{![[MD]], ![[KP:[0-9]+]]}

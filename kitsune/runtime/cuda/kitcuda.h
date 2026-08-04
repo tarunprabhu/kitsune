@@ -59,6 +59,7 @@
 
 #include "common/utils.h"
 #include "kitrt.h"
+#include "kitsune/Shared/KernelInstMix.h"
 
 #include <cuda.h>
 
@@ -324,7 +325,8 @@ extern void __kitcuda_memcpy_sym_to_device(uint64_t dev_sym, void *host_sym,
  */
 extern void *__kitcuda_launch_kernel(const void *fatbin, const char *name,
                                      int64_t tc_z, int64_t tc_y, int64_t tc_x,
-                                     int tpb, const KitRTInstMix *inst_mix,
+                                     int tpb,
+                                     const kitrt::KernelInstMix *inst_mix,
                                      void *stream_in, void **args);
 
 /**

@@ -192,7 +192,7 @@ int __kithip_reg_analysis(int threads_per_blk, int regs_per_thread,
 
 void __kithip_get_launch_params(size_t trip_count, hipFunction_t kfunc,
                                 const char *kfunc_name, int &threads_per_blk,
-                                const KitRTInstMix *inst_mix) {
+                                const kitrt::KernelInstMix *inst_mix) {
   assert(kfunc != nullptr && "__kithip_get_launch_params(): null kernel!");
   using namespace kithip_rt;
 
@@ -219,15 +219,13 @@ void __kithip_get_launch_params(size_t trip_count, hipFunction_t kfunc,
               attrs.maxThreadsPerBlock);
       if (inst_mix != nullptr) {
         fprintf(stderr, "  - instruction mix:\n");
-        fprintf(stderr, "     - # memory operations: %ld\n",
-                inst_mix->numMemoryOps);
-        fprintf(stderr, "     - # floating point ops: %ld\n",
-                inst_mix->numFlops);
-        fprintf(stderr, "     - # integer ops: %ld\n", inst_mix->numIntOps);
-        fprintf(stderr, "     - # other ops: %ld\n", inst_mix->numOtherOps);
+        fprintf(stderr, "     - # memory operations: %ld\n", inst_mix->memOps);
+        fprintf(stderr, "     - # floating point ops: %ld\n", inst_mix->fpOps);
+        fprintf(stderr, "     - # integer ops: %ld\n", inst_mix->intOps);
+        fprintf(stderr, "     - # other ops: %ld\n", inst_mix->otherOps);
         size_t total_ops =
-            inst_mix->numIntOps + inst_mix->numFlops + inst_mix->numOtherOps;
-        float ops_per_memop = float(total_ops) / inst_mix->numMemoryOps;
+            inst_mix->intOps + inst_mix->fpOps + inst_mix->otherOps;
+        float ops_per_memop = float(total_ops) / inst_mix->memOps;
         fprintf(stderr, "     - ops / memory op: %3.2f\n", ops_per_memop);
       }
     }
@@ -390,8 +388,8 @@ static hipStream_t launchKernel3(hipFunction_t f, void **args, size_t tcZ,
 //
 void *__kithip_launch_kernel(const void *fatbin, const char *name, int64_t tc_z,
                              int64_t tc_y, int64_t tc_x, int tpb,
-                             const KitRTInstMix *inst_mix, void *stream_in,
-                             void **args) {
+                             const kitrt::KernelInstMix *inst_mix,
+                             void *stream_in, void **args) {
   assert(fatbin && "kitrt[hip]: launch with null fat binary");
   assert(name && "kitrt[hip]: launch with null name");
   assert(args && "kitrt[hip]: launch with null args");
