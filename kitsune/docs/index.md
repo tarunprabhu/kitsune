@@ -103,6 +103,7 @@ depending on what is of interest to you.
     AddingCommandLineOption
     AddingTapirTarget
     AddingKitsuneIntrinsic
+    AddingSharedType
     BuildingDocumentation
     LLVMIRAttributes
     KitsuneTestSuite
