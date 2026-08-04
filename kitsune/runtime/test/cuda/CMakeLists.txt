@@ -1,5 +1,5 @@
 set(TESTS
-  RTInitFini.c
+  RTInitFini.cpp
 )
 
 # These tests call functions from Qthreads directly, and require appropriate
@@ -13,7 +13,7 @@ set(TESTS_WITH_CUDA
 # These tests call PAPI's API functions directly, and require appropriate
 # include and link options.
 set(TESTS_WITH_PAPI
-  PAPIInitFini.c
+  PAPIInitFini.cpp
 )
 
 add_kitrt_systests("${TESTS}")

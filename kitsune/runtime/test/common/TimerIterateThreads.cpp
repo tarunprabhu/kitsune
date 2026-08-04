@@ -58,7 +58,7 @@
 
 #include <stdlib.h>
 
-unsigned omp_get_thread_num(void);
+extern "C" unsigned omp_get_thread_num(void);
 
 __attribute__((constructor)) static void ctor(void) { __kitomp_initialize(); }
 

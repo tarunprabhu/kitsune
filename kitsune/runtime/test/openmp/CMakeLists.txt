@@ -1,17 +1,17 @@
 set(TESTS
-  Initialized.c
-  Launch.c
-  MultipleInit.c
-  MultipleFini.c
-  NumThreads.c
-  RTInitFini.c
-  ThreadID.c
+  Initialized.cpp
+  Launch.cpp
+  MultipleInit.cpp
+  MultipleFini.cpp
+  NumThreads.cpp
+  RTInitFini.cpp
+  ThreadID.cpp
 )
 
 # These tests call PAPI's API functions directly, and require appropriate
 # include and link options.
 set(TESTS_WITH_PAPI
-  PAPIInitFini.c
+  PAPIInitFini.cpp
 )
 
 add_kitrt_systests("${TESTS}")
