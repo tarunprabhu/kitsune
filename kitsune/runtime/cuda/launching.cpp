@@ -152,7 +152,7 @@ static KitCudaLaunchParamMap _kitcuda_launch_param_map;
  */
 void __kitcuda_refine_launch_params(size_t trip_count, CUfunction cu_func,
                                     int &threads_per_blk,
-                                    const KitRTInstMix *inst_mix) {
+                                    const kitrt::KernelInstMix *inst_mix) {
   KIT_NVTX_PUSH("kitcuda:get_launch_params", KIT_NVTX_LAUNCH);
 
   // As a default starting point, use CUDA's occupancy heuristic to get
@@ -273,7 +273,7 @@ static int __kitcuda_reg_analysis(int threads_per_blk, int regs_per_thread,
  */
 void __kitcuda_get_launch_params(size_t trip_count, CUfunction cu_func,
                                  int &threads_per_blk,
-                                 const KitRTInstMix *inst_mix) {
+                                 const kitrt::KernelInstMix *inst_mix) {
   KIT_NVTX_PUSH("kitcuda:get_launch_params", KIT_NVTX_LAUNCH);
 
   // EXPERIMENTAL: Our 'forall' kernels have zero shared memory usage so
@@ -419,8 +419,8 @@ static CUstream launchKernel3(CUfunction f, void **args, size_t tcZ, size_t tcY,
 
 void *__kitcuda_launch_kernel(const void *fatbin, const char *name,
                               int64_t tc_z, int64_t tc_y, int64_t tc_x, int tpb,
-                              const KitRTInstMix *inst_mix, void *stream_in,
-                              void **args) {
+                              const kitrt::KernelInstMix *inst_mix,
+                              void *stream_in, void **args) {
   assert(fatbin && "kitrt[cuda]: launch with null fat binary");
   assert(name && "kitrt[cuda]: launch with null name");
   assert(args && "kitrt[cuda]: launch with null args");
