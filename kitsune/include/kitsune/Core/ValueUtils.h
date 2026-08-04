@@ -71,7 +71,7 @@ bool isPointer(const Value &v, unsigned addrSpace);
 /// Get the name of an LLVM Value. If the value does not have a name, a string
 /// that matches how the value would be rendered in LLVM-IR is returned. If the
 /// value is a function or global variable, this will be of the form `@<N>`
-/// where <N> is a non-negative integer. If the value is an instruction, this
+/// where \<N\> is a non-negative integer. If the value is an instruction, this
 /// will be of the form `%<N>`.
 ///
 /// \p v must be an Argument, BasicBlock, GlobalValue, or Instruction. It is an

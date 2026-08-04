@@ -34,14 +34,14 @@ const Expr *getUnderlyingExpr(const Expr *expr);
 /// Get the underlying unqualified desugared type of the expression.
 const Type *getUnqualifiedDesugaredType(const Expr *expr);
 
-/// Compute a name for the statement \stmt. \p attrs are the attributes attached
-/// to the statement. If it contains a `kitsune::name` attribute, the value
-/// specified there will be used. Otherwise, a name will be computed from the
-/// location of statement.
+/// Compute a name for the statement \p stmt. \p attrs are the attributes
+/// attached to the statement. If it contains a `kitsune::name` attribute, the
+/// value specified there will be used. Otherwise, a name will be computed from
+/// the location of statement.
 std::string getNameFor(const Stmt &stmt, llvm::ArrayRef<const Attr *> attrs,
                        ASTContext &ast);
 
-/// Compute a name for the expression \expr from the location of statement.
+/// Compute a name for the expression \p expr from the location of statement.
 std::string getNameFor(const Expr &expr, ASTContext &ast);
 
 /// @}

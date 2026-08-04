@@ -48,9 +48,9 @@ protected:
   virtual GlobalVariable *createBundleGV(Module &m, GlobalVariable *devCode);
 
   /// Create a global variable that will contain the "handle" to the fat binary.
-  /// The handle is the value returned by @llvm.kit.gpu.register.devcode. The
+  /// The handle is the value returned by \@llvm.kit.gpu.register.devcode. The
   /// handle is saved into this global and read from there by the global dtor.
-  /// and passed to to @llvm.kit.gpu.unregister.devcode.
+  /// and passed to to \@llvm.kit.gpu.unregister.devcode.
   virtual GlobalVariable *createBundleHandleGV(Module &m);
 
   /// Get the magic number present in the bundle containing the device code.
@@ -102,12 +102,12 @@ protected:
                                                const Module &devM);
 
   /// Generate the ctor. It is the caller's responsibility to append the
-  /// returned function to @llvm.global_ctors.
+  /// returned function to \@llvm.global_ctors.
   virtual Function *genCtor(Module &m, GlobalVariable *gBundle,
                             GlobalVariable *gBundleHandle, const Module &devM);
 
   /// Generate the dtor. It is the caller's responsibility to append the
-  /// returned function to @llvm.global_dtors.
+  /// returned function to \@llvm.global_dtors.
   virtual Function *genDtor(Module &m, GlobalVariable *gBundleHandle);
 
 public:

@@ -128,7 +128,7 @@ protected:
 
   /// Populate the \ref usedGlobalValues member with the global values used in
   /// the loop \p loop. This will include the global values included in any
-  /// subloops of \ploop
+  /// subloops of \p loop.
   void populateUsedGlobalValues(Loop &loop);
 
   /// Generate calls, in the host module \ref hostM, to copy non-constant
@@ -179,11 +179,12 @@ protected:
   /// \param loop The loop
   /// \param iv The loop induction variable
   /// \param tc The new trip count to set on the loop
+  /// \param vmap The value map used when the loop was outlined
   void updateTripCount(Loop *loop, PHINode *iv, Value *tc,
                        const ValueToValueMapTy &vmap);
 
   /// Get the global variable in the device module that corresponds to the
-  /// global variable \g in the host. Since the global variables in the device
+  /// global variable \p g in the host. Since the global variables in the device
   /// module may be in a different address space from that in the global, the
   /// values in the vmap may be wrapped in a constant expression that casts
   /// away the address space. These have to be stripped away to get the

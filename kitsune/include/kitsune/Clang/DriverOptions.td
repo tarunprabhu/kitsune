@@ -158,9 +158,9 @@ option, even if different, but equivalent spelling are used. The compiler will
 not issue any warnings if this is done. However, this may result in unexpected
 behavior at run-time.
 
-```
+.. code::shell
+
   --kit-instr-papi="ins,tot_ins"
-```
 
 An empty list is not allowed. If "papi" is not in the list given to
 `--kit-instr=`, this option has no effect.

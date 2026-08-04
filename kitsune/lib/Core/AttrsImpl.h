@@ -113,7 +113,7 @@ MDNode *getAttrListWithout(StringRef attrName, MDNode *attrList);
 ///     !0 = !{!"<NAME>", ...}
 /// \endcode
 ///
-/// where <NAME> is the name of the attribute as specified in \p attrName and
+/// where \<NAME\> is the name of the attribute as specified in \p attrName and
 /// the ellipses denote the metadata in \p attrVals.
 MDNode *makeRawAttr(LLVMContext &ctx, StringRef attrName,
                     ArrayRef<Metadata *> vals);

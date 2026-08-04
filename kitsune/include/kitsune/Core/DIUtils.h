@@ -30,7 +30,7 @@ class DebugLoc;
 /// "<file>:<line>:<col>". If the column number is available, "<file>:<line>"
 /// otherwise. If \p inlinedAt is `false`, just return the base location.
 /// Otherwise, call this function with the inlined location. If this returns a
-/// non-empty string, <inlined>, append "@[<inlined>]" to the base string and
+/// non-empty string, \<inlined\>, append "@[<inlined>]" to the base string and
 /// return the result.
 std::string toString(const DebugLoc &dbgLoc, bool inlinedAt = false);
 
