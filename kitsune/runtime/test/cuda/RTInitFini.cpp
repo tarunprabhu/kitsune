@@ -17,11 +17,10 @@
 
 #include <stdio.h>
 
-// cuda/kitcuda.h is not safe to be included in C source files. That header
-// should be modified, but that might be a non-trivial change, so for now, this
-// is easier.
-void __kitcuda_initialize(void);
-void __kitcuda_finalize(void);
+// cuda/kitcuda.h pulls in the hip headers. Since we don't need any of that,
+// just declare what we need.
+extern "C" void __kitcuda_initialize(void);
+extern "C" void __kitcuda_finalize(void);
 
 __attribute__((constructor)) static void ctor(void) { __kitcuda_initialize(); }
 
