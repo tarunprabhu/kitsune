@@ -211,7 +211,7 @@ SyncInst *getTapirLoopUniqueSyncInst(Loop &loop);
 ///     detach within %syncreg, label %body, label %latch
 ///
 ///   body:
-///     <instructions>
+///     \<instructions\>
 ///
 BasicBlock *getTapirLoopDetachedBlock(Loop &loop);
 

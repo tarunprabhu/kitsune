@@ -24,11 +24,11 @@ namespace detail {
 class GenerateCtorCPU : public GenerateCtorBase {
 protected:
   /// Generate the ctor. It is the caller's responsibility to append the
-  /// returned function to @llvm.global_ctors.
+  /// returned function to \@llvm.global_ctors.
   virtual Function *genCtor(Module &m);
 
   /// Generate the dtor. It is the caller's responsibility to append the
-  /// returned function to @llvm.global_dtors.
+  /// returned function to \@llvm.global_dtors.
   virtual Function *genDtor(Module &m);
 
 public:
