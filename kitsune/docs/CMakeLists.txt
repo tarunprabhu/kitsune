@@ -277,6 +277,7 @@ if (KITSUNE_ENABLE_SPHINX)
       set(MDS
         AddingCommandLineOption.md
         AddingKitsuneIntrinsic.md
+        AddingSharedType.md
         AddingTapirTarget.md
         BasicUsage.md
         BuildingDocumentation.md
