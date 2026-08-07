@@ -54,6 +54,19 @@ TEST(LibFunc, getLibFuncType) {
 #include "kitsune/Core/LibFuncs.inc"
 }
 
+TEST(LibFunc, getDeclarationIfExists) {
+  LLVMContext ctx;
+  Module m("", ctx);
+  Function *f = nullptr;
+
+#define GET_LIBFUNCS
+#define LIBFUNC(NAME, LINKAGE_NAME, ...)                                       \
+  EXPECT_FALSE(getDeclarationIfExists(m, KitFunc::NAME));                      \
+  f = cast<Function>(getOrInsertLibFunc(m, KitFunc::NAME).getCallee());        \
+  EXPECT_EQ(getDeclarationIfExists(m, KitFunc::NAME), f);
+#include "kitsune/Core/LibFuncs.inc"
+}
+
 TEST(libFunc, getOrInsertLibFunc) {
   LLVMContext ctx;
   Module m("", ctx);

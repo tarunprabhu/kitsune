@@ -130,8 +130,8 @@ static FunctionType *getLibFuncType(ArrayRef<CType> ctypes, LLVMContext &ctx) {
           C22, C21, C20, C19, C18, C17, C16, C15, C14, C13, C12, C11, C10, C9, \
           C8, C7, C6, C5, C4, C3, C2, C1, X)(__VA_ARGS__)
 
-StringRef llvm::getLibFuncName(KitFunc libFunc) {
-  switch (libFunc) {
+StringRef llvm::getLibFuncName(KitFunc f) {
+  switch (f) {
 #define LIBFUNC(NAME, LINKAGE_NAME, ...)                                       \
   case KitFunc::NAME:                                                          \
     return LINKAGE_NAME;
@@ -141,8 +141,8 @@ StringRef llvm::getLibFuncName(KitFunc libFunc) {
   llvm_unreachable("getLibFuncName: KitFunc not handled");
 }
 
-FunctionType *llvm::getLibFuncType(KitFunc libFunc, LLVMContext &ctx) {
-  switch (libFunc) {
+FunctionType *llvm::getLibFuncType(KitFunc f, LLVMContext &ctx) {
+  switch (f) {
 #define GET_LIBFUNCS
 #define LIBFUNC(NAME, LINKAGE_NAME, ...)                                       \
   case KitFunc::NAME: {                                                        \
@@ -152,6 +152,10 @@ FunctionType *llvm::getLibFuncType(KitFunc libFunc, LLVMContext &ctx) {
 #include "kitsune/Core/LibFuncs.inc"
   }
   llvm_unreachable("getLibFuncType: KitFunc not handled");
+}
+
+Function *llvm::getDeclarationIfExists(Module &m, KitFunc f) {
+  return m.getFunction(getLibFuncName(f));
 }
 
 FunctionCallee llvm::getOrInsertLibFunc(Module &m, KitFunc libFunc) {
