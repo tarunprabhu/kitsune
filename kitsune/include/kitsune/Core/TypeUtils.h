@@ -13,6 +13,7 @@
 #ifndef KITSUNE_CORE_TYPE_UTILS_H
 #define KITSUNE_CORE_TYPE_UTILS_H
 
+#include "kitsune/Support/TypeTraits.h"
 #include "llvm/IR/DerivedTypes.h"
 
 namespace llvm {
@@ -35,6 +36,13 @@ Type *getLLVMTypeFor(LLVMContext &ctx);
 template <typename T, std::enable_if_t<std::is_pointer_v<T>, int> = 0>
 Type *getLLVMTypeFor(LLVMContext &ctx) {
   return PointerType::getUnqual(ctx);
+}
+
+/// Get the type of the byte array that would be obtained by serializing the
+/// type \p type.
+template <typename T, std::enable_if_t<std::is_interop_v<T>, int> = 0>
+ArrayType *getLLVMByteArrayTypeFor(LLVMContext &ctx) {
+  return ArrayType::get(Type::getInt8Ty(ctx), sizeof(T));
 }
 
 /// @}

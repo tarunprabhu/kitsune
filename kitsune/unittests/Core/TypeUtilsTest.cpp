@@ -82,4 +82,46 @@ TEST(KitTypeUtils, getLLVMTypeFor) {
 #endif // __unix__
 }
 
+struct S0 {};
+
+struct S3 {
+  char s[3];
+};
+
+struct S16 {
+  int64_t m0;
+  int32_t m1;
+};
+
+struct S24 {
+  char m0;
+  double m1;
+  uint16_t m2;
+  float m3;
+};
+
+TEST(KitTypeUtils, getLLVMByteArrayTypeFor) {
+  LLVMContext ctx;
+  Type *i8 = Type::getInt8Ty(ctx);
+
+  // Empty struct still return a sizeof(1).
+  ArrayType *a0 = getLLVMByteArrayTypeFor<S0>(ctx);
+  EXPECT_EQ(a0->getElementType(), i8);
+  EXPECT_EQ(a0->getNumElements(), 1U);
+
+  // sizeof does not necessarily "align up".
+  ArrayType *a3 = getLLVMByteArrayTypeFor<S3>(ctx);
+  EXPECT_EQ(a3->getElementType(), i8);
+  EXPECT_EQ(a3->getNumElements(), 3U);
+
+  // Padding is accounted for when computing sizeof.
+  ArrayType *a16 = getLLVMByteArrayTypeFor<S16>(ctx);
+  EXPECT_EQ(a16->getElementType(), i8);
+  EXPECT_EQ(a16->getNumElements(), 16U);
+
+  ArrayType *a24 = getLLVMByteArrayTypeFor<S24>(ctx);
+  EXPECT_EQ(a24->getElementType(), i8);
+  EXPECT_EQ(a24->getNumElements(), 24U);
+}
+
 } // namespace
