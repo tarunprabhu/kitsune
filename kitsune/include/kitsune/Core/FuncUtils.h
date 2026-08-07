@@ -18,6 +18,7 @@
 namespace llvm {
 
 class Argument;
+class BasicBlock;
 class Function;
 class LLVMContext;
 class Module;
@@ -53,6 +54,10 @@ void copyAttrs(Function &dst, const Function &src);
 
 /// Copy attributes from the argument \p src to the argument \p dst.
 void copyAttrs(Argument &dst, const Argument &src);
+
+/// Get the basic block with the name \p name in function \f, or nullptr if such
+/// a block does not exist.
+BasicBlock *getBlockNamed(StringRef name, Function &f);
 
 /// Sort the basic blocks in the function so they are in some "reasonable"
 /// order, usually something that resembles "program order". In most cases,
