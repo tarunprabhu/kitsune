@@ -98,4 +98,21 @@ TEST(KitFuncUtils, copyAttrsArgs) {
   EXPECT_FALSE(dup1->hasRetAttribute(Attribute::NoAlias));
 }
 
+TEST(KitFuncUtils, getBlockNamed) {
+  LLVMContext ctx;
+  Type *ret = Type::getVoidTy(ctx);
+  FunctionType *fty = FunctionType::get(ret, {}, /*IsVarArg=*/false);
+  Function *f = Function::Create(fty, GlobalValue::InternalLinkage, "f");
+
+  BasicBlock *entry = BasicBlock::Create(ctx, "entry", f);
+  [[maybe_unused]] BasicBlock *body = BasicBlock::Create(ctx, "", f);
+  BasicBlock *exit = BasicBlock::Create(ctx, "exit", f);
+
+  EXPECT_EQ(getBlockNamed("entry", *f), entry);
+  EXPECT_EQ(getBlockNamed("exit", *f), exit);
+
+  EXPECT_FALSE(getBlockNamed("", *f));
+  EXPECT_FALSE(getBlockNamed("body", *f));
+}
+
 } // namespace
