@@ -59,6 +59,13 @@ void llvm::copyAttrs(Argument &dst, const Argument &src) {
     dst.addAttr(attr);
 }
 
+BasicBlock *llvm::getBlockNamed(StringRef name, Function &f) {
+  for (BasicBlock &bb : f)
+    if (bb.hasName() && bb.getName() == name)
+      return &bb;
+  return nullptr;
+}
+
 bool llvm::sortBasicBlocks(Function &f) {
   if (!f.size())
     return false;
