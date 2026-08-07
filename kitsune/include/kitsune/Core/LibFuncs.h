@@ -20,6 +20,7 @@
 
 namespace llvm {
 
+class Function;
 class FunctionType;
 class LLVMContext;
 class Module;
@@ -35,14 +36,18 @@ enum class KitFunc {
 #include "kitsune/Core/LibFuncs.inc"
 };
 
-/// Get the name of the given library function.
-StringRef getLibFuncName(KitFunc libFunc);
+/// Get the name of the Kitsune library function \p f.
+StringRef getLibFuncName(KitFunc f);
 
-/// Get the type of the given library function.
-FunctionType *getLibFuncType(KitFunc libFunc, LLVMContext &ctx);
+/// Get the type of the Kitsune library function \p f.
+FunctionType *getLibFuncType(KitFunc f, LLVMContext &ctx);
 
-/// Get or insert a declaration for the given library function.
-FunctionCallee getOrInsertLibFunc(Module &m, KitFunc libFunc);
+/// Get or insert a declaration for the Kitsune library function \p f.
+FunctionCallee getOrInsertLibFunc(Module &m, KitFunc f);
+
+/// If a declaration for the Kitsune library function \p f is present in the
+/// module \p m, return it, otherwise return nullptr.
+Function *getDeclarationIfExists(Module &m, KitFunc f);
 
 /// \@}
 
