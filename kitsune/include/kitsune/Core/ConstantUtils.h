@@ -57,19 +57,27 @@ Constant *toConstant(const T &val, LLVMContext &ctx);
 template <typename T, std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
 Constant *toConstant(const T &val, LLVMContext &ctx);
 
-template <typename T, std::enable_if_t<std::is_same_v<T, StringRef> ||
-                                           std::is_same_v<T, StringLiteral> ||
-                                           std::is_same_v<T, std::string>,
-                                       int> = 0>
+template <typename T, std::enable_if_t<std::is_enum_v<T>, int> = 0>
+Constant *toConstant(const T &val, LLVMContext &ctx) {
+  return ConstantInt::get(getLLVMTypeFor<int32_t>(ctx), int32_t(val));
+}
+
+template <typename T, std::enable_if_t<std::is_string_like_v<T>, int> = 0>
 Constant *toConstant(const T &val, LLVMContext &ctx);
 
 template <int N> Constant *toConstant(const char (&s)[N], LLVMContext &ctx) {
   return toConstant(StringRef(s), ctx);
 }
 
-template <typename T, std::enable_if_t<std::is_enum_v<T>, int> = 0>
+template <typename T, std::enable_if_t<std::is_interop_v<T>, int> = 0>
 Constant *toConstant(const T &val, LLVMContext &ctx) {
-  return ConstantInt::get(getLLVMTypeFor<int32_t>(ctx), int32_t(val));
+  // Since the type is interoperable. it is guaranteed to be contiguous in
+  // memory. We can, therefore, just treat it as an array of bytes. This is most
+  // easily represented as a StringRef - an array of `sizeof(T)` 1-byte
+  // characters. This will appear as a Base64-encoded string in human-readable
+  // LLVM assembly.
+  return toConstant(StringRef(reinterpret_cast<const char *>(&val), sizeof(T)),
+                    ctx);
 }
 
 /// @}

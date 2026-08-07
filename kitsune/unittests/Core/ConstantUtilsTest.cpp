@@ -213,4 +213,39 @@ TEST(KitConstantUtils, getOne) {
   EXPECT_TRUE(f64->getType()->isDoubleTy());
 }
 
+struct Interop {
+  int i;
+  char s[5];
+};
+
+TEST(KitConstantUtils, getInteroperableConst) {
+  auto toString = [](const Constant &c) -> std::string {
+    std::string buf;
+    raw_string_ostream os(buf);
+
+    os << c;
+    os.flush();
+
+    return buf;
+  };
+
+  LLVMContext ctx;
+  Interop o;
+
+  // Set all bytes of the struct to some silly marker value that we can later
+  // recognize. Only the first 9 bytes of this contain actual data, so the
+  // sentinels should be left untouched.
+  memset(&o, 0xbe, sizeof(Interop));
+
+  // Now add proper data.
+  o.i = 11;
+  memcpy(o.s, "cafe", 5);
+
+  Constant *c = toConstant(o, ctx);
+  std::string cstr = toString(*c);
+
+  EXPECT_TRUE(isa<ConstantDataArray>(c));
+  EXPECT_EQ(cstr, "[12 x i8] c\"\\0B\\00\\00\\00cafe\\00\\BE\\BE\\BE\"");
+}
+
 } // namespace

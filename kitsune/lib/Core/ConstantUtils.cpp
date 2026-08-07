@@ -79,10 +79,7 @@ Constant *llvm::toConstant(const T &val, LLVMContext &ctx) {
 template Constant *llvm::toConstant(const float &val, LLVMContext &ctx);
 template Constant *llvm::toConstant(const double &val, LLVMContext &ctx);
 
-template <typename T, std::enable_if_t<std::is_same_v<T, StringRef> ||
-                                           std::is_same_v<T, StringLiteral> ||
-                                           std::is_same_v<T, std::string>,
-                                       int>>
+template <typename T, std::enable_if_t<std::is_string_like_v<T>, int>>
 Constant *llvm::toConstant(const T &val, LLVMContext &ctx) {
   return ConstantDataArray::getString(ctx, val, /*AddNull=*/false);
 }
