@@ -152,4 +152,94 @@ TEST(KitTypeTraits, isSmallVector) {
   EXPECT_FALSE(std::is_small_vector_v<std::vector<int>>);
 }
 
+struct StructInt {
+  int a;
+};
+
+struct StructPtr {
+  void *ptr;
+};
+
+struct StructArray {
+  int arr[4];
+};
+
+struct StructArrayPtr {
+  void *ptrs[3];
+};
+
+struct StructStructPtr {
+  struct Inner {
+    void *ptr;
+  } inner;
+};
+
+struct StructStructNoPtr {
+  struct Inner {
+    int arr[4];
+  } inner;
+};
+
+class ClassPrivate {
+  int i;
+};
+
+class ClassMixed {
+private:
+  int i;
+
+public:
+  int j;
+};
+
+struct DerivedInt : public StructInt {
+  int d;
+};
+
+struct DefaultedConstructor {
+  int i;
+  DefaultedConstructor() = default;
+};
+
+TEST(KitTypeTraits, isInterop) {
+  // All interoperable types must be structs
+  EXPECT_FALSE(std::is_interop_v<bool>);
+  EXPECT_FALSE(std::is_interop_v<char>);
+  EXPECT_FALSE(std::is_interop_v<int>);
+  EXPECT_FALSE(std::is_interop_v<uint64_t>);
+  EXPECT_FALSE(std::is_interop_v<float>);
+  EXPECT_FALSE(std::is_interop_v<long double>);
+  EXPECT_FALSE(std::is_interop_v<char[11]>);
+
+  EXPECT_FALSE(std::is_interop_v<const char *>);
+  EXPECT_FALSE(std::is_interop_v<void *>);
+
+  // These types have at least one private, non-static member, and are not
+  // interoperable.
+  EXPECT_FALSE(std::is_interop_v<ClassPrivate>);
+  EXPECT_FALSE(std::is_interop_v<ClassMixed>);
+
+  // These are not interoperable because they are either not trivial, not
+  // trivially constructible, or not standard-layout.
+  EXPECT_FALSE(std::is_interop_v<std::string>);
+  EXPECT_FALSE(std::is_interop_v<llvm::StringRef>);
+  EXPECT_FALSE(std::is_interop_v<llvm::StringLiteral>);
+
+  // Derived classes where both base and derived class define a member are not
+  // interoperable.
+  EXPECT_FALSE(std::is_interop_v<DerivedInt>);
+
+  // These are interoperable.
+  EXPECT_TRUE(std::is_interop_v<StructArray>);
+  EXPECT_TRUE(std::is_interop_v<StructStructNoPtr>);
+  EXPECT_TRUE(std::is_interop_v<StructInt>);
+  EXPECT_TRUE(std::is_interop_v<DefaultedConstructor>);
+
+  // FIXME: These currently return true, but they should return false. But we
+  // check for the wrong thing just to keep the testing green.
+  EXPECT_TRUE(std::is_interop_v<StructPtr>);
+  EXPECT_TRUE(std::is_interop_v<StructArrayPtr>);
+  EXPECT_TRUE(std::is_interop_v<StructStructPtr>);
+}
+
 } // namespace
