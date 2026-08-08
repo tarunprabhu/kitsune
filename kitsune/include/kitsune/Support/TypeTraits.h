@@ -26,6 +26,9 @@ namespace std {
 
 namespace detail {
 
+// Implementation to check if a type is iterable. It is assumed to be iterable
+// if it contains begin() and end() methods. This is a necessary requirement
+// that would allow us to iterate over an object using a range-based for loop.
 template <typename T, typename = void>
 struct is_iterable_t : std::false_type {};
 
@@ -34,6 +37,12 @@ struct is_iterable_t<T, std::void_t<decltype(std::declval<T>().begin()),
                                     decltype(std::declval<T>().end())>>
     : std::true_type {};
 
+// Check if a type is a llvm::SmallSet, or an llvm::SmallVector. The first
+// element of these ADT's is the element type. In each case, N is the size below
+// which the container is deemed to be "small". both ADT's are optimized for the
+// "small" case. We can share this implementation between the two because
+// llvm::SmallSet takes an additional std::less type argument, while
+// llvm::SmallVector does not.
 template <typename T, template <typename, unsigned, typename...> class C>
 struct is_small_adt : std::false_type {};
 
@@ -41,11 +50,20 @@ template <typename E, unsigned N, typename... Extra,
           template <typename, unsigned, typename...> class C>
 struct is_small_adt<C<E, N, Extra...>, C> : std::true_type {};
 
+// Implementation to check if a type is an llvm::SmallString. The
+// llvm::SmallString takes a single unsigned integer template parameter. This
+// matches against that.
 template <typename T, template <unsigned> class C>
 struct is_small_string : std::false_type {};
 
 template <unsigned N, template <unsigned> class C>
 struct is_small_string<C<N>, C> : std::true_type {};
+
+// Check if a type is complete i.e. that it is not a forward declaration. This
+// works because calling sizeof on an incomplete type is guaranteed to fail.
+template <typename T, typename = void> struct is_complete : std::false_type {};
+template <typename T>
+struct is_complete<T, std::void_t<decltype(sizeof(T))>> : std::true_type {};
 
 } // namespace detail
 
@@ -133,6 +151,10 @@ static constexpr bool is_string_like_v =
     std::is_same_v<std::remove_cv_t<T>, llvm::StringLiteral> ||
     std::is_same_v<std::remove_cv_t<T>, llvm::StringRef> ||
     std::is_small_string_v<std::remove_cv_t<T>>;
+
+/// Check if the type is complete, i.e. that it is not a forward declaration.
+template <typename T>
+static constexpr bool is_complete_v = detail::is_complete<T>::value;
 
 /// Check if the type is "interoperable". In Kitsune, this refers to structs
 /// that have a standard-layout, are trivially constructible, and (in C++
