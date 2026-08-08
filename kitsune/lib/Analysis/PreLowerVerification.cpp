@@ -54,7 +54,6 @@
 #include "kitsune/Core/TTUtils.h"
 #include "kitsune/Support/CommandLineOptions.h"
 #include "kitsune/Support/ErrorHandling.h"
-#include "kitsune/Targets/TapirTargets.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/OptimizationRemarkEmitter.h"
@@ -501,7 +500,7 @@ private:
   // Check if all tapir targets required by the module have been enabled.
   void checkTTsEnabled(ArrayRef<TTID> tts) {
     for (TTID tt : tts)
-      if (not isTTEnabled(tt))
+      if (not isEnabledTT(tt))
         emitDiag(DiagID::ErrTTNotEnabled);
   }
 

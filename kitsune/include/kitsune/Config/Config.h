@@ -33,6 +33,14 @@ static constexpr TTIDInitList knownGPUTTs = {KITSUNE_KNOWN_GPU_TTIDS};
 static constexpr TTIDInitList knownEmbBCTTs = {KITSUNE_KNOWN_EMB_BC_TTIDS};
 static constexpr TTIDInitList universalTTs = {KITSUNE_UNIVERSAL_TTIDS};
 
+// Is the TTID \p tt in TTIDInitList \p list.
+static constexpr bool isInTTIDList(TTID tt, TTIDInitList list) {
+  for (TTID id : list)
+    if (id == tt)
+      return true;
+  return false;
+}
+
 } // namespace detail
 
 /// \addtogroup kitsune
@@ -147,9 +155,6 @@ constexpr bool kitKokkosEnabled() { return KITSUNE_KOKKOS_ENABLED; }
 
 //------------------------------------------------------------------------------
 
-/// Has the cuda tapir target been enabled.
-constexpr bool kitCudaEnabled() { return KITSUNE_CUDA_ENABLED; }
-
 /// Get the install directory of the cuda toolkit used in this build.
 constexpr StringRef kitCudaPrefix() { return KITSUNE_CUDA_PREFIX; }
 
@@ -182,14 +187,6 @@ constexpr StringRef kitCudaFatbinName() { return KITSUNE_CUDA_FATBIN_NAME; }
 
 //------------------------------------------------------------------------------
 
-/// Has the custom tapir target been enabled.
-constexpr bool kitCustomEnabled() { return KITSUNE_CUSTOM_ENABLED; }
-
-//------------------------------------------------------------------------------
-
-/// Has the hip tapir target been enabled.
-constexpr bool kitHipEnabled() { return KITSUNE_HIP_ENABLED; }
-
 /// Get the install directory of AMD's ROCm used in this build.
 constexpr StringRef kitHipPrefix() { return KITSUNE_HIP_PREFIX; }
 
@@ -218,44 +215,6 @@ constexpr StringRef kitHipDefaultArch() { return KITSUNE_HIP_ARCH_DEFAULT; }
 constexpr StringRef kitHipFatbinName() { return KITSUNE_HIP_FATBIN_NAME; }
 
 //------------------------------------------------------------------------------
-
-/// Has the lambda tapir target been enabled.
-constexpr bool kitLambdaEnabled() { return KITSUNE_LAMBDA_ENABLED; }
-
-//------------------------------------------------------------------------------
-
-/// Has the omptask tapir target been enabled.
-constexpr bool kitOMPTaskEnabled() { return KITSUNE_OMPTASK_ENABLED; }
-
-//------------------------------------------------------------------------------
-
-/// Has the opencilk tapir target been enabled.
-constexpr bool kitOpenCilkEnabled() { return KITSUNE_OPENCILK_ENABLED; }
-
-//------------------------------------------------------------------------------
-
-/// Has the openmp tapir target been enabled.
-constexpr bool kitOpenMPEnabled() { return KITSUNE_OPENMP_ENABLED; }
-
-//------------------------------------------------------------------------------
-
-/// Has the pthreads tapir target been enabled. This always returns true.
-constexpr bool kitPthreadsEnabled() { return KITSUNE_PTHREADS_ENABLED; }
-
-//------------------------------------------------------------------------------
-
-/// Has the qthreads tapir target been enabled.
-constexpr bool kitQthreadsEnabled() { return KITSUNE_QTHREADS_ENABLED; }
-
-//------------------------------------------------------------------------------
-
-/// Has the realm tapir target been enabled.
-constexpr bool kitRealmEnabled() { return KITSUNE_REALM_ENABLED; }
-
-//------------------------------------------------------------------------------
-
-/// Has the serial tapir target been enabled.
-constexpr bool kitSerialEnabled() { return KITSUNE_SERIAL_ENABLED; }
 
 /// @}
 
