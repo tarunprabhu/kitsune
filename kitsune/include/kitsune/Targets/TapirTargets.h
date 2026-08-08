@@ -26,9 +26,6 @@ namespace llvm {
 /// \param tto  The tapir target options object
 std::unique_ptr<TapirTarget> makeTT(TTID tt, Module &m, const TTOptions &tto);
 
-/// Check if the given tapir target has been enabled in this build.
-bool isTTEnabled(TTID tt);
-
 } // namespace llvm
 
 #endif // KITSUNE_TARGETS_TAPIR_TARGETS_H

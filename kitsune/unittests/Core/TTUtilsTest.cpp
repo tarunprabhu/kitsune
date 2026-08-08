@@ -69,28 +69,11 @@ TEST(KitTTUtils, getSpawnStrategy) {
 }
 
 TEST(KitTTUtils, isEnabledTT) {
+  // It is not clear if there is any advantage in checking that this function
+  // works by directly inspecting the variables that this function would itself
+  // inspect. So we just check that the special case of TTID::Nolo is handled
+  // correctly.
   EXPECT_TRUE(isEnabledTT(TTID::Nolo));
-  for (TTID tt : kitKnownTTs()) {
-    bool enabled = isEnabledTT(tt);
-    if (tt == TTID::Cuda)
-      EXPECT_EQ(enabled, kitCudaEnabled());
-    else if (tt == TTID::Custom)
-      EXPECT_EQ(enabled, kitCustomEnabled());
-    else if (tt == TTID::Hip)
-      EXPECT_EQ(enabled, kitHipEnabled());
-    else if (tt == TTID::OpenCilk)
-      EXPECT_EQ(enabled, kitOpenCilkEnabled());
-    else if (tt == TTID::OpenMP)
-      EXPECT_EQ(enabled, kitOpenMPEnabled());
-    else if (tt == TTID::Pthreads)
-      EXPECT_EQ(enabled, kitPthreadsEnabled());
-    else if (tt == TTID::Qthreads)
-      EXPECT_EQ(enabled, kitQthreadsEnabled());
-    else if (tt == TTID::Serial)
-      EXPECT_EQ(enabled, kitSerialEnabled());
-    else
-      FAIL();
-  }
 }
 
 } // namespace

@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Config/Config.h"
+#include "kitsune/Core/TTUtils.h"
 #include "llvm/Config/config.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
@@ -108,11 +109,11 @@ int main(int argc, char **argv) {
     else if (arg == "--c-frontend")
       renderPathIf(kitCEnabled(), argv[0], kitCFrontend());
     else if (arg == "--cuda-prefix")
-      renderIf(kitCudaEnabled(), kitCudaPrefix());
+      renderIf(isEnabledTT(TTID::Cuda), kitCudaPrefix());
     else if (arg == "--cuda-target")
-      render(kitCudaEnabled());
+      render(isEnabledTT(TTID::Cuda));
     else if (arg == "--custom-target")
-      render(kitCustomEnabled());
+      render(isEnabledTT(TTID::Custom));
     else if (arg == "--cxx")
       render(kitCXXEnabled());
     else if (arg == "--cxx-frontend")
@@ -122,9 +123,9 @@ int main(int argc, char **argv) {
     else if (arg == "--fortran-frontend")
       renderPathIf(kitFortranEnabled(), argv[0], kitFortranFrontend());
     else if (arg == "--hip-prefix")
-      renderIf(kitHipEnabled(), kitHipPrefix());
+      renderIf(isEnabledTT(TTID::Hip), kitHipPrefix());
     else if (arg == "--hip-target")
-      render(kitHipEnabled());
+      render(isEnabledTT(TTID::Hip));
     else if (arg == "--kitsune-version")
       render(kitPackageVersion());
     else if (arg == "--kokkos")
@@ -134,25 +135,25 @@ int main(int argc, char **argv) {
     else if (arg == "--known-tapir-targets")
       render(kitKnownTapirTargets());
     else if (arg == "--lambda-target")
-      render(kitLambdaEnabled());
+      render(isEnabledTT(TTID::Lambda));
     else if (arg == "--langs")
       render(kitEnabledLangs());
     else if (arg == "--llvm-version")
       render(PACKAGE_VERSION);
     else if (arg == "--omptask-target")
-      render(kitOMPTaskEnabled());
+      render(isEnabledTT(TTID::OMPTask));
     else if (arg == "--opencilk-target")
-      render(kitOpenCilkEnabled());
+      render(isEnabledTT(TTID::OpenCilk));
     else if (arg == "--openmp-target")
-      render(kitOpenMPEnabled());
+      render(isEnabledTT(TTID::OpenMP));
     else if (arg == "--pthreads-target")
-      render(kitPthreadsEnabled());
+      render(isEnabledTT(TTID::Pthreads));
     else if (arg == "--qthreads-target")
-      render(kitQthreadsEnabled());
+      render(isEnabledTT(TTID::Qthreads));
     else if (arg == "--realm-target")
-      render(kitRealmEnabled());
+      render(isEnabledTT(TTID::Realm));
     else if (arg == "--serial-target")
-      render(kitSerialEnabled());
+      render(isEnabledTT(TTID::Serial));
     else if (arg == "--tapir-targets")
       render(kitEnabledTapirTargets());
     else if (arg == "--version")
