@@ -14,6 +14,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Config/Config.h"
+#include "kitsune/Core/TTUtils.h"
 
 #include "gtest/gtest.h"
 
@@ -55,18 +56,18 @@ TEST(KitConfigUtils, universal) {
   TTID universal[] = {TTID::Custom, TTID::OpenMP, TTID::Pthreads, TTID::Serial};
   EXPECT_EQ(kitUniversalTTs(), ArrayRef<TTID>(universal));
 
-  EXPECT_TRUE(kitCustomEnabled());
-  EXPECT_TRUE(kitOpenMPEnabled());
-  EXPECT_TRUE(kitPthreadsEnabled());
-  EXPECT_TRUE(kitSerialEnabled());
+  EXPECT_TRUE(isEnabledTT(TTID::Custom));
+  EXPECT_TRUE(isEnabledTT(TTID::OpenMP));
+  EXPECT_TRUE(isEnabledTT(TTID::Pthreads));
+  EXPECT_TRUE(isEnabledTT(TTID::Serial));
 }
 
 TEST(KitConfigUtils, unsupported) {
   // These tapir targets are known to be unsupported, so they should never be
   // show up as enabled.
-  EXPECT_FALSE(kitLambdaEnabled());
-  EXPECT_FALSE(kitOMPTaskEnabled());
-  EXPECT_FALSE(kitRealmEnabled());
+  EXPECT_FALSE(isEnabledTT(TTID::Lambda));
+  EXPECT_FALSE(isEnabledTT(TTID::OMPTask));
+  EXPECT_FALSE(isEnabledTT(TTID::Realm));
 }
 
 TEST(KitConfigUtils, enabledCPUTTs) {
