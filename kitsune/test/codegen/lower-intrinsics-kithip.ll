@@ -13,8 +13,6 @@
 ; CHECK-NEXT: %1 = alloca ptr
 ; CHECK-NEXT: %2 = alloca [1 x ptr]
 ; CHECK-NEXT: %guvm = alloca ptr
-; CHECK-NEXT: call void @__kithip_enable_ylaunch()
-; CHECK-NEXT: call void @__kithip_enable_xnack()
 ; CHECK-NEXT: %[[CUS:.+]] = call i64 @__kithip_num_cus()
 ; CHECK-NEXT: %[[STREAM:.+]] = call ptr @__kithip_get_thread_stream()
 ; CHECK-NEXT: %[[GSYM:.+]] = call ptr @__kithip_get_global_symbol(ptr null, ptr @.gname)
@@ -35,8 +33,7 @@
 ; CHECK-NEXT: call void @__kithip_unregister_devcode(ptr %handle)
 ; CHECK-NEXT: ret void
 ;
-; CHECK-DAG: void @__kithip_enable_ylaunch() #[[ATTRS:[0-9]+]]
-; CHECK-DAG: ptr @__kithip_get_global_symbol(ptr, ptr) #[[ATTRS]]
+; CHECK-DAG: ptr @__kithip_get_global_symbol(ptr, ptr) #[[ATTRS:[0-9]+]]
 ; CHECK-DAG: ptr @__kithip_launch_kernel(ptr, ptr, i64, i64, i64, i32, ptr, ptr, ptr) #[[ATTRS]]
 ; CHECK-DAG: ptr @__kithip_mem_gpu_prefetch(ptr, i64, ptr) #[[ATTRS]]
 ; CHECK-DAG: ptr @__kithip_mem_host_prefetch(ptr, i64, ptr) #[[ATTRS]]
@@ -60,8 +57,6 @@ target triple = "x86_64-pc-linux-gnu"
 
 define void @f(ptr %buf, i64 %n) {
   %guvm = alloca ptr
-  call void @llvm.kit.runtime.set.y.axis.kernel.launch(i32 4)
-  call void @llvm.kit.runtime.set.xnack(i32 4)
   %cus = call i64 @llvm.kit.gpu.num.compute.units(i32 4)
   %1 = call ptr @llvm.kit.gpu.stream.new(i32 4)
   %2 = call ptr @llvm.kit.gpu.symbol.address(i32 4, ptr null, ptr @.gname)

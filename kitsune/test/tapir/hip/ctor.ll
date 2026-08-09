@@ -25,8 +25,8 @@
 ; DEFAULT: define internal void @[[CTOR]]()
 ; DEFAULT-NEXT: [[ENTRY:.+]]:
 ; DEFAULT-NEXT: call void @__kitrt_initialize(ptr @[[INITOPTS]])
-; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.set.xnack(i32 4)
-; DEFAULT-NOT: call {{.+}} @llvm.kit.runtime.set.y.axis.kernel.launch(i32 4)
+; DEFAULT-NEXT: call void @__kithip_enable_xnack()
+; DEFAULT-NOT: call void @__kithip_enable_ylaunch()
 ; DEFAULT-NEXT: %[[HC:.+]] = call {{.+}}@llvm.kit.gpu.register.devcode(i32 4, ptr @[[BUNDLE]])
 ; DEFAULT-NEXT: store ptr %[[HC]], ptr @[[HANDLE]]
 ; DEFAULT-NEXT: br label %[[EXIT:.+]]
@@ -60,7 +60,7 @@
 ; RUN:     | FileCheck %s -check-prefix NOXNACK
 ;
 ; NOXNACK: define {{.+}} @.kit.ctor{{[^(]*}}
-; NOXNACK-NOT: call {{.+}} @llvm.kit.runtime.set.xnack(i32 4)
+; NOXNACK-NOT: call void @__kithip_enable_xnack()
 ;
 ; ----------------------------------------------------------------------------
 ;
@@ -69,7 +69,7 @@
 ; RUN:     | FileCheck %s -check-prefix YLAUNCH
 ;
 ; YLAUNCH: define {{.+}} @.kit.ctor{{[^(]*}}
-; YLAUNCH: call {{.+}} @llvm.kit.runtime.set.y.axis.kernel.launch(i32 4)
+; YLAUNCH: call void @__kithip_enable_ylaunch()
 ;
 ; ----------------------------------------------------------------------------
 
