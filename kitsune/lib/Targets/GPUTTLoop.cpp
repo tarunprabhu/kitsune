@@ -656,7 +656,7 @@ void GPUTTLoopBase::processOutlinedLoopCall(TapirLoopInfo &tl,
   Value *argY = zero;
   Value *argZ = zero;
   switch (getDepth()) {
-  case 1: // clang-format: Don't put this case statement on a single line
+  case 1: //
     argX = call->getArgOperand(1);
     break;
   case 2:

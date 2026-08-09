@@ -244,8 +244,7 @@ void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
       case llvm::Triple::arm:
       case llvm::Triple::armeb:
       case llvm::Triple::aarch64:
-      case llvm::Triple::aarch64_be:
-        break;
+      case llvm::Triple::aarch64_be: break;
       default:
         diags.Report(diag::err_drv_kit_tt_arch)
             << llvm::toString(*tt) << triple.getArchName();
@@ -262,8 +261,7 @@ void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
       case llvm::Triple::arm:
       case llvm::Triple::armeb:
       case llvm::Triple::aarch64:
-      case llvm::Triple::aarch64_be:
-        break;
+      case llvm::Triple::aarch64_be: break;
       default:
         diags.Report(diag::err_drv_kit_tt_arch)
             << llvm::toString(*tt) << triple.getArchName();
@@ -401,39 +399,27 @@ clang::driver::getTTConfigFileName(const opt::ArgList &args) {
   if (!tt)
     return std::nullopt;
 
+  // The custom tapir target does not use a configuration file.
   switch (*tt) {
-  case TTID::Nolo:
-    return "nolo.cfg";
-  case TTID::Serial:
-    return "serial.cfg";
-  case TTID::Cuda:
-    return "cuda.cfg";
-  case TTID::Custom:
-    // The custom tapir target does not use a configuration file.
-    return std::nullopt;
-  case TTID::Hip:
-    return "hip.cfg";
-  case TTID::Lambda:
-    return "lambda.cfg";
-  case TTID::OMPTask:
-    return "omptask.cfg";
-  case TTID::OpenCilk:
-    return "opencilk.cfg";
-  case TTID::OpenMP:
-    return "openmp.cfg";
-  case TTID::Pthreads:
-    return "pthreads.cfg";
-  case TTID::Qthreads:
-    return "qthreads.cfg";
-  case TTID::Realm:
-    return "realm.cfg";
+  case TTID::Nolo: return "nolo.cfg";
+  case TTID::Serial: return "serial.cfg";
+  case TTID::Cuda: return "cuda.cfg";
+  case TTID::Custom: return std::nullopt;
+  case TTID::Hip: return "hip.cfg";
+  case TTID::Lambda: return "lambda.cfg";
+  case TTID::OMPTask: return "omptask.cfg";
+  case TTID::OpenCilk: return "opencilk.cfg";
+  case TTID::OpenMP: return "openmp.cfg";
+  case TTID::Pthreads: return "pthreads.cfg";
+  case TTID::Qthreads: return "qthreads.cfg";
+  case TTID::Realm: return "realm.cfg";
   }
   llvm_unreachable("getTTConfigFile: TTID not handled");
 }
 
-static void parseKitInstrumentArgs(KitOptions &opts, const ArgList &args,
-                                   const OptTable &optTable,
-                                   DiagnosticsEngine &diags) {
+static void parseInstrumentArgs(KitOptions &opts, const ArgList &args,
+                                const OptTable &optTable,
+                                DiagnosticsEngine &diags) {
   if (const Arg *a = args.getLastArg(OPT_kit_instr_EQ))
     for (StringRef kind : parseCommaSeparatedList(a->getValue()))
       opts.addInstrKind(*llvm::fromString<InstrumentKind>(kind));
@@ -462,17 +448,16 @@ static void parseKitInstrumentArgs(KitOptions &opts, const ArgList &args,
           << optTable.getOptionName(OPT_kit_instr_papi_EQ);
 }
 
-static void parseKitCommonGPUArgs(KitOptions &opts, const ArgList &args,
-                                  const OptTable &optTable,
-                                  DiagnosticsEngine &diags) {
+static void parseCommonGPUArgs(KitOptions &opts, const ArgList &args,
+                               const OptTable &optTable,
+                               DiagnosticsEngine &diags) {
   opts.setGPUPrefetch(args.hasFlag(OPT_tapir_gpu_prefetch,
                                    OPT_tapir_gpu_no_prefetch,
                                    KitOptions::defaultGPUPrefetch));
 }
 
-static void parseKitCudaArgs(KitOptions &opts, const ArgList &args,
-                             const OptTable &optTable,
-                             DiagnosticsEngine &diags) {
+static void parseCudaArgs(KitOptions &opts, const ArgList &args,
+                          const OptTable &optTable, DiagnosticsEngine &diags) {
   const OptSpecifier requiredOpts[] = {
       OPT_tapir_cuda_arch_EQ, OPT_tapir_cuda_virt_arch_EQ,
       OPT_tapir_cuda_features_EQ, OPT_tapir_cuda_runtime_bc_EQ};
@@ -489,12 +474,12 @@ static void parseKitCudaArgs(KitOptions &opts, const ArgList &args,
   opts.setCudaFeatures(args.getLastArgValue(OPT_tapir_cuda_features_EQ));
   opts.setCudaRuntimeBCFile(args.getLastArgValue(OPT_tapir_cuda_runtime_bc_EQ));
 
-  parseKitCommonGPUArgs(opts, args, optTable, diags);
+  parseCommonGPUArgs(opts, args, optTable, diags);
 }
 
-static void parseKitCustomArgs(KitOptions &opts, const ArgList &args,
-                               const OptTable &optTable,
-                               DiagnosticsEngine &diags) {
+static void parseCustomArgs(KitOptions &opts, const ArgList &args,
+                            const OptTable &optTable,
+                            DiagnosticsEngine &diags) {
   const OptSpecifier requiredOpts[] = {OPT_tapir_plugin_EQ};
   for (OptSpecifier opt : requiredOpts)
     if (!args.hasArg(opt))
@@ -513,9 +498,8 @@ static void parseKitCustomArgs(KitOptions &opts, const ArgList &args,
   opts.setTTPlugin(pluginFile);
 }
 
-static void parseKitHipArgs(KitOptions &opts, const ArgList &args,
-                            const OptTable &optTable,
-                            DiagnosticsEngine &diags) {
+static void parseHipArgs(KitOptions &opts, const ArgList &args,
+                         const OptTable &optTable, DiagnosticsEngine &diags) {
   const OptSpecifier requiredOpts[] = {
       OPT_tapir_hip_arch_EQ,        OPT_tapir_hip_features_EQ,
       OPT_tapir_hip_runtime_bcs_EQ, OPT_tapir_lld_EQ,
@@ -555,12 +539,12 @@ static void parseKitHipArgs(KitOptions &opts, const ArgList &args,
           << val << a->getOption().getName();
   }
 
-  parseKitCommonGPUArgs(opts, args, optTable, diags);
+  parseCommonGPUArgs(opts, args, optTable, diags);
 }
 
-static void parseKitOpenCilkArgs(KitOptions &opts, const ArgList &args,
-                                 const OptTable &optTable,
-                                 DiagnosticsEngine &diags) {
+static void parseOpenCilkArgs(KitOptions &opts, const ArgList &args,
+                              const OptTable &optTable,
+                              DiagnosticsEngine &diags) {
   for (OptSpecifier opt : {OPT_tapir_opencilk_runtime_bc_EQ})
     if (!args.hasArg(opt))
       diags.Report(diag::err_drv_kit_missing_required)
@@ -573,19 +557,14 @@ static void parseKitOpenCilkArgs(KitOptions &opts, const ArgList &args,
       args.getLastArgValue(OPT_tapir_opencilk_runtime_bc_EQ));
 }
 
-static void parseKitTTArgs(KitOptions &kitOpts, TTID tt, const ArgList &args,
-                           const OptTable &optTable, DiagnosticsEngine &diags) {
+static void parseTTArgs(KitOptions &kitOpts, TTID tt, const ArgList &args,
+                        const OptTable &optTable, DiagnosticsEngine &diags) {
   switch (tt) {
+  case TTID::Cuda: return parseCudaArgs(kitOpts, args, optTable, diags);
+  case TTID::Custom: return parseCustomArgs(kitOpts, args, optTable, diags);
+  case TTID::Hip: return parseHipArgs(kitOpts, args, optTable, diags);
+  case TTID::OpenCilk: return parseOpenCilkArgs(kitOpts, args, optTable, diags);
   case TTID::Nolo:
-    return;
-  case TTID::Cuda:
-    return parseKitCudaArgs(kitOpts, args, optTable, diags);
-  case TTID::Custom:
-    return parseKitCustomArgs(kitOpts, args, optTable, diags);
-  case TTID::Hip:
-    return parseKitHipArgs(kitOpts, args, optTable, diags);
-  case TTID::OpenCilk:
-    return parseKitOpenCilkArgs(kitOpts, args, optTable, diags);
   case TTID::OpenMP:
   case TTID::Pthreads:
   case TTID::Qthreads:
@@ -600,7 +579,7 @@ static void parseKitTTArgs(KitOptions &kitOpts, TTID tt, const ArgList &args,
     // switch to avoid compiler warnings.
     break;
   }
-  llvm_unreachable("parseKitTTArgs: TTID not handled");
+  llvm_unreachable("parseTTArgs: TTID not handled");
 }
 
 bool clang::driver::parseKitsuneArgs(KitOptions &kitOpts, const char *argv0,
@@ -614,14 +593,14 @@ bool clang::driver::parseKitsuneArgs(KitOptions &kitOpts, const char *argv0,
 
   if (const Arg *arg = args.getLastArg(OPT_tapir_EQ)) {
     if (std::optional<TTID> tt = fromString<TTID>(arg->getValue())) {
-      parseKitTTArgs(kitOpts, *tt, args, optTable, diags);
+      parseTTArgs(kitOpts, *tt, args, optTable, diags);
       kitOpts.setTTID(*tt);
     }
   }
 
   kitOpts.setKokkos(args.hasArg(OPT_kokkos));
   kitOpts.setKokkosNoInit(args.hasArg(OPT_kokkos_no_init));
-  parseKitInstrumentArgs(kitOpts, args, optTable, diags);
+  parseInstrumentArgs(kitOpts, args, optTable, diags);
 
   return diags.getNumErrors() == numErrorsBefore;
 }

@@ -42,8 +42,7 @@ static bool requiresCustomLowering(const CallInst &call) {
   switch (call.getIntrinsicID()) {
 #define GET_INTR_LOWERING_SPEC
 #define INTR(NAME, CUSTOM_LOWERING, ALLOW_PARAM_CAST, ALLOW_RETURN_CAST)       \
-  case Intrinsic::NAME:                                                        \
-    return CUSTOM_LOWERING;
+  case Intrinsic::NAME: return CUSTOM_LOWERING;
 #include "kitsune/Core/IntrLibFuncMap.inc"
   }
   llvm_unreachable("requiresCustomLowering: Intrinsic ID not handled");
@@ -53,8 +52,7 @@ static bool allowParamCast(const CallInst &call) {
   switch (call.getIntrinsicID()) {
 #define GET_INTR_LOWERING_SPEC
 #define INTR(NAME, CUSTOM_LOWERING, ALLOW_PARAM_CAST, ALLOW_RETURN_CAST)       \
-  case Intrinsic::NAME:                                                        \
-    return ALLOW_PARAM_CAST;
+  case Intrinsic::NAME: return ALLOW_PARAM_CAST;
 #include "kitsune/Core/IntrLibFuncMap.inc"
   }
   llvm_unreachable("allowParamCast: Intrinsic ID not handled");
@@ -64,8 +62,7 @@ static bool allowReturnCast(const CallInst &call) {
   switch (call.getIntrinsicID()) {
 #define GET_INTR_LOWERING_SPEC
 #define INTR(NAME, CUSTOM_LOWERING, ALLOW_PARAM_CAST, ALLOW_RETURN_CAST)       \
-  case Intrinsic::NAME:                                                        \
-    return ALLOW_RETURN_CAST;
+  case Intrinsic::NAME: return ALLOW_RETURN_CAST;
 #include "kitsune/Core/IntrLibFuncMap.inc"
   }
   llvm_unreachable("allowReturnCast: Intrinsic ID not handled");
@@ -360,7 +357,7 @@ static bool lowerKitIntrinsic(CallInst &call) {
     case Intrinsic::kit_async_cpu_threads_launch:
     case Intrinsic::kit_cpu_threads_launch:
       return lowerLaunchThreads(call, builder);
-    case Intrinsic::kit_mobile_init:
+    case Intrinsic::kit_mobile_init: //
       return lowerMobileInit(call, builder);
     default:
       llvm_unreachable(

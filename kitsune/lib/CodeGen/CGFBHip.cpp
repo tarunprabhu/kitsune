@@ -53,23 +53,17 @@ public:
 
 static StringRef getSRAMECCFeature(const TTOptions &tto) {
   switch (tto.getHipSRAMECC()) {
-  case MaybeBool::On:
-    return ":sramecc+";
-  case MaybeBool::Off:
-    return ":sramecc-";
-  default:
-    return "";
+  case MaybeBool::On: return ":sramecc+";
+  case MaybeBool::Off: return ":sramecc-";
+  default: return "";
   }
 }
 
 static StringRef getXnackFeature(const TTOptions &tto) {
   switch (tto.getHipXnack()) {
-  case MaybeBool::On:
-    return ":xnack+";
-  case MaybeBool::Off:
-    return ":xnack-";
-  default:
-    return "";
+  case MaybeBool::On: return ":xnack+";
+  case MaybeBool::Off: return ":xnack-";
+  default: return "";
   }
 }
 

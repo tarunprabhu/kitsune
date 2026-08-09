@@ -112,11 +112,8 @@ bool EmbResolveLibDeviceCallsPass::run(TTID tt, Module &devM, Module &hostM,
   const TTOptions &tto = ttObjs.getOptions();
 
   switch (tt) {
-  case TTID::Cuda:
-    return detail::resolveLibDeviceCallsCuda(devM, tto);
-  case TTID::Hip:
-    return detail::resolveLibDeviceCallsHip(devM, tto);
-  default:
-    llvm_unreachable("ResolveLibDeviceCallsPass: TTID not handled");
+  case TTID::Cuda: return detail::resolveLibDeviceCallsCuda(devM, tto);
+  case TTID::Hip: return detail::resolveLibDeviceCallsHip(devM, tto);
+  default: llvm_unreachable("ResolveLibDeviceCallsPass: TTID not handled");
   }
 }

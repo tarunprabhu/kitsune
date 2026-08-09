@@ -206,14 +206,10 @@ KitVerifier &KitVerifier::verify(const CallBase &call) {
     if (std::optional<TTID> tt = getTTIDFromKitIntrCall(call))
       check(*tt == TTID::Cuda, DiagID::ErrKitIntrWrongTTID, TTID::Cuda);
     return *this;
-  case Intrinsic::kit_mobile_init:
-    return verifyIntrMobileInit(call);
-  case Intrinsic::kit_reduce_0:
-    return verifyIntrReduce0(call);
-  case Intrinsic::kit_reduce_1:
-    return verifyIntrReduce1(call);
-  default:
-    return *this;
+  case Intrinsic::kit_mobile_init: return verifyIntrMobileInit(call);
+  case Intrinsic::kit_reduce_0: return verifyIntrReduce0(call);
+  case Intrinsic::kit_reduce_1: return verifyIntrReduce1(call);
+  default: return *this;
   }
 }
 

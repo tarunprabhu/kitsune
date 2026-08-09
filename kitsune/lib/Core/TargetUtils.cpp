@@ -67,12 +67,9 @@ TargetMachine *llvm::createTargetMachine(TTID tt, const TTOptions &tto) {
 TargetMachine *llvm::createTargetMachine(TTID tt, const TTOptions &tto,
                                          CodeGenOptLevel cgOptLevel) {
   switch (tt) {
-  case TTID::Cuda:
-    return createPTXTargetMachine(tto, cgOptLevel);
-  case TTID::Hip:
-    return createAMDGPUTargetMachine(tto, cgOptLevel);
-  default:
-    llvm_unreachable("createTargetMachine: TTID not handled");
+  case TTID::Cuda: return createPTXTargetMachine(tto, cgOptLevel);
+  case TTID::Hip: return createAMDGPUTargetMachine(tto, cgOptLevel);
+  default: llvm_unreachable("createTargetMachine: TTID not handled");
   }
 }
 

@@ -84,8 +84,7 @@ static bool lowerKitsuneCudaIntrinsics(Module &embM) {
       return Intrinsic::nvvm_read_ptx_sreg_nctaid_y;
     case Intrinsic::kit_gpu_grid_size_z:
       return Intrinsic::nvvm_read_ptx_sreg_nctaid_z;
-    default:
-      return Intrinsic::not_intrinsic;
+    default: return Intrinsic::not_intrinsic;
     }
   };
   return replaceAllSimple(embM, getNewCallee);
@@ -109,8 +108,7 @@ static bool lowerKitsuneHipIntrinsics(Module &embM) {
       llvm_unreachable(
           "GPU thread intrinsics in AMDGPU device modules should have been "
           "replaced by the emb-lower-intrinsics-early pass");
-    default:
-      return Intrinsic::not_intrinsic;
+    default: return Intrinsic::not_intrinsic;
     }
   };
   return replaceAllSimple(embM, getNewCallee);
@@ -118,12 +116,9 @@ static bool lowerKitsuneHipIntrinsics(Module &embM) {
 
 static bool lowerKitIntrinsics(TTID tt, Module &embM) {
   switch (tt) {
-  case TTID::Cuda:
-    return lowerKitsuneCudaIntrinsics(embM);
-  case TTID::Hip:
-    return lowerKitsuneHipIntrinsics(embM);
-  default:
-    break;
+  case TTID::Cuda: return lowerKitsuneCudaIntrinsics(embM);
+  case TTID::Hip: return lowerKitsuneHipIntrinsics(embM);
+  default: break;
   }
   llvm_unreachable("lowerKitIntrinsics: TTID not handled");
 }

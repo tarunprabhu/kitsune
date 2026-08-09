@@ -29,30 +29,20 @@ enum class CType {
 
 static Type *getLLVMType(CType ctype, LLVMContext &ctx) {
   switch (ctype) {
-  case CType::Void:
-    return Type::getVoidTy(ctx);
-  case CType::Bool:
-    return Type::getInt8Ty(ctx);
-  case CType::Ptr:
-    return PointerType::getUnqual(ctx);
+  case CType::Void: return Type::getVoidTy(ctx);
+  case CType::Bool: return Type::getInt8Ty(ctx);
+  case CType::Ptr: return PointerType::getUnqual(ctx);
   case CType::I8:
-  case CType::U8:
-    return Type::getInt8Ty(ctx);
+  case CType::U8: return Type::getInt8Ty(ctx);
   case CType::I16:
-  case CType::U16:
-    return Type::getInt16Ty(ctx);
+  case CType::U16: return Type::getInt16Ty(ctx);
   case CType::I32:
-  case CType::U32:
-    return Type::getInt32Ty(ctx);
+  case CType::U32: return Type::getInt32Ty(ctx);
   case CType::I64:
-  case CType::U64:
-    return Type::getInt64Ty(ctx);
-  case CType::Float:
-    return Type::getFloatTy(ctx);
-  case CType::Double:
-    return Type::getDoubleTy(ctx);
-  case CType::VarArgs:
-    return nullptr;
+  case CType::U64: return Type::getInt64Ty(ctx);
+  case CType::Float: return Type::getFloatTy(ctx);
+  case CType::Double: return Type::getDoubleTy(ctx);
+  case CType::VarArgs: return nullptr;
   }
   llvm_unreachable("getLLVMType: CType not handled");
 }
@@ -133,8 +123,7 @@ static FunctionType *getLibFuncType(ArrayRef<CType> ctypes, LLVMContext &ctx) {
 StringRef llvm::getLibFuncName(KitFunc f) {
   switch (f) {
 #define LIBFUNC(NAME, LINKAGE_NAME, ...)                                       \
-  case KitFunc::NAME:                                                          \
-    return LINKAGE_NAME;
+  case KitFunc::NAME: return LINKAGE_NAME;
 #define GET_LIBFUNCS
 #include "kitsune/Core/LibFuncs.inc"
   }

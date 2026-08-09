@@ -78,8 +78,7 @@ raw_ostream &llvm::operator<<(raw_ostream &os, const GVAttrKind &attr) {
 StringRef llvm::getAttrName(GVAttrKind attr) {
   switch (attr) {
 #define GV_ATTR(NAME, IRNAME, ...)                                             \
-  case GVAttrKind::NAME:                                                       \
-    return IRNAME;
+  case GVAttrKind::NAME: return IRNAME;
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"
   }
@@ -101,8 +100,7 @@ void llvm::addAttr(GlobalVariable &g, GVAttrKind attr) {
     exitOnError();
     break;
 #define GV_ATTR_0(NAME, IRNAME, ...)                                           \
-  case GVAttrKind::NAME:                                                       \
-    return detail::addAttr(g, IRNAME, {});
+  case GVAttrKind::NAME: return detail::addAttr(g, IRNAME, {});
 #define GET_GV_ATTRS
 #include "kitsune/Core/GVAttrs.inc"
   }

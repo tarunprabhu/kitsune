@@ -254,14 +254,10 @@ Error TTOptions::validateOpenCilkOptions() const {
 
 Error TTOptions::validate() const {
   switch (tt) {
-  case TTID::Cuda:
-    return validateCudaOptions();
-  case TTID::Custom:
-    return validateCustomOptions();
-  case TTID::Hip:
-    return validateHipOptions();
-  case TTID::OpenCilk:
-    return validateOpenCilkOptions();
+  case TTID::Cuda: return validateCudaOptions();
+  case TTID::Custom: return validateCustomOptions();
+  case TTID::Hip: return validateHipOptions();
+  case TTID::OpenCilk: return validateOpenCilkOptions();
   case TTID::Nolo:
   case TTID::OpenMP:
   case TTID::Pthreads:

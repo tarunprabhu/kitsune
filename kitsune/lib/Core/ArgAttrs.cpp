@@ -90,8 +90,7 @@ raw_ostream &llvm::operator<<(raw_ostream &os, const ArgAttrKind &attr) {
 StringRef llvm::getAttrName(ArgAttrKind attr) {
   switch (attr) {
 #define ARG_ATTR(NAME, IRNAME, ...)                                            \
-  case ArgAttrKind::NAME:                                                      \
-    return IRNAME;
+  case ArgAttrKind::NAME: return IRNAME;
 #define GET_ARG_ATTRS
 #include "kitsune/Core/ArgAttrs.inc"
   }
@@ -113,8 +112,7 @@ void llvm::addAttr(Argument &a, ArgAttrKind attr) {
     exitOnError();
     break;
 #define ARG_ATTR_0(NAME, IRNAME, ...)                                          \
-  case ArgAttrKind::NAME:                                                      \
-    return detail::addAttr(a, IRNAME, {});
+  case ArgAttrKind::NAME: return detail::addAttr(a, IRNAME, {});
 #define GET_ARG_ATTRS
 #include "kitsune/Core/ArgAttrs.inc"
   }

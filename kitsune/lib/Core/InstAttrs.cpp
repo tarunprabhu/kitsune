@@ -72,8 +72,7 @@ raw_ostream &llvm::operator<<(raw_ostream &os, const InstAttrKind &attr) {
 StringRef llvm::getAttrName(InstAttrKind attr) {
   switch (attr) {
 #define INST_ATTR(NAME, IRNAME, ...)                                           \
-  case InstAttrKind::NAME:                                                     \
-    return IRNAME;
+  case InstAttrKind::NAME: return IRNAME;
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
   }
@@ -95,8 +94,7 @@ void llvm::addAttr(Instruction &inst, InstAttrKind attr) {
     exitOnError();
     break;
 #define INST_ATTR_0(NAME, IRNAME, ...)                                         \
-  case InstAttrKind::NAME:                                                     \
-    return detail::addAttr(inst, IRNAME, {});
+  case InstAttrKind::NAME: return detail::addAttr(inst, IRNAME, {});
 #define GET_INST_ATTRS
 #include "kitsune/Core/InstAttrs.inc"
   }

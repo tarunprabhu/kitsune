@@ -65,8 +65,7 @@ std::string llvm::getName(const Instruction &inst) {
 StringRef llvm::getInstClassName(const Instruction &inst) {
   switch (inst.getOpcode()) {
 #define HANDLE_INST(OPCODE, CLASS)                                             \
-  case Instruction::OPCODE:                                                    \
-    return #CLASS;
+  case Instruction::OPCODE: return #CLASS;
 #define HANDLE_TERM_INST(NUM, OPCODE, CLASS) HANDLE_INST(OPCODE, CLASS)
 #define HANDLE_UNARY_INST(NUM, OPCODE, CLASS) HANDLE_INST(OPCODE, CLASS)
 #define HANDLE_BINARY_INST(NUM, OPCODE, CLASS) HANDLE_INST(OPCODE, CLASS)
