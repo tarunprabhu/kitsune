@@ -4,7 +4,8 @@
 ; RUN: opt --tapir=cuda -passes='loop-spawning' -S %s \
 ; RUN:     | FileCheck %s
 ;
-; CHECK: @[[BC:.+]] = unnamed_addr constant [{{[0-9]+}} x i8] c"BC{{.+}}"
+; CHECK: @[[BC:.+]] = unnamed_addr constant [{{[0-9]+}} x i8] c"BC
+; CHECK-SAME: section ".kit.mbc"
 ; CHECK-SAME: !kit.gv ![[MD:[0-9]+]]
 ;
 ; CHECK-DAG: ![[MD]] = distinct !{![[MD]], ![[BC:[0-9]+]]}
