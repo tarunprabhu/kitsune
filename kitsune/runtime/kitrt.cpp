@@ -74,7 +74,7 @@
 #endif // KITRT_OPENCILK_ENABLED
 
 #ifdef KITRT_PAPI_ENABLED
-#include "common/kitpapi.h"
+#include "papi/kitpapi.h"
 #endif // KITRT_PAPI_ENABLED
 
 #ifdef KITRT_QTHREADS_ENABLED

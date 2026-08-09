@@ -73,6 +73,10 @@ if (KITSUNE_OPENCILK_ENABLED)
   add_subdirectory(opencilk)
 endif ()
 
+if (KITSUNE_PAPI_ENABLED)
+  add_subdirectory(papi)
+endif ()
+
 if (KITSUNE_QTHREADS_ENABLED)
   add_subdirectory(qthreads)
 endif ()

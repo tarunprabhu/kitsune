@@ -28,7 +28,7 @@
 // SEPARATE-NEXT: }
 
 #include "TestHelpers.h"
-#include "common/kitpapi.h"
+#include "papi/kitpapi.h"
 
 CTOR(RT_PAPI | RT_SERIAL)
 
