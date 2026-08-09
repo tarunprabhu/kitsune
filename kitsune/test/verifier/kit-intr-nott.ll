@@ -5,6 +5,6 @@
 ; CHECK: first argument to call is not a valid TTID
 
 define void @f() {
-  call void @llvm.kit.runtime.initialize(i32 -1)
+  call void @llvm.kit.mobile.free(i32 -1, ptr addrspace(67) null)
   ret void
 }
