@@ -114,7 +114,6 @@ std::unique_ptr<TapirTarget> llvm::makeTT(TTID tt, Module &m,
   //
   // ---------------------------------------------------------------------------
 
-  // clang-format off
   switch (tt) {
   case TTID::Nolo: return nullptr;
   case TTID::Cuda: return makeTTImpl<CudaABI>(tt, m, tto);
@@ -129,6 +128,5 @@ std::unique_ptr<TapirTarget> llvm::makeTT(TTID tt, Module &m,
   case TTID::Realm: return makeTTImpl<RealmABI>(tt, m, tto);
   case TTID::Serial: return makeTTImpl<SerialTT>(tt, m, tto);
   }
-  // clang-format on
   llvm_unreachable("makeTT: TTID not handled");
 }

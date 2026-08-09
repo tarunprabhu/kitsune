@@ -73,13 +73,11 @@ static Module &getModule(InsertPosition pt) {
 Value *InstrumentImpl::addStart(InstrumentKind kind, StringRef name,
                                 InsertPosition pt, std::optional<TTID> tt) {
   auto getKitFunc = [](InstrumentKind kind) -> KitFunc {
-    // clang-format off
     switch (kind) {
     case InstrumentKind::Generic: return KitFunc::kit_instr_start;
     case InstrumentKind::PAPI: return KitFunc::kitpapi_start;
     case InstrumentKind::Timer: return KitFunc::kittimer_start;
     }
-    // clang-format on
     llvm_unreachable("Instrument::addStart: InstrumentKind not handled");
   };
 
@@ -112,13 +110,11 @@ Value *InstrumentImpl::addStart(InstrumentKind kind, StringRef name,
 void InstrumentImpl::addStop(InstrumentKind kind, Value *epoch,
                              InsertPosition pt) {
   auto getKitFunc = [](InstrumentKind kind) -> KitFunc {
-    // clang-format off
     switch (kind) {
     case InstrumentKind::Generic: return KitFunc::kit_instr_stop;
     case InstrumentKind::PAPI: return KitFunc::kitpapi_stop;
     case InstrumentKind::Timer: return KitFunc::kittimer_stop;
     }
-    // clang-format on
     llvm_unreachable("Instrument::addStop: InstrumentKind not handled");
   };
 
@@ -337,10 +333,8 @@ bool InstrumentImpl::instrumentThreads(Function &f) {
 
 bool InstrumentImpl::instrumentUnit(InstrumentUnit unit, Function &f) {
   switch (unit) {
-  case InstrumentUnit::Loop:
-    return instrumentLoops(f);
-  case InstrumentUnit::Thread:
-    return instrumentThreads(f);
+  case InstrumentUnit::Loop: return instrumentLoops(f);
+  case InstrumentUnit::Thread: return instrumentThreads(f);
   }
   llvm_unreachable("Instrument::units: Unit not handled");
 }

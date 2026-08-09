@@ -63,7 +63,6 @@ std::string llvm::toString(const std::string &s) { return s; }
 std::string llvm::toString(const StringRef &s) { return s.str(); }
 
 std::string llvm::toString(const TTID &tt) {
-  // clang-format off
   switch (tt) {
   case TTID::Nolo: return "nolo";
   case TTID::Cuda: return "cuda";
@@ -78,23 +77,19 @@ std::string llvm::toString(const TTID &tt) {
   case TTID::Realm: return "realm";
   case TTID::Serial: return "serial";
   }
-  // clang-format on
   llvm_unreachable("toString: TTID not handled");
 }
 
 std::string llvm::toString(const MaybeBool &v) {
-  // clang-format off
   switch (v) {
   case MaybeBool::Off: return "off";
   case MaybeBool::On: return "on";
   case MaybeBool::Any: return "any";
   }
-  // clang-format on
   llvm_unreachable("toString: MaybeBool value not handled");
 }
 
 std::string llvm::toString(const OptznLevel &optLevel) {
-  // clang-format off
   switch (optLevel) {
   case OptznLevel::O0: return "O0";
   case OptznLevel::O1: return "O1";
@@ -103,27 +98,22 @@ std::string llvm::toString(const OptznLevel &optLevel) {
   case OptznLevel::Os: return "Os";
   case OptznLevel::Oz: return "Os";
   }
-  // clang-format on
   llvm_unreachable("toString: OptznLevel not handled");
 }
 
 std::string llvm::toString(const InstrumentKind &kind) {
-  // clang-format off
   switch (kind) {
   case InstrumentKind::Generic: return "generic";
   case InstrumentKind::PAPI: return "papi";
   case InstrumentKind::Timer: return "timer";
   }
-  // clang-format on
   llvm_unreachable("toString: InstrumentKind not handled");
 }
 
 std::string llvm::toString(const InstrumentUnit &unit) {
-  // clang-format off
   switch (unit) {
   case InstrumentUnit::Thread: return "thread";
   case InstrumentUnit::Loop: return "loop";
   }
-  // clang-format on
   llvm_unreachable("toString: InstrumentUnit not handled");
 }
