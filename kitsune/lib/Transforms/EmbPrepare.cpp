@@ -51,11 +51,8 @@ bool EmbPreparePass::run(TTID tt, Module &devM, Module &hostM,
   const TTObjects &ttObjs = hostMAM.getResult<TTObjectsAnalysis>(hostM);
   const TTOptions &tto = ttObjs.getOptions();
   switch (tt) {
-  case TTID::Cuda:
-    return detail::embPrepareCuda(devM, tto, prepOpts);
-  case TTID::Hip:
-    return detail::embPrepareHip(devM, tto, prepOpts);
-  default:
-    llvm_unreachable("EmbPreparePass::run: TTID not handled");
+  case TTID::Cuda: return detail::embPrepareCuda(devM, tto, prepOpts);
+  case TTID::Hip: return detail::embPrepareHip(devM, tto, prepOpts);
+  default: llvm_unreachable("EmbPreparePass::run: TTID not handled");
   }
 }

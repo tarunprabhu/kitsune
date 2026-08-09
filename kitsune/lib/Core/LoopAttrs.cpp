@@ -72,8 +72,7 @@ raw_ostream &llvm::operator<<(raw_ostream &os, const LoopAttrKind &attr) {
 StringRef llvm::getAttrName(LoopAttrKind attr) {
   switch (attr) {
 #define LOOP_ATTR(NAME, IRNAME, ...)                                           \
-  case LoopAttrKind::NAME:                                                     \
-    return IRNAME;
+  case LoopAttrKind::NAME: return IRNAME;
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
   }
@@ -95,8 +94,7 @@ void llvm::addAttr(Loop &loop, LoopAttrKind attr) {
     exitOnError();
     break;
 #define LOOP_ATTR_0(NAME, IRNAME, ...)                                         \
-  case LoopAttrKind::NAME:                                                     \
-    return detail::addAttr(loop, IRNAME, {});
+  case LoopAttrKind::NAME: return detail::addAttr(loop, IRNAME, {});
 #define GET_LOOP_ATTRS
 #include "kitsune/Core/LoopAttrs.inc"
   }

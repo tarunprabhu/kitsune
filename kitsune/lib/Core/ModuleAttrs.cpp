@@ -79,8 +79,7 @@ raw_ostream &llvm::operator<<(raw_ostream &os, const ModuleAttrKind &attr) {
 StringRef llvm::getAttrName(ModuleAttrKind attrKind) {
   switch (attrKind) {
 #define MODULE_ATTR(NAME, IRNAME, ...)                                         \
-  case ModuleAttrKind::NAME:                                                   \
-    return IRNAME;
+  case ModuleAttrKind::NAME: return IRNAME;
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
   }
@@ -102,8 +101,7 @@ void llvm::addAttr(Module &m, ModuleAttrKind attr) {
     exitOnError();
     break;
 #define MODULE_ATTR_0(NAME, IRNAME, ...)                                       \
-  case ModuleAttrKind::NAME:                                                   \
-    return detail::addAttr(m, IRNAME, {});
+  case ModuleAttrKind::NAME: return detail::addAttr(m, IRNAME, {});
 #define GET_MODULE_ATTRS
 #include "kitsune/Core/ModuleAttrs.inc"
   }

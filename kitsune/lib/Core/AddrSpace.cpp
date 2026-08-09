@@ -97,13 +97,10 @@ bool StripAddrSpaces::fixIntrinsic(Function &f) {
   switch (f.getIntrinsicID()) {
   case Intrinsic::memcpy:
   case Intrinsic::memcpy_inline:
-  case Intrinsic::memmove:
-    return fixIntrinsic(f, {0, 1, 2});
+  case Intrinsic::memmove: return fixIntrinsic(f, {0, 1, 2});
   case Intrinsic::memset:
-  case Intrinsic::memset_inline:
-    return fixIntrinsic(f, {0, 2});
-  default:
-    return false;
+  case Intrinsic::memset_inline: return fixIntrinsic(f, {0, 2});
+  default: return false;
   }
 }
 

@@ -104,9 +104,7 @@ void KitQthrContext::finalize() {
 
 uint64_t KitQthrContext::getNumThreads() const { return qthread_num_workers(); }
 
-KitThreadID KitQthrContext::getThreadID() const {
-  return qthread_id();
-}
+KitThreadID KitQthrContext::getThreadID() const { return qthread_id(); }
 
 /// The function that is launched by each thread. This simply finds the "actual"
 /// function that is to be run in \p thrdArgs and calls it. The arguments to the

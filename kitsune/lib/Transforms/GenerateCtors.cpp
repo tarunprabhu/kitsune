@@ -501,10 +501,10 @@ private:
     const SmallSet<TTID, 0> tts = *getTTsAttr(m);
     for (TTID tt : tts) {
       switch (tt) {
-      case TTID::Cuda:
+      case TTID::Cuda: //
         PopulateCtorCuda(tto, genCtorOpts).run(builder);
         break;
-      case TTID::Hip:
+      case TTID::Hip: //
         PopulateCtorHip(tto, genCtorOpts).run(builder);
         break;
       case TTID::Custom:
@@ -523,8 +523,7 @@ private:
       case TTID::Realm:
         // These tapir targets are not fully supported yet. Just fall through to
         // the default because the effect is the same.
-      default:
-        llvm_unreachable("populateCtor: TTID not handled");
+      default: llvm_unreachable("genCtor: TTID not handled");
       }
     }
 
@@ -565,7 +564,7 @@ private:
     for (TTID tt : tts) {
       switch (tt) {
       case TTID::Cuda:
-      case TTID::Hip:
+      case TTID::Hip: //
         populateDtorGPU(tt, builder);
         break;
       case TTID::Custom:
@@ -584,8 +583,7 @@ private:
       case TTID::Realm:
         // These tapir targets are not fully supported yet. Just fall through
         // because the effect is the same.
-      default:
-        llvm_unreachable("populateDtor: TTID not handled");
+      default: llvm_unreachable("genDtor: TTID not handled");
       }
     }
 

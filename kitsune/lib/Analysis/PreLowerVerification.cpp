@@ -208,7 +208,7 @@ private:
     case TTID::OpenCilk:
     case TTID::OpenMP:
     case TTID::Pthreads:
-    case TTID::Qthreads:
+    case TTID::Qthreads: //
       checkConsistentTTsForCPU(loop);
       return;
     case TTID::Cuda:
@@ -222,8 +222,7 @@ private:
       return;
     case TTID::Lambda:
     case TTID::OMPTask:
-    case TTID::Realm:
-      break;
+    case TTID::Realm: break;
     }
     llvm_unreachable("checkTopLevelTapirLoop: TTID not handled");
   }

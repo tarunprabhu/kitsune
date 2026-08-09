@@ -130,28 +130,20 @@ public:
 [[noreturn]] static void kitpthrHandleCreateError(int err) {
   const char *lede = "Could not create thread";
   switch (err) {
-  case EINVAL:
-    FATAL("%s. Invalid attributes", lede);
-  case EAGAIN:
-    FATAL("%s. Insufficient resources", lede);
-  case EPERM:
-    FATAL("%s. Insufficient permissions", lede);
-  default:
-    FATAL("%s. Unknown error", lede);
+  case EINVAL: FATAL("%s. Invalid attributes", lede);
+  case EAGAIN: FATAL("%s. Insufficient resources", lede);
+  case EPERM: FATAL("%s. Insufficient permissions", lede);
+  default: FATAL("%s. Unknown error", lede);
   }
 }
 
 [[noreturn]] static void kitpthrHandleJoinError(int err) {
   const char *lede = "Error joining thread";
   switch (err) {
-  case EDEADLK:
-    FATAL("%s. Deadlock detected", lede);
-  case EINVAL:
-    FATAL("%s. Thread is not joinable", lede);
-  case ESRCH:
-    FATAL("%s. Invalid thread id", lede);
-  default:
-    FATAL("%s. Unknown error", lede);
+  case EDEADLK: FATAL("%s. Deadlock detected", lede);
+  case EINVAL: FATAL("%s. Thread is not joinable", lede);
+  case ESRCH: FATAL("%s. Invalid thread id", lede);
+  default: FATAL("%s. Unknown error", lede);
   }
 }
 

@@ -189,7 +189,7 @@ GlobalVariable *llvm::createEmbFBGlobal(TTID tt, Module &m) {
   addDeviceCodeAttr(*g, tt);
 
   switch (tt) {
-  case TTID::Cuda:
+  case TTID::Cuda: //
     g->setSection(".nv_fatbin");
     break;
   case TTID::Hip:

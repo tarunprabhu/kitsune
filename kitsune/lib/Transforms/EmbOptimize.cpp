@@ -56,18 +56,12 @@ static cl::opt<bool> clPrintEmbPipelinePasses(
 
 static OptimizationLevel mapToOptimizationLevel(OptznLevel optznLevel) {
   switch (optznLevel) {
-  case OptznLevel::O0:
-    return OptimizationLevel::O0;
-  case OptznLevel::O1:
-    return OptimizationLevel::O1;
-  case OptznLevel::O2:
-    return OptimizationLevel::O2;
-  case OptznLevel::O3:
-    return OptimizationLevel::O3;
-  case OptznLevel::Os:
-    return OptimizationLevel::Os;
-  case OptznLevel::Oz:
-    return OptimizationLevel::Oz;
+  case OptznLevel::O0: return OptimizationLevel::O0;
+  case OptznLevel::O1: return OptimizationLevel::O1;
+  case OptznLevel::O2: return OptimizationLevel::O2;
+  case OptznLevel::O3: return OptimizationLevel::O3;
+  case OptznLevel::Os: return OptimizationLevel::Os;
+  case OptznLevel::Oz: return OptimizationLevel::Oz;
   }
   llvm_unreachable("mapToOptimizationLevel: OptznLevel not handled");
 }
@@ -181,11 +175,8 @@ bool EmbOptimizePass::run(TTID tt, Module &devM, Module &hostM,
   const TTOptions &tto = ttObjs.getOptions();
 
   switch (tt) {
-  case TTID::Cuda:
-    return EmbOptimizeCuda(tto).run(devM);
-  case TTID::Hip:
-    return EmbOptimizeHip(tto).run(devM);
-  default:
-    llvm_unreachable("EmbOptimizePass::run: TTID not handled");
+  case TTID::Cuda: return EmbOptimizeCuda(tto).run(devM);
+  case TTID::Hip: return EmbOptimizeHip(tto).run(devM);
+  default: llvm_unreachable("EmbOptimizePass::run: TTID not handled");
   }
 }
