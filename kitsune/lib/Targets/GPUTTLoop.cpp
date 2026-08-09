@@ -1,4 +1,4 @@
-//===- GPUTTLoop.h - GPU-centric loop outline processors -------*- C++ -*--===//
+//===- GPUTTLoop.cpp - GPU-centric loop outline processors ----------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -452,7 +452,6 @@ void GPUTTLoopBase::preProcessTapirLoop(TapirLoopInfo &tl,
 void GPUTTLoopBase::emitIndexCalculation(IRBuilder<> &builder, PHINode *iv,
                                          Dirxn dirxn,
                                          SmallVector<IVRange, 4> &ivRanges) {
-  // clang-format off
   auto getThreadIdFn = [&dirxn]() -> Intrinsic::ID {
     switch (dirxn) {
     case Dirxn::X: return Intrinsic::kit_gpu_thread_id_x;
@@ -479,7 +478,6 @@ void GPUTTLoopBase::emitIndexCalculation(IRBuilder<> &builder, PHINode *iv,
     }
     llvm_unreachable("getBlockSizeFn: Dirxn not handled");
   };
-  // clang-format on
 
   // Construct a name with the given base and suffixing the direction. These are
   // only intended for convenience if we ever have to read the IR.
@@ -658,7 +656,7 @@ void GPUTTLoopBase::processOutlinedLoopCall(TapirLoopInfo &tl,
   Value *argY = zero;
   Value *argZ = zero;
   switch (getDepth()) {
-  case 1:
+  case 1: // clang-format: Don't put this case statement on a single line
     argX = call->getArgOperand(1);
     break;
   case 2:
@@ -670,8 +668,7 @@ void GPUTTLoopBase::processOutlinedLoopCall(TapirLoopInfo &tl,
     argY = call->getArgOperand(3);
     argX = call->getArgOperand(5);
     break;
-  default:
-    llvm_unreachable("Unexpected depth of tapir loop nest");
+  default: llvm_unreachable("Unexpected depth of tapir loop nest");
   }
 
   // Create a kernel properties global variable. This will be initialized in a
