@@ -12,7 +12,7 @@
 // CHECK-NEXT: }
 
 #include "TestHelpers.h"
-#include "common/timer.h"
+#include "timer/timer.h"
 
 #include <stdio.h>
 #include <time.h>

@@ -83,12 +83,12 @@
 // -----------------------------------------------------------------------------
 
 #include "TestHelpers.h"
-#include "common/timer.h"
 #include "openmp/kitomp.h"
+#include "timer/timer.h"
 
 #include <stdlib.h>
 
-CTOR(RT_OPENMP | RT_TIMER)
+CTOR(RT_TIMER | RT_OPENMP)
 
 static void thrdFn(uint64_t start, uint64_t stop, void *args) {
   kitrt::KitTimerEpoch *e = __kittimer_start("kinder", __kitomp_thread_id());

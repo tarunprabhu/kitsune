@@ -36,7 +36,7 @@
 // SEPARATE-NEXT: }
 
 #include "TestHelpers.h"
-#include "common/timer.h"
+#include "timer/timer.h"
 
 CTOR(RT_TIMER)
 

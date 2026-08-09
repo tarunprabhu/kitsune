@@ -60,10 +60,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "common/timer.h"
+#include "timer/timer.h"
 #include "common/env.h"
 #include "common/logging.h"
-#include "global/singleton.h"
 
 #include <ctime>
 

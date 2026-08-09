@@ -21,7 +21,6 @@
 // -----------------------------------------------------------------------------
 
 #include "TestHelpers.h"
-#include "common/timer.h"
 
 CTOR(RT_TIMER)
 

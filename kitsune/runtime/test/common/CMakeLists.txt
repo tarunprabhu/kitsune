@@ -16,18 +16,6 @@ set(TESTS
   RTInitialized.cpp
   RTMultipleInit.cpp
   RTMultipleFini.cpp
-
-  TimerBasic.cpp
-  TimerCannotWriteToFile.cpp
-  TimerDefaultStderr.cpp
-  TimerEmpty.cpp
-  TimerInitFini.cpp
-  TimerIterateSingleThread.cpp
-  TimerIterateThreads.cpp
-  TimerSingleThread.cpp
-  TimerThreads.cpp
-  TimerWriteToFile.cpp
-  TimerWriteNothingToFile.cpp
 )
 
 # These tests call PAPI's API functions directly, and require appropriate
