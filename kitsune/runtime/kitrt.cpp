@@ -51,10 +51,15 @@
 #include "kitrt.h"
 #include "common/env.h"
 #include "common/logging.h"
-#include "common/timer.h"
 #include "global/global.h"
 #include "openmp/kitomp.h"
 #include "pthreads/kitpthr.h"
+#include "timer/timer.h"
+
+#ifdef KITRT_COLORS_ENABLED
+#include <curses.h>
+#include <unistd.h>
+#endif // KITRT_COLORS_ENABLED
 
 #ifdef KITRT_CUDA_ENABLED
 #include "cuda/kitcuda.h"
@@ -75,11 +80,6 @@
 #ifdef KITRT_QTHREADS_ENABLED
 #include "qthreads/kitqthr.h"
 #endif // KITRT_QTHREADS_ENABLED
-
-#ifdef KITRT_COLORS_ENABLED
-#include <curses.h>
-#include <unistd.h>
-#endif // KITRT_COLORS_ENABLED
 
 #include <vector>
 
