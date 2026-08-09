@@ -81,6 +81,7 @@
 #include "qthreads/kitqthr.h"
 #endif // KITRT_QTHREADS_ENABLED
 
+#include <algorithm>
 #include <vector>
 
 using namespace kitrt;

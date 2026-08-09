@@ -61,6 +61,7 @@
 #include "papi.h"
 
 #include <cstdarg>
+#include <cstring>
 #include <optional>
 #include <sstream>
 #include <vector>
