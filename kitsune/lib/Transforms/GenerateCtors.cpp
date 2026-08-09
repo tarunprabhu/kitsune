@@ -37,6 +37,7 @@
 #include "kitsune/Core/LibFuncs.h"
 #include "kitsune/Core/ModuleAttrs.h"
 #include "kitsune/Core/TTOptions.h"
+#include "kitsune/Object/Sections.h"
 #include "kitsune/Shared/RTInitOptions.h"
 #include "kitsune/Support/CommandLineOptions.h"
 #include "kitsune/Support/ErrorHandling.h"
@@ -480,6 +481,7 @@ private:
         /*init=*/initOptsV, initOptsGVName);
 
     initOptsG->setUnnamedAddr(GlobalValue::UnnamedAddr::None);
+    initOptsG->setSection(object::kitSectRTInitOpts);
 
     return initOptsG;
   }

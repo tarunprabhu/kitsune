@@ -5,6 +5,7 @@
 ;
 ; CHECK: @[[INITOPTS:.+]] = internal constant [8 x i8]
 ; CHECK-SAME: c"\00\02\00\00\01\00\00\00"
+; CHECK-SAME: section ".kit.rtiopt"
 ;
 ; CHECK: call void @__kitrt_initialize(ptr @[[INITOPTS]])
 ; CHECK: call void @__kitrt_finalize(ptr @[[INITOPTS]])

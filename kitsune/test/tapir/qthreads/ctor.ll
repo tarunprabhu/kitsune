@@ -6,6 +6,7 @@
 ;
 ; DEFAULT: @[[INITOPTS:.+]] = internal constant [8 x i8]
 ; DEFAULT-SAME: c" \00\00\00\00\00\00\00"
+; DEFAULT-SAME: section ".kit.rtiopt"
 ;
 ; DEFAULT-LABEL: @llvm.global_ctors = appending global
 ; DEFAULT-SAME: { i32 65535, ptr @[[CTOR:.+]], ptr null }
