@@ -17,13 +17,12 @@
 //
 // -----------------------------------------------------------------------------
 
+#include "TestHelpers.h"
 #include "pthreads/kitpthr.h"
 
 #include <stdio.h>
 
-__attribute__((constructor)) static void ctor(void) { __kitpthr_initialize(); }
-
-__attribute__((destructor)) static void dtor(void) { __kitpthr_finalize(); }
+CTOR(RT_PTHREADS)
 
 int main(int argc, char *argv[]) {
   printf("Number of threads = %ld\n", __kitpthr_num_threads());

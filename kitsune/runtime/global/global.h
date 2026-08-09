@@ -68,7 +68,6 @@ class KitOMPContext;
 class KitPAPIContext;
 class KitPthrContext;
 class KitQthrContext;
-class KitSerContext;
 class KitTimerContext;
 
 /// The context object for the global data used in kitrt. This will own the
@@ -107,9 +106,6 @@ public:
   /// Global context for Kitsune's Qthreads runtime.
   KitQthrContext *qthr = nullptr;
 
-  /// Global context for Kitsune's serial runtime.
-  KitSerContext *serial = nullptr;
-
   /// Global context for Kitsune's timer support.
   KitTimerContext *timer = nullptr;
 
@@ -130,7 +126,7 @@ public:
   ~KitRTContext() = default;
 
   KitRTContext &operator=(const KitRTContext &) = delete;
-  KitRTContext &&operator=(KitRTContext &&) = delete;
+  KitRTContext &operator=(KitRTContext &&) = delete;
 
   /// Set the initialized flag on the object.
   void setInitialized(bool initialized);
@@ -161,9 +157,6 @@ public:
 
   /// Set the global context object for Kitsune's Qthreads runtime.
   void addContext(KitQthrContext *ctx);
-
-  /// Set the global context object for Kitsune's serial runtime.
-  void addContext(KitSerContext *ctx);
 
   /// Set the global context object for Kitsune's timer support.
   void addContext(KitTimerContext *ctx);
@@ -216,10 +209,6 @@ template <> inline KitPthrContext *KitRTContext::getContextImpl() const {
 
 template <> inline KitQthrContext *KitRTContext::getContextImpl() const {
   return qthr;
-}
-
-template <> inline KitSerContext *KitRTContext::getContextImpl() const {
-  return serial;
 }
 
 template <> inline KitTimerContext *KitRTContext::getContextImpl() const {

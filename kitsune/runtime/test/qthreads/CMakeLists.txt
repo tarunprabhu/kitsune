@@ -1,9 +1,5 @@
 set(TESTS
-  Initialized.cpp
   Launch.cpp
-  MultipleInit.cpp
-  MultipleFini.cpp
-  RTInitFini.cpp
   WorkerID.cpp
 )
 
@@ -16,7 +12,7 @@ set(TESTS_WITH_QTHREADS
 # These tests call PAPI's API functions directly, and require appropriate
 # include and link options.
 set(TESTS_WITH_PAPI
-  PAPIInitFini.cpp
+  PAPIInit.cpp
 )
 
 add_kitrt_systests("${TESTS}")
@@ -27,6 +23,6 @@ add_kitrt_systests("${TESTS_WITH_QTHREADS}"
 
 if (KITSUNE_PAPI_ENABLED)
   add_kitrt_systests("${TESTS_WITH_PAPI}"
-    INCDIRS ${KITSUNE_PAPI_INCDIRS}
-    LIBS ${KITSUNE_PAPI_LIBS})
+    INCDIRS "${KITSUNE_PAPI_INCDIRS}"
+    LIBS "${KITSUNE_PAPI_LIBS}")
 endif ()

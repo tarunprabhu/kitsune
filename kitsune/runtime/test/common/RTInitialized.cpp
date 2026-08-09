@@ -2,25 +2,28 @@
 //
 // RUN: %exe | FileCheck %s
 //
-// CHECK: Before initialize: 0
-// CHECK: After initialize: {{[1-9][0-9]*}}
-// CHECK: Before finalize: {{[1-9][0-9]*}}
-// CHECK: After finalize: 0
+// CHECK: Before initialize: false
+// CHECK: After initialize: true
+// CHECK: Before finalize: true
+// CHECK: After finalize: false
 
+#include "TestHelpers.h"
 #include "kitrt.h"
 
 #include <stdio.h>
 
+const KitRTInitOptions initOpts{RT_NONE};
+
 __attribute__((constructor)) static void ctor(void) {
-  printf("Before initialize: %d\n", __kitrt_initialized());
-  __kitrt_initialize();
-  printf("After initialize: %d\n", __kitrt_initialized());
+  printf("Before initialize: %s\n", BOOLSTR(__kitrt_initialized()));
+  __kitrt_initialize(&initOpts);
+  printf("After initialize: %s\n", BOOLSTR(__kitrt_initialized()));
 }
 
 __attribute__((destructor)) static void dtor(void) {
-  printf("Before finalize: %d\n", __kitrt_initialized());
-  __kitrt_finalize();
-  printf("After finalize: %d\n", __kitrt_initialized());
+  printf("Before finalize: %s\n", BOOLSTR(__kitrt_initialized()));
+  __kitrt_finalize(&initOpts);
+  printf("After finalize: %s\n", BOOLSTR(__kitrt_initialized()));
 }
 
 int main(int argc, char *argv[]) { return 0; }

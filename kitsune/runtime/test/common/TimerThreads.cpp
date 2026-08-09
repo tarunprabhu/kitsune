@@ -24,24 +24,21 @@
 // CHECK-NEXT:   }
 // CHECK-NEXT: }
 
+#include "TestHelpers.h"
 #include "common/timer.h"
 #include "openmp/kitomp.h"
 
 #include <stdlib.h>
 
-extern "C" unsigned omp_get_thread_num(void);
-
-__attribute__((constructor)) static void ctor(void) { __kitomp_initialize(); }
-
-__attribute__((destructor)) static void dtor(void) { __kitomp_finalize(); }
+CTOR(RT_OPENMP | RT_TIMER)
 
 static void thrdFn(uint64_t start, uint64_t end, void *args) {
-  KitTimerEpoch *e = __kittimer_start("thrd", omp_get_thread_num());
+  kitrt::KitTimerEpoch *e = __kittimer_start("thrd", __kitomp_thread_id());
   __kittimer_stop(e);
 }
 
 int main(int argc, char *argv[]) {
-  KitTimerEpoch *e = __kittimer_start("main", /*thread=*/0);
+  kitrt::KitTimerEpoch *e = __kittimer_start("main", /*thread=*/0);
   __kitomp_launch(thrdFn, /*beg=*/0, /*end=*/3, /*args=*/NULL, /*argSize=*/0);
   __kittimer_stop(e);
 

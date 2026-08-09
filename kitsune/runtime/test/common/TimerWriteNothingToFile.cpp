@@ -20,10 +20,9 @@
 // CHECK-NOT: {{^.+$}}
 // -----------------------------------------------------------------------------
 
-#include "kitrt.h"
+#include "TestHelpers.h"
+#include "common/timer.h"
 
-__attribute__((constructor)) static void ctor(void) { __kitrt_initialize(); }
-
-__attribute__((destructor)) static void dtor(void) { __kitrt_finalize(); }
+CTOR(RT_TIMER)
 
 int main(int argc, char *argv[]) { return 0; }

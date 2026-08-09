@@ -64,10 +64,6 @@ extern "C" {
 [[gnu::malloc]] void *__kitcuda_mem_alloc_managed(size_t size) {
   KIT_NVTX_PUSH("kitcuda:mem_alloc_managed", KIT_NVTX_MEM);
 
-  extern bool _kitcuda_initialized;
-  if (not _kitcuda_initialized)
-    __kitcuda_initialize();
-
   CUcontext curctx;
   CU_SAFE_CALL(cuCtxGetCurrent_p(&curctx));
   if (curctx == NULL)

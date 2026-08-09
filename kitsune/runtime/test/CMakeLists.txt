@@ -26,7 +26,10 @@ function(add_kitrt_systest source)
   set_target_properties(${target} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
-  target_include_directories(${target} PUBLIC ${KITRT_SOURCE_DIR})
+  # FIXME: Reorganize the runtime code so we have a KITRT_TEST_DIR
+  target_include_directories(${target} PUBLIC
+    ${KITRT_SOURCE_DIR}
+    ${KITRT_SOURCE_DIR}/test/include)
   if (ARG_INCDIRS)
     target_include_directories(${target} PUBLIC ${ARG_INCDIRS})
   endif ()

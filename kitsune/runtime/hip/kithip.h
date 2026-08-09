@@ -57,6 +57,7 @@
 #include <stdlib.h>
 
 #include "common/utils.h"
+#include "global/singleton.h"
 #include "kitrt.h"
 #include "kitsune/Shared/KernelInstMix.h"
 
@@ -65,6 +66,22 @@
 #define __HIP_PLATFORM_AMD__ 1
 #define __HIP_PLATFORM_HCC__ 1
 #include <hip/hip_runtime.h>
+
+namespace kitrt {
+
+/// Kitsune runtime the hip tapir target. All global state required by the
+/// runtime should be owned by this object.
+/// FIXME: This tapir target has not been modified to use this.
+class KitHipContext : public KitContextMixin<KitHipContext> {
+public:
+  void initialize();
+  void finalize();
+
+public:
+  static constexpr const char *name() { return "hip"; }
+};
+
+} // namespace kitrt
 
 #ifdef __cplusplus
 extern "C" {

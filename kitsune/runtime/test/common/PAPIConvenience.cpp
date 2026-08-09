@@ -1,3 +1,5 @@
+// REQUIRES: kitsune-papi
+//
 // Check the Kitsune-specific convenience names for events. New convenience
 // names should be added to this test.
 //
@@ -38,20 +40,10 @@
 // CHECK: Event 'PAPI_TOT_CYC'
 // CHECK: Event 'PAPI_REF_CYC'
 
+#include "TestHelpers.h"
 #include "common/kitpapi.h"
-#include "kitrt.h"
 
-#include "papi.h"
-
-__attribute__((constructor)) static void ctor(void) {
-  __kitrt_initialize();
-  __kitpapi_initialize(NULL);
-}
-
-__attribute__((destructor)) static void dtor(void) {
-  __kitpapi_finalize();
-  __kitrt_finalize();
-}
+CTOR(RT_PAPI | RT_SERIAL)
 
 int main(int argc, char *argv[]) {
   (void)__kitpapi_start("mallika", /*thread=*/0, 30, "l1d", "l2d", "l3d", "l1i",

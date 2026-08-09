@@ -4,14 +4,13 @@
 //
 // CHECK-COUNT-3: From thread
 
+#include "TestHelpers.h"
 #include "pthreads/kitpthr.h"
 
 #include <pthread.h>
 #include <stdio.h>
 
-__attribute__((constructor)) static void ctor(void) { __kitpthr_initialize(); }
-
-__attribute__((destructor)) static void dtor(void) { __kitpthr_finalize(); }
+CTOR(RT_PTHREADS)
 
 static pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
 
@@ -22,9 +21,8 @@ static void thrdFunc(uint64_t start, uint64_t stop, void *args) {
 }
 
 int main(int argc, char *argv[]) {
-  KitPthrLaunchContext *ctx =
-      __kitpthr_async_launch(thrdFunc, /*beg=*/0, /*end=*/3,
-                             /*args=*/NULL, /*argSize=*/0);
+  kitrt::KitPthrLaunchContext *ctx = __kitpthr_async_launch(
+      thrdFunc, /*beg=*/0, /*end=*/3, /*args=*/NULL, /*argSize=*/0);
   __kitpthr_sync(ctx);
 
   pthread_mutex_destroy(&mut);

@@ -22,11 +22,8 @@ set(TESTS
   TimerDefaultStderr.cpp
   TimerEmpty.cpp
   TimerInitFini.cpp
-  TimerInitialized.cpp
   TimerIterateSingleThread.cpp
   TimerIterateThreads.cpp
-  TimerMultipleFini.cpp
-  TimerMultipleInit.cpp
   TimerSingleThread.cpp
   TimerThreads.cpp
   TimerWriteToFile.cpp
@@ -42,18 +39,14 @@ set(TESTS_WITH_PAPI
   PAPIDefaultEvents.cpp
   PAPIDefaultStderr.cpp
   PAPIEmpty.cpp
-  PAPIInitialized.cpp
   PAPIIterateSingleThread.cpp
   PAPIIterateThreads.cpp
-  PAPIMultipleFini.cpp
-  PAPIMultipleInit.cpp
   PAPINested.cpp
   PAPISingleThread.cpp
   PAPIThreads.cpp
   PAPIUnknown.cpp
   PAPIWriteNothingToFile.cpp
   PAPIWriteToFile.cpp
-  RTPAPIInitFini.cpp
 )
 
 add_kitrt_systests("${TESTS}")

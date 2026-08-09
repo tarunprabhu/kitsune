@@ -98,19 +98,9 @@ const int KIT_NVTX_LAUNCH = 3;
 const int KIT_NVTX_CLEANUP = 4;
 #endif // KITCUDA_ENABLE_NVTX
 
-extern "C" {
+using namespace kitrt;
 
-void __kitcuda_initialize(void) {
-  if (_kitcuda_initialized) {
-    LOG("Runtime already initialized");
-    return;
-  }
-
-  // Initialize the shared components of the higher-level runtime.
-  __kitrt_initialize();
-
-  LOG("Initializing Kitsune runtime (cuda)");
-
+void KitCudaContext::initialize(void) {
   KIT_NVTX_PUSH("kitcuda: initialize", KIT_NVTX_INIT);
 
   if (not __kitcuda_load_symbols()) {
@@ -231,18 +221,9 @@ void __kitcuda_initialize(void) {
       __kitcuda_enable_launch_refinement(false);
 
   KIT_NVTX_POP();
-
-  LOG("Initialized Kitsune runtime (cuda)");
 }
 
-void __kitcuda_finalize(void) {
-  if (not _kitcuda_initialized) {
-    LOG("Cannot finalize runtime. Not initialized");
-    return;
-  }
-
-  LOG("Finalizing Kitsune runtime (cuda)");
-
+void KitCudaContext::finalize(void) {
   KIT_NVTX_PUSH("kitcuda:finalize", KIT_NVTX_CLEANUP);
   __kitcuda_destroy_thread_streams();
   __kitrt_destroy_memory_map(__kitcuda_mem_destroy);
@@ -250,12 +231,6 @@ void __kitcuda_finalize(void) {
   // CU_SAFE_CALL(cuDevicePrimaryCtxReset_v2_p(_kitcuda_device));
   _kitcuda_initialized = false;
   KIT_NVTX_POP();
-
-  LOG("Finalized Kitsune runtime (cuda)");
-
-  // Finalize the components of Kitsune's runtime that are shared by the
-  // tapir-target-specific components.
-  __kitrt_finalize();
 }
 
 extern "C" uint64_t __kitcuda_num_sms(void) {
@@ -384,5 +359,3 @@ __kitcuda_register_global_managed(void **handle, void **newAddr, void *hostAddr,
   return __cudaRegisterManagedVar(handle, newAddr, (char *)hostAddr, deviceName,
                                   isExternal, size, isConstant, /*global=*/0);
 }
-
-} // extern "C"

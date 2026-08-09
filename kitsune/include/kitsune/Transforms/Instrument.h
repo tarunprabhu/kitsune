@@ -22,7 +22,7 @@ namespace llvm {
 /// Pass that inserts Kitsune-specific instrumentation.
 class InstrumentPass : public PassInfoMixin<InstrumentPass> {
 private:
-  const KitInstrOptions instrOpts;
+  const KitInstrOptions &instrOpts;
 
 public:
   explicit InstrumentPass(const KitInstrOptions &instrOpts)

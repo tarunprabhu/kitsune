@@ -4,12 +4,12 @@
 ; RUN: opt --tapir=hip -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s -check-prefix DEFAULT
 ;
-; Currently, even if a max-threads-per-block option is not used, the max is set
-; to 1024.
-;
 ; DEFAULT: @[[FB:.+]] = constant [0 x i8] zeroinitializer
 ; DEFAULT-SAME: section ".hip_fatbin"
 ; DEFAULT-SAME: !kit.gv ![[MD:[0-9]+]]
+;
+; DEFAULT: @[[INITOPTS:.+]] = internal constant [8 x i8]
+; DEFAULT-SAME: c"\04\00\00\00\00\00\00\00"
 ;
 ; DEFAULT: @[[BUNDLE:.+]] = internal constant {{.+}} { i32 1212764230, i32 1, ptr @[[FB]], ptr null }
 ; DEFAULT-SAME: section ".hipFatBinSegment"
@@ -24,7 +24,7 @@
 ;
 ; DEFAULT: define internal void @[[CTOR]]()
 ; DEFAULT-NEXT: [[ENTRY:.+]]:
-; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.initialize(i32 4)
+; DEFAULT-NEXT: call void @__kitrt_initialize(ptr @[[INITOPTS]])
 ; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.set.xnack(i32 4)
 ; DEFAULT-NOT: call {{.+}} @llvm.kit.runtime.set.y.axis.kernel.launch(i32 4)
 ; DEFAULT-NEXT: %[[HC:.+]] = call {{.+}}@llvm.kit.gpu.register.devcode(i32 4, ptr @[[BUNDLE]])
@@ -39,7 +39,7 @@
 ; DEFAULT-NEXT: [[ENTRY:.+]]:
 ; DEFAULT-NEXT: %[[HD:.+]] = load ptr, ptr @[[HANDLE]]
 ; DEFAULT-NEXT: call {{.+}} @llvm.kit.gpu.unregister.devcode(i32 4, ptr %[[HD]])
-; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.finalize(i32 4)
+; DEFAULT-NEXT: call void @__kitrt_finalize(ptr @[[INITOPTS]])
 ; DEFAULT-NEXT: br label %[[EXIT:.+]]
 ; DEFAULT-EMPTY:
 ; DEFAULT-NEXT: [[EXIT]]:
@@ -59,7 +59,7 @@
 ; RUN:     --tapir-hip-xnack=any \
 ; RUN:     | FileCheck %s -check-prefix NOXNACK
 ;
-; NOXNACK-LABEL: .kit.hip.ctor{{.*}}
+; NOXNACK: define {{.+}} @.kit.ctor{{[^(]*}}
 ; NOXNACK-NOT: call {{.+}} @llvm.kit.runtime.set.xnack(i32 4)
 ;
 ; ----------------------------------------------------------------------------
@@ -68,7 +68,7 @@
 ; RUN:     -hipabi-y-launch \
 ; RUN:     | FileCheck %s -check-prefix YLAUNCH
 ;
-; YLAUNCH-LABEL: .kit.hip.ctor{{.*}}
+; YLAUNCH: define {{.+}} @.kit.ctor{{[^(]*}}
 ; YLAUNCH: call {{.+}} @llvm.kit.runtime.set.y.axis.kernel.launch(i32 4)
 ;
 ; ----------------------------------------------------------------------------
