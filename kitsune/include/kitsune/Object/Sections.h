@@ -25,6 +25,9 @@ namespace object {
 /// The name of the section that contains embedded bitcode.
 static constexpr StringRef kitSectEmbBC = ".kit.mbc";
 
+/// The name of the section that contains the runtime initialization options.
+static constexpr StringRef kitSectRTInitOpts = ".kit.rtiopt";
+
 } // namespace object
 
 /// @}

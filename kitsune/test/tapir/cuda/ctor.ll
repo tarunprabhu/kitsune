@@ -10,6 +10,7 @@
 ;
 ; DEFAULT: @[[INITOPTS:.+]] = internal constant [8 x i8]
 ; DEFAULT-SAME: c"\02\00\00\00\00\00\00\00"
+; DEFAULT-SAME: section ".kit.rtiopt"
 ;
 ; DEFAULT: @[[BUNDLE:.+]] = internal constant
 ; DEFAULT-SAME: { i32 1180844977, i32 1, ptr @[[FB]], ptr null }
