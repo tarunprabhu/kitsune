@@ -118,12 +118,6 @@ def kittimer_stop :
 // -----------------------------------------------------------------------------
 // Runtime library functions for the cuda tapir taret.
 
-def kitcuda_finalize :
-    KitFunc<"__kitcuda_finalize", Void, []>;
-
-def kitcuda_initialize :
-    KitFunc<"__kitcuda_initialize", Void, []>;
-
 // void*
 // __kitcuda_launch_kernel(void* fatbin, const char* name, int64_t tc_x,
 //                         int64_t tc_y, int64_t tc_z, int32_t thrds_per_block,
@@ -221,12 +215,6 @@ def kithip_enable_xnack :
 def kithip_enable_y_axis_launches :
     KitFunc<"__kithip_enable_ylaunch", Void, []>;
 
-def kithip_finalize :
-    KitFunc<"__kithip_finalize", Void, []>;
-
-def kithip_initialize :
-    KitFunc<"__kithip_initialize", Void, []>;
-
 // void*
 // __kithip_launch_kernel(void* fatbin, const char* name, int64_t tc_x,
 //                        int64_t tc_y, int64_t tc_z, int32_t thrds_per_block,
@@ -314,12 +302,6 @@ def kithip_symbol_address :
 // -----------------------------------------------------------------------------
 // Runtime library functions for the opencilk tapir taret.
 
-def kitocilk_finalize :
-    KitFunc<"__kitocilk_finalize", Void, []>;
-
-def kitocilk_initialize :
-    KitFunc<"__kitocilk_initialize", Void, []>;
-
 def kitocilk_num_workers :
     KitFunc<"__kitocilk_num_workers", U64, []>;
 
@@ -328,12 +310,6 @@ def kitocilk_worker_id :
 
 // -----------------------------------------------------------------------------
 // Runtime library functions for the openmp tapir taret.
-
-def kitomp_finalize :
-    KitFunc<"__kitomp_finalize", Void, []>;
-
-def kitomp_initialize :
-    KitFunc<"__kitomp_initialize", Void, []>;
 
 def kitomp_num_threads :
     KitFunc<"__kitomp_num_threads", U64, []>;
@@ -356,12 +332,6 @@ def kitomp_thread_id :
 def kitpthr_async_launch :
     KitFunc<"__kitpthr_async_launch", Ptr, [Ptr, U64, U64, Ptr, U32]>;
 
-def kitpthr_finalize :
-    KitFunc<"__kitpthr_finalize", Void, []>;
-
-def kitpthr_initialize :
-    KitFunc<"__kitpthr_initialize", Void, []>;
-
 def kitpthr_num_threads :
     KitFunc<"__kitpthr_num_threads", U64, []>;
 
@@ -375,12 +345,6 @@ def kitpthr_thread_id :
 // -----------------------------------------------------------------------------
 // Runtime library functions for the qthreads tapir taret.
 
-def kitqthr_finalize :
-    KitFunc<"__kitqthr_finalize", Void, []>;
-
-def kitqthr_initialize :
-    KitFunc<"__kitqthr_initialize", Void, []>;
-
 def kitqthr_num_workers :
     KitFunc<"__kitqthr_num_workers", U64, []>;
 
@@ -392,15 +356,3 @@ def kitqthr_launch :
 
 def kitqthr_worker_id :
     KitFunc<"__kitqthr_worker_id", U64, []>;
-
-// -----------------------------------------------------------------------------
-// Runtime library functions for the serial tapir taret.
-
-def kitser_finalize :
-    KitFunc<"__kitser_finalize", Void, []>;
-
-def kitser_initialize :
-    KitFunc<"__kitser_initialize", Void, []>;
-
-def kitser_thread_id :
-    KitFunc<"__kitser_thread_id", U64, []>;

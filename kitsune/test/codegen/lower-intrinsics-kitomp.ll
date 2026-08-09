@@ -19,12 +19,8 @@
 ; CHECK-NEXT: %[[OFF1:.+]] = getelementptr inbounds { ptr, float }, ptr %[[BUNDLE]], i32 0, i32 1
 ; CHECK-NEXT: store float 1.500000e+00, ptr %[[OFF1]]
 ; CHECK-NEXT: call void @__kitomp_launch(ptr nonnull @f, i64 0, i64 128, ptr %[[BUNDLE]], i32 16) #[[LAUNCH:[0-9]+]]
-; CHECK-NEXT: call void @__kitomp_finalize() #[[FINALIZE:[0-9]+]]
-; CHECK-NEXT: call void @__kitomp_initialize() #[[INITIALIZE:[0-9]+]]
 ;
-; CHECK-DAG: #[[FINALIZE]] = { "finalize" }
 ; CHECK-DAG: #[[ID]] = { "id" }
-; CHECK-DAG: #[[INITIALIZE]] = { "initialize" }
 ; CHECK-DAG: #[[LAUNCH]] = { "launch" }
 ; CHECK-DAG: #[[THREADS]] = { "threads" }
 
@@ -37,13 +33,9 @@ define void @f(ptr %buf, i64 %n) {
   %numThreads = call i64 @llvm.kit.cpu.num.threads(i32 512) #0
   %threadID = call i64 @llvm.kit.cpu.thread.id(i32 512) #1
   call void(i32, ptr, i64, i64, ...) @llvm.kit.cpu.threads.launch(i32 512, ptr nonnull @f, i64 0, i64 128, ptr null, float 1.5) #2
-  call void @llvm.kit.runtime.finalize(i32 512) #4
-  call void @llvm.kit.runtime.initialize(i32 512) #5
   ret void
 }
 
 attributes #0 = { "threads" }
 attributes #1 = { "id" }
 attributes #2 = { "launch" }
-attributes #4 = { "finalize" }
-attributes #5 = { "initialize" }

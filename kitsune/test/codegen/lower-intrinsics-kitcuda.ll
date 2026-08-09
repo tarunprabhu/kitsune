@@ -13,7 +13,6 @@
 ; CHECK-NEXT: %[[SLOT0:.+]] = alloca ptr
 ; CHECK-NEXT: %[[BUNDLE:.+]] = alloca [1 x ptr]
 ; CHECK-NEXT: %guvm = alloca ptr
-; CHECK-NEXT: call void @__kitcuda_initialize()
 ; CHECK-NEXT: %[[CUS:.+]] = call i64 @__kitcuda_num_sms()
 ; CHECK-NEXT: %[[STREAM:.+]] = call ptr @__kitcuda_get_thread_stream()
 ; CHECK-NEXT: %[[GSYM:.+]] = call ptr @__kitcuda_get_global_symbol(ptr null, ptr @.gname)
@@ -35,13 +34,10 @@
 ; CHECK-NEXT: call void @__kitcuda_register_global(ptr %[[HANDLE]], ptr @gbuf, ptr @.gname, ptr @.gname, i64 28, i32 1, i32 0)
 ; CHECK-NEXT: call void @__kitcuda_register_global_managed(ptr %[[HANDLE]], ptr %guvm, ptr @gbuf, ptr @.gname, i64 28, i32 16, i32 1, i32 0)
 ; CHECK-NEXT: call void @__kitcuda_unregister_devcode(ptr %[[HANDLE]])
-; CHECK-NEXT: call void @__kitcuda_finalize()
 ; CHECK-NEXT: ret void
 ;
-; CHECK-DAG: void @__kitcuda_finalize() #[[ATTRS:[0-9]+]]
-; CHECK-DAG: ptr @__kitcuda_get_global_symbol(ptr, ptr) #[[ATTRS]]
+; CHECK-DAG: ptr @__kitcuda_get_global_symbol(ptr, ptr) #[[ATTRS:[0-9]+]]
 ; CHECK-DAG: ptr @__kitcuda_get_thread_stream() #[[ATTRS]]
-; CHECK-DAG: void @__kitcuda_initialize() #[[ATTRS]]
 ; CHECK-DAG: ptr @__kitcuda_launch_kernel(ptr, ptr, i64, i64, i64, i32, ptr, ptr, ptr) #[[ATTRS]]
 ; CHECK-DAG: ptr @__kitcuda_mem_gpu_prefetch(ptr, i64, ptr) #[[ATTRS]]
 ; CHECK-DAG: ptr @__kitcuda_mem_host_prefetch(ptr, i64, ptr) #[[ATTRS]]
@@ -66,7 +62,6 @@ target triple = "x86_64-pc-linux-gnu"
 
 define void @f(ptr %buf, i64 %n) {
   %guvm = alloca ptr
-  call void @llvm.kit.runtime.initialize(i32 2)
   %cus = call i64 @llvm.kit.gpu.num.compute.units(i32 2)
   %1 = call ptr @llvm.kit.gpu.stream.new(i32 2)
   %2 = call ptr @llvm.kit.gpu.symbol.address(i32 2, ptr null, ptr @.gname)
@@ -83,6 +78,5 @@ define void @f(ptr %buf, i64 %n) {
   call void @llvm.kit.gpu.register.global(i32 2, ptr %handle, ptr @gbuf, ptr @.gname, ptr @.gname, i64 28, i32 1, i32 0)
   call void @llvm.kit.gpu.register.global.managed(i32 2, ptr %handle, ptr %guvm, ptr @gbuf, ptr @.gname, i64 28, i32 16, i32 1, i32 0)
   call void @llvm.kit.gpu.unregister.devcode(i32 2, ptr %handle)
-  call void @llvm.kit.runtime.finalize(i32 2)
   ret void
 }

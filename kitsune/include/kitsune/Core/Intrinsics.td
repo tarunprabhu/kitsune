@@ -159,8 +159,7 @@ def int_kit_cpu_thread_id
   let RTSpec = [RT<OpenCilk, kitocilk_worker_id>,
                 RT<OpenMP, kitomp_thread_id>,
                 RT<Pthreads, kitpthr_thread_id>,
-                RT<Qthreads, kitqthr_worker_id>,
-                RT<Serial, kitser_thread_id>];
+                RT<Qthreads, kitqthr_worker_id>];
 }
 
 // Launch a function on one or more CPU threads (asynchronous).
@@ -568,32 +567,6 @@ def int_kit_reduce_1
 
 //------------------------------------------------------------------------------
 // Intrinsics for Kitsune's runtime that are not specific to a tapir target.
-
-// Finalize Kitsune's runtime.
-def int_kit_runtime_finalize
-    : KitIntrinsic<[], [llvm_i32_ty], [ImmArg<ArgIndex<0>>]> {
-  let Doc = KitFinalizeDoc;
-  let RTSpec = [RT<Cuda, kitcuda_finalize>,
-                RT<Hip, kithip_finalize>,
-                RT<OpenCilk, kitocilk_finalize>,
-                RT<OpenMP, kitomp_finalize>,
-                RT<Pthreads, kitpthr_finalize>,
-                RT<Qthreads, kitqthr_finalize>,
-                RT<Serial, kitser_finalize>];
-}
-
-// Initialize Kitsune's runtime.
-def int_kit_runtime_initialize
-    : KitIntrinsic<[], [llvm_i32_ty], [ImmArg<ArgIndex<0>>]> {
-  let Doc = KitInitializeDoc;
-  let RTSpec = [RT<Cuda, kitcuda_initialize>,
-                RT<Hip, kithip_initialize>,
-                RT<OpenCilk, kitocilk_initialize>,
-                RT<OpenMP, kitomp_initialize>,
-                RT<Pthreads, kitpthr_initialize>,
-                RT<Qthreads, kitqthr_initialize>,
-                RT<Serial, kitser_initialize>];
-}
 
 // Enable xnack in the runtime. This is only relevant for the hip tapir target
 // and its associated kitsune runtime.

@@ -13,7 +13,6 @@
 ; CHECK-NEXT: %1 = alloca ptr
 ; CHECK-NEXT: %2 = alloca [1 x ptr]
 ; CHECK-NEXT: %guvm = alloca ptr
-; CHECK-NEXT: call void @__kithip_initialize()
 ; CHECK-NEXT: call void @__kithip_enable_ylaunch()
 ; CHECK-NEXT: call void @__kithip_enable_xnack()
 ; CHECK-NEXT: %[[CUS:.+]] = call i64 @__kithip_num_cus()
@@ -34,14 +33,10 @@
 ; CHECK-NEXT: call void @__kithip_register_global(ptr %handle, ptr @gbuf, ptr @.gname, ptr @.gname, i64 28, i32 1, i32 0)
 ; CHECK-NEXT: call void @__kithip_register_global_managed(ptr %handle, ptr %guvm, ptr @gbuf, ptr @.gname, i64 28, i32 16, i32 1, i32 0)
 ; CHECK-NEXT: call void @__kithip_unregister_devcode(ptr %handle)
-; CHECK-NEXT: call void @__kithip_finalize()
 ; CHECK-NEXT: ret void
 ;
-; CHECK-DAG: void @__kithip_enable_xnack() #[[ATTRS:[0-9]+]]
-; CHECK-DAG: void @__kithip_enable_ylaunch() #[[ATTRS]]
-; CHECK-DAG: void @__kithip_finalize() #[[ATTRS]]
+; CHECK-DAG: void @__kithip_enable_ylaunch() #[[ATTRS:[0-9]+]]
 ; CHECK-DAG: ptr @__kithip_get_global_symbol(ptr, ptr) #[[ATTRS]]
-; CHECK-DAG: void @__kithip_initialize() #[[ATTRS]]
 ; CHECK-DAG: ptr @__kithip_launch_kernel(ptr, ptr, i64, i64, i64, i32, ptr, ptr, ptr) #[[ATTRS]]
 ; CHECK-DAG: ptr @__kithip_mem_gpu_prefetch(ptr, i64, ptr) #[[ATTRS]]
 ; CHECK-DAG: ptr @__kithip_mem_host_prefetch(ptr, i64, ptr) #[[ATTRS]]
@@ -65,7 +60,6 @@ target triple = "x86_64-pc-linux-gnu"
 
 define void @f(ptr %buf, i64 %n) {
   %guvm = alloca ptr
-  call void @llvm.kit.runtime.initialize(i32 4)
   call void @llvm.kit.runtime.set.y.axis.kernel.launch(i32 4)
   call void @llvm.kit.runtime.set.xnack(i32 4)
   %cus = call i64 @llvm.kit.gpu.num.compute.units(i32 4)
@@ -83,6 +77,5 @@ define void @f(ptr %buf, i64 %n) {
   call void @llvm.kit.gpu.register.global(i32 4, ptr %handle, ptr @gbuf, ptr @.gname, ptr @.gname, i64 28, i32 1, i32 0)
   call void @llvm.kit.gpu.register.global.managed(i32 4, ptr %handle, ptr %guvm, ptr @gbuf, ptr @.gname, i64 28, i32 16, i32 1, i32 0)
   call void @llvm.kit.gpu.unregister.devcode(i32 4, ptr %handle)
-  call void @llvm.kit.runtime.finalize(i32 4)
   ret void
 }

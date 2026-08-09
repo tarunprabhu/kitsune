@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/IntrinsicUtils.h"
+#include "kitsune/Core/AddrSpace.h"
 #include "kitsune/Core/Tapir.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/GlobalVariable.h"
@@ -50,8 +51,7 @@ TEST(KitIntrinsicUtils, isKitIntrinsicAsync) {
   EXPECT_FALSE(isKitIntrinsicAsync(Intrinsic::kit_cpu_threads_sync));
   EXPECT_FALSE(isKitIntrinsicAsync(Intrinsic::kit_gpu_memcpy_dtoh));
   EXPECT_FALSE(isKitIntrinsicAsync(Intrinsic::kit_gpu_memcpy_htod));
-  EXPECT_FALSE(isKitIntrinsicAsync(Intrinsic::kit_runtime_finalize));
-  EXPECT_FALSE(isKitIntrinsicAsync(Intrinsic::kit_runtime_initialize));
+  EXPECT_FALSE(isKitIntrinsicAsync(Intrinsic::kit_mobile_init));
 }
 
 TEST(KitIntrinsicUtils, isKitIntrinsicBlocking) {
@@ -70,8 +70,7 @@ TEST(KitIntrinsicUtils, isKitIntrinsicBlocking) {
   EXPECT_TRUE(isKitIntrinsicBlocking(Intrinsic::kit_cpu_threads_sync));
   EXPECT_TRUE(isKitIntrinsicBlocking(Intrinsic::kit_gpu_memcpy_dtoh));
   EXPECT_TRUE(isKitIntrinsicBlocking(Intrinsic::kit_gpu_memcpy_htod));
-  EXPECT_TRUE(isKitIntrinsicBlocking(Intrinsic::kit_runtime_finalize));
-  EXPECT_TRUE(isKitIntrinsicBlocking(Intrinsic::kit_runtime_initialize));
+  EXPECT_TRUE(isKitIntrinsicBlocking(Intrinsic::kit_mobile_init));
 }
 
 TEST(KitIntrinsicUtils, isKitIntrinsicCPU) {
@@ -84,7 +83,7 @@ TEST(KitIntrinsicUtils, isKitIntrinsicCPU) {
   EXPECT_FALSE(isKitIntrinsicCPU(Intrinsic::kit_gpu_thread_id_x));
   EXPECT_FALSE(isKitIntrinsicCPU(Intrinsic::kit_mobile_alloc));
   EXPECT_FALSE(isKitIntrinsicCPU(Intrinsic::kit_reduce_0));
-  EXPECT_FALSE(isKitIntrinsicCPU(Intrinsic::kit_runtime_initialize));
+  EXPECT_FALSE(isKitIntrinsicCPU(Intrinsic::kit_mobile_init));
 }
 
 TEST(KitIntrinsicUtils, isKitIntrinsicGPU) {
@@ -97,7 +96,7 @@ TEST(KitIntrinsicUtils, isKitIntrinsicGPU) {
   EXPECT_FALSE(isKitIntrinsicGPU(Intrinsic::kit_cpu_threads_launch));
   EXPECT_FALSE(isKitIntrinsicGPU(Intrinsic::kit_mobile_alloc));
   EXPECT_FALSE(isKitIntrinsicGPU(Intrinsic::kit_reduce_0));
-  EXPECT_FALSE(isKitIntrinsicGPU(Intrinsic::kit_runtime_initialize));
+  EXPECT_FALSE(isKitIntrinsicGPU(Intrinsic::kit_mobile_init));
 }
 
 TEST(KitIntrinsicUtils, getStreamFromLaunch) {
@@ -135,28 +134,30 @@ TEST(KitIntrinsicUtils, getTTIDFromKitIntrCall) {
   LLVMContext ctx;
   Module m("", ctx);
   Type *i32 = Type::getInt32Ty(ctx);
+  PointerType *ptr = PointerType::get(ctx, KitAS::Mobile);
 
   Constant *c0 = ConstantInt::get(i32, 0);
-  Constant *c1 = ConstantInt::get(i32, unsigned(TTID::Serial));
+  Constant *c1 = ConstantInt::get(i32, uint32_t(TTID::Serial));
   Constant *c_1 = ConstantInt::get(i32, -1, /*isSigned=*/true);
+  Constant *cnull = ConstantPointerNull::get(ptr);
 
   Function *min = Intrinsic::getOrInsertDeclaration(&m, Intrinsic::umin, {i32});
-  Function *init =
-      Intrinsic::getOrInsertDeclaration(&m, Intrinsic::kit_runtime_initialize);
-  Function *fin =
-      Intrinsic::getOrInsertDeclaration(&m, Intrinsic::kit_runtime_finalize);
+  Function *thrds =
+      Intrinsic::getOrInsertDeclaration(&m, Intrinsic::kit_cpu_num_threads);
+  Function *free =
+      Intrinsic::getOrInsertDeclaration(&m, Intrinsic::kit_mobile_free);
 
-  CallInst *callMin = CallInst::Create(min->getFunctionType(), min, {c0, c1});
-  CallInst *callInit = CallInst::Create(init->getFunctionType(), init, {c_1});
-  CallInst *callFin = CallInst::Create(fin->getFunctionType(), fin, {c1});
+  CallInst *callMin = CallInst::Create(min, {c0, c1});
+  CallInst *callThrds = CallInst::Create(thrds, {c_1});
+  CallInst *callFree = CallInst::Create(free, {c1, cnull});
 
   EXPECT_FALSE(getTTIDFromKitIntrCall(*callMin).has_value());
-  EXPECT_FALSE(getTTIDFromKitIntrCall(*callInit).has_value());
-  EXPECT_EQ(getTTIDFromKitIntrCall(*callFin), TTID::Serial);
+  EXPECT_FALSE(getTTIDFromKitIntrCall(*callThrds).has_value());
+  EXPECT_EQ(getTTIDFromKitIntrCall(*callFree), TTID::Serial);
 
   callMin->deleteValue();
-  callInit->deleteValue();
-  callFin->deleteValue();
+  callThrds->deleteValue();
+  callFree->deleteValue();
 }
 
 } // namespace
