@@ -101,6 +101,9 @@ if (KITSUNE_CUDA_ENABLED)
 
   target_sources(${KITRT_OBJLIB} PUBLIC ${SOURCES})
 
+  target_compile_definitions(${KITRT_OBJLIB} PUBLIC
+    KITRT_CUDA_ENABLED)
+
   target_include_directories(${KITRT_OBJLIB} SYSTEM PUBLIC
     ${KITSUNE_CUDA_INCDIRS})
 
@@ -128,7 +131,8 @@ if (KITSUNE_HIP_ENABLED)
     # runtime headers for hip. This is probably unnecessary. Alternatively, we
     # could remove it from those headers and only include it here if is required
     # to be defined before any hip headers are included.
-    __HIP_PLATFORM_AMD__)
+    __HIP_PLATFORM_AMD__
+    KITRT_HIP_ENABLED)
 
   target_include_directories(${KITRT_OBJLIB} SYSTEM PUBLIC
     ${KITSUNE_HIP_INCDIRS})
@@ -148,6 +152,9 @@ if (KITSUNE_OPENCILK_ENABLED)
 
   target_sources(${KITRT_OBJLIB} PUBLIC ${SOURCES})
 
+  target_compile_definitions(${KITRT_OBJLIB} PUBLIC
+    KITRT_OPENCILK_ENABLED)
+
   target_link_libraries(${KITRT_OBJLIB} PUBLIC
     ${KITSUNE_OPENCILK_LIBS})
 endif ()
@@ -162,6 +169,9 @@ if (KITSUNE_OPENMP_ENABLED)
     "KITRT_LOG_TAG=\"openmp\";KITRT_LOG_COLOR=${KITSUNE_CPU_TERMCOLOR}")
 
   target_sources(${KITRT_OBJLIB} PUBLIC ${SOURCES})
+
+  target_compile_definitions(${KITRT_OBJLIB} PUBLIC
+    KITRT_OPENMP_ENABLED)
 
   target_include_directories(${KITRT_OBJLIB} SYSTEM PUBLIC
     ${KITSUNE_OPENMP_INCDIRS})
@@ -180,6 +190,9 @@ if (KITSUNE_PTHREADS_ENABLED)
     "KITRT_LOG_TAG=\"pthreads\";KITRT_LOG_COLOR=${KITSUNE_CPU_TERMCOLOR}")
 
   target_sources(${KITRT_OBJLIB} PUBLIC ${SOURCES})
+
+  target_compile_definitions(${KITRT_OBJLIB} PUBLIC
+    KITRT_PTHREADS_ENABLED)
 endif ()
 
 if (KITSUNE_QTHREADS_ENABLED)
@@ -193,23 +206,14 @@ if (KITSUNE_QTHREADS_ENABLED)
 
   target_sources(${KITRT_OBJLIB} PUBLIC ${SOURCES})
 
+  target_compile_definitions(${KITRT_OBJLIB} PUBLIC
+    KITRT_QTHREADS_ENABLED)
+
   target_include_directories(${KITRT_OBJLIB} SYSTEM PUBLIC
     ${KITSUNE_QTHREADS_INCDIRS})
 
   target_link_libraries(${KITRT_OBJLIB} PUBLIC
     ${KITSUNE_QTHREADS_LIBS})
-endif ()
-
-if (KITSUNE_SERIAL_ENABLED)
-  set(SOURCES
-    serial/kitser.cpp
-  )
-
-  set_source_files_properties(${SOURCES} PROPERTIES
-    COMPILE_DEFINITIONS
-    "KITRT_LOG_TAG=\"serial\";KITRT_LOG_COLOR=${KITSUNE_CPU_TERMCOLOR}")
-
-  target_sources(${KITRT_OBJLIB} PUBLIC ${SOURCES})
 endif ()
 
 add_library(${KITRT_DSO} SHARED

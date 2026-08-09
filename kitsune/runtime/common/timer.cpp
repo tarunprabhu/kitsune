@@ -62,7 +62,6 @@
 
 #include "common/timer.h"
 #include "common/env.h"
-#include "common/instrbase.h"
 #include "common/logging.h"
 #include "global/singleton.h"
 
@@ -70,10 +69,9 @@
 
 using namespace kitrt;
 
-namespace {
-
-// A time point. This is usually the number of nanoseconds since the epoch.
-using KitTimePoint = uint64_t;
+/// A time point. This is generally the wallclock time, in nanoseconds, since
+/// the epoch.
+using KitTimePoint = KitTimeSpan;
 
 // The number of nanoseconds since the epoch. This uses CLOCK_REALTIME to get
 // wall-clock time. This is susceptible to changes to the system time. This is
@@ -84,87 +82,37 @@ static KitTimePoint nsecs() {
   return ts.tv_sec * 1000000000 + ts.tv_nsec;
 }
 
-class KitTimerEpochImpl : public KitEpochBase {
-private:
-  int64_t span = 0;
+KitTimerEpoch::KitTimerEpoch(const char *name, KitThreadID thrd)
+    : KitEpochBase(name, thrd) {}
 
-public:
-  KitTimerEpochImpl() = delete;
-  KitTimerEpochImpl(const KitTimerEpoch &) = delete;
-  KitTimerEpochImpl(KitTimerEpoch &&) = delete;
-  KitTimerEpochImpl &operator=(const KitTimerEpoch &) = delete;
-  KitTimerEpochImpl &operator=(KitTimerEpoch &&) = delete;
+void KitTimerEpoch::start() { span -= nsecs(); }
 
-  KitTimerEpochImpl(const char *name, KitThreadID thrd)
-      : KitEpochBase(name, thrd) {}
+KitTimeSpan KitTimerEpoch::stop() { return span += nsecs(); }
 
-  inline void start() { span -= nsecs(); }
+void KitTimerEpoch::writeJSON(FILE *fp) const {
+  fprintf(fp, "\n      %ld", span);
+}
 
-  inline KitTimeSpan stop() { return span += nsecs(); }
+void KitTimerContext::initialize() {
+  // Nothing to be done here.
+}
 
-  void writeJSON(FILE *fp) const { fprintf(fp, "\n      %ld", span); }
-};
+void KitTimerContext::finalize() { writeJSON(envTimingFile); }
 
-} // namespace
-
-namespace kitrt {
-
-using KitTimerContextBase = KitInstrBase<KitTimerContext, KitTimerEpochImpl>;
-
-// A class that wraps all the timers created in the application. A singleton
-// instance of this class will be created in the global constructor and will
-// live till the global destructor is run.
-class KitTimerContext : public KitTimerContextBase {
-  friend KitTimerContextBase;
-
-protected:
-  KitTimerEpochImpl *makeEpoch(const char *name, KitThreadID thrd) {
-    return new KitTimerEpochImpl(name, thrd);
-  }
-};
-
-} // namespace kitrt
+KitTimerEpoch *KitTimerContext::makeEpoch(const char *name, KitThreadID thrd) {
+  return new KitTimerEpoch(name, thrd);
+}
 
 extern "C" KitTimerEpoch *__kittimer_start(const char *name, KitThreadID thrd) {
-  KitTimerEpochImpl *epoch =
-      KitTimerContext::mutSingleton().addEpoch(name, thrd);
+  KitTimerContext::ensure();
+  KitTimerEpoch *epoch = KitTimerContext::mut().addEpoch(name, thrd);
   epoch->start();
   return reinterpret_cast<KitTimerEpoch *>(epoch);
 }
 
 extern "C" KitTimeSpan __kittimer_stop(KitTimerEpoch *handle) {
-  if (KitTimerEpochImpl *epoch = reinterpret_cast<KitTimerEpochImpl *>(handle))
+  KitTimerContext::ensure();
+  if (KitTimerEpoch *epoch = reinterpret_cast<KitTimerEpoch *>(handle))
     return epoch->stop();
   return 0;
-}
-
-extern "C" bool __kittimer_initialized(void) {
-  return KitTimerContext::hasSingleton();
-}
-
-extern "C" void __kittimer_initialize(void) {
-  if (__kittimer_initialized()) {
-    LOG("Timing context already initialized");
-    return;
-  }
-
-  LOG("Initializing Kitsune timing context");
-
-  KitTimerContext::addSingleton();
-
-  LOG("Initialized Kitsune timing context");
-}
-
-extern "C" void __kittimer_finalize(void) {
-  if (!__kittimer_initialized()) {
-    LOG("Cannot finalize timing context. Not initialized");
-    return;
-  }
-
-  LOG("Finalizing Kitsune timing context");
-
-  KitTimerContext::getSingleton().writeJSON(envTimingFile);
-  KitTimerContext::delSingleton();
-
-  LOG("Finalized Kitsune timing context");
 }

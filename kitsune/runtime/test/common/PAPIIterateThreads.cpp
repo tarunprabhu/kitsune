@@ -45,20 +45,15 @@
 // SEPARATE-NEXT:  }
 // SEPARATE-NEXT:}
 
+#include "TestHelpers.h"
 #include "common/kitpapi.h"
 #include "openmp/kitomp.h"
 
-#include "papi.h"
-
-extern "C" unsigned omp_get_thread_num(void);
-
-__attribute__((constructor)) static void ctor(void) { __kitomp_initialize(); }
-
-__attribute__((destructor)) static void dtor(void) { __kitomp_finalize(); }
+CTOR(RT_PAPI | RT_OPENMP)
 
 static void thrdFn(uint64_t start, uint64_t stop, void *args) {
-  KitPAPIEpoch *e =
-      __kitpapi_start("remendado", omp_get_thread_num(), 1, "cyc");
+  kitrt::KitPAPIEpoch *e =
+      __kitpapi_start("remendado", __kitomp_thread_id(), 1, "cyc");
   __kitpapi_stop(e);
 }
 

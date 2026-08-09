@@ -27,24 +27,14 @@
 // SEPARATE-NEXT:   }
 // SEPARATE-NEXT: }
 
+#include "TestHelpers.h"
 #include "common/kitpapi.h"
-#include "kitrt.h"
 
-#include "papi.h"
-
-__attribute__((constructor)) static void ctor(void) {
-  __kitrt_initialize();
-  __kitpapi_initialize(NULL);
-}
-
-__attribute__((destructor)) static void dtor(void) {
-  __kitpapi_finalize();
-  __kitrt_finalize();
-}
+CTOR(RT_PAPI | RT_SERIAL)
 
 int main(int argc, char *argv[]) {
   for (unsigned i = 0; i < 3; ++i) {
-    KitPAPIEpoch *e = __kitpapi_start("carmen", /*thread=*/0, 1, "cyc");
+    kitrt::KitPAPIEpoch *e = __kitpapi_start("carmen", /*thread=*/0, 1, "cyc");
     __kitpapi_stop(e);
   }
 

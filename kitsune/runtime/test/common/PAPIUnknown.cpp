@@ -1,3 +1,5 @@
+// REQUIRES: kitsune-papi
+//
 // Check that unknown PAPI event names are handled as expected.
 //
 // RUN: env KIT_VERBOSE=1 %exe 2>&1 | FileCheck %s
@@ -16,20 +18,10 @@
 // CHECK-NEXT:   }
 // CHECK-NEXT: }
 
+#include "TestHelpers.h"
 #include "common/kitpapi.h"
-#include "kitrt.h"
 
-#include "papi.h"
-
-__attribute__((constructor)) static void ctor(void) {
-  __kitrt_initialize();
-  __kitpapi_initialize(NULL);
-}
-
-__attribute__((destructor)) static void dtor(void) {
-  __kitpapi_finalize();
-  __kitrt_finalize();
-}
+CTOR(RT_PAPI | RT_SERIAL)
 
 int main(int argc, char *argv[]) {
   (void)__kitpapi_start("nilakantha", /*thread=*/19, 5, "PAPI_TOT_INS",

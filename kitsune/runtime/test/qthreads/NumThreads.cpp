@@ -23,14 +23,13 @@
 //
 // -----------------------------------------------------------------------------
 
+#include "TestHelpers.h"
 #include "qthreads/kitqthr.h"
 
 #include <qthread.h>
 #include <stdio.h>
 
-__attribute__((constructor)) static void ctor(void) { __kitqthr_initialize(); }
-
-__attribute__((destructor)) static void dtor(void) { __kitqthr_finalize(); }
+CTOR(RT_QTHREADS)
 
 int main(int argc, char *argv[]) {
   printf("Number of workers = %ld\n", __kitqthr_num_workers());

@@ -86,8 +86,6 @@ void KitRTContext::addContext(KitPthrContext *ctx) { this->pthr = ctx; }
 
 void KitRTContext::addContext(KitQthrContext *ctx) { this->qthr = ctx; }
 
-void KitRTContext::addContext(KitSerContext *ctx) { this->serial = ctx; }
-
 void KitRTContext::addContext(KitTimerContext *ctx) { this->timer = ctx; }
 
 template <> KitCudaContext *KitRTContext::takeContext() { return take(cuda); }
@@ -103,8 +101,6 @@ template <> KitPAPIContext *KitRTContext::takeContext() { return take(papi); }
 template <> KitPthrContext *KitRTContext::takeContext() { return take(pthr); }
 
 template <> KitQthrContext *KitRTContext::takeContext() { return take(qthr); }
-
-template <> KitSerContext *KitRTContext::takeContext() { return take(serial); }
 
 template <> KitTimerContext *KitRTContext::takeContext() { return take(timer); }
 

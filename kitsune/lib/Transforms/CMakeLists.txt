@@ -11,9 +11,6 @@ add_llvm_component_library(LLVMKitTransforms
   EmbResolveCallsHip.cpp
   EmbResolveLibDeviceCalls.cpp
   GenerateCtors.cpp
-  GenerateCtorsCommon.cpp
-  GenerateCtorsCPU.cpp
-  GenerateCtorsGPU.cpp
   Instrument.cpp
   LoopWrapping.cpp
   LowerKitReduceIntrinsics.cpp

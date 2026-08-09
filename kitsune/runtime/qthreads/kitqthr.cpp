@@ -57,8 +57,6 @@
 #include "common/env.h"
 #include "common/logging.h"
 #include "common/utils.h"
-#include "global/singleton.h"
-#include "kitrt.h"
 
 #include <qthread.h>
 #include <qthread/barrier.h>
@@ -68,19 +66,6 @@
 
 using namespace kitrt;
 
-namespace kitrt {
-
-/// Global state for this runtime. We intentionally keep the members public
-/// because it is not clear what advantage there is to hiding them.
-class KitQthrContext : public KitContextMixin<KitQthrContext> {
-public:
-  // Currently, there are no members. This runtime only needs to know if it has
-  // been initialized. If the global singleton is not nullptr, then we know that
-  // the runtime has been initialized.
-};
-
-} // namespace kitrt
-
 namespace {
 
 /// The arguments is passed to the thread launch function. This contains the
@@ -88,7 +73,7 @@ namespace {
 /// barrier that must be entered once the actual thread function has finished
 /// executing.
 struct KitQthrThrdArgs {
-  KitQthrThrdFunc f;
+  KitQthrThrdFunc *f;
   int64_t tid;
   void *args;
   qt_barrier_t *barrier;
@@ -96,24 +81,38 @@ struct KitQthrThrdArgs {
 
 } // namespace
 
-/// Get the number of parallel workers that are available. Generally, this
-/// function should be used when this must be queried instead of calling
-/// `qthread_num_workers()`.
-extern "C" uint64_t __kitqthr_num_workers(void) {
-  assert(__kitqthr_initialized() && "kitqthr initialized");
-  return qthread_num_workers();
+void KitQthrContext::initialize() {
+  uint64_t numThreads = getNumThreadsOrCPUs();
+  envSet("QT_NUM_SHEPHERDS", numThreads);
+  envSet("QT_NUM_WORKERS_PER_SHEPHERD", 1);
+
+  LOG("Initializing Qthreads runtime");
+  if (qthread_initialize())
+    FATAL("Could not initialize Qthreads runtime");
+  LOG("Initialized Qthreads runtime");
+
+  LOG("Number of CPUs = %d", getNumCPUs());
+  LOG("Number of shepherds = %d", qthread_num_shepherds());
+  LOG("Number of workers = %d", qthread_num_workers());
 }
 
-/// Get the ID of the worker from which this is called.
-extern "C" KitThreadID __kitqthr_worker_id(void) {
-  return qthread_worker(nullptr);
+void KitQthrContext::finalize() {
+  LOG("Finalizing Qthreads runtime");
+  qthread_finalize();
+  LOG("Finalized Qthreads runtime");
+}
+
+uint64_t KitQthrContext::getNumThreads() const { return qthread_num_workers(); }
+
+KitThreadID KitQthrContext::getThreadID() const {
+  return qthread_id();
 }
 
 /// The function that is launched by each thread. This simply finds the "actual"
 /// function that is to be run in \p thrdArgs and calls it. The arguments to the
 /// actual function are also present in \p thrdArgs. Always returns 0.
 static unsigned long kitqthrThrdLaunchFn(KitQthrThrdArgs *thrdArgs) {
-  KitQthrThrdFunc f = thrdArgs->f;
+  KitQthrThrdFunc *f = thrdArgs->f;
   int64_t tid = thrdArgs->tid;
   void *args = thrdArgs->args;
   qt_barrier_t *barrier = thrdArgs->barrier;
@@ -126,43 +125,13 @@ static unsigned long kitqthrThrdLaunchFn(KitQthrThrdArgs *thrdArgs) {
   return 0;
 }
 
-/// Launch some number of threads each of which will execute some number of
-/// iterations in the space [\p start, \p end). This blocks until all threads
-/// have completed. The compiler will transform all tapir loops so they are of
-/// the following form:
-///
-///     unsigned numThreads = __kitqthr_num_threads();
-///     size_t itersPerThread = (numThreads + n - 1) / numThreads
-///     forall (unsigned t = 0; t < numThrds; ++t) {
-///       size_t start = t * itersPerThread;
-///       size_t end = std::min(start + itersPerThread, n);
-///       for (size_t i = start; i < end; ++i)
-///         ...
-///     }
-///
-/// This function, therefore, will launch exactly `end - start` threads, each of
-/// which will execute exactly one iteration. In the future, `end - start` may
-/// be less than the number of threads available.
-///
-/// NOTE: At this time, \p argSize is not used because this function blocks
-/// until all threads have finished executing. In the future, if we change this
-/// to be non-blocking, \p args will be copied before this returns, at which
-/// point, \p argSize will be used.
-///
-/// \param f The function to execute on each thread
-/// \param start The start index of the iteration space
-/// \param end The value one greater than the last index of the iteration space
-/// \param args A struct containing data to be passed to \p f
-/// \param argSize The size of the struct pointed to by \p args.
-extern "C" void __kitqthr_launch(KitQthrThrdFunc f, uint64_t start,
-                                 uint64_t end, void *args,
-                                 [[maybe_unused]] uint32_t argSize) {
-  assert(__kitqthr_initialized() && "kitqthr initialized");
-  assert(start == 0 && end == __kitqthr_num_workers() &&
+void KitQthrContext::launch(KitQthrThrdFunc f, uint64_t start, uint64_t end,
+                            void *args, [[maybe_unused]] uint32_t argSize) {
+  assert(start == 0 && end == getNumThreads() &&
          "__kitqthr_launch expects loop iterations in range [0,NUM_THREADS)");
   LOG("Launching multithreaded loop: [%ld,%ld)", start, end);
 
-  uint64_t numThrds = __kitqthr_num_workers();
+  uint64_t numThrds = getNumThreads();
 
   // If only a single worker is available, take the quick way out.
   if (numThrds == 1) {
@@ -198,69 +167,19 @@ extern "C" void __kitqthr_launch(KitQthrThrdFunc f, uint64_t start,
   LOG("Finished multithreaded loop");
 }
 
-/// Check if this runtime has already been initialized.
-extern "C" bool __kitqthr_initialized(void) {
-  return KitQthrContext::hasSingleton();
+extern "C" uint64_t __kitqthr_num_workers(void) {
+  KitQthrContext::ensure();
+  return KitQthrContext::get().getNumThreads();
 }
 
-/// Initialize kitsune's qthreads runtime as well as the underlying Qthreads
-/// runtime. This is intended to be called from a global constructor that is
-/// generated by Kitsune. This is not thread-safe, but it is safe to call more
-/// than once (subsequent calls will return immediately).
-extern "C" void __kitqthr_initialize(void) {
-  if (__kitqthr_initialized()) {
-    LOG("Runtime already initialized");
-    return;
-  }
-
-  __kitrt_initialize();
-
-  LOG("Initializing Kitsune runtime (qthreads)");
-
-  KitQthrContext::addSingleton();
-
-#ifdef KITRT_PAPI_ENABLED
-  __kitpapi_initialize(__kitqthr_worker_id);
-#endif // KITRT_PAPI_ENABLED
-
-  uint64_t numThreads = getNumThreadsOrCPUs();
-  envSet("QT_NUM_SHEPHERDS", numThreads);
-  envSet("QT_NUM_WORKERS_PER_SHEPHERD", 1);
-
-  LOG("Initializing Qthreads runtime");
-  if (qthread_initialize())
-    FATAL("Could not initialize Qthreads runtime");
-  LOG("Initialized Qthreads runtime");
-
-  LOG("Number of CPUs = %d", getNumCPUs());
-  LOG("Number of shepherds = %d", qthread_num_shepherds());
-  LOG("Number of workers = %d", qthread_num_workers());
-  LOG("Initialized Kitsune runtime (qthreads)");
+extern "C" KitThreadID __kitqthr_worker_id(void) {
+  KitQthrContext::ensure();
+  return KitQthrContext::get().getThreadID();
 }
 
-/// Finalize kitsune's qthreads runtime, as well as the underlying Qthreads
-/// runtime. This is intended to be called from a global destructor that is
-/// generated by Kitsune. This is not thread-safe, but it is safe to call more
-/// than once (subsequent calls will return immediately).
-extern "C" void __kitqthr_finalize(void) {
-  if (!__kitqthr_initialized()) {
-    LOG("Cannot finalize runtime. Not initialized");
-    return;
-  }
-
-  LOG("Finalizing Kitsune runtime (qthreads)");
-
-  LOG("Finalizing Qthreads runtime");
-  qthread_finalize();
-  LOG("Finalized Qthreads runtime");
-
-#ifdef KITRT_PAPI_ENABLED
-  __kitpapi_finalize();
-#endif // KITRT_PAPI_ENABLED
-
-  KitQthrContext::delSingleton();
-
-  LOG("Finalized Kitsune runtime (qthreads)");
-
-  __kitrt_finalize();
+extern "C" void __kitqthr_launch(KitQthrThrdFunc f, uint64_t start,
+                                 uint64_t end, void *args,
+                                 [[maybe_unused]] uint32_t argSize) {
+  KitQthrContext::ensure();
+  KitQthrContext::mut().launch(f, start, end, args, argSize);
 }

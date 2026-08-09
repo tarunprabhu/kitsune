@@ -2,17 +2,18 @@
 //
 // RUN: KIT_NUM_THREADS=3 %exe | FileCheck %s
 //
-// CHECK-COUNT-3: {{[0-9]+}}
+// CHECK-DAG: 1
+// CHECK-DAG: 2
+// CHECK-DAG: 3
 // CHECK-NOT: {{^.+$}}
 
+#include "TestHelpers.h"
 #include "qthreads/kitqthr.h"
 
 #include <pthread.h>
 #include <stdio.h>
 
-__attribute__((constructor)) static void ctor(void) { __kitqthr_initialize(); }
-
-__attribute__((destructor)) static void dtor(void) { __kitqthr_finalize(); }
+CTOR(RT_QTHREADS)
 
 static pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
 

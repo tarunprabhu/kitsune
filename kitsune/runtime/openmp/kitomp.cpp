@@ -53,8 +53,6 @@
 #include "common/env.h"
 #include "common/logging.h"
 #include "common/utils.h"
-#include "global/singleton.h"
-#include "kitrt.h"
 
 // This is an internal header in LLVM's OpenMP runtime. The path is relative
 // to ${LLVM_MONOREPO_SOURCE_DIR}/openmp/runtime/src.
@@ -71,19 +69,6 @@ extern "C" unsigned omp_get_num_threads(void);
 extern "C" unsigned omp_get_max_threads(void);
 
 using namespace kitrt;
-
-namespace kitrt {
-
-/// Global state for this runtime. We intentionally keep the members public
-/// because it is not clear what advantage there is to hiding them.
-class KitOMPContext : public KitContextMixin<KitOMPContext> {
-public:
-  // Currently, there are no members. This runtime only needs to know if it has
-  // been initialized. For this, an instance of this object must be registered
-  // with the global singleton. This is done in __kitomp_initialize.
-};
-
-} // namespace kitrt
 
 /// "Location" information needed by libomp's functions. It would be good to
 /// get actual source information, but that would need to come from the
@@ -131,15 +116,32 @@ static ident_t staticLoopLoc = {
     0, KMP_IDENT_KMPC | KMP_IDENT_WORK_LOOP, 0, unknownLocSize, unknownLocStr,
 };
 
-/// Get the number of threads available for parallel execution. For consistency,
-/// this should be used instead of directly calling omp_get_max_threads().
-extern "C" uint64_t __kitomp_num_threads(void) {
-  assert(__kitomp_initialized() && "kitomp initialized");
-  return omp_get_max_threads();
+void KitOMPContext::initialize() {
+  uint64_t numThreads = getNumThreadsOrCPUs("OMP_NUM_THREADS");
+  envSet("OMP_NUM_THREADS", numThreads);
+
+  // The second argument in the call to __kmpc_begin is currently unused, per
+  // the 10-year old documentation that seems to be the only kind that is
+  // available.
+  LOG("Initializing OpenMP runtime");
+  __kmpc_begin(&unknownLoc, /*flags=*/0);
+  LOG("Initialized OpenMP runtime");
+
+  LOG("Number of CPUs = %d", getNumCPUs());
+  LOG("Number of threads = %d", __kitomp_num_threads());
 }
 
-/// Get the ID of the thread from which this is called.
-extern "C" KitThreadID __kitomp_thread_id(void) { return omp_get_thread_num(); }
+void KitOMPContext::finalize() {
+  // This call is optional, but we use it anyway for consistency with the other
+  // runtimes.
+  LOG("Finalizing OpenMP runtime");
+  __kmpc_end(&unknownLoc);
+  LOG("Finalized OpenMP runtime");
+}
+
+uint64_t KitOMPContext::getNumThreads() const { return omp_get_max_threads(); }
+
+KitThreadID KitOMPContext::getThreadID() const { return omp_get_thread_num(); }
 
 /// This wraps the function \p f that will be launched on each thread. It
 /// calculates the range of iterations that should be executed by \p f, then,
@@ -159,38 +161,9 @@ static void staticLoopWrapper(int32_t *globalTID, int32_t *localTID,
   f(*localTID, *localTID + 1, args);
 }
 
-/// Launch some number of threads each of which will execute some number of
-/// iterations in the space [\p start, \p end). This blocks until all threads
-/// have completed. The compiler will transform all tapir loops so they are of
-/// the following form:
-///
-///     unsigned numThreads = __kitomp_num_threads();
-///     size_t itersPerThread = (numThreads + n - 1) / numThreads
-///     forall (unsigned t = 0; t < numThrds; ++t) {
-///       size_t start = t * itersPerThread;
-///       size_t end = std::min(start + itersPerThread, n);
-///       for (size_t i = start; i < end; ++i)
-///         ...
-///     }
-///
-/// This function, therefore, will launch exactly `end - start` threads, each of
-/// which will execute exactly one iteration. In the future, `end - start` may
-/// be less than the number of threads available.
-///
-/// NOTE: At this time, \p argSize is not used because this function blocks
-/// until all threads have finished executing. In the future, if we change this
-/// to be non-blocking, \p args will be copied before this returns, at which
-/// point, \p argSize will be used.
-///
-/// \param f The function to execute on each thread
-/// \param start The start index of the iteration space
-/// \param end The value one greater than the last index of the iteration space
-/// \param args Pointer to the struct containing data to be passed to \p f
-/// \param argSize The size of the struct pointed to by \p args
-extern "C" void __kitomp_launch(KitOMPThrdFunc f, uint64_t start, uint64_t end,
-                                void *args, [[maybe_unused]] uint32_t argSize) {
-  assert(__kitomp_initialized() && "kitomp initialized");
-  assert(start == 0 && end == __kitomp_num_threads() &&
+void KitOMPContext::launch(KitOMPThrdFunc *f, uint64_t start, uint64_t end,
+                           void *args, [[maybe_unused]] uint32_t argSize) {
+  assert(start == 0 && end == getNumThreads() &&
          "__kitomp_launch expects loop iterations in range [0,NUM_THREADS)");
   LOG("Launching multithreaded loop: [%ld,%ld)", start, end);
 
@@ -201,71 +174,18 @@ extern "C" void __kitomp_launch(KitOMPThrdFunc f, uint64_t start, uint64_t end,
   LOG("Finished multithreaded loop");
 }
 
-/// Check if this runtime has already been initialized.
-extern "C" bool __kitomp_initialized(void) {
-  return KitOMPContext::hasSingleton();
+extern "C" uint64_t __kitomp_num_threads(void) {
+  KitOMPContext::ensure();
+  return KitOMPContext::get().getNumThreads();
 }
 
-/// Initialize Kitsune's OpenMP runtime as well as the underlying OpenMP
-/// runtime. This is intended to be called from a global constructor that is
-/// generated by Kitsune. This is not thread-safe, but it is safe to call more
-/// than once (subsequent calls will return immediately).
-extern "C" void __kitomp_initialize(void) {
-  if (__kitomp_initialized()) {
-    LOG("Runtime already initialized");
-    return;
-  }
-
-  __kitrt_initialize();
-
-  LOG("Initializing Kitsune runtime (openmp)");
-
-  KitOMPContext::addSingleton();
-
-#ifdef KITRT_PAPI_ENABLED
-  __kitpapi_initialize(__kitomp_thread_id);
-#endif // KITRT_PAPI_ENABLED
-
-  uint64_t numThreads = getNumThreadsOrCPUs("OMP_NUM_THREADS");
-  envSet("OMP_NUM_THREADS", numThreads);
-
-  // The second argument in the call to __kmpc_begin is currently unused, per
-  // the 10-year old documentation that seems to be the only kind that is
-  // available.
-  LOG("Initializing OpenMP runtime");
-  __kmpc_begin(&unknownLoc, /*flags=*/0);
-  LOG("Initialized OpenMP runtime");
-
-  LOG("Number of CPUs = %d", getNumCPUs());
-  LOG("Number of threads = %d", __kitomp_num_threads());
-  LOG("Initialized Kitsune runtime (openmp)");
+extern "C" KitThreadID __kitomp_thread_id(void) {
+  KitOMPContext::ensure();
+  return KitOMPContext::get().getThreadID();
 }
 
-/// Finalize Kitsune's OpenMP runtime, as well as the underlying OpenMP runtime.
-/// This is intended to be called from a global destructor that is generated by
-/// Kitsune. This is not thread-safe, but it is safe to call more than once
-/// (subsequent calls will return immediately).
-extern "C" void __kitomp_finalize(void) {
-  if (!__kitomp_initialized()) {
-    LOG("Cannot finalize runtime. Not initialized");
-    return;
-  }
-
-  LOG("Finalizing Kitsune runtime (openmp)");
-
-  // This call is optional, but we use it anyway for consistency with the other
-  // runtimes.
-  LOG("Finalizing OpenMP runtime");
-  __kmpc_end(&unknownLoc);
-  LOG("Finalized OpenMP runtime");
-
-#ifdef KITRT_PAPI_ENABLED
-  __kitpapi_finalize();
-#endif // KITRT_PAPI_ENABLED
-
-  KitOMPContext::delSingleton();
-
-  LOG("Finalized Kitsune runtime (openmp)");
-
-  __kitrt_finalize();
+extern "C" void __kitomp_launch(KitOMPThrdFunc *f, uint64_t start, uint64_t end,
+                                void *args, [[maybe_unused]] uint32_t argSize) {
+  KitOMPContext::ensure();
+  KitOMPContext::mut().launch(f, start, end, args, argSize);
 }

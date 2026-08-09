@@ -58,6 +58,14 @@ def kitpapi_start :
 def kitpapi_stop :
     KitFunc<"__kitpapi_stop", Void, [Ptr]>;
 
+// void __kitrt_initialize(const KitrtInitOptions *initOpts)
+def kitrt_initialize :
+    KitFunc<"__kitrt_initialize", Void, [Ptr]>;
+
+// void __kitrt_finalize(const KitrtInitOptions *initOpts)
+def kitrt_finalize :
+    KitFunc<"__kitrt_finalize", Void, [Ptr]>;
+
 // void *__kitrt_default_mem_alloc(uint64_t bytes)
 def kitrt_malloc :
     KitFunc<"__kitrt_default_mem_alloc", Ptr, [U64]>;

@@ -58,23 +58,29 @@
 
 #include "global/global.h"
 
+#include <cassert>
+
 namespace kitrt {
 
 template <typename T> class KitContextMixin {
+protected:
+  KitContextMixin() = default;
+
 public:
-  template <typename... Args> static inline void addSingleton(Args &&...args) {
-    mutKitRTContext().addContext(new T(args...));
+  KitContextMixin(const KitContextMixin &) = delete;
+  KitContextMixin(KitContextMixin &&) = delete;
+  KitContextMixin &operator=(const KitContextMixin &) = delete;
+  KitContextMixin &operator=(KitContextMixin &&) = delete;
+
+  static inline bool initialized() { return gctx.hasContext<T>(); }
+
+  static inline void ensure() {
+    assert(initialized() && "Kitsune runtime initialized");
   }
 
-  static inline void delSingleton() {
-    delete mutKitRTContext().takeContext<T>();
-  }
+  static inline const T &get() { return gctx.getContext<T>(); }
 
-  static inline bool hasSingleton() { return gctx.hasContext<T>(); }
-
-  static inline const T &getSingleton() { return gctx.getContext<T>(); }
-
-  static inline T &mutSingleton() { return mutKitRTContext().mutContext<T>(); }
+  static inline T &mut() { return mutKitRTContext().mutContext<T>(); }
 };
 
 } // namespace kitrt

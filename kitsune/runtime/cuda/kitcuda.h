@@ -58,10 +58,27 @@
 #include <stdlib.h>
 
 #include "common/utils.h"
+#include "global/singleton.h"
 #include "kitrt.h"
 #include "kitsune/Shared/KernelInstMix.h"
 
 #include <cuda.h>
+
+namespace kitrt {
+
+/// Kitsune runtime the cuda tapir target. All global state required by the
+/// runtime should be owned by this object.
+/// FIXME: This tapir target has not been modified to use this.
+class KitCudaContext : public KitContextMixin<KitCudaContext> {
+public:
+  void initialize();
+  void finalize();
+
+public:
+  static constexpr const char *name() { return "cuda"; }
+};
+
+} // namespace kitrt
 
 #ifdef __cplusplus
 extern "C" {

@@ -12,25 +12,16 @@
 // CHECK-NEXT:   }
 // CHECK-NEXT: }
 
+#include "TestHelpers.h"
 #include "common/kitpapi.h"
-#include "kitrt.h"
 
-#include "papi.h"
-
-__attribute__((constructor)) static void ctor(void) {
-  __kitrt_initialize();
-  __kitpapi_initialize(NULL);
-}
-
-__attribute__((destructor)) static void dtor(void) {
-  __kitpapi_finalize();
-  __kitrt_finalize();
-}
+CTOR(RT_PAPI | RT_SERIAL)
 
 int main(int argc, char *argv[]) {
   // The total number of instructions and the total number of cycles ought to be
   // available on all platforms - one would think.
-  KitPAPIEpoch *e = __kitpapi_start("dancaire", /*thread=*/67, 2, "ins", "cyc");
+  kitrt::KitPAPIEpoch *e =
+      __kitpapi_start("dancaire", /*thread=*/67, 2, "ins", "cyc");
   __kitpapi_stop(e);
 
   return 0;

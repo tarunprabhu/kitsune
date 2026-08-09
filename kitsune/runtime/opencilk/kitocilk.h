@@ -49,13 +49,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This targets Cheetah, the OpenCilk runtime.
-//
-// NOTE: This is an internal header and not really intended for public
-// consumption. The main reason for this is to make the lit tests a bit more
-// convenient to write. This is also why there is no Doxygen documentation here.
-// That is in the associated implementation files since their presence there is
-// more convenient for Kitsune's developers.
+// Runtime for Kitsune's opencilk tapir taregt.
 //
 //===----------------------------------------------------------------------===//
 
@@ -63,22 +57,40 @@
 #define KITRT_OPENCILK_KITOCILK_H
 
 #include "common/thread.h"
+#include "global/singleton.h"
 
-#include <stdbool.h>
-#include <stdint.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif // __cplusplus
-
-void __kitocilk_finalize(void);
-void __kitocilk_initialize(void);
-bool __kitocilk_initialized(void);
-uint64_t __kitocilk_num_workers(void);
-KitThreadID __kitocilk_worker_id(void);
+#include <cstdint>
 
 #ifdef __cplusplus
-} // extern "C"
-#endif // __cplusplus
+#define EXTERN_C extern "C"
+#else // !__cplusplus
+#define EXTERN_C
+#endif // !__cplusplus
 
+namespace kitrt {
+
+/// Kitsune runtime the opencilk tapir target. All global state required by the
+/// runtime should be owned by this object.
+class KitOCilkContext : public KitContextMixin<KitOCilkContext> {
+public:
+  void initialize();
+  void finalize();
+  uint64_t getNumThreads() const;
+  KitThreadID getThreadID() const;
+
+public:
+  static inline const char *name() { return "opencilk"; }
+};
+
+} // namespace kitrt
+
+/// Get the number of workers available for parallel work. For consistency, this
+/// function should be used when this must be queried instead of calling
+/// `__cilkrts_get_nworkers` directly.
+EXTERN_C uint64_t __kitocilk_num_workers(void);
+
+/// Get the ID of the worker from which this is called.
+EXTERN_C KitThreadID __kitocilk_worker_id(void);
+
+#undef EXTERN_C
 #endif // KITRT_OPENCILK_KITOCILK_H

@@ -24,12 +24,10 @@
 //
 // -----------------------------------------------------------------------------
 
+#include "TestHelpers.h"
 #include "common/logging.h"
-#include "kitrt.h"
 
-__attribute__((constructor)) static void ctor(void) { __kitrt_initialize(); }
-
-__attribute__((destructor)) static void dtor(void) { __kitrt_finalize(); }
+CTOR(RT_NONE)
 
 int main(int argc, char *argv[]) {
   LOG("Log message");

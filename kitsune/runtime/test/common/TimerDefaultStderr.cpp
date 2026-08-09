@@ -14,14 +14,13 @@
 //
 // STDOUT-NOT: {{^.+$}}
 
-#include "kitrt.h"
+#include "TestHelpers.h"
+#include "common/timer.h"
 
-__attribute__((constructor)) static void ctor(void) { __kitrt_initialize(); }
-
-__attribute__((destructor)) static void dtor(void) { __kitrt_finalize(); }
+CTOR(RT_TIMER)
 
 int main(int argc, char *argv[]) {
-  KitTimerEpoch *e = __kittimer_start("sarastro", /*thread=*/0);
+  kitrt::KitTimerEpoch *e = __kittimer_start("sarastro", /*thread=*/0);
   __kittimer_stop(e);
 
   return 0;

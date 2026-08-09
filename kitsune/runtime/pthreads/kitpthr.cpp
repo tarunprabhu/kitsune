@@ -57,8 +57,6 @@
 #include "common/env.h"
 #include "common/logging.h"
 #include "common/utils.h"
-#include "global/singleton.h"
-#include "kitrt.h"
 
 #include <cassert>
 #include <cstring>
@@ -71,36 +69,23 @@ using namespace kitrt;
 
 namespace kitrt {
 
-/// Global state for this runtime. We intentionally keep the members public
-/// because it is not clear what advantage there is to hiding them.
-class KitPthrContext : public KitContextMixin<KitPthrContext> {
-public:
-  /// The number of threads to use. This should not be used directly in the rest
-  /// of the runtime. Use `__kitpthr_num_threads()` to get this value.
-  uint32_t numThreads = 1;
-};
-
-} // namespace kitrt
-
-namespace {
-
 /// The type of the pthread start function.
 using PthreadStartFunc = void *(*)(void *);
 
 /// Metadata for each thread. This is passed to the thread launch function and
 /// also contains the arguments to be passed to the "actual" thread function.
 struct KitPthrThread {
-  KitPthrThrdFunc f;
+  KitPthrThrdFunc *f;
   int64_t tid;
   void *args;
   pthread_t pthr;
   pthread_attr_t attr;
 };
 
-/// The launch context object. The instance created by \ref
-/// __kitpthr_async_launch should be passed to __kitpthr_join where it will be
-/// deleted.
-struct LaunchContextImpl {
+/// The launch context object. An instance is created by
+/// \ref __kitpthr_async_launch, This should be passed to __kitpthr_sync where
+/// it will be deleted.
+struct KitPthrLaunchContext {
   std::vector<KitPthrThread> thrds;
 
   /// The argument bundle required by the functions that run on each thread.
@@ -113,7 +98,7 @@ struct LaunchContextImpl {
   uint32_t thrdArgSize = 0;
 
 public:
-  LaunchContextImpl(size_t numThreads, void *args, uint32_t argSize)
+  KitPthrLaunchContext(size_t numThreads, void *args, uint32_t argSize)
       : thrds(numThreads) {
     for (size_t t = 0; t < numThreads; ++t)
       thrds[t].tid = t;
@@ -124,9 +109,9 @@ public:
     }
   }
 
-  LaunchContextImpl(const LaunchContextImpl &) = delete;
-  LaunchContextImpl(LaunchContextImpl &&) = delete;
-  LaunchContextImpl &operator=(const LaunchContextImpl &) = delete;
+  KitPthrLaunchContext(const KitPthrLaunchContext &) = delete;
+  KitPthrLaunchContext(KitPthrLaunchContext &&) = delete;
+  KitPthrLaunchContext &operator=(const KitPthrLaunchContext &) = delete;
 
   KitPthrThread &operator[](size_t i) { return thrds.at(i); }
   const KitPthrThread &operator[](size_t i) const { return thrds.at(i); }
@@ -140,7 +125,7 @@ public:
   decltype(thrds)::const_iterator end() const { return thrds.end(); }
 };
 
-} // namespace
+} // namespace kitrt
 
 [[noreturn]] static void kitpthrHandleCreateError(int err) {
   const char *lede = "Could not create thread";
@@ -170,20 +155,28 @@ public:
   }
 }
 
-/// Get the number of threads available for parallel work.
-extern "C" uint64_t __kitpthr_num_threads(void) {
-  assert(__kitpthr_initialized() && "kitpthr initialized");
-  return KitPthrContext::getSingleton().numThreads;
+void KitPthrContext::initialize() {
+  numThreads = getNumThreadsOrCPUs();
+
+  // pthreads does not have to be initialized.
+
+  LOG("Number of CPUs = %d", getNumCPUs());
+  LOG("Number of threads = %d", numThreads);
 }
 
-/// Get the ID of the thread from which this is called.
-extern "C" KitThreadID __kitpthr_thread_id(void) { return pthread_self(); }
+void KitPthrContext::finalize() {
+  // pthreads does not need to be finalized.
+}
+
+uint64_t KitPthrContext::getNumThreads() const { return numThreads; }
+
+KitThreadID KitPthrContext::getThreadID() const { return pthread_self(); }
 
 /// The function that is launched by each thread. This simply finds the "actual"
 /// function that is to be run in \p thrdInfo and calls it. The arguments to the
 /// actual function are also present in \p thrdInfo. Always returns 0.
 static void *kitpthrThrdStartFn(KitPthrThread *thread) {
-  KitPthrThrdFunc f = thread->f;
+  KitPthrThrdFunc *f = thread->f;
   int64_t tid = thread->tid;
   void *args = thread->args;
 
@@ -192,46 +185,15 @@ static void *kitpthrThrdStartFn(KitPthrThread *thread) {
   return nullptr;
 }
 
-/// Launch some number of threads each of which will execute some number of
-/// iterations in the space [\p start, \p end). This blocks until all threads
-/// have completed. The compiler will transform all tapir loops so they are of
-/// the following form:
-///
-///     unsigned numThreads = __kitpthr_num_threads();
-///     size_t itersPerThread = (numThreads + n - 1) / numThreads
-///     forall (unsigned t = 0; t < numThrds; ++t) {
-///       size_t start = t * itersPerThread;
-///       size_t end = std::min(start + itersPerThread, n);
-///       for (size_t i = start; i < end; ++i)
-///         ...
-///     }
-///
-/// This function, therefore, will launch exactly `end - start - 1` threads,
-/// each of which will execute exactly one iteration. The main thread will
-/// execute the remaining iteration. It will, therefore, block until that
-/// iteration has completed. In the future, `end - start` may be less than the
-/// number of threads available.
-///
-/// \param f The function to execute on each thread
-/// \param start The start index of the iteration space
-/// \param end The value one greater than the last index of the iteration space
-/// \param args A struct containing data to be passed to \p f
-/// \params argSize The size of the underlying struct pointed to by \p args
-/// \return An opaque thread context object. It is the caller's responsibility
-/// to call \ref __kitpthr_join with this context object. If no threads are
-/// launched, i.e. \p f is run on the main thread, nullptr will be returned
-/// instead. In this case, the caller is not required to call
-/// \ref __kitpthr_join.
-extern "C" KitPthrLaunchContext *
-__kitpthr_async_launch(KitPthrThrdFunc f, uint64_t start, uint64_t end,
-                       void *args, uint32_t argSize) {
-  assert(__kitpthr_initialized() && "kitpthr initialized");
-  assert(start == 0 && end == __kitpthr_num_threads() &&
+KitPthrLaunchContext *KitPthrContext::launch(KitPthrThrdFunc *f, uint64_t start,
+                                             uint64_t end, void *args,
+                                             uint32_t argSize) {
+  assert(start == 0 && end == numThreads &&
          "__kitpthr_async_launch expects loop iterations in range [0, N)");
   LOG("Launching multithreaded loop: [%ld,%ld)", start, end);
 
-  uint64_t numThreads = __kitpthr_num_threads();
-  LaunchContextImpl *ctx = new LaunchContextImpl(numThreads - 1, args, argSize);
+  KitPthrLaunchContext *ctx =
+      new KitPthrLaunchContext(numThreads - 1, args, argSize);
   for (KitPthrThread &thrd : *ctx) {
     thrd.f = f;
     thrd.args = ctx->args();
@@ -246,14 +208,10 @@ __kitpthr_async_launch(KitPthrThrdFunc f, uint64_t start, uint64_t end,
   }
   f(numThreads - 1, numThreads, ctx->args());
 
-  return reinterpret_cast<KitPthrLaunchContext *>(ctx);
+  return ctx;
 }
 
-/// Join the threads launched by a previous call to \ref __kitpthr_async_launch.
-/// \p ctx is the context returned by that call. \p ctx may be nullptr, in which
-/// case, this function does nothing.
-extern "C" void __kitpthr_sync(KitPthrLaunchContext *p) {
-  LaunchContextImpl *ctx = reinterpret_cast<LaunchContextImpl *>(p);
+void KitPthrContext::sync(KitPthrLaunchContext *ctx) {
   LOG("Joining %ld threads", ctx->size());
   for (KitPthrThread &thrd : *ctx) {
     if (int err = pthread_join(thrd.pthr, nullptr))
@@ -265,60 +223,24 @@ extern "C" void __kitpthr_sync(KitPthrLaunchContext *p) {
   delete ctx;
 }
 
-/// Check if this runtime has already been initialized.
-extern "C" bool __kitpthr_initialized(void) {
-  return KitPthrContext::hasSingleton();
+extern "C" uint64_t __kitpthr_num_threads(void) {
+  KitPthrContext::ensure();
+  return KitPthrContext::get().getNumThreads();
 }
 
-/// Initialize Kitsune's pthreads runtime. This is intended to be called from
-/// a global constructor that is generated by Kitsune. This is not thread-safe,
-/// but it is safe to call more than once (subsequent calls will return
-/// immediately).
-extern "C" void __kitpthr_initialize(void) {
-  if (__kitpthr_initialized()) {
-    LOG("Runtime already initialized");
-    return;
-  }
-
-  __kitrt_initialize();
-
-  LOG("Initializing Kitsune runtime (pthreads)");
-
-  KitPthrContext::addSingleton();
-  KitPthrContext::mutSingleton().numThreads = getNumThreadsOrCPUs();
-
-#ifdef KITRT_PAPI_ENABLED
-  __kitpapi_initialize(__kitpthr_thread_id);
-#endif // KITRT_PAPI_ENABLED
-
-  // pthreads does not have to be initialized.
-
-  LOG("Number of CPUs = %d", getNumCPUs());
-  LOG("Number of threads = %d", __kitpthr_num_threads());
-  LOG("Initialized Kitsune runtime (pthreads)");
+extern "C" KitThreadID __kitpthr_thread_id(void) {
+  KitPthrContext::ensure();
+  return KitPthrContext::get().getThreadID();
 }
 
-/// Finalize Kitsune's pthreads runtime. This is intended to be called from
-/// a global destructor that is generated by Kitsune. This is not thread-safe,
-/// but it is safe to call more than once (subsequent calls will return
-/// immediately).
-extern "C" void __kitpthr_finalize(void) {
-  if (!__kitpthr_initialized()) {
-    LOG("Cannot finalize runtime. Not initialized");
-    return;
-  }
+extern "C" KitPthrLaunchContext *
+__kitpthr_async_launch(KitPthrThrdFunc *f, uint64_t start, uint64_t end,
+                       void *args, uint32_t argSize) {
+  KitPthrContext::ensure();
+  return KitPthrContext::mut().launch(f, start, end, args, argSize);
+}
 
-  LOG("Finalizing Kitsune runtime (pthreads)");
-
-  // pthreads does not need to be finalized.
-
-#ifdef KITRT_PAPI_ENABLED
-  __kitpapi_finalize();
-#endif // KITRT_PAPI_ENABLED
-
-  KitPthrContext::delSingleton();
-
-  LOG("Finalized Kitsune runtime (pthreads)");
-
-  __kitrt_finalize();
+extern "C" void __kitpthr_sync(KitPthrLaunchContext *ctx) {
+  KitPthrContext::ensure();
+  KitPthrContext::mut().sync(ctx);
 }

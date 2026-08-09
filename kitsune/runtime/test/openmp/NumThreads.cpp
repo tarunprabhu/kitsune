@@ -31,13 +31,12 @@
 //
 // -----------------------------------------------------------------------------
 
+#include "TestHelpers.h"
 #include "openmp/kitomp.h"
 
 #include <stdio.h>
 
-__attribute__((constructor)) static void ctor(void) { __kitomp_initialize(); }
-
-__attribute__((destructor)) static void dtor(void) { __kitomp_finalize(); }
+CTOR(RT_OPENMP)
 
 int main(int argc, char *argv[]) {
   printf("Number of threads = %ld\n", __kitomp_num_threads());

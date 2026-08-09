@@ -5,14 +5,13 @@
 // CHECK-COUNT-3: {{[0-9]+}}
 // CHECK-NOT: {{^.+$}}
 
+#include "TestHelpers.h"
 #include "openmp/kitomp.h"
 
 #include <pthread.h>
 #include <stdio.h>
 
-__attribute__((constructor)) static void ctor(void) { __kitomp_initialize(); }
-
-__attribute__((destructor)) static void dtor(void) { __kitomp_finalize(); }
+CTOR(RT_OPENMP)
 
 static pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
 
