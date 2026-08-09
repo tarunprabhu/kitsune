@@ -18,6 +18,7 @@
 #include "kitsune/Core/ModuleAttrs.h"
 #include "kitsune/Core/TTUtils.h"
 #include "kitsune/Core/TypeUtils.h"
+#include "kitsune/Object/Sections.h"
 #include "llvm/Bitcode/BitcodeReader.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/IR/Constants.h"
@@ -53,9 +54,11 @@ static GlobalVariable *createEmbBCGlobal(const Module &m, Module &hostM) {
   GlobalValue::LinkageTypes linkage = GlobalValue::ExternalLinkage;
   Constant *init = serialize(m);
   Type *type = init->getType();
+
   GlobalVariable *g = new GlobalVariable(hostM, type, /*isConstant=*/true,
                                          linkage, init, ".kit.emb.bc");
   g->setUnnamedAddr(GlobalValue::UnnamedAddr::Global);
+  g->setSection(object::kitSectEmbBC);
 
   return g;
 }
@@ -69,6 +72,7 @@ static GlobalVariable *createEmbFBGlobal(MemoryBufferRef buf, Module &m) {
   LLVMContext &ctx = m.getContext();
   Constant *init = ConstantDataArray::getString(ctx, data, /*AddNull=*/false);
   Type *type = init->getType();
+
   GlobalVariable *g = new GlobalVariable(m, type, /*isConstant=*/true, linkage,
                                          init, ".kit.emb.fb");
   return g;
