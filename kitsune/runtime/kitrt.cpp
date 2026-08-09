@@ -147,20 +147,13 @@ static void initialize(RTID rt) {
   case RT_SERIAL:
     // These do not have any associated runtimes that need to be initialized.
     return;
-  case RT_CUDA:
-    return initialize<KitCudaContext>();
-  case RT_HIP:
-    return initialize<KitHipContext>();
-  case RT_OPENCILK:
-    return initialize<KitOCilkContext>();
-  case RT_OPENMP:
-    return initialize<KitOMPContext>();
-  case RT_PTHREADS:
-    return initialize<KitPthrContext>();
-  case RT_QTHREADS:
-    return initialize<KitQthrContext>();
-  case RT_TIMER:
-    return initialize<KitTimerContext>();
+  case RT_CUDA: return initialize<KitCudaContext>();
+  case RT_HIP: return initialize<KitHipContext>();
+  case RT_OPENCILK: return initialize<KitOCilkContext>();
+  case RT_OPENMP: return initialize<KitOMPContext>();
+  case RT_PTHREADS: return initialize<KitPthrContext>();
+  case RT_QTHREADS: return initialize<KitQthrContext>();
+  case RT_TIMER: return initialize<KitTimerContext>();
   case RT_NONE:
   case RT_PAPI:
     // This should never happen.
@@ -173,18 +166,12 @@ static void initializePAPI(const InitOptions &initOpts) {
   if constexpr (is_complete<KitPAPIContext>::value) {
     auto getThreadIDFunc = [](RTID rt) -> std::optional<PAPIThreadIDFunc *> {
       switch (rt) {
-      case RT_OPENCILK:
-        return __kitocilk_worker_id;
-      case RT_OPENMP:
-        return __kitomp_thread_id;
-      case RT_PTHREADS:
-        return __kitpthr_thread_id;
-      case RT_QTHREADS:
-        return __kitqthr_worker_id;
-      case RT_SERIAL:
-        return nullptr;
-      default:
-        return std::nullopt;
+      case RT_OPENCILK: return __kitocilk_worker_id;
+      case RT_OPENMP: return __kitomp_thread_id;
+      case RT_PTHREADS: return __kitpthr_thread_id;
+      case RT_QTHREADS: return __kitqthr_worker_id;
+      case RT_SERIAL: return nullptr;
+      default: return std::nullopt;
       }
     };
 
@@ -252,22 +239,14 @@ static void finalize(RTID rt) {
   case RT_SERIAL:
     // These do not have any associated runtimes that need to be initialized.
     return;
-  case RT_CUDA:
-    return finalize<KitCudaContext>();
-  case RT_HIP:
-    return finalize<KitHipContext>();
-  case RT_OPENCILK:
-    return finalize<KitOCilkContext>();
-  case RT_OPENMP:
-    return finalize<KitOMPContext>();
-  case RT_PAPI:
-    return finalize<KitPAPIContext>();
-  case RT_PTHREADS:
-    return finalize<KitPthrContext>();
-  case RT_QTHREADS:
-    return finalize<KitQthrContext>();
-  case RT_TIMER:
-    return finalize<KitTimerContext>();
+  case RT_CUDA: return finalize<KitCudaContext>();
+  case RT_HIP: return finalize<KitHipContext>();
+  case RT_OPENCILK: return finalize<KitOCilkContext>();
+  case RT_OPENMP: return finalize<KitOMPContext>();
+  case RT_PAPI: return finalize<KitPAPIContext>();
+  case RT_PTHREADS: return finalize<KitPthrContext>();
+  case RT_QTHREADS: return finalize<KitQthrContext>();
+  case RT_TIMER: return finalize<KitTimerContext>();
   case RT_NONE:
     // This should never happen.
     break;

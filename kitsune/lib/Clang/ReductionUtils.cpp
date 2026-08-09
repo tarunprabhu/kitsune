@@ -17,7 +17,6 @@
 using namespace llvm;
 
 template <> std::optional<ReduceOp> llvm::fromInt(int64_t i) {
-  // clang-format off
   switch (i) {
   case 0: return ReduceOp::Custom;
   case 1: return ReduceOp::BAnd;
@@ -34,11 +33,9 @@ template <> std::optional<ReduceOp> llvm::fromInt(int64_t i) {
   case 12: return ReduceOp::Sum;
   default: return std::nullopt;
   }
-  // clang-format on
 }
 
 StringRef llvm::toString(ReduceOp op) {
-  // clang-format off
   switch (op) {
   case ReduceOp::Custom: return "custom";
   case ReduceOp::BAnd: return "bitwise and";
@@ -54,7 +51,6 @@ StringRef llvm::toString(ReduceOp op) {
   case ReduceOp::Prod: return "product";
   case ReduceOp::Sum: return "sum";
   }
-  // clang-format on
   llvm_unreachable("toString(ReduceOp): Reduction operator not handled");
 }
 
@@ -67,7 +63,6 @@ template <typename T> static T getMin() {
 }
 
 static Constant *getMinInt(IntegerType *ity, bool isSigned) {
-  // clang-format off
   if (isSigned) {
     switch (ity->getBitWidth()) {
     case 8: return ConstantInt::get(ity, getMin<int8_t>(), isSigned);
@@ -85,7 +80,6 @@ static Constant *getMinInt(IntegerType *ity, bool isSigned) {
     default: break;
     }
   }
-  // clang-format on
   llvm_unreachable("getMinInt: Bitwidth not handled");
 }
 
@@ -105,7 +99,6 @@ template <typename T> static T getMax() {
 }
 
 static Constant *getMaxInt(IntegerType *ity, bool isSigned) {
-  // clang-format off
   if (isSigned) {
     switch (ity->getBitWidth()) {
     case 8: return ConstantInt::get(ity, getMax<int8_t>(), isSigned);
@@ -123,7 +116,6 @@ static Constant *getMaxInt(IntegerType *ity, bool isSigned) {
     default: break;
     }
   }
-  // clang-format on
   llvm_unreachable("getMaxInt: Bitwidth not handled");
 }
 
@@ -146,19 +138,14 @@ Constant *llvm::getUnitValueFor(ReduceOp op, Type *type, bool isSigned) {
   case ReduceOp::BXor:
   case ReduceOp::LOr:
   case ReduceOp::LXor:
-  case ReduceOp::Sum:
-    return getZero(type);
+  case ReduceOp::Sum: return getZero(type);
   case ReduceOp::LAnd:
-  case ReduceOp::Prod:
-    return getOne(type);
-  case ReduceOp::BAnd:
-    return getOnes(type);
+  case ReduceOp::Prod: return getOne(type);
+  case ReduceOp::BAnd: return getOnes(type);
   case ReduceOp::Min:
-  case ReduceOp::MinLoc:
-    return getMax(type, isSigned);
+  case ReduceOp::MinLoc: return getMax(type, isSigned);
   case ReduceOp::Max:
-  case ReduceOp::MaxLoc:
-    return getMin(type, isSigned);
+  case ReduceOp::MaxLoc: return getMin(type, isSigned);
   }
   llvm_unreachable("getUnitValueFor: Reduction operand not handled");
 }

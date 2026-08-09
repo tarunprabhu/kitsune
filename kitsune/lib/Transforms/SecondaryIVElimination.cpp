@@ -457,30 +457,20 @@ bool SecondaryIVElimination::tryToEliminateIntOrFPIV(PHINode &secIV,
   BinaryOperator *binOp = cast<BinaryOperator>(upd);
   Constant *step = cast<Constant>(getNonMatchingOperand(*binOp, &secIV));
   switch (binOp->getOpcode()) {
-  case BinaryOperator::Add:
-    return tryToEliminateIntAdd(secIV, step, loop);
-  case BinaryOperator::Sub:
-    return tryToEliminateIntSub(secIV, step, loop);
-  case BinaryOperator::Mul:
-    return tryToEliminateIntMul(secIV, step, loop);
+  case BinaryOperator::Add: return tryToEliminateIntAdd(secIV, step, loop);
+  case BinaryOperator::Sub: return tryToEliminateIntSub(secIV, step, loop);
+  case BinaryOperator::Mul: return tryToEliminateIntMul(secIV, step, loop);
   case BinaryOperator::SDiv:
     return tryToEliminateIntDiv(secIV, step, /*isSigned=*/true, loop);
   case BinaryOperator::UDiv:
     return tryToEliminateIntDiv(secIV, step, /*isSigned=*/false, loop);
-  case BinaryOperator::Shl:
-    return tryToEliminateIntLShl(secIV, step, loop);
-  case BinaryOperator::LShr:
-    return tryToEliminateIntLShr(secIV, step, loop);
-  case BinaryOperator::AShr:
-    return tryToEliminateIntAShr(secIV, step, loop);
-  case BinaryOperator::FAdd:
-    return tryToEliminateFPAdd(secIV, step, loop);
-  case BinaryOperator::FSub:
-    return tryToEliminateFPSub(secIV, step, loop);
-  case BinaryOperator::FMul:
-    return tryToEliminateFPMul(secIV, step, loop);
-  case BinaryOperator::FDiv:
-    return tryToEliminateFPDiv(secIV, step, loop);
+  case BinaryOperator::Shl: return tryToEliminateIntLShl(secIV, step, loop);
+  case BinaryOperator::LShr: return tryToEliminateIntLShr(secIV, step, loop);
+  case BinaryOperator::AShr: return tryToEliminateIntAShr(secIV, step, loop);
+  case BinaryOperator::FAdd: return tryToEliminateFPAdd(secIV, step, loop);
+  case BinaryOperator::FSub: return tryToEliminateFPSub(secIV, step, loop);
+  case BinaryOperator::FMul: return tryToEliminateFPMul(secIV, step, loop);
+  case BinaryOperator::FDiv: return tryToEliminateFPDiv(secIV, step, loop);
   default:
     llvm_unreachable("tryToEliminateIntOrFPIV: BinaryOperator not handled");
   }
@@ -542,15 +532,12 @@ bool SecondaryIVElimination::checkIntOrFPInduction(PHINode &iv, Loop &loop) {
     case BinaryOperator::FAdd:
     case BinaryOperator::FSub:
     case BinaryOperator::FMul:
-    case BinaryOperator::FDiv:
-      return true;
-    default:
-      return false;
+    case BinaryOperator::FDiv: return true;
+    default: return false;
     }
   };
 
   auto getBinOpName = [](unsigned op) -> StringRef {
-    // clang-format off
     switch (op) {
     case BinaryOperator::Add: return "add";
     case BinaryOperator::Sub: return "sub";
@@ -571,7 +558,6 @@ bool SecondaryIVElimination::checkIntOrFPInduction(PHINode &iv, Loop &loop) {
     case BinaryOperator::Or: return "or";
     case BinaryOperator::Xor: return "xor";
     }
-    // clang-format on
     llvm_unreachable("getBinOpName: Binary opcode not handled");
   };
 

@@ -1,0 +1,8 @@
+# Custom style for Kitsune. This should not deviate significantly from the base
+# LLVM style. Where it does, we should justify why we are deviating.
+
+BasedOnStyle: LLVM
+
+# In Kitsune, there are several functions where we have to switch on a TTID or
+# an RTID. Keeping these compact is useful.
+AllowShortCaseLabelsOnASingleLine: true
