@@ -51,7 +51,7 @@
 #ifndef KITRT_TIMER_TIMER_H
 #define KITRT_TIMER_TIMER_H
 
-#include "common/instrbase.h"
+#include "common/instr.h"
 #include "common/thread.h"
 
 #include <cstdint>

@@ -1,4 +1,4 @@
-//===- instrbase.h - Base class for runtime instrumentation -----*- C++ -*-===//
+//==- instr.h - Utilities for Kitsune's instrumentation support --*- C++ -*-==//
 //
 // Copyright (c) 2021, 2023 Los Alamos National Security, LLC.
 // All rights reserved.
@@ -49,27 +49,36 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Base classes for compiler-inserted instrumentation backed by Kitsune's
-// runtime.
+// Utilities for Kitsune's compiler-inserted instrumentation that is backed by
+// the runtime.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef KITRT_COMMON_INSTR_BASE_H
-#define KITRT_COMMON_INSTR_BASE_H
+#ifndef KITRT_COMMON_INSTR_H
+#define KITRT_COMMON_INSTR_H
 
-#include "common/env.h"
-#include "common/instrutils.h"
 #include "common/thread.h"
 #include "global/singleton.h"
 
-#include <algorithm>
-#include <cstring>
+#include <cassert>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <vector>
 
 namespace kitrt {
+
+/// If the environment variable, \p envVar is set to a non-empty string, it is
+/// assumed to the name (or absolute path) of a file to which the recorded
+/// instrumentation is to be written. A special case is if the environment
+/// variable is set to "-". In this case, the FILE object corresponding to
+/// stdout will be returned. Otherwise, an attempt will be made to open the file
+/// named by \p envVar for writing. If it succeeds, the contents of the file
+/// will be deleted and a FILE object pointing to the start of the file will be
+/// returned. If the file could not be opened for writing for any reason, NULL
+/// will be returned. if \p envVarOutFile is not set in the environment, a FILE
+/// object corresponding to stderr will be returned.
+FILE *getInstrumentationOutputFile(const char *envVar);
 
 /// Base class for Epoch objects. This simply provides some wrappers around the
 /// members of the base class info objects.
@@ -148,72 +157,22 @@ protected:
   std::map<EpochID, OwnedEpochs> epochs;
 
 private:
-  void writeJSONHeader(FILE *fp) const { fprintf(fp, "{"); }
-
-  void writeEpochHeader(FILE *fp, const Epoch &epoch) const {
-    fprintf(fp, "\n  \"%s\": {", epoch.name());
-  }
-
-  void writeThreadHeader(FILE *fp, const Epoch &epoch) const {
-    fprintf(fp, "\n    \"%ld\": [", epoch.thrd());
-  }
-
-  void writeEpoch(FILE *fp, const Epoch &epoch) const { epoch.writeJSON(fp); }
-
-  void writeThreadFooter(FILE *fp, const Epoch &epoch, bool comma) const {
-    fprintf(fp, "\n    ]");
-    if (comma)
-      fprintf(fp, ",");
-  }
-
-  void writeEpochFooter(FILE *fp, const Epoch &epoch, bool comma) const {
-    fprintf(fp, "\n  }");
-    if (comma)
-      fprintf(fp, ",");
-  }
-
-  void writeEpochs(FILE *fp, const std::vector<const Epoch *> &epochs) const {
-    assert(!epochs.empty() && "Epochs must not be empty");
-
-    writeEpochHeader(fp, *epochs[0]);
-    writeThreadHeader(fp, *epochs[0]);
-    writeEpoch(fp, *epochs[0]);
-    for (unsigned i = 1, e = epochs.size(); i != e; ++i) {
-      const Epoch &prev = *epochs[i - 1];
-      const Epoch &curr = *epochs[i];
-      if (strcmp(prev.name(), curr.name())) {
-        writeThreadFooter(fp, prev, /*comma=*/false);
-        writeEpochFooter(fp, prev, /*comma=*/true);
-        writeEpochHeader(fp, curr);
-        writeThreadHeader(fp, curr);
-      } else if (prev.thrd() != curr.thrd()) {
-        writeThreadFooter(fp, prev, /*comma=*/true);
-        writeThreadHeader(fp, curr);
-      } else {
-        // This is a different iteration on the same thread.
-        fprintf(fp, ",");
-      }
-      writeEpoch(fp, curr);
-    }
-    writeThreadFooter(fp, *epochs[0], /*comma=*/false);
-    writeEpochFooter(fp, *epochs[0], /*comma=*/false);
-  }
-
-  void writeJSONFooter(FILE *fp) const { fprintf(fp, "\n}"); }
-
-  void writeJSON(FILE *fp, const std::vector<const Epoch *> &epochs) const {
-    writeJSONHeader(fp);
-    writeEpochs(fp, epochs);
-    writeJSONFooter(fp);
-    fprintf(fp, "\n");
-  }
+  void writeJSONHeader(FILE *fp) const;
+  void writeEpochHeader(FILE *fp, const Epoch &epoch) const;
+  void writeThreadHeader(FILE *fp, const Epoch &epoch) const;
+  void writeEpoch(FILE *fp, const Epoch &epoch) const;
+  void writeThreadFooter(FILE *fp, const Epoch &epoch, bool comma) const;
+  void writeEpochFooter(FILE *fp, const Epoch &epoch, bool comma) const;
+  void writeEpochs(FILE *fp, const std::vector<const Epoch *> &epochs) const;
+  void writeJSONFooter(FILE *fp) const;
+  void writeJSON(FILE *fp, const std::vector<const Epoch *> &epochs) const;
 
 protected:
-  KitInstrBase() : separate(envContains("KIT_INSTR_SEPARATE")) {}
+  KitInstrBase();
 
 public:
   template <typename... Args>
-  Epoch *addEpoch(const char *name, KitThreadID thrd, Args &&...args) {
+  inline Epoch *addEpoch(const char *name, KitThreadID thrd, Args &&...args) {
     assert(name && "Name of an epoch must not be NULL");
 
     std::lock_guard<std::mutex> guard(mtx);
@@ -226,43 +185,9 @@ public:
     return vec.back().get();
   }
 
-  void writeJSON(const char *outFileEnvVar) const {
-    auto sortByNameThenThreadID = [](const Epoch *l, const Epoch *r) -> bool {
-      int cmp = strcmp(l->name(), r->name());
-      if (cmp < 0)
-        return true;
-      else if (cmp == 0)
-        return l->thrd() < r->thrd();
-      return false;
-    };
-
-    if (epochs.empty())
-      return;
-
-    // Collect epochs.
-    std::vector<const Epoch *> epochs;
-    for (const auto &[_, ownedEpochs] : this->epochs)
-      for (const std::unique_ptr<Epoch> &epoch : ownedEpochs)
-        epochs.push_back(epoch.get());
-
-    // Sort the epochs by name, and then by thread id.
-    // TODO: What we actually want here is to first group by name in the order
-    // in which the epochs were added, then sort by thread id *only*. This will
-    // ensure that the epochs appear in the output in the order in which they
-    // were created during execution. This is, arguably, more useful than
-    // sorting lexicographically by name. But the complexity of doing that is
-    // probably not worth it since the JSON output is not really intended for
-    // human consumption anyway.
-    std::stable_sort(epochs.begin(), epochs.end(), sortByNameThenThreadID);
-
-    if (FILE *fp = getInstrumentationOutputFile(outFileEnvVar)) {
-      writeJSON(fp, epochs);
-      if (fp != stdout && fp != stderr)
-        fclose(fp);
-    }
-  }
+  void writeJSON(const char *outFileEnvVar) const;
 };
 
 } // namespace kitrt
 
-#endif // KITRT_COMMON_INSTR_BASE_H
+#endif // KITRT_COMMON_INSTR_H
