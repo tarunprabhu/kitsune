@@ -395,23 +395,19 @@ private:
   virtual StringRef getBundleSection() const override { return section; }
 
   virtual void genCtorBeforeDevCodeRegistration(IRBuilder<> &builder) override {
-    Module *m = getModule(builder);
-    assert(m && "Builder must be set to a basic block in a module");
-
-    LLVMContext &ctx = m->getContext();
-    Constant *ctt = toConstant(tt, ctx);
+    assert(getModule(builder) &&
+           "Builder must be set to a basic block in a module");
 
     if (tto.getHipXnack() == MaybeBool::On) {
       LLVM_DEBUG(dbgs() << "\t\tenable xnack via ctor runtime call.\n");
-      builder.CreateIntrinsic(Intrinsic::kit_runtime_set_xnack, {ctt});
+      createCall(builder, KitFunc::kithip_enable_xnack);
     }
 
     if (genCtorOpts.useYLaunch) {
       LLVM_DEBUG(
           dbgs()
           << "\t\tenable y-axis launch pattern via ctor runtime call.\n");
-      builder.CreateIntrinsic(Intrinsic::kit_runtime_set_y_axis_kernel_launch,
-                              {ctt});
+      createCall(builder, KitFunc::kithip_enable_y_axis_launches);
     }
   }
 

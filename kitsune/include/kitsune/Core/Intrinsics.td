@@ -564,21 +564,3 @@ def int_kit_reduce_1
                     NonNull<ArgIndex<6>>, ReadOnly<ArgIndex<6>>]> {
   let Doc = KitReduce1DDoc;
 }
-
-//------------------------------------------------------------------------------
-// Intrinsics for Kitsune's runtime that are not specific to a tapir target.
-
-// Enable xnack in the runtime. This is only relevant for the hip tapir target
-// and its associated kitsune runtime.
-def int_kit_runtime_set_xnack
-    : KitIntrinsic<[], [llvm_i32_ty], [ImmArg<ArgIndex<0>>]> {
-  let Doc = KitGPUEnableXnackDoc;
-  let RTSpec = [RT<Hip, kithip_enable_xnack>];
-}
-
-// Enable the y-axis launch pattern for all GPU kernels.
-def int_kit_runtime_set_y_axis_kernel_launch
-    : KitIntrinsic<[], [llvm_i32_ty], [ImmArg<ArgIndex<0>>]> {
-  let Doc = KitGPUEnableYAxisKernelLaunchDoc;
-  let RTSpec = [RT<Hip, kithip_enable_y_axis_launches>];
-}
