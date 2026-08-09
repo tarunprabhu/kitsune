@@ -56,7 +56,7 @@
 #ifndef KITRT_COMMON_KITPAPI_H
 #define KITRT_COMMON_KITPAPI_H
 
-#include "common/instrbase.h"
+#include "common/instr.h"
 #include "common/thread.h"
 
 #include <cstdint>
