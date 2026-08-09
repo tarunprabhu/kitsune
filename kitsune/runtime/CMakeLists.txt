@@ -74,7 +74,7 @@ endif ()
 
 if (KITSUNE_PAPI_ENABLED)
   target_sources(${KITRT_OBJLIB} PUBLIC
-    common/kitpapi.cpp)
+    papi/kitpapi.cpp)
 
   target_compile_definitions(${KITRT_OBJLIB} PUBLIC
     KITRT_PAPI_ENABLED)

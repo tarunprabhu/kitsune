@@ -18,29 +18,4 @@ set(TESTS
   RTMultipleFini.cpp
 )
 
-# These tests call PAPI's API functions directly, and require appropriate
-# include and link options.
-set(TESTS_WITH_PAPI
-  PAPIBasic.cpp
-  PAPICannotWriteToFile.cpp
-  PAPIConvenience.cpp
-  PAPIDefaultEvents.cpp
-  PAPIDefaultStderr.cpp
-  PAPIEmpty.cpp
-  PAPIIterateSingleThread.cpp
-  PAPIIterateThreads.cpp
-  PAPINested.cpp
-  PAPISingleThread.cpp
-  PAPIThreads.cpp
-  PAPIUnknown.cpp
-  PAPIWriteNothingToFile.cpp
-  PAPIWriteToFile.cpp
-)
-
 add_kitrt_systests("${TESTS}")
-
-if (KITSUNE_PAPI_ENABLED)
-  add_kitrt_systests("${TESTS_WITH_PAPI}"
-    INCDIRS "${KITSUNE_PAPI_INCDIRS}"
-    LIBS "${KITSUNE_PAPI_LIBS}")
-endif ()

@@ -11,7 +11,7 @@
 // CHECK: Event 'PAPI_{{.+}}' not available
 
 #include "TestHelpers.h"
-#include "common/kitpapi.h"
+#include "papi/kitpapi.h"
 
 #include "papi.h"
 

@@ -76,8 +76,8 @@
 // -----------------------------------------------------------------------------
 
 #include "TestHelpers.h"
-#include "common/kitpapi.h"
 #include "openmp/kitomp.h"
+#include "papi/kitpapi.h"
 
 CTOR(RT_PAPI | RT_OPENMP)
 
