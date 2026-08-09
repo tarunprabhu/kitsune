@@ -56,13 +56,27 @@
 #ifndef KITRT_COMMON_KITPAPI_H
 #define KITRT_COMMON_KITPAPI_H
 
+#include "common/instrbase.h"
 #include "common/thread.h"
 
-#include <stdbool.h>
+#include <cstdint>
+#include <map>
+#include <memory>
 
 #ifdef __cplusplus
-extern "C" {
-#endif // __cplusplus
+#define EXTERN_C extern "C"
+#else // !__cplusplus
+#define EXTERN_C
+#endif // !__cplusplus
+
+namespace kitrt {
+
+/// The type of the function that returns the ID of a thread.
+using PAPIThreadIDFunc = unsigned long(void);
+
+using PAPICounter = long long;
+using PAPIEventID = int;
+using PAPIEventSet = int;
 
 /// A PAPI epoch is a Single-Entry-Single-Exit (SESE) region of code, bounded by
 /// calls to \ref __kitpapi_start and \ref __kitpapi_stop, during which PAPI
@@ -74,24 +88,62 @@ extern "C" {
 /// This struct represents a single epoch. An instance is created by
 /// \ref __kitpapi_new. It can be used, exactly once, to start and stop
 /// recording events.
-struct KitPAPIEpoch;
-typedef struct KitPAPIEpoch KitPAPIEpoch;
+class KitPAPIEpoch : public KitEpochBase {
+private:
+  PAPIEventSet evtSet;
 
-/// The type of the function that returns the ID of a thread.
-typedef unsigned long (*PAPIThreadIDFunc)(void);
+  // The initial values of the counters. These are read after PAPI_start is
+  // called. This is a temporary buffer and will be allocated in
+  // KitPAPIEpoch::start() and freed in KitPAPIEpoch::stop().
+  PAPICounter *init = nullptr;
 
-/// Check if the PAPI context has been initialized.
-bool __kitpapi_initialized(void);
+  std::unique_ptr<PAPICounter[]> counters;
 
-/// Initialize the PAPI library. \p getThreadID is an optional pointer to a
-/// function that returns the ID of the thread from which it is called. If
-/// \p getThreadID is not nullptr, this will be passed to `PAPI_thread_init`.
-/// If this nullptr, a default thread function will be used that will always
-/// return 0 as the thread ID.
-void __kitpapi_initialize(PAPIThreadIDFunc getThreadID);
+private:
+  unsigned numEvents() const;
 
-/// Clean up the PAPI library.
-void __kitpapi_finalize(void);
+public:
+  KitPAPIEpoch() = delete;
+  KitPAPIEpoch(const KitPAPIEpoch &) = delete;
+  KitPAPIEpoch(KitPAPIEpoch &&) = delete;
+  KitPAPIEpoch &operator=(const KitPAPIEpoch &) = delete;
+  KitPAPIEpoch &operator=(KitPAPIEpoch &&) = delete;
+
+  KitPAPIEpoch(const char *name, KitThreadID thrd, PAPIEventSet evtSet);
+
+  void start();
+  void stop();
+  void writeJSON(FILE *fp) const;
+};
+
+using KitPAPIContextBase = KitInstrBase<KitPAPIContext, KitPAPIEpoch>;
+
+// The global singleton context for all PAPI events in this context.
+class KitPAPIContext : public KitPAPIContextBase {
+  friend KitPAPIContextBase;
+
+private:
+  // The names of PAPI events that are recognized by this context.
+  std::map<std::string, PAPIEventID> evtNames;
+  std::map<EpochID, PAPIEventSet> evtSets;
+
+protected:
+  KitPAPIEpoch *makeEpoch(const char *name, KitThreadID thrd, uint32_t n,
+                          va_list va);
+
+public:
+  // Initialize PAPI. If PAPI is to be used in a multi-threaded context, provide
+  // a function to get the ID of the thread from which the function was called.
+  // This may be nullptr, in which case, PAPI is assumed to be running in a
+  // single-threaded context.
+  void initialize(PAPIThreadIDFunc *getThreadID);
+  void finalize();
+
+public:
+  static const char *name() { return "papi"; }
+};
+
+} // namespace kitrt
 
 /// Start a PAPI epoch. \p name must be a globally unique name for the epoch. By
 /// globally unique, we mean that it must be guaranteed not to collide with any
@@ -103,15 +155,12 @@ void __kitpapi_finalize(void);
 /// can be recorded. If any of these are not recognized, or if the events are
 /// not available on the system where this is being run, a warning message will
 /// be printed.
-KitPAPIEpoch *__kitpapi_start(const char *name, KitThreadID thrd, uint32_t n,
-                              ...);
+EXTERN_C kitrt::KitPAPIEpoch *
+__kitpapi_start(const char *name, KitThreadID thrd, uint32_t n, ...);
 
 /// Stop collecting events. \p epoch must be an epoch previously created by a
 /// __kitpapi_new*.
-void __kitpapi_stop(KitPAPIEpoch *epoch);
+EXTERN_C void __kitpapi_stop(kitrt::KitPAPIEpoch *epoch);
 
-#ifdef __cplusplus
-} // extern "C"
-#endif // __cplusplus
-
+#undef EXTERN_C
 #endif // KITRT_COMMON_KITPAPI_H

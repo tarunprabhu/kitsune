@@ -5,13 +5,12 @@
 // CHECK: {{[0-9]+}}
 // CHECK-NOT: {{^.+$}}
 
+#include "TestHelpers.h"
 #include "opencilk/kitocilk.h"
 
 #include <stdio.h>
 
-__attribute__((constructor)) static void ctor(void) { __kitocilk_initialize(); }
-
-__attribute__((destructor)) static void dtor(void) { __kitocilk_finalize(); }
+CTOR(RT_OPENCILK)
 
 int main(int argc, char *argv[]) {
   printf("%ld\n", __kitocilk_worker_id());

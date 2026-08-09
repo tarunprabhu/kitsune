@@ -4,18 +4,22 @@
 //
 // CHECK: Initializing Kitsune runtime (common)
 // CHECK: Initialized Kitsune runtime (common)
-// CHECK: Runtime already initialized
-// CHECK-NOT: Initializing Kitsune runtime
+// CHECK: Kitsune runtime already initialized (common)
+// CHECK-NOT: Initializing Kitsune runtime (common)
 
-#include <openmp/kitomp.h>
+#include "kitrt.h"
 
 #include <stdio.h>
 
+const KitRTInitOptions initOpts{RT_NONE};
+
 __attribute__((constructor)) static void ctor(void) {
-  __kitomp_initialize();
-  __kitomp_initialize();
+  __kitrt_initialize(&initOpts);
+  __kitrt_initialize(&initOpts);
 }
 
-__attribute__((destructor)) static void dtor(void) { __kitomp_finalize(); }
+__attribute__((destructor)) static void dtor(void) {
+  __kitrt_finalize(&initOpts);
+}
 
 int main(int argc, char *argv[]) { return 0; }

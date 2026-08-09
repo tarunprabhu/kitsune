@@ -21,24 +21,14 @@
 // CHECK-NEXT:   }
 // CHECK-NEXT: }
 
+#include "TestHelpers.h"
 #include "common/kitpapi.h"
-#include "kitrt.h"
 
-#include "papi.h"
-
-__attribute__((constructor)) static void ctor(void) {
-  __kitrt_initialize();
-  __kitpapi_initialize(NULL);
-}
-
-__attribute__((destructor)) static void dtor(void) {
-  __kitpapi_finalize();
-  __kitrt_finalize();
-}
+CTOR(RT_PAPI | RT_SERIAL)
 
 int main(int argc, char *argv[]) {
-  KitPAPIEpoch *eo = __kitpapi_start("pastia", /*thread=*/0, 1, "ins");
-  KitPAPIEpoch *ei = __kitpapi_start("jose", /*thread=*/0, 1, "ins");
+  kitrt::KitPAPIEpoch *eo = __kitpapi_start("pastia", /*thread=*/0, 1, "ins");
+  kitrt::KitPAPIEpoch *ei = __kitpapi_start("jose", /*thread=*/0, 1, "ins");
   __kitpapi_stop(ei);
   __kitpapi_stop(eo);
 

@@ -59,6 +59,7 @@
 
 #include "common/env.h"
 #include "common/instrutils.h"
+#include "common/thread.h"
 #include "global/singleton.h"
 
 #include <algorithm>
@@ -157,9 +158,7 @@ private:
     fprintf(fp, "\n    \"%ld\": [", epoch.thrd());
   }
 
-  void writeEpoch(FILE *fp, const Epoch &epoch) const {
-    epoch.writeJSON(fp);
-  }
+  void writeEpoch(FILE *fp, const Epoch &epoch) const { epoch.writeJSON(fp); }
 
   void writeThreadFooter(FILE *fp, const Epoch &epoch, bool comma) const {
     fprintf(fp, "\n    ]");

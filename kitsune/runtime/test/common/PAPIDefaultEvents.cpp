@@ -1,3 +1,5 @@
+// REQUIRES: kitsune-papi
+//
 // Check some PAPI event names that may be passed to __kitpapi_start. This
 // should be exhaustive, but that is pretty tedious, and it is not clear what
 // advantage there is to doing that. We rely on grey-box testing anyway, so this
@@ -8,24 +10,15 @@
 // CHECK: Event 'PAPI_{{.+}}' added to epoch 'hadji'
 // CHECK: Event 'PAPI_{{.+}}' not available
 
+#include "TestHelpers.h"
 #include "common/kitpapi.h"
-#include "kitrt.h"
 
 #include "papi.h"
 
 #include <ctype.h>
-#include <stdbool.h>
 #include <string.h>
 
-__attribute__((constructor)) static void ctor(void) {
-  __kitrt_initialize();
-  __kitpapi_initialize(NULL);
-}
-
-__attribute__((destructor)) static void dtor(void) {
-  __kitpapi_finalize();
-  __kitrt_finalize();
-}
+CTOR(RT_PAPI | RT_SERIAL)
 
 #define MAX_EVENTS 100
 

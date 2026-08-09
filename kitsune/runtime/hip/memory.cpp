@@ -150,12 +150,6 @@ extern "C" void __kithip_set_xnack(bool flag) {
 
 // Allocate a block of managed memory (UVM) of 'size' bytes.
 extern "C" [[gnu::malloc]] void *__kithip_mem_alloc_managed(size_t size) {
-  if (not kithip_rt::isInitialized()) {
-    // Note: compiler handles this in a global ctor but we do this here to make
-    // writing test programs a bit easier.
-    __kithip_initialize();
-  }
-
   void *alloced_ptr = nullptr;
   HIP_SAFE_CALL(hipSetDevice(kithip_rt::deviceID()));
   HIP_SAFE_CALL(hipMallocManaged(&alloced_ptr, size, hipMemAttachGlobal));

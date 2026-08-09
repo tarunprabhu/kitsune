@@ -81,6 +81,8 @@ kithip_rt_info_t rt_info;
 #error "rocTX is not yet supported."
 #endif
 
+using namespace kitrt;
+
 // All "compiler-facing" calls are C calling convention to avoid having to
 // codegen C++ managled names...
 
@@ -115,23 +117,8 @@ extern "C" void __kithip_dump_dev_properties(hipDeviceProp_t &props) {
        << " GB" << endl;
 }
 
-extern "C" bool __kithip_is_initialized(void) {
+void KitHipContext::initialize() {
   using namespace kithip_rt;
-  return rt_info.initialized;
-}
-
-extern "C" void __kithip_initialize(void) {
-  using namespace kithip_rt;
-  if (isInitialized()) {
-    LOG("Runtime already initialized");
-    return;
-  }
-
-  // Initialize the components of kitsune's runtime that are shared by the
-  // tapir-target-specific components.
-  __kitrt_initialize();
-
-  LOG("Initializing Kitsune runtime (hip)");
 
   // AMD's documentation suggests that there is no need to explicitly call
   // hipInit() as all API entry points will initialize when necessary.  For now,
@@ -190,20 +177,11 @@ extern "C" void __kithip_initialize(void) {
       fprintf(stderr, "  kithip: max threads/block: %d\n", *tpb);
   }
 
-  // We should be good to go...
   setInitialized(true);
-
-  LOG("Initialized Kitsune runtime (hip)");
 }
 
-extern "C" void __kithip_finalize(void) {
+void KitHipContext::finalize() {
   using namespace kithip_rt;
-  if (not isInitialized()) {
-    LOG("Cannot finalize runtime. Not initialized");
-    return;
-  }
-
-  LOG("Finalizing Kitsune runtime (hip)");
 
   __kithip_destroy_thread_streams();
   __kitrt_destroy_memory_map(__kithip_mem_destroy);
@@ -213,12 +191,11 @@ extern "C" void __kithip_finalize(void) {
   // HIP_SAFE_CALL(hipDeviceReset());
 
   setInitialized(false);
+}
 
-  LOG("Finalized Kitsune runtime (hip)");
-
-  // Finalize the components of Kitsune's runtime that are shared by the
-  // tapir-target-specific components.
-  __kitrt_finalize();
+extern "C" bool __kithip_is_initialized(void) {
+  using namespace kithip_rt;
+  return rt_info.initialized;
 }
 
 extern "C" uint64_t __kithip_num_cus(void) {

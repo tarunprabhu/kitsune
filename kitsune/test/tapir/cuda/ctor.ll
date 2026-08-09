@@ -4,14 +4,15 @@
 ; RUN: opt --tapir=cuda -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s -check-prefix DEFAULT
 ;
-; Currently, even if a max-threads-per-block option is not used, the max is set
-; to 1024.
-;
 ; DEFAULT: @[[FB:.+]] = constant [0 x i8] zeroinitializer
 ; DEFAULT-SAME: section ".nv_fatbin"
 ; DEFAULT-SAME: !kit.gv ![[MD:[0-9]+]]
 ;
-; DEFAULT: @[[BUNDLE:.+]] = internal constant {{.+}} { i32 1180844977, i32 1, ptr @[[FB]], ptr null }
+; DEFAULT: @[[INITOPTS:.+]] = internal constant [8 x i8]
+; DEFAULT-SAME: c"\02\00\00\00\00\00\00\00"
+;
+; DEFAULT: @[[BUNDLE:.+]] = internal constant
+; DEFAULT-SAME: { i32 1180844977, i32 1, ptr @[[FB]], ptr null }
 ; DEFAULT-SAME: section ".nvFatBinSegment"
 ;
 ; DEFAULT: @[[HANDLE:.+]] = internal global ptr null
@@ -24,7 +25,7 @@
 ;
 ; DEFAULT: define internal void @[[CTOR]]()
 ; DEFAULT-NEXT: [[ENTRY:.+]]:
-; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.initialize(i32 2)
+; DEFAULT-NEXT: call void @__kitrt_initialize(ptr @[[INITOPTS]])
 ; DEFAULT-DAG: %[[HC:.+]] = call {{.+}}@llvm.kit.gpu.register.devcode(i32 2, ptr @[[BUNDLE]])
 ; DEFAULT-NEXT: store ptr %[[HC]], ptr @[[HANDLE]]
 ; DEFAULT-NEXT: %[[HC2:.+]] = load ptr, ptr @[[HANDLE]]
@@ -39,7 +40,7 @@
 ; DEFAULT-NEXT: [[ENTRY:.+]]:
 ; DEFAULT-NEXT: %[[HD:.+]] = load ptr, ptr @[[HANDLE]]
 ; DEFAULT-NEXT: call {{.+}} @llvm.kit.gpu.unregister.devcode(i32 2, ptr %[[HD]])
-; DEFAULT-NEXT: call {{.+}} @llvm.kit.runtime.finalize(i32 2)
+; DEFAULT-NEXT: call void @__kitrt_finalize(ptr @[[INITOPTS]])
 ; DEFAULT-NEXT: br label %[[EXIT:.+]]
 ; DEFAULT-EMPTY:
 ; DEFAULT-NEXT: [[EXIT]]:

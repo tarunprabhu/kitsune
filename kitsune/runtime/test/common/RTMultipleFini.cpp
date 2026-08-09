@@ -4,18 +4,22 @@
 //
 // CHECK: Finalizing Kitsune runtime (common)
 // CHECK: Finalized Kitsune runtime (common)
-// CHECK: Cannot finalize runtime. Not initialized
+// CHECK: Cannot finalize Kitsune runtime. Not initialized (common)
 // CHECK-NOT: Finalizing Kitsune runtime
 
 #include "kitrt.h"
 
 #include <stdio.h>
 
-__attribute__((constructor)) static void ctor(void) { __kitrt_initialize(); }
+const KitRTInitOptions initOpts{RT_NONE};
+
+__attribute__((constructor)) static void ctor(void) {
+  __kitrt_initialize(&initOpts);
+}
 
 __attribute__((destructor)) static void dtor(void) {
-  __kitrt_finalize();
-  __kitrt_finalize();
+  __kitrt_finalize(&initOpts);
+  __kitrt_finalize(&initOpts);
 }
 
 int main(int argc, char *argv[]) { return 0; }
