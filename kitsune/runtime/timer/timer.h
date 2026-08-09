@@ -48,8 +48,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef KITRT_COMMON_TIMER_H
-#define KITRT_COMMON_TIMER_H
+#ifndef KITRT_TIMER_TIMER_H
+#define KITRT_TIMER_TIMER_H
 
 #include "common/instrbase.h"
 #include "common/thread.h"
