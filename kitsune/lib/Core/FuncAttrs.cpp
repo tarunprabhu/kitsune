@@ -71,8 +71,7 @@ raw_ostream &llvm::operator<<(raw_ostream &os, const FuncAttrKind &attr) {
 StringRef llvm::getAttrName(FuncAttrKind attr) {
   switch (attr) {
 #define FUNC_ATTR(NAME, IRNAME, ...)                                           \
-  case FuncAttrKind::NAME:                                                     \
-    return IRNAME;
+  case FuncAttrKind::NAME: return IRNAME;
 #define GET_FUNC_ATTRS
 #include "kitsune/Core/FuncAttrs.inc"
   }
@@ -94,8 +93,7 @@ void llvm::addAttr(Function &f, FuncAttrKind attr) {
     exitOnError();
     break;
 #define FUNC_ATTR_0(NAME, IRNAME, ...)                                         \
-  case FuncAttrKind::NAME:                                                     \
-    return detail::addAttr(f, IRNAME, {});
+  case FuncAttrKind::NAME: return detail::addAttr(f, IRNAME, {});
 #define GET_FUNC_ATTRS
 #include "kitsune/Core/FuncAttrs.inc"
   }

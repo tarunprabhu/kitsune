@@ -186,12 +186,9 @@ static bool lowerKitIntrinsicsHip(Module &embM) {
 
 static bool lowerKitIntrinsics(TTID tt, Module &embM) {
   switch (tt) {
-  case TTID::Cuda:
-    return lowerKitIntrinsicsCuda(embM);
-  case TTID::Hip:
-    return lowerKitIntrinsicsHip(embM);
-  default:
-    break;
+  case TTID::Cuda: return lowerKitIntrinsicsCuda(embM);
+  case TTID::Hip: return lowerKitIntrinsicsHip(embM);
+  default: break;
   }
   llvm_unreachable("lowerKitIntrinsics: TTID not handled");
 }

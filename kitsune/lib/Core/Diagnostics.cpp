@@ -37,14 +37,10 @@ static raw_ostream &normal(raw_ostream &os) {
 
 static raw_ostream &emitLabel(raw_ostream &os, DiagnosticSeverity severity) {
   switch (severity) {
-  case DiagnosticSeverity::DS_Error:
-    return WithColor::error(os);
-  case DiagnosticSeverity::DS_Warning:
-    return WithColor::warning(os);
-  case DiagnosticSeverity::DS_Remark:
-    return WithColor::remark(os);
-  case DiagnosticSeverity::DS_Note:
-    return WithColor::note(os);
+  case DiagnosticSeverity::DS_Error: return WithColor::error(os);
+  case DiagnosticSeverity::DS_Warning: return WithColor::warning(os);
+  case DiagnosticSeverity::DS_Remark: return WithColor::remark(os);
+  case DiagnosticSeverity::DS_Note: return WithColor::note(os);
   }
   llvm_unreachable("emitLabel: Diagnostic severity not handled");
 }
@@ -159,8 +155,7 @@ DiagnosticSeverity llvm::detail::getSeverity(DiagID id) {
   switch (id) {
 #define GET_DIAGS
 #define DIAG(NAME, SEVERITY, MSG)                                              \
-  case DiagID::NAME:                                                           \
-    return SEVERITY;
+  case DiagID::NAME: return SEVERITY;
 #include "kitsune/Core/Diagnostics.inc"
   }
   llvm_unreachable("getSeverity: DiagID not handled");
@@ -170,8 +165,7 @@ StringRef llvm::detail::getMsg(DiagID id) {
   switch (id) {
 #define GET_DIAGS
 #define DIAG(NAME, SEVERITY, MSG)                                              \
-  case DiagID::NAME:                                                           \
-    return MSG;
+  case DiagID::NAME: return MSG;
 #include "kitsune/Core/Diagnostics.inc"
   }
   llvm_unreachable("getMsg: DiagID not handled");

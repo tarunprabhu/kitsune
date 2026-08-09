@@ -179,12 +179,9 @@ private:
 
   bool cgfb(GlobalVariable &fb, const GlobalVariable &bc, TTID tt) {
     switch (tt) {
-    case TTID::Cuda:
-      return detail::cgfbCuda(fb, bc, tto, cgfbOpts);
-    case TTID::Hip:
-      return detail::cgfbHip(fb, bc, tto, cgfbOpts);
-    default:
-      llvm_unreachable("CodeGenFatBinaries::run: TTID not handled");
+    case TTID::Cuda: return detail::cgfbCuda(fb, bc, tto, cgfbOpts);
+    case TTID::Hip: return detail::cgfbHip(fb, bc, tto, cgfbOpts);
+    default: llvm_unreachable("CodeGenFatBinaries::run: TTID not handled");
     }
   }
 

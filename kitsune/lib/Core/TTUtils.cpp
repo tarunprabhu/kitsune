@@ -62,14 +62,10 @@ static Expected<OwnedModule> getRuntimeModuleOpenCilk(const TTOptions &tto,
 Expected<OwnedModule> llvm::getSupportModule(TTID tt, const TTOptions &tto,
                                              LLVMContext &ctx) {
   switch (tt) {
-  case TTID::Cuda:
-    return getLibDeviceModuleCuda(tto, ctx);
-  case TTID::Hip:
-    return getLibDeviceModuleHip(tto, ctx);
-  case TTID::OpenCilk:
-    return getRuntimeModuleOpenCilk(tto, ctx);
-  default:
-    llvm_unreachable("getSupportModule: TTID not handled");
+  case TTID::Cuda: return getLibDeviceModuleCuda(tto, ctx);
+  case TTID::Hip: return getLibDeviceModuleHip(tto, ctx);
+  case TTID::OpenCilk: return getRuntimeModuleOpenCilk(tto, ctx);
+  default: llvm_unreachable("getSupportModule: TTID not handled");
   }
 }
 
@@ -77,30 +73,23 @@ Expected<OwnedModule> llvm::getLibDeviceModule(TTID tt, const TTOptions &tto,
                                                LLVMContext &ctx) {
   switch (tt) {
   case TTID::Cuda:
-  case TTID::Hip:
-    return getSupportModule(tt, tto, ctx);
-  default:
-    llvm_unreachable("getLibDeviceModule: TTID not handled");
+  case TTID::Hip: return getSupportModule(tt, tto, ctx);
+  default: llvm_unreachable("getLibDeviceModule: TTID not handled");
   }
 }
 
 TapirSpawnStrategy llvm::getSpawnStrategyFor(TTID tt) {
   switch (tt) {
   case llvm::TTID::Nolo:
-  case llvm::TTID::Serial:
-    return llvm::TapirSpawnStrategy::Sequential;
+  case llvm::TTID::Serial: return llvm::TapirSpawnStrategy::Sequential;
   case llvm::TTID::Cuda:
-  case llvm::TTID::Hip:
-    return llvm::TapirSpawnStrategy::GPU;
-  case llvm::TTID::OpenCilk:
-    return llvm::TapirSpawnStrategy::DivideAndConquer;
+  case llvm::TTID::Hip: return llvm::TapirSpawnStrategy::GPU;
+  case llvm::TTID::OpenCilk: return llvm::TapirSpawnStrategy::DivideAndConquer;
   case llvm::TTID::Custom:
   case llvm::TTID::OpenMP:
   case llvm::TTID::Pthreads:
-  case llvm::TTID::Qthreads:
-    return llvm::TapirSpawnStrategy::Basic;
-  default:
-    break;
+  case llvm::TTID::Qthreads: return llvm::TapirSpawnStrategy::Basic;
+  default: break;
   }
   llvm_unreachable("getSpawnStrategyFor: TTID not handled");
 }
