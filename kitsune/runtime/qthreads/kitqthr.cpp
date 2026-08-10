@@ -57,6 +57,7 @@
 #include "common/env.h"
 #include "common/logging.h"
 #include "common/utils.h"
+#include "global/global.h"
 
 #include <qthread.h>
 #include <qthread/barrier.h>
@@ -166,18 +167,15 @@ void KitQthrContext::launch(KitQthrThrdFunc f, uint64_t start, uint64_t end,
 }
 
 extern "C" uint64_t __kitqthr_num_workers(void) {
-  KitQthrContext::ensure();
-  return KitQthrContext::get().getNumThreads();
+  return getCtx<KitQthrContext>().getNumThreads();
 }
 
 extern "C" KitThreadID __kitqthr_worker_id(void) {
-  KitQthrContext::ensure();
-  return KitQthrContext::get().getThreadID();
+  return getCtx<KitQthrContext>().getThreadID();
 }
 
 extern "C" void __kitqthr_launch(KitQthrThrdFunc f, uint64_t start,
                                  uint64_t end, void *args,
                                  [[maybe_unused]] uint32_t argSize) {
-  KitQthrContext::ensure();
-  KitQthrContext::mut().launch(f, start, end, args, argSize);
+  return mutCtx<KitQthrContext>().launch(f, start, end, args, argSize);
 }

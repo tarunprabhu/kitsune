@@ -140,12 +140,12 @@ static std::vector<RTID> getInstrRuntimes(const InitOptions &initOpts) {
 template <typename T, typename... Args> static void initialize(Args &&...args) {
   if constexpr (!std::is_complete_v<T>) {
     FATAL("Kitsune runtime has not been enabled (%s)", T::name());
-  } else if (T::initialized()) {
+  } else if (gctx.has<T>()) {
     LOG("Kitsune runtime already initialized (%s)", T::name());
   } else {
     LOG("Initializing Kitsune runtime (%s)", T::name());
-    mutKitRTContext().addContext(new T);
-    T::mut().initialize(args...);
+    mutCtx().addContext(new T);
+    mutCtx<T>().initialize(args...);
     LOG("Initialized Kitsune runtime (%s)", T::name());
   }
 }
@@ -216,7 +216,7 @@ static void initializeCommonRuntime(const InitOptions &initOpts) {
   // that a message is printed is to check the environment variables.
   LOG_IF_VERBOSE("Initializing Kitsune runtime (common)");
 
-  KitRTContext &rt = mutKitRTContext();
+  KitRTContext &rt = mutCtx();
   rt.setVerbose(envLookupOr(envVerbose, envVerboseLegacy, false));
   rt.setColors(terminalHasColors());
 
@@ -226,10 +226,10 @@ static void initializeCommonRuntime(const InitOptions &initOpts) {
 
 template <typename T> static void finalize() {
   if constexpr (std::is_complete_v<T>) {
-    if (T::initialized()) {
+    if (gctx.has<T>()) {
       LOG("Finalizing Kitsune runtime (%s)", T::name());
-      T::mut().finalize();
-      delete mutKitRTContext().takeContext<T>();
+      mutCtx<T>().finalize();
+      delete mutCtx().takeContext<T>();
       LOG("Finalized Kitsune runtime (%s)", T::name());
     } else {
       LOG("Cannot finalize Kitsune runtime. Not initialized (%s)", T::name());
@@ -268,7 +268,7 @@ static void finalizeRuntimes(const InitOptions &initOpts) {
 static void finalizeCommonRuntime() {
   LOG("Finalizing Kitsune runtime (common)");
 
-  mutKitRTContext().setInitialized(false);
+  mutCtx().setInitialized(false);
 
   // Although we don't do so, it is reasonable to clear the global singleton at
   // this point. In that case, LOG(...) would not work because verbose mode

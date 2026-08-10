@@ -61,7 +61,6 @@
 #define KITRT_PTHREADS_KITPTHR_H
 
 #include "common/thread.h"
-#include "global/singleton.h"
 
 #include <cstdint>
 
@@ -86,7 +85,7 @@ struct KitPthrLaunchContext;
 
 /// Kitsune runtime the pthreads tapir target. All global state required by the
 /// runtime should be owned by this object.
-class KitPthrContext : public KitContextMixin<KitPthrContext> {
+class KitPthrContext {
 public:
   /// The number of threads to use. This should not be used directly in the rest
   /// of the runtime. Use `__kitpthr_num_threads()` to get this value.

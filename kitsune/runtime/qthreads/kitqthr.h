@@ -61,7 +61,6 @@
 #define KITRT_QTHREADS_KITQTHR_H
 
 #include "common/thread.h"
-#include "global/singleton.h"
 
 #include <cstdint>
 
@@ -81,7 +80,7 @@ using KitQthrThrdFunc = void(uint64_t start, uint64_t end, void *args);
 
 /// Kitsune runtime the qthreads tapir target. All global state required by the
 /// runtime should be owned by this object.
-class KitQthrContext : public KitContextMixin<KitQthrContext> {
+class KitQthrContext {
 public:
   void initialize();
   void finalize();

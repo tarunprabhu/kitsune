@@ -114,4 +114,4 @@ const KitRTContext &gctx = singleton;
 
 } // namespace kitrt
 
-KitRTContext &kitrt::mutKitRTContext() { return kitrt::singleton; }
+KitRTContext &kitrt::mutCtx() { return kitrt::singleton; }
