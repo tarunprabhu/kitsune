@@ -56,19 +56,12 @@
 #ifndef KITRT_GLOBAL_GLOBAL_H
 #define KITRT_GLOBAL_GLOBAL_H
 
+#include "runtimes.h"
+
 #include <cassert>
 #include <cstdint>
 
 namespace kitrt {
-
-class KitCudaContext;
-class KitHipContext;
-class KitOCilkContext;
-class KitOMPContext;
-class KitPAPIContext;
-class KitPthrContext;
-class KitQthrContext;
-class KitTimerContext;
 
 /// The context object for the global data used in kitrt. This will own the
 /// globals used by all Kitsune's runtimes - even if they are only ever used in
@@ -85,42 +78,11 @@ public:
   /// messages.
   uint32_t colors : 1;
 
-  /// Global context for Kitsune's cuda runtime.
-  KitCudaContext *cuda = nullptr;
-
-  /// Global context for Kitsune's hip runtime.
-  KitHipContext *hip = nullptr;
-
-  /// Global context for Kitsune's OpenCilk runtime.
-  KitOCilkContext *ocilk = nullptr;
-
-  /// Global context for Kitsune's OpenMP runtime.
-  KitOMPContext *omp = nullptr;
-
-  /// Global context for Kitsune's PAPI support.
-  KitPAPIContext *papi = nullptr;
-
-  /// Global context for Kitsune's pthreads runtime.
-  KitPthrContext *pthr = nullptr;
-
-  /// Global context for Kitsune's Qthreads runtime.
-  KitQthrContext *qthr = nullptr;
-
-  /// Global context for Kitsune's timer support.
-  KitTimerContext *timer = nullptr;
-
-private:
-  template <typename T> T *take(T *&ptr) {
-    T *ret = ptr;
-    ptr = nullptr;
-    return ret;
-  }
-
-  /// Get a singleton context object of the given type.
-  template <typename T> inline T *getContextImpl() const;
+  /// The runtime context objects.
+  ContextsTuple ctxs;
 
 public:
-  KitRTContext();
+  KitRTContext() = default;
   KitRTContext(const KitRTContext &) = delete;
   KitRTContext(KitRTContext &&) = delete;
   ~KitRTContext() = default;
@@ -137,88 +99,43 @@ public:
   /// Set the colors flag.
   void setColors(bool colors);
 
-  /// Set the global context object for Kitsune's cuda runtime.
-  void addContext(KitCudaContext *ctx);
+  /// Ensure that the context object of the given type has been created.
+  template <typename T> inline void ensure() const {
+    assert(std::get<T *>(ctxs) && "Kitsune runtime initialized");
+  }
 
-  /// Set the global context object for Kitsune's hip runtime.
-  void addContext(KitHipContext *ctx);
+  /// Check if a context object of the given type exists.
+  template <typename T> inline bool has() const { return std::get<T *>(ctxs); }
 
-  /// Set the global context object for Kitsune's OpenCilk runtime.
-  void addContext(KitOCilkContext *ctx);
-
-  /// Set the global context object for Kitusne's OpenMP runtime.
-  void addContext(KitOMPContext *ctx);
-
-  /// Set the global context object for Kitsune's PAPI support.
-  void addContext(KitPAPIContext *ctx);
-
-  /// Set the global context object for Kitsune's pthreads runtime.
-  void addContext(KitPthrContext *ctx);
-
-  /// Set the global context object for Kitsune's Qthreads runtime.
-  void addContext(KitQthrContext *ctx);
-
-  /// Set the global context object for Kitsune's timer support.
-  void addContext(KitTimerContext *ctx);
+  /// Add a global context object of type \tparam T.
+  template <typename T> void add(T *ctx) {
+    assert(!std::get<T *>(ctxs) &&
+           "Kitsune runtime context object not registered");
+    std::get<T *>(ctxs) = ctx;
+  }
 
   /// Return the global context object of type \tparam T and set the
   /// corresponding field to nullptr.
-  template <typename T> T *takeContext();
+  template <typename T> T *take() {
+    assert(std::get<T *>(ctxs) && "Kitsune runtime context object registered");
 
-  /// Check if a context object of the given type exists.
-  template <typename T> inline bool has() const {
-    return getContextImpl<T>();
-  }
-
-  /// Ensure that the context object of the given type has been created.
-  template <typename T> inline void ensure() const {
-    assert(has<T>() && "Kitsune runtime initialized");
+    T *ctx = std::get<T *>(ctxs);
+    std::get<T *>(ctxs) = nullptr;
+    return ctx;
   }
 
   /// Get the context object of the given type. The object must have been set.
   template <typename T> inline const T &get() const {
     ensure<T>();
-    return *getContextImpl<T>();
+    return *std::get<T *>(ctxs);
   }
 
   /// Get the context object of the given type. The object must have been set.
   template <typename T> inline T &get() {
     ensure<T>();
-    return *getContextImpl<T>();
+    return *std::get<T *>(ctxs);
   }
 };
-
-template <> inline KitCudaContext *KitRTContext::getContextImpl() const {
-  return cuda;
-}
-
-template <> inline KitHipContext *KitRTContext::getContextImpl() const {
-  return hip;
-}
-
-template <> inline KitOCilkContext *KitRTContext::getContextImpl() const {
-  return ocilk;
-}
-
-template <> inline KitOMPContext *KitRTContext::getContextImpl() const {
-  return omp;
-}
-
-template <> inline KitPAPIContext *KitRTContext::getContextImpl() const {
-  return papi;
-}
-
-template <> inline KitPthrContext *KitRTContext::getContextImpl() const {
-  return pthr;
-}
-
-template <> inline KitQthrContext *KitRTContext::getContextImpl() const {
-  return qthr;
-}
-
-template <> inline KitTimerContext *KitRTContext::getContextImpl() const {
-  return timer;
-}
 
 /// The singleton global context that contains the global data used by kitrt.
 /// We expose the structure of the object to make accesses to some global data
