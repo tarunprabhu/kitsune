@@ -51,6 +51,7 @@
 #include "kitrt.h"
 #include "common/env.h"
 #include "common/logging.h"
+#include "common/unreachable.h"
 #include "global/global.h"
 #include "openmp/kitomp.h"
 #include "pthreads/kitpthr.h"
@@ -160,10 +161,7 @@ static void initializePAPI(const InitOptions &initOpts) {
       case RT_CUDA:
       case RT_HIP: return nullptr;
       case RT_PAPI:
-      case RT_TIMER:
-        // This should not happen.
-        // FIXME: Use unreachable here.
-        break;
+      case RT_TIMER: UNREACHABLE("Runtime is not tapir-target-specific");
       }
       FATAL("getThreadIDFunc: RTID not handled");
     };
