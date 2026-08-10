@@ -116,12 +116,20 @@ static bool terminalHasColors() {
   return colors;
 }
 
-static std::vector<RTID> getRTIDs(const InitOptions &initOpts) {
+static std::vector<RTID> getRuntimes(uint64_t raw, uint64_t id0) {
   std::vector<RTID> ids;
-  for (uint64_t rts = initOpts.rts, id = 0x1; rts; rts >>= 1, id <<= 1)
-    if (rts & 0x1)
+  for (uint64_t id = id0; raw; raw >>= 1, id <<= 1)
+    if (raw & 0x1)
       ids.push_back(static_cast<RTID>(id));
   return ids;
+}
+
+static std::vector<RTID> getTTRuntimes(const InitOptions &initOpts) {
+  return getRuntimes(initOpts.rts & 0xffffffffULL, 0x1);
+}
+
+static std::vector<RTID> getInstrRuntimes(const InitOptions &initOpts) {
+  return getRuntimes(initOpts.rts >> 32, 0x100000000ULL);
 }
 
 template <typename T, typename = void> struct is_complete : std::false_type {};
@@ -129,21 +137,57 @@ template <typename T>
 struct is_complete<T, std::void_t<decltype(sizeof(T))>> : std::true_type {};
 
 template <typename T, typename... Args> static void initialize(Args &&...args) {
-  if constexpr (is_complete<T>::value) {
-    if (!T::initialized()) {
-      LOG("Initializing Kitsune runtime (%s)", T::name());
-      mutKitRTContext().addContext(new T);
-      T::mut().initialize(args...);
-      LOG("Initialized Kitsune runtime (%s)", T::name());
-    } else {
-      LOG("Kitsune runtime already initialized (%s)", T::name());
-    }
-  } else {
+  if constexpr (!is_complete<T>::value) {
     FATAL("Kitsune runtime has not been enabled (%s)", T::name());
+  } else if (T::initialized()) {
+    LOG("Kitsune runtime already initialized (%s)", T::name());
+  } else {
+    LOG("Initializing Kitsune runtime (%s)", T::name());
+    mutKitRTContext().addContext(new T);
+    T::mut().initialize(args...);
+    LOG("Initialized Kitsune runtime (%s)", T::name());
   }
 }
 
-static void initialize(RTID rt) {
+static void initializePAPI(const InitOptions &initOpts) {
+  if constexpr (is_complete<KitPAPIContext>::value) {
+    auto getThreadIDFunc = [](RTID rt) -> PAPIThreadIDFunc * {
+      switch (rt) {
+      case RT_OPENCILK: return __kitocilk_worker_id;
+      case RT_OPENMP: return __kitomp_thread_id;
+      case RT_PTHREADS: return __kitpthr_thread_id;
+      case RT_QTHREADS: return __kitqthr_worker_id;
+      case RT_CUDA:
+      case RT_HIP:
+      case RT_SERIAL: return nullptr;
+      case RT_NONE:
+      case RT_PAPI:
+      case RT_TIMER:
+        // This should not happen.
+        // FIXME: Use unreachable here.
+        break;
+      }
+      FATAL("getThreadIDFunc: RTID not handled");
+    };
+
+    std::vector<PAPIThreadIDFunc *> getThreadIDFuncs;
+    for (RTID rt : getTTRuntimes(initOpts))
+      if (std::optional<PAPIThreadIDFunc *> threadIDFunc = getThreadIDFunc(rt))
+        getThreadIDFuncs.push_back(*threadIDFunc);
+
+    if (getThreadIDFuncs.size() > 1)
+      WARN("PAPI not initialized. Initialized more than one runtime supporting "
+           "PAPI");
+    else if (getThreadIDFuncs.size() < 1)
+      initialize<KitPAPIContext>(nullptr);
+    else
+      initialize<KitPAPIContext>(getThreadIDFuncs[0]);
+  } else {
+    FATAL("Kitsune runtime has not been enabled (%s)", KitPAPIContext::name());
+  }
+}
+
+static void initialize(const InitOptions &initOpts, RTID rt) {
   switch (rt) {
   case RT_SERIAL:
     // These do not have any associated runtimes that need to be initialized.
@@ -152,57 +196,28 @@ static void initialize(RTID rt) {
   case RT_HIP: return initialize<KitHipContext>();
   case RT_OPENCILK: return initialize<KitOCilkContext>();
   case RT_OPENMP: return initialize<KitOMPContext>();
+  case RT_PAPI: return initializePAPI(initOpts);
   case RT_PTHREADS: return initialize<KitPthrContext>();
   case RT_QTHREADS: return initialize<KitQthrContext>();
   case RT_TIMER: return initialize<KitTimerContext>();
   case RT_NONE:
-  case RT_PAPI:
-    // This should never happen.
+    // This should never happen. PAPI will not be initialized here.
+    // FIXME: Use unreachable here.
     break;
   }
   FATAL("initializeRuntimes: RTID not handled");
 }
 
-static void initializePAPI(const InitOptions &initOpts) {
-  if constexpr (is_complete<KitPAPIContext>::value) {
-    auto getThreadIDFunc = [](RTID rt) -> std::optional<PAPIThreadIDFunc *> {
-      switch (rt) {
-      case RT_OPENCILK: return __kitocilk_worker_id;
-      case RT_OPENMP: return __kitomp_thread_id;
-      case RT_PTHREADS: return __kitpthr_thread_id;
-      case RT_QTHREADS: return __kitqthr_worker_id;
-      case RT_SERIAL: return nullptr;
-      default: return std::nullopt;
-      }
-    };
-
-    std::vector<PAPIThreadIDFunc *> getThreadIDFuncs;
-    for (RTID rt : getRTIDs(initOpts))
-      if (std::optional<PAPIThreadIDFunc *> threadIDFunc = getThreadIDFunc(rt))
-        getThreadIDFuncs.push_back(*threadIDFunc);
-
-    if (getThreadIDFuncs.empty())
-      WARN("PAPI not initialized. Initialized zero runtimes supporting PAPI");
-    else if (getThreadIDFuncs.size() > 1)
-      WARN("PAPI not initialized. Initialized more than one runtime supporting "
-           "PAPI");
-    else
-      initialize<KitPAPIContext>(getThreadIDFuncs[0]);
-  } else {
-    FATAL("Kitsune runtime has not been enabled (%s)", KitPAPIContext::name());
-  }
-}
-
 // Initialize the requested tapir-target-specific runtimes, as well as any
 // support runtimes.
 static void initializeRuntimes(const InitOptions &initOpts) {
-  // Initializing PAPI is more involved, so initialize everything else first.
-  for (RTID rt : getRTIDs(initOpts))
-    if (rt != RT_PAPI)
-      initialize(rt);
+  // Initialize the tapir-target-specific runtimes fist. Some instrumentation
+  // runtimes, specifically PAPI, require the former to be initialized first.
+  for (RTID rt : getTTRuntimes(initOpts))
+    initialize(initOpts, rt);
 
-  if (initOpts.rts & RT_PAPI)
-    initializePAPI(initOpts);
+  for (RTID rt : getInstrRuntimes(initOpts))
+    initialize(initOpts, rt);
 }
 
 // This initializes the common parts of Kitsune's runtime.
@@ -258,13 +273,12 @@ static void finalize(RTID rt) {
 static void finalizeRuntimes(const InitOptions &initOpts) {
   // In general, we should be finalizing runtimes in the opposite order in
   // which they were initialized. In particular, the PAPI runtime must be
-  // finalized last since it may use the thread id functions from the
-  // tapir-target-specific runtimes. The ID of the former is guaranteed to be
-  // numerically larger than the latter, simply reversing the list of runtime
-  // ID's is sufficient.
-  std::vector<RTID> rts = getRTIDs(initOpts);
-  std::reverse(rts.begin(), rts.end());
-  for (RTID rt : rts)
+  // finalized after the tapir-target-specific runtimes since it may use the
+  // thread id functions from the former.
+  for (RTID rt : getInstrRuntimes(initOpts))
+    finalize(rt);
+
+  for (RTID rt : getTTRuntimes(initOpts))
     finalize(rt);
 }
 
