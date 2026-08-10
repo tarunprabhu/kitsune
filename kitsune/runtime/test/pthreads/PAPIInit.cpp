@@ -1,28 +1,18 @@
 // REQUIRES: kitsune-papi
 //
-// Check that Kitsune's pthreads runtime supports PAPI.
+// The pthreads tapir target should be initialized before PAPI.
 //
-// RUN: %exe | FileCheck %s
+// RUN: KIT_VERBOSE=1 %exe 2>&1 | FileCheck %s
 //
-// CHECK: Before initialize: false
-// CHECK: After initialize: true
+// CHECK: Initializing Kitsune runtime (pthreads)
+// CHECK: Initialized Kitsune runtime (pthreads)
+// CHECK: Initializing Kitsune runtime (papi)
+// CHECK: Initializing PAPI threading support
+// CHECK: Initialized PAPI threading support
+// CHECK: Initialized Kitsune runtime (papi)
 
 #include "TestHelpers.h"
 
-#include "papi.h"
-
-#include <stdio.h>
-
-const KitRTInitOptions initOpts{RT_PAPI | RT_PTHREADS};
-
-__attribute__((constructor)) static void ctor(void) {
-  printf("Before initialize: %s\n", BOOLSTR(PAPI_is_initialized()));
-  __kitrt_initialize(&initOpts);
-  printf("After initialize: %s\n", BOOLSTR(PAPI_is_initialized()));
-}
-
-__attribute__((destructor)) static void dtor(void) {
-  __kitrt_finalize(&initOpts);
-}
+CTOR(RT_PAPI | RT_PTHREADS)
 
 int main(int argc, char *argv[]) { return 0; }
