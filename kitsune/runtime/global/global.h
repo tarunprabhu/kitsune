@@ -166,19 +166,24 @@ public:
   template <typename T> T *takeContext();
 
   /// Check if a context object of the given type exists.
-  template <typename T> inline bool hasContext() const {
+  template <typename T> inline bool has() const {
     return getContextImpl<T>();
   }
 
+  /// Ensure that the context object of the given type has been created.
+  template <typename T> inline void ensure() const {
+    assert(has<T>() && "Kitsune runtime initialized");
+  }
+
   /// Get the context object of the given type. The object must have been set.
-  template <typename T> inline const T &getContext() const {
-    assert(getContextImpl<T>() && "Global singleton context must be set");
+  template <typename T> inline const T &get() const {
+    ensure<T>();
     return *getContextImpl<T>();
   }
 
   /// Get the context object of the given type. The object must have been set.
-  template <typename T> inline T &mutContext() {
-    assert(getContextImpl<T>() && "Global singleton context must be set");
+  template <typename T> inline T &get() {
+    ensure<T>();
     return *getContextImpl<T>();
   }
 };
@@ -226,7 +231,17 @@ extern const KitRTContext &gctx;
 /// Get a non-const reference to the single global context. This should
 /// generally only be used in the various *_initialize functions that are called
 /// from global constructors. This function is not thread-safe.
-KitRTContext &mutKitRTContext();
+KitRTContext &mutCtx();
+
+/// Get a constant reference to a runtime context object. This cannot be used to
+/// get a reference to the singleton object. The requested object must have been
+/// initialized before this is called.
+template <typename T> inline const T &getCtx() { return gctx.get<T>(); }
+
+/// Get a non-const reference to a runtime context object. This cannot be used
+/// to get a reference to the singleton global. The requested object must have
+/// been initialized before this is called.
+template <typename T> inline T &mutCtx() { return mutCtx().get<T>(); }
 
 } // namespace kitrt
 

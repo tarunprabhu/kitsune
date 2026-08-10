@@ -63,6 +63,7 @@
 #include "timer/timer.h"
 #include "common/env.h"
 #include "common/logging.h"
+#include "global/global.h"
 
 #include <ctime>
 
@@ -103,14 +104,13 @@ KitTimerEpoch *KitTimerContext::makeEpoch(const char *name, KitThreadID thrd) {
 }
 
 extern "C" KitTimerEpoch *__kittimer_start(const char *name, KitThreadID thrd) {
-  KitTimerContext::ensure();
-  KitTimerEpoch *epoch = KitTimerContext::mut().addEpoch(name, thrd);
+  KitTimerEpoch *epoch = mutCtx<KitTimerContext>().addEpoch(name, thrd);
   epoch->start();
   return reinterpret_cast<KitTimerEpoch *>(epoch);
 }
 
 extern "C" KitTimeSpan __kittimer_stop(KitTimerEpoch *handle) {
-  KitTimerContext::ensure();
+  gctx.ensure<KitTimerContext>();
   if (KitTimerEpoch *epoch = reinterpret_cast<KitTimerEpoch *>(handle))
     return epoch->stop();
   return 0;

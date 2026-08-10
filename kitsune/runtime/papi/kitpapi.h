@@ -116,11 +116,9 @@ public:
   void writeJSON(FILE *fp) const;
 };
 
-using KitPAPIContextBase = KitInstrBase<KitPAPIContext, KitPAPIEpoch>;
-
 // The global singleton context for all PAPI events in this context.
-class KitPAPIContext : public KitPAPIContextBase {
-  friend KitPAPIContextBase;
+class KitPAPIContext : public KitInstrBase<KitPAPIContext, KitPAPIEpoch> {
+  friend KitInstrBase<KitPAPIContext, KitPAPIEpoch>;
 
 private:
   // The names of PAPI events that are recognized by this context.

@@ -61,6 +61,7 @@
 #include "common/env.h"
 #include "common/logging.h"
 #include "common/utils.h"
+#include "global/global.h"
 
 #include <cassert>
 
@@ -136,11 +137,9 @@ KitThreadID KitOCilkContext::getThreadID() const {
 }
 
 extern "C" uint64_t __kitocilk_num_workers(void) {
-  KitOCilkContext::ensure();
-  return KitOCilkContext::get().getNumThreads();
+  return getCtx<KitOCilkContext>().getNumThreads();
 }
 
 extern "C" KitThreadID __kitocilk_worker_id(void) {
-  KitOCilkContext::ensure();
-  return KitOCilkContext::get().getThreadID();
+  return getCtx<KitOCilkContext>().getThreadID();
 }

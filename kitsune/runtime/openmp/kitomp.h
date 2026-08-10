@@ -57,7 +57,6 @@
 #define KITRT_OPENMP_KITOMP_H
 
 #include "common/thread.h"
-#include "global/singleton.h"
 
 #include <cstdint>
 
@@ -77,7 +76,7 @@ using KitOMPThrdFunc = void(uint64_t start, uint64_t end, void *args);
 
 /// Kitsune runtime the openmp tapir target. All global state required by the
 /// runtime should be owned by this object.
-class KitOMPContext : public KitContextMixin<KitOMPContext> {
+class KitOMPContext {
 public:
   void initialize();
   void finalize();

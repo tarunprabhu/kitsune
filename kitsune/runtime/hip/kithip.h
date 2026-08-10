@@ -57,8 +57,6 @@
 #include <stdlib.h>
 
 #include "common/utils.h"
-#include "global/singleton.h"
-#include "kitrt.h"
 #include "kitsune/Shared/KernelInstMix.h"
 
 #define __HIP_DISABLE_CPP_FUNCTIONS__ // skip extra c++ cruft
@@ -72,7 +70,7 @@ namespace kitrt {
 /// Kitsune runtime the hip tapir target. All global state required by the
 /// runtime should be owned by this object.
 /// FIXME: This tapir target has not been modified to use this.
-class KitHipContext : public KitContextMixin<KitHipContext> {
+class KitHipContext {
 public:
   void initialize();
   void finalize();

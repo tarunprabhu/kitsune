@@ -58,7 +58,6 @@
 #define KITRT_COMMON_INSTR_H
 
 #include "common/thread.h"
-#include "global/singleton.h"
 
 #include <cassert>
 #include <map>
@@ -132,7 +131,7 @@ public:
 /// automatically inserting instrumentation.
 ///
 template <typename T, typename EpochT>
-class KitInstrBase : public KitContextMixin<T> {
+class KitInstrBase {
 protected:
   using Epoch = EpochT;
   using EpochID = std::pair<const char *, KitThreadID>;
@@ -177,8 +176,14 @@ public:
 
     std::lock_guard<std::mutex> guard(mtx);
 
+    // try_emplace will have no effect if the epoch already exists, otherwise,
+    // it will add a new entry with the epoch ID and an empty vector.
     EpochID id = {name, thrd};
     epochs.try_emplace(id);
+
+    // If we are recording each visit of an epoch separately, then we need to
+    // create a new object each time. Otherwise, we only need to create it the
+    // first time this epoch is visited.
     OwnedEpochs &vec = epochs.at(id);
     if (separate || vec.empty())
       vec.emplace_back(static_cast<T *>(this)->makeEpoch(name, thrd, args...));

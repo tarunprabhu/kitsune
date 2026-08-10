@@ -57,7 +57,6 @@
 #define KITRT_OPENCILK_KITOCILK_H
 
 #include "common/thread.h"
-#include "global/singleton.h"
 
 #include <cstdint>
 
@@ -71,7 +70,7 @@ namespace kitrt {
 
 /// Kitsune runtime the opencilk tapir target. All global state required by the
 /// runtime should be owned by this object.
-class KitOCilkContext : public KitContextMixin<KitOCilkContext> {
+class KitOCilkContext {
 public:
   void initialize();
   void finalize();
