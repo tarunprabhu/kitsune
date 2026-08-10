@@ -63,7 +63,7 @@ endif()
 
 if (KITSUNE_COLORS_ENABLED)
   target_compile_definitions(${KITRT_OBJLIB} PUBLIC
-    KITRT_COLORS_ENABLED)
+    KITSUNE_COLORS_ENABLED)
 
   target_include_directories(${KITRT_OBJLIB} SYSTEM PUBLIC
     ${KITSUNE_CURSES_INCDIRS})
@@ -77,7 +77,7 @@ if (KITSUNE_PAPI_ENABLED)
     papi/kitpapi.cpp)
 
   target_compile_definitions(${KITRT_OBJLIB} PUBLIC
-    KITRT_PAPI_ENABLED)
+    KITSUNE_PAPI_ENABLED)
 
   target_include_directories(${KITRT_OBJLIB} SYSTEM PUBLIC
     ${KITSUNE_PAPI_INCDIRS})
@@ -102,7 +102,7 @@ if (KITSUNE_CUDA_ENABLED)
   target_sources(${KITRT_OBJLIB} PUBLIC ${SOURCES})
 
   target_compile_definitions(${KITRT_OBJLIB} PUBLIC
-    KITRT_CUDA_ENABLED)
+    KITSUNE_CUDA_ENABLED)
 
   target_include_directories(${KITRT_OBJLIB} SYSTEM PUBLIC
     ${KITSUNE_CUDA_INCDIRS})
@@ -132,7 +132,7 @@ if (KITSUNE_HIP_ENABLED)
     # could remove it from those headers and only include it here if is required
     # to be defined before any hip headers are included.
     __HIP_PLATFORM_AMD__
-    KITRT_HIP_ENABLED)
+    KITSUNE_HIP_ENABLED)
 
   target_include_directories(${KITRT_OBJLIB} SYSTEM PUBLIC
     ${KITSUNE_HIP_INCDIRS})
@@ -153,7 +153,7 @@ if (KITSUNE_OPENCILK_ENABLED)
   target_sources(${KITRT_OBJLIB} PUBLIC ${SOURCES})
 
   target_compile_definitions(${KITRT_OBJLIB} PUBLIC
-    KITRT_OPENCILK_ENABLED)
+    KITSUNE_OPENCILK_ENABLED)
 
   target_link_libraries(${KITRT_OBJLIB} PUBLIC
     ${KITSUNE_OPENCILK_LIBS})
@@ -171,7 +171,7 @@ if (KITSUNE_OPENMP_ENABLED)
   target_sources(${KITRT_OBJLIB} PUBLIC ${SOURCES})
 
   target_compile_definitions(${KITRT_OBJLIB} PUBLIC
-    KITRT_OPENMP_ENABLED)
+    KITSUNE_OPENMP_ENABLED)
 
   target_include_directories(${KITRT_OBJLIB} SYSTEM PUBLIC
     ${KITSUNE_OPENMP_INCDIRS})
@@ -192,7 +192,7 @@ if (KITSUNE_PTHREADS_ENABLED)
   target_sources(${KITRT_OBJLIB} PUBLIC ${SOURCES})
 
   target_compile_definitions(${KITRT_OBJLIB} PUBLIC
-    KITRT_PTHREADS_ENABLED)
+    KITSUNE_PTHREADS_ENABLED)
 endif ()
 
 if (KITSUNE_QTHREADS_ENABLED)
@@ -207,7 +207,7 @@ if (KITSUNE_QTHREADS_ENABLED)
   target_sources(${KITRT_OBJLIB} PUBLIC ${SOURCES})
 
   target_compile_definitions(${KITRT_OBJLIB} PUBLIC
-    KITRT_QTHREADS_ENABLED)
+    KITSUNE_QTHREADS_ENABLED)
 
   target_include_directories(${KITRT_OBJLIB} SYSTEM PUBLIC
     ${KITSUNE_QTHREADS_INCDIRS})
