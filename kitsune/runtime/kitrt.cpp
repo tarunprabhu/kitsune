@@ -57,30 +57,30 @@
 #include "pthreads/kitpthr.h"
 #include "timer/timer.h"
 
-#ifdef KITRT_COLORS_ENABLED
+#ifdef KITSUNE_COLORS_ENABLED
 #include <curses.h>
 #include <unistd.h>
-#endif // KITRT_COLORS_ENABLED
+#endif // KITSUNE_COLORS_ENABLED
 
-#ifdef KITRT_CUDA_ENABLED
+#ifdef KITSUNE_CUDA_ENABLED
 #include "cuda/kitcuda.h"
-#endif // KITRT_CUDA_ENABLED
+#endif // KITSUNE_CUDA_ENABLED
 
-#ifdef KITRT_HIP_ENABLED
+#ifdef KITSUNE_HIP_ENABLED
 #include "hip/kithip.h"
-#endif // KITRT_HIP_ENABLED
+#endif // KITSUNE_HIP_ENABLED
 
-#ifdef KITRT_OPENCILK_ENABLED
+#ifdef KITSUNE_OPENCILK_ENABLED
 #include "opencilk/kitocilk.h"
-#endif // KITRT_OPENCILK_ENABLED
+#endif // KITSUNE_OPENCILK_ENABLED
 
-#ifdef KITRT_PAPI_ENABLED
+#ifdef KITSUNE_PAPI_ENABLED
 #include "papi/kitpapi.h"
-#endif // KITRT_PAPI_ENABLED
+#endif // KITSUNE_PAPI_ENABLED
 
-#ifdef KITRT_QTHREADS_ENABLED
+#ifdef KITSUNE_QTHREADS_ENABLED
 #include "qthreads/kitqthr.h"
-#endif // KITRT_QTHREADS_ENABLED
+#endif // KITSUNE_QTHREADS_ENABLED
 
 #include <algorithm>
 #include <vector>
@@ -90,7 +90,7 @@ using namespace kitrt;
 static bool terminalHasColors() {
   bool colors = false;
 
-#ifdef KITRT_COLORS_ENABLED
+#ifdef KITSUNE_COLORS_ENABLED
   // Respect the NO_COLOR environment variable. If it is present, don't use
   // colors. Conversely, if FORCE_COLOR is present, always use colors, even
   // when not writing to a tty. If both are present, NO_COLOR takes precedence,
@@ -112,7 +112,7 @@ static bool terminalHasColors() {
     endwin();
     delscreen(scr);
   }
-#endif // KITRT_COLORS_ENABLED
+#endif // KITSUNE_COLORS_ENABLED
 
   return colors;
 }
