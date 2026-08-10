@@ -51,6 +51,7 @@
 #include "kitrt.h"
 #include "common/env.h"
 #include "common/logging.h"
+#include "common/traits.h"
 #include "common/unreachable.h"
 #include "global/global.h"
 #include "openmp/kitomp.h"
@@ -88,8 +89,6 @@
 using namespace kitrt;
 
 static bool terminalHasColors() {
-  bool colors = false;
-
 #ifdef KITSUNE_COLORS_ENABLED
   // Respect the NO_COLOR environment variable. If it is present, don't use
   // colors. Conversely, if FORCE_COLOR is present, always use colors, even
@@ -104,17 +103,22 @@ static bool terminalHasColors() {
   if (envContains("FORCE_COLOR"))
     return true;
 
+  // Don't use colors if stderr is not connected to a terminal
+  if (!isatty(STDERR_FILENO))
+    return false;
+
   // Otherwise, do the "sane" thing and use colors only if the terminal supports
-  // it. If stderr is not connected to a terminal, don't use colors.
-  if (isatty(STDERR_FILENO)) {
-    SCREEN *scr = newterm(NULL, stderr, stdin);
-    colors = has_colors();
-    endwin();
-    delscreen(scr);
-  }
-#endif // KITSUNE_COLORS_ENABLED
+  // it. This creates a terminal curses terminal for the sole purpose of
+  // querying it for color support.
+  SCREEN *scr = newterm(NULL, stderr, stdin);
+  bool colors = has_colors();
+  endwin();
+  delscreen(scr);
 
   return colors;
+#else  // !KITSUNE_COLORS_ENABLED
+  return false;
+#endif // !KITSUNE_COLORS_ENABLED
 }
 
 static std::vector<RTID> getRuntimes(uint64_t raw, uint64_t id0) {
@@ -133,12 +137,8 @@ static std::vector<RTID> getInstrRuntimes(const InitOptions &initOpts) {
   return getRuntimes(initOpts.rts >> 32, 0x100000000ULL);
 }
 
-template <typename T, typename = void> struct is_complete : std::false_type {};
-template <typename T>
-struct is_complete<T, std::void_t<decltype(sizeof(T))>> : std::true_type {};
-
 template <typename T, typename... Args> static void initialize(Args &&...args) {
-  if constexpr (!is_complete<T>::value) {
+  if constexpr (!std::is_complete_v<T>) {
     FATAL("Kitsune runtime has not been enabled (%s)", T::name());
   } else if (T::initialized()) {
     LOG("Kitsune runtime already initialized (%s)", T::name());
@@ -151,7 +151,7 @@ template <typename T, typename... Args> static void initialize(Args &&...args) {
 }
 
 static void initializePAPI(const InitOptions &initOpts) {
-  if constexpr (is_complete<KitPAPIContext>::value) {
+  if constexpr (std::is_complete_v<KitPAPIContext>) {
     auto getThreadIDFunc = [](RTID rt) -> PAPIThreadIDFunc * {
       switch (rt) {
       case RT_OPENCILK: return __kitocilk_worker_id;
@@ -225,7 +225,7 @@ static void initializeCommonRuntime(const InitOptions &initOpts) {
 }
 
 template <typename T> static void finalize() {
-  if constexpr (is_complete<T>::value) {
+  if constexpr (std::is_complete_v<T>) {
     if (T::initialized()) {
       LOG("Finalizing Kitsune runtime (%s)", T::name());
       T::mut().finalize();
