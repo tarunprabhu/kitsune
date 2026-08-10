@@ -7,6 +7,7 @@ set(TESTS
   Empty.cpp
   IterateSingleThread.cpp
   IterateThreads.cpp
+  MultipleThreaded.cpp
   Nested.cpp
   SingleThread.cpp
   Threads.cpp

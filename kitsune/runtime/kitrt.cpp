@@ -154,12 +154,11 @@ static void initializePAPI(const InitOptions &initOpts) {
 
     std::vector<PAPIThreadIDFunc *> getThreadIDFuncs;
     for (RTID rt : getTTRuntimes(initOpts))
-      if (PAPIThreadIDFunc * threadIDFunc = getThreadIDFunc(rt))
+      if (PAPIThreadIDFunc *threadIDFunc = getThreadIDFunc(rt))
         getThreadIDFuncs.push_back(*threadIDFunc);
 
     if (getThreadIDFuncs.size() > 1)
-      WARN("PAPI not initialized. Initialized more than one runtime supporting "
-           "PAPI");
+      FATAL("PAPI not initialized. Initialized multiple threaded CPU runtimes");
     else if (getThreadIDFuncs.size() < 1)
       initialize<PAPIContext>(nullptr);
     else
