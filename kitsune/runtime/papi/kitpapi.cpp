@@ -54,17 +54,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitpapi.h"
+#include "papi/kitpapi.h"
 #include "common/env.h"
 #include "common/logging.h"
 #include "global/global.h"
+#include "papi/context.h"
 
 #include "papi.h"
 
 #include <cstdarg>
 #include <cstring>
 #include <optional>
-#include <sstream>
 #include <vector>
 
 using namespace kitrt;
@@ -124,22 +124,21 @@ static std::vector<PAPIEventID> getAllKnownEvents() {
   return evts;
 }
 
-KitPAPIEpoch::KitPAPIEpoch(const char *name, KitThreadID thrd,
-                           PAPIEventSet evtSet)
-    : KitEpochBase(name, thrd), evtSet(evtSet) {
+PAPIEpoch::PAPIEpoch(const char *name, KitThreadID thrd, PAPIEventSet evtSet)
+    : EpochBase(name, thrd), evtSet(evtSet) {
   counters.reset(new PAPICounter[numEvents()]);
   memset(counters.get(), 0, numEvents() * sizeof(PAPICounter));
 }
 
-unsigned KitPAPIEpoch::numEvents() const { return PAPI_num_events(evtSet); }
+unsigned PAPIEpoch::numEvents() const { return PAPI_num_events(evtSet); }
 
-void KitPAPIEpoch::start() {
+void PAPIEpoch::start() {
   LOG("Starting PAPI counters for epoch '%s' on thread '%ld'", name(), thrd());
 
   // Allocate this before we start recording counters. Strictly speaking, this
   // must be done before PAPI_read, it doesn't have to be done before
   // PAPI_start, but doing it here keeps this function closer to a mirror of
-  // KitPAPIEpoch::stop().
+  // PAPIEpoch::stop().
   init = new PAPICounter[numEvents()];
 
   // Calling PAPI_start the first time can be expensive because PAPI has to
@@ -152,7 +151,7 @@ void KitPAPIEpoch::start() {
   CHECK(PAPI_read(evtSet, init), "read initial values of PAPI counters");
 }
 
-void KitPAPIEpoch::stop() {
+void PAPIEpoch::stop() {
   CHECK(PAPI_accum(evtSet, counters.get()), "accumulate PAPI counters");
   CHECK(PAPI_stop(evtSet, nullptr), "stop PAPI counters");
 
@@ -163,7 +162,7 @@ void KitPAPIEpoch::stop() {
   delete[] init;
 }
 
-void KitPAPIEpoch::writeJSON(FILE *fp) const {
+void PAPIEpoch::writeJSON(FILE *fp) const {
   std::vector<PAPIEventID> evts = getEvents(evtSet);
 
   fprintf(fp, "\n      {");
@@ -178,18 +177,18 @@ void KitPAPIEpoch::writeJSON(FILE *fp) const {
   fprintf(fp, "}");
 }
 
-KitPAPIEpoch *KitPAPIContext::makeEpoch(const char *name, KitThreadID thrd,
-                                        uint32_t n, va_list va) {
+PAPIEpoch *PAPIContext::makeEpoch(const char *name, KitThreadID thrd,
+                                  uint32_t n, va_list va) {
   EpochID id = {name, thrd};
   auto it = evtSets.find(id);
   if (it != evtSets.end())
-    return new KitPAPIEpoch(name, thrd, it->second);
+    return new PAPIEpoch(name, thrd, it->second);
 
   PAPIEventSet evtSet = PAPI_NULL;
   if (int err = PAPI_create_eventset(&evtSet)) {
     handleError("Could not create PAPI event set", err);
     evtSets.emplace(id, PAPI_NULL);
-    return new KitPAPIEpoch(name, thrd, PAPI_NULL);
+    return new PAPIEpoch(name, thrd, PAPI_NULL);
   }
 
   for (uint32_t i = 0; i < n; ++i) {
@@ -215,10 +214,10 @@ KitPAPIEpoch *KitPAPIContext::makeEpoch(const char *name, KitThreadID thrd,
   }
   evtSets.emplace(id, evtSet);
 
-  return new KitPAPIEpoch(name, thrd, evtSet);
+  return new PAPIEpoch(name, thrd, evtSet);
 }
 
-void KitPAPIContext::initialize(PAPIThreadIDFunc *getThreadID) {
+void PAPIContext::initialize(PAPIThreadIDFunc *getThreadID) {
   LOG("Initializing PAPI library");
   if (int rv = PAPI_library_init(PAPI_VER_CURRENT))
     if (rv != PAPI_VER_CURRENT)
@@ -261,7 +260,7 @@ void KitPAPIContext::initialize(PAPIThreadIDFunc *getThreadID) {
   }
 }
 
-void KitPAPIContext::finalize() {
+void PAPIContext::finalize() {
   writeJSON(envPAPIFile);
 
   for (auto &[_, evtSet] : evtSets) {
@@ -276,18 +275,22 @@ void KitPAPIContext::finalize() {
   LOG("Finalized PAPI library");
 }
 
+// -----------------------------------------------------------------------------
+// Everything below this is the public interface.
+
 extern "C" KitPAPIEpoch *__kitpapi_start(const char *name, KitThreadID thrd,
                                          uint32_t n, ...) {
   va_list va;
   va_start(va, n);
-  KitPAPIEpoch *epoch = mutCtx<KitPAPIContext>().addEpoch(name, thrd, n, va);
+  PAPIEpoch *epoch = mutCtx<PAPIContext>().addEpoch(name, thrd, n, va);
   va_end(va);
 
   epoch->start();
-  return epoch;
+  return reinterpret_cast<KitPAPIEpoch *>(epoch);
 }
 
-extern "C" void __kitpapi_stop(KitPAPIEpoch *epoch) {
-  gctx.ensure<KitPAPIContext>();
-  epoch->stop();
+extern "C" void __kitpapi_stop(KitPAPIEpoch *handle) {
+  gctx.ensure<PAPIContext>();
+  if (auto *epoch = reinterpret_cast<PAPIEpoch *>(handle))
+    epoch->stop();
 }

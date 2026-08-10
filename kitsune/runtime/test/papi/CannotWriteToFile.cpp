@@ -13,8 +13,7 @@
 CTOR(RT_PAPI)
 
 int main(int argc, char *argv[]) {
-  kitrt::KitPAPIEpoch *e =
-      __kitpapi_start("lakme", /*thread=*/0, 2, "inst", "cyc");
+  KitPAPIEpoch *e = __kitpapi_start("lakme", /*thread=*/0, 2, "inst", "cyc");
   __kitpapi_stop(e);
 
   return 0;

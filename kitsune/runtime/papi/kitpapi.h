@@ -56,92 +56,17 @@
 #ifndef KITRT_COMMON_KITPAPI_H
 #define KITRT_COMMON_KITPAPI_H
 
-#include "common/instr.h"
 #include "common/thread.h"
 
-#include <cstdint>
-#include <map>
-#include <memory>
+#include <stdint.h>
 
 #ifdef __cplusplus
-#define EXTERN_C extern "C"
-#else // !__cplusplus
-#define EXTERN_C
-#endif // !__cplusplus
+extern "C" {
+#endif // __cplusplus
 
-namespace kitrt {
-
-/// The type of the function that returns the ID of a thread.
-using PAPIThreadIDFunc = unsigned long(void);
-
-using PAPICounter = long long;
-using PAPIEventID = int;
-using PAPIEventSet = int;
-
-/// A PAPI epoch is a Single-Entry-Single-Exit (SESE) region of code, bounded by
-/// calls to \ref __kitpapi_start and \ref __kitpapi_stop, during which PAPI
-/// events are recorded. The epoch is given a name that ought to be meaningful
-/// to the user. A set of PAPI events is collected during an epoch. An epoch may
-/// be started on each thread in a multi-threaded context, or on the main thread
-/// of a single-threaded program.
-///
-/// This struct represents a single epoch. An instance is created by
-/// \ref __kitpapi_new. It can be used, exactly once, to start and stop
-/// recording events.
-class KitPAPIEpoch : public KitEpochBase {
-private:
-  PAPIEventSet evtSet;
-
-  // The initial values of the counters. These are read after PAPI_start is
-  // called. This is a temporary buffer and will be allocated in
-  // KitPAPIEpoch::start() and freed in KitPAPIEpoch::stop().
-  PAPICounter *init = nullptr;
-
-  std::unique_ptr<PAPICounter[]> counters;
-
-private:
-  unsigned numEvents() const;
-
-public:
-  KitPAPIEpoch() = delete;
-  KitPAPIEpoch(const KitPAPIEpoch &) = delete;
-  KitPAPIEpoch(KitPAPIEpoch &&) = delete;
-  KitPAPIEpoch &operator=(const KitPAPIEpoch &) = delete;
-  KitPAPIEpoch &operator=(KitPAPIEpoch &&) = delete;
-
-  KitPAPIEpoch(const char *name, KitThreadID thrd, PAPIEventSet evtSet);
-
-  void start();
-  void stop();
-  void writeJSON(FILE *fp) const;
-};
-
-// The global singleton context for all PAPI events in this context.
-class KitPAPIContext : public KitInstrBase<KitPAPIContext, KitPAPIEpoch> {
-  friend KitInstrBase<KitPAPIContext, KitPAPIEpoch>;
-
-private:
-  // The names of PAPI events that are recognized by this context.
-  std::map<std::string, PAPIEventID> evtNames;
-  std::map<EpochID, PAPIEventSet> evtSets;
-
-protected:
-  KitPAPIEpoch *makeEpoch(const char *name, KitThreadID thrd, uint32_t n,
-                          va_list va);
-
-public:
-  // Initialize PAPI. If PAPI is to be used in a multi-threaded context, provide
-  // a function to get the ID of the thread from which the function was called.
-  // This may be nullptr, in which case, PAPI is assumed to be running in a
-  // single-threaded context.
-  void initialize(PAPIThreadIDFunc *getThreadID);
-  void finalize();
-
-public:
-  static const char *name() { return "papi"; }
-};
-
-} // namespace kitrt
+/// Opaque epoch object returned by __kitpapi_start. This must be passed to
+/// __kitpapi_stop.
+struct KitPAPIEpoch;
 
 /// Start a PAPI epoch. \p name must be a globally unique name for the epoch. By
 /// globally unique, we mean that it must be guaranteed not to collide with any
@@ -153,12 +78,15 @@ public:
 /// can be recorded. If any of these are not recognized, or if the events are
 /// not available on the system where this is being run, a warning message will
 /// be printed.
-EXTERN_C kitrt::KitPAPIEpoch *
-__kitpapi_start(const char *name, KitThreadID thrd, uint32_t n, ...);
+KitPAPIEpoch *__kitpapi_start(const char *name, KitThreadID thrd, uint32_t n,
+                              ...);
 
 /// Stop collecting events. \p epoch must be an epoch previously created by a
 /// __kitpapi_new*.
-EXTERN_C void __kitpapi_stop(kitrt::KitPAPIEpoch *epoch);
+void __kitpapi_stop(KitPAPIEpoch *epoch);
 
-#undef EXTERN_C
+#ifdef __cplusplus
+} // extern "C"
+#endif // __cplusplus
+
 #endif // KITRT_COMMON_KITPAPI_H

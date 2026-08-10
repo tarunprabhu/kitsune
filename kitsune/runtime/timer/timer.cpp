@@ -50,13 +50,13 @@
 //===----------------------------------------------------------------------===//
 //
 // This is intended to be a convenient interface to collect times in code
-// compiled with Kitsune. While other generic instrumentation interfaces, such
-// as LLVM's Xray, these typically work at the level of functions, while we
-// are interested in adding instrumentation for Kitsune's language constructs.
-// We also need to be able to time both within and across threads. Having
-// something customized should make it easier to use and maintain. This is not
-// intended to be production-quality, but good enough to allow us to perform
-// experiments quickly.
+// compiled with Kitsune. Other generic instrumentation interfaces, such as
+// LLVM's Xray, typically work at the level of functions, we are interested in
+// adding instrumentation for Kitsune's language constructs. We also need to be
+// able to time both within and across threads. Having something customized
+// should make it easier to use and maintain. This is not intended to be
+// production-quality, but good enough to allow us to perform experiments
+// quickly.
 //
 //===----------------------------------------------------------------------===//
 
@@ -64,6 +64,7 @@
 #include "common/env.h"
 #include "common/logging.h"
 #include "global/global.h"
+#include "timer/context.h"
 
 #include <ctime>
 
@@ -71,47 +72,48 @@ using namespace kitrt;
 
 /// A time point. This is generally the wallclock time, in nanoseconds, since
 /// the epoch.
-using KitTimePoint = KitTimeSpan;
+using TimePoint = TimeSpan;
 
 // The number of nanoseconds since the epoch. This uses CLOCK_REALTIME to get
 // wall-clock time. This is susceptible to changes to the system time. This is
 // not a situation that we need to defend against.
-static KitTimePoint nsecs() {
+static TimePoint nsecs() {
   timespec ts;
   clock_gettime(CLOCK_REALTIME, &ts);
   return ts.tv_sec * 1000000000 + ts.tv_nsec;
 }
 
-KitTimerEpoch::KitTimerEpoch(const char *name, KitThreadID thrd)
-    : KitEpochBase(name, thrd) {}
+TimerEpoch::TimerEpoch(const char *name, KitThreadID thrd)
+    : EpochBase(name, thrd) {}
 
-void KitTimerEpoch::start() { span -= nsecs(); }
+void TimerEpoch::start() { span -= nsecs(); }
 
-KitTimeSpan KitTimerEpoch::stop() { return span += nsecs(); }
+TimeSpan TimerEpoch::stop() { return span += nsecs(); }
 
-void KitTimerEpoch::writeJSON(FILE *fp) const {
-  fprintf(fp, "\n      %ld", span);
-}
+void TimerEpoch::writeJSON(FILE *fp) const { fprintf(fp, "\n      %ld", span); }
 
-void KitTimerContext::initialize() {
+void TimerContext::initialize() {
   // Nothing to be done here.
 }
 
-void KitTimerContext::finalize() { writeJSON(envTimingFile); }
+void TimerContext::finalize() { writeJSON(envTimingFile); }
 
-KitTimerEpoch *KitTimerContext::makeEpoch(const char *name, KitThreadID thrd) {
-  return new KitTimerEpoch(name, thrd);
+TimerEpoch *TimerContext::makeEpoch(const char *name, KitThreadID thrd) {
+  return new TimerEpoch(name, thrd);
 }
 
+// -----------------------------------------------------------------------------
+// Everything below this is the public interface.
+
 extern "C" KitTimerEpoch *__kittimer_start(const char *name, KitThreadID thrd) {
-  KitTimerEpoch *epoch = mutCtx<KitTimerContext>().addEpoch(name, thrd);
+  TimerEpoch *epoch = mutCtx<TimerContext>().addEpoch(name, thrd);
   epoch->start();
   return reinterpret_cast<KitTimerEpoch *>(epoch);
 }
 
 extern "C" KitTimeSpan __kittimer_stop(KitTimerEpoch *handle) {
-  gctx.ensure<KitTimerContext>();
-  if (KitTimerEpoch *epoch = reinterpret_cast<KitTimerEpoch *>(handle))
+  gctx.ensure<TimerContext>();
+  if (auto *epoch = reinterpret_cast<TimerEpoch *>(handle))
     return epoch->stop();
   return 0;
 }

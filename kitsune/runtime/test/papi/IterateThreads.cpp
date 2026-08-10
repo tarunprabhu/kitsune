@@ -49,10 +49,12 @@
 #include "openmp/kitomp.h"
 #include "papi/kitpapi.h"
 
+#include <stddef.h>
+
 CTOR(RT_PAPI | RT_OPENMP)
 
 static void thrdFn(uint64_t start, uint64_t stop, void *args) {
-  kitrt::KitPAPIEpoch *e =
+  KitPAPIEpoch *e =
       __kitpapi_start("remendado", __kitomp_thread_id(), 1, "cyc");
   __kitpapi_stop(e);
 }

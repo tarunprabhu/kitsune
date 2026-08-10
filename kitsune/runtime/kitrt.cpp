@@ -128,18 +128,22 @@ template <typename T, typename... Args> static void initialize(Args &&...args) {
   }
 }
 
+template <typename T> static KitThreadID getThreadID() {
+  return getCtx<T>().getThreadID();
+}
+
 static void initializePAPI(const InitOptions &initOpts) {
-  if constexpr (!std::is_complete_v<KitPAPIContext>) {
-    FATAL("Kitsune runtime has not been enabled (%s)", KitPAPIContext::name());
+  if constexpr (!std::is_complete_v<PAPIContext>) {
+    FATAL("Kitsune runtime has not been enabled (%s)", PAPIContext::name());
   } else {
     auto getThreadIDFunc = [](RTID rt) -> PAPIThreadIDFunc * {
       // This switch must be updated when a new threaded runtime that supports
       // PAPI is added.
       switch (rt) {
-      case RT_OPENCILK: return __kitocilk_worker_id;
-      case RT_OPENMP: return __kitomp_thread_id;
-      case RT_PTHREADS: return __kitpthr_thread_id;
-      case RT_QTHREADS: return __kitqthr_worker_id;
+      case RT_OPENCILK: return getThreadID<OpenCilkContext>;
+      case RT_OPENMP: return getThreadID<OpenMPContext>;
+      case RT_PTHREADS: return getThreadID<PthreadsContext>;
+      case RT_QTHREADS: return getThreadID<QthreadsContext>;
       case RT_CUDA:
       case RT_HIP: return nullptr;
       case RT_PAPI:
@@ -150,29 +154,29 @@ static void initializePAPI(const InitOptions &initOpts) {
 
     std::vector<PAPIThreadIDFunc *> getThreadIDFuncs;
     for (RTID rt : getTTRuntimes(initOpts))
-      if (std::optional<PAPIThreadIDFunc *> threadIDFunc = getThreadIDFunc(rt))
+      if (PAPIThreadIDFunc * threadIDFunc = getThreadIDFunc(rt))
         getThreadIDFuncs.push_back(*threadIDFunc);
 
     if (getThreadIDFuncs.size() > 1)
       WARN("PAPI not initialized. Initialized more than one runtime supporting "
            "PAPI");
     else if (getThreadIDFuncs.size() < 1)
-      initialize<KitPAPIContext>(nullptr);
+      initialize<PAPIContext>(nullptr);
     else
-      initialize<KitPAPIContext>(getThreadIDFuncs[0]);
+      initialize<PAPIContext>(getThreadIDFuncs[0]);
   }
 }
 
 static void initialize(const InitOptions &initOpts, RTID rt) {
   switch (rt) {
-  case RT_CUDA: return initialize<KitCudaContext>();
-  case RT_HIP: return initialize<KitHipContext>();
-  case RT_OPENCILK: return initialize<KitOCilkContext>();
-  case RT_OPENMP: return initialize<KitOMPContext>();
+  case RT_CUDA: return initialize<CudaContext>();
+  case RT_HIP: return initialize<HipContext>();
+  case RT_OPENCILK: return initialize<OpenCilkContext>();
+  case RT_OPENMP: return initialize<OpenMPContext>();
   case RT_PAPI: return initializePAPI(initOpts);
-  case RT_PTHREADS: return initialize<KitPthrContext>();
-  case RT_QTHREADS: return initialize<KitQthrContext>();
-  case RT_TIMER: return initialize<KitTimerContext>();
+  case RT_PTHREADS: return initialize<PthreadsContext>();
+  case RT_QTHREADS: return initialize<QthreadsContext>();
+  case RT_TIMER: return initialize<TimerContext>();
   }
   FATAL("initializeRuntimes: RTID not handled");
 }
@@ -221,14 +225,14 @@ template <typename T> static void finalize() {
 
 static void finalize(RTID rt) {
   switch (rt) {
-  case RT_CUDA: return finalize<KitCudaContext>();
-  case RT_HIP: return finalize<KitHipContext>();
-  case RT_OPENCILK: return finalize<KitOCilkContext>();
-  case RT_OPENMP: return finalize<KitOMPContext>();
-  case RT_PAPI: return finalize<KitPAPIContext>();
-  case RT_PTHREADS: return finalize<KitPthrContext>();
-  case RT_QTHREADS: return finalize<KitQthrContext>();
-  case RT_TIMER: return finalize<KitTimerContext>();
+  case RT_CUDA: return finalize<CudaContext>();
+  case RT_HIP: return finalize<HipContext>();
+  case RT_OPENCILK: return finalize<OpenCilkContext>();
+  case RT_OPENMP: return finalize<OpenMPContext>();
+  case RT_PAPI: return finalize<PAPIContext>();
+  case RT_PTHREADS: return finalize<PthreadsContext>();
+  case RT_QTHREADS: return finalize<QthreadsContext>();
+  case RT_TIMER: return finalize<TimerContext>();
   }
   FATAL("initializeRuntimes: RTID not handled");
 }

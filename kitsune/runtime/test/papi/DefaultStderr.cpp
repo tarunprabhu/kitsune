@@ -21,8 +21,7 @@
 CTOR(RT_PAPI)
 
 int main(int argc, char *argv[]) {
-  kitrt::KitPAPIEpoch *e =
-      __kitpapi_start("micaela", /*thread=*/0, 2, "ins", "cyc");
+  KitPAPIEpoch *e = __kitpapi_start("micaela", /*thread=*/0, 2, "ins", "cyc");
   __kitpapi_stop(e);
 
   return 0;
