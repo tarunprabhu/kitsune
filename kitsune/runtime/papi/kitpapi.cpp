@@ -57,6 +57,7 @@
 #include "kitpapi.h"
 #include "common/env.h"
 #include "common/logging.h"
+#include "global/global.h"
 
 #include "papi.h"
 
@@ -262,6 +263,7 @@ void KitPAPIContext::initialize(PAPIThreadIDFunc *getThreadID) {
 
 void KitPAPIContext::finalize() {
   writeJSON(envPAPIFile);
+
   for (auto &[_, evtSet] : evtSets) {
     if (int err = PAPI_cleanup_eventset(evtSet))
       handleError("Could not cleanup event set", err);
@@ -276,10 +278,9 @@ void KitPAPIContext::finalize() {
 
 extern "C" KitPAPIEpoch *__kitpapi_start(const char *name, KitThreadID thrd,
                                          uint32_t n, ...) {
-  KitPAPIContext::ensure();
   va_list va;
   va_start(va, n);
-  KitPAPIEpoch *epoch = KitPAPIContext::mut().addEpoch(name, thrd, n, va);
+  KitPAPIEpoch *epoch = mutCtx<KitPAPIContext>().addEpoch(name, thrd, n, va);
   va_end(va);
 
   epoch->start();
@@ -287,6 +288,6 @@ extern "C" KitPAPIEpoch *__kitpapi_start(const char *name, KitThreadID thrd,
 }
 
 extern "C" void __kitpapi_stop(KitPAPIEpoch *epoch) {
-  KitPAPIContext::ensure();
+  gctx.ensure<KitPAPIContext>();
   epoch->stop();
 }

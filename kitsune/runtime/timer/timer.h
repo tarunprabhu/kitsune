@@ -95,13 +95,11 @@ public:
   void writeJSON(FILE *fp) const;
 };
 
-using KitTimerContextBase = KitInstrBase<KitTimerContext, KitTimerEpoch>;
-
 // A class that wraps all the timers created in the application. A singleton
 // instance of this class will be created in the global constructor and will
 // live till the global destructor is run.
-class KitTimerContext : public KitTimerContextBase {
-  friend KitTimerContextBase;
+class KitTimerContext : public KitInstrBase<KitTimerContext, KitTimerEpoch> {
+  friend KitInstrBase<KitTimerContext, KitTimerEpoch>;
 
 protected:
   KitTimerEpoch *makeEpoch(const char *name, KitThreadID thrd);

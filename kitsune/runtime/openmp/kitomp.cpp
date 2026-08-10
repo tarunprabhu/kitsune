@@ -53,6 +53,7 @@
 #include "common/env.h"
 #include "common/logging.h"
 #include "common/utils.h"
+#include "global/global.h"
 
 // This is an internal header in LLVM's OpenMP runtime. The path is relative
 // to ${LLVM_MONOREPO_SOURCE_DIR}/openmp/runtime/src.
@@ -175,17 +176,14 @@ void KitOMPContext::launch(KitOMPThrdFunc *f, uint64_t start, uint64_t end,
 }
 
 extern "C" uint64_t __kitomp_num_threads(void) {
-  KitOMPContext::ensure();
-  return KitOMPContext::get().getNumThreads();
+  return getCtx<KitOMPContext>().getNumThreads();
 }
 
 extern "C" KitThreadID __kitomp_thread_id(void) {
-  KitOMPContext::ensure();
-  return KitOMPContext::get().getThreadID();
+  return getCtx<KitOMPContext>().getThreadID();
 }
 
 extern "C" void __kitomp_launch(KitOMPThrdFunc *f, uint64_t start, uint64_t end,
                                 void *args, [[maybe_unused]] uint32_t argSize) {
-  KitOMPContext::ensure();
-  KitOMPContext::mut().launch(f, start, end, args, argSize);
+  mutCtx<KitOMPContext>().launch(f, start, end, args, argSize);
 }

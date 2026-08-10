@@ -57,6 +57,7 @@
 #include "common/env.h"
 #include "common/logging.h"
 #include "common/utils.h"
+#include "global/global.h"
 
 #include <cassert>
 #include <cstring>
@@ -216,23 +217,19 @@ void KitPthrContext::sync(KitPthrLaunchContext *ctx) {
 }
 
 extern "C" uint64_t __kitpthr_num_threads(void) {
-  KitPthrContext::ensure();
-  return KitPthrContext::get().getNumThreads();
+  return getCtx<KitPthrContext>().getNumThreads();
 }
 
 extern "C" KitThreadID __kitpthr_thread_id(void) {
-  KitPthrContext::ensure();
-  return KitPthrContext::get().getThreadID();
+  return getCtx<KitPthrContext>().getThreadID();
 }
 
 extern "C" KitPthrLaunchContext *
 __kitpthr_async_launch(KitPthrThrdFunc *f, uint64_t start, uint64_t end,
                        void *args, uint32_t argSize) {
-  KitPthrContext::ensure();
-  return KitPthrContext::mut().launch(f, start, end, args, argSize);
+  return mutCtx<KitPthrContext>().launch(f, start, end, args, argSize);
 }
 
 extern "C" void __kitpthr_sync(KitPthrLaunchContext *ctx) {
-  KitPthrContext::ensure();
-  KitPthrContext::mut().sync(ctx);
+  mutCtx<KitPthrContext>().sync(ctx);
 }
