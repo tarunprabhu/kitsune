@@ -339,8 +339,11 @@ def WarnInstrumentNestedLoop
 def WarnInstrumentNoSync
   : Warning<"cannot instrument loop without unique sync instruction">;
 
-def WarnInstrumentThreadsGPU
-  : Warning<"cannot instrument threads in loop with GPU-centric tapir target">;
+def WarnInstrumentLoopPAPI
+  : Warning<"cannot add PAPI instrumentation to loop with tapir target '{}'">;
+
+def WarnInstrumentThreads
+  : Warning<"cannot instrument threads in loop with tapir target '{}'">;
 
 def WarnInstrumentThreadsSerial
   : Warning<"cannot instrument threads in loop with serial tapir target">;

@@ -4,7 +4,7 @@
 ; RUN:     --kit-instr-unit=thread  --kit-instr=generic 2>&1 \
 ; RUN:     | FileCheck %s
 ;
-; CHECK: cannot instrument threads in loop with serial tapir target
+; CHECK: cannot instrument threads in loop with tapir target 'serial'
 ; CHECK-NEXT: from loop 'serial'
 ;
 ; CHECK-LABEL: @f

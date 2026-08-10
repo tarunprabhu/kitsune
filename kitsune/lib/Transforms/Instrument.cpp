@@ -17,6 +17,7 @@
 #include "kitsune/Core/LibFuncs.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
+#include "kitsune/Core/TTUtils.h"
 #include "kitsune/Support/CommandLineOptions.h"
 #include "llvm/Analysis/DomTreeUpdater.h"
 #include "llvm/Analysis/LoopInfo.h"
@@ -48,6 +49,7 @@ private:
   void addStop(InstrumentKind kind, Value *epoch, InsertPosition pt);
   bool addInstrumentation(StringRef name, InsertPosition startPt,
                           InsertPosition endPt,
+                          const SmallVectorImpl<InstrumentKind> &kinds,
                           std::optional<TTID> tt = std::nullopt);
   bool instrumentLoop(Loop &loop);
   bool instrumentLoops(Function &f);
@@ -123,10 +125,12 @@ void InstrumentImpl::addStop(InstrumentKind kind, Value *epoch,
   (void)CallInst::Create(stopFn, epoch, "", pt);
 }
 
-bool InstrumentImpl::addInstrumentation(StringRef name, InsertPosition startPt,
-                                        InsertPosition endPt,
-                                        std::optional<TTID> tt) {
-  SmallVector<InstrumentKind, 1> kinds = instrOpts.getKinds();
+bool InstrumentImpl::addInstrumentation(
+    StringRef name, InsertPosition startPt, InsertPosition endPt,
+    const SmallVectorImpl<InstrumentKind> &kinds, std::optional<TTID> tt) {
+  if (kinds.empty())
+    return false;
+
   SmallVector<Value *, 1> epochs(kinds.size(), nullptr);
 
   for (unsigned i = 0, e = epochs.size(); i < e; ++i)
@@ -212,21 +216,30 @@ bool InstrumentImpl::instrumentLoop(Loop &loop) {
                                  "kit.instr.stop", /*Before=*/true);
   InsertPosition endPt = bbEnd->begin();
 
-  StringRef name = getName(loop);
-  bool changed = addInstrumentation(name, startPt, endPt);
+  std::string name = getName(loop);
+  SmallVector<InstrumentKind, 1> kinds;
+  for (InstrumentKind kind : instrOpts.getKinds())
+    if (!(kind == InstrumentKind::PAPI && isGPUTT(*getTargetAttr(loop))))
+      kinds.push_back(kind);
 
-  return changed;
+  return addInstrumentation(name, startPt, endPt, kinds);
 }
 
 bool InstrumentImpl::instrumentLoops(Function &f) {
   bool changed = false;
   for (Loop *loop : li.getLoopsInPreorder()) {
-    StringRef name = getName(*loop);
+    std::string name = getName(*loop);
     if (!isTapirLoop(*loop) || !instrOpts.shouldInstrument(name)) {
       continue;
     } else if (!isTopLevelTapirLoop(*loop)) {
       emitDiagnostic(*loop, DiagID::WarnInstrumentNestedLoop);
       continue;
+    } else if (isTopLevelTapirLoopForGPU(*loop) &&
+               instrOpts.enabled(InstrumentKind::PAPI)) {
+      emitDiagnostic(*loop, DiagID::WarnInstrumentLoopPAPI,
+                     *getTargetAttr(*loop));
+      // There may be other kinds of instrumentation that have been enabled. So
+      // we will try to instrument the loop, just not with PAPI.
     }
 
     SyncInst *syncInst = getTapirLoopUniqueSyncInst(*loop);
@@ -303,27 +316,25 @@ bool InstrumentImpl::instrumentThreads(Loop &loop) {
                                  "kit.instr.stop", /*Before=*/false);
   InsertPosition endPt = bbEnd->begin();
 
-  StringRef name = getName(loop);
-  TTID tt = *getTargetAttr(loop);
-  bool changed = addInstrumentation(name, startPt, endPt, tt);
+  std::string name = getName(loop);
+  std::optional<TTID> tt = getTargetAttr(loop);
+  SmallVector<InstrumentKind, 1> kinds = instrOpts.getKinds();
 
-  return changed;
+  return addInstrumentation(name, startPt, endPt, kinds, tt);
 }
 
 bool InstrumentImpl::instrumentThreads(Function &f) {
   bool changed = false;
   for (Loop *loop : li.getLoopsInPreorder()) {
-    StringRef name = getName(*loop);
+    std::string name = getName(*loop);
+    TTID tt = *getTargetAttr(*loop);
     if (!isTapirLoop(*loop) || !instrOpts.shouldInstrument(name)) {
-      continue;
-    } else if (isTopLevelTapirLoopForGPU(*loop)) {
-      emitDiagnostic(*loop, DiagID::WarnInstrumentThreadsGPU);
       continue;
     } else if (!isTopLevelTapirLoop(*loop)) {
       emitDiagnostic(*loop, DiagID::WarnInstrumentNestedLoop);
       continue;
-    } else if (getTargetAttr(*loop) == TTID::Serial) {
-      emitDiagnostic(*loop, DiagID::WarnInstrumentThreadsSerial);
+    } else if (isTopLevelTapirLoopForGPU(*loop) || tt == TTID::Serial) {
+      emitDiagnostic(*loop, DiagID::WarnInstrumentThreads, tt);
       continue;
     }
     changed |= instrumentThreads(*loop);
