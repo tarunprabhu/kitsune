@@ -34,7 +34,7 @@ CTOR(RT_PAPI)
 
 int main(int argc, char *argv[]) {
   for (unsigned i = 0; i < 3; ++i) {
-    kitrt::KitPAPIEpoch *e = __kitpapi_start("carmen", /*thread=*/0, 1, "cyc");
+    KitPAPIEpoch *e = __kitpapi_start("carmen", /*thread=*/0, 1, "cyc");
     __kitpapi_stop(e);
   }
 

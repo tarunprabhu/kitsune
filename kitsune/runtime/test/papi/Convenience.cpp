@@ -46,7 +46,7 @@
 CTOR(RT_PAPI)
 
 int main(int argc, char *argv[]) {
-  kitrt::KitPAPIEpoch *e = __kitpapi_start(
+  KitPAPIEpoch *e = __kitpapi_start(
       "mallika", /*thread=*/0, 30, "l1d", "l2d", "l3d", "l1i", "l2i", "l3i",
       "l1t", "l2t", "l3t", "l1ld", "l2ld", "l3ld", "l1st", "l2st", "l3st",
       "tlbd", "tlbi", "tlbt", "ins", "inst", "vec", "ld", "st", "br", "int",

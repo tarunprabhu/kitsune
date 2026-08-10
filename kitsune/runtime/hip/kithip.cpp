@@ -117,7 +117,7 @@ extern "C" void __kithip_dump_dev_properties(hipDeviceProp_t &props) {
        << " GB" << endl;
 }
 
-void KitHipContext::initialize() {
+void HipContext::initialize() {
   using namespace kithip_rt;
 
   // AMD's documentation suggests that there is no need to explicitly call
@@ -180,7 +180,7 @@ void KitHipContext::initialize() {
   setInitialized(true);
 }
 
-void KitHipContext::finalize() {
+void HipContext::finalize() {
   using namespace kithip_rt;
 
   __kithip_destroy_thread_streams();

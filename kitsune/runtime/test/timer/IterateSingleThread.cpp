@@ -41,9 +41,9 @@
 CTOR(RT_TIMER)
 
 int main(int argc, char *argv[]) {
-  kitrt::KitTimerEpoch *eo = __kittimer_start("papageno", /*thread=*/0);
+  KitTimerEpoch *eo = __kittimer_start("papageno", /*thread=*/0);
   for (unsigned i = 0; i < 3; ++i) {
-    kitrt::KitTimerEpoch *ei = __kittimer_start("kinder", /*thread=*/0);
+    KitTimerEpoch *ei = __kittimer_start("kinder", /*thread=*/0);
     __kittimer_stop(ei);
   }
   __kittimer_stop(eo);

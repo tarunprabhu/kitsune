@@ -58,38 +58,22 @@
 
 #include "common/thread.h"
 
-#include <cstdint>
+#include <stdint.h>
 
 #ifdef __cplusplus
-#define EXTERN_C extern "C"
-#else // !__cplusplus
-#define EXTERN_C
-#endif // !__cplusplus
-
-namespace kitrt {
-
-/// Kitsune runtime the opencilk tapir target. All global state required by the
-/// runtime should be owned by this object.
-class KitOCilkContext {
-public:
-  void initialize();
-  void finalize();
-  uint64_t getNumThreads() const;
-  KitThreadID getThreadID() const;
-
-public:
-  static inline const char *name() { return "opencilk"; }
-};
-
-} // namespace kitrt
+extern "C" {
+#endif // __cplusplus
 
 /// Get the number of workers available for parallel work. For consistency, this
 /// function should be used when this must be queried instead of calling
 /// `__cilkrts_get_nworkers` directly.
-EXTERN_C uint64_t __kitocilk_num_workers(void);
+uint64_t __kitocilk_num_workers(void);
 
 /// Get the ID of the worker from which this is called.
-EXTERN_C KitThreadID __kitocilk_worker_id(void);
+KitThreadID __kitocilk_worker_id(void);
 
-#undef EXTERN_C
+#ifdef __cplusplus
+} // extern "C"
+#endif // __cplusplus
+
 #endif // KITRT_OPENCILK_KITOCILK_H

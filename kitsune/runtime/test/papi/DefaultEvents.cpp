@@ -68,7 +68,7 @@ int main(int argc, char *argv[]) {
       evtNotAvail = evts[i].name;
   }
 
-  kitrt::KitPAPIEpoch *e =
+  KitPAPIEpoch *e =
       __kitpapi_start("hadji", /*thread=*/0, 2, evtAvail, evtNotAvail);
   __kitpapi_stop(e);
 

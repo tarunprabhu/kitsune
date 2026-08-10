@@ -70,7 +70,7 @@ namespace kitrt {
 /// Kitsune runtime the hip tapir target. All global state required by the
 /// runtime should be owned by this object.
 /// FIXME: This tapir target has not been modified to use this.
-class KitHipContext {
+class HipContext {
 public:
   void initialize();
   void finalize();

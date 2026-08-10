@@ -53,11 +53,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitpthr.h"
+#include "pthreads/kitpthr.h"
 #include "common/env.h"
 #include "common/logging.h"
 #include "common/utils.h"
 #include "global/global.h"
+#include "pthreads/context.h"
 
 #include <cassert>
 #include <cstring>
@@ -71,12 +72,12 @@ using namespace kitrt;
 namespace kitrt {
 
 /// The type of the pthread start function.
-using PthreadStartFunc = void *(*)(void *);
+using PthrStartFunc = void *(void *);
 
 /// Metadata for each thread. This is passed to the thread launch function and
 /// also contains the arguments to be passed to the "actual" thread function.
-struct KitPthrThread {
-  KitPthrThrdFunc *f;
+struct Pthread {
+  PthrThrdFunc *f;
   int64_t tid;
   void *args;
   pthread_t pthr;
@@ -86,8 +87,8 @@ struct KitPthrThread {
 /// The launch context object. An instance is created by
 /// \ref __kitpthr_async_launch, This should be passed to __kitpthr_sync where
 /// it will be deleted.
-struct KitPthrLaunchContext {
-  std::vector<KitPthrThread> thrds;
+struct PthrLaunchContext {
+  std::vector<Pthread> thrds;
 
   /// The argument bundle required by the functions that run on each thread.
   /// This is a copy of the bundle passed to __kitpthr_async_launch. It will be
@@ -99,7 +100,7 @@ struct KitPthrLaunchContext {
   uint32_t thrdArgSize = 0;
 
 public:
-  KitPthrLaunchContext(size_t numThreads, void *args, uint32_t argSize)
+  PthrLaunchContext(size_t numThreads, void *args, uint32_t argSize)
       : thrds(numThreads) {
     for (size_t t = 0; t < numThreads; ++t)
       thrds[t].tid = t;
@@ -110,12 +111,12 @@ public:
     }
   }
 
-  KitPthrLaunchContext(const KitPthrLaunchContext &) = delete;
-  KitPthrLaunchContext(KitPthrLaunchContext &&) = delete;
-  KitPthrLaunchContext &operator=(const KitPthrLaunchContext &) = delete;
+  PthrLaunchContext(const PthrLaunchContext &) = delete;
+  PthrLaunchContext(PthrLaunchContext &&) = delete;
+  PthrLaunchContext &operator=(const PthrLaunchContext &) = delete;
 
-  KitPthrThread &operator[](size_t i) { return thrds.at(i); }
-  const KitPthrThread &operator[](size_t i) const { return thrds.at(i); }
+  Pthread &operator[](size_t i) { return thrds.at(i); }
+  const Pthread &operator[](size_t i) const { return thrds.at(i); }
   size_t size() const { return thrds.size(); }
   void *args() const { return thrdArgs.get(); }
   uint32_t argSize() const { return thrdArgSize; }
@@ -128,7 +129,7 @@ public:
 
 } // namespace kitrt
 
-[[noreturn]] static void kitpthrHandleCreateError(int err) {
+[[noreturn]] static void handleCreateError(int err) {
   const char *lede = "Could not create thread";
   switch (err) {
   case EINVAL: FATAL("%s. Invalid attributes", lede);
@@ -138,7 +139,7 @@ public:
   }
 }
 
-[[noreturn]] static void kitpthrHandleJoinError(int err) {
+[[noreturn]] static void handleJoinError(int err) {
   const char *lede = "Error joining thread";
   switch (err) {
   case EDEADLK: FATAL("%s. Deadlock detected", lede);
@@ -148,7 +149,7 @@ public:
   }
 }
 
-void KitPthrContext::initialize() {
+void PthreadsContext::initialize() {
   numThreads = getNumThreadsOrCPUs();
 
   // pthreads does not have to be initialized.
@@ -157,19 +158,19 @@ void KitPthrContext::initialize() {
   LOG("Number of threads = %d", numThreads);
 }
 
-void KitPthrContext::finalize() {
+void PthreadsContext::finalize() {
   // pthreads does not need to be finalized.
 }
 
-uint64_t KitPthrContext::getNumThreads() const { return numThreads; }
+uint64_t PthreadsContext::getNumThreads() const { return numThreads; }
 
-KitThreadID KitPthrContext::getThreadID() const { return pthread_self(); }
+KitThreadID PthreadsContext::getThreadID() const { return pthread_self(); }
 
 /// The function that is launched by each thread. This simply finds the "actual"
 /// function that is to be run in \p thrdInfo and calls it. The arguments to the
 /// actual function are also present in \p thrdInfo. Always returns 0.
-static void *kitpthrThrdStartFn(KitPthrThread *thread) {
-  KitPthrThrdFunc *f = thread->f;
+static void *launchOnThread(Pthread *thread) {
+  KitPthrThrdFunc f = thread->f;
   int64_t tid = thread->tid;
   void *args = thread->args;
 
@@ -178,16 +179,15 @@ static void *kitpthrThrdStartFn(KitPthrThread *thread) {
   return nullptr;
 }
 
-KitPthrLaunchContext *KitPthrContext::launch(KitPthrThrdFunc *f, uint64_t start,
-                                             uint64_t end, void *args,
-                                             uint32_t argSize) {
+PthrLaunchContext *PthreadsContext::launch(PthrThrdFunc *f, uint64_t start,
+                                           uint64_t end, void *args,
+                                           uint32_t argSize) {
   assert(start == 0 && end == numThreads &&
          "__kitpthr_async_launch expects loop iterations in range [0, N)");
   LOG("Launching multithreaded loop: [%ld,%ld)", start, end);
 
-  KitPthrLaunchContext *ctx =
-      new KitPthrLaunchContext(numThreads - 1, args, argSize);
-  for (KitPthrThread &thrd : *ctx) {
+  PthrLaunchContext *ctx = new PthrLaunchContext(numThreads - 1, args, argSize);
+  for (Pthread &thrd : *ctx) {
     thrd.f = f;
     thrd.args = ctx->args();
 
@@ -195,8 +195,8 @@ KitPthrLaunchContext *KitPthrContext::launch(KitPthrThrdFunc *f, uint64_t start,
       FATAL("Error initializing thread attributes");
 
     if (int err = pthread_create(&thrd.pthr, &thrd.attr,
-                                 (PthreadStartFunc)kitpthrThrdStartFn, &thrd))
-      kitpthrHandleCreateError(err);
+                                 (PthrStartFunc *)launchOnThread, &thrd))
+      handleCreateError(err);
     LOG("Fork thread %ld (%ld)", thrd.tid, thrd.pthr);
   }
   f(numThreads - 1, numThreads, ctx->args());
@@ -204,11 +204,11 @@ KitPthrLaunchContext *KitPthrContext::launch(KitPthrThrdFunc *f, uint64_t start,
   return ctx;
 }
 
-void KitPthrContext::sync(KitPthrLaunchContext *ctx) {
+void PthreadsContext::sync(PthrLaunchContext *ctx) {
   LOG("Joining %ld threads", ctx->size());
-  for (KitPthrThread &thrd : *ctx) {
+  for (Pthread &thrd : *ctx) {
     if (int err = pthread_join(thrd.pthr, nullptr))
-      kitpthrHandleJoinError(err);
+      handleJoinError(err);
     if (pthread_attr_destroy(&thrd.attr))
       FATAL("Error destroying thread attributes");
     LOG("Joined thread %ld (%ld)", thrd.tid, thrd.pthr);
@@ -216,20 +216,26 @@ void KitPthrContext::sync(KitPthrLaunchContext *ctx) {
   delete ctx;
 }
 
+// -----------------------------------------------------------------------------
+// Everything below this is the public interface.
+
 extern "C" uint64_t __kitpthr_num_threads(void) {
-  return getCtx<KitPthrContext>().getNumThreads();
+  return getCtx<PthreadsContext>().getNumThreads();
 }
 
 extern "C" KitThreadID __kitpthr_thread_id(void) {
-  return getCtx<KitPthrContext>().getThreadID();
+  return getCtx<PthreadsContext>().getThreadID();
 }
 
 extern "C" KitPthrLaunchContext *
-__kitpthr_async_launch(KitPthrThrdFunc *f, uint64_t start, uint64_t end,
+__kitpthr_async_launch(KitPthrThrdFunc f, uint64_t start, uint64_t end,
                        void *args, uint32_t argSize) {
-  return mutCtx<KitPthrContext>().launch(f, start, end, args, argSize);
+  PthrLaunchContext *handle =
+      mutCtx<PthreadsContext>().launch(f, start, end, args, argSize);
+  return reinterpret_cast<KitPthrLaunchContext *>(handle);
 }
 
-extern "C" void __kitpthr_sync(KitPthrLaunchContext *ctx) {
-  mutCtx<KitPthrContext>().sync(ctx);
+extern "C" void __kitpthr_sync(KitPthrLaunchContext *handle) {
+  if (auto *ctx = reinterpret_cast<PthrLaunchContext *>(handle))
+    mutCtx<PthreadsContext>().sync(ctx);
 }

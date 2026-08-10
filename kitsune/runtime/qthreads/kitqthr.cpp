@@ -53,11 +53,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitqthr.h"
+#include "qthreads/kitqthr.h"
 #include "common/env.h"
 #include "common/logging.h"
 #include "common/utils.h"
 #include "global/global.h"
+#include "qthreads/context.h"
 
 #include <qthread.h>
 #include <qthread/barrier.h>
@@ -73,8 +74,8 @@ namespace {
 /// arguments to be passed to the "actual" thread function. It also contains the
 /// barrier that must be entered once the actual thread function has finished
 /// executing.
-struct KitQthrThrdArgs {
-  KitQthrThrdFunc *f;
+struct QthreadArgs {
+  kitrt::QthrThrdFunc *f;
   int64_t tid;
   void *args;
   qt_barrier_t *barrier;
@@ -82,7 +83,7 @@ struct KitQthrThrdArgs {
 
 } // namespace
 
-void KitQthrContext::initialize() {
+void QthreadsContext::initialize() {
   uint64_t numThreads = getNumThreadsOrCPUs();
   envSet("QT_NUM_SHEPHERDS", numThreads);
   envSet("QT_NUM_WORKERS_PER_SHEPHERD", 1);
@@ -97,21 +98,23 @@ void KitQthrContext::initialize() {
   LOG("Number of workers = %d", qthread_num_workers());
 }
 
-void KitQthrContext::finalize() {
+void QthreadsContext::finalize() {
   LOG("Finalizing Qthreads runtime");
   qthread_finalize();
   LOG("Finalized Qthreads runtime");
 }
 
-uint64_t KitQthrContext::getNumThreads() const { return qthread_num_workers(); }
+uint64_t QthreadsContext::getNumThreads() const {
+  return qthread_num_workers();
+}
 
-KitThreadID KitQthrContext::getThreadID() const { return qthread_id(); }
+KitThreadID QthreadsContext::getThreadID() const { return qthread_id(); }
 
 /// The function that is launched by each thread. This simply finds the "actual"
 /// function that is to be run in \p thrdArgs and calls it. The arguments to the
 /// actual function are also present in \p thrdArgs. Always returns 0.
-static unsigned long kitqthrThrdLaunchFn(KitQthrThrdArgs *thrdArgs) {
-  KitQthrThrdFunc *f = thrdArgs->f;
+static unsigned long launchOnThread(QthreadArgs *thrdArgs) {
+  KitQthrThrdFunc f = thrdArgs->f;
   int64_t tid = thrdArgs->tid;
   void *args = thrdArgs->args;
   qt_barrier_t *barrier = thrdArgs->barrier;
@@ -124,8 +127,8 @@ static unsigned long kitqthrThrdLaunchFn(KitQthrThrdArgs *thrdArgs) {
   return 0;
 }
 
-void KitQthrContext::launch(KitQthrThrdFunc f, uint64_t start, uint64_t end,
-                            void *args, [[maybe_unused]] uint32_t argSize) {
+void QthreadsContext::launch(QthrThrdFunc *f, uint64_t start, uint64_t end,
+                             void *args, [[maybe_unused]] uint32_t argSize) {
   assert(start == 0 && end == getNumThreads() &&
          "__kitqthr_launch expects loop iterations in range [0,NUM_THREADS)");
   LOG("Launching multithreaded loop: [%ld,%ld)", start, end);
@@ -145,16 +148,16 @@ void KitQthrContext::launch(KitQthrThrdFunc f, uint64_t start, uint64_t end,
   if (!barrier)
     FATAL("Could not create barrier");
 
-  std::vector<KitQthrThrdArgs> thrds(numThrds);
+  std::vector<QthreadArgs> thrds(numThrds);
   for (uint64_t t = 0; t < numThrds; ++t) {
-    KitQthrThrdArgs &thrdArgs = thrds[t];
+    QthreadArgs &thrdArgs = thrds[t];
     thrdArgs.f = f;
     thrdArgs.tid = t;
     thrdArgs.args = args;
     thrdArgs.barrier = barrier;
 
     LOG("Fork thread %d", t);
-    if (qthread_fork((qthread_f)kitqthrThrdLaunchFn, &thrdArgs, nullptr))
+    if (qthread_fork((qthread_f)launchOnThread, &thrdArgs, nullptr))
       FATAL("Could not fork thread");
   }
 
@@ -166,16 +169,19 @@ void KitQthrContext::launch(KitQthrThrdFunc f, uint64_t start, uint64_t end,
   LOG("Finished multithreaded loop");
 }
 
+// -----------------------------------------------------------------------------
+// Everything below this is the public interface.
+
 extern "C" uint64_t __kitqthr_num_workers(void) {
-  return getCtx<KitQthrContext>().getNumThreads();
+  return getCtx<QthreadsContext>().getNumThreads();
 }
 
 extern "C" KitThreadID __kitqthr_worker_id(void) {
-  return getCtx<KitQthrContext>().getThreadID();
+  return getCtx<QthreadsContext>().getThreadID();
 }
 
 extern "C" void __kitqthr_launch(KitQthrThrdFunc f, uint64_t start,
                                  uint64_t end, void *args,
                                  [[maybe_unused]] uint32_t argSize) {
-  return mutCtx<KitQthrContext>().launch(f, start, end, args, argSize);
+  return mutCtx<QthreadsContext>().launch(f, start, end, args, argSize);
 }

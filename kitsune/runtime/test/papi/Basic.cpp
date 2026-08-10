@@ -20,8 +20,7 @@ CTOR(RT_PAPI)
 int main(int argc, char *argv[]) {
   // The total number of instructions and the total number of cycles ought to be
   // available on all platforms - one would think.
-  kitrt::KitPAPIEpoch *e =
-      __kitpapi_start("dancaire", /*thread=*/67, 2, "ins", "cyc");
+  KitPAPIEpoch *e = __kitpapi_start("dancaire", /*thread=*/67, 2, "ins", "cyc");
   __kitpapi_stop(e);
 
   return 0;

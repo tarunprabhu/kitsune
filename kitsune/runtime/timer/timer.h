@@ -51,73 +51,25 @@
 #ifndef KITRT_TIMER_TIMER_H
 #define KITRT_TIMER_TIMER_H
 
-#include "common/instr.h"
 #include "common/thread.h"
 
-#include <cstdint>
+#include <stdint.h>
 
 #ifdef __cplusplus
-#define EXTERN_C extern "C"
-#else // !__cplusplus
-#define EXTERN_C
-#endif // !__cplusplus
+extern "C" {
+#endif // __cplusplus
 
-namespace kitrt {
+/// The time span, in nanoseconds, between two time points. A time point is
+/// started by __kittimer_start, and ends when __kittimer_stop is called.
+typedef int64_t KitTimeSpan;
 
-/// A time span. This is expected to be the wallclock time, in nanoseconds, that
-/// have elapsed between a pair of calls to \ref __kittimer_start and
-/// \ref __kittimer_stop.
-using KitTimeSpan = int64_t;
-
-/// A timer epoch is a Single-Entry-Single-Exit (SESE) region of code, bounded
-/// by calls to \ref __kittimer_start and \ref __kittimer_stop, whose execution
-/// time is recorded. The epoch is given a name that ought to be meaningful to
-/// the user. An epoch may be started on each thread in a multi-threaded
-/// context, or on the main thread of a single-threaded program.
-///
-/// This struct represents a single epoch. An instance is created by
-/// \ref __kittimer_start. It can be used, exactly once, to stop the timer.
-class KitTimerEpoch : public KitEpochBase {
-private:
-  KitTimeSpan span = 0;
-
-public:
-  KitTimerEpoch() = delete;
-  KitTimerEpoch(const KitTimerEpoch &) = delete;
-  KitTimerEpoch(KitTimerEpoch &&) = delete;
-  KitTimerEpoch &operator=(const KitTimerEpoch &) = delete;
-  KitTimerEpoch &operator=(KitTimerEpoch &&) = delete;
-
-  KitTimerEpoch(const char *name, KitThreadID thrd);
-
-  void start();
-  KitTimeSpan stop();
-  void writeJSON(FILE *fp) const;
-};
-
-// A class that wraps all the timers created in the application. A singleton
-// instance of this class will be created in the global constructor and will
-// live till the global destructor is run.
-class KitTimerContext : public KitInstrBase<KitTimerContext, KitTimerEpoch> {
-  friend KitInstrBase<KitTimerContext, KitTimerEpoch>;
-
-protected:
-  KitTimerEpoch *makeEpoch(const char *name, KitThreadID thrd);
-
-public:
-  void initialize();
-  void finalize();
-
-public:
-  static const char *name() { return "timer"; }
-};
-
-} // namespace kitrt
+/// Opaque epoch object returned by __kittimer_start. This must be passed to
+/// __kittimer_stop.
+struct KitTimerEpoch;
 
 /// Start the timer \p timer. \p thrd is the ID of the thread on which the
 /// timer is running. \p name is the name of the timer.
-EXTERN_C kitrt::KitTimerEpoch *__kittimer_start(const char *name,
-                                                KitThreadID span);
+KitTimerEpoch *__kittimer_start(const char *name, KitThreadID span);
 
 /// Stop a timer running on a thread with ID \p thrd. The runtime
 /// will create a mapping between \p timer and \p name, but only if \p timer was
@@ -128,7 +80,10 @@ EXTERN_C kitrt::KitTimerEpoch *__kittimer_start(const char *name,
 /// \ref __kittimer_start. Returns the wallclock time, in nanoseconds, that have
 /// elapsed between the time this is called, and the time that \p start was
 /// recorded.
-EXTERN_C kitrt::KitTimeSpan __kittimer_stop(kitrt::KitTimerEpoch *handle);
+KitTimeSpan __kittimer_stop(KitTimerEpoch *handle);
 
-#undef EXTERN_C
+#ifdef __cplusplus
+} // extern "C"
+#endif // __cplusplus
+
 #endif // KITRT_COMMON_TIMER_H

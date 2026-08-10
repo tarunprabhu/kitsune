@@ -27,12 +27,12 @@
 CTOR(RT_TIMER)
 
 int main(int argc, char *argv[]) {
-  kitrt::KitTimerEpoch *e0 = __kittimer_start("tamino", /*thread=*/0);
+  KitTimerEpoch *e0 = __kittimer_start("tamino", /*thread=*/0);
 
-  kitrt::KitTimerEpoch *e1 = __kittimer_start("pamina", /*thread=*/0);
+  KitTimerEpoch *e1 = __kittimer_start("pamina", /*thread=*/0);
   __kittimer_stop(e1);
 
-  kitrt::KitTimerEpoch *e2 = __kittimer_start("monostatos", /*thread=*/0);
+  KitTimerEpoch *e2 = __kittimer_start("monostatos", /*thread=*/0);
   __kittimer_stop(e2);
 
   __kittimer_stop(e0);

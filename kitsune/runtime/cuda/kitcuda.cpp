@@ -100,7 +100,7 @@ const int KIT_NVTX_CLEANUP = 4;
 
 using namespace kitrt;
 
-void KitCudaContext::initialize(void) {
+void CudaContext::initialize(void) {
   KIT_NVTX_PUSH("kitcuda: initialize", KIT_NVTX_INIT);
 
   if (not __kitcuda_load_symbols()) {
@@ -223,7 +223,7 @@ void KitCudaContext::initialize(void) {
   KIT_NVTX_POP();
 }
 
-void KitCudaContext::finalize(void) {
+void CudaContext::finalize(void) {
   KIT_NVTX_PUSH("kitcuda:finalize", KIT_NVTX_CLEANUP);
   __kitcuda_destroy_thread_streams();
   __kitrt_destroy_memory_map(__kitcuda_mem_destroy);

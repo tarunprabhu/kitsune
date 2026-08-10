@@ -57,11 +57,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitocilk.h"
+#include "opencilk/kitocilk.h"
 #include "common/env.h"
 #include "common/logging.h"
 #include "common/utils.h"
 #include "global/global.h"
+#include "opencilk/context.h"
 
 #include <cassert>
 
@@ -77,7 +78,7 @@ using namespace kitrt;
 /// Initialize Kitsune's OpenCilk runtime. This does *not* initialize the
 /// underlying OpenCilk runtime. That happens independently of this, and may
 /// happen before or after this.
-void KitOCilkContext::initialize() {
+void OpenCilkContext::initialize() {
   uint64_t numThreads = getNumThreadsOrCPUs("CILK_NWORKERS");
   if (__cilkrts_is_initialized()) {
     LOG("OpenCilk runtime has already been initialized");
@@ -119,27 +120,30 @@ void KitOCilkContext::initialize() {
   // when that constructor is run relative to this one.
 
   LOG("Number of CPUs = %d", getNumCPUs());
-  LOG("Number of workers = %d", __kitocilk_num_workers());
+  LOG("Number of workers = %d", getNumThreads());
 }
 
-void KitOCilkContext::finalize() {
+void OpenCilkContext::finalize() {
   // There is no way to finalize OpenCilk's runtime explicitly - it is finalized
   // by its own private global destructor. We have no control over when that
   // destructor is run relative to this one.
 }
 
-uint64_t KitOCilkContext::getNumThreads() const {
+uint64_t OpenCilkContext::getNumThreads() const {
   return __cilkrts_get_nworkers();
 }
 
-KitThreadID KitOCilkContext::getThreadID() const {
+KitThreadID OpenCilkContext::getThreadID() const {
   return __cilkrts_get_worker_number();
 }
 
+// -----------------------------------------------------------------------------
+// Everything below this is the public interface.
+
 extern "C" uint64_t __kitocilk_num_workers(void) {
-  return getCtx<KitOCilkContext>().getNumThreads();
+  return getCtx<OpenCilkContext>().getNumThreads();
 }
 
 extern "C" KitThreadID __kitocilk_worker_id(void) {
-  return getCtx<KitOCilkContext>().getThreadID();
+  return getCtx<OpenCilkContext>().getThreadID();
 }

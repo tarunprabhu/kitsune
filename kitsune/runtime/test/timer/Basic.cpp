@@ -25,13 +25,13 @@ int main(int argc, char *argv[]) {
   duration.tv_sec = 0;
   duration.tv_nsec = 1000000;
 
-  kitrt::KitTimerEpoch *e = __kittimer_start("basic", /*threadID=*/47);
+  KitTimerEpoch *e = __kittimer_start("basic", /*threadID=*/47);
   nanosleep(&duration, NULL);
-  kitrt::KitTimeSpan span = __kittimer_stop(e);
+  KitTimeSpan span = __kittimer_stop(e);
 
   // The span is not guaranteed to be exactly tv_nsec. But it should not be
   // less than the requested sleep duration.
-  if (span >= (kitrt::KitTimeSpan)duration.tv_nsec)
+  if (span >= (KitTimeSpan)duration.tv_nsec)
     return 0;
   return 1;
 }

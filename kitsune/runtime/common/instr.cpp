@@ -156,11 +156,11 @@ static FILE *getOutputFile(const char *envVar) {
 }
 
 template <typename T, typename EpochT>
-KitInstrBase<T, EpochT>::KitInstrBase()
+InstrBase<T, EpochT>::InstrBase()
     : separate(envContains("KIT_INSTR_SEPARATE")) {}
 
 template <typename T, typename EpochT>
-void KitInstrBase<T, EpochT>::writeJSON(const char *outFileEnvVar) const {
+void InstrBase<T, EpochT>::writeJSON(const char *outFileEnvVar) const {
   auto sortByNameThenThreadID = [](const Epoch *l, const Epoch *r) -> bool {
     int cmp = strcmp(l->name(), r->name());
     if (cmp < 0)
@@ -199,9 +199,9 @@ void KitInstrBase<T, EpochT>::writeJSON(const char *outFileEnvVar) const {
 // -----------------------------------------------------------------------------
 // Instantiate all supported instrumentation runtimes.
 
-#include "papi/kitpapi.h"
-#include "timer/timer.h"
+#include "papi/context.h"
+#include "timer/context.h"
 
 // If a new instrumentation runtime is added, it should be instantiated here.
-template class kitrt::KitInstrBase<KitPAPIContext, KitPAPIEpoch>;
-template class kitrt::KitInstrBase<KitTimerContext, KitTimerEpoch>;
+template class kitrt::InstrBase<PAPIContext, PAPIEpoch>;
+template class kitrt::InstrBase<TimerContext, TimerEpoch>;

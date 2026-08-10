@@ -49,11 +49,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitomp.h"
+#include "openmp/kitomp.h"
 #include "common/env.h"
 #include "common/logging.h"
 #include "common/utils.h"
 #include "global/global.h"
+#include "openmp/context.h"
 
 // This is an internal header in LLVM's OpenMP runtime. The path is relative
 // to ${LLVM_MONOREPO_SOURCE_DIR}/openmp/runtime/src.
@@ -104,7 +105,6 @@ static constexpr int32_t unknownLocSize =
 //      // String describing the source location.
 //      const char *psource;
 //   };
-//
 
 /// Generic location information for the calls to initialize and finalize LLVM's
 /// OpenMP runtime.
@@ -117,7 +117,7 @@ static ident_t staticLoopLoc = {
     0, KMP_IDENT_KMPC | KMP_IDENT_WORK_LOOP, 0, unknownLocSize, unknownLocStr,
 };
 
-void KitOMPContext::initialize() {
+void OpenMPContext::initialize() {
   uint64_t numThreads = getNumThreadsOrCPUs("OMP_NUM_THREADS");
   envSet("OMP_NUM_THREADS", numThreads);
 
@@ -129,10 +129,10 @@ void KitOMPContext::initialize() {
   LOG("Initialized OpenMP runtime");
 
   LOG("Number of CPUs = %d", getNumCPUs());
-  LOG("Number of threads = %d", __kitomp_num_threads());
+  LOG("Number of threads = %d", getNumThreads());
 }
 
-void KitOMPContext::finalize() {
+void OpenMPContext::finalize() {
   // This call is optional, but we use it anyway for consistency with the other
   // runtimes.
   LOG("Finalizing OpenMP runtime");
@@ -140,9 +140,9 @@ void KitOMPContext::finalize() {
   LOG("Finalized OpenMP runtime");
 }
 
-uint64_t KitOMPContext::getNumThreads() const { return omp_get_max_threads(); }
+uint64_t OpenMPContext::getNumThreads() const { return omp_get_max_threads(); }
 
-KitThreadID KitOMPContext::getThreadID() const { return omp_get_thread_num(); }
+KitThreadID OpenMPContext::getThreadID() const { return omp_get_thread_num(); }
 
 /// This wraps the function \p f that will be launched on each thread. It
 /// calculates the range of iterations that should be executed by \p f, then,
@@ -152,7 +152,7 @@ KitThreadID KitOMPContext::getThreadID() const { return omp_get_thread_num(); }
 /// The exact subset of the iterations to calculate on a thread is determined
 /// by libomp functions that are called here.
 static void staticLoopWrapper(int32_t *globalTID, int32_t *localTID,
-                              KitOMPThrdFunc f, uint64_t start, uint64_t end,
+                              OMPThrdFunc *f, uint64_t start, uint64_t end,
                               void *args) {
   LOG("Running on thread %d of %d [global = %d]", *localTID,
       omp_get_num_threads(), *globalTID);
@@ -162,7 +162,7 @@ static void staticLoopWrapper(int32_t *globalTID, int32_t *localTID,
   f(*localTID, *localTID + 1, args);
 }
 
-void KitOMPContext::launch(KitOMPThrdFunc *f, uint64_t start, uint64_t end,
+void OpenMPContext::launch(OMPThrdFunc *f, uint64_t start, uint64_t end,
                            void *args, [[maybe_unused]] uint32_t argSize) {
   assert(start == 0 && end == getNumThreads() &&
          "__kitomp_launch expects loop iterations in range [0,NUM_THREADS)");
@@ -175,15 +175,18 @@ void KitOMPContext::launch(KitOMPThrdFunc *f, uint64_t start, uint64_t end,
   LOG("Finished multithreaded loop");
 }
 
+// -----------------------------------------------------------------------------
+// Everything below this is the public interface.
+
 extern "C" uint64_t __kitomp_num_threads(void) {
-  return getCtx<KitOMPContext>().getNumThreads();
+  return getCtx<OpenMPContext>().getNumThreads();
 }
 
 extern "C" KitThreadID __kitomp_thread_id(void) {
-  return getCtx<KitOMPContext>().getThreadID();
+  return getCtx<OpenMPContext>().getThreadID();
 }
 
-extern "C" void __kitomp_launch(KitOMPThrdFunc *f, uint64_t start, uint64_t end,
+extern "C" void __kitomp_launch(KitOMPThrdFunc f, uint64_t start, uint64_t end,
                                 void *args, [[maybe_unused]] uint32_t argSize) {
-  mutCtx<KitOMPContext>().launch(f, start, end, args, argSize);
+  mutCtx<OpenMPContext>().launch(f, start, end, args, argSize);
 }

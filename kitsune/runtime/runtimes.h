@@ -19,9 +19,9 @@
 
 // These are runtimes that are always built, so we unconditionally include the
 // headers.
-#include "openmp/kitomp.h"
-#include "pthreads/kitpthr.h"
-#include "timer/timer.h"
+#include "openmp/context.h"
+#include "pthreads/context.h"
+#include "timer/context.h"
 
 #ifdef KITSUNE_CUDA_ENABLED
 #include "cuda/kitcuda.h"
@@ -32,15 +32,15 @@
 #endif // KITSUNE_HIP_ENABLED
 
 #ifdef KITSUNE_OPENCILK_ENABLED
-#include "opencilk/kitocilk.h"
+#include "opencilk/context.h"
 #endif // KITSUNE_OPENCILK_ENABLED
 
 #ifdef KITSUNE_PAPI_ENABLED
-#include "papi/kitpapi.h"
+#include "papi/context.h"
 #endif // KITSUNE_PAPI_ENABLED
 
 #ifdef KITSUNE_QTHREADS_ENABLED
-#include "qthreads/kitqthr.h"
+#include "qthreads/context.h"
 #endif // KITSUNE_QTHREADS_ENABLED
 
 namespace kitrt {
@@ -57,14 +57,14 @@ namespace kitrt {
 // declaration for the type will not be available. Failing to provide a
 // placeholder in such cases will cause the build to fail.
 //
-class KitCudaContext;  // Context for the cuda runtime
-class KitHipContext;   // Context for the hip runtime
-class KitOCilkContext; // Context for the opencilk runtime
-class KitOMPContext;   // Context for the openmp runtime
-class KitPAPIContext;  // Context for the PAPI support runtime
-class KitPthrContext;  // Context for the pthreads runtime
-class KitQthrContext;  // Context for the qthreads runtime
-class KitTimerContext; // Context for the timer support runtime
+class CudaContext;     // Context for the cuda runtime
+class HipContext;      // Context for the hip runtime
+class OpenCilkContext; // Context for the opencilk runtime
+class OpenMPContext;   // Context for the openmp runtime
+class PAPIContext;     // Context for the PAPI support runtime
+class PthreadsContext; // Context for the pthreads runtime
+class QthreadsContext; // Context for the qthreads runtime
+class TimerContext;    // Context for the timer support runtime
 
 // ---------------------------------- IMPORTANT --------------------------------
 //
@@ -79,14 +79,14 @@ class KitTimerContext; // Context for the timer support runtime
 // They have been sorted alphabetically for convenience.
 //
 using ContextsTuple =
-    std::tuple<KitCudaContext *,   // Context for the cuda runtime
-               KitHipContext *,    // Context for the hip runtime
-               KitOCilkContext *,  // Context for the opencilk runtime
-               KitOMPContext *,    // Context for the openmp runtime
-               KitPAPIContext *,   // Context for the PAPI support runtime
-               KitPthrContext *,   // Context for the pthreads runtime
-               KitQthrContext *,   // Context for the qthreads runtime
-               KitTimerContext *>; // Context for the timer support runtime
+    std::tuple<CudaContext *,     // Context for the cuda runtime
+               HipContext *,      // Context for the hip runtime
+               OpenCilkContext *, // Context for the opencilk runtime
+               OpenMPContext *,   // Context for the openmp runtime
+               PAPIContext *,     // Context for the PAPI support runtime
+               PthreadsContext *, // Context for the pthreads runtime
+               QthreadsContext *, // Context for the qthreads runtime
+               TimerContext *>;   // Context for the timer support runtime
 
 } // namespace kitrt
 
