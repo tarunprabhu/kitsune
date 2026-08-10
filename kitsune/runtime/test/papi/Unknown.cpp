@@ -24,7 +24,7 @@
 CTOR(RT_PAPI)
 
 int main(int argc, char *argv[]) {
-  kitrt::KitPAPIEpoch *e =
+  KitPAPIEpoch *e =
       __kitpapi_start("nilakantha", /*thread=*/19, 5, "PAPI_TOT_INS", "TOT_INS",
                       "tot_ins", "Inst", "insts");
   __kitpapi_stop(e);

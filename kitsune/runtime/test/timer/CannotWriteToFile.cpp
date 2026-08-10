@@ -11,7 +11,7 @@
 CTOR(RT_TIMER)
 
 int main(int argc, char *argv[]) {
-  kitrt::KitTimerEpoch *e = __kittimer_start("no-file", /*thread=*/0);
+  KitTimerEpoch *e = __kittimer_start("no-file", /*thread=*/0);
   __kittimer_stop(e);
 
   return 0;

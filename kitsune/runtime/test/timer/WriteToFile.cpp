@@ -91,12 +91,12 @@
 CTOR(RT_TIMER | RT_OPENMP)
 
 static void thrdFn(uint64_t start, uint64_t stop, void *args) {
-  kitrt::KitTimerEpoch *e = __kittimer_start("kinder", __kitomp_thread_id());
+  KitTimerEpoch *e = __kittimer_start("kinder", __kitomp_thread_id());
   __kittimer_stop(e);
 }
 
 int main(int argc, char *argv[]) {
-  kitrt::KitTimerEpoch *e = __kittimer_start("papagena", /*thread=*/0);
+  KitTimerEpoch *e = __kittimer_start("papagena", /*thread=*/0);
   for (unsigned i = 0; i < 3; ++i)
     __kitomp_launch(thrdFn, /*beg=*/0, /*end=*/3, /*args=*/NULL, /*argSize=*/0);
   __kittimer_stop(e);

@@ -27,8 +27,8 @@
 CTOR(RT_PAPI)
 
 int main(int argc, char *argv[]) {
-  kitrt::KitPAPIEpoch *eo = __kitpapi_start("pastia", /*thread=*/0, 1, "ins");
-  kitrt::KitPAPIEpoch *ei = __kitpapi_start("jose", /*thread=*/0, 1, "ins");
+  KitPAPIEpoch *eo = __kitpapi_start("pastia", /*thread=*/0, 1, "ins");
+  KitPAPIEpoch *ei = __kitpapi_start("jose", /*thread=*/0, 1, "ins");
   __kitpapi_stop(ei);
   __kitpapi_stop(eo);
 

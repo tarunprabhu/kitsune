@@ -69,13 +69,13 @@ namespace kitrt {
 
 /// Base class for Epoch objects. This simply provides some wrappers around the
 /// members of the base class info objects.
-class KitEpochBase {
+class EpochBase {
 protected:
   const char *const name_;
   const KitThreadID thrd_;
 
 protected:
-  KitEpochBase(const char *name, KitThreadID thrd) : name_(name), thrd_(thrd) {}
+  EpochBase(const char *name, KitThreadID thrd) : name_(name), thrd_(thrd) {}
 
 public:
   const char *name() const { return name_; }
@@ -118,8 +118,7 @@ public:
 /// failure. Kitsune will ensure that string literals are used when
 /// automatically inserting instrumentation.
 ///
-template <typename T, typename EpochT>
-class KitInstrBase {
+template <typename T, typename EpochT> class InstrBase {
 protected:
   using Epoch = EpochT;
   using EpochID = std::pair<const char *, KitThreadID>;
@@ -144,7 +143,7 @@ protected:
   std::map<EpochID, OwnedEpochs> epochs;
 
 protected:
-  KitInstrBase();
+  InstrBase();
 
 public:
   template <typename... Args>
