@@ -30,7 +30,7 @@
 #include "TestHelpers.h"
 #include "papi/kitpapi.h"
 
-CTOR(RT_PAPI | RT_SERIAL)
+CTOR(RT_PAPI)
 
 int main(int argc, char *argv[]) {
   for (unsigned i = 0; i < 3; ++i) {

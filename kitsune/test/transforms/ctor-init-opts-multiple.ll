@@ -1,10 +1,10 @@
 ; Check that the runtime initialization options are set correctly when multiple
 ; tapir targets and instrumentation is used.
 ;
-; RUN: opt --tapir=serial -passes=kit-ctors -S %s | FileCheck %s
+; RUN: opt --tapir=pthreads -passes=kit-ctors -S %s | FileCheck %s
 ;
 ; CHECK: @[[INITOPTS:.+]] = internal constant [8 x i8]
-; CHECK-SAME: c"\01\04\00\00\03\00\00\00"
+; CHECK-SAME: c"\00\06\00\00\03\00\00\00"
 ; CHECK-SAME: section ".kit.rtiopt"
 ;
 ; CHECK: call void @__kitrt_initialize(ptr @[[INITOPTS]])
@@ -32,4 +32,4 @@ declare void @__kittimer_stop(ptr)
 
 !0 = distinct !{!0, !1}
 !1 = !{!"kit.module.tts", !2}
-!2 = !{i32 1, i32 1024}
+!2 = !{i32 512, i32 1024}

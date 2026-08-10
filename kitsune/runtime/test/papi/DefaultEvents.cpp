@@ -18,7 +18,7 @@
 #include <ctype.h>
 #include <string.h>
 
-CTOR(RT_PAPI | RT_SERIAL)
+CTOR(RT_PAPI)
 
 #define MAX_EVENTS 100
 
@@ -68,7 +68,9 @@ int main(int argc, char *argv[]) {
       evtNotAvail = evts[i].name;
   }
 
-  (void)__kitpapi_start("hadji", /*thread=*/0, 2, evtAvail, evtNotAvail);
+  kitrt::KitPAPIEpoch *e =
+      __kitpapi_start("hadji", /*thread=*/0, 2, evtAvail, evtNotAvail);
+  __kitpapi_stop(e);
 
   return 0;
 }

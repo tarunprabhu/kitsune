@@ -43,13 +43,15 @@
 #include "TestHelpers.h"
 #include "papi/kitpapi.h"
 
-CTOR(RT_PAPI | RT_SERIAL)
+CTOR(RT_PAPI)
 
 int main(int argc, char *argv[]) {
-  (void)__kitpapi_start("mallika", /*thread=*/0, 30, "l1d", "l2d", "l3d", "l1i",
-                        "l2i", "l3i", "l1t", "l2t", "l3t", "l1ld", "l2ld",
-                        "l3ld", "l1st", "l2st", "l3st", "tlbd", "tlbi", "tlbt",
-                        "ins", "inst", "vec", "ld", "st", "br", "int", "fp",
-                        "fma", "stall", "cyc", "ref");
+  kitrt::KitPAPIEpoch *e = __kitpapi_start(
+      "mallika", /*thread=*/0, 30, "l1d", "l2d", "l3d", "l1i", "l2i", "l3i",
+      "l1t", "l2t", "l3t", "l1ld", "l2ld", "l3ld", "l1st", "l2st", "l3st",
+      "tlbd", "tlbi", "tlbt", "ins", "inst", "vec", "ld", "st", "br", "int",
+      "fp", "fma", "stall", "cyc", "ref");
+  __kitpapi_stop(e);
+
   return 0;
 }
