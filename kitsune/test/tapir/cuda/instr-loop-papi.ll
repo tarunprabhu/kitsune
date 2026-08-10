@@ -1,16 +1,16 @@
-; Check that generic instrumentation is not added inside a tapir loop to be run
+; Check that PAPI instrumentation is not added around a tapir loop to be run
 ; on an NVIDIA GPU.
 ;
 ; RUN: opt -passes="kit-instrument" -S %s \
-; RUN:     --kit-instr-unit=thread  --kit-instr=generic 2>&1 \
+; RUN:     --kit-instr-unit=loop  --kit-instr=papi 2>&1 \
 ; RUN:     | FileCheck %s
 ;
-; CHECK: cannot instrument threads in loop with tapir target 'cuda'
+; CHECK: cannot add PAPI instrumentation to loop with tapir target 'cuda'
 ; CHECK-NEXT: from loop 'cuda'
 ;
 ; CHECK-LABEL: @f
-; CHECK-NOT: __kit_instr_start
-; CHECK-NOT: __kit_instr_stop
+; CHECK-NOT: __kit_papi_start
+; CHECK-NOT: __kit_papi_stop
 
 declare void @ext(i64)
 

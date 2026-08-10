@@ -1,10 +1,11 @@
-; Check that generic instrumentation is correctly added inside a tapir loop.
+; Check that generic instrumentation is not added inside a tapir loop to be run
+; on an AMD GPU.
 ;
 ; RUN: opt -passes="kit-instrument" -S %s \
 ; RUN:     --kit-instr-unit=thread  --kit-instr=generic 2>&1 \
 ; RUN:     | FileCheck %s
 ;
-; CHECK: cannot instrument threads in loop with GPU-centric tapir target
+; CHECK: cannot instrument threads in loop with tapir target 'hip'
 ; CHECK-NEXT: from loop 'hip'
 ;
 ; CHECK-LABEL: @f
