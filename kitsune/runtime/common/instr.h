@@ -67,18 +67,6 @@
 
 namespace kitrt {
 
-/// If the environment variable, \p envVar is set to a non-empty string, it is
-/// assumed to the name (or absolute path) of a file to which the recorded
-/// instrumentation is to be written. A special case is if the environment
-/// variable is set to "-". In this case, the FILE object corresponding to
-/// stdout will be returned. Otherwise, an attempt will be made to open the file
-/// named by \p envVar for writing. If it succeeds, the contents of the file
-/// will be deleted and a FILE object pointing to the start of the file will be
-/// returned. If the file could not be opened for writing for any reason, NULL
-/// will be returned. if \p envVarOutFile is not set in the environment, a FILE
-/// object corresponding to stderr will be returned.
-FILE *getInstrumentationOutputFile(const char *envVar);
-
 /// Base class for Epoch objects. This simply provides some wrappers around the
 /// members of the base class info objects.
 class KitEpochBase {
@@ -154,17 +142,6 @@ protected:
   // accumulated, a single epoch will be present for each EpochID. Otherwise, an
   // epoch will be created for each visit to a callsite.
   std::map<EpochID, OwnedEpochs> epochs;
-
-private:
-  void writeJSONHeader(FILE *fp) const;
-  void writeEpochHeader(FILE *fp, const Epoch &epoch) const;
-  void writeThreadHeader(FILE *fp, const Epoch &epoch) const;
-  void writeEpoch(FILE *fp, const Epoch &epoch) const;
-  void writeThreadFooter(FILE *fp, const Epoch &epoch, bool comma) const;
-  void writeEpochFooter(FILE *fp, const Epoch &epoch, bool comma) const;
-  void writeEpochs(FILE *fp, const std::vector<const Epoch *> &epochs) const;
-  void writeJSONFooter(FILE *fp) const;
-  void writeJSON(FILE *fp, const std::vector<const Epoch *> &epochs) const;
 
 protected:
   KitInstrBase();

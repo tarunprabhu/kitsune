@@ -62,66 +62,38 @@
 
 using namespace kitrt;
 
-FILE *kitrt::getInstrumentationOutputFile(const char *envVar) {
-  if (std::optional<std::string> fname = envLookup(envVar)) {
-    if (fname == "-")
-      return stdout;
+static void writeJSONHeader(FILE *fp) { fprintf(fp, "{"); }
 
-    LOG("Writing timings to file: %s", fname->c_str());
-    FILE *fp = fopen(fname->c_str(), "wt");
-    if (!fp)
-      WARN("Could not open file for writing");
-    return fp;
-  } else {
-    return stderr;
-  }
-}
-
-template <typename T, typename EpochT>
-KitInstrBase<T, EpochT>::KitInstrBase()
-    : separate(envContains("KIT_INSTR_SEPARATE")) {}
-
-template <typename T, typename EpochT>
-void KitInstrBase<T, EpochT>::writeJSONHeader(FILE *fp) const {
-  fprintf(fp, "{");
-}
-
-template <typename T, typename EpochT>
-void KitInstrBase<T, EpochT>::writeEpochHeader(FILE *fp,
-                                               const Epoch &epoch) const {
+template <typename Epoch>
+static void writeEpochHeader(FILE *fp, const Epoch &epoch) {
   fprintf(fp, "\n  \"%s\": {", epoch.name());
 }
 
-template <typename T, typename EpochT>
-void KitInstrBase<T, EpochT>::writeThreadHeader(FILE *fp,
-                                                const Epoch &epoch) const {
+template <typename Epoch>
+static void writeThreadHeader(FILE *fp, const Epoch &epoch) {
   fprintf(fp, "\n    \"%ld\": [", epoch.thrd());
 }
 
-template <typename T, typename EpochT>
-void KitInstrBase<T, EpochT>::writeEpoch(FILE *fp, const Epoch &epoch) const {
+template <typename Epoch> static void writeEpoch(FILE *fp, const Epoch &epoch) {
   epoch.writeJSON(fp);
 }
 
-template <typename T, typename EpochT>
-void KitInstrBase<T, EpochT>::writeThreadFooter(FILE *fp, const Epoch &epoch,
-                                                bool comma) const {
+template <typename Epoch>
+static void writeThreadFooter(FILE *fp, const Epoch &epoch, bool comma) {
   fprintf(fp, "\n    ]");
   if (comma)
     fprintf(fp, ",");
 }
 
-template <typename T, typename EpochT>
-void KitInstrBase<T, EpochT>::writeEpochFooter(FILE *fp, const Epoch &epoch,
-                                               bool comma) const {
+template <typename Epoch>
+static void writeEpochFooter(FILE *fp, const Epoch &epoch, bool comma) {
   fprintf(fp, "\n  }");
   if (comma)
     fprintf(fp, ",");
 }
 
-template <typename T, typename EpochT>
-void KitInstrBase<T, EpochT>::writeEpochs(
-    FILE *fp, const std::vector<const Epoch *> &epochs) const {
+template <typename Epoch>
+static void writeEpochs(FILE *fp, const std::vector<const Epoch *> &epochs) {
   assert(!epochs.empty() && "Epochs must not be empty");
 
   writeEpochHeader(fp, *epochs[0]);
@@ -148,19 +120,44 @@ void KitInstrBase<T, EpochT>::writeEpochs(
   writeEpochFooter(fp, *epochs[0], /*comma=*/false);
 }
 
-template <typename T, typename EpochT>
-void KitInstrBase<T, EpochT>::writeJSONFooter(FILE *fp) const {
-  fprintf(fp, "\n}");
-}
+static void writeJSONFooter(FILE *fp) { fprintf(fp, "\n}"); }
 
-template <typename T, typename EpochT>
-void KitInstrBase<T, EpochT>::writeJSON(
-    FILE *fp, const std::vector<const Epoch *> &epochs) const {
+template <typename Epoch>
+static void writeJSON(FILE *fp, const std::vector<const Epoch *> &epochs) {
   writeJSONHeader(fp);
   writeEpochs(fp, epochs);
   writeJSONFooter(fp);
   fprintf(fp, "\n");
 }
+
+// If the environment variable, \p envVar is set to a non-empty string, it is
+// assumed to the name (or absolute path) of a file to which the recorded
+// instrumentation is to be written. A special case is if the environment
+// variable is set to "-". In this case, the FILE object corresponding to
+// stdout will be returned. Otherwise, an attempt will be made to open the file
+// named by \p envVar for writing. If it succeeds, the contents of the file
+// will be deleted and a FILE object pointing to the start of the file will be
+// returned. If the file could not be opened for writing for any reason, NULL
+// will be returned. if \p envVarOutFile is not set in the environment, a FILE
+// object corresponding to stderr will be returned.
+static FILE *getOutputFile(const char *envVar) {
+  if (std::optional<std::string> fname = envLookup(envVar)) {
+    if (fname == "-")
+      return stdout;
+
+    LOG("Writing timings to file: %s", fname->c_str());
+    FILE *fp = fopen(fname->c_str(), "wt");
+    if (!fp)
+      WARN("Could not open file for writing");
+    return fp;
+  } else {
+    return stderr;
+  }
+}
+
+template <typename T, typename EpochT>
+KitInstrBase<T, EpochT>::KitInstrBase()
+    : separate(envContains("KIT_INSTR_SEPARATE")) {}
 
 template <typename T, typename EpochT>
 void KitInstrBase<T, EpochT>::writeJSON(const char *outFileEnvVar) const {
@@ -192,8 +189,8 @@ void KitInstrBase<T, EpochT>::writeJSON(const char *outFileEnvVar) const {
   // human consumption anyway.
   std::stable_sort(epochs.begin(), epochs.end(), sortByNameThenThreadID);
 
-  if (FILE *fp = getInstrumentationOutputFile(outFileEnvVar)) {
-    writeJSON(fp, epochs);
+  if (FILE *fp = getOutputFile(outFileEnvVar)) {
+    ::writeJSON(fp, epochs);
     if (fp != stdout && fp != stderr)
       fclose(fp);
   }
