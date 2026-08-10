@@ -4,8 +4,11 @@
 ; RUN: opt --tapir=serial -passes='loop-spawning,kit-ctors' -S %s \
 ; RUN:     | FileCheck %s -check-prefix DEFAULT
 ;
+; The serial tapir target does not have a runtime, so there are no runtimes to
+; initialize.
+;
 ; DEFAULT: @[[INITOPTS:.+]] = internal constant [8 x i8]
-; DEFAULT-SAME: c"\01\00\00\00\00\00\00\00"
+; DEFAULT-SAME: zeroinitializer
 ; DEFAULT-SAME: section ".kit.rtiopt"
 ;
 ; DEFAULT-LABEL: @llvm.global_ctors = appending global

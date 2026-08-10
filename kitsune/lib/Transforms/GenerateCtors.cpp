@@ -460,10 +460,35 @@ private:
       return false;
     };
 
+    // Get the RTID of the runtime corresponding to the given TTID. Not all
+    // TTID's have associated runtimes. If the TTID does not, return
+    // std::nullopt.
+    auto getRTIDFor = [](TTID tt) -> std::optional<kitrt::RTID> {
+      switch (tt) {
+      case TTID::Cuda: return RT_CUDA;
+      case TTID::Hip: return RT_HIP;
+      case TTID::OpenCilk: return RT_OPENCILK;
+      case TTID::OpenMP: return RT_OPENMP;
+      case TTID::Pthreads: return RT_PTHREADS;
+      case TTID::Qthreads: return RT_QTHREADS;
+      case TTID::Custom:
+      case TTID::Serial: return std::nullopt;
+      case TTID::Nolo:
+        llvm_unreachable("getRTIDFor: Cannot get RTID for TTID::Nolo");
+      case TTID::Lambda:
+      case TTID::OMPTask:
+      case TTID::Realm:
+        // These tapir targets are not yet fully supported.
+        break;
+      }
+      llvm_unreachable("getRTIDFor: TTID not handled");
+    };
+
     const SmallSet<TTID, 0> tts = *getTTsAttr(m);
     kitrt::InitOptions initOpts{0};
     for (TTID tt : tts)
-      initOpts.rts |= static_cast<uint64_t>(tt);
+      if (std::optional<kitrt::RTID> rt = getRTIDFor(tt))
+        initOpts.rts |= static_cast<uint64_t>(*rt);
 
     // Only enable the PAPI runtime if PAPI instrumentation was recorded.
     if (isCalled(KitFunc::kitpapi_start, m))

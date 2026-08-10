@@ -21,10 +21,12 @@
 #include "TestHelpers.h"
 #include "papi/kitpapi.h"
 
-CTOR(RT_PAPI | RT_SERIAL)
+CTOR(RT_PAPI)
 
 int main(int argc, char *argv[]) {
-  (void)__kitpapi_start("nilakantha", /*thread=*/19, 5, "PAPI_TOT_INS",
-                        "TOT_INS", "tot_ins", "Inst", "insts");
+  kitrt::KitPAPIEpoch *e =
+      __kitpapi_start("nilakantha", /*thread=*/19, 5, "PAPI_TOT_INS", "TOT_INS",
+                      "tot_ins", "Inst", "insts");
+  __kitpapi_stop(e);
   return 0;
 }

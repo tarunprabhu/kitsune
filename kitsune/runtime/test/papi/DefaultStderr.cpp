@@ -18,7 +18,7 @@
 #include "TestHelpers.h"
 #include "papi/kitpapi.h"
 
-CTOR(RT_PAPI | RT_SERIAL)
+CTOR(RT_PAPI)
 
 int main(int argc, char *argv[]) {
   kitrt::KitPAPIEpoch *e =

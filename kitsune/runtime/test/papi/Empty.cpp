@@ -8,6 +8,6 @@
 
 #include "TestHelpers.h"
 
-CTOR(RT_PAPI | RT_SERIAL)
+CTOR(RT_PAPI)
 
 int main(int argc, char *argv[]) { return 0; }

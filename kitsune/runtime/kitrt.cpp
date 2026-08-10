@@ -158,8 +158,7 @@ static void initializePAPI(const InitOptions &initOpts) {
       case RT_PTHREADS: return __kitpthr_thread_id;
       case RT_QTHREADS: return __kitqthr_worker_id;
       case RT_CUDA:
-      case RT_HIP:
-      case RT_SERIAL: return nullptr;
+      case RT_HIP: return nullptr;
       case RT_NONE:
       case RT_PAPI:
       case RT_TIMER:
@@ -189,9 +188,6 @@ static void initializePAPI(const InitOptions &initOpts) {
 
 static void initialize(const InitOptions &initOpts, RTID rt) {
   switch (rt) {
-  case RT_SERIAL:
-    // These do not have any associated runtimes that need to be initialized.
-    return;
   case RT_CUDA: return initialize<KitCudaContext>();
   case RT_HIP: return initialize<KitHipContext>();
   case RT_OPENCILK: return initialize<KitOCilkContext>();
@@ -252,9 +248,6 @@ template <typename T> static void finalize() {
 
 static void finalize(RTID rt) {
   switch (rt) {
-  case RT_SERIAL:
-    // These do not have any associated runtimes that need to be initialized.
-    return;
   case RT_CUDA: return finalize<KitCudaContext>();
   case RT_HIP: return finalize<KitHipContext>();
   case RT_OPENCILK: return finalize<KitOCilkContext>();
