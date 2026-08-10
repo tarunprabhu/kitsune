@@ -57,13 +57,6 @@
 
 using namespace kitrt;
 
-KitRTContext::KitRTContext() {
-  // We don't do anything here because we don't know when this will run relative
-  // to the other global constructors. The *_initialize functions will ensure
-  // that any non-pointer fields are initialized correctly. By the time this is
-  // used, the fields will have been set correctly.
-}
-
 void KitRTContext::setInitialized(bool initialized) {
   this->initialized = initialized;
 }
@@ -71,38 +64,6 @@ void KitRTContext::setInitialized(bool initialized) {
 void KitRTContext::setVerbose(bool verbose) { this->verbose = verbose; }
 
 void KitRTContext::setColors(bool colors) { this->colors = colors; }
-
-void KitRTContext::addContext(KitCudaContext *ctx) { this->cuda = ctx; }
-
-void KitRTContext::addContext(KitHipContext *ctx) { this->hip = ctx; }
-
-void KitRTContext::addContext(KitOCilkContext *ctx) { this->ocilk = ctx; }
-
-void KitRTContext::addContext(KitOMPContext *ctx) { this->omp = ctx; }
-
-void KitRTContext::addContext(KitPAPIContext *ctx) { this->papi = ctx; }
-
-void KitRTContext::addContext(KitPthrContext *ctx) { this->pthr = ctx; }
-
-void KitRTContext::addContext(KitQthrContext *ctx) { this->qthr = ctx; }
-
-void KitRTContext::addContext(KitTimerContext *ctx) { this->timer = ctx; }
-
-template <> KitCudaContext *KitRTContext::takeContext() { return take(cuda); }
-
-template <> KitHipContext *KitRTContext::takeContext() { return take(hip); }
-
-template <> KitOCilkContext *KitRTContext::takeContext() { return take(ocilk); }
-
-template <> KitOMPContext *KitRTContext::takeContext() { return take(omp); }
-
-template <> KitPAPIContext *KitRTContext::takeContext() { return take(papi); }
-
-template <> KitPthrContext *KitRTContext::takeContext() { return take(pthr); }
-
-template <> KitQthrContext *KitRTContext::takeContext() { return take(qthr); }
-
-template <> KitTimerContext *KitRTContext::takeContext() { return take(timer); }
 
 namespace kitrt {
 

@@ -54,34 +54,12 @@
 #include "common/traits.h"
 #include "common/unreachable.h"
 #include "global/global.h"
-#include "openmp/kitomp.h"
-#include "pthreads/kitpthr.h"
-#include "timer/timer.h"
+#include "runtimes.h"
 
 #ifdef KITSUNE_COLORS_ENABLED
 #include <curses.h>
 #include <unistd.h>
 #endif // KITSUNE_COLORS_ENABLED
-
-#ifdef KITSUNE_CUDA_ENABLED
-#include "cuda/kitcuda.h"
-#endif // KITSUNE_CUDA_ENABLED
-
-#ifdef KITSUNE_HIP_ENABLED
-#include "hip/kithip.h"
-#endif // KITSUNE_HIP_ENABLED
-
-#ifdef KITSUNE_OPENCILK_ENABLED
-#include "opencilk/kitocilk.h"
-#endif // KITSUNE_OPENCILK_ENABLED
-
-#ifdef KITSUNE_PAPI_ENABLED
-#include "papi/kitpapi.h"
-#endif // KITSUNE_PAPI_ENABLED
-
-#ifdef KITSUNE_QTHREADS_ENABLED
-#include "qthreads/kitqthr.h"
-#endif // KITSUNE_QTHREADS_ENABLED
 
 #include <algorithm>
 #include <vector>
@@ -144,15 +122,19 @@ template <typename T, typename... Args> static void initialize(Args &&...args) {
     LOG("Kitsune runtime already initialized (%s)", T::name());
   } else {
     LOG("Initializing Kitsune runtime (%s)", T::name());
-    mutCtx().addContext(new T);
+    mutCtx().add(new T);
     mutCtx<T>().initialize(args...);
     LOG("Initialized Kitsune runtime (%s)", T::name());
   }
 }
 
 static void initializePAPI(const InitOptions &initOpts) {
-  if constexpr (std::is_complete_v<KitPAPIContext>) {
+  if constexpr (!std::is_complete_v<KitPAPIContext>) {
+    FATAL("Kitsune runtime has not been enabled (%s)", KitPAPIContext::name());
+  } else {
     auto getThreadIDFunc = [](RTID rt) -> PAPIThreadIDFunc * {
+      // This switch must be updated when a new threaded runtime that supports
+      // PAPI is added.
       switch (rt) {
       case RT_OPENCILK: return __kitocilk_worker_id;
       case RT_OPENMP: return __kitomp_thread_id;
@@ -178,8 +160,6 @@ static void initializePAPI(const InitOptions &initOpts) {
       initialize<KitPAPIContext>(nullptr);
     else
       initialize<KitPAPIContext>(getThreadIDFuncs[0]);
-  } else {
-    FATAL("Kitsune runtime has not been enabled (%s)", KitPAPIContext::name());
   }
 }
 
@@ -229,7 +209,7 @@ template <typename T> static void finalize() {
     if (gctx.has<T>()) {
       LOG("Finalizing Kitsune runtime (%s)", T::name());
       mutCtx<T>().finalize();
-      delete mutCtx().takeContext<T>();
+      delete mutCtx().take<T>();
       LOG("Finalized Kitsune runtime (%s)", T::name());
     } else {
       LOG("Cannot finalize Kitsune runtime. Not initialized (%s)", T::name());
