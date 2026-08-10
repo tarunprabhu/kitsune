@@ -159,7 +159,6 @@ static void initializePAPI(const InitOptions &initOpts) {
       case RT_QTHREADS: return __kitqthr_worker_id;
       case RT_CUDA:
       case RT_HIP: return nullptr;
-      case RT_NONE:
       case RT_PAPI:
       case RT_TIMER:
         // This should not happen.
@@ -196,10 +195,6 @@ static void initialize(const InitOptions &initOpts, RTID rt) {
   case RT_PTHREADS: return initialize<KitPthrContext>();
   case RT_QTHREADS: return initialize<KitQthrContext>();
   case RT_TIMER: return initialize<KitTimerContext>();
-  case RT_NONE:
-    // This should never happen. PAPI will not be initialized here.
-    // FIXME: Use unreachable here.
-    break;
   }
   FATAL("initializeRuntimes: RTID not handled");
 }
@@ -256,9 +251,6 @@ static void finalize(RTID rt) {
   case RT_PTHREADS: return finalize<KitPthrContext>();
   case RT_QTHREADS: return finalize<KitQthrContext>();
   case RT_TIMER: return finalize<KitTimerContext>();
-  case RT_NONE:
-    // This should never happen.
-    break;
   }
   FATAL("initializeRuntimes: RTID not handled");
 }

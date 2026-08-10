@@ -18,6 +18,9 @@
 /// \addtogroup kitsune
 /// @{
 
+// Sentinel that can be used when no runtimes are to be initialized.
+#define RT_NONE 0ULL
+
 /// The ID's for the tapir-target specific runtimes and other supporting
 /// runtimes that are part of Kitsune's main runtime.
 ///
@@ -29,7 +32,6 @@
 /// Note that not all tapir targets have a corresponding runtime. In such cases,
 /// the value of the corresponding tapir target must not appear here.
 enum KitRTID : uint64_t {
-  RT_NONE = 0x0ULL,          ///< Only initialize the common runtime
   RT_CUDA = 0x2ULL,          ///< Runtime for the cuda tapir target
   RT_HIP = 0x4ULL,           ///< Runtime for the hip tapir target
   RT_OPENCILK = 0x8ULL,      ///< Runtime for the opencilk tapir target
