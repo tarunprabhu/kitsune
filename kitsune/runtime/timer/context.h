@@ -63,9 +63,6 @@ protected:
 public:
   void initialize();
   void finalize();
-
-public:
-  static const char *name() { return "timer"; }
 };
 
 } // namespace kitrt

@@ -27,9 +27,6 @@ public:
   void finalize();
   uint64_t getNumThreads() const;
   KitThreadID getThreadID() const;
-
-public:
-  static inline const char *name() { return "opencilk"; }
 };
 
 } // namespace kitrt
