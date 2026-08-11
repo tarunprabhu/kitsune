@@ -38,9 +38,6 @@ public:
   KitThreadID getThreadID() const;
   void launch(QthrThrdFunc *f, uint64_t start, uint64_t end, void *args,
               [[maybe_unused]] uint32_t argSize);
-
-public:
-  static constexpr const char *name() { return "qthreads"; }
 };
 
 } // namespace kitrt

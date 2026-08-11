@@ -85,9 +85,6 @@ public:
   // single-threaded context.
   void initialize(PAPIThreadIDFunc *getThreadID);
   void finalize();
-
-public:
-  static const char *name() { return "papi"; }
 };
 
 } // namespace kitrt

@@ -74,9 +74,6 @@ class HipContext {
 public:
   void initialize();
   void finalize();
-
-public:
-  static constexpr const char *name() { return "hip"; }
 };
 
 } // namespace kitrt

@@ -117,14 +117,14 @@ static std::vector<RTID> getInstrRuntimes(const InitOptions &initOpts) {
 
 template <typename T, typename... Args> static void initialize(Args &&...args) {
   if constexpr (!std::is_complete_v<T>) {
-    FATAL("Kitsune runtime has not been enabled (%s)", T::name());
+    FATAL("Kitsune runtime has not been enabled (%s)", getName<T>());
   } else if (gctx.has<T>()) {
-    LOG("Kitsune runtime already initialized (%s)", T::name());
+    LOG("Kitsune runtime already initialized (%s)", getName<T>());
   } else {
-    LOG("Initializing Kitsune runtime (%s)", T::name());
+    LOG("Initializing Kitsune runtime (%s)", getName<T>());
     mutCtx().add(new T);
     mutCtx<T>().initialize(args...);
-    LOG("Initialized Kitsune runtime (%s)", T::name());
+    LOG("Initialized Kitsune runtime (%s)", getName<T>());
   }
 }
 
@@ -134,7 +134,7 @@ template <typename T> static KitThreadID getThreadID() {
 
 static void initializePAPI(const InitOptions &initOpts) {
   if constexpr (!std::is_complete_v<PAPIContext>) {
-    FATAL("Kitsune runtime has not been enabled (%s)", PAPIContext::name());
+    FATAL("Kitsune runtime has not been enabled (%s)", getName<PAPIContext>());
   } else {
     auto getThreadIDFunc = [](RTID rt) -> PAPIThreadIDFunc * {
       // This switch must be updated when a new threaded runtime that supports
@@ -208,17 +208,15 @@ static void initializeCommonRuntime(const InitOptions &initOpts) {
 }
 
 template <typename T> static void finalize() {
-  if constexpr (std::is_complete_v<T>) {
-    if (gctx.has<T>()) {
-      LOG("Finalizing Kitsune runtime (%s)", T::name());
-      mutCtx<T>().finalize();
-      delete mutCtx().take<T>();
-      LOG("Finalized Kitsune runtime (%s)", T::name());
-    } else {
-      LOG("Cannot finalize Kitsune runtime. Not initialized (%s)", T::name());
-    }
+  if constexpr (!std::is_complete_v<T>) {
+    FATAL("Kitsune runtime has not been enabled (%s)", getName<T>());
+  } else if (!gctx.has<T>()) {
+    LOG("Cannot finalize Kitsune runtime. Not initialized (%s)", getName<T>());
   } else {
-    FATAL("Kitsune runtime has not been enabled (%s)", T::name());
+    LOG("Finalizing Kitsune runtime (%s)", getName<T>());
+    mutCtx<T>().finalize();
+    delete mutCtx().take<T>();
+    LOG("Finalized Kitsune runtime (%s)", getName<T>());
   }
 }
 
