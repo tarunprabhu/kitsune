@@ -71,9 +71,6 @@ class CudaContext {
 public:
   void initialize();
   void finalize();
-
-public:
-  static constexpr const char *name() { return "cuda"; }
 };
 
 } // namespace kitrt

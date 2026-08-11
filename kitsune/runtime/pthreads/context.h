@@ -47,9 +47,6 @@ public:
   PthrLaunchContext *launch(PthrThrdFunc *f, uint64_t start, uint64_t end,
                             void *args, [[maybe_unused]] uint32_t argSize);
   void sync(PthrLaunchContext *ctx);
-
-public:
-  static const char *name() { return "pthreads"; }
 };
 
 } // namespace kitrt

@@ -52,6 +52,7 @@ if (CMAKE_COMPILER_IS_GNUCXX)
 endif ()
 
 add_subdirectory(common)
+add_subdirectory(core)
 
 # We probably don't need to do this after the unit tests are configured, but we
 # might as well do it late, just in case.
