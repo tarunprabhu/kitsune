@@ -121,27 +121,53 @@ static void initializeImpl(Args &&...args) {
 }
 
 #ifdef KITSUNE_PAPI_ENABLED
+namespace {
+// Trait to check if a class has a member named `getThreadID` that does not
+// take any arguments and returns a KitThreadID.
+template <typename T> struct matches : std::false_type {};
+template <typename R, typename C>
+struct matches<R (C::*)() const>
+    : std::bool_constant<std::is_same_v<R, KitThreadID>> {};
+
+template <typename T, typename = void>
+struct has_getThreadID : std::false_type {};
+template <typename T>
+struct has_getThreadID<T, std::void_t<decltype(&T::getThreadID)>>
+    : std::bool_constant<matches<decltype(&T::getThreadID)>::value> {};
+} // namespace
+
 template <typename T> static KitThreadID getThreadID() {
   return getCtx<T>().getThreadID();
 }
 
-template <> void initializeImpl<PAPIContext>(const InitOptions &initOpts) {
-  auto getThreadIDFunc = [](RTID rt) -> PAPIThreadIDFunc * {
-    // This switch must be updated when a new threaded runtime that supports
-    // PAPI is added.
-    switch (rt) {
-    case RT_OPENCILK: return getThreadID<OpenCilkContext>;
-    case RT_OPENMP: return getThreadID<OpenMPContext>;
-    case RT_PTHREADS: return getThreadID<PthreadsContext>;
-    case RT_QTHREADS: return getThreadID<QthreadsContext>;
-    case RT_CUDA:
-    case RT_HIP: return nullptr;
-    case RT_PAPI:
-    case RT_TIMER: UNREACHABLE("Runtime is not tapir-target-specific");
-    }
-    FATAL("getThreadIDFunc: RTID not handled");
-  };
+template <typename T> static PAPIThreadIDFunc *getThreadIDFunc() {
+  if constexpr (std::is_complete_v<T> && has_getThreadID<T>::value)
+    return getThreadID<T>;
+  else
+    return nullptr;
+}
 
+static PAPIThreadIDFunc *getThreadIDFunc(RTID rt) {
+  switch (rt) {
+  case RT_OPENCILK: return getThreadIDFunc<OpenCilkContext>();
+  case RT_OPENMP: return getThreadIDFunc<OpenMPContext>();
+  case RT_PTHREADS: return getThreadIDFunc<PthreadsContext>();
+  case RT_QTHREADS: return getThreadIDFunc<QthreadsContext>();
+  case RT_CUDA:
+  case RT_HIP:
+    // These tapir targets do not use CPU threads. If we return nullptr,
+    // papi_thread_init() will not be called.
+    return nullptr;
+  case RT_PAPI:
+  case RT_TIMER:
+    // These are unreachable, but we add these here so if we add a new runtime
+    // but forget to update this, we will get a more useful warning/error.
+    UNREACHABLE("Runtime is not tapir-target-specific");
+  }
+  FATAL("getThreadIDFunc: RTID not handled");
+}
+
+template <> void initializeImpl<PAPIContext>(const InitOptions &initOpts) {
   PAPIThreadIDFunc *threadIDFunc = nullptr;
   for (RTID rt : getTTRuntimes(initOpts)) {
     if (PAPIThreadIDFunc *func = getThreadIDFunc(rt)) {
