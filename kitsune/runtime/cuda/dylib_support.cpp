@@ -55,7 +55,7 @@
 // points will all be declared at global scope here and used elsewhere via
 // "extern" access.
 
-#include "global/global.h"
+#include "context.h"
 
 #include <cstdio>
 

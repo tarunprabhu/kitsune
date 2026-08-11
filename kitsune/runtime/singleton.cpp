@@ -1,4 +1,4 @@
-//===- global.cpp - Singleton object for global data ----------------------===//
+//===- singleton.cpp - Singleton object for global data -------------------===//
 //
 // Copyright (c) 2021, 2023 Los Alamos National Security, LLC.
 // All rights reserved.
@@ -49,30 +49,22 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Singleton object for global data.
+// The singleton objects for global data.
 //
 //===----------------------------------------------------------------------===//
 
-#include "global/global.h"
-
-using namespace kitrt;
-
-void KitRTContext::setInitialized(bool initialized) {
-  this->initialized = initialized;
-}
-
-void KitRTContext::setVerbose(bool verbose) { this->verbose = verbose; }
-
-void KitRTContext::setColors(bool colors) { this->colors = colors; }
+#include "context.h"
 
 namespace kitrt {
 
-/// The global context object.
-KitRTContext singleton;
+/// The singleton context object. This is where all global data used by the
+/// runtime is maintained. This is not exposed outside this file directly, but
+/// a constant reference to it is exposed.
+static Context singleton;
 
 /// The const ref to that object that is exposed.
-const KitRTContext &gctx = singleton;
+const Context &gctx = singleton;
 
 } // namespace kitrt
 
-KitRTContext &kitrt::mutCtx() { return kitrt::singleton; }
+kitrt::Context &kitrt::mutCtx() { return kitrt::singleton; }

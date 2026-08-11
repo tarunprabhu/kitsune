@@ -24,11 +24,11 @@ add_library(${KITRT_OBJLIB} OBJECT
   kitrt.cpp
   memory.cpp
   memory_map.cpp
+  singleton.cpp
   common/env.cpp
   common/instr.cpp
   common/logging.cpp
   common/utils.cpp
-  global/global.cpp
   timer/timer.cpp
 )
 

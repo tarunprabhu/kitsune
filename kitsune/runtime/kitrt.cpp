@@ -53,7 +53,7 @@
 #include "common/logging.h"
 #include "common/traits.h"
 #include "common/unreachable.h"
-#include "global/global.h"
+#include "context.h"
 #include "runtimes.h"
 
 #ifdef KITSUNE_COLORS_ENABLED
@@ -199,7 +199,7 @@ static void initializeCommonRuntime(const InitOptions &initOpts) {
   // that a message is printed is to check the environment variables.
   LOG_IF_VERBOSE("Initializing Kitsune runtime (common)");
 
-  KitRTContext &rt = mutCtx();
+  Context &rt = mutCtx();
   rt.setVerbose(envLookupOr(envVerbose, envVerboseLegacy, false));
   rt.setColors(terminalHasColors());
 

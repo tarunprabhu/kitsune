@@ -57,7 +57,7 @@
 #include "papi/kitpapi.h"
 #include "common/env.h"
 #include "common/logging.h"
-#include "global/global.h"
+#include "context.h"
 #include "papi/context.h"
 
 #include "papi.h"
