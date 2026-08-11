@@ -52,24 +52,40 @@ llvm_config.add_tool_substitutions(tools, tool_dirs)
 
 if config.kitsune_papi_enabled:
     config.available_features.add("kitsune-papi")
+else:
+    config.available_features.add("kitsune-no-papi")
 
 if config.kitsune_cuda_enabled:
     config.available_features.add("kitsune-cuda")
+else:
+    config.available_features.add("kitsune-no-cuda")
 
 if config.kitsune_hip_enabled:
     config.available_features.add("kitsune-hip")
+else:
+    config.available_features.add("kitsune-no-hip")
 
 if config.kitsune_lambda_enabled:
     config.available_features.add("kitsune-lambda")
+else:
+    config.available_features.add("kitsune-no-lambda")
 
 if config.kitsune_omptask_enabled:
     config.available_features.add("kitsune-omptask")
+else:
+    config.available_features.add("kitsune-no-omptask")
 
 if config.kitsune_opencilk_enabled:
     config.available_features.add("kitsune-opencilk")
+else:
+    config.available_features.add("kitsune-no-opencilk")
 
 if config.kitsune_qthreads_enabled:
     config.available_features.add("kitsune-qthreads")
+else:
+    config.available_features.add("kitsune-no-qthreads")
 
 if config.kitsune_realm_enabled:
     config.available_features.add("kitsune-realm")
+else:
+    config.available_features.add("kitsune-no-realm")
