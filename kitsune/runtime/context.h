@@ -1,4 +1,4 @@
-//===- global.h - Singleton object for global data -------------*- C++ -*--===//
+//===- context.h - Context object for global state -------------*- C++ -*--===//
 //
 // Copyright (c) 2021, 2023 Los Alamos National Security, LLC.
 // All rights reserved.
@@ -49,12 +49,12 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Singleton object for global data.
+// Context object for global state used in the runtime.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef KITRT_GLOBAL_GLOBAL_H
-#define KITRT_GLOBAL_GLOBAL_H
+#ifndef KITRT_CONTEXT_H
+#define KITRT_CONTEXT_H
 
 #include "runtimes.h"
 
@@ -63,10 +63,10 @@
 
 namespace kitrt {
 
-/// The context object for the global data used in kitrt. This will own the
-/// globals used by all Kitsune's runtimes - even if they are only ever used in
-/// a single runtime.
-class KitRTContext {
+/// The context object for the global state used in kitrt. Individual runtimes
+/// may also use context objects containing global state. This will own those
+/// context objects as well.
+class Context {
 public:
   /// Has this object been initialized.
   uint32_t initialized : 1;
@@ -82,22 +82,22 @@ public:
   ContextsTuple ctxs;
 
 public:
-  KitRTContext() = default;
-  KitRTContext(const KitRTContext &) = delete;
-  KitRTContext(KitRTContext &&) = delete;
-  ~KitRTContext() = default;
+  Context() = default;
+  Context(const Context &) = delete;
+  Context(Context &&) = delete;
+  ~Context() = default;
 
-  KitRTContext &operator=(const KitRTContext &) = delete;
-  KitRTContext &operator=(KitRTContext &&) = delete;
+  Context &operator=(const Context &) = delete;
+  Context &operator=(Context &&) = delete;
 
   /// Set the initialized flag on the object.
-  void setInitialized(bool initialized);
+  inline void setInitialized(bool init) { this->initialized = init; }
 
   /// Set the verbose flag.
-  void setVerbose(bool verbose);
+  inline void setVerbose(bool verbose) { this->verbose = verbose; }
 
   /// Set the colors flag.
-  void setColors(bool colors);
+  inline void setColors(bool colors) { this->colors = colors; }
 
   /// Ensure that the context object of the given type has been created.
   template <typename T> inline void ensure() const {
@@ -143,12 +143,12 @@ public:
 /// means that the scalar fields of the objects and the pointers themselves may
 /// not be changed. However, the pointees of objects may still change, so it is
 /// possible to call non-const methods on those objects.
-extern const KitRTContext &gctx;
+extern const Context &gctx;
 
 /// Get a non-const reference to the single global context. This should
 /// generally only be used in the various *_initialize functions that are called
 /// from global constructors. This function is not thread-safe.
-KitRTContext &mutCtx();
+Context &mutCtx();
 
 /// Get a constant reference to a runtime context object. This cannot be used to
 /// get a reference to the singleton object. The requested object must have been
@@ -162,4 +162,4 @@ template <typename T> inline T &mutCtx() { return mutCtx().get<T>(); }
 
 } // namespace kitrt
 
-#endif // KITRT_GLOBAL_GLOBAL_H
+#endif // KITRT_CONTEXT_H

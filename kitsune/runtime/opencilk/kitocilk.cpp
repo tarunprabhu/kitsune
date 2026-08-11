@@ -61,7 +61,7 @@
 #include "common/env.h"
 #include "common/logging.h"
 #include "common/utils.h"
-#include "global/global.h"
+#include "context.h"
 #include "opencilk/context.h"
 
 #include <cassert>
