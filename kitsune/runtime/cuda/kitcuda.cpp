@@ -66,7 +66,7 @@
 
 #include "common/env.h"
 #include "common/logging.h"
-#include "global/global.h"
+#include "context.h"
 #include "kitcuda.h"
 #include "kitcuda_dylib.h"
 #include "kitrt.h"

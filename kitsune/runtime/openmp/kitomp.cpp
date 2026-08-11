@@ -53,7 +53,7 @@
 #include "common/env.h"
 #include "common/logging.h"
 #include "common/utils.h"
-#include "global/global.h"
+#include "context.h"
 #include "openmp/context.h"
 
 // This is an internal header in LLVM's OpenMP runtime. The path is relative

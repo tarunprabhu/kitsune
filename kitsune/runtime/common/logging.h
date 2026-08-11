@@ -59,7 +59,7 @@
 #define KITRT_COMMON_LOGGING_H
 
 #include "common/env.h"
-#include "global/global.h"
+#include "context.h"
 
 namespace kitrt {
 

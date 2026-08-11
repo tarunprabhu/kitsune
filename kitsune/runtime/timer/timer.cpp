@@ -63,7 +63,7 @@
 #include "timer/timer.h"
 #include "common/env.h"
 #include "common/logging.h"
-#include "global/global.h"
+#include "context.h"
 #include "timer/context.h"
 
 #include <ctime>

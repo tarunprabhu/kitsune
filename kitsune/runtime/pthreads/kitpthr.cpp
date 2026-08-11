@@ -57,7 +57,7 @@
 #include "common/env.h"
 #include "common/logging.h"
 #include "common/utils.h"
-#include "global/global.h"
+#include "context.h"
 #include "pthreads/context.h"
 
 #include <cassert>
