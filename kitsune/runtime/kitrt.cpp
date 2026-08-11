@@ -318,8 +318,6 @@ extern "C" void __kitrt_finalize(const InitOptions *initOpts) {
     finalizeRuntimes(*initOpts);
     finalizeCommonRuntime();
   } else {
-    LOG("Cannot finalize Kitsune runtime. Not initialized (common)");
-
     // Even if the runtime has already been finalized, we may have to finalize
     // additional runtimes.
     //
@@ -329,5 +327,6 @@ extern "C" void __kitrt_finalize(const InitOptions *initOpts) {
     // In such cases, we should only run the true finalization when we know that
     // it is the last finalization call.
     finalizeRuntimes(*initOpts);
+    LOG("Cannot finalize Kitsune runtime. Not initialized (common)");
   }
 }
