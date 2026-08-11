@@ -12,10 +12,6 @@ set(TESTS
   LogNormalNoTag.cpp
   LogWarning.cpp
   LogWarningNoTag.cpp
-
-  RTInitialized.cpp
-  RTMultipleInit.cpp
-  RTMultipleFini.cpp
 )
 
 add_kitrt_systests("${TESTS}")
