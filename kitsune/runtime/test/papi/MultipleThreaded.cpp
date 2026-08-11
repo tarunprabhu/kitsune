@@ -5,7 +5,7 @@
 //
 // RUN: KIT_VERBOSE=1 not %exe 2>&1 | FileCheck %s
 //
-// CHECK: PAPI not initialized
+// CHECK: PAPI does not support multiple threaded CPU runtimes
 // CHECK-NOT: Initializing Kitsune runtime (papi)
 // CHECK-NOT: Initialized Kitsune runtime (papi)
 // CHECK-NOT: {{^[{]}}

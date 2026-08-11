@@ -115,6 +115,49 @@ static std::vector<RTID> getInstrRuntimes(const InitOptions &initOpts) {
   return getRuntimes(initOpts.rts >> 32, 0x100000000ULL);
 }
 
+template <typename T, typename... Args>
+static void initializeImpl(Args &&...args) {
+  mutCtx<T>().initialize(args...);
+}
+
+#ifdef KITSUNE_PAPI_ENABLED
+template <typename T> static KitThreadID getThreadID() {
+  return getCtx<T>().getThreadID();
+}
+
+template <> void initializeImpl<PAPIContext>(const InitOptions &initOpts) {
+  auto getThreadIDFunc = [](RTID rt) -> PAPIThreadIDFunc * {
+    // This switch must be updated when a new threaded runtime that supports
+    // PAPI is added.
+    switch (rt) {
+    case RT_OPENCILK: return getThreadID<OpenCilkContext>;
+    case RT_OPENMP: return getThreadID<OpenMPContext>;
+    case RT_PTHREADS: return getThreadID<PthreadsContext>;
+    case RT_QTHREADS: return getThreadID<QthreadsContext>;
+    case RT_CUDA:
+    case RT_HIP: return nullptr;
+    case RT_PAPI:
+    case RT_TIMER: UNREACHABLE("Runtime is not tapir-target-specific");
+    }
+    FATAL("getThreadIDFunc: RTID not handled");
+  };
+
+  PAPIThreadIDFunc *threadIDFunc = nullptr;
+  for (RTID rt : getTTRuntimes(initOpts)) {
+    if (PAPIThreadIDFunc *func = getThreadIDFunc(rt)) {
+      if (!threadIDFunc) {
+        threadIDFunc = func;
+      } else {
+        // If threadIDFunc has already been set, then we have multiple
+        // threaded CPU runtimes operating simultaneously.
+        FATAL("PAPI does not support multiple threaded CPU runtimes");
+      }
+    }
+  }
+  mutCtx<PAPIContext>().initialize(threadIDFunc);
+}
+#endif // KITSUNE_PAPI_ENABLED
+
 template <typename T, typename... Args> static void initialize(Args &&...args) {
   if constexpr (!std::is_complete_v<T>) {
     FATAL("Kitsune runtime has not been enabled (%s)", getName<T>());
@@ -123,46 +166,8 @@ template <typename T, typename... Args> static void initialize(Args &&...args) {
   } else {
     LOG("Initializing Kitsune runtime (%s)", getName<T>());
     mutCtx().add(new T);
-    mutCtx<T>().initialize(args...);
+    initializeImpl<T>(args...);
     LOG("Initialized Kitsune runtime (%s)", getName<T>());
-  }
-}
-
-template <typename T> static KitThreadID getThreadID() {
-  return getCtx<T>().getThreadID();
-}
-
-static void initializePAPI(const InitOptions &initOpts) {
-  if constexpr (!std::is_complete_v<PAPIContext>) {
-    FATAL("Kitsune runtime has not been enabled (%s)", getName<PAPIContext>());
-  } else {
-    auto getThreadIDFunc = [](RTID rt) -> PAPIThreadIDFunc * {
-      // This switch must be updated when a new threaded runtime that supports
-      // PAPI is added.
-      switch (rt) {
-      case RT_OPENCILK: return getThreadID<OpenCilkContext>;
-      case RT_OPENMP: return getThreadID<OpenMPContext>;
-      case RT_PTHREADS: return getThreadID<PthreadsContext>;
-      case RT_QTHREADS: return getThreadID<QthreadsContext>;
-      case RT_CUDA:
-      case RT_HIP: return nullptr;
-      case RT_PAPI:
-      case RT_TIMER: UNREACHABLE("Runtime is not tapir-target-specific");
-      }
-      FATAL("getThreadIDFunc: RTID not handled");
-    };
-
-    std::vector<PAPIThreadIDFunc *> getThreadIDFuncs;
-    for (RTID rt : getTTRuntimes(initOpts))
-      if (PAPIThreadIDFunc *threadIDFunc = getThreadIDFunc(rt))
-        getThreadIDFuncs.push_back(*threadIDFunc);
-
-    if (getThreadIDFuncs.size() > 1)
-      FATAL("PAPI not initialized. Initialized multiple threaded CPU runtimes");
-    else if (getThreadIDFuncs.size() < 1)
-      initialize<PAPIContext>(nullptr);
-    else
-      initialize<PAPIContext>(getThreadIDFuncs[0]);
   }
 }
 
@@ -172,7 +177,7 @@ static void initialize(const InitOptions &initOpts, RTID rt) {
   case RT_HIP: return initialize<HipContext>();
   case RT_OPENCILK: return initialize<OpenCilkContext>();
   case RT_OPENMP: return initialize<OpenMPContext>();
-  case RT_PAPI: return initializePAPI(initOpts);
+  case RT_PAPI: return initialize<PAPIContext>(initOpts);
   case RT_PTHREADS: return initialize<PthreadsContext>();
   case RT_QTHREADS: return initialize<QthreadsContext>();
   case RT_TIMER: return initialize<TimerContext>();
