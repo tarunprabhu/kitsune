@@ -4,6 +4,7 @@ set(TESTS
   DisabledOpenCilk.c
   DisabledPAPI.c
   DisabledQthreads.c
+  InitFini.c
   Initialized.cpp
   MultipleInit.cpp
   MultipleFini.cpp
