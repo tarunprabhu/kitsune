@@ -56,6 +56,7 @@ function(add_kitrt_systests tests)
 endfunction ()
 
 add_subdirectory(common)
+add_subdirectory(core)
 add_subdirectory(openmp)
 add_subdirectory(pthreads)
 add_subdirectory(timer)

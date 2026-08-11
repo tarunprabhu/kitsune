@@ -45,14 +45,14 @@ enum KitRTID : uint64_t {
 /// Initialization options for Kitsune's runtime. An instance of this will be
 /// created by Kitsune when it generates a global constructor that will
 /// initialize Kitsune's runtime.
-struct KitRTInitOptions {
+typedef struct KitRTInitOptions {
   /// A bitvector of the ID's of the tapir targets whose supporting runtimes are
   /// to be enabled. This is 64-bits because the RTID enum is guaranteed to be
   /// 64-bits. Each bit in this bitvector represents an RTID. If it is set, then
   /// the supporting runtime should be enabled. An instance of this will be
   /// created by the compiler and passed to the runtime.
   uint64_t rts;
-};
+} KitRTInitOptions;
 
 #ifdef __cplusplus
 

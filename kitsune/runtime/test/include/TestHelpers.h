@@ -17,7 +17,7 @@
 #include "kitsune/Shared/RTInitOptions.h"
 
 #define CTOR(RTS)                                                              \
-  const KitRTInitOptions initOpts{RTS};                                        \
+  const struct KitRTInitOptions initOpts = {RTS};                              \
                                                                                \
   __attribute__((constructor)) static void ctor() {                            \
     __kitrt_initialize(&initOpts);                                             \
@@ -26,6 +26,9 @@
   __attribute__((destructor)) static void dtor() {                             \
     __kitrt_finalize(&initOpts);                                               \
   }
+
+#define MAIN                                                                   \
+  int main(int argc, char *argv[]) { return 0; }
 
 #define BOOLSTR(v) ((v) ? "true" : "false")
 
