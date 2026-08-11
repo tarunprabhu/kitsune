@@ -199,9 +199,10 @@ void InstrBase<T, EpochT>::writeJSON(const char *outFileEnvVar) const {
 // -----------------------------------------------------------------------------
 // Instantiate all supported instrumentation runtimes.
 
+#ifdef KITSUNE_PAPI_ENABLED
 #include "papi/context.h"
-#include "timer/context.h"
-
-// If a new instrumentation runtime is added, it should be instantiated here.
 template class kitrt::InstrBase<PAPIContext, PAPIEpoch>;
+#endif // KITSUNE_PAPI_ENABLED
+
+#include "timer/context.h"
 template class kitrt::InstrBase<TimerContext, TimerEpoch>;
