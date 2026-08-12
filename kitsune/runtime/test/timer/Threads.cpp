@@ -8,18 +8,42 @@
 // CHECK:      {
 // CHECK-NEXT:   "main": {
 // CHECK-NEXT:     "0": [
-// CHECK-NEXT:       {{[0-9]+}}
+// CHECK-NEXT:       {
+// CHECK-SAME:         "total": [[M:[0-9]+]],
+// CHECK-SAME:         "visits": 1,
+// CHECK-SAME:         "min": [[M]],
+// CHECK-SAME:         "mean": [[M]],
+// CHECK-SAME:         "max": [[M]]
+// CHECK-SAME:       }
 // CHECK-NEXT:     ]
 // CHECK-NEXT:   },
 // CHECK-NEXT:   "thrd": {
 // CHECK-NEXT:     "0": [
-// CHECK-NEXT:       {{[0-9]+}}
+// CHECK-NEXT:       {
+// CHECK-SAME:         "total": [[T0:[0-9]+]],
+// CHECK-SAME:         "visits": 1,
+// CHECK-SAME:         "min": [[T0]],
+// CHECK-SAME:         "mean": [[T0]],
+// CHECK-SAME:         "max": [[T0]]
+// CHECK-SAME:       }
 // CHECK-NEXT:     ],
 // CHECK-NEXT:     "1": [
-// CHECK-NEXT:       {{[0-9]+}}
+// CHECK-NEXT:       {
+// CHECK-SAME:         "total": [[T1:[0-9]+]],
+// CHECK-SAME:         "visits": 1,
+// CHECK-SAME:         "min": [[T1]],
+// CHECK-SAME:         "mean": [[T1]],
+// CHECK-SAME:         "max": [[T1]]
+// CHECK-SAME:       }
 // CHECK-NEXT:     ],
 // CHECK-NEXT:     "2": [
-// CHECK-NEXT:       {{[0-9]+}}
+// CHECK-NEXT:       {
+// CHECK-SAME:         "total": [[T2:[0-9]+]],
+// CHECK-SAME:         "visits": 1,
+// CHECK-SAME:         "min": [[T2]],
+// CHECK-SAME:         "mean": [[T2]],
+// CHECK-SAME:         "max": [[T2]]
+// CHECK-SAME:       }
 // CHECK-NEXT:     ]
 // CHECK-NEXT:   }
 // CHECK-NEXT: }

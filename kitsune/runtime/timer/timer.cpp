@@ -67,12 +67,9 @@
 #include "timer/context.h"
 
 #include <ctime>
+#include <limits>
 
 using namespace kitrt;
-
-/// A time point. This is generally the wallclock time, in nanoseconds, since
-/// the epoch.
-using TimePoint = TimeSpan;
 
 // The number of nanoseconds since the epoch. This uses CLOCK_REALTIME to get
 // wall-clock time. This is susceptible to changes to the system time. This is
@@ -84,13 +81,34 @@ static TimePoint nsecs() {
 }
 
 TimerEpoch::TimerEpoch(const char *name, KitThreadID thrd)
-    : EpochBase(name, thrd) {}
+    : EpochBase(name, thrd), min(std::numeric_limits<TimeSpan>::max()),
+      max(std::numeric_limits<TimeSpan>::min()) {}
 
-void TimerEpoch::start() { span -= nsecs(); }
+void TimerEpoch::start() { tick = nsecs(); }
 
-TimeSpan TimerEpoch::stop() { return span += nsecs(); }
+TimeSpan TimerEpoch::stop() {
+  TimeSpan span = nsecs() - tick;
 
-void TimerEpoch::writeJSON(FILE *fp) const { fprintf(fp, "\n      %ld", span); }
+  min = std::min(min, span);
+  max = std::max(max, span);
+  total += span;
+  visits += 1;
+
+  return span;
+}
+
+void TimerEpoch::writeJSON(FILE *fp) const {
+  fprintf(fp, "\n      {");
+  fprintf(fp, " \"total\": %ld", total);
+  fprintf(fp, ", \"visits\": %ld", visits);
+  fprintf(fp, ", \"min\": %ld", min);
+  if (visits == 1)
+    fprintf(fp, ", \"mean\": %ld", total);
+  else
+    fprintf(fp, ", \"mean\": %.6f", double(total) / double(visits));
+  fprintf(fp, ", \"max\": %ld", max);
+  fprintf(fp, " }");
+}
 
 void TimerContext::initialize() {
   // Nothing to be done here.

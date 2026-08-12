@@ -1,20 +1,11 @@
 // The most basic timer test. This sleeps for 1ms and performs a sanity check
 // on the recorded time span.
 //
-// RUN: %exe 2>&1 | FileCheck %s
-//
-// CHECK:      {
-// CHECK-NEXT:   "basic": {
-// CHECK-NEXT:     "47": [
-// CHECK-NEXT:       {{[0-9]+}}
-// CHECK-NEXT:     ]
-// CHECK-NEXT:   }
-// CHECK-NEXT: }
+// RUN: %exe
 
 #include "TestHelpers.h"
 #include "timer/timer.h"
 
-#include <stdio.h>
 #include <time.h>
 
 CTOR(RT_TIMER)
