@@ -43,6 +43,10 @@ function(add_kitrt_systest source)
     target_link_options(${target} PRIVATE "LINKER:-z,now")
   endif ()
 
+  set_target_properties(${target} PROPERTIES
+    C_STANDARD 23
+    CXX_STANDARD 17)
+
   add_dependencies(KitrtTests ${target})
 endfunction()
 
