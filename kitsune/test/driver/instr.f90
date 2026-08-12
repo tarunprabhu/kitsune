@@ -5,27 +5,27 @@
 ! ------------------------------------------------------------------------------
 ! --kit-instr= valid
 !
-! RUN: %kitxx -### %s 2>&1 | FileCheck %s --check-prefixes=CC1,KIND-DEFAULT
+! RUN: %kitfc -### %s 2>&1 | FileCheck %s --check-prefixes=FC1,KIND-DEFAULT
 !
-! RUN: %kitxx -### --kit-instr=generic %s 2>&1 \
-! RUN:     | FileCheck %s --check-prefixes=CC1,KIND-GENERIC
+! RUN: %kitfc -### --kit-instr=generic %s 2>&1 \
+! RUN:     | FileCheck %s --check-prefixes=FC1,KIND-GENERIC
 !
-! RUN: %kitxx -### --kit-instr=papi %s 2>&1 \
-! RUN:     | FileCheck %s --check-prefixes=CC1,KIND-PAPI
+! RUN: %kitfc -### --kit-instr=papi %s 2>&1 \
+! RUN:     | FileCheck %s --check-prefixes=FC1,KIND-PAPI
 !
-! RUN: %kitxx -### --kit-instr=timer %s 2>&1 \
-! RUN:     | FileCheck %s --check-prefixes=CC1,KIND-TIMER
+! RUN: %kitfc -### --kit-instr=timer %s 2>&1 \
+! RUN:     | FileCheck %s --check-prefixes=FC1,KIND-TIMER
 !
-! RUN: %kitxx -### --kit-instr=generic,papi %s 2>&1 \
-! RUN:     | FileCheck %s --check-prefixes=CC1,KIND-MULTIPLE2
+! RUN: %kitfc -### --kit-instr=generic,papi %s 2>&1 \
+! RUN:     | FileCheck %s --check-prefixes=FC1,KIND-MULTIPLE2
 !
-! RUN: %kitxx -### --kit-instr=timer,generic,papi %s 2>&1 \
-! RUN:     | FileCheck %s --check-prefixes=CC1,KIND-MULTIPLE3
+! RUN: %kitfc -### --kit-instr=timer,generic,papi %s 2>&1 \
+! RUN:     | FileCheck %s --check-prefixes=FC1,KIND-MULTIPLE3
 !
-! RUN: %kitxx -### --kit-instr=papi,generic,papi %s 2>&1 \
-! RUN:     | FileCheck %s --check-prefixes=CC1,KIND-REPEAT
+! RUN: %kitfc -### --kit-instr=papi,generic,papi %s 2>&1 \
+! RUN:     | FileCheck %s --check-prefixes=FC1,KIND-REPEAT
 !
-! CC1: "-cc1"
+! FC1: "-fc1"
 !
 ! KIND-DEFAULT-NOT: --kit-instr=
 !
@@ -39,16 +39,16 @@
 ! ------------------------------------------------------------------------------
 ! --kit-instr= invalid
 !
-! RUN: not %kitxx -### --kit-instr= %s 2>&1 \
+! RUN: not %kitfc -### --kit-instr= %s 2>&1 \
 ! RUN:     | FileCheck %s --check-prefix=EMPTY-LIST
 !
-! RUN: not %kitxx -### --kit-instr=timers %s 2>&1 \
+! RUN: not %kitfc -### --kit-instr=timers %s 2>&1 \
 ! RUN:     | FileCheck %s --check-prefix=KIND-INVALID-TIMERS
 !
-! RUN: not %kitxx -### --kit-instr=PAPI %s 2>&1 \
+! RUN: not %kitfc -### --kit-instr=PAPI %s 2>&1 \
 ! RUN:     | FileCheck %s --check-prefix=KIND-INVALID-PAPI
 !
-! RUN: not %kitxx -### --kit-instr=generic,counters %s 2>&1 \
+! RUN: not %kitfc -### --kit-instr=generic,counters %s 2>&1 \
 ! RUN:     | FileCheck %s --check-prefix=KIND-INVALID-COUNTERS
 !
 ! EMPTY-LIST: argument to '{{.+}}' must be comma-separated list with at least one element
@@ -59,13 +59,13 @@
 ! ------------------------------------------------------------------------------
 ! --kit-instr-only= valid
 !
-! RUN: %kitxx -### %s 2>&1 | FileCheck %s --check-prefixes=CC1,ONLY-DEFAULT
+! RUN: %kitfc -### %s 2>&1 | FileCheck %s --check-prefixes=FC1,ONLY-DEFAULT
 !
-! RUN: %kitxx -### --kit-instr-only=one %s 2>&1 \
-! RUN:     | FileCheck %s --check-prefixes=CC1,ONLY-ONE
+! RUN: %kitfc -### --kit-instr-only=one %s 2>&1 \
+! RUN:     | FileCheck %s --check-prefixes=FC1,ONLY-ONE
 !
-! RUN: %kitxx -### --kit-instr-only=one,two,three %s 2>&1 \
-! RUN:     | FileCheck %s --check-prefixes=CC1,ONLY-THREE
+! RUN: %kitfc -### --kit-instr-only=one,two,three %s 2>&1 \
+! RUN:     | FileCheck %s --check-prefixes=FC1,ONLY-THREE
 !
 ! ONLY-DEFAULT-NOT: --kit-instr-only
 ! ONLY-ONE-SAME: "--kit-instr-only=one"
@@ -74,10 +74,10 @@
 ! ------------------------------------------------------------------------------
 ! --kit-instr-only= invalid
 !
-! RUN: not %kitxx -### --kit-instr-only= %s 2>&1 \
+! RUN: not %kitfc -### --kit-instr-only= %s 2>&1 \
 ! RUN:     | FileCheck %s --check-prefix=EMPTY-LIST
 !
-! RUN: not %kitxx -### --kit-instr-only="this,,that" %s 2>&1 \
+! RUN: not %kitfc -### --kit-instr-only="this,,that" %s 2>&1 \
 ! RUN:     | FileCheck %s --check-prefix=ONLY-INVALID-EMPTY
 !
 ! ONLY-INVALID-EMPTY: invalid value '' in '{{.+}}'
@@ -85,25 +85,25 @@
 ! ------------------------------------------------------------------------------
 ! --kit-instr-unit= valid
 !
-! RUN: %kitxx -### %s 2>&1 | FileCheck %s --check-prefixes=CC1,UNIT-DEFAULT
+! RUN: %kitfc -### %s 2>&1 | FileCheck %s --check-prefixes=FC1,UNIT-DEFAULT
 !
-! RUN: %kitxx -### --kit-instr-unit=all %s 2>&1 \
-! RUN:     | FileCheck %s --check-prefixes=CC1,UNIT-ALL
+! RUN: %kitfc -### --kit-instr-unit=all %s 2>&1 \
+! RUN:     | FileCheck %s --check-prefixes=FC1,UNIT-ALL
 !
-! RUN: %kitxx -### --kit-instr-unit=default %s 2>&1 \
-! RUN:     | FileCheck %s --check-prefixes=CC1,UNIT-DEFAULTS
+! RUN: %kitfc -### --kit-instr-unit=default %s 2>&1 \
+! RUN:     | FileCheck %s --check-prefixes=FC1,UNIT-DEFAULTS
 !
-! RUN: %kitxx -### --kit-instr-unit=loop %s 2>&1 \
-! RUN:     | FileCheck %s --check-prefixes=CC1,UNIT-LOOP
+! RUN: %kitfc -### --kit-instr-unit=loop %s 2>&1 \
+! RUN:     | FileCheck %s --check-prefixes=FC1,UNIT-LOOP
 !
-! RUN: %kitxx -### --kit-instr-unit=thread %s 2>&1 \
-! RUN:     | FileCheck %s --check-prefixes=CC1,UNIT-THREAD
+! RUN: %kitfc -### --kit-instr-unit=thread %s 2>&1 \
+! RUN:     | FileCheck %s --check-prefixes=FC1,UNIT-THREAD
 !
-! RUN: %kitxx -### --kit-instr-unit=loop,thread %s 2>&1 \
-! RUN:     | FileCheck %s --check-prefixes=CC1,UNIT-MULTIPLE2
+! RUN: %kitfc -### --kit-instr-unit=loop,thread %s 2>&1 \
+! RUN:     | FileCheck %s --check-prefixes=FC1,UNIT-MULTIPLE2
 !
-! RUN: %kitxx -### --kit-instr-unit=loop,thread,loop %s 2>&1 \
-! RUN:     | FileCheck %s --check-prefixes=CC1,UNIT-REPEAT
+! RUN: %kitfc -### --kit-instr-unit=loop,thread,loop %s 2>&1 \
+! RUN:     | FileCheck %s --check-prefixes=FC1,UNIT-REPEAT
 !
 ! UNIT-DEFAULT-NOT: --kit-instr-unit=
 ! UNIT-ALL-SAME: "--kit-instr-unit=all"
@@ -116,22 +116,22 @@
 ! ------------------------------------------------------------------------------
 ! --kit-instr-unit= invalid
 !
-! RUN: not %kitxx -### --kit-instr-unit= 2>&1 \
+! RUN: not %kitfc -### --kit-instr-unit= 2>&1 \
 ! RUN:     | FileCheck %s --check-prefix=EMPTY-LIST
 !
-! RUN: not %kitxx -### --kit-instr-unit=ALL 2>&1 \
+! RUN: not %kitfc -### --kit-instr-unit=ALL 2>&1 \
 ! RUN:     | FileCheck %s --check-prefix=UNIT-INVALID-ALL
 !
-! RUN: not %kitxx -### --kit-instr-unit=loops 2>&1 \
+! RUN: not %kitfc -### --kit-instr-unit=loops 2>&1 \
 ! RUN:     | FileCheck %s --check-prefix=UNIT-INVALID-LOOPS
 !
-! RUN: not %kitxx -### --kit-instr-unit=loop,function 2>&1 \
+! RUN: not %kitfc -### --kit-instr-unit=loop,function 2>&1 \
 ! RUN:     | FileCheck %s --check-prefix=UNIT-INVALID-FUNCTION
 !
-! RUN: not %kitxx -### --kit-instr-unit=all,loop 2>&1 \
+! RUN: not %kitfc -### --kit-instr-unit=all,loop 2>&1 \
 ! RUN:     | FileCheck %s --check-prefix=UNIT-ALL-LIST
 !
-! RUN: not %kitxx -### --kit-instr-unit=default,loop 2>&1 \
+! RUN: not %kitfc -### --kit-instr-unit=default,loop 2>&1 \
 ! RUN:     | FileCheck %s --check-prefix=UNIT-DEFAULT-LIST
 !
 ! UNIT-INVALID-ALL: invalid value 'ALL' in '{{.+}}'
@@ -143,13 +143,13 @@
 ! -----------------------------------------------------------------------------
 ! --kit-instr-papi= valid
 !
-! RUN: %kitfc -### %s 2>&1 | FileCheck %s --check-prefixes=CC1,PAPI-DEFAULT
+! RUN: %kitfc -### %s 2>&1 | FileCheck %s --check-prefixes=FC1,PAPI-DEFAULT
 !
 ! RUN: %kitfc -### --kit-instr-papi=vec %s 2>&1 \
-! RUN:     | FileCheck %s --check-prefixes=CC1,PAPI-ONE
+! RUN:     | FileCheck %s --check-prefixes=FC1,PAPI-ONE
 !
 ! RUN: %kitfc -### --kit-instr-papi=tlbt,ca_itv,three %s 2>&1 \
-! RUN:     | FileCheck %s --check-prefixes=CC1,PAPI-THREE
+! RUN:     | FileCheck %s --check-prefixes=FC1,PAPI-THREE
 !
 ! PAPI-DEFAULT-NOT: --kit-instr-papi
 ! PAPI-ONE-SAME: "--kit-instr-papi=vec"
