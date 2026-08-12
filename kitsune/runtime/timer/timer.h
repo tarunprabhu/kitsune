@@ -69,7 +69,7 @@ struct KitTimerEpoch;
 
 /// Start the timer \p timer. \p thrd is the ID of the thread on which the
 /// timer is running. \p name is the name of the timer.
-KitTimerEpoch *__kittimer_start(const char *name, KitThreadID span);
+struct KitTimerEpoch *__kittimer_start(const char *name, KitThreadID span);
 
 /// Stop a timer running on a thread with ID \p thrd. The runtime
 /// will create a mapping between \p timer and \p name, but only if \p timer was
@@ -80,7 +80,7 @@ KitTimerEpoch *__kittimer_start(const char *name, KitThreadID span);
 /// \ref __kittimer_start. Returns the wallclock time, in nanoseconds, that have
 /// elapsed between the time this is called, and the time that \p start was
 /// recorded.
-KitTimeSpan __kittimer_stop(KitTimerEpoch *handle);
+KitTimeSpan __kittimer_stop(struct KitTimerEpoch *handle);
 
 #ifdef __cplusplus
 } // extern "C"

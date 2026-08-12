@@ -23,7 +23,11 @@ namespace kitrt {
 /// A time span. This is expected to be the wallclock time, in nanoseconds, that
 /// have elapsed between a pair of calls to \ref __kittimer_start and
 /// \ref __kittimer_stop.
-using TimeSpan = int64_t;
+using TimeSpan = uint64_t;
+
+/// A time point. This is generally the wallclock time, in nanoseconds, since
+/// the epoch.
+using TimePoint = uint64_t;
 
 /// A timer epoch is a Single-Entry-Single-Exit (SESE) region of code, bounded
 /// by calls to \ref __kittimer_start and \ref __kittimer_stop, whose execution
@@ -35,7 +39,22 @@ using TimeSpan = int64_t;
 /// \ref __kittimer_start. It can be used, exactly once, to stop the timer.
 class TimerEpoch : public EpochBase {
 private:
-  TimeSpan span = 0;
+  /// This is set to a time point when \ref start is called. Its value should
+  /// only be read in \ref stop and nowhere else.
+  TimePoint tick = 0;
+
+  /// The total number of times that this epoch has been visited. This will be
+  /// incremented each time \ref stop is called.
+  uint64_t visits = 0;
+
+  /// The total time spent, across visits, spent in this epoch.
+  TimeSpan total = 0;
+
+  /// The minimum time, across visits, spent in this epoch.
+  TimeSpan min = 0;
+
+  /// The maximum time, across visits, spent in this epoch.
+  TimeSpan max = 0;
 
 public:
   TimerEpoch() = delete;
@@ -46,7 +65,11 @@ public:
 
   TimerEpoch(const char *name, KitThreadID thrd);
 
+  /// Start recording time for this epoch.
   void start();
+
+  /// Stop recording time for this epoch. Returns the time spent in the epoch
+  /// during the current visit.
   TimeSpan stop();
   void writeJSON(FILE *fp) const;
 };
