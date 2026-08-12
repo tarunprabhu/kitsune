@@ -4,6 +4,13 @@
 ! tests. Those will eventually be supported, at which time this test should be
 ! updated to include those as well.
 !
+! This test is intended to check the expected passes are run in the LTO prelink
+! pipeline. This requires a tapir loop to be present in the IR produced by the
+! frontend. Since we don't yet have this setup for Fortran, the test will fail
+! since certain passes will not run.
+
+! XFAIL: *
+!
 ! The Kitsune (Tapir) lowering passes should not be run during the prelink
 ! phase of LTO, but the non-lowering passes should be run.
 !
