@@ -1,5 +1,7 @@
 set(LLVM_LINK_COMPONENTS
-  Support)
+  KitCore
+  Support
+)
 
 add_llvm_tool(kit-config
   kit-config.cpp)
