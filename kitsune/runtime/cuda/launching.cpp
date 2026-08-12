@@ -183,7 +183,7 @@ void __kitcuda_refine_launch_params(size_t trip_count, CUfunction cu_func,
     int block_count = (trip_count + threads_per_blk - 1) / threads_per_blk;
     float sm_load = ((float)block_count / num_multiprocs) * 100.0;
 
-    if (kitrt::gctx.verbose) {
+    if (kitrt::gctx.verbose()) {
       fprintf(stderr,
               "kitcuda: Kernel Launch SM Load Details --------------\n");
       fprintf(stderr, "  Number of SMs:        %d\n", num_multiprocs);
@@ -212,7 +212,7 @@ void __kitcuda_refine_launch_params(size_t trip_count, CUfunction cu_func,
         sm_load = ((float)block_count / num_multiprocs) * 100.0;
       }
 
-      if (kitrt::gctx.verbose) {
+      if (kitrt::gctx.verbose()) {
         fprintf(stderr, "  ***-new launch parameters:");
         fprintf(stderr, "\tthreads-per-block: %d\n", threads_per_blk);
         fprintf(stderr, "\tnumer of blocks:   %d\n", block_count);
@@ -344,7 +344,7 @@ static CUstream launchKernel1(CUfunction f, void **args, size_t tcX,
   unsigned bpgZ = 1;
   size_t sharedMemSize = 0;
 
-  if (kitrt::gctx.verbose) {
+  if (kitrt::gctx.verbose()) {
     fprintf(stderr, "  1D kernel launch\n");
     fprintf(stderr, "  trip count (X): %ld\n", tcX);
     fprintf(stderr, "  blocks: [%d, %d, %d]\n", bpgX, bpgY, bpgZ);
@@ -373,7 +373,7 @@ static CUstream launchKernel2(CUfunction f, void **args, size_t tcY, size_t tcX,
   unsigned bpgZ = 1;
   size_t sharedMemSize = 0;
 
-  if (kitrt::gctx.verbose) {
+  if (kitrt::gctx.verbose()) {
     fprintf(stderr, "  2D kernel launch\n");
     fprintf(stderr, "  trip count (Y): %ld\n", tcY);
     fprintf(stderr, "  trip count (X): %ld\n", tcX);
@@ -403,7 +403,7 @@ static CUstream launchKernel3(CUfunction f, void **args, size_t tcZ, size_t tcY,
   unsigned bpgZ = (tcZ + tpbZ - 1) / tpbZ;
   size_t sharedMemSize = 0;
 
-  if (kitrt::gctx.verbose) {
+  if (kitrt::gctx.verbose()) {
     fprintf(stderr, "  3D kernel launch\n");
     fprintf(stderr, "  trip count (Z): %ld\n", tcZ);
     fprintf(stderr, "  trip count (Y): %ld\n", tcY);
@@ -490,16 +490,16 @@ void *__kitcuda_launch_kernel(const void *fatbin, const char *name,
   CUstream stream = nullptr;
   if (stream_in) {
     stream = (CUstream)stream_in;
-    if (kitrt::gctx.verbose)
+    if (kitrt::gctx.verbose())
       fprintf(stderr, "kitcuda: launch stream is non-null.\n");
   } else {
     stream = (CUstream)__kitcuda_get_thread_stream();
-    if (kitrt::gctx.verbose)
+    if (kitrt::gctx.verbose())
       fprintf(stderr,
               "kitcuda: launch stream is null, requested a new stream.\n");
   }
 
-  if (kitrt::gctx.verbose) {
+  if (kitrt::gctx.verbose()) {
     fprintf(stderr, "kitcuda: kernel '%s' launch parameters:\n", name);
   }
 

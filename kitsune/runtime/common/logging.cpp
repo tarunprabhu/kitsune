@@ -73,7 +73,7 @@ static void logImpl(const char *color, const char *tag, const char *category,
   std::lock_guard<std::mutex> guard(mtx);
 
   fprintf(stderr, "kitrt: ");
-  if (!gctx.colors) {
+  if (!gctx.colors()) {
     if (tag)
       fprintf(stderr, "[%s]: ", tag);
     if (category)

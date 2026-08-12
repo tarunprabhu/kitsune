@@ -67,16 +67,16 @@ namespace kitrt {
 /// may also use context objects containing global state. This will own those
 /// context objects as well.
 class Context {
-public:
+private:
   /// Has this object been initialized.
-  uint32_t initialized : 1;
+  uint32_t initialized_ : 1;
 
   /// Has verbose mode been enabled.
-  uint32_t verbose : 1;
+  uint32_t verbose_ : 1;
 
   /// Enable colorized output. This is only used for logs and diagnostic
   /// messages.
-  uint32_t colors : 1;
+  uint32_t colors_ : 1;
 
   /// The runtime context objects.
   ContextsTuple ctxs;
@@ -91,13 +91,17 @@ public:
   Context &operator=(Context &&) = delete;
 
   /// Set the initialized flag on the object.
-  inline void setInitialized(bool init) { this->initialized = init; }
+  inline void setInitialized(bool initialized) { initialized_ = initialized; }
 
   /// Set the verbose flag.
-  inline void setVerbose(bool verbose) { this->verbose = verbose; }
+  inline void setVerbose(bool verbose) { verbose_ = verbose; }
 
   /// Set the colors flag.
-  inline void setColors(bool colors) { this->colors = colors; }
+  inline void setColors(bool colors) { colors_ = colors; }
+
+  inline bool initialized() const { return initialized_; }
+  inline bool verbose() const { return verbose_; }
+  inline bool colors() const { return colors_; }
 
   /// Ensure that the context object of the given type has been created.
   template <typename T> inline void ensure() const {

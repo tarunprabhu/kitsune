@@ -176,7 +176,7 @@ void CudaContext::initialize(void) {
       &_kitcuda_minor_compute_capability,
       CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, _kitcuda_device));
 
-  if (kitrt::gctx.verbose) {
+  if (kitrt::gctx.verbose()) {
     fprintf(stderr, "    kitcuda: found %d devices.\n", device_count);
     fprintf(stderr, "             using device:     %d\n", _kitcuda_device_id);
     fprintf(stderr, "             driver version:   %d\n",
@@ -204,14 +204,14 @@ void CudaContext::initialize(void) {
   if (std::optional<int> tpb =
           kitrt::envLookup<int>("KITCUDA_THREADS_PER_BLOCK")) {
     __kitcuda_set_default_threads_per_blk(*tpb);
-    if (kitrt::gctx.verbose)
+    if (kitrt::gctx.verbose())
       fprintf(stderr, "  kitcuda: threads/block: %d\n", *tpb);
   }
 
   if (std::optional<int> tpb =
           kitrt::envLookup<int>("KITCUDA_MAX_THREADS_PER_BLOCK")) {
     __kitcuda_set_max_threads_per_blk(*tpb);
-    if (kitrt::gctx.verbose)
+    if (kitrt::gctx.verbose())
       fprintf(stderr, "  kitcuda: max threads/block: %d\n", *tpb);
   }
 

@@ -145,7 +145,7 @@ void warn(const char *color, const char *tag, const char *msg, ...);
 
 #define LOG(...)                                                               \
   do {                                                                         \
-    if (kitrt::gctx.verbose)                                                   \
+    if (kitrt::gctx.verbose())                                                 \
       kitrt::log(KITRT_LOG_COLOR, KITRT_LOG_TAG, __VA_ARGS__);                 \
   } while (0)
 
