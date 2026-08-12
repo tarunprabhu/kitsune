@@ -78,12 +78,12 @@ struct KitPAPIEpoch;
 /// can be recorded. If any of these are not recognized, or if the events are
 /// not available on the system where this is being run, a warning message will
 /// be printed.
-KitPAPIEpoch *__kitpapi_start(const char *name, KitThreadID thrd, uint32_t n,
-                              ...);
+struct KitPAPIEpoch *__kitpapi_start(const char *name, KitThreadID thrd,
+                                     uint32_t n, ...);
 
 /// Stop collecting events. \p epoch must be an epoch previously created by a
 /// __kitpapi_new*.
-void __kitpapi_stop(KitPAPIEpoch *epoch);
+void __kitpapi_stop(struct KitPAPIEpoch *epoch);
 
 #ifdef __cplusplus
 } // extern "C"

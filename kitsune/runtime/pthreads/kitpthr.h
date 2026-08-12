@@ -106,9 +106,10 @@ struct KitPthrLaunchContext;
 /// launched, i.e. \p f is run on the main thread, nullptr will be returned
 /// instead. In this case, the caller is not required to call
 /// \ref __kitpthr_sync.
-KitPthrLaunchContext *__kitpthr_async_launch(KitPthrThrdFunc f, uint64_t start,
-                                             uint64_t end, void *args,
-                                             uint32_t argSize);
+struct KitPthrLaunchContext *__kitpthr_async_launch(KitPthrThrdFunc f,
+                                                    uint64_t start,
+                                                    uint64_t end, void *args,
+                                                    uint32_t argSize);
 
 /// Get the number of threads available for parallel work.
 uint64_t __kitpthr_num_threads(void);
@@ -119,7 +120,7 @@ KitThreadID __kitpthr_thread_id(void);
 /// Join the threads launched by a previous call to \ref __kitpthr_async_launch.
 /// \p ctx is the context returned by that call. \p ctx may be nullptr, in which
 /// case, this function does nothing.
-void __kitpthr_sync(KitPthrLaunchContext *ctx);
+void __kitpthr_sync(struct KitPthrLaunchContext *ctx);
 
 #ifdef __cplusplus
 } // extern "C"
