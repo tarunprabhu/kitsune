@@ -19,11 +19,11 @@
 #define CTOR(RTS)                                                              \
   const struct KitRTInitOptions initOpts = {RTS};                              \
                                                                                \
-  __attribute__((constructor)) static void ctor() {                            \
+  __attribute__((constructor)) static void ctor(void) {                        \
     __kitrt_initialize(&initOpts);                                             \
   }                                                                            \
                                                                                \
-  __attribute__((destructor)) static void dtor() {                             \
+  __attribute__((destructor)) static void dtor(void) {                         \
     __kitrt_finalize(&initOpts);                                               \
   }
 
