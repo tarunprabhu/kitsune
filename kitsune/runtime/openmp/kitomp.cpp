@@ -175,18 +175,20 @@ void OpenMPContext::launch(OMPThrdFunc *f, uint64_t start, uint64_t end,
   LOG("Finished multithreaded loop");
 }
 
+static OpenMPContext &getCtx() { return gctx.get<OpenMPContext>(); }
+
 // -----------------------------------------------------------------------------
 // Everything below this is the public interface.
 
 extern "C" uint64_t __kitomp_num_threads(void) {
-  return getCtx<OpenMPContext>().getNumThreads();
+  return getCtx().getNumThreads();
 }
 
 extern "C" KitThreadID __kitomp_thread_id(void) {
-  return getCtx<OpenMPContext>().getThreadID();
+  return getCtx().getThreadID();
 }
 
 extern "C" void __kitomp_launch(KitOMPThrdFunc f, uint64_t start, uint64_t end,
                                 void *args, [[maybe_unused]] uint32_t argSize) {
-  mutCtx<OpenMPContext>().launch(f, start, end, args, argSize);
+  getCtx().launch(f, start, end, args, argSize);
 }
