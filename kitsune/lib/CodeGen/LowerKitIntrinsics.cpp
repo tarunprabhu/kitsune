@@ -105,7 +105,7 @@ Value *maybeCast(Value *v, Type *dstTy, IRBuilder<> &builder) {
   else if (srcTy->isIntegerTy() && srcTy->isPointerTy())
     return builder.CreateIntToPtr(v, dstTy);
   llvm_unreachable("maybeCast: Cast kind not yet implemented");
-};
+}
 
 // Get the arguments that must be passed to the runtime function \p rtFunc in a
 // default lowering. Since the first argument of the intrinsic will be the TTID,
