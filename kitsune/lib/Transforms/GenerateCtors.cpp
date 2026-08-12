@@ -515,6 +515,32 @@ private:
   // __kitrt_initialize. This will be followed any tapir-target-specific
   // configuration that must be carried out.
   void genCtor(Module &m) {
+    auto handle = [this](TTID tt, IRBuilder<> &builder) -> void {
+      switch (tt) {
+      case TTID::Cuda: //
+        return PopulateCtorCuda(tto, genCtorOpts).run(builder);
+      case TTID::Hip: //
+        return PopulateCtorHip(tto, genCtorOpts).run(builder);
+      case TTID::Custom:
+      case TTID::OpenCilk:
+      case TTID::OpenMP:
+      case TTID::Pthreads:
+      case TTID::Qthreads:
+      case TTID::Serial:
+        // Nothing to be done for these tapir targets.
+        return;
+      case TTID::Nolo:
+        llvm_unreachable("Must not generate ctor for nolo tapir target");
+      case TTID::Lambda:
+      case TTID::OMPTask:
+      case TTID::Realm:
+        // These tapir targets are not fully supported yet. Just fall through to
+        // the default because the effect is the same.
+        break;
+      }
+      llvm_unreachable("genCtor: TTID not handled");
+    };
+
     Function *ctor = genFunc(m, ".kit.ctor");
     IRBuilder<> builder(ctor->getEntryBlock().getTerminator());
 
@@ -524,33 +550,8 @@ private:
 
     // Now do anything that needs to be done for the tapir targets.
     const SmallSet<TTID, 0> tts = *getTTsAttr(m);
-    for (TTID tt : tts) {
-      switch (tt) {
-      case TTID::Cuda: //
-        PopulateCtorCuda(tto, genCtorOpts).run(builder);
-        break;
-      case TTID::Hip: //
-        PopulateCtorHip(tto, genCtorOpts).run(builder);
-        break;
-      case TTID::Custom:
-      case TTID::OpenCilk:
-      case TTID::OpenMP:
-      case TTID::Pthreads:
-      case TTID::Qthreads:
-      case TTID::Serial:
-        // Nothing to be done for these tapir targets.
-        break;
-      case TTID::Nolo:
-        llvm_unreachable("Must not generate ctor for nolo tapir target");
-        break;
-      case TTID::Lambda:
-      case TTID::OMPTask:
-      case TTID::Realm:
-        // These tapir targets are not fully supported yet. Just fall through to
-        // the default because the effect is the same.
-      default: llvm_unreachable("genCtor: TTID not handled");
-      }
-    }
+    for (TTID tt : tts)
+      handle(tt, builder);
 
     // Do this at the end, otherwise it gets added before the global variable
     // bundle and handle which breaks some tests. The tests probably ought to be
@@ -580,18 +581,11 @@ private:
   }
 
   void genDtor(Module &m) {
-    Function *dtor = genFunc(m, ".kit.dtor");
-    IRBuilder<> builder(dtor->getEntryBlock().getTerminator());
-
-    // Do things in the reverse order from the ctor. First, process any tapir
-    // targets that need processing.
-    SmallSet<TTID, 0> tts = *getTTsAttr(m);
-    for (TTID tt : tts) {
+    auto handle = [this](TTID tt, IRBuilder<> &builder) -> void {
       switch (tt) {
       case TTID::Cuda:
       case TTID::Hip: //
-        populateDtorGPU(tt, builder);
-        break;
+        return populateDtorGPU(tt, builder);
       case TTID::Custom:
       case TTID::OpenCilk:
       case TTID::OpenMP:
@@ -599,18 +593,27 @@ private:
       case TTID::Qthreads:
       case TTID::Serial:
         // Nothing to be done for these tapir targets.
-        break;
+        return;
       case TTID::Nolo:
         llvm_unreachable("Must not generate dtor for nolo tapir target");
-        break;
       case TTID::Lambda:
       case TTID::OMPTask:
       case TTID::Realm:
         // These tapir targets are not fully supported yet. Just fall through
         // because the effect is the same.
-      default: llvm_unreachable("genDtor: TTID not handled");
+        break;
       }
-    }
+      llvm_unreachable("genDtor: TTID not handled");
+    };
+
+    Function *dtor = genFunc(m, ".kit.dtor");
+    IRBuilder<> builder(dtor->getEntryBlock().getTerminator());
+
+    // Do things in the reverse order from the ctor. First, process any tapir
+    // targets that need processing.
+    SmallSet<TTID, 0> tts = *getTTsAttr(m);
+    for (TTID tt : tts)
+      handle(tt, builder);
 
     // This must be the last thing that this function does.
     GlobalVariable *g =
