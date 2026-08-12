@@ -102,11 +102,13 @@ TimerEpoch *TimerContext::makeEpoch(const char *name, KitThreadID thrd) {
   return new TimerEpoch(name, thrd);
 }
 
+static TimerContext &getCtx() { return gctx.get<TimerContext>(); }
+
 // -----------------------------------------------------------------------------
 // Everything below this is the public interface.
 
 extern "C" KitTimerEpoch *__kittimer_start(const char *name, KitThreadID thrd) {
-  TimerEpoch *epoch = mutCtx<TimerContext>().addEpoch(name, thrd);
+  TimerEpoch *epoch = getCtx().addEpoch(name, thrd);
   epoch->start();
   return reinterpret_cast<KitTimerEpoch *>(epoch);
 }

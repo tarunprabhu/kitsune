@@ -117,7 +117,7 @@ static std::vector<RTID> getInstrRuntimes(const InitOptions &initOpts) {
 
 template <typename T, typename... Args>
 static void initializeImpl(Args &&...args) {
-  mutCtx<T>().initialize(args...);
+  gctx.get<T>().initialize(args...);
 }
 
 #ifdef KITSUNE_PAPI_ENABLED
@@ -137,7 +137,7 @@ struct has_getThreadID<T, std::void_t<decltype(&T::getThreadID)>>
 } // namespace
 
 template <typename T> static KitThreadID getThreadID() {
-  return getCtx<T>().getThreadID();
+  return gctx.get<T>().getThreadID();
 }
 
 template <typename T> static PAPIThreadIDFunc *getThreadIDFunc() {
@@ -180,7 +180,7 @@ template <> void initializeImpl<PAPIContext>(const InitOptions &initOpts) {
       }
     }
   }
-  mutCtx<PAPIContext>().initialize(threadIDFunc);
+  gctx.get<PAPIContext>().initialize(threadIDFunc);
 }
 #endif // KITSUNE_PAPI_ENABLED
 
@@ -191,7 +191,7 @@ template <typename T, typename... Args> static void initialize(Args &&...args) {
     LOG("Kitsune runtime already initialized (%s)", getName<T>());
   } else {
     LOG("Initializing Kitsune runtime (%s)", getName<T>());
-    mutCtx().add(new T);
+    gctx.add(new T);
     initializeImpl<T>(args...);
     LOG("Initialized Kitsune runtime (%s)", getName<T>());
   }
@@ -230,11 +230,10 @@ static void initializeCommonRuntime(const InitOptions &initOpts) {
   // that a message is printed is to check the environment variables.
   LOG_IF_VERBOSE("Initializing Kitsune runtime (common)");
 
-  Context &rt = mutCtx();
-  rt.setVerbose(envLookupOr(envVerbose, envVerboseLegacy, false));
-  rt.setColors(terminalHasColors());
+  gctx.setVerbose(envLookupOr(envVerbose, envVerboseLegacy, false));
+  gctx.setColors(terminalHasColors());
 
-  rt.setInitialized(true);
+  gctx.setInitialized(true);
   LOG("Initialized Kitsune runtime (common)");
 }
 
@@ -245,8 +244,8 @@ template <typename T> static void finalize() {
     LOG("Cannot finalize Kitsune runtime. Not initialized (%s)", getName<T>());
   } else {
     LOG("Finalizing Kitsune runtime (%s)", getName<T>());
-    mutCtx<T>().finalize();
-    delete mutCtx().take<T>();
+    gctx.get<T>().finalize();
+    delete gctx.take<T>();
     LOG("Finalized Kitsune runtime (%s)", getName<T>());
   }
 }
@@ -280,7 +279,7 @@ static void finalizeRuntimes(const InitOptions &initOpts) {
 static void finalizeCommonRuntime() {
   LOG("Finalizing Kitsune runtime (common)");
 
-  mutCtx().setInitialized(false);
+  gctx.setInitialized(false);
 
   // Although we don't do so, it is reasonable to clear the global singleton at
   // this point. In that case, LOG(...) would not work because verbose mode

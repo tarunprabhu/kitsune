@@ -275,6 +275,8 @@ void PAPIContext::finalize() {
   LOG("Finalized PAPI library");
 }
 
+static PAPIContext &getCtx() { return gctx.get<PAPIContext>(); }
+
 // -----------------------------------------------------------------------------
 // Everything below this is the public interface.
 
@@ -282,7 +284,7 @@ extern "C" KitPAPIEpoch *__kitpapi_start(const char *name, KitThreadID thrd,
                                          uint32_t n, ...) {
   va_list va;
   va_start(va, n);
-  PAPIEpoch *epoch = mutCtx<PAPIContext>().addEpoch(name, thrd, n, va);
+  PAPIEpoch *epoch = getCtx().addEpoch(name, thrd, n, va);
   va_end(va);
 
   epoch->start();
