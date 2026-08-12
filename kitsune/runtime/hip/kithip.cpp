@@ -150,7 +150,7 @@ void HipContext::initialize() {
 
   HIP_SAFE_CALL(hipSetDevice(deviceID()));
   HIP_SAFE_CALL(hipGetDeviceProperties(&rt_info.props, deviceID()));
-  if (kitrt::gctx.verbose)
+  if (kitrt::gctx.verbose())
     __kithip_dump_dev_properties(rt_info.props);
 
   // Apparently this is the only way to determine if the device is GCN or not.
@@ -166,14 +166,14 @@ void HipContext::initialize() {
   if (std::optional<int> tpb =
           kitrt::envLookup<int>("KITHIP_THREADS_PER_BLOCK")) {
     __kithip_set_threads_per_blk(*tpb);
-    if (kitrt::gctx.verbose)
+    if (kitrt::gctx.verbose())
       fprintf(stderr, "  kithip: threads/block: %d\n", *tpb);
   }
 
   if (std::optional<int> tpb =
           kitrt::envLookup<int>("KITHIP_MAX_THREADS_PER_BLOCK")) {
     __kithip_set_max_threads_per_blk(*tpb);
-    if (kitrt::gctx.verbose)
+    if (kitrt::gctx.verbose())
       fprintf(stderr, "  kithip: max threads/block: %d\n", *tpb);
   }
 

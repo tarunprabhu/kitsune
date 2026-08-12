@@ -288,7 +288,7 @@ static void finalizeCommonRuntime() {
   LOG_IF_VERBOSE("Finalized Kitsune runtime (common)");
 }
 
-extern "C" bool __kitrt_initialized(void) { return gctx.initialized; }
+extern "C" bool __kitrt_initialized(void) { return gctx.initialized(); }
 
 extern "C" void __kitrt_initialize(const InitOptions *initOpts) {
   assert(initOpts && "Initialization options provided");
