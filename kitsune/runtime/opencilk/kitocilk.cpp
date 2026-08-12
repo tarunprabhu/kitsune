@@ -137,13 +137,15 @@ KitThreadID OpenCilkContext::getThreadID() const {
   return __cilkrts_get_worker_number();
 }
 
+static OpenCilkContext &getCtx() { return gctx.get<OpenCilkContext>(); }
+
 // -----------------------------------------------------------------------------
 // Everything below this is the public interface.
 
 extern "C" uint64_t __kitocilk_num_workers(void) {
-  return getCtx<OpenCilkContext>().getNumThreads();
+  return getCtx().getNumThreads();
 }
 
 extern "C" KitThreadID __kitocilk_worker_id(void) {
-  return getCtx<OpenCilkContext>().getThreadID();
+  return getCtx().getThreadID();
 }

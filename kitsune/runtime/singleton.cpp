@@ -49,7 +49,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// The singleton objects for global data.
+// The singleton object for global data.
 //
 //===----------------------------------------------------------------------===//
 
@@ -60,11 +60,6 @@ namespace kitrt {
 /// The singleton context object. This is where all global data used by the
 /// runtime is maintained. This is not exposed outside this file directly, but
 /// a constant reference to it is exposed.
-static Context singleton;
-
-/// The const ref to that object that is exposed.
-const Context &gctx = singleton;
+Context gctx;
 
 } // namespace kitrt
-
-kitrt::Context &kitrt::mutCtx() { return kitrt::singleton; }

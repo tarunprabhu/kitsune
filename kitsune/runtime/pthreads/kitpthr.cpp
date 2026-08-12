@@ -216,26 +216,27 @@ void PthreadsContext::sync(PthrLaunchContext *ctx) {
   delete ctx;
 }
 
+static PthreadsContext &getCtx() { return gctx.get<PthreadsContext>(); }
+
 // -----------------------------------------------------------------------------
 // Everything below this is the public interface.
 
 extern "C" uint64_t __kitpthr_num_threads(void) {
-  return getCtx<PthreadsContext>().getNumThreads();
+  return getCtx().getNumThreads();
 }
 
 extern "C" KitThreadID __kitpthr_thread_id(void) {
-  return getCtx<PthreadsContext>().getThreadID();
+  return getCtx().getThreadID();
 }
 
 extern "C" KitPthrLaunchContext *
 __kitpthr_async_launch(KitPthrThrdFunc f, uint64_t start, uint64_t end,
                        void *args, uint32_t argSize) {
-  PthrLaunchContext *handle =
-      mutCtx<PthreadsContext>().launch(f, start, end, args, argSize);
+  PthrLaunchContext *handle = getCtx().launch(f, start, end, args, argSize);
   return reinterpret_cast<KitPthrLaunchContext *>(handle);
 }
 
 extern "C" void __kitpthr_sync(KitPthrLaunchContext *handle) {
   if (auto *ctx = reinterpret_cast<PthrLaunchContext *>(handle))
-    mutCtx<PthreadsContext>().sync(ctx);
+    getCtx().sync(ctx);
 }

@@ -138,27 +138,10 @@ public:
 };
 
 /// The singleton global context that contains the global data used by kitrt.
-/// We expose the structure of the object to make accesses to some global data
-/// fast. Because const in C++ does not imply transitively const, this only
-/// means that the scalar fields of the objects and the pointers themselves may
-/// not be changed. However, the pointees of objects may still change, so it is
-/// possible to call non-const methods on those objects.
-extern const Context &gctx;
-
-/// Get a non-const reference to the single global context. This should
-/// generally only be used in the various *_initialize functions that are called
-/// from global constructors. This function is not thread-safe.
-Context &mutCtx();
-
-/// Get a constant reference to a runtime context object. This cannot be used to
-/// get a reference to the singleton object. The requested object must have been
-/// initialized before this is called.
-template <typename T> inline const T &getCtx() { return gctx.get<T>(); }
-
-/// Get a non-const reference to a runtime context object. This cannot be used
-/// to get a reference to the singleton global. The requested object must have
-/// been initialized before this is called.
-template <typename T> inline T &mutCtx() { return mutCtx().get<T>(); }
+/// It is not clear what the benefits of exposing a constant reference are in
+/// this case. It adds an unnecessary extra load when looking up anything in the
+/// object.
+extern Context gctx;
 
 } // namespace kitrt
 

@@ -169,19 +169,21 @@ void QthreadsContext::launch(QthrThrdFunc *f, uint64_t start, uint64_t end,
   LOG("Finished multithreaded loop");
 }
 
+static QthreadsContext &getCtx() { return gctx.get<QthreadsContext>(); }
+
 // -----------------------------------------------------------------------------
 // Everything below this is the public interface.
 
 extern "C" uint64_t __kitqthr_num_workers(void) {
-  return getCtx<QthreadsContext>().getNumThreads();
+  return getCtx().getNumThreads();
 }
 
 extern "C" KitThreadID __kitqthr_worker_id(void) {
-  return getCtx<QthreadsContext>().getThreadID();
+  return getCtx().getThreadID();
 }
 
 extern "C" void __kitqthr_launch(KitQthrThrdFunc f, uint64_t start,
                                  uint64_t end, void *args,
                                  [[maybe_unused]] uint32_t argSize) {
-  return mutCtx<QthreadsContext>().launch(f, start, end, args, argSize);
+  getCtx().launch(f, start, end, args, argSize);
 }
