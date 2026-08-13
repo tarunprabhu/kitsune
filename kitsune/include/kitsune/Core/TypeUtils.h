@@ -13,6 +13,7 @@
 #ifndef KITSUNE_CORE_TYPE_UTILS_H
 #define KITSUNE_CORE_TYPE_UTILS_H
 
+#include "kitsune/Shared/TypeTraits.h"
 #include "kitsune/Support/TypeTraits.h"
 #include "llvm/IR/DerivedTypes.h"
 

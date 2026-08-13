@@ -51,9 +51,9 @@
 #include "kitrt.h"
 #include "common/env.h"
 #include "common/logging.h"
-#include "common/traits.h"
 #include "common/unreachable.h"
 #include "context.h"
+#include "kitsune/Shared/RTInitOptions.h"
 #include "runtimes.h"
 
 #ifdef KITSUNE_COLORS_ENABLED
@@ -67,6 +67,8 @@
 using namespace kitrt;
 
 static bool terminalHasColors() {
+  bool colors = false;
+
 #ifdef KITSUNE_COLORS_ENABLED
   // Respect the NO_COLOR environment variable. If it is present, don't use
   // colors. Conversely, if FORCE_COLOR is present, always use colors, even
@@ -89,14 +91,12 @@ static bool terminalHasColors() {
   // it. This creates a terminal curses terminal for the sole purpose of
   // querying it for color support.
   SCREEN *scr = newterm(NULL, stderr, stdin);
-  bool colors = has_colors();
+  colors = has_colors();
   endwin();
   delscreen(scr);
+#endif // !KITSUNE_COLORS_ENABLED
 
   return colors;
-#else  // !KITSUNE_COLORS_ENABLED
-  return false;
-#endif // !KITSUNE_COLORS_ENABLED
 }
 
 // Sort the requested runtimes in "dependence order". There are only a few

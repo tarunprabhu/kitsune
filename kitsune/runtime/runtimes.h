@@ -15,8 +15,8 @@
 #ifndef KITRT_RUNTIMES_H
 #define KITRT_RUNTIMES_H
 
-#include "common/traits.h"
-#include "kitsune/Shared/RTInitOptions.h"
+#include "kitsune/Shared/RTID.h"
+#include "kitsune/Shared/TypeTraits.h"
 
 #include <tuple>
 

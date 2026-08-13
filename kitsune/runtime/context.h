@@ -56,7 +56,7 @@
 #ifndef KITRT_CONTEXT_H
 #define KITRT_CONTEXT_H
 
-#include "kitsune/Shared/RTInitOptions.h"
+#include "kitsune/Shared/RTID.h"
 #include "runtimes.h"
 
 #include <cassert>
