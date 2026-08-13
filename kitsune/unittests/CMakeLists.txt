@@ -65,6 +65,7 @@ add_subdirectory(Clang)
 add_subdirectory(Config)
 add_subdirectory(Core)
 add_subdirectory(Passes)
+add_subdirectory(Shared)
 add_subdirectory(Support)
 
 # We probably don't need to do this after the unit tests are configured, but we

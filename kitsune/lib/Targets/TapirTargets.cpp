@@ -14,6 +14,7 @@
 #include "kitsune/Config/Config.h"
 #include "kitsune/Core/Diagnostics.h"
 #include "kitsune/Core/TTOptions.h"
+#include "kitsune/Shared/TypeTraits.h"
 #include "kitsune/Support/ErrorHandling.h"
 #include "kitsune/Support/TypeTraits.h"
 #include "kitsune/Targets/OpenMPTT.h"
