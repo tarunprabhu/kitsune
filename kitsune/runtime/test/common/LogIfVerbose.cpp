@@ -44,7 +44,7 @@
 #include "TestHelpers.h"
 #include "common/logging.h"
 
-CTOR(RT_NONE)
+CTOR(RT_COMMON)
 
 int main(int argc, char *argv[]) {
   LOG_IF_VERBOSE("Early message");

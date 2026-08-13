@@ -29,6 +29,6 @@
 
 #include "TestHelpers.h"
 
-CTOR(RT_NONE)
+CTOR(RT_COMMON)
 
 int main(int argc, char *argv[]) { return 0; }
