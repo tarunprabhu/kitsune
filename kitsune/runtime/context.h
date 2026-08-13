@@ -56,10 +56,12 @@
 #ifndef KITRT_CONTEXT_H
 #define KITRT_CONTEXT_H
 
+#include "kitsune/Shared/RTInitOptions.h"
 #include "runtimes.h"
 
 #include <cassert>
 #include <cstdint>
+#include <map>
 
 namespace kitrt {
 
@@ -77,6 +79,12 @@ private:
   /// Enable colorized output. This is only used for logs and diagnostic
   /// messages.
   uint32_t colors_ : 1;
+
+  /// Each time, initialization of a runtime is requested, the corresponding
+  /// entry in this map is incremented. When finalization is requested, the
+  /// entry is decremented. Only if, after decrementing, the value becomes zero,
+  /// is the runtime actually finalized.
+  std::map<RTID, unsigned> refCounts;
 
   /// The runtime context objects.
   ContextsTuple ctxs;
@@ -103,13 +111,24 @@ public:
   inline bool verbose() const { return verbose_; }
   inline bool colors() const { return colors_; }
 
+  /// Increment the refcount for the given runtime. Returns the updated
+  /// refCount. If an entry for the RTID does not exist, it will be added and
+  /// set to 1.
+  unsigned incr(RTID rt) { return refCounts[rt] += 1; }
+
+  /// Decrement the refcount for the given runtime. Returns the updated
+  /// refcount. An entry for the refcount is assumed to be present.
+  unsigned decr(RTID rt) { return refCounts.at(rt) -= 1; }
+
   /// Ensure that the context object of the given type has been created.
   template <typename T> inline void ensure() const {
     assert(std::get<T *>(ctxs) && "Kitsune runtime initialized");
   }
 
   /// Check if a context object of the given type exists.
-  template <typename T> inline bool has() const { return std::get<T *>(ctxs); }
+  template <typename T> inline bool initialized() const {
+    return std::get<T *>(ctxs);
+  }
 
   /// Add a global context object of type \tparam T.
   template <typename T> void add(T *ctx) {
@@ -140,6 +159,18 @@ public:
     return *std::get<T *>(ctxs);
   }
 };
+
+template <> inline bool Context::initialized<Context>() const {
+  return initialized();
+}
+
+// Specialize some traits here because there is no better place to do this.
+// this.
+template <> inline constexpr const char *rtname_v<RT_COMMON> = "common";
+template <> struct context_t<RT_COMMON> {
+  using type = Context;
+};
+template <> struct rtid_v<Context> : detail::rtid_v<RT_COMMON> {};
 
 /// The singleton global context that contains the global data used by kitrt.
 /// It is not clear what the benefits of exposing a constant reference are in
