@@ -24,10 +24,10 @@
 // CHECK: Initialized Kitsune runtime (timer)
 // CHECK: Finalizing Kitsune runtime (timer)
 // CHECK: Finalized Kitsune runtime (timer)
-// CHECK: Finalizing Kitsune runtime (openmp)
-// CHECK: Finalized Kitsune runtime (openmp)
 // CHECK: Finalizing Kitsune runtime (pthreads)
 // CHECK: Finalized Kitsune runtime (pthreads)
+// CHECK: Finalizing Kitsune runtime (openmp)
+// CHECK: Finalized Kitsune runtime (openmp)
 // CHECK: Finalizing Kitsune runtime (common)
 // CHECK: Finalized Kitsune runtime (common)
 

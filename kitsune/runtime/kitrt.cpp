@@ -99,24 +99,38 @@ static bool terminalHasColors() {
 #endif // !KITSUNE_COLORS_ENABLED
 }
 
-static std::vector<RTID> getRuntimes(uint64_t raw, uint64_t id0) {
-  std::vector<RTID> ids;
-  for (uint64_t id = id0; raw; raw >>= 1, id <<= 1)
+// Sort the requested runtimes in "dependence order". There are only a few
+// dependencies between the runtimes.
+//
+//   - All runtimes depend on the common runtime, RT_COMMON.
+//
+//   - If PAPI has been enabled, and per-thread counters are to be measured, the
+//     PAPI support runtime will depend on the runtime that launches the threads
+//     instrumented with PAPI.
+//
+// While we could do a proper topological sort, we take some shortcuts.
+// The numerical value of RT_COMMON is guaranteed to be zero. Since all runtimes
+// depend on it, it is always the root of the dependence tree. The numerical
+// values of the tapir targets are guaranteed to be less than those of PAPI.
+// Simply sorting the requested runtimes numerically is, therefore, sufficient
+// to get an effective topological sort. The result is a suitable initialization
+// order for the runtimes.
+//
+// If \p reverse is true, the reverse of the dependence order is returned. This
+// is a suitable finalization order.
+static std::vector<RTID> topoSortRuntimes(const InitOptions &initOpts,
+                                          bool reverse = false) {
+  std::vector<RTID> ids = {RT_COMMON};
+  for (uint64_t id = 0x1, raw = initOpts.rts; raw; raw >>= 1, id <<= 1)
     if (raw & 0x1)
       ids.push_back(static_cast<RTID>(id));
+  if (reverse)
+    std::reverse(ids.begin(), ids.end());
   return ids;
 }
 
-static std::vector<RTID> getTTRuntimes(const InitOptions &initOpts) {
-  return getRuntimes(initOpts.rts & 0xffffffffULL, 0x1);
-}
-
-static std::vector<RTID> getInstrRuntimes(const InitOptions &initOpts) {
-  return getRuntimes(initOpts.rts >> 32, 0x100000000ULL);
-}
-
-template <typename T, typename... Args>
-static void initializeImpl(Args &&...args) {
+template <typename T, typename... Args> static void add(Args &&...args) {
+  gctx.add(new T);
   gctx.get<T>().initialize(args...);
 }
 
@@ -158,174 +172,146 @@ static PAPIThreadIDFunc *getThreadIDFunc(RTID rt) {
     // These tapir targets do not use CPU threads. If we return nullptr,
     // papi_thread_init() will not be called.
     return nullptr;
+  case RT_COMMON:
   case RT_PAPI:
-  case RT_TIMER:
-    // These are unreachable, but we add these here so if we add a new runtime
-    // but forget to update this, we will get a more useful warning/error.
-    UNREACHABLE("Runtime is not tapir-target-specific");
+  case RT_TIMER: UNREACHABLE("Runtime is not tapir-target-specific");
   }
   FATAL("getThreadIDFunc: RTID not handled");
 }
 
-template <> void initializeImpl<PAPIContext>(const InitOptions &initOpts) {
+template <> void add<PAPIContext>(const InitOptions &initOpts) {
   PAPIThreadIDFunc *threadIDFunc = nullptr;
-  for (RTID rt : getTTRuntimes(initOpts)) {
-    if (PAPIThreadIDFunc *func = getThreadIDFunc(rt)) {
-      if (!threadIDFunc) {
-        threadIDFunc = func;
-      } else {
-        // If threadIDFunc has already been set, then we have multiple
-        // threaded CPU runtimes operating simultaneously.
-        FATAL("PAPI does not support multiple threaded CPU runtimes");
+  for (uint64_t id = 0x1, raw = initOpts.rts; raw && id <= 0xffffffff;
+       raw >>= 1, id <<= 1) {
+    if (raw & 0x1) {
+      if (PAPIThreadIDFunc *func = getThreadIDFunc(static_cast<RTID>(id))) {
+        if (!threadIDFunc) {
+          threadIDFunc = func;
+        } else {
+          // If threadIDFunc has already been set, then we have multiple
+          // threaded CPU runtimes operating simultaneously.
+          FATAL("PAPI does not support multiple threaded CPU runtimes");
+        }
       }
     }
   }
+
+  gctx.add(new PAPIContext);
   gctx.get<PAPIContext>().initialize(threadIDFunc);
 }
 #endif // KITSUNE_PAPI_ENABLED
 
-template <typename T, typename... Args> static void initialize(Args &&...args) {
-  if constexpr (!std::is_complete_v<T>) {
-    FATAL("Kitsune runtime has not been enabled (%s)", getName<T>());
-  } else if (gctx.has<T>()) {
-    LOG("Kitsune runtime already initialized (%s)", getName<T>());
-  } else {
-    LOG("Initializing Kitsune runtime (%s)", getName<T>());
-    gctx.add(new T);
-    initializeImpl<T>(args...);
-    LOG("Initialized Kitsune runtime (%s)", getName<T>());
-  }
-}
-
-static void initialize(const InitOptions &initOpts, RTID rt) {
-  switch (rt) {
-  case RT_CUDA: return initialize<CudaContext>();
-  case RT_HIP: return initialize<HipContext>();
-  case RT_OPENCILK: return initialize<OpenCilkContext>();
-  case RT_OPENMP: return initialize<OpenMPContext>();
-  case RT_PAPI: return initialize<PAPIContext>(initOpts);
-  case RT_PTHREADS: return initialize<PthreadsContext>();
-  case RT_QTHREADS: return initialize<QthreadsContext>();
-  case RT_TIMER: return initialize<TimerContext>();
-  }
-  FATAL("initializeRuntimes: RTID not handled");
-}
-
-// Initialize the requested tapir-target-specific runtimes, as well as any
-// support runtimes.
-static void initializeRuntimes(const InitOptions &initOpts) {
-  // Initialize the tapir-target-specific runtimes fist. Some instrumentation
-  // runtimes, specifically PAPI, require the former to be initialized first.
-  for (RTID rt : getTTRuntimes(initOpts))
-    initialize(initOpts, rt);
-
-  for (RTID rt : getInstrRuntimes(initOpts))
-    initialize(initOpts, rt);
-}
-
-// This initializes the common parts of Kitsune's runtime.
-static void initializeCommonRuntime(const InitOptions &initOpts) {
-  // At the point, the global singleton object has not yet been initialized.
-  // As a result, verbose mode will always return false. The only way to ensure
-  // that a message is printed is to check the environment variables.
-  LOG_IF_VERBOSE("Initializing Kitsune runtime (common)");
-
+template <> void add<Context>() {
+  // The global singleton context object is guaranteed to exist since it is
+  // simply a global variable. There is nothing to be allocated.
   gctx.setVerbose(envLookupOr(envVerbose, envVerboseLegacy, false));
   gctx.setColors(terminalHasColors());
-
   gctx.setInitialized(true);
-  LOG("Initialized Kitsune runtime (common)");
 }
 
-template <typename T> static void finalize() {
+template <RTID ID, typename... Args> static void initialize(Args &&...args) {
+  // We do this first to ensure that RT_COMMON is added to the refcount map in
+  // the global singleton runtime context. If the initialization were to fail,
+  // the global destructors would be run immediately. These call
+  // __kitrt_finalize which would expect RT_COMMON to be present in the map.
+  gctx.incr(ID);
+
+  using T = typename context_t<ID>::type;
   if constexpr (!std::is_complete_v<T>) {
-    FATAL("Kitsune runtime has not been enabled (%s)", getName<T>());
-  } else if (!gctx.has<T>()) {
-    LOG("Cannot finalize Kitsune runtime. Not initialized (%s)", getName<T>());
+    FATAL("Kitsune runtime has not been enabled (%s)", rtname_v<ID>);
+  } else if (gctx.initialized<T>()) {
+    LOG("Kitsune runtime already initialized (%s)", rtname_v<ID>);
   } else {
-    LOG("Finalizing Kitsune runtime (%s)", getName<T>());
-    gctx.get<T>().finalize();
-    delete gctx.take<T>();
-    LOG("Finalized Kitsune runtime (%s)", getName<T>());
+    // This is also used to initialize the common parts of Kitsune's runtime. If
+    // the runtime has not been initialized, we have to check the environment
+    // variables directly to determine if verbose mode has been set.
+    LOG_IF_VERBOSE("Initializing Kitsune runtime (%s)", rtname_v<ID>);
+    add<T>(args...);
+    LOG("Initialized Kitsune runtime (%s)", rtname_v<ID>);
   }
 }
 
-static void finalize(RTID rt) {
-  switch (rt) {
-  case RT_CUDA: return finalize<CudaContext>();
-  case RT_HIP: return finalize<HipContext>();
-  case RT_OPENCILK: return finalize<OpenCilkContext>();
-  case RT_OPENMP: return finalize<OpenMPContext>();
-  case RT_PAPI: return finalize<PAPIContext>();
-  case RT_PTHREADS: return finalize<PthreadsContext>();
-  case RT_QTHREADS: return finalize<QthreadsContext>();
-  case RT_TIMER: return finalize<TimerContext>();
-  }
-  FATAL("initializeRuntimes: RTID not handled");
+template <typename T> static void finalizeImpl() {
+  gctx.get<T>().finalize();
+  delete gctx.take<T>();
 }
 
-static void finalizeRuntimes(const InitOptions &initOpts) {
-  // In general, we should be finalizing runtimes in the opposite order in
-  // which they were initialized. In particular, the PAPI runtime must be
-  // finalized after the tapir-target-specific runtimes since it may use the
-  // thread id functions from the former.
-  for (RTID rt : getInstrRuntimes(initOpts))
-    finalize(rt);
-
-  for (RTID rt : getTTRuntimes(initOpts))
-    finalize(rt);
-}
-
-static void finalizeCommonRuntime() {
-  LOG("Finalizing Kitsune runtime (common)");
-
+template <> void finalizeImpl<Context>() {
+  // The global singleton object is a simple global variable. It cannot be
+  // deallocated. We could fill it with zero's, but it is not clear what
+  // purpose that would serve.
   gctx.setInitialized(false);
-
-  // Although we don't do so, it is reasonable to clear the global singleton at
-  // this point. In that case, LOG(...) would not work because verbose mode
-  // would always be false. Using LOG_IF_VERBOSE(...) here serves as a marker
-  // that the global context object should not be used beyond this point.
-  LOG_IF_VERBOSE("Finalized Kitsune runtime (common)");
 }
+
+template <RTID ID> static void finalize() {
+  using T = typename context_t<ID>::type;
+  if constexpr (!std::is_complete_v<T>) {
+    FATAL("Kitsune runtime has not been enabled (%s)", rtname_v<ID>);
+  } else if (!gctx.initialized<T>()) {
+    LOG("Cannot finalize Kitsune runtime. Not initialized (%s)", rtname_v<ID>);
+  } else if (gctx.decr(ID)) {
+    LOG("Not finalizing Kitsune runtime. Uses remain (%s)", rtname_v<ID>);
+  } else {
+    LOG("Finalizing Kitsune runtime (%s)", rtname_v<ID>);
+    finalizeImpl<T>();
+    // This is also used to finalize the common parts of Kitsune's runtime. If
+    // that has been initialized, we have to check the environment variables
+    // directly to determine if verbose mode has been set.
+    LOG_IF_VERBOSE("Finalized Kitsune runtime (%s)", rtname_v<ID>);
+  }
+}
+
+static void initialize(const InitOptions &initOpts) {
+  auto handle = [](RTID rt, const InitOptions &initOpts) -> void {
+    switch (rt) {
+    case RT_COMMON: return initialize<RT_COMMON>();
+    case RT_CUDA: return initialize<RT_CUDA>();
+    case RT_HIP: return initialize<RT_HIP>();
+    case RT_OPENCILK: return initialize<RT_OPENCILK>();
+    case RT_OPENMP: return initialize<RT_OPENMP>();
+    case RT_PAPI: return initialize<RT_PAPI>(initOpts);
+    case RT_PTHREADS: return initialize<RT_PTHREADS>();
+    case RT_QTHREADS: return initialize<RT_QTHREADS>();
+    case RT_TIMER: return initialize<RT_TIMER>();
+    }
+    FATAL("initialize: RTID not handled");
+  };
+
+  for (RTID rt : topoSortRuntimes(initOpts))
+    handle(rt, initOpts);
+}
+
+static void finalize(const InitOptions &initOpts) {
+  auto handle = [](RTID rt) -> void {
+    switch (rt) {
+    case RT_COMMON: return finalize<RT_COMMON>();
+    case RT_CUDA: return finalize<RT_CUDA>();
+    case RT_HIP: return finalize<RT_HIP>();
+    case RT_OPENCILK: return finalize<RT_OPENCILK>();
+    case RT_OPENMP: return finalize<RT_OPENMP>();
+    case RT_PAPI: return finalize<RT_PAPI>();
+    case RT_PTHREADS: return finalize<RT_PTHREADS>();
+    case RT_QTHREADS: return finalize<RT_QTHREADS>();
+    case RT_TIMER: return finalize<RT_TIMER>();
+    }
+    FATAL("initializeRuntimes: RTID not handled");
+  };
+
+  for (RTID rt : topoSortRuntimes(initOpts, /*reverse=*/true))
+    handle(rt);
+}
+
+// ----------------------------------------------------------------------------
+// Everything below this is the public interface to the runtime.
 
 extern "C" bool __kitrt_initialized(void) { return gctx.initialized(); }
 
 extern "C" void __kitrt_initialize(const InitOptions *initOpts) {
   assert(initOpts && "Initialization options provided");
-
-  if (!__kitrt_initialized()) {
-    initializeCommonRuntime(*initOpts);
-    initializeRuntimes(*initOpts);
-  } else {
-    LOG("Kitsune runtime already initialized (common)");
-
-    // Even if the runtime has already been initialized, we may have to
-    // initialize additional runtimes - either for specific tapir targets, or
-    // one or more of the supporting runtimes, such as for the timers. In
-    // general, we expect __kitrt_initialize to be called once from the global
-    // constructor of an executable. But this can also be executed from the
-    // global constructor of a dynamic shared object when it is loaded. This may
-    // happen after the main ctor has already run. There is no way to know if
-    // this will happen ahead of time.
-    initializeRuntimes(*initOpts);
-  }
+  initialize(*initOpts);
 }
 
 extern "C" void __kitrt_finalize(const InitOptions *initOpts) {
   assert(initOpts && "Initialization options provided");
-  if (__kitrt_initialized()) {
-    finalizeRuntimes(*initOpts);
-    finalizeCommonRuntime();
-  } else {
-    // Even if the runtime has already been finalized, we may have to finalize
-    // additional runtimes.
-    //
-    // FIXME: THIS IS WRONG! The real issue here is that we could have multiple
-    // calls to initialize - which must have corresponding calls to finalize.
-    // Each such call my initialize a different number of supporting runtimes.
-    // In such cases, we should only run the true finalization when we know that
-    // it is the last finalization call.
-    finalizeRuntimes(*initOpts);
-    LOG("Cannot finalize Kitsune runtime. Not initialized (common)");
-  }
+  finalize(*initOpts);
 }

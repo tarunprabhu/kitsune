@@ -8,6 +8,7 @@ set(TESTS
   Initialized.cpp
   MultipleInit.cpp
   MultipleFini.cpp
+  RefCounts.c
 )
 
 add_kitrt_systests("${TESTS}")

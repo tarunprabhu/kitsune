@@ -31,7 +31,11 @@
 ///
 /// Note that not all tapir targets have a corresponding runtime. In such cases,
 /// the value of the corresponding tapir target must not appear here.
+///
+/// The value for RT_COMMON *must* always be 0. This is a special value since it
+/// is always "implicitly enabled".
 enum KitRTID : uint64_t {
+  RT_COMMON = 0x0ULL,        ///< Common parts of the runtime.
   RT_CUDA = 0x2ULL,          ///< Runtime for the cuda tapir target
   RT_HIP = 0x4ULL,           ///< Runtime for the hip tapir target
   RT_OPENCILK = 0x8ULL,      ///< Runtime for the opencilk tapir target
@@ -58,6 +62,8 @@ typedef struct KitRTInitOptions {
 
 namespace kitrt {
 
+// TODO: We need C++20 before we can import the members of KitRTID into this
+// namespace and turn RTID into a scoped enum.
 using RTID = KitRTID;
 using InitOptions = KitRTInitOptions;
 

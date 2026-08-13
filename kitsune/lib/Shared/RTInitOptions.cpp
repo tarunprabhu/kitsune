@@ -13,9 +13,13 @@
 #include "kitsune/Shared/RTInitOptions.h"
 #include "kitsune/Support/TypeTraits.h"
 
-// kitsune/Shared/RTInitOptions.h is intended to be C-safe, so we add this
-// assertion here.
+using namespace kitrt;
 
-static_assert(std::is_interop_v<kitrt::InitOptions> &&
-              "kitrt::InitOptions must be a trivial type with the standard "
-              "memory layout");
+// kitsune/Shared/RTInitOptions.h is intended to be C-safe, so we add these
+// assertions here.
+
+static_assert(RTID::RT_COMMON == 0 && "Value of RT_COMMON must be 0");
+
+static_assert(
+    std::is_interop_v<InitOptions> &&
+    "InitOptions must be a trivial type with the standard memory layout");

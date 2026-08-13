@@ -16,6 +16,7 @@
 #define KITRT_RUNTIMES_H
 
 #include "common/traits.h"
+#include "kitsune/Shared/RTInitOptions.h"
 
 #include <tuple>
 
@@ -117,6 +118,9 @@ template <typename... Types>
 struct check_contexts<std::tuple<Types...>>
     : std::conjunction<is_context_ptr<Types>...> {};
 
+// Compile-time helper trait to represent an RTID.
+template <RTID RT> using rtid_v = std::integral_constant<RTID, RT>;
+
 } // namespace detail
 
 // ---------------------------------- IMPORTANT --------------------------------
@@ -156,15 +160,48 @@ using ContextsTuple =
 // because we need this to be available even when a runtime has not been
 // enabled. This is the only method that is guaranteed to work even if we only
 // have forward declared types.
-template <typename T> inline const char *getName();
-template <> inline const char *getName<CudaContext>() { return "cuda"; }
-template <> inline const char *getName<HipContext>() { return "hip"; }
-template <> inline const char *getName<OpenCilkContext>() { return "opencilk"; }
-template <> inline const char *getName<OpenMPContext>() { return "openmp"; }
-template <> inline const char *getName<PAPIContext>() { return "papi"; }
-template <> inline const char *getName<PthreadsContext>() { return "pthreads"; }
-template <> inline const char *getName<QthreadsContext>() { return "qthreads"; }
-template <> inline const char *getName<TimerContext>() { return "timer"; }
+template <RTID RT> static inline constexpr const char *rtname_v;
+template <> inline constexpr const char *rtname_v<RT_CUDA> = "cuda";
+template <> inline constexpr const char *rtname_v<RT_HIP> = "hip";
+template <> inline constexpr const char *rtname_v<RT_OPENCILK> = "opencilk";
+template <> inline constexpr const char *rtname_v<RT_OPENMP> = "openmp";
+template <> inline constexpr const char *rtname_v<RT_PAPI> = "papi";
+template <> inline constexpr const char *rtname_v<RT_PTHREADS> = "pthreads";
+template <> inline constexpr const char *rtname_v<RT_QTHREADS> = "qthreads";
+template <> inline constexpr const char *rtname_v<RT_TIMER> = "timer";
+
+// If the runtime is CPU-centric that launches parallel threads of execution,
+// and provides a function to query the ID of a thread, a specialization for
+// this trait should be provided.
+template <RTID RT> struct is_cpu_threaded_t : std::false_type {};
+template <> struct is_cpu_threaded_t<RT_OPENCILK> : std::true_type {};
+template <> struct is_cpu_threaded_t<RT_OPENMP> : std::true_type {};
+template <> struct is_cpu_threaded_t<RT_PTHREADS> : std::true_type {};
+template <> struct is_cpu_threaded_t<RT_QTHREADS> : std::true_type {};
+
+// clang-format off
+// A trait to obtain the type of a context object given the RTID.
+template <RTID RT> struct context_t;
+template <> struct context_t<RT_CUDA> { using type = CudaContext; };
+template <> struct context_t<RT_HIP> { using type = HipContext; };
+template <> struct context_t<RT_OPENCILK> { using type = OpenCilkContext; };
+template <> struct context_t<RT_OPENMP> { using type = OpenMPContext; };
+template <> struct context_t<RT_PAPI> { using type = PAPIContext; };
+template <> struct context_t<RT_PTHREADS> { using type = PthreadsContext; };
+template <> struct context_t<RT_QTHREADS> { using type = QthreadsContext; };
+template <> struct context_t<RT_TIMER> { using type = TimerContext; };
+// clang-format on
+
+// A trait to obtain the RTID corresponding to the type of a context object.
+template <typename T> struct rtid_v;
+template <> struct rtid_v<CudaContext> : detail::rtid_v<RT_CUDA> {};
+template <> struct rtid_v<HipContext> : detail::rtid_v<RT_HIP> {};
+template <> struct rtid_v<OpenCilkContext> : detail::rtid_v<RT_OPENCILK> {};
+template <> struct rtid_v<OpenMPContext> : detail::rtid_v<RT_OPENMP> {};
+template <> struct rtid_v<PAPIContext> : detail::rtid_v<RT_PAPI> {};
+template <> struct rtid_v<PthreadsContext> : detail::rtid_v<RT_PTHREADS> {};
+template <> struct rtid_v<QthreadsContext> : detail::rtid_v<RT_QTHREADS> {};
+template <> struct rtid_v<TimerContext> : detail::rtid_v<RT_TIMER> {};
 
 // -----------------------------------------------------------------------------
 
