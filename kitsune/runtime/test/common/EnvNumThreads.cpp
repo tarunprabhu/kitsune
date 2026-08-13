@@ -17,7 +17,7 @@
 
 #include <cstdlib>
 
-CTOR(RT_NONE)
+CTOR(RT_COMMON)
 
 int main(int argc, char *argv[]) {
   if (getenv("ALTERNATE"))

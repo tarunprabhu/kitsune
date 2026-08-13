@@ -18,9 +18,6 @@
 /// \addtogroup kitsune
 /// @{
 
-// Sentinel that can be used when no runtimes are to be initialized.
-#define RT_NONE 0ULL
-
 /// The ID's for the tapir-target specific runtimes and other supporting
 /// runtimes that are part of Kitsune's main runtime.
 ///
