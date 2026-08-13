@@ -16,4 +16,4 @@
 
 CTOR(RT_PAPI | RT_HIP)
 
-int main(int argc, char *argv[]) { return 0; }
+MAIN

@@ -15,4 +15,4 @@
 
 CTOR(RT_PAPI | RT_PTHREADS)
 
-int main(int argc, char *argv[]) { return 0; }
+MAIN

@@ -26,4 +26,4 @@ __attribute__((destructor)) static void dtor(void) {
   printf("After finalize: %s\n", BOOLSTR(__kitrt_initialized()));
 }
 
-int main(int argc, char *argv[]) { return 0; }
+MAIN
