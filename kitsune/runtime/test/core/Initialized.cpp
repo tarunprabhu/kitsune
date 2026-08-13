@@ -12,7 +12,7 @@
 
 #include <stdio.h>
 
-const KitRTInitOptions initOpts{RT_NONE};
+const KitRTInitOptions initOpts{RT_COMMON};
 
 __attribute__((constructor)) static void ctor(void) {
   printf("Before initialize: %s\n", BOOLSTR(__kitrt_initialized()));
