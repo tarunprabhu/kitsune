@@ -1,3 +1,3 @@
 add_llvm_component_library(LLVMKitShared
-  RTInitOptions.cpp
+  CheckTypes.cpp
 )
