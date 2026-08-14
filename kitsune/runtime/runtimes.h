@@ -160,7 +160,7 @@ using ContextsTuple =
 // because we need this to be available even when a runtime has not been
 // enabled. This is the only method that is guaranteed to work even if we only
 // have forward declared types.
-template <RTID RT> static inline constexpr const char *rtname_v;
+template <RTID RT> static inline constexpr const char *rtname_v = nullptr;
 template <> inline constexpr const char *rtname_v<RT_CUDA> = "cuda";
 template <> inline constexpr const char *rtname_v<RT_HIP> = "hip";
 template <> inline constexpr const char *rtname_v<RT_OPENCILK> = "opencilk";
