@@ -643,15 +643,8 @@ PreservedAnalyses GenerateCtorsPass::run(Module &m,
   // If no primary tapir target has been set, there will be nothing to do, so
   // bail out immediately.
   const TTObjects &ttObjs = mam.getResult<TTObjectsAnalysis>(m);
-  if (not ttObjs.hasTTID())
+  if (!ttObjs.hasTTID() || !hasTTsAttr(m))
     return PreservedAnalyses::all();
-
-  if (!hasTTsAttr(m)) {
-    emitDiagnostic(DiagID::WarnGeneric,
-                   "kit.module.tts attribute not found in module. No ctors "
-                   "will be generated");
-    return PreservedAnalyses::all();
-  }
 
   const TTOptions &ttOpts = ttObjs.getOptions();
   GenerateCtorOptions genCtorOpts;
