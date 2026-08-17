@@ -15,12 +15,13 @@
 #define KITSUNE_CORE_GV_ATTRS_H
 
 #include "kitsune/Core/AttrsDeclMacros.h"
-#include "kitsune/Core/Tapir.h"
+#include "kitsune/Core/TTID.h"
 #include "llvm/ADT/StringRef.h"
 
 namespace llvm {
 
 class GlobalVariable;
+class raw_ostream;
 
 /// \addtogroup kitsune
 /// @{
@@ -30,6 +31,9 @@ enum class GVAttrKind : uint32_t {
 #define GET_GV_ATTR_ENUMS
 #include "kitsune/Core/GVAttrs.inc"
 };
+
+/// Stream the kind to LLVM's output stream.
+raw_ostream &operator<<(raw_ostream &os, const GVAttrKind &attr);
 
 /// Get the name of a global variable attribute as it would appear in LLVM
 /// metadata. The result will start with "kit.gv.".

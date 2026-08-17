@@ -32,7 +32,6 @@
 #include "AttrsImpl.h"
 #include "VerifierImpl.h"
 #include "kitsune/Core/Diagnostics.h"
-#include "kitsune/Support/ToString.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Analysis/LoopInfo.h"
 

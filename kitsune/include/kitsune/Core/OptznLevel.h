@@ -14,7 +14,12 @@
 #ifndef KITSUNE_CORE_OPTZN_LEVEL_H
 #define KITSUNE_CORE_OPTZN_LEVEL_H
 
+#include "kitsune/Support/ToString.h"
+#include "llvm/Support/CodeGen.h"
+
 namespace llvm {
+
+class raw_ostream;
 
 /// \addtogroup kitsune
 /// @{
@@ -71,6 +76,31 @@ enum class OptznLevel {
   /// Like -Os, but is more aggressive when it comes to reducing code size
   Oz,
 };
+
+/// Stream an OptznLevel using LLVM's streams.
+raw_ostream &operator<<(raw_ostream &os, const OptznLevel &v);
+
+/// Get the speedup level that the given \ref OptznLevel represents. This will
+/// be an integer in [0,3]. This indicates the level of optimizations that are
+/// being performed.
+unsigned getSpeedupLevel(OptznLevel optLevel);
+
+/// Get the size level that the given \ref OptznLevel represents. This will be
+/// an integer in [0,2]. A non-zero value indicates that the code is being
+/// optimized for size.
+unsigned getSizeLevel(OptznLevel optLevel);
+
+/// Create an OptznLevel from the given speedup and size levels.
+/// \p speedupLevel must be in [0,3]. \p sizeLevel must be in [0,2]. It is an
+/// error if either of these values is outside the allowed range.
+OptznLevel createOptznLevelFrom(unsigned speedupLevel, unsigned sizeLevel = 0);
+
+/// Map a character to an \ref OptznLevel. The character must be in { '0', '1',
+/// '2', '3', 's', 'z' }.
+OptznLevel createOptznLevelFrom(char level);
+
+/// Map an optimization level to a CodeGenOptznLevel.
+CodeGenOptLevel createCodeGenOptLevelFrom(OptznLevel optLevel);
 
 /// @}
 

@@ -14,11 +14,21 @@ using namespace llvm;
 
 namespace {
 
-TEST(KitTapirCore, maybeBoolValues) {
+TEST(KitMaybeBool, toInt) {
   // The values of the MaybeBool enum must be the following values.
   EXPECT_EQ(int(MaybeBool::Off), 0);
   EXPECT_EQ(int(MaybeBool::On), 1);
   EXPECT_EQ(int(MaybeBool::Any), 3);
+}
+
+TEST(KitMaybeBool, fromString) {
+  EXPECT_EQ(fromString<MaybeBool>(""), std::nullopt);
+  EXPECT_EQ(fromString<MaybeBool>("ON"), std::nullopt);
+  EXPECT_EQ(fromString<MaybeBool>("OFF"), std::nullopt);
+
+  EXPECT_EQ(fromString<MaybeBool>("off"), MaybeBool::Off);
+  EXPECT_EQ(fromString<MaybeBool>("on"), MaybeBool::On);
+  EXPECT_EQ(fromString<MaybeBool>("any"), MaybeBool::Any);
 }
 
 } // namespace

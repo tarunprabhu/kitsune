@@ -14,8 +14,7 @@
 
 #include "kitsune/Core/Instrumentation.h"
 #include "kitsune/Support/CommandLineOptions.h"
-#include "kitsune/Support/FromString.h"
-#include "kitsune/Support/ToString.h"
+#include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
@@ -39,6 +38,38 @@ static cl::list<std::string>
     clKitInstrPAPI("kit-instr-papi",
                    cl::desc("The list of PAPI events to record"),
                    cl::cat(cl::catKitClOpts), cl::CommaSeparated);
+
+template <> std::string llvm::toString(const InstrumentKind &kind) {
+  switch (kind) {
+  case InstrumentKind::Generic: return "generic";
+  case InstrumentKind::PAPI: return "papi";
+  case InstrumentKind::Timer: return "timer";
+  }
+  llvm_unreachable("toString: InstrumentKind not handled");
+}
+
+template <> std::optional<InstrumentKind> llvm::fromString(StringRef s) {
+  return StringSwitch<std::optional<InstrumentKind>>(s)
+      .Case("generic", InstrumentKind::Generic)
+      .Case("papi", InstrumentKind::PAPI)
+      .Case("timer", InstrumentKind::Timer)
+      .Default(std::nullopt);
+}
+
+template <> std::string llvm::toString(const InstrumentUnit &unit) {
+  switch (unit) {
+  case InstrumentUnit::Thread: return "thread";
+  case InstrumentUnit::Loop: return "loop";
+  }
+  llvm_unreachable("toString: InstrumentUnit not handled");
+}
+
+template <> std::optional<InstrumentUnit> llvm::fromString(StringRef s) {
+  return StringSwitch<std::optional<InstrumentUnit>>(s)
+      .Case("loop", InstrumentUnit::Loop)
+      .Case("thread", InstrumentUnit::Thread)
+      .Default(std::nullopt);
+}
 
 static constexpr uint32_t unitsAllMask = ~0;
 static constexpr uint32_t unitsDefaultMask = ~1;

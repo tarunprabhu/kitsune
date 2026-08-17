@@ -16,11 +16,11 @@ using namespace llvm;
 namespace {
 
 TEST(KitToString, toStringVec) {
-  SmallVector<TTID, 3> vec({TTID::Nolo, TTID::OpenMP, TTID::Serial});
+  SmallVector<int, 3> vec({1, 2, 3});
 
-  EXPECT_EQ(toString(SmallVector<TTID, 1>({})), "");
-  EXPECT_EQ(toString(vec), "nolo,openmp,serial");
-  EXPECT_EQ(toString(vec, ", "), "nolo, openmp, serial");
+  EXPECT_EQ(toString(SmallVector<int, 1>({})), "");
+  EXPECT_EQ(toString(vec), "1,2,3");
+  EXPECT_EQ(toString(vec, ", "), "1, 2, 3");
 }
 
 TEST(KitToString, toStringSet) {

@@ -22,6 +22,7 @@
 namespace llvm {
 
 class Loop;
+class raw_ostream;
 
 /// \addtogroup kitsune
 /// @{
@@ -34,6 +35,9 @@ enum class LoopAttrKind : uint32_t {
 #define GET_LOOP_ATTR_ENUMS
 #include "kitsune/Core/LoopAttrs.inc"
 };
+
+/// Stream the kind to LLVM's output stream.
+raw_ostream &operator<<(raw_ostream &os, const LoopAttrKind &attr);
 
 /// Get the name of a loop attribute as it would appear in LLVM metadata.
 /// The result will start with "tapir.loop."
