@@ -13,7 +13,7 @@
 #ifndef KITSUNE_CORE_INTRINSIC_UTILS_H
 #define KITSUNE_CORE_INTRINSIC_UTILS_H
 
-#include "kitsune/Core/Tapir.h"
+#include "kitsune/Core/TTID.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/Intrinsics.h"
 

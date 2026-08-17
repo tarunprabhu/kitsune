@@ -8,7 +8,8 @@
 
 #include "kitsune/Core/ConstantUtils.h"
 #include "TestUtils.h"
-#include "kitsune/Core/Tapir.h"
+#include "kitsune/Core/TTID.h"
+#include "kitsune/Core/SpawnStrategy.h"
 #include "llvm/IR/Module.h"
 
 #include "gtest/gtest.h"

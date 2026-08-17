@@ -13,7 +13,7 @@
 #ifndef KITSUNE_CORE_MODULE_UTILS_H
 #define KITSUNE_CORE_MODULE_UTILS_H
 
-#include "kitsune/Core/Tapir.h"
+#include "kitsune/Core/TTID.h"
 #include "llvm/ADT/StringRef.h"
 
 #include <optional>

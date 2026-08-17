@@ -7,6 +7,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/MetadataUtils.h"
+#include "kitsune/Core/SpawnStrategy.h"
+#include "kitsune/Core/TTID.h"
 
 #include "gtest/gtest.h"
 

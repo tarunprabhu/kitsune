@@ -13,6 +13,7 @@
 #ifndef KITSUNE_TARGETS_TAPIR_TARGETS_H
 #define KITSUNE_TARGETS_TAPIR_TARGETS_H
 
+#include "kitsune/Core/TTID.h"
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
 
 namespace llvm {

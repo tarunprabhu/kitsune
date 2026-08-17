@@ -9,7 +9,8 @@
 #ifndef KITSUNE_UNITTEST_CORE_TEST_VALUES_H
 #define KITSUNE_UNITTEST_CORE_TEST_VALUES_H
 
-#include "kitsune/Core/Tapir.h"
+#include "kitsune/Core/SpawnStrategy.h"
+#include "kitsune/Core/TTID.h"
 #include "llvm/ADT/StringRef.h"
 
 // Nothing here generates truly random values, though we could. It's almost

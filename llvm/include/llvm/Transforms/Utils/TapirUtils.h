@@ -13,7 +13,6 @@
 #ifndef LLVM_TRANSFORMS_UTILS_TAPIRUTILS_H
 #define LLVM_TRANSFORMS_UTILS_TAPIRUTILS_H
 
-#include "kitsune/Core/Tapir.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"

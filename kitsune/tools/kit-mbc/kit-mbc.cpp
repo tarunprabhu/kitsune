@@ -13,8 +13,8 @@
 
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/GVAttrs.h"
+#include "kitsune/Core/TTID.h"
 #include "kitsune/Core/TTOptions.h"
-#include "kitsune/Core/Tapir.h"
 #include "kitsune/Support/CommandLineUtils.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/CodeGen/CommandFlags.h"

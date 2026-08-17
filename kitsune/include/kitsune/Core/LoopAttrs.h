@@ -16,7 +16,8 @@
 #define KITSUNE_CORE_LOOP_ATTRS_H
 
 #include "kitsune/Core/AttrsDeclMacros.h"
-#include "kitsune/Core/Tapir.h"
+#include "kitsune/Core/SpawnStrategy.h"
+#include "kitsune/Core/TTID.h"
 #include "llvm/ADT/StringRef.h"
 
 namespace llvm {

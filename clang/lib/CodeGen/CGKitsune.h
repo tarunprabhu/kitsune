@@ -16,7 +16,7 @@
 #include "CGCall.h"
 #include "CGValue.h"
 #include "CodeGenFunction.h"
-#include "kitsune/Core/Tapir.h"
+#include "kitsune/Core/TTID.h"
 #include "llvm/ADT/ArrayRef.h"
 
 namespace clang {

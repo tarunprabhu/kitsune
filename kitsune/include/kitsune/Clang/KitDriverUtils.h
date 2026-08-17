@@ -13,7 +13,7 @@
 #ifndef KITSUNE_CLANG_KIT_DRIVER_UTILS_H
 #define KITSUNE_CLANG_KIT_DRIVER_UTILS_H
 
-#include "kitsune/Core/Tapir.h"
+#include "kitsune/Core/TTID.h"
 #include "clang/Driver/Driver.h"
 #include "llvm/ADT/StringRef.h"
 

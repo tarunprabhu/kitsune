@@ -13,6 +13,7 @@
 #ifndef KITSUNE_TARGETS_GPUTT_COMMON_H
 #define KITSUNE_TARGETS_GPUTT_COMMON_H
 
+#include "kitsune/Core/TTID.h"
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
 
 namespace llvm {

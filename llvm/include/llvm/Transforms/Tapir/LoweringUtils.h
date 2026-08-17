@@ -13,7 +13,6 @@
 #ifndef LLVM_TAPIR_LOWERING_UTILS_H
 #define LLVM_TAPIR_LOWERING_UTILS_H
 
-#include "kitsune/Core/Tapir.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallPtrSet.h"

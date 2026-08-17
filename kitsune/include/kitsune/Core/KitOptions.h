@@ -16,7 +16,7 @@
 
 #include "kitsune/Config/Config.h"
 #include "kitsune/Core/Instrumentation.h"
-#include "kitsune/Core/Tapir.h"
+#include "kitsune/Core/TTID.h"
 #include "kitsune/Support/MaybeBool.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
