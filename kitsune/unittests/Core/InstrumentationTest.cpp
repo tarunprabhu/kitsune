@@ -19,6 +19,25 @@ template <typename T> SmallVector<T, 1> vec(std::initializer_list<T> list) {
   return SmallVector<T, 1>(list);
 }
 
+TEST(KitInstrumentation, fromStringInstrumentKind) {
+  EXPECT_EQ(fromString<InstrumentKind>(""), std::nullopt);
+  EXPECT_EQ(fromString<InstrumentKind>("PAPI"), std::nullopt);
+  EXPECT_EQ(fromString<InstrumentKind>("counter"), std::nullopt);
+
+  EXPECT_EQ(fromString<InstrumentKind>("generic"), InstrumentKind::Generic);
+  EXPECT_EQ(fromString<InstrumentKind>("papi"), InstrumentKind::PAPI);
+  EXPECT_EQ(fromString<InstrumentKind>("timer"), InstrumentKind::Timer);
+}
+
+TEST(KitInstrumentation, fromStringInstrumentUnit) {
+  EXPECT_EQ(fromString<InstrumentUnit>(""), std::nullopt);
+  EXPECT_EQ(fromString<InstrumentUnit>("Loop"), std::nullopt);
+  EXPECT_EQ(fromString<InstrumentUnit>("function"), std::nullopt);
+
+  EXPECT_EQ(fromString<InstrumentUnit>("loop"), InstrumentUnit::Loop);
+  EXPECT_EQ(fromString<InstrumentUnit>("thread"), InstrumentUnit::Thread);
+}
+
 TEST(KitInstrumentation, enabled) {
   auto opts = [](InstrumentKind kind) -> KitInstrOptions {
     KitInstrOptions opts;

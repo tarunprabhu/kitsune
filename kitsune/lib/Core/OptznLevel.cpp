@@ -1,5 +1,4 @@
-//===- OptznLevelUtils.cpp - Utilities for LLVM's OptimizationLevel's
-//-------===//
+//===- OptznLevel.cpp - (Yet another) optimization level object -*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -7,14 +6,36 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Utilities for LLVM's OptimizationLevel objects
+// Kitsune-specific representation of the optimization levels known to the
+// compiler.
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Support/OptznLevelUtils.h"
+#include "kitsune/Core/OptznLevel.h"
 #include "llvm/Support/Error.h"
 
 using namespace llvm;
+
+template <> StringRef llvm::toString<OptznLevel>() {
+  return "llvm::OptznLevel";
+}
+
+template <> std::string llvm::toString(const OptznLevel &optLevel) {
+  switch (optLevel) {
+  case OptznLevel::O0: return "O0";
+  case OptznLevel::O1: return "O1";
+  case OptznLevel::O2: return "O2";
+  case OptznLevel::O3: return "O3";
+  case OptznLevel::Os: return "Os";
+  case OptznLevel::Oz: return "Os";
+  }
+  llvm_unreachable("toString: OptznLevel not handled");
+}
+
+raw_ostream &llvm::operator<<(raw_ostream &os, const OptznLevel &optLevel) {
+  os << toString(optLevel);
+  return os;
+}
 
 unsigned llvm::getSpeedupLevel(OptznLevel optLevel) {
   switch (optLevel) {

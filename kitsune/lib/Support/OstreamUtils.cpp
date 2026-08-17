@@ -12,42 +12,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Support/OstreamUtils.h"
-#include "kitsune/Support/ToString.h"
 
 using namespace llvm;
-
-raw_ostream &llvm::operator<<(raw_ostream &os, const TTID &tt) {
-  os << toString(tt);
-  return os;
-}
-
-raw_ostream &llvm::operator<<(raw_ostream &os, const std::optional<TTID> &tt) {
-  if (tt.has_value())
-    return os << *tt;
-  else
-    return os << "<<<std::nullopt>>>";
-}
-
-raw_ostream &llvm::operator<<(raw_ostream &os,
-                              const TapirSpawnStrategy &strategy) {
-  switch (strategy) {
-  case TapirSpawnStrategy::Sequential: return os << "Sequential";
-  case TapirSpawnStrategy::DivideAndConquer: return os << "Divide and conquer";
-  case TapirSpawnStrategy::GPU: return os << "GPU";
-  case TapirSpawnStrategy::Basic: return os << "Basic";
-  }
-  llvm_unreachable("operator<<: TapirSpawnStrategy not handled");
-}
-
-raw_ostream &llvm::operator<<(raw_ostream &os, const MaybeBool &v) {
-  os << toString(v);
-  return os;
-}
-
-raw_ostream &llvm::operator<<(raw_ostream &os, const OptznLevel &optLevel) {
-  os << toString(optLevel);
-  return os;
-}
 
 raw_ostream &llvm::operator<<(raw_ostream &os, const CodeGenOptLevel &cgOpt) {
   switch (cgOpt) {

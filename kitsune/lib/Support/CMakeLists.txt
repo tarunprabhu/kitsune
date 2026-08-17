@@ -7,9 +7,7 @@ add_llvm_component_library(LLVMKitSupport
   CommandLineUtils.cpp
   ErrorHandling.cpp
   ErrorUtils.cpp
-  FromInt.cpp
-  FromString.cpp
-  OptznLevelUtils.cpp
+  MaybeBool.cpp
   OstreamUtils.cpp
   ToString.cpp
 
