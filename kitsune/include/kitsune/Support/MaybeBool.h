@@ -13,9 +13,15 @@
 #ifndef KITSUNE_SUPPORT_MAYBE_BOOL_H
 #define KITSUNE_SUPPORT_MAYBE_BOOL_H
 
+#include "kitsune/Support/FromString.h"
+#include "kitsune/Support/ToString.h"
+#include "llvm/ADT/StringRef.h"
+
 #include <cstdint>
 
 namespace llvm {
+
+class raw_ostream;
 
 /// \ingroup kitsune
 /// An enumeration that may be set to a boolean value or unset. This is intended
@@ -42,6 +48,9 @@ enum class MaybeBool : uint8_t {
   On = 1,  ///< The value is set to true
   Any = 3  ///< The value is unset
 };
+
+/// Stream the kind to LLVM's output stream.
+raw_ostream &operator<<(raw_ostream &os, const MaybeBool &m);
 
 } // namespace llvm
 

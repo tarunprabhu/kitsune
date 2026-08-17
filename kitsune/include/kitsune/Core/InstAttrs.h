@@ -15,12 +15,12 @@
 #define KITSUNE_CORE_INST_ATTRS_H
 
 #include "kitsune/Core/AttrsDeclMacros.h"
-#include "kitsune/Core/Tapir.h"
 #include "llvm/ADT/StringRef.h"
 
 namespace llvm {
 
 class Instruction;
+class raw_ostream;
 
 /// \addtogroup kitsune
 /// @{
@@ -30,6 +30,9 @@ enum class InstAttrKind : uint32_t {
 #define GET_INST_ATTR_ENUMS
 #include "kitsune/Core/InstAttrs.inc"
 };
+
+/// Stream the kind to LLVM's output stream.
+raw_ostream &operator<<(raw_ostream &os, const InstAttrKind &attr);
 
 /// Get the name of an instruction attribute as it appears in LLVM metadata.
 /// The result will start with "kit.inst.".

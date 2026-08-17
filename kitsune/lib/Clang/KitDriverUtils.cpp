@@ -15,8 +15,6 @@
 #include "kitsune/Core/KitOptions.h"
 #include "kitsune/Core/TTPlugin.h"
 #include "kitsune/Core/TTUtils.h"
-#include "kitsune/Support/FromString.h"
-#include "kitsune/Support/ToString.h"
 #include "clang/Basic/DiagnosticDriver.h"
 #include "clang/Basic/OffloadArch.h"
 #include "clang/Driver/OptionUtils.h"

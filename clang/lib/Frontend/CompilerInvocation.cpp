@@ -10,7 +10,6 @@
 #include "TestModuleFileExtension.h"
 #include "kitsune/Clang/KitDriverUtils.h"
 #include "kitsune/Core/Tapir.h"
-#include "kitsune/Support/ToString.h"
 #include "clang/Basic/Builtins.h"
 #include "clang/Basic/CharInfo.h"
 #include "clang/Basic/CodeGenOptions.h"

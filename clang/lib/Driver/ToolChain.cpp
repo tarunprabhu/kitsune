@@ -18,8 +18,6 @@
 #include "kitsune/Core/KitOptions.h"
 #include "kitsune/Core/TTPlugin.h"
 #include "kitsune/Support/ErrorUtils.h"
-#include "kitsune/Support/FromString.h"
-#include "kitsune/Support/ToString.h"
 #include "clang/Basic/ObjCRuntime.h"
 #include "clang/Basic/Sanitizers.h"
 #include "clang/Config/config.h"

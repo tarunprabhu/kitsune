@@ -15,12 +15,12 @@
 #define KITSUNE_CORE_ARG_ATTRS_H
 
 #include "kitsune/Core/AttrsDeclMacros.h"
-#include "kitsune/Core/Tapir.h"
 #include "llvm/ADT/StringRef.h"
 
 namespace llvm {
 
 class Argument;
+class raw_ostream;
 
 /// \addtogroup kitsune
 /// @{
@@ -30,6 +30,9 @@ enum class ArgAttrKind : uint32_t {
 #define GET_ARG_ATTR_ENUMS
 #include "kitsune/Core/ArgAttrs.inc"
 };
+
+/// Stream the kind to LLVM's output stream.
+raw_ostream &operator<<(raw_ostream &os, const ArgAttrKind &attr);
 
 /// Get the name of an argument attribute as it would appear in LLVM metadata.
 StringRef getAttrName(ArgAttrKind attr);

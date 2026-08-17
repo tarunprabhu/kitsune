@@ -12,7 +12,6 @@
 #include "kitsune/Core/Instrumentation.h"
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Passes/PipelineUtils.h"
-#include "kitsune/Support/OptznLevelUtils.h"
 #include "clang/Basic/CodeGenOptions.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/LangOptions.h"

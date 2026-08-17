@@ -30,9 +30,10 @@ add_kitsune_unittest(KitCore
   ModuleAttrsTest.cpp
   ModuleUtilsTest.cpp
   PrintfDebuggingTest.cpp
-  TapirCoreTest.cpp
+  SpawnStrategyTest.cpp
   TestUtils.cpp
   TypeUtilsTest.cpp
+  TTIDTest.cpp
   TTUtilsTest.cpp
   UseUtilsTest.cpp
   ValueUtilsTest.cpp

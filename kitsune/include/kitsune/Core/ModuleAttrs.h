@@ -15,13 +15,14 @@
 #define KITSUNE_CORE_MODULE_ATTRS_H
 
 #include "kitsune/Core/AttrsDeclMacros.h"
-#include "kitsune/Core/Tapir.h"
+#include "kitsune/Core/TTID.h"
 #include "llvm/ADT/StringRef.h"
 
 namespace llvm {
 
 class Module;
 class MDNode;
+class raw_ostream;
 
 /// \addtogroup kitsune
 /// @{
@@ -31,6 +32,9 @@ enum class ModuleAttrKind : uint32_t {
 #define GET_MODULE_ATTR_ENUMS
 #include "kitsune/Core/ModuleAttrs.inc"
 };
+
+/// Stream the kind to LLVM's output stream.
+raw_ostream &operator<<(raw_ostream &os, const ModuleAttrKind &attr);
 
 /// Get the name of a module attribute as it would appear in LLVM metadata.
 /// The result will start with "kit.module.".

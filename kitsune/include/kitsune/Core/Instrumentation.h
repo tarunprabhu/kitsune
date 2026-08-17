@@ -13,6 +13,8 @@
 #ifndef KITSUNE_CORE_INSTRUMENTATION_H
 #define KITSUNE_CORE_INSTRUMENTATION_H
 
+#include "kitsune/Support/FromString.h"
+#include "kitsune/Support/ToString.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/iterator_range.h"

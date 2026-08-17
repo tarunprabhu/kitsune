@@ -17,8 +17,6 @@
 #include "kitsune/Core/ModuleUtils.h"
 #include "kitsune/Core/TTUtils.h"
 #include "kitsune/Core/TargetUtils.h"
-#include "kitsune/Support/OstreamUtils.h"
-#include "kitsune/Support/ToString.h"
 #include "llvm/Demangle/Demangle.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Target/TargetMachine.h"

@@ -16,7 +16,6 @@
 #include "kitsune/Core/Tapir.h"
 #include "kitsune/Core/TypeUtils.h"
 #include "kitsune/Shared/TypeTraits.h"
-#include "kitsune/Support/FromInt.h"
 #include "kitsune/Support/TypeTraits.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/StringRef.h"

@@ -14,10 +14,6 @@
 #ifndef KITSUNE_SUPPORT_TO_STRING_H
 #define KITSUNE_SUPPORT_TO_STRING_H
 
-#include "kitsune/Core/Instrumentation.h"
-#include "kitsune/Core/OptznLevel.h"
-#include "kitsune/Core/Tapir.h"
-#include "kitsune/Support/MaybeBool.h"
 #include "kitsune/Support/TypeTraits.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/raw_ostream.h"
@@ -27,27 +23,21 @@ namespace llvm {
 /// \addtogroup kitsune
 /// @{
 
-std::string toString(const bool &);
-std::string toString(const int8_t &);
-std::string toString(const uint8_t &);
-std::string toString(const int16_t &);
-std::string toString(const uint16_t &);
-std::string toString(const int32_t &);
-std::string toString(const uint32_t &);
-std::string toString(const int64_t &);
-std::string toString(const uint64_t &);
-std::string toString(const float &);
-std::string toString(const double &);
-std::string toString(const char *);
-std::string toString(const std::string &);
-std::string toString(const StringRef &);
-std::string toString(const TTID &);
-std::string toString(const MaybeBool &);
-std::string toString(const OptznLevel &);
-std::string toString(const InstrumentKind &);
-std::string toString(const InstrumentUnit &);
+template <int N> std::string toString(const char (&s)[N]) { return s; }
 
-template <typename T, std::enable_if_t<std::is_iterable_v<T>, int> = 0>
+template <typename T,
+          std::enable_if_t<std::is_same_v<T, const char *>, int> = 0>
+std::string toString(T v);
+
+template <typename T,
+          std::enable_if_t<std::is_arithmetic_v<T> || std::is_enum_v<T> ||
+                               std::is_string_like_v<T>,
+                           int> = 0>
+std::string toString(const T &v);
+
+template <typename T,
+          std::enable_if_t<std::is_iterable_v<T> && !std::is_string_like_v<T>,
+                           int> = 0>
 std::string toString(const T &container, StringRef sep = ",") {
   std::string buf;
   raw_string_ostream os(buf);

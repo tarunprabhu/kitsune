@@ -1,0 +1,126 @@
+//===- TTID.h - The core TTID enum -----------------------------*- C++ -*--===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// Define the core TTID enum for the supported tapir targets.
+//
+//===----------------------------------------------------------------------===//
+
+#ifndef KITSUNE_CORE_TTID_H
+#define KITSUNE_CORE_TTID_H
+
+#include "kitsune/Support/FromInt.h"
+#include "kitsune/Support/FromString.h"
+#include "kitsune/Support/ToString.h"
+#include "llvm/ADT/StringRef.h"
+
+#include <cstdint>
+#include <optional>
+
+namespace llvm {
+
+class raw_ostream;
+
+/// \addtogroup kitsune
+/// @{
+
+/// The identifiers for the known tapir targets.
+///
+/// These are some useful constraints that it would be useful to maintain.
+/// The Nolo tapir target does not perform any lowering - instead, the tapir
+/// instructions are retained in the tapir loop even after it has been
+/// "lowered". This should always have an integer value of 0. The serial tapir
+/// target simply lowers the tapir loop to a serial loop. This should have an
+/// integer value of 1 because it "makes sense" in this context - a serial loop
+/// can be thought of as a special case of a parallel loop where only a single
+/// iteration is executing at a time.
+///
+/// NOTES:
+///
+///   1. The values of these enums should not be changed unless absolutely
+///      necessary. A number of tests hardcode these values since the integer
+///      values appear in metadata nodes in LLVM-IR (and, in the future, also in
+///      MLIR).
+///
+///   2. The values are intentionally powers of two - essentially setting a
+///      single bit in a bit-vector. It may allow us to efficiently encode
+///      multiple tapir targets for use in a single invocation of the compiler.
+///      That's the idea for now at least, but it's not clear that we will ever
+///      use this feature. 32 tapir targets ought to be more than enough for
+///      everyone.
+///
+///   3. The underlying type is a 32-bit integer because that is what is used
+///      when lowering this to LLVM IR for use in loop metadata.
+///
+enum class TTID : uint32_t {
+  /// Pseudo tapir target that does not lower tapir instructions. This is
+  /// primarily useful to generate LLVM IR containing tapir instructions.
+  Nolo = 0x0, // i32 0
+
+  /// Lower to a straightforward serial implementation.
+  Serial = 0x1, // i32 1
+
+  /// Lower to run on NVIDIA GPU's.
+  Cuda = 0x2, // i32 2
+
+  /// Lower to run on AMD GPU's.
+  Hip = 0x4, // i32 4
+
+  /// Lower to use the OpenCilk runtime.
+  OpenCilk = 0x8, // i32 8
+
+  // Lower to a JIT-enabled, GPU-agnostic runtime. The original implementation
+  // of this is largely obsolete, but we may add a new JIT-enabled runtime in
+  // the future. Until then, we reserve the actual ID.
+  // GPUABI = 0x10,
+
+  /// Lower to use the Qthreads runtime.
+  Qthreads = 0x20, // i32 32
+
+  /// Lower to use Legion's Realm runtime.
+  /// FIXME: This is currently disabled and needs to be updated before it can be
+  /// re-enabled.
+  Realm = 0x40, // i32 64
+
+  /// Lower using a generic tapir target that uses bitcode files containing the
+  /// bulk of the code used to lower a tapir loop (or other construct).
+  /// FIXME: This has not been fully implemented or tested.
+  Lambda = 0x80, // i32 128
+
+  /// Lowering to the OpenMP task ABI.
+  /// FIXME: This has not been fully implemented or tested.
+  OMPTask = 0x100, // i32 256
+
+  /// Lower to use OpenMP's runtime. This will use libomp that is built together
+  /// with Kitsune. Using other OpenMP libraries is not (and likely will never
+  /// be) supported.
+  OpenMP = 0x200, // i32 512
+
+  /// Lowering to use POSIX threads (pthreads). On POSIX platforms, these are
+  /// guaranteed to be available.
+  Pthreads = 0x400, // i32 1024
+
+  /// Lower using a tapir target that is loaded from tapir target plugin. The
+  /// plugin is a dynamic shared object.
+  Custom = 0x800, // i32 2048
+};
+
+/// The default primary tapir target. This is present simply to reiterate the
+/// fact that a primary tapir target may not be provided. Currently we require
+/// a primary tapir target in order to enable tapir-related lowering and
+/// code generation, both in the frontend and directly in the middle-end.
+static constexpr std::optional<llvm::TTID> defaultTapirTarget = std::nullopt;
+
+/// Stream a TTID using LLVM's streams.
+raw_ostream &operator<<(raw_ostream &os, const std::optional<TTID> &v);
+raw_ostream &operator<<(raw_ostream &os, const TTID &v);
+
+/// @}
+
+} // namespace llvm
+
+#endif // KITSUNE_CORE_TTID_H

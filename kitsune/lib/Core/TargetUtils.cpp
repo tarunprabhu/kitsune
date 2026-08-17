@@ -12,7 +12,6 @@
 
 #include "kitsune/Core/TargetUtils.h"
 #include "kitsune/Core/TTOptions.h"
-#include "kitsune/Support/OptznLevelUtils.h"
 #include "kitsune/Support/OstreamUtils.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/MC/TargetRegistry.h"

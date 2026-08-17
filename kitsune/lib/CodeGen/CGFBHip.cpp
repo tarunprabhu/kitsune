@@ -16,7 +16,6 @@
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/TargetUtils.h"
 #include "kitsune/Support/ErrorHandling.h"
-#include "kitsune/Support/ToString.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/Constants.h"

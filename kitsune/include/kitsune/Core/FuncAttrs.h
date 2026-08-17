@@ -15,12 +15,12 @@
 #define KITSUNE_CORE_FUNC_ATTRS_H
 
 #include "kitsune/Core/AttrsDeclMacros.h"
-#include "kitsune/Core/Tapir.h"
 #include "llvm/ADT/StringRef.h"
 
 namespace llvm {
 
 class Function;
+class raw_ostream;
 
 /// \addtogroup kitsune
 /// @{
@@ -30,6 +30,9 @@ enum class FuncAttrKind : uint32_t {
 #define GET_FUNC_ATTR_ENUMS
 #include "kitsune/Core/FuncAttrs.inc"
 };
+
+/// Stream the kind to LLVM's output stream.
+raw_ostream &operator<<(raw_ostream &os, const FuncAttrKind &attr);
 
 /// Get the name of a function attribute as it would appear in LLVM metadata.
 StringRef getAttrName(FuncAttrKind attr);
