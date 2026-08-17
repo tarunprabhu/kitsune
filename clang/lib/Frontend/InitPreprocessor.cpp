@@ -12,7 +12,6 @@
 
 #include "clang/Basic/DiagnosticFrontend.h"
 #include "kitsune/Core/KitOptions.h"
-#include "kitsune/Support/OstreamUtils.h"
 #include "clang/Basic/DiagnosticLex.h"
 #include "clang/Basic/HLSLRuntime.h"
 #include "clang/Basic/MacroBuilder.h"

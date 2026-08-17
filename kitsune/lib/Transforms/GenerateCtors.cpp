@@ -41,7 +41,6 @@
 #include "kitsune/Shared/RTInitOptions.h"
 #include "kitsune/Support/CommandLineOptions.h"
 #include "kitsune/Support/ErrorHandling.h"
-#include "kitsune/Support/OstreamUtils.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"

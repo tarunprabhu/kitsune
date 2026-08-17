@@ -19,8 +19,8 @@
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/TTUtils.h"
+#include "kitsune/Support/ToString.h"
 #include "kitsune/Support/CommandLineOptions.h"
-#include "kitsune/Support/OstreamUtils.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
@@ -128,9 +128,9 @@ void llvm::detail::debugTargetMachine(const TargetMachine &tm,
   os << "  Triple: " << tm.getTargetTriple().str() << "\n";
   os << "  CPU: " << tm.getTargetCPU() << "\n";
   os << "  Features: " << tm.getTargetFeatureString() << "\n";
-  os << "  Code model: " << tm.getCodeModel() << "\n";
-  os << "  Relocation model: " << tm.getRelocationModel() << "\n";
-  os << "  Optimization level: " << tm.getOptLevel() << "\n";
+  os << "  Code model: " << toString(tm.getCodeModel()) << "\n";
+  os << "  Relocation model: " << toString(tm.getRelocationModel()) << "\n";
+  os << "  Optimization level: " << toString(tm.getOptLevel()) << "\n";
 }
 
 namespace {
