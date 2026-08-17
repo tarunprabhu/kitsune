@@ -61,7 +61,7 @@
 #include "qthreads/context.h"
 
 #include <qthread.h>
-#include <qthread/barrier.h>
+#include <qthread/sinc.h>
 
 #include <cassert>
 #include <vector>
@@ -78,7 +78,7 @@ struct QthreadArgs {
   kitrt::QthrThrdFunc *f;
   int64_t tid;
   void *args;
-  qt_barrier_t *barrier;
+  qt_sinc_t *sync;
 };
 
 } // namespace
@@ -117,12 +117,13 @@ static unsigned long launchOnThread(QthreadArgs *thrdArgs) {
   KitQthrThrdFunc f = thrdArgs->f;
   int64_t tid = thrdArgs->tid;
   void *args = thrdArgs->args;
-  qt_barrier_t *barrier = thrdArgs->barrier;
 
   f(tid, tid + 1, args);
 
-  LOG("Thread entering barrier: %d", tid);
-  qt_barrier_enter(barrier);
+  // We don't perform a reduction with the qt_sinc_t object, so pass nullptr as
+  // the "value"
+  LOG("Syncing thread: %d", tid);
+  qt_sinc_submit(thrdArgs->sync, /*value=*/nullptr);
 
   return 0;
 }
@@ -141,30 +142,35 @@ void QthreadsContext::launch(QthrThrdFunc *f, uint64_t start, uint64_t end,
     return;
   }
 
-  // We need the main thread to block until all spawned threads finish. This is
-  // implemented by setting up the barrier to block until it is entered by all
-  // `n` spawned threads, as well as the main thread.
-  qt_barrier_t *barrier = qt_barrier_create(numThrds + 1, REGION_BARRIER);
-  if (!barrier)
-    FATAL("Could not create barrier");
+  // We use a qt_sinc_t object on which the main thread will wait. It expects
+  // `numThrds` submissions, each of which may reduce a value into it. We don't
+  // actually need the threads to reduce anything, so we give it an empty
+  // reduction function. We still need to provide an initial value though.
+  uint8_t syncInit = 0;
+  auto redxn = [](void *, const void *) {};
+  qt_sinc_t *sync = qt_sinc_create(/*size=*/1, &syncInit, redxn, numThrds);
+  if (!sync)
+    FATAL("Could not create sinc");
 
+  LOG("Launching %ld threads\n", numThrds);
   std::vector<QthreadArgs> thrds(numThrds);
   for (uint64_t t = 0; t < numThrds; ++t) {
     QthreadArgs &thrdArgs = thrds[t];
     thrdArgs.f = f;
     thrdArgs.tid = t;
     thrdArgs.args = args;
-    thrdArgs.barrier = barrier;
+    thrdArgs.sync = sync;
 
     LOG("Fork thread %d", t);
     if (qthread_fork((qthread_f)launchOnThread, &thrdArgs, nullptr))
       FATAL("Could not fork thread");
   }
+  LOG("Waiting for %ld threads to sync\n", numThrds);
 
-  // The main thread must also enter the barrier. Once the main thread has
-  // entered, it will block until all spawned threads enter before continuing.
-  qt_barrier_enter(barrier);
-  qt_barrier_destroy(barrier);
+  // Since the qt_sinc_t object does not perform a reduction, there is no result
+  // to be read, so just pass nullptr as the target.
+  qt_sinc_wait(sync, /*target=*/nullptr);
+  qt_sinc_destroy(sync);
 
   LOG("Finished multithreaded loop");
 }
