@@ -117,6 +117,9 @@ void CPUTTLoopProcessor::processOutlinedLoopCall(TapirLoopInfo &tl,
   assert(replCall->getCalledFunction() &&
          "Outlined function must be called directly");
 
+  LLVMContext &ctx = replCall->getContext();
+  Type *i64 = Type::getInt64Ty(ctx);
+
   // The first two arguments of the call are the lower and upper bounds of the
   // iteration range. The rest are other entities used in the outlined body of
   // the parallel loop that was outlined. This outlined function will be
@@ -128,14 +131,16 @@ void CPUTTLoopProcessor::processOutlinedLoopCall(TapirLoopInfo &tl,
   Function *outlined = replCall->getCalledFunction();
   Function *wrapper = genWrapperFor(*outlined);
 
-  Value *beg = replCall->getArgOperand(0);
-  Value *end = replCall->getArgOperand(1);
+  IRBuilder<> builder(replCall);
+  Value *beg = builder.CreateIntCast(replCall->getArgOperand(0), i64,
+                                     /*isSigned=*/false);
+  Value *end = builder.CreateIntCast(replCall->getArgOperand(1), i64,
+                                     /*isSigned=*/false);
   Constant *ctt = toConstant(tt, replCall->getContext());
   SmallVector<Value *, 4> launchArgs = {ctt, wrapper, beg, end};
   for (unsigned i = 2; i < replCall->arg_size(); ++i)
     launchArgs.push_back(replCall->getArgOperand(i));
 
-  IRBuilder<> builder(replCall);
   if (asyncLaunch) {
     Value *launchCtx = builder.CreateIntrinsic(
         Intrinsic::kit_async_cpu_threads_launch, launchArgs);
