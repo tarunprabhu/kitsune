@@ -8,7 +8,6 @@ add_llvm_component_library(LLVMKitSupport
   ErrorHandling.cpp
   ErrorUtils.cpp
   MaybeBool.cpp
-  OstreamUtils.cpp
   ToString.cpp
 
   COMPONENT_NAME
