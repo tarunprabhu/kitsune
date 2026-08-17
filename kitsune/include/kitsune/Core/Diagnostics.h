@@ -14,7 +14,6 @@
 #define KITSUNE_CORE_DIAGNOSTICS_H
 
 #include "kitsune/Core/DiagnosticsInternal.h"
-#include "kitsune/Support/OstreamUtils.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/IR/DiagnosticInfo.h"

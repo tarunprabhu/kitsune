@@ -17,8 +17,6 @@
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/TTUtils.h"
 #include "kitsune/Support/CommandLineUtils.h"
-#include "kitsune/Support/OstreamUtils.h"
-#include "llvm/ADT/StringExtras.h"
 #include "llvm/CodeGen/CommandFlags.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IRReader/IRReader.h"

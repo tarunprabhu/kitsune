@@ -386,7 +386,7 @@ void TTOptions::print(raw_ostream &os, bool all) const {
   os << "Tapir target options:\n";
   os << "  Primary:                 " << tt << "\n";
   os << "  Optimization level:      " << getOptznLevel() << "\n";
-  os << "  FP fusion:               " << getFPOpFusionMode() << "\n";
+  os << "  FP fusion:               " << toString(getFPOpFusionMode()) << "\n";
   if (all || tt == TTID::Cuda || tt == TTID::Hip) {
     os << "  GPU prefetch:            " << getGPUPrefetch() << "\n";
   }

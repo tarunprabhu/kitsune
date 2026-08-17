@@ -12,7 +12,7 @@
 
 #include "kitsune/Core/TargetUtils.h"
 #include "kitsune/Core/TTOptions.h"
-#include "kitsune/Support/OstreamUtils.h"
+#include "kitsune/Support/ToString.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/CodeGen.h"
@@ -96,7 +96,7 @@ TargetMachine *llvm::createHostTargetMachine(const TTOptions &tto) {
 
 #define OPT_ENUM(NAME)                                                         \
   do {                                                                         \
-    os << "  " << #NAME << ": " << opts.NAME << "\n";                          \
+    os << "  " << #NAME << ": " << toString(opts.NAME) << "\n";                \
   } while (0)
 
 #define OPT_INT(NAME)                                                          \
@@ -114,7 +114,7 @@ void llvm::dump(const TargetOptions &opts, raw_ostream &os) {
   // printed in alphabetical order here, though they do not appear in this
   // order in the TargetOptions object itself.
   os << "Target Options:\n";
-  os << "  AllowFPOpFusion: " << opts.AllowFPOpFusion << "\n";
+  os << "  AllowFPOpFusion: " << toString(opts.AllowFPOpFusion) << "\n";
   OPT_BOOL(ApproxFuncFPMath);
   OPT_BOOL(BBAddrMap);
   OPT_ENUM(BBSections);
@@ -161,7 +161,8 @@ void llvm::dump(const TargetOptions &opts, raw_ostream &os) {
   OPT_BOOL(SupportsDefaultOutlining);
   OPT_BOOL(StackSymbolOrdering);
   OPT_ENUM(StackUsageOutput);
-  os << "  SwiftAsyncFramePointerMode: " << opts.SwiftAsyncFramePointer << "\n";
+  os << "  SwiftAsyncFramePointerMode: "
+     << toString(opts.SwiftAsyncFramePointer) << "\n";
   OPT_ENUM(ThreadModel);
   OPT_BOOL(TLSSize);
   OPT_BOOL(TrapUnreachable);
