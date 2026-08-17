@@ -8,7 +8,7 @@
 
 #include "kitsune/Core/IntrinsicUtils.h"
 #include "kitsune/Core/AddrSpace.h"
-#include "kitsune/Core/Tapir.h"
+#include "kitsune/Core/TTID.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Instructions.h"

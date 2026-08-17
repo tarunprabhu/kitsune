@@ -14,7 +14,7 @@
 #define KITSUNE_CONFIG_CONFIG_H
 
 #include "kitsune/Config/config.h"
-#include "kitsune/Core/Tapir.h"
+#include "kitsune/Core/TTID.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
 

@@ -14,8 +14,8 @@
 #define KITSUNE_CORE_TTOPTIONS_H
 
 #include "kitsune/Core/OptznLevel.h"
+#include "kitsune/Core/TTID.h"
 #include "kitsune/Core/TTPlugin.h"
-#include "kitsune/Core/Tapir.h"
 #include "kitsune/Support/MaybeBool.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/Passes/OptimizationLevel.h"

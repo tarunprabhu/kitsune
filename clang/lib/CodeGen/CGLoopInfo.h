@@ -14,7 +14,8 @@
 #ifndef LLVM_CLANG_LIB_CODEGEN_CGLOOPINFO_H
 #define LLVM_CLANG_LIB_CODEGEN_CGLOOPINFO_H
 
-#include "kitsune/Core/Tapir.h"
+#include "kitsune/Core/SpawnStrategy.h"
+#include "kitsune/Core/TTID.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/DebugLoc.h"

@@ -17,7 +17,7 @@
 
 #include "AttrsImplDeclMacros.h"
 #include "AttrsIterator.h"
-#include "kitsune/Core/Tapir.h"
+#include "kitsune/Core/TTID.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/iterator_range.h"

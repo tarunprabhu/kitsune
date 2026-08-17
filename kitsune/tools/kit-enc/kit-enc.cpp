@@ -13,9 +13,9 @@
 
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/ModuleUtils.h"
+#include "kitsune/Core/TTID.h"
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/TTUtils.h"
-#include "kitsune/Core/Tapir.h"
 #include "kitsune/Support/CommandLineUtils.h"
 #include "kitsune/Support/OstreamUtils.h"
 #include "llvm/ADT/StringExtras.h"

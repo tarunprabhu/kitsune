@@ -12,7 +12,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Tapir/OpenCilkABI.h"
-#include "kitsune/Core/Tapir.h"
 #include "kitsune/Core/TTOptions.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/Statistic.h"

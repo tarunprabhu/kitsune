@@ -32,6 +32,8 @@
 #include "AttrsImpl.h"
 #include "VerifierImpl.h"
 #include "kitsune/Core/Diagnostics.h"
+#include "kitsune/Core/SpawnStrategy.h"
+#include "kitsune/Core/TTID.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Analysis/LoopInfo.h"
 

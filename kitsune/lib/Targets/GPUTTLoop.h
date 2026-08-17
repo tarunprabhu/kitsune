@@ -14,6 +14,7 @@
 #ifndef KITSUNE_TARGETS_GPUTT_LOOP_H
 #define KITSUNE_TARGETS_GPUTT_LOOP_H
 
+#include "kitsune/Core/TTID.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/IRBuilder.h"

@@ -18,7 +18,7 @@
 #include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/GVAttrs.h"
-#include "kitsune/Core/Tapir.h"
+#include "kitsune/Core/TTID.h"
 #include "kitsune/Support/ErrorHandling.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/Module.h"
