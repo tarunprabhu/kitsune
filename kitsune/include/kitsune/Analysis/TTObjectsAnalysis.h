@@ -14,8 +14,8 @@
 #ifndef KITSUNE_ANALYSIS_TTOBJECTS_ANALYSIS_H
 #define KITSUNE_ANALYSIS_TTOBJECTS_ANALYSIS_H
 
+#include "kitsune/Core/TTID.h"
 #include "kitsune/Core/TTOptions.h"
-#include "kitsune/Core/Tapir.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/Pass.h"

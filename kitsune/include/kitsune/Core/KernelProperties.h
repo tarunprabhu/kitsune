@@ -15,7 +15,7 @@
 #ifndef KITSUNE_CORE_KERNEL_PROPERTIES_H
 #define KITSUNE_CORE_KERNEL_PROPERTIES_H
 
-#include "kitsune/Core/Tapir.h"
+#include "kitsune/Core/TTID.h"
 #include "llvm/ADT/StringRef.h"
 
 namespace llvm {

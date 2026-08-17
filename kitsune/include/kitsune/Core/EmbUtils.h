@@ -15,7 +15,7 @@
 #ifndef KITSUNE_CORE_EMB_UTILS_H
 #define KITSUNE_CORE_EMB_UTILS_H
 
-#include "kitsune/Core/Tapir.h"
+#include "kitsune/Core/TTID.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/MemoryBufferRef.h"

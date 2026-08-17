@@ -13,7 +13,6 @@
 
 #include "llvm/Transforms/Tapir/SerialABI.h"
 #include "kitsune/Core/TTOptions.h"
-#include "kitsune/Core/Tapir.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"

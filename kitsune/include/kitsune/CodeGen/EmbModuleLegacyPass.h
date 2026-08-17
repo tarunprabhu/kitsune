@@ -15,7 +15,7 @@
 #ifndef KITSUNE_CODEGEN_EMB_MODULE_LEGACY_PASS_H
 #define KITSUNE_CODEGEN_EMB_MODULE_LEGACY_PASS_H
 
-#include "kitsune/Core/Tapir.h"
+#include "kitsune/Core/TTID.h"
 #include "llvm/Pass.h"
 
 namespace llvm {
