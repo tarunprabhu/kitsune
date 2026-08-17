@@ -166,7 +166,6 @@ static void populateSimplifyPasses(ModulePassManager &mpm,
   // approach, so it is not clear how many of these are actually needed.
   //
   addFunctionPass<EarlyCSEPass>(mpm, /*UseMemorySSA=*/true);
-  addLoopPass<IndVarSimplifyPass>(mpm);
   addLoopPass<LoopSimplifyCFGPass>(mpm);
   addFunctionPass<SimplifyCFGPass>(mpm);
   addFunctionPass<InstCombinePass>(mpm);
