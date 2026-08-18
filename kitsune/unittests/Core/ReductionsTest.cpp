@@ -1,4 +1,4 @@
-//===- ReductionUtilsTest.cpp - Unit tests for reduction utilities --------===//
+//===- ReductionsTest.cpp - Unit tests for reduction utilities ------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Clang/ReductionUtils.h"
+#include "kitsune/Core/Reductions.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Module.h"
 
@@ -16,7 +16,7 @@ using namespace llvm;
 
 namespace {
 
-TEST(KitReductionUtils, fromInt) {
+TEST(KitReductions, fromInt) {
   EXPECT_EQ(fromInt<ReduceOp>(0), ReduceOp::Custom);
   EXPECT_EQ(fromInt<ReduceOp>(1), ReduceOp::BAnd);
   EXPECT_EQ(fromInt<ReduceOp>(2), ReduceOp::BOr);
@@ -35,7 +35,7 @@ TEST(KitReductionUtils, fromInt) {
   EXPECT_FALSE(fromInt<ReduceOp>(13).has_value());
 }
 
-TEST(KitReductionUtils, getUnitBAnd) {
+TEST(KitReductions, getUnitBAnd) {
   auto check = [](Type *ty) {
     Constant *c = getUnitValueFor(ReduceOp::BAnd, ty);
 
@@ -58,7 +58,7 @@ TEST(KitReductionUtils, getUnitBAnd) {
   check(i64);
 }
 
-TEST(KitReductionUtils, getUnitBOr) {
+TEST(KitReductions, getUnitBOr) {
   auto check = [](Type *ty) {
     Constant *c = getUnitValueFor(ReduceOp::BOr, ty);
 
@@ -81,7 +81,7 @@ TEST(KitReductionUtils, getUnitBOr) {
   check(i64);
 }
 
-TEST(KitReductionUtils, getUnitBXor) {
+TEST(KitReductions, getUnitBXor) {
   auto check = [](Type *ty) {
     Constant *c = getUnitValueFor(ReduceOp::BXor, ty);
 
@@ -104,7 +104,7 @@ TEST(KitReductionUtils, getUnitBXor) {
   check(i64);
 }
 
-TEST(KitReductionUtils, getUnitLAnd) {
+TEST(KitReductions, getUnitLAnd) {
   auto check = [](Type *ty) {
     Constant *c = getUnitValueFor(ReduceOp::LAnd, ty);
     EXPECT_EQ(c->getType(), ty);
@@ -123,7 +123,7 @@ TEST(KitReductionUtils, getUnitLAnd) {
   check(i8);
 }
 
-TEST(KitReductionUtils, getUnitLOr) {
+TEST(KitReductions, getUnitLOr) {
   auto check = [](Type *ty) {
     Constant *c = getUnitValueFor(ReduceOp::LOr, ty);
     EXPECT_EQ(c->getType(), ty);
@@ -142,7 +142,7 @@ TEST(KitReductionUtils, getUnitLOr) {
   check(i8);
 }
 
-TEST(KitReductionUtils, getUnitLXor) {
+TEST(KitReductions, getUnitLXor) {
   auto check = [](Type *ty) {
     Constant *c = getUnitValueFor(ReduceOp::LXor, ty);
     EXPECT_EQ(c->getType(), ty);
@@ -161,7 +161,7 @@ TEST(KitReductionUtils, getUnitLXor) {
   check(i8);
 }
 
-TEST(KitReductionUtils, getUnitMax) {
+TEST(KitReductions, getUnitMax) {
   auto checkInt = [](Type *ty, bool isSigned) {
     Constant *c = getUnitValueFor(ReduceOp::Max, ty, isSigned);
 
@@ -200,7 +200,7 @@ TEST(KitReductionUtils, getUnitMax) {
   checkFP(f64, APFloat(std::numeric_limits<double>::min()));
 }
 
-TEST(KitReductionUtils, getUnitMaxLoc) {
+TEST(KitReductions, getUnitMaxLoc) {
   auto checkInt = [](Type *ty, bool isSigned) {
     Constant *c = getUnitValueFor(ReduceOp::MaxLoc, ty, isSigned);
 
@@ -239,7 +239,7 @@ TEST(KitReductionUtils, getUnitMaxLoc) {
   checkFP(f64, APFloat(std::numeric_limits<double>::min()));
 }
 
-TEST(KitReductionUtils, getUnitMin) {
+TEST(KitReductions, getUnitMin) {
   auto checkInt = [](Type *ty, bool isSigned) {
     Constant *c = getUnitValueFor(ReduceOp::Min, ty, isSigned);
 
@@ -278,7 +278,7 @@ TEST(KitReductionUtils, getUnitMin) {
   checkFP(f64, APFloat(std::numeric_limits<double>::max()));
 }
 
-TEST(KitReductionUtils, getUnitMinLoc) {
+TEST(KitReductions, getUnitMinLoc) {
   auto checkInt = [](Type *ty, bool isSigned) {
     Constant *c = getUnitValueFor(ReduceOp::MinLoc, ty, isSigned);
 
@@ -317,7 +317,7 @@ TEST(KitReductionUtils, getUnitMinLoc) {
   checkFP(f64, APFloat(std::numeric_limits<double>::max()));
 }
 
-TEST(KitReductionUtils, getUnitProd) {
+TEST(KitReductions, getUnitProd) {
   auto checkInt = [](Type *ty, bool isSigned) {
     Constant *c = getUnitValueFor(ReduceOp::Prod, ty, isSigned);
 
@@ -358,7 +358,7 @@ TEST(KitReductionUtils, getUnitProd) {
   checkFP(f64);
 }
 
-TEST(KitReductionUtils, getUnitSum) {
+TEST(KitReductions, getUnitSum) {
   auto checkInt = [](Type *ty, bool isSigned) {
     Constant *c = getUnitValueFor(ReduceOp::Sum, ty, isSigned);
 

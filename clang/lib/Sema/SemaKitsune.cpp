@@ -13,8 +13,8 @@
 
 #include "clang/Sema/SemaKitsune.h"
 #include "kitsune/Clang/ASTUtils.h"
-#include "kitsune/Clang/ReductionUtils.h"
 #include "kitsune/Core/KitOptions.h"
+#include "kitsune/Core/Reductions.h"
 #include "clang/AST/StmtKitsune.h"
 #include "clang/Sema/Sema.h"
 
