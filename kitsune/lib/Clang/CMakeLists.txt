@@ -36,7 +36,6 @@ add_clang_library(clangKitDriver
 # and CodeGen/.
 add_clang_library(clangKitAST
   ASTUtils.cpp
-  ReductionUtils.cpp
 
   PARTIAL_SOURCES_INTENDED
 
