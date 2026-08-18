@@ -1,4 +1,4 @@
-//===- Reductionutils.cpp - Utilities for reduction builtins --------------===//
+//===- Reductions.cpp - Base types and utilities for reduction support ----===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,11 +6,11 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Utilities for reduction support in C/C++.
+// Base types and utilities for Kitsune's reduction support.
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Clang/ReductionUtils.h"
+#include "kitsune/Core/Reductions.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "llvm/IR/Constants.h"
 
@@ -35,7 +35,7 @@ template <> std::optional<ReduceOp> llvm::fromInt(int64_t i) {
   }
 }
 
-StringRef llvm::toString(ReduceOp op) {
+template <> std::string llvm::toString(const ReduceOp &op) {
   switch (op) {
   case ReduceOp::Custom: return "custom";
   case ReduceOp::BAnd: return "bitwise and";
@@ -51,7 +51,7 @@ StringRef llvm::toString(ReduceOp op) {
   case ReduceOp::Prod: return "product";
   case ReduceOp::Sum: return "sum";
   }
-  llvm_unreachable("toString(ReduceOp): Reduction operator not handled");
+  llvm_unreachable("toString: Reduction operator not handled");
 }
 
 static Constant *getOnes(Type *type) {

@@ -1,4 +1,4 @@
-//===- Reductionutils.h - Utilities for reduction builtins ------*- C++ -*-===//
+//===- Reductions.h - Base types and utilities for reductions ---*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,15 +6,17 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Utilities for reduction support in frontends.
+// Base types and utilities for Kitsune's reduction support.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef KITSUNE_CLANG_REDUCTION_UTILS_H
-#define KITSUNE_CLANG_REDUCTION_UTILS_H
+#ifndef KITSUNE_CORE_REDUCTIONS_H
+#define KITSUNE_CORE_REDUCTIONS_H
 
 #include "kitsune/Support/FromInt.h"
-#include "llvm/ADT/StringRef.h"
+#include "kitsune/Support/ToString.h"
+
+#include <cstdint>
 
 namespace llvm {
 
@@ -44,10 +46,6 @@ enum class ReduceOp : uint32_t {
   Sum = 12,    ///< Addition
 };
 
-/// Convert a reduction operator to a string. This is mostly useful for
-/// diagnostic messages.
-StringRef toString(ReduceOp op);
-
 /// Get the unit value for a reduction operator \p op with type \p ty. This
 /// is generally used when \p ty is an integral type.
 Constant *getUnitValueFor(ReduceOp op, Type *ty, bool isSigned);
@@ -60,4 +58,4 @@ Constant *getUnitValueFor(ReduceOp op, Type *ty);
 
 } // namespace llvm
 
-#endif // KITSUNE_CLANG_REDUCTION_UTILS_H
+#endif // KITSUNE_CORE_REDUCTIONS_H

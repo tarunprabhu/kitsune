@@ -26,6 +26,7 @@ add_llvm_component_library(LLVMKitCore
   ModuleUtils.cpp
   OptznLevel.cpp
   PrintfDebugging.cpp
+  Reductions.cpp
   SpawnStrategy.cpp
   TapirLoopUtils.cpp
   TTID.cpp
