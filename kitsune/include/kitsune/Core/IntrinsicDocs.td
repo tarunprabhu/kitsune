@@ -169,6 +169,31 @@ targets.
 }];
 }
 
+def KitCPUMallocDoc : KitDocIntrinsic {
+  let Category = KitDocCatCommon;
+  let ParamDocs = [
+      KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
+      KitDocParam<"bytes", "The number of bytes to allocate">
+  ];
+  let Descr = [{
+Allocate memory on the heap. Although this is lowered to a function in Kitsune's
+runtime, that is a simply a wrapper around `malloc`. Importantly, the runtime
+will *not* track the allocated memory. It is the caller's responsibility to free
+the allocated memory.
+}];
+}
+
+def KitCPUFreeDoc : KitDocIntrinsic {
+  let Category = KitDocCatCommon;
+  let ParamDocs = [
+      KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
+      KitDocParam<"ptr", "Pointer to memory to be freed">
+  ];
+  let Descr = [{
+Free memory that was previously allocated by :ref:`llvm.kit.cpu.malloc`.
+}];
+}
+
 def KitCPUNumThreadsDoc : KitDocIntrinsic {
   let Category = KitDocCatThreading;
   let ParamDocs = [
@@ -420,6 +445,32 @@ Enable the Y-axis launch pattern for all GPU kernels.
 .. note::
   As of May 2025, this is has only been implemented for the
   :ref:`hip <tapir-targets-hip>` tapir target.
+}];
+}
+
+def KitGPUMallocDoc : KitDocIntrinsic {
+  let Category = KitDocCatCommon;
+  let ParamDocs = [
+      KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
+      KitDocParam<"bytes", "The number of bytes to allocate">
+  ];
+  let Descr = [{
+Allocate memory on the GPU. The runtime will *not* track the allocated memory.
+It is the caller's responsibility to free the allocated memory. The returned
+pointer *cannot* be used on the host. This simply calls `cudaMalloc` when used
+with the `cuda` tapir target and `hipMalloc` when used with the `hip` tapir
+target.
+}];
+}
+
+def KitGPUFreeDoc : KitDocIntrinsic {
+  let Category = KitDocCatCommon;
+  let ParamDocs = [
+      KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
+      KitDocParam<"ptr", "Pointer to memory to be freed">
+  ];
+  let Descr = [{
+Free memory that was previously allocated by :ref:`llvm.kit.gpu.malloc`.
 }];
 }
 

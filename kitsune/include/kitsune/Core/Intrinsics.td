@@ -142,6 +142,29 @@ class KitIntrinsic<list<LLVMType> ret_types,
 //------------------------------------------------------------------------------
 // Intrinsics for parallel execution on CPU's.
 
+// Allocate memory on the heap.
+def int_kit_cpu_malloc
+    : KitIntrinsic<[llvm_ptr_ty], [llvm_i32_ty, llvm_i64_ty],
+                   [NoAlias<RetIndex>, ImmArg<ArgIndex<0>>]> {
+  let Doc = KitCPUMallocDoc;
+  let RTSpec = [RT<OpenCilk, kitrt_malloc>,
+                RT<OpenMP, kitrt_malloc>,
+                RT<Pthreads, kitrt_malloc>,
+                RT<Qthreads, kitrt_malloc>,
+                RT<Serial, kitrt_malloc>];
+}
+
+// Free memory previously allocated with kit.cpu.malloc.
+def int_kit_cpu_free
+    : KitIntrinsic<[], [llvm_i32_ty, llvm_ptr_ty], [ImmArg<ArgIndex<0>>]> {
+  let Doc = KitCPUFreeDoc;
+  let RTSpec = [RT<OpenCilk, kitrt_free>,
+                RT<OpenMP, kitrt_free>,
+                RT<Pthreads, kitrt_free>,
+                RT<Qthreads, kitrt_free>,
+                RT<Serial, kitrt_free>];
+}
+
 // Get the number of parallel CPU threads available.
 def int_kit_cpu_num_threads
     : KitIntrinsic<[llvm_i64_ty], [llvm_i32_ty], [ImmArg<ArgIndex<0>>]> {
@@ -282,6 +305,23 @@ def int_kit_gpu_num_compute_units
   let Doc = KitGPUNumComputeUnitsDoc;
   let RTSpec = [RT<Cuda, kitcuda_num_sms>,
                 RT<Hip, kithip_num_cus>];
+}
+
+// Allocate memory on the GPU.
+def int_kit_gpu_malloc
+    : KitIntrinsic<[llvm_ptr_ty], [llvm_i32_ty, llvm_i64_ty],
+                   [NoAlias<RetIndex>, ImmArg<ArgIndex<0>>]> {
+  let Doc = KitGPUMallocDoc;
+  let RTSpec = [RT<Cuda, kitcuda_malloc>,
+                RT<Hip, kithip_malloc>];
+}
+
+// Free memory previously allocated with kit.gpu.malloc.
+def int_kit_gpu_free
+    : KitIntrinsic<[], [llvm_i32_ty, llvm_ptr_ty], [ImmArg<ArgIndex<0>>]> {
+  let Doc = KitGPUFreeDoc;
+  let RTSpec = [RT<Cuda, kitcuda_free>,
+                RT<Hip, kithip_free>];
 }
 
 // Get a new GPU stream.
@@ -492,11 +532,11 @@ def int_kit_mobile_alloc
   let AllowReturnCast = true;
   let RTSpec = [RT<Cuda, kitcuda_managed_malloc>,
                 RT<Hip, kithip_managed_malloc>,
-                RT<OpenCilk, kitrt_malloc>,
-                RT<OpenMP, kitrt_malloc>,
-                RT<Pthreads, kitrt_malloc>,
-                RT<Qthreads, kitrt_malloc>,
-                RT<Serial, kitrt_malloc>];
+                RT<OpenCilk, kitrt_mem_alloc>,
+                RT<OpenMP, kitrt_mem_alloc>,
+                RT<Pthreads, kitrt_mem_alloc>,
+                RT<Qthreads, kitrt_mem_alloc>,
+                RT<Serial, kitrt_mem_alloc>];
 }
 
 // Free a mobile buffer previously allocated by llvm.kit.mobile.alloc.
@@ -508,11 +548,11 @@ def int_kit_mobile_free
   let AllowParamCast = true;
   let RTSpec = [RT<Cuda, kitcuda_managed_free>,
                 RT<Hip, kithip_managed_free>,
-                RT<OpenCilk, kitrt_free>,
-                RT<OpenMP, kitrt_free>,
-                RT<Pthreads, kitrt_free>,
-                RT<Qthreads, kitrt_free>,
-                RT<Serial, kitrt_free>];
+                RT<OpenCilk, kitrt_mem_free>,
+                RT<OpenMP, kitrt_mem_free>,
+                RT<Pthreads, kitrt_mem_free>,
+                RT<Qthreads, kitrt_mem_free>,
+                RT<Serial, kitrt_mem_free>];
 }
 
 // Initialize the elements of a contiguous, mobile buffer with the given value.
