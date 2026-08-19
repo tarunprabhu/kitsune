@@ -181,13 +181,6 @@ KitVerifier &KitVerifier::verifyIntrReduce0(const CallBase &call) {
   return verifyIntrReduce(call, unit, reducer, 7);
 }
 
-KitVerifier &KitVerifier::verifyIntrReduce1(const CallBase &call) {
-  Value *unit = call.getArgOperand(5);
-  Value *reducer = call.getArgOperand(6);
-
-  return verifyIntrReduce(call, unit, reducer, 7);
-}
-
 KitVerifier &KitVerifier::verify(const CallBase &call) {
   Intrinsic::ID id = call.getIntrinsicID();
   if (isKitIntrinsic(id)) {
@@ -207,7 +200,6 @@ KitVerifier &KitVerifier::verify(const CallBase &call) {
     return *this;
   case Intrinsic::kit_mobile_init: return verifyIntrMobileInit(call);
   case Intrinsic::kit_reduce_0: return verifyIntrReduce0(call);
-  case Intrinsic::kit_reduce_1: return verifyIntrReduce1(call);
   default: return *this;
   }
 }
