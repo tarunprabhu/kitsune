@@ -1,9 +1,7 @@
 ; When more than one reduction is performed in a tapir reduction loop, check
 ; that:
 ;
-;   - Distinct partial reduction buffers are allocated (and freed) for each
-;
-;   - A final reduction is performed for each
+;   - Distinct local reduction buffers are allocated (and freed) for each
 ;
 ;   - This final reduction is performed in the same order as in the original
 ;     code (this isn't strictly necessary, but we generate code in this order,
@@ -25,74 +23,53 @@
 ; CHECK: %[[R4:.+]] = alloca i32
 ;
 ; CHECK: %[[NREDS:.+]] = call i64 @llvm.kit.cpu.num.threads(i32 1024)
-; CHECK-NEXT: %[[BYTES1:.+]] = mul {{.+}} 8, %[[NREDS]]
-; CHECK-NEXT: %[[BUF1:.+]] = call {{.+}} @llvm.kit.mobile.alloc(i32 1024, i64 %[[BYTES1]])
-; CHECK-NEXT: call void {{.+}} @llvm.kit.mobile.init
-; CHECK-SAME: i32 1024
-; CHECK-SAME: ptr {{[^%]+}} %[[BUF1]]
-; CHECK-SAME: i64 %[[NREDS]]
-; CHECK-SAME: i64 [[UNIT1:[^)]+]]
-; CHECK-NEXT: %[[BYTES2:.+]] = mul {{.+}} 8, %[[NREDS]]
-; CHECK-NEXT: %[[BUF2:.+]] = call {{.+}} @llvm.kit.mobile.alloc(i32 1024, i64 %[[BYTES2]])
-; CHECK-NEXT: call void {{.+}} @llvm.kit.mobile.init
-; CHECK-SAME: i32 1024
-; CHECK-SAME: ptr {{[^%]+}} %[[BUF2]]
-; CHECK-SAME: i64 %[[NREDS]]
-; CHECK-SAME: i64 [[UNIT2:[^)]+]]
-; CHECK-NEXT: %[[BYTES3:.+]] = mul {{.+}} 4, %[[NREDS]]
-; CHECK-NEXT: %[[BUF3:.+]] = call {{.+}} @llvm.kit.mobile.alloc(i32 1024, i64 %[[BYTES3]])
-; CHECK-NEXT: call void {{.+}} @llvm.kit.mobile.init
-; CHECK-SAME: i32 1024
-; CHECK-SAME: ptr {{[^%]+}} %[[BUF3]]
-; CHECK-SAME: i64 %[[NREDS]]
-; CHECK-SAME: i32 [[UNIT3:[^)]+]]
-; CHECK-NEXT: %[[BYTES4:.+]] = mul {{.+}} 4, %[[NREDS]]
-; CHECK-NEXT: %[[BUF4:.+]] = call {{.+}} @llvm.kit.mobile.alloc(i32 1024, i64 %[[BYTES4]])
-; CHECK-NEXT: call void {{.+}} @llvm.kit.mobile.init
-; CHECK-SAME: i32 1024
-; CHECK-SAME: ptr {{[^%]+}} %[[BUF4]]
-; CHECK-SAME: i64 %[[NREDS]]
-; CHECK-SAME: i32 [[UNIT4:[^)]+]]
 ;
 ; CHECK: %[[IV_O:.+]] = phi i64
 ; CHECK-NEXT: detach within
 ;
+; CHECK: %[[LOCAL1:.+]] = tail call ptr @malloc(i64 8)
+; CHECK: %[[LOCAL2:.+]] = tail call ptr @malloc(i64 8)
+; CHECK: %[[LOCAL3:.+]] = tail call ptr @malloc(i64 4)
+; CHECK: %[[LOCAL4:.+]] = tail call ptr @malloc(i64 4)
+;
 ; CHECK: %[[IV_I:.+]] = phi i64
 ; CHECK: %[[J32:.+]] = trunc i64 %[[IV_I]] to i32
 ;
-; CHECK-NEXT: %[[RADDR1:.+]] = getelementptr {{.+}} %[[BUF1]], i64 %[[IV_O]]
-; CHECK-NEXT: %[[RCST1:.+]] = addrspacecast {{.+}} %[[RADDR1]] to
-; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{.*}} %[[RCST1]], i32 8, i64 %[[IV_I]], i64 0, ptr @sum.i64
+; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0
+; CHECK-SAME: i32 1024, i32 5, ptr %[[LOCAL1]], i32 8, i64 %[[IV_I]], i64 0, ptr @sum.i64
 ;
-; CHECK-NEXT: %[[RADDR2:.+]] = getelementptr {{.+}} %[[BUF2]], i64 %[[IV_O]]
-; CHECK-NEXT: %[[RCST2:.+]] = addrspacecast {{.+}} %[[RADDR2]] to
-; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{.*}} %[[RCST2]], i32 8, i64 %[[IV_I]], i64 1, ptr @mul.i64
+; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0
+; CHECK-SAME: i32 1024, i32 1, ptr %[[LOCAL2]], i32 8, i64 %[[IV_I]], i64 1, ptr @and.i64
 ;
-; CHECK-NEXT: %[[RADDR3:.+]] = getelementptr {{.+}} %[[BUF3]], i64 %[[IV_O]]
-; CHECK-NEXT: %[[RCST3:.+]] = addrspacecast {{.+}} %[[RADDR3]] to
-; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{.*}} %[[RCST3]], i32 4, i32 %[[J32]], i32 1, ptr @mul.i32
+; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0
+; CHECK-SAME: i32 1024, i32 1, ptr %[[LOCAL3]], i32 4, i32 %[[J32]], i32 1, ptr @and.i32
 ;
-; CHECK-NEXT: %[[RADDR4:.+]] = getelementptr {{.+}} %[[BUF4]], i64 %[[IV_O]]
-; CHECK-NEXT: %[[RCST4:.+]] = addrspacecast {{.+}} %[[RADDR4]] to
-; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{.*}} %[[RCST4]], i32 4, i32 %[[J32]], i32 0, ptr @sum.i32
+; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0
+; CHECK-SAME: i32 1024, i32 5, ptr %[[LOCAL4]], i32 4, i32 %[[J32]], i32 0, ptr @sum.i32
 ;
-; CHECK: call {{.+}} @llvm.kit.reduce.1{{.*}} ptr %[[R1]], {{.+}} %[[BUF1]], i64 %[[NREDS]], i64 0, ptr @sum.i64
-; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.1{{.*}} ptr %[[R2]], {{.+}} %[[BUF2]], i64 %[[NREDS]], i64 1, ptr @mul.i64
-; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.1{{.*}} ptr %[[R3]], {{.+}} %[[BUF3]], i64 %[[NREDS]], i32 1, ptr @mul.i32
-; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.1{{.*}} ptr %[[R4]], {{.+}} %[[BUF4]], i64 %[[NREDS]], i32 0, ptr @sum.i32
+; CHECK: %[[PARTIAL1:.+]] = load i64, ptr %[[LOCAL1]]
+; CHECK-NEXT: atomicrmw add ptr %[[R1]], i64 %[[PARTIAL1]] monotonic
+; CHECK-NEXT: tail call void @free(ptr %[[LOCAL1]])
 ;
-; CHECK: call void @llvm.kit.mobile.free(i32 1024, ptr addrspace(67) %[[BUF1]])
-; CHECK-NEXT: call void @llvm.kit.mobile.free(i32 1024, ptr addrspace(67) %[[BUF2]])
-; CHECK-NEXT: call void @llvm.kit.mobile.free(i32 1024, ptr addrspace(67) %[[BUF3]])
-; CHECK-NEXT: call void @llvm.kit.mobile.free(i32 1024, ptr addrspace(67) %[[BUF4]])
+; CHECK-NEXT: %[[PARTIAL2:.+]] = load i64, ptr %[[LOCAL2]]
+; CHECK-NEXT: atomicrmw and ptr %[[R2]], i64 %[[PARTIAL2]] monotonic
+; CHECK-NEXT: tail call void @free(ptr %[[LOCAL2]])
+;
+; CHECK-NEXT: %[[PARTIAL3:.+]] = load i32, ptr %[[LOCAL3]]
+; CHECK-NEXT: atomicrmw and ptr %[[R3]], i32 %[[PARTIAL3]] monotonic
+; CHECK-NEXT: tail call void @free(ptr %[[LOCAL3]])
+;
+; CHECK-NEXT: %[[PARTIAL4:.+]] = load i32, ptr %[[LOCAL4]]
+; CHECK-NEXT: atomicrmw add ptr %[[R4]], i32 %[[PARTIAL4]] monotonic
+; CHECK-NEXT: tail call void @free(ptr %[[LOCAL4]])
 
 declare void @sum.i64(ptr %res, i64 %v)
 
-declare void @mul.i64(ptr %res, i64 %v)
+declare void @and.i64(ptr %res, i64 %v)
 
 declare void @sum.i32(ptr %res, i32 %v)
 
-declare void @mul.i32(ptr %res, i32 %v)
+declare void @and.i32(ptr %res, i32 %v)
 
 define void @f(i64 %n) {
 entry:
@@ -110,8 +87,8 @@ for.j.header:
 for.j.body:
   %j32 = trunc i64 %j to i32
   call void(i32, i32, ptr, i32, i64, i64, ptr, ...) @llvm.kit.reduce.0(i32 1024, i32 5, ptr %r1, i32 8, i64 %j, i64 0, ptr @sum.i64)
-  call void(i32, i32, ptr, i32, i64, i64, ptr, ...) @llvm.kit.reduce.0(i32 1024, i32 7, ptr %r2, i32 8, i64 %j, i64 1, ptr @mul.i64)
-  call void(i32, i32, ptr, i32, i32, i32, ptr, ...) @llvm.kit.reduce.0(i32 1024, i32 7, ptr %r3, i32 4, i32 %j32, i32 1, ptr @mul.i32)
+  call void(i32, i32, ptr, i32, i64, i64, ptr, ...) @llvm.kit.reduce.0(i32 1024, i32 1, ptr %r2, i32 8, i64 %j, i64 1, ptr @and.i64)
+  call void(i32, i32, ptr, i32, i32, i32, ptr, ...) @llvm.kit.reduce.0(i32 1024, i32 1, ptr %r3, i32 4, i32 %j32, i32 1, ptr @and.i32)
   call void(i32, i32, ptr, i32, i32, i32, ptr, ...) @llvm.kit.reduce.0(i32 1024, i32 5, ptr %r4, i32 4, i32 %j32, i32 0, ptr @sum.i32)
   reattach within %syncreg, label %for.j.latch
 

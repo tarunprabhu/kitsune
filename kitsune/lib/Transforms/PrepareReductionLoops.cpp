@@ -12,10 +12,10 @@
 // Consider the loop shown below
 //
 //     int32_t r_sum = 0;
-//     int64_t r_mul = 1;
+//     int64_t r_and = 1;
 //     parallel_for (int i = 0; i < n; ++i) {
 //         r_sum += i;
-//         r_mul *= 1;
+//         r_and &= 1;
 //     }
 //
 // Frontends are expected to use the kit.reduce.0 intrinsic to represent the
@@ -25,36 +25,35 @@
 //         *res += v;
 //     }
 //
-//     void mul(int64_t* res, int64_t v) {
-//         *res *= v;
+//     void and(int64_t* res, int64_t v) {
+//         *res &= v;
 //     }
 //
 //     parallel_for (int i = 0; i < n; ++i) {
 //         kit.reduce.0(&r_sum, sizeof(r_sum), i, 0, &sum);
-//         kit.reduce.0(&r_mul, sizeof(r_mul), i, 1, &mul);
+//         kit.reduce.0(&r_and, sizeof(r_and), i, 1, &and);
 //     }
 //
 // This pass will transform this into the following for parallel execution on a
 // CPU.
 //
 //     int64_t numPartials = ...
-//     int64_t sizePartial = (n + numPartials - 1) / numPartials;
-//     int32_t* buf32 = kit.mobile.alloc(numPartials * sizeof(int32_t));
-//     int64_t* buf64 = kit.mobile.alloc(numPartials * sizeof(int64_t));
-//     kit.mobile.init(buf32, sizeof(int32_t), 0);
-//     kit.mobile.init(buf64, sizeof(int64_t), 1);
 //     parallel_for (int j = 0; j < numPartials; ++j) {
 //         int start = j * sizePartial;
 //         int end = std::min(start + sizePartial, n);
+//         int32_t *local1 = (int32_t*)malloc(sizeof(int32_t));
+//         int64_t *local2 = (int64_t*)malloc(sizeof(int64_t));
+//         *local1 = 0;
+//         *local2 = 1;
 //         for (int i = start; i < end; ++i) {
-//             kit.reduce.0(&buf32[j], sizeof(r_sum), i, 0, &sum);
-//             kit.reduce.0(&buf64[j], sizeof(r_mul), i, 1, &mul);
+//             kit.reduce.0(local1, sizeof(r_sum), i, 0, &sum);
+//             kit.reduce.0(local2, sizeof(r_and), i, 1, &and);
 //         }
+//         atomicReduce(&sum, &r_sum, *local1);
+//         atomicReduce(&and, &r_and, *local2);
+//         free(local1);
+//         free(local2);
 //     }
-//     kit.reduce.1(&r_sum, buf32, numPartials, 0, &sum);
-//     kit.reduce.1(&r_mul, buf64, numPartials, 1, &mul);
-//     kit.mobile.free(buf32);
-//     kit.mobile.free(buf64);
 //
 // Here, numPartials is the number of partial reductions that are to be
 // performed in parallel. An outer parallel loop is added to carry these out.
@@ -63,23 +62,24 @@
 // partial reductions.
 //
 // The code below is the transformation that is carried out for GPU's.
+// FIXME: This is obviously not correct since we cannot malloc on the GPU.
+// Clearly, this means that reductions will not work on the GPU at this time.
 //
 //     int64_t numPartials = ...;
-//     int64_t partialSize = (n + numPartials - 1) / numPartials;
-//     int32_t* buf32 = kit.mobile.alloc(numPartials * sizeof(int32_t));
-//     int64_t* buf64 = kit.mobile.alloc(numPartials * sizeof(int64_t));
-//     kit.mobile.init(buf32, sizeof(int32_t), 0);
-//     kit.mobile.init(buf64, sizeof(int64_t), 1);
 //     parallel_for (int j = 0; j < numPartials; ++j) {
+//         int32_t *local1 = (int32_t*)malloc(sizeof(int32_t));
+//         int64_t *local2 = (int64_t*)malloc(sizeof(int64_t));
+//         *local1 = 0;
+//         *local2 = 1;
 //         for (int i = j; i < n; i += numPartials) {
-//             kit.reduce.0(&buf32[j], sizeof(r_sum), i, 0, &sum);
-//             kit.reduce.0(&buf64[j], sizeof(r_mul), i, 1, &mul);
+//             kit.reduce.0(local1, sizeof(r_sum), i, 0, &sum);
+//             kit.reduce.0(local2, sizeof(r_and), i, 1, &and);
 //         }
+//         atomicReduce(&sum, &r_sum, *local1);
+//         atomicReduce(&and, &r_and, *local2);
+//         free(local1);
+//         free(local2);
 //     }
-//     kit.reduce.1(&r_sum, buf32, numPartials, 0, &sum);
-//     kit.reduce.1(&r_mul, buf64, numPartials, 1, &mul);
-//     kit.mobile.free(buf32);
-//     kit.mobile.free(buf64);
 //
 // Note that this pass will not lower any existing reduce intrinsics - in fact,
 // it introduces additional calls to Kitsune's reduce intrinsics. These calls
@@ -93,11 +93,13 @@
 
 #include "PrepareReductionLoops.h"
 #include "LoopWrapping.h"
+#include "kitsune/Core/AddrSpace.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/Diagnostics.h"
 #include "kitsune/Core/InstUtils.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
+#include "kitsune/Core/Reductions.h"
 #include "kitsune/Core/TTUtils.h"
 #include "kitsune/Core/TapirLoopUtils.h"
 #include "kitsune/Core/ValueUtils.h"
@@ -124,23 +126,23 @@ namespace {
 /// Information about a single reduction in the tapir reduction loop. A loop
 /// may perform more than one such reduction.
 struct ReductionInfo {
-  CallBase *call = nullptr; ///< Call to the kit_reduce_0 intrinsic
-
+  CallBase *call = nullptr;      ///< Call to the kit_reduce_0 intrinsic
   Value *tt = nullptr;           ///< The TTID of the tapir reduction loop
+  ReduceOp reduceOp;             ///< The reduction operator
   Value *dest = nullptr;         ///< The destination for the reduced value
   Value *elemSize = nullptr;     ///< The size (in bytes) of the reduced result
   Value *unit = nullptr;         ///< The unit value for the reduction
   Value *reducer = nullptr;      ///< The reducer function
   SmallVector<Value *, 1> extra; ///< Extra arguments for the reducer function
 
-  Value *partials = nullptr;    ///< The buffer for the partial reductions
-  Value *numPartials = nullptr; ///< Number of elements in the partials buffer
-
-  ReductionInfo(CallBase *call)
-      : call(call), tt(call->getArgOperand(0)), dest(call->getArgOperand(1)),
-        elemSize(call->getArgOperand(2)), unit(call->getArgOperand(4)),
-        reducer(call->getArgOperand(5)) {
-    for (unsigned i = 6; i < call->arg_size(); ++i)
+  ReductionInfo(CallBase *call) : call(call) {
+    tt = call->getArgOperand(0);
+    reduceOp = *fromConstant<ReduceOp>(*cast<Constant>(call->getArgOperand(1)));
+    dest = call->getArgOperand(2);
+    elemSize = call->getArgOperand(3);
+    unit = call->getArgOperand(5);
+    reducer = call->getArgOperand(6);
+    for (unsigned i = 7; i < call->arg_size(); ++i)
       extra.push_back(call->getArgOperand(i));
   }
 };
@@ -159,17 +161,12 @@ private:
 
 private:
   SmallVector<ReductionInfo, 1> collectReductions(Loop &loop);
-  BasicBlock *genAllocPartialsBlock(Loop &outerLoop);
-  BasicBlock *genReducePartialsBlock(Loop &outerLoop);
-  BasicBlock *genFreePartialsBlock(Loop &outerLoop);
-  Value *computeNumPartialReductions(BasicBlock &bb, const TapirLoopInfo &loop);
-  Value *allocPartialsBuffer(BasicBlock &bb, const ReductionInfo &info);
-  void initPartialsBuffer(BasicBlock &bb, Loop &loop,
-                          const ReductionInfo &info);
-  void reduceIntoPartialsBuffer(Loop &outerLoop, Loop &loop,
-                                const ReductionInfo &info);
-  void genFinalReduction(BasicBlock &bb, const ReductionInfo &info);
-  void freePartialsBuffer(BasicBlock &bb, const ReductionInfo &info);
+  Value *computeNumPartialReductions(Loop &outerLoop, const Loop &innerLoop);
+  Value *allocPartial(Loop &innerLoop, const ReductionInfo &info);
+  void reduceIntoPartial(Loop &loop, Value *partial, const ReductionInfo &info);
+  void reducePartialIntoFinal(Loop &loop, Value *partial,
+                              const ReductionInfo &info);
+  void freePartial(Loop &innerLoop, Value *partial);
   void updateOuterLoopIV(Loop &outerLoop, Value *numPartials);
   void updateInnerLoopIVCPU(Loop &outerLoop, Loop &innerLoop,
                             Value *numPartials);
@@ -205,142 +202,32 @@ PrepareReductionLoop::collectReductions(Loop &loop) {
   return reductions;
 }
 
-// Generate a basic block where the buffers that will contain the partial
-// reductions are allocated. The figure below shows what the CFG is expected to
-// be after this function returns.
-//
-//     LoopPreheader
-//     PartialsAlloc
-//     OuterPreheader
-//         OuterHeader
-//         LoopGuardNew
-//         LoopPreheaderNew
-//             LoopHeader
-//             <LoopBlocks>
-//             LoopLatch
-//         LoopExitNew
-//         LoopEndNew
-//         OuterReattach
-//         OuterLatch
-//     OuterExit
-//     LoopExit
-//
-// NOTE: We could just add the allocations to the preheader of the outer loop.
-// However, since we will go on to create a dedicated block where these buffers
-// will be freed, we create a block where they will be allocated purely for
-// symmetry. SimplifyCFG will be called after this pass anyway, at which point,
-// these blocks will likely get merged anyway.
-BasicBlock *PrepareReductionLoop::genAllocPartialsBlock(Loop &outerLoop) {
-  LLVM_DEBUG(dbgs() << "PrepareReduction: Generate allocate partials block\n");
-
-  BasicBlock *outerPh = outerLoop.getLoopPreheader();
-  assert(outerPh && "Outer loop must have a preheader");
-
-  BasicBlock *bb = SplitBlock(outerPh, outerPh->begin(), &dtu, &li, &mssau,
-                              "prduc.partial.alloc", /*Before=*/true);
-  return bb;
-}
-
-// Generate a basic block where the partial reductions are reduced to the final
-// result. In the current implementation, we simply insert calls to the
-// `@llvm.kit.reduce.1d` intrinsic, so everything can be added to a single
-// block (a later pass will lower the intrinsic as required). The figure below
-// shows what the CFG is expected to be after this function returns.
-//
-//     LoopPreheader
-//     PartialsAlloc
-//     OuterPreheader
-//         OuterHeader
-//         LoopGuardNew
-//         LoopPreheaderNew
-//             LoopHeader
-//             <LoopBlocks>
-//             LoopLatch
-//         LoopExitNew
-//         LoopEndNew
-//         OuterReattach
-//         OuterLatch
-//     OuterExit
-//     PartialsReduce
-//     PartialsFree
-//     LoopExit
-//
-BasicBlock *PrepareReductionLoop::genReducePartialsBlock(Loop &outerLoop) {
-  LLVM_DEBUG(dbgs() << "PrepareReduction: Generate reduce partials block\n");
-
-  // We cannot use `Loop::getExitBlock` here because the inner loop may have a
-  // dead-end exit block, which will result in the outer loop not having a
-  // unique exit block.
-  BasicBlock *outerExit = getExitBlockFromLatch(outerLoop);
-  assert(outerExit && "Outer loop must have a unique exit block");
-
-  BasicBlock *bb = SplitBlock(outerExit, outerExit->getTerminator(), &dtu, &li,
-                              &mssau, "prduc.partial.reduce", /*Before=*/false);
-  return bb;
-}
-
-// Generate a basic block where the buffers containing the partial reductions
-// are freed. The figure below shows what the CFG is expected to be after this
-// function returns.
-//
-//     LoopPreheader
-//     PartialsAlloc
-//     OuterPreheader
-//         OuterHeader
-//         LoopGuardNew
-//         LoopPreheaderNew
-//             LoopHeader
-//             <LoopBlocks>
-//             LoopLatch
-//         LoopExitNew
-//         LoopEndNew
-//         OuterReattach
-//         OuterLatch
-//     OuterExit
-//     PartialsFree
-//     LoopExit
-//
-BasicBlock *PrepareReductionLoop::genFreePartialsBlock(Loop &outerLoop) {
-  LLVM_DEBUG(dbgs() << "PrepareReduction: Generate free partials block\n");
-
-  // We cannot use `Loop::getExitBlock` here because the inner loop may have a
-  // dead-end exit block, which, will result in the outer loop not having a
-  // unique exit block.
-  BasicBlock *outerExit = getExitBlockFromLatch(outerLoop);
-  assert(outerExit && "Outer loop must have a unique exit block");
-
-  BasicBlock *bb = SplitBlock(outerExit, outerExit->getTerminator(), &dtu, &li,
-                              &mssau, "prduc.partial.free", /*Before=*/false);
-
-  return bb;
-}
-
 // Insert code to calculate the number of partial reductions to use. On CPU's,
 // this inserts a call to Kitsune's kit.cpu.num.threads intrinsic. On GPU's,
 // this inserts a call to Kitsune's kit.gpu.num.compute.units.
-Value *PrepareReductionLoop::computeNumPartialReductions(
-    BasicBlock &bb, const TapirLoopInfo &tapirLoop) {
-  auto sanityCheck = [](const TapirLoopInfo &tapirLoop) {
-    assert(tapirLoop.getTripCount() &&
-           "Expected finite trip count in tapir reduction loop");
-    assert(hasTargetAttr(*tapirLoop.getLoop()) &&
-           "Outer loop must have tapir target attribute");
+Value *
+PrepareReductionLoop::computeNumPartialReductions(Loop &outerLoop,
+                                                  const Loop &innerLoop) {
+  auto sanityCheck = [](const Loop &outerLoop, const Loop &innerLoop) {
+    assert(outerLoop.getLoopPreheader() && "Outer loop must have a preheader");
+    assert(hasTargetAttr(innerLoop) &&
+           "Inner loop must have tapir target attribute");
   };
 
   LLVM_DEBUG(
       dbgs() << "PrepareReduction: Compute number of partial reductions\n");
-  sanityCheck(tapirLoop);
+  sanityCheck(outerLoop, innerLoop);
 
+  BasicBlock &bb = *outerLoop.getLoopPreheader();
   LLVMContext &ctx = bb.getContext();
-  Loop &loop = *tapirLoop.getLoop();
 
-  TTID tt = *getTargetAttr(loop);
-  Constant *ctt = toConstant(tt, ctx);
-
-  IRBuilder<> builder(&*bb.begin());
+  TTID tt = *getTargetAttr(innerLoop);
   Intrinsic::ID numPartialsFunc = isGPUTT(tt)
                                       ? Intrinsic::kit_gpu_num_compute_units
                                       : Intrinsic::kit_cpu_num_threads;
+  Constant *ctt = toConstant(tt, ctx);
+
+  IRBuilder<> builder(bb.getTerminator());
   Value *numPartials =
       builder.CreateIntrinsic(numPartialsFunc, {ctt},
                               /*FMFSource=*/{}, "prduc.num.partials");
@@ -348,119 +235,74 @@ Value *PrepareReductionLoop::computeNumPartialReductions(
   return numPartials;
 }
 
-// Generate code to allocate the buffer where the partial reductions will be
-// stored. This is simply inserts a call to Kitsune's kit.mobile.alloc
-// intrinsic. The returned buffer may not have been initialized. In any case,
-// it must be initialized with the unit value, but that will be done elsewhere.
-Value *PrepareReductionLoop::allocPartialsBuffer(BasicBlock &bb,
-                                                 const ReductionInfo &info) {
-  LLVM_DEBUG(dbgs() << "PrepareReduction: Allocate buffers for partials\n");
-
-  assert(info.numPartials && "Number of partial reductions must be set");
-
+// Allocate a buffer into which a partial reduction will be accumulated. The
+// buffer will be allocated in the inner loop preheader. This will also
+// initialize the allocated buffer with the unit value for the reduction.
+Value *PrepareReductionLoop::allocPartial(Loop &innerLoop,
+                                          const ReductionInfo &info) {
+  BasicBlock &bb = *innerLoop.getLoopPreheader();
   LLVMContext &ctx = bb.getContext();
   Type *i64 = Type::getInt64Ty(ctx);
 
-  IRBuilder builder(bb.getTerminator());
-
-  Value *n64 = builder.CreateIntCast(info.numPartials, i64, /*isSigned=*/true);
-  Value *sz64 = builder.CreateIntCast(info.elemSize, i64, /*isSigned=*/true);
-  Value *bytes = builder.CreateNUWMul(sz64, n64, "prduc.bytes");
-  Value *buf =
-      builder.CreateIntrinsic(Intrinsic::kit_mobile_alloc, {info.tt, bytes},
-                              /*FMFSource=*/{}, "prduc.reds");
-
-  return buf;
-}
-
-void PrepareReductionLoop::initPartialsBuffer(BasicBlock &bb, Loop &loop,
-                                              const ReductionInfo &info) {
-  LLVM_DEBUG(dbgs() << "PrepareReduction: Initialize partials buffer\n");
-
-  LLVMContext &ctx = bb.getContext();
-  Constant *ctt = toConstant(*getTargetAttr(loop), ctx);
-  Value *partials = info.partials;
-  Value *numPartials = info.numPartials;
   Value *unit = info.unit;
-
-  IRBuilder<> builder(bb.getTerminator());
-
-  builder.CreateIntrinsic(Intrinsic::kit_mobile_init, {unit->getType()},
-                          {ctt, partials, numPartials, unit});
-}
-
-// Consider a reduction loop of the form:
-//
-//     parallel_for (int i = 0; i < n; ++i)
-//       a += ...
-//
-// After the loops have been transformed, and a partials buffer allocated, the
-// the actual reductions should be modified use that buffer. The reduction in
-// the loop above should be transformed as shown below, where j is the
-// induction variable of the outer loop.
-//
-//       partials[j] += ...
-//
-// Since the reduction will be represented by a call to the `kit_reduce_0`
-// intrinsic, this function will change the first operand of that instruction.
-void PrepareReductionLoop::reduceIntoPartialsBuffer(Loop &outerLoop,
-                                                    Loop &innerLoop,
-                                                    const ReductionInfo &info) {
-  LLVM_DEBUG(dbgs() << "PrepareReduction: Reduce into partials buffer\n");
-
-  assert(outerLoop.getInductionVariable(se) &&
-         "Outer loop must have an induction variable");
-
-  CallBase *call = info.call;
-  Value *unit = info.unit;
-  Value *partials = info.partials;
-
-  // The unit value of the reduction will have the same type as the elements
-  // being reduced, so we can use that as the element type of the GEP.
-  Type *destTy = call->getArgOperand(1)->getType();
   Type *elemTy = unit->getType();
-  Value *idx = outerLoop.getInductionVariable(se);
+  Value *elemSize = info.elemSize;
+
+  // FIXME: Instead of generating a call to malloc, we should generate a call
+  // to a memory allocation intrinsic.
+  IRBuilder builder(bb.getTerminator());
+  Value *sz64 = builder.CreateIntCast(elemSize, i64, /*isSigned=*/true);
+  Value *partial = builder.CreateMalloc(i64, elemTy, sz64, nullptr);
+  builder.CreateStore(unit, partial);
+
+  return partial;
+}
+
+// Change the destination of the reduction to accumulate into the buffer
+// allocated for the partial reduction. Essentially, this changes the
+// destination argument of the reduction intrinsic call.
+void PrepareReductionLoop::reduceIntoPartial(Loop &innerLoop, Value *partial,
+                                             const ReductionInfo &info) {
+  CallBase *call = info.call;
 
   IRBuilder<> builder(call);
-
-  // Since we have generated the code, we know that the access will be in
-  // bounds. If it is not, we have a much bigger problem.
-  Value *addr =
-      builder.CreateInBoundsGEP(elemTy, partials, {idx}, "prduc.partialsidx");
-  Value *addrCast = builder.CreatePointerBitCastOrAddrSpaceCast(addr, destTy);
-  call->setArgOperand(1, addrCast);
+  Value *cst =
+      builder.CreateAddrSpaceCast(partial, call->getArgOperand(2)->getType());
+  call->setArgOperand(2, cst);
 }
 
-// Generate code to perform the final reduction over the partial reductions.
-// This simply inserts a call to Kitsune's `kit.reduce.1` intrinsic that
-// performs a reduction over a contiguous 1D array. The lowering of this
-// intrinsic will be handled in a later pass. The call is added at the end of
-// the basic block \p bb.
-void PrepareReductionLoop::genFinalReduction(BasicBlock &bb,
-                                             const ReductionInfo &info) {
-  LLVM_DEBUG(dbgs() << "PrepareReduction: Generate final reductions\n");
+// Once the partial reduction has been computed, reduce this into the final
+// destination of the reduction. This is done using LLVM's AtomicRMW instruction
+// when it supports the reduction operator, or a custom atomic operation if it
+// does not.
+void PrepareReductionLoop::reducePartialIntoFinal(Loop &innerLoop,
+                                                  Value *partial,
+                                                  const ReductionInfo &info) {
+  Value *dest = info.dest;
+  Type *elemType = info.unit->getType();
+  std::optional<AtomicRMWInst::BinOp> atomicOp = getAtomicOp(info.reduceOp);
+  if (!atomicOp)
+    emitDiagnostic(innerLoop, DiagID::ErrNYI,
+                   "Reduction operators not supported by AtomicRMWInst");
 
+  Module &m = *getModule(innerLoop);
+  const DataLayout &dl = m.getDataLayout();
+  Align align = dl.getPointerABIAlignment(KitAS::Default);
+
+  BasicBlock &bb = *getExitBlockFromLatch(innerLoop);
   IRBuilder<> builder(bb.getTerminator());
-  SmallVector<Value *, 8> args = {
-      info.tt,          info.dest, info.elemSize, info.partials,
-      info.numPartials, info.unit, info.reducer};
-  for (Value *v : info.extra)
-    args.push_back(v);
 
-  Type *elemTy = info.unit->getType();
-
-  (void)builder.CreateIntrinsic(Intrinsic::kit_reduce_1, {elemTy}, args);
+  Value *v = builder.CreateLoad(elemType, partial);
+  builder.CreateAtomicRMW(*atomicOp, dest, v, align, AtomicOrdering::Monotonic);
 }
 
-// Generate code to free the buffer containing the partial reductions. This
-// will simply insert a call to Kitsune's `kit.mobile.free` intrinsic.
-void PrepareReductionLoop::freePartialsBuffer(BasicBlock &bb,
-                                              const ReductionInfo &info) {
-  LLVM_DEBUG(dbgs() << "PrepareReduction: Free buffers for partials\n");
+// Free the buffer allocated for the partial reduction.
+void PrepareReductionLoop::freePartial(Loop &innerLoop, Value *partial) {
+  BasicBlock &bb = *getExitBlockFromLatch(innerLoop);
+  IRBuilder<> builder(bb.getTerminator());
 
-  IRBuilder builder(bb.getTerminator());
-  (void)builder.CreateIntrinsic(Intrinsic::kit_mobile_free,
-                                {info.tt, info.partials});
+  // FIXME: Replace this with a call to a memory deallocation intrinsic.
+  builder.CreateFree(partial);
 }
 
 // When the outer loop was generated, the induction variable was canonical and
@@ -854,12 +696,6 @@ bool PrepareReductionLoop::run(TapirLoopInfo &tapirLoop) {
   // have been updated.
   Loop *outerLoop = wrapWithTapirLoop(tapirLoop, dt, li, mssa);
 
-  // Generate additional blocks to add other code that will be needed. These
-  // will be added on either side of the outer loop.
-  BasicBlock *bbAllocPartials = genAllocPartialsBlock(*outerLoop);
-  BasicBlock *bbFreePartials = genFreePartialsBlock(*outerLoop);
-  BasicBlock *bbReducePartials = genReducePartialsBlock(*outerLoop);
-
   // Don't make any changes to the loop trip counts just yet. While the
   // transformations to the reduction loop should not be affected by any change
   // to the trip count, it may be safer to leave them as canonical until we have
@@ -869,15 +705,12 @@ bool PrepareReductionLoop::run(TapirLoopInfo &tapirLoop) {
   // of the partial reduction buffers. Most of these only involve inserting
   // calls to Kitsune-specific intrinsic and other relatively simple
   // instructions to dedicated basic blocks.
-  Value *numPartials = computeNumPartialReductions(*bbAllocPartials, tapirLoop);
-  for (ReductionInfo &reduction : reductions) {
-    reduction.numPartials = numPartials;
-    reduction.partials = allocPartialsBuffer(*bbAllocPartials, reduction);
-
-    initPartialsBuffer(*bbAllocPartials, loop, reduction);
-    reduceIntoPartialsBuffer(*outerLoop, loop, reduction);
-    genFinalReduction(*bbReducePartials, reduction);
-    freePartialsBuffer(*bbFreePartials, reduction);
+  Value *numPartials = computeNumPartialReductions(*outerLoop, loop);
+  for (const ReductionInfo &reduction : reductions) {
+    Value *partial = allocPartial(loop, reduction);
+    reduceIntoPartial(loop, partial, reduction);
+    reducePartialIntoFinal(loop, partial, reduction);
+    freePartial(loop, partial);
   }
 
   // Now that everything else has been changed, we can fix up the induction

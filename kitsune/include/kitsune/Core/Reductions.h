@@ -15,8 +15,10 @@
 
 #include "kitsune/Support/FromInt.h"
 #include "kitsune/Support/ToString.h"
+#include "llvm/IR/Instructions.h"
 
 #include <cstdint>
+#include <optional>
 
 namespace llvm {
 
@@ -63,6 +65,10 @@ enum class ReduceOp : uint32_t {
   UMax = 26,        ///< Maximum of two unsigned integers
   UMin = 27,        ///< Minimum of two unsigned integers
 };
+
+/// Get an AtomicRMWInst::BinOp corresponding to a reduction operator, if one
+/// exists. Otherwise, return std::nullopt.
+std::optional<AtomicRMWInst::BinOp> getAtomicOp(ReduceOp op);
 
 /// Get the unit value with type \p ty for a reduction operator \p op.
 Constant *getUnitValue(ReduceOp op, Type *ty);

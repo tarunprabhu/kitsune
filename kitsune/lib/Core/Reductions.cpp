@@ -66,6 +66,33 @@ template <> std::string llvm::toString(const ReduceOp &op) {
   llvm_unreachable("toString: Reduction operator not handled");
 }
 
+std::optional<AtomicRMWInst::BinOp> llvm::getAtomicOp(ReduceOp op) {
+  // FIXME: AtomicRMWInst does not support FMaximumNum and FMinimumNum in
+  // LLVM 21.x. When we upgrade to a newer version of LLVM that supports it,
+  // this switch statement should be changed.
+  switch (op) {
+  case ReduceOp::And: return AtomicRMWInst::And;
+  case ReduceOp::Or: return AtomicRMWInst::Or;
+  case ReduceOp::Xor: return AtomicRMWInst::Xor;
+  case ReduceOp::Add: return AtomicRMWInst::Add;
+  case ReduceOp::FAdd: return AtomicRMWInst::FAdd;
+  case ReduceOp::FMax: return AtomicRMWInst::FMax;
+  case ReduceOp::FMaximum: return AtomicRMWInst::FMaximum;
+  case ReduceOp::FMaximumNum: return std::nullopt;
+  case ReduceOp::FMin: return AtomicRMWInst::FMin;
+  case ReduceOp::FMinimum: return AtomicRMWInst::FMinimum;
+  case ReduceOp::FMinimumNum: return std::nullopt;
+  case ReduceOp::SMax: return AtomicRMWInst::Max;
+  case ReduceOp::SMin: return AtomicRMWInst::Min;
+  case ReduceOp::UMax: return AtomicRMWInst::UMax;
+  case ReduceOp::UMin: return AtomicRMWInst::UMin;
+  case ReduceOp::Custom:
+  case ReduceOp::Mul:
+  case ReduceOp::FMul: return std::nullopt;
+  }
+  llvm_unreachable("getAtomicOp: ReduceOp not handled");
+}
+
 static Constant *getOnes(Type *type) {
   return ConstantInt::get(type, -1, /*isSigned=*/false);
 }
