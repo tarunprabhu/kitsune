@@ -23,7 +23,7 @@
 ; CHECK-NEXT: br i1 %[[CMP_GUARD]], label %[[END_I:.+]], label %[[PH_I:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[PH_I]]:
-; CHECK-NEXT: %[[LOCAL:.+]] = tail call ptr @malloc(i64 4)
+; CHECK-NEXT: %[[LOCAL:.+]] = tail call noalias ptr @llvm.kit.gpu.malloc(i32 4, i64 4)
 ; CHECK-NEXT: store i32 0, ptr %[[LOCAL]]
 ; CHECK-NEXT: br label %[[HEADER_I:.+]]
 ; CHECK-EMPTY:
@@ -53,7 +53,7 @@
 ; CHECK-NEXT: [[EXIT_I]]:
 ; CHECK-NEXT: %[[PARTIAL:.+]] = load i32, ptr %[[LOCAL]]
 ; CHECK-NEXT: atomicrmw add ptr %[[RESULT]], i32 %[[PARTIAL]] monotonic
-; CHECK-NEXT: tail call void @free(ptr %[[LOCAL]])
+; CHECK-NEXT: call void @llvm.kit.gpu.free(i32 4, ptr %[[LOCAL]])
 ; CHECK-NEXT: br label %[[END_I]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[END_I]]:

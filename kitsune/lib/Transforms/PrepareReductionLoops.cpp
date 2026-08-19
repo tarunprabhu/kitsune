@@ -41,9 +41,9 @@
 //     parallel_for (int j = 0; j < numPartials; ++j) {
 //         int start = j * sizePartial;
 //         int end = std::min(start + sizePartial, n);
-//         int32_t *local1 = (int32_t*)malloc(sizeof(int32_t));
-//         int64_t *local2 = (int64_t*)malloc(sizeof(int64_t));
+//         int32_t *local1 = (int32_t*)@llvm.kit.cpu.malloc(sizeof(int32_t));
 //         *local1 = 0;
+//         int64_t *local2 = (int64_t*)@llvm.kit.cpu.malloc(sizeof(int64_t));
 //         *local2 = 1;
 //         for (int i = start; i < end; ++i) {
 //             kit.reduce.0(local1, sizeof(r_sum), i, 0, &sum);
@@ -51,8 +51,8 @@
 //         }
 //         atomicReduce(&sum, &r_sum, *local1);
 //         atomicReduce(&and, &r_and, *local2);
-//         free(local1);
-//         free(local2);
+//         @llvm.kit.cpu.free(local1);
+//         @llvm.kit.cpu.free(local2);
 //     }
 //
 // Here, numPartials is the number of partial reductions that are to be
@@ -67,8 +67,8 @@
 //
 //     int64_t numPartials = ...;
 //     parallel_for (int j = 0; j < numPartials; ++j) {
-//         int32_t *local1 = (int32_t*)malloc(sizeof(int32_t));
-//         int64_t *local2 = (int64_t*)malloc(sizeof(int64_t));
+//         int32_t *local1 = (int32_t*)@llvm.kit.cpu.malloc(sizeof(int32_t));
+//         int64_t *local2 = (int64_t*)@llvm.kit.cpu.malloc(sizeof(int64_t));
 //         *local1 = 0;
 //         *local2 = 1;
 //         for (int i = j; i < n; i += numPartials) {
@@ -77,8 +77,8 @@
 //         }
 //         atomicReduce(&sum, &r_sum, *local1);
 //         atomicReduce(&and, &r_and, *local2);
-//         free(local1);
-//         free(local2);
+//         @llvm.kit.cpu.free(local1);
+//         @llvm.kit.cpu.free(local2);
 //     }
 //
 // Note that this pass will not lower any existing reduce intrinsics - in fact,
@@ -96,6 +96,7 @@
 #include "kitsune/Core/AddrSpace.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/Diagnostics.h"
+#include "kitsune/Core/IRBuilderUtils.h"
 #include "kitsune/Core/InstUtils.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
@@ -240,19 +241,28 @@ PrepareReductionLoop::computeNumPartialReductions(Loop &outerLoop,
 // initialize the allocated buffer with the unit value for the reduction.
 Value *PrepareReductionLoop::allocPartial(Loop &innerLoop,
                                           const ReductionInfo &info) {
+  auto sanityCheck = [](const Loop &innerLoop) -> void {
+    assert(hasTargetAttr(innerLoop) &&
+           "Loop must have tapir.loop.target attribute");
+  };
+
+  sanityCheck(innerLoop);
+
+  TTID tt = *getTargetAttr(innerLoop);
+  Value *unit = info.unit;
+  Value *elemSize = info.elemSize;
+
   BasicBlock &bb = *innerLoop.getLoopPreheader();
   LLVMContext &ctx = bb.getContext();
   Type *i64 = Type::getInt64Ty(ctx);
 
-  Value *unit = info.unit;
-  Type *elemTy = unit->getType();
-  Value *elemSize = info.elemSize;
-
-  // FIXME: Instead of generating a call to malloc, we should generate a call
-  // to a memory allocation intrinsic.
   IRBuilder builder(bb.getTerminator());
   Value *sz64 = builder.CreateIntCast(elemSize, i64, /*isSigned=*/true);
-  Value *partial = builder.CreateMalloc(i64, elemTy, sz64, nullptr);
+
+  // FIXME: The GPU implementation should not be allocating memory at all, but
+  // we are happily working with a completely broken implementation anyway.
+  Value *partial = isGPUTT(tt) ? createGPUMalloc(builder, tt, sz64)
+                               : createCPUMalloc(builder, tt, sz64);
   builder.CreateStore(unit, partial);
 
   return partial;
@@ -298,11 +308,25 @@ void PrepareReductionLoop::reducePartialIntoFinal(Loop &innerLoop,
 
 // Free the buffer allocated for the partial reduction.
 void PrepareReductionLoop::freePartial(Loop &innerLoop, Value *partial) {
+  auto sanityCheck = [](const Loop &innerLoop) -> void {
+    assert(hasTargetAttr(innerLoop) &&
+           "Loop must have tapir.loop.target attribute");
+  };
+
+  sanityCheck(innerLoop);
+
+  LLVMContext &ctx = getContext(innerLoop);
+  TTID tt = *getTargetAttr(innerLoop);
+  Constant *ctt = toConstant(tt, ctx);
+
   BasicBlock &bb = *getExitBlockFromLatch(innerLoop);
   IRBuilder<> builder(bb.getTerminator());
 
-  // FIXME: Replace this with a call to a memory deallocation intrinsic.
-  builder.CreateFree(partial);
+  // FIXME: The GPU implementation should not be allocating memory at all, but
+  // we are happily working with a completely broken implementation anyway.
+  builder.CreateIntrinsic(isGPUTT(tt) ? Intrinsic::kit_gpu_free
+                                      : Intrinsic::kit_cpu_free,
+                          {ctt, partial});
 }
 
 // When the outer loop was generated, the induction variable was canonical and

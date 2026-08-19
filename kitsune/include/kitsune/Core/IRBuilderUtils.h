@@ -14,12 +14,14 @@
 #define KITSUNE_CORE_IR_BUILDER_UTILS_H
 
 #include "kitsune/Core/LibFuncs.h"
+#include "kitsune/Core/TTID.h"
 #include "llvm/IR/IRBuilder.h"
 
 namespace llvm {
 
 class Function;
 class Module;
+class Value;
 
 /// \addtogroup kitsune
 /// @{
@@ -38,6 +40,20 @@ Module *getModule(IRBuilder<> &builder);
 /// basic block contained in a module.
 Value *createCall(IRBuilder<> &builder, KitFunc f, ArrayRef<Value *> args = {},
                   StringRef name = "");
+
+/// Insert a call to Kitsune's CPU malloc intrinsic for the tapir target \p tt
+/// that allocates \p bytes using the builder \p builder. The insert point of \p
+/// builder must be set to a basic block contained in a module. \p tt must be a
+/// CPU-centric tapir target.
+CallInst *createCPUMalloc(IRBuilder<> &builder, TTID tt, Value *bytes,
+                          StringRef name = "");
+
+/// Insert a call to Kitsune's GPU malloc intrinsic for the tapir target \p tt
+/// that allocates \p bytes using the builder \p builder. The insert point of \p
+/// builder must be set to a basic block contained in a module. \p tt must be a
+/// GPU-centric tapir target.
+CallInst *createGPUMalloc(IRBuilder<> &builder, TTID tt, Value *bytes,
+                          StringRef name = "");
 
 /// @}
 
