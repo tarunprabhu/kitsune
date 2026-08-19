@@ -70,17 +70,25 @@ TEST(LibFunc, getDeclarationIfExists) {
 TEST(libFunc, getOrInsertLibFunc) {
   LLVMContext ctx;
   Module m("", ctx);
-  StringRef fname;
-  FunctionCallee f, fre;
 
 #define GET_LIBFUNCS
 #define LIBFUNC(NAME, LINKAGE_NAME, ...)                                       \
-  fname = getLibFuncName(KitFunc::NAME);                                       \
-  EXPECT_FALSE(m.getFunction(fname));                                          \
-  f = getOrInsertLibFunc(m, KitFunc::NAME);                                    \
-  EXPECT_TRUE(m.getFunction(fname));                                           \
-  fre = getOrInsertLibFunc(m, KitFunc::NAME);                                  \
-  EXPECT_EQ(f.getCallee(), fre.getCallee());
+  do {                                                                         \
+    StringRef fname = getLibFuncName(KitFunc::NAME);                           \
+    EXPECT_FALSE(m.getFunction(fname));                                        \
+                                                                               \
+    FunctionCallee fc = getOrInsertLibFunc(m, KitFunc::NAME);                  \
+    EXPECT_TRUE(m.getFunction(fname));                                         \
+                                                                               \
+    FunctionCallee fre = getOrInsertLibFunc(m, KitFunc::NAME);                 \
+    EXPECT_EQ(fc.getCallee(), fre.getCallee());                                \
+                                                                               \
+    Function *f = cast<Function>(fc.getCallee());                              \
+    EXPECT_TRUE(f->doesNotFreeMemory());                                       \
+    EXPECT_TRUE(f->doesNotThrow());                                            \
+    EXPECT_TRUE(f->onlyAccessesInaccessibleMemOrArgMem());                     \
+    EXPECT_TRUE(f->willReturn());                                              \
+  } while (0);
 #include "kitsune/Core/LibFuncs.inc"
 }
 
