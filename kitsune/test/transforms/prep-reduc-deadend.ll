@@ -33,7 +33,7 @@
 ; CHECK-NEXT: br i1 %[[CMP_GUARD]], label %[[END_I:.+]], label %[[PH_I:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[PH_I]]:
-; CHECK-NEXT: %[[LOCAL:.+]] = tail call ptr @malloc(i64 8)
+; CHECK-NEXT: %[[LOCAL:.+]] = tail call noalias ptr @llvm.kit.cpu.malloc(i32 512, i64 8)
 ; CHECK-NEXT: store i64 0, ptr %[[LOCAL]]
 ; CHECK-NEXT: br label %[[HEADER_I:.+]]
 ; CHECK-EMPTY:
@@ -66,7 +66,7 @@
 ; CHECK-NEXT: [[EXIT_I]]:
 ; CHECK-NEXT: %[[PARTIAL:.+]] = load i64, ptr %[[LOCAL]]
 ; CHECK-NEXT: atomicrmw umax ptr %[[RESULT]], i64 %[[PARTIAL]] monotonic
-; CHECK-NEXT: tail call void @free(ptr %[[LOCAL]])
+; CHECK-NEXT: call void @llvm.kit.cpu.free(i32 512, ptr %[[LOCAL]])
 ; CHECK-NEXT: br label %[[END_I]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[END_I]]:
