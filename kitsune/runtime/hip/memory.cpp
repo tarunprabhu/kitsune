@@ -148,6 +148,16 @@ extern "C" void __kithip_set_xnack(bool flag) {
   LOG("xnack mode is %s", kithip_rt::xnackEnabled() ? "enabled" : "disabled");
 }
 
+extern "C" [[gnu::malloc]] void *__kithip_malloc(uint64_t bytes) {
+  void *ptr = nullptr;
+  HIP_SAFE_CALL(hipMalloc(&ptr, bytes));
+  return ptr;
+}
+
+extern "C" void __kithip_free(void *ptr) {
+  HIP_SAFE_CALL(hipFree(ptr));
+}
+
 // Allocate a block of managed memory (UVM) of 'size' bytes.
 extern "C" [[gnu::malloc]] void *__kithip_mem_alloc_managed(size_t size) {
   void *alloced_ptr = nullptr;

@@ -65,6 +65,14 @@ template <> constexpr const char *getTypeName<int64_t>() { return "int64_t"; }
 template <> constexpr const char *getTypeName<float>() { return "float"; }
 template <> constexpr const char *getTypeName<double>() { return "double"; }
 
+extern "C" [[gnu::malloc]] void *__kitrt_malloc(uint64_t bytes) {
+  return malloc(bytes);
+}
+
+extern "C" void __kitrt_free(void *ptr) {
+  free(ptr);
+}
+
 extern "C" [[gnu::malloc]] void *__kitrt_default_mem_alloc(uint64_t bytes) {
   void *ptr = malloc(bytes);
   __kitrt_register_mem_alloc(ptr, bytes);
