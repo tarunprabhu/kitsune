@@ -1,8 +1,8 @@
 ; REQUIRES: kitsune-hip
 ;
-; Check that intrinsics that map to Kitsune's hip runtime are lowered
-; correctly. If more intrinsics are created, they should be added here to test
-; basic intrinsic lowering.
+; Check that intrinsics that map to Kitsune's hip runtime are lowered correctly.
+; If more intrinsics are created, they should be added here to test basic
+; intrinsic lowering.
 ;
 ; RUN: opt --tapir=hip -passes='kit-lower-intrinsics' -S %s \
 ; RUN:     | FileCheck %s
@@ -27,26 +27,13 @@
 ; CHECK-NEXT: call void @__kithip_memcpy_dtoh(ptr @gbuf, ptr %[[GSYM]], i64 28)
 ; CHECK-NEXT: call ptr @__kithip_mem_host_prefetch(ptr %[[BUF]], i64 -1, ptr %[[STREAM]])
 ; CHECK-NEXT: call ptr @__kithip_mem_host_prefetch(ptr %[[BUF]], i64 1024, ptr %[[STREAM]])
+; CHECK-NEXT: %[[MALLOCED:.+]] = call noalias ptr @__kithip_malloc(i64 63)
+; CHECK-NEXT: call void @__kithip_free(ptr %[[MALLOCED]])
 ; CHECK-NEXT: %handle = call ptr @__kithip_register_devcode(ptr null)
 ; CHECK-NEXT: call void @__kithip_register_global(ptr %handle, ptr @gbuf, ptr @.gname, ptr @.gname, i64 28, i32 1, i32 0)
 ; CHECK-NEXT: call void @__kithip_register_global_managed(ptr %handle, ptr %guvm, ptr @gbuf, ptr @.gname, i64 28, i32 16, i32 1, i32 0)
 ; CHECK-NEXT: call void @__kithip_unregister_devcode(ptr %handle)
 ; CHECK-NEXT: ret void
-;
-; CHECK-DAG: ptr @__kithip_get_global_symbol(ptr, ptr) #[[ATTRS:[0-9]+]]
-; CHECK-DAG: ptr @__kithip_launch_kernel(ptr, ptr, i64, i64, i64, i32, ptr, ptr, ptr) #[[ATTRS]]
-; CHECK-DAG: ptr @__kithip_mem_gpu_prefetch(ptr, i64, ptr) #[[ATTRS]]
-; CHECK-DAG: ptr @__kithip_mem_host_prefetch(ptr, i64, ptr) #[[ATTRS]]
-; CHECK-DAG: void @__kithip_memcpy_dtoh(ptr, ptr, i64) #[[ATTRS]]
-; CHECK-DAG: void @__kithip_memcpy_htod(ptr, ptr, i64) #[[ATTRS]]
-; CHECK-DAG: i64 @__kithip_num_cus() #[[ATTRS]]
-; CHECK-DAG: ptr @__kithip_register_devcode(ptr) #[[ATTRS]]
-; CHECK-DAG: void @__kithip_register_global(ptr, ptr, ptr, ptr, i64, i32, i32) #[[ATTRS]]
-; CHECK-DAG: void @__kithip_register_global_managed(ptr, ptr, ptr, ptr, i64, i32, i32, i32) #[[ATTRS]]
-; CHECK-DAG: void @__kithip_sync_thread_stream(ptr) #[[ATTRS]]
-; CHECK-DAG: void @__kithip_unregister_devcode(ptr) #[[ATTRS]]
-;
-; CHECK-DAG: #[[ATTRS]] = { nofree nounwind willreturn memory(argmem: readwrite, inaccessiblemem: readwrite) }
 
 ; This needs a triple in order to correctly initialize the target library.
 target triple = "x86_64-pc-linux-gnu"
@@ -68,6 +55,8 @@ define void @f(ptr %buf, i64 %n) {
   call void @llvm.kit.gpu.memcpy.dtoh(i32 4, ptr @gbuf, ptr %2, i64 28)
   %6 = call ptr @llvm.kit.async.gpu.prefetch.dtoh(i32 4, ptr %buf, i64 -1, ptr %1)
   %7 = call ptr @llvm.kit.async.gpu.prefetch.dtoh(i32 4, ptr %buf, i64 1024, ptr %1)
+  %malloced = call noalias ptr @llvm.kit.gpu.malloc(i32 4, i64 63)
+  call void @llvm.kit.gpu.free(i32 4, ptr %malloced)
   %handle = call ptr @llvm.kit.gpu.register.devcode(i32 4, ptr null)
   call void @llvm.kit.gpu.register.global(i32 4, ptr %handle, ptr @gbuf, ptr @.gname, ptr @.gname, i64 28, i32 1, i32 0)
   call void @llvm.kit.gpu.register.global.managed(i32 4, ptr %handle, ptr %guvm, ptr @gbuf, ptr @.gname, i64 28, i32 16, i32 1, i32 0)

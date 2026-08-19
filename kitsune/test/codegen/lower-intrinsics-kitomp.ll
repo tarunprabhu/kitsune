@@ -19,10 +19,14 @@
 ; CHECK-NEXT: %[[OFF1:.+]] = getelementptr inbounds { ptr, float }, ptr %[[BUNDLE]], i32 0, i32 1
 ; CHECK-NEXT: store float 1.500000e+00, ptr %[[OFF1]]
 ; CHECK-NEXT: call void @__kitomp_launch(ptr nonnull @f, i64 0, i64 128, ptr %[[BUNDLE]], i32 16) #[[LAUNCH:[0-9]+]]
+; CHECK-NEXT: %[[MALLOCED:.+]] = call noalias ptr @__kitrt_malloc(i64 63) #[[MALLOC:[0-9]+]]
+; CHECK-NEXT: call void @__kitrt_free(ptr %[[MALLOCED]]) #[[FREE:[0-9]+]]
 ;
-; CHECK-DAG: #[[ID]] = { "id" }
-; CHECK-DAG: #[[LAUNCH]] = { "launch" }
-; CHECK-DAG: #[[THREADS]] = { "threads" }
+; CHECK-DAG: attributes #[[ID]] = { "id" }
+; CHECK-DAG: attributes #[[LAUNCH]] = { "launch" }
+; CHECK-DAG: attributes #[[THREADS]] = { "threads" }
+; CHECK-DAG: attributes #[[MALLOC]] = { "malloc" }
+; CHECK-DAG: attributes #[[FREE]] = { "free" }
 
 ; This needs a triple in order to correctly initialize the target library.
 target triple = "x86_64-pc-linux-gnu"
@@ -33,9 +37,13 @@ define void @f(ptr %buf, i64 %n) {
   %numThreads = call i64 @llvm.kit.cpu.num.threads(i32 512) #0
   %threadID = call i64 @llvm.kit.cpu.thread.id(i32 512) #1
   call void(i32, ptr, i64, i64, ...) @llvm.kit.cpu.threads.launch(i32 512, ptr nonnull @f, i64 0, i64 128, ptr null, float 1.5) #2
+  %malloced = call noalias ptr @llvm.kit.cpu.malloc(i32 512, i64 63) #3
+  call void @llvm.kit.cpu.free(i32 512, ptr %malloced) #4
   ret void
 }
 
 attributes #0 = { "threads" }
 attributes #1 = { "id" }
 attributes #2 = { "launch" }
+attributes #3 = { "malloc" }
+attributes #4 = { "free" }

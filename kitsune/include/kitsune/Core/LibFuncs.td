@@ -58,6 +58,14 @@ def kitpapi_start :
 def kitpapi_stop :
     KitFunc<"__kitpapi_stop", Void, [Ptr]>;
 
+// void *__kitrt_malloc(uint64_t bytes)
+def kitrt_malloc :
+    KitFunc<"__kitrt_malloc", Ptr, [U64]>;
+
+// void __kitrt_free(void *ptr)
+def kitrt_free :
+    KitFunc<"__kitrt_free", Void, [Ptr]>;
+
 // void __kitrt_initialize(const KitrtInitOptions *initOpts)
 def kitrt_initialize :
     KitFunc<"__kitrt_initialize", Void, [Ptr]>;
@@ -67,11 +75,11 @@ def kitrt_finalize :
     KitFunc<"__kitrt_finalize", Void, [Ptr]>;
 
 // void *__kitrt_default_mem_alloc(uint64_t bytes)
-def kitrt_malloc :
+def kitrt_mem_alloc :
     KitFunc<"__kitrt_default_mem_alloc", Ptr, [U64]>;
 
 // void __kitrt_default_mem_free(void *ptr)
-def kitrt_free:
+def kitrt_mem_free:
     KitFunc<"__kitrt_default_mem_free", Void, [Ptr]>;
 
 // void __kitrt_mobile_init_bool(void *buf, uint64_t n, bool init)
@@ -117,6 +125,14 @@ def kittimer_stop :
 
 // -----------------------------------------------------------------------------
 // Runtime library functions for the cuda tapir taret.
+
+// void *__kitcuda_malloc(uint64_t bytes)
+def kitcuda_malloc :
+    KitFunc<"__kitcuda_malloc", Ptr, [U64]>;
+
+// void __kitcuda_free(void *ptr)
+def kitcuda_free :
+    KitFunc<"__kitcuda_free", Void, [Ptr]>;
 
 // void*
 // __kitcuda_launch_kernel(void* fatbin, const char* name, int64_t tc_x,
@@ -214,6 +230,14 @@ def kithip_enable_xnack :
 
 def kithip_enable_y_axis_launches :
     KitFunc<"__kithip_enable_ylaunch", Void, []>;
+
+// void *__kithip_malloc(uint64_t bytes)
+def kithip_malloc :
+    KitFunc<"__kithip_malloc", Ptr, [U64]>;
+
+// void __kithip_free(void *ptr)
+def kithip_free :
+    KitFunc<"__kithip_free", Void, [Ptr]>;
 
 // void*
 // __kithip_launch_kernel(void* fatbin, const char* name, int64_t tc_x,

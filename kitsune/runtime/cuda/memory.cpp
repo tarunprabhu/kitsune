@@ -61,6 +61,14 @@ static std::mutex _kitcuda_mem_alloc_mutex;
 
 extern "C" {
 
+[[gnu::malloc]] void *__kitcuda_malloc(uint64_t bytes) {
+  CUdeviceptr ptr;
+  CU_SAFE_CALL(cuMemAlloc(&ptr, bytes));
+  return (void*)ptr;
+}
+
+void __kitcuda_free(CUdeviceptr ptr) { CU_SAFE_CALL(cuMemFree(ptr)); }
+
 [[gnu::malloc]] void *__kitcuda_mem_alloc_managed(size_t size) {
   KIT_NVTX_PUSH("kitcuda:mem_alloc_managed", KIT_NVTX_MEM);
 

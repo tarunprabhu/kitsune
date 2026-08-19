@@ -20,11 +20,15 @@
 ; CHECK-NEXT: call i64 @__kitpthr_num_threads() #[[THREADS:[0-9]+]]
 ; CHECK-NEXT: call i64 @__kitpthr_thread_id() #[[ID:[0-9]+]]
 ; CHECK-NEXT: call void @__kitpthr_sync(ptr nonnull %[[CTX]]) #[[SYNC:[0-9]+]]
+; CHECK-NEXT: %[[MALLOCED:.+]] = call noalias ptr @__kitrt_malloc(i64 63) #[[MALLOC:[0-9]+]]
+; CHECK-NEXT: call void @__kitrt_free(ptr %[[MALLOCED]]) #[[FREE:[0-9]+]]
 ;
-; CHECK-DAG: #[[ID]] = { "id" }
-; CHECK-DAG: #[[LAUNCH]] = { "launch" }
-; CHECK-DAG: #[[SYNC]] = { "sync" }
-; CHECK-DAG: #[[THREADS]] = { "threads" }
+; CHECK-DAG: attributes #[[ID]] = { "id" }
+; CHECK-DAG: attributes #[[LAUNCH]] = { "launch" }
+; CHECK-DAG: attributes #[[SYNC]] = { "sync" }
+; CHECK-DAG: attributes #[[THREADS]] = { "threads" }
+; CHECK-DAG: attributes #[[MALLOC]] = { "malloc" }
+; CHECK-DAG: attributes #[[FREE]] = { "free" }
 
 ; This needs a triple in order to correctly initialize the target library.
 target triple = "x86_64-pc-linux-gnu"
@@ -36,6 +40,8 @@ define void @f(ptr %buf, i64 %n) {
   %numThreads = call i64 @llvm.kit.cpu.num.threads(i32 1024) #1
   %threadID = call i64 @llvm.kit.cpu.thread.id(i32 1024) #2
   call void @llvm.kit.cpu.threads.sync(i32 1024, ptr nonnull %ctx) #3
+  %malloced = call noalias ptr @llvm.kit.cpu.malloc(i32 1024, i64 63) #4
+  call void @llvm.kit.cpu.free(i32 1024, ptr %malloced) #5
   ret void
 }
 
@@ -43,3 +49,5 @@ attributes #0 = { "launch" }
 attributes #1 = { "threads" }
 attributes #2 = { "id" }
 attributes #3 = { "sync" }
+attributes #4 = { "malloc" }
+attributes #5 = { "free" }
