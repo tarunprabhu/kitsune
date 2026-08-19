@@ -83,7 +83,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Transforms/LowerKitReduceIntrinsics.h"
+#include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/Diagnostics.h"
+#include "kitsune/Core/Reductions.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Analysis/DomTreeUpdater.h"
 #include "llvm/Analysis/LoopInfo.h"
@@ -311,6 +313,7 @@ void LowerReduce1::replaceCalls(BasicBlock &bb, const ReductionGroup &group) {
                        "with llvm.kit.reduce.0\n");
   sanityCheck(bb, group);
 
+  LLVMContext &ctx = bb.getContext();
   IRBuilder<> builder(&*bb.getFirstNonPHIIt());
 
   // Insert the replacement intrinsics first.
@@ -321,6 +324,7 @@ void LowerReduce1::replaceCalls(BasicBlock &bb, const ReductionGroup &group) {
     Value *elems = getElems(*call);
     Value *unit = getUnit(*call);
     Value *reducer = getReducer(*call);
+    Value *reduceOp = toConstant((uint32_t)ReduceOp::Custom, ctx);
 
     // The unit value is expected to be the same as the type of the elements
     // being reduced.
@@ -330,7 +334,7 @@ void LowerReduce1::replaceCalls(BasicBlock &bb, const ReductionGroup &group) {
     Value *v = builder.CreateLoad(elemTy, addr);
 
     Type *overloadTys[] = {elemTy, elemTy};
-    SmallVector<Value *, 4> args = {tt, dest, size, v, unit, reducer};
+    SmallVector<Value *, 4> args = {tt, reduceOp, dest, size, v, unit, reducer};
     for (Value *extraArg : getExtraReducerArgs(*call))
       args.push_back(extraArg);
     CallInst *newCall =
@@ -422,12 +426,12 @@ static bool lowerReduce0(Function &f) {
   LLVMContext &ctx = f.getContext();
   bool changed = false;
   for (CallBase *call : collectCalls(f, Intrinsic::kit_reduce_0)) {
-    Value *res = call->getArgOperand(1);
-    Value *val = call->getArgOperand(3);
-    Value *reducer = call->getArgOperand(5);
+    Value *res = call->getArgOperand(2);
+    Value *val = call->getArgOperand(4);
+    Value *reducer = call->getArgOperand(6);
 
     SmallVector<Value *, 4> args = {res, val};
-    for (unsigned i = 6; i < call->arg_size(); ++i)
+    for (unsigned i = 7; i < call->arg_size(); ++i)
       args.push_back(call->getArgOperand(i));
 
     Type *voidTy = Type::getVoidTy(ctx);

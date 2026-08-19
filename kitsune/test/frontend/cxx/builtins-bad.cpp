@@ -31,10 +31,10 @@ void cast_unsafe() {
 
 void reduce_num_args(int a, int n) {
   // expected-error@+1 {{incorrect number of arguments}}
-  __kitsune_reduce(&a, KIT_SUM);
+  __kitsune_reduce(&a, KIT_ADD);
 
   // expected-error@+1 {{incorrect number of arguments}}
-  __kitsune_reduce(&a, KIT_SUM, n, nullptr);
+  __kitsune_reduce(&a, KIT_ADD, n, nullptr);
 }
 
 void reduce_non_literal_op(int a, int n, unsigned op) {
@@ -53,7 +53,7 @@ void reduce_unknown_op(int a, int n) {
   __kitsune_reduce(&a, 0xFFFFFFFF, n);
 
   // expected-error@+1 {{unknown reduction operator}}
-  __kitsune_reduce(&a, 13, n);
+  __kitsune_reduce(&a, 15, n);
 }
 
 void reduce_non_scalar() {
@@ -62,13 +62,13 @@ void reduce_non_scalar() {
   int *ptr;
 
   // expected-error-re@+1 {{value {{.+}} must have builtin scalar type}}
-  __kitsune_reduce(&e, KIT_SUM, e);
+  __kitsune_reduce(&e, KIT_ADD, e);
 
   // expected-error-re@+1 {{value {{.+}} must have builtin scalar type}}
   __kitsune_reduce(&ptr, KIT_MIN, ptr);
 
   // expected-error-re@+1 {{value {{.+}} must have builtin scalar type}}
-  __kitsune_reduce(&c, KIT_PROD, c);
+  __kitsune_reduce(&c, KIT_MUL, c);
 }
 
 void reduce_type_mismatch(void *ptr) {
@@ -80,111 +80,66 @@ void reduce_type_mismatch(void *ptr) {
   int32_t *pi32;
 
   // expected-error-re@+1 {{{{.+}} destination must be pointer to {{.+}}}}
-  __kitsune_reduce(ptr, KIT_SUM, i8);
+  __kitsune_reduce(ptr, KIT_ADD, i8);
 
   // expected-error-re@+1 {{{{.+}} destination must be pointer to {{.+}}}}
-  __kitsune_reduce(&i8, KIT_PROD, u8);
+  __kitsune_reduce(&i8, KIT_MUL, u8);
 
   // expected-error-re@+1 {{{{.+}} destination must be pointer to {{.+}}}}
   __kitsune_reduce(&u8, KIT_MIN, i8);
 
   // expected-error-re@+1 {{{{.+}} destination must be pointer to {{.+}}}}
-  __kitsune_reduce(&i32, KIT_BAND, u32);
+  __kitsune_reduce(&i32, KIT_AND, u32);
 
   // expected-error-re@+1 {{{{.+}} destination must be pointer to {{.+}}}}
-  __kitsune_reduce(&u32, KIT_BOR, i32);
+  __kitsune_reduce(&u32, KIT_OR, i32);
 
   // expected-error-re@+1 {{{{.+}} destination must be pointer to {{.+}}}}
   __kitsune_reduce(&i32, KIT_MAX, i8);
 
   // expected-error-re@+1 {{{{.+}} destination must be pointer to {{.+}}}}
-  __kitsune_reduce(&f32, KIT_BXOR, i32);
+  __kitsune_reduce(&f32, KIT_XOR, i32);
 
   // expected-error-re@+1 {{{{.+}} destination must be pointer to {{.+}}}}
-  __kitsune_reduce(&pi32, KIT_SUM, i32);
+  __kitsune_reduce(&pi32, KIT_ADD, i32);
 
   // Force casting is allowed, obviously at the user's own peril.
-  __kitsune_reduce((uint32_t*)&i32, KIT_BAND, u32);
-  __kitsune_reduce((int32_t*)&i8, KIT_BAND, i32);
-  __kitsune_reduce(&i8, KIT_PROD, (int8_t)f32);
+  __kitsune_reduce((uint32_t*)&i32, KIT_AND, u32);
+  __kitsune_reduce((int32_t*)&i8, KIT_AND, i32);
+  __kitsune_reduce(&i8, KIT_MUL, (int8_t)f32);
 }
 
-void reduce_incompatible_band() {
+void reduce_incompatible_and() {
   double d;
   float f;
 
   // expected-error-re@+1 {{{{.+}} operator {{.+}} not valid for {{.+}} 'float'}}
-  __kitsune_reduce(&f, KIT_BAND, f);
+  __kitsune_reduce(&f, KIT_AND, f);
 
   // expected-error-re@+1 {{{{.+}} operator {{.+}} not valid for {{.+}} 'double'}}
-  __kitsune_reduce(&d, KIT_BAND, d);
+  __kitsune_reduce(&d, KIT_AND, d);
 }
 
-void reduce_incompatible_bor() {
+void reduce_incompatible_or() {
   double d;
   float f;
 
   // expected-error-re@+1 {{{{.+}} operator {{.+}} not valid for {{.+}} 'float'}}
-  __kitsune_reduce(&f, KIT_LOR, f);
+  __kitsune_reduce(&f, KIT_OR, f);
 
   // expected-error-re@+1 {{{{.+}} operator {{.+}} not valid for {{.+}} 'double'}}
-  __kitsune_reduce(&d, KIT_BOR, d);
+  __kitsune_reduce(&d, KIT_OR, d);
 }
 
-void reduce_incompatible_bxor() {
+void reduce_incompatible_xor() {
   double d;
   float f;
 
   // expected-error-re@+1 {{{{.+}} operator {{.+}} not valid for {{.+}} 'float'}}
-  __kitsune_reduce(&f, KIT_BXOR, f);
+  __kitsune_reduce(&f, KIT_XOR, f);
 
   // expected-error-re@+1 {{{{.+}} operator {{.+}} not valid for {{.+}} 'double'}}
-  __kitsune_reduce(&d, KIT_BXOR, d);
-}
-
-void reduce_incompatible_land() {
-  double d;
-  float f;
-  long l;
-
-  // expected-error-re@+1 {{{{.+}} operator {{.+}} not valid for {{.+}} 'long'}}
-  __kitsune_reduce(&l, KIT_LAND, l);
-
-  // expected-error-re@+1 {{{{.+}} operator {{.+}} not valid for {{.+}} 'float'}}
-  __kitsune_reduce(&f, KIT_LAND, f);
-
-  // expected-error-re@+1 {{{{.+}} operator {{.+}} not valid for {{.+}} 'double'}}
-  __kitsune_reduce(&d, KIT_LAND, d);
-}
-
-void reduce_incompatible_lor() {
-  double d;
-  float f;
-  long l;
-
-  // expected-error-re@+1 {{{{.+}} operator {{.+}} not valid for {{.+}} 'long'}}
-  __kitsune_reduce(&l, KIT_LOR, l);
-
-  // expected-error-re@+1 {{{{.+}} operator {{.+}} not valid for {{.+}} 'float'}}
-  __kitsune_reduce(&f, KIT_LOR, f);
-
-  // expected-error-re@+1 {{{{.+}} operator {{.+}} not valid for {{.+}} 'double'}}
-  __kitsune_reduce(&d, KIT_LOR, d);
-}
-
-void reduce_incompatible_lxor() {
-  double d;
-  float f;
-  long l;
-
-  // expected-error-re@+1 {{{{.+}} operator {{.+}} not valid for {{.+}} 'long'}}
-  __kitsune_reduce(&l, KIT_LXOR, l);
-
-  // expected-error-re@+1 {{{{.+}} operator {{.+}} not valid for {{.+}} 'float'}}
-  __kitsune_reduce(&f, KIT_LXOR, f);
-
-  // expected-error-re@+1 {{{{.+}} operator {{.+}} not valid for {{.+}} 'double'}}
-  __kitsune_reduce(&d, KIT_LXOR, d);
+  __kitsune_reduce(&d, KIT_XOR, d);
 }
 
 void reduce_incompatible_max() {
@@ -194,6 +149,28 @@ void reduce_incompatible_max() {
   __kitsune_reduce(&b, KIT_MAX, b);
 }
 
+void reduce_incompatible_maximum() {
+  bool b;
+  int i;
+
+  // expected-error-re@+1 {{{{.+}} operator {{.+}} not valid for {{.+}} 'bool'}}
+  __kitsune_reduce(&b, KIT_MAXIMUM, b);
+
+  // expected-error-re@+1 {{{{.+}} operator {{.+}} not valid for {{.+}} 'int'}}
+  __kitsune_reduce(&i, KIT_MAXIMUM, i);
+}
+
+void reduce_incompatible_maximum_num() {
+  bool b;
+  int i;
+
+  // expected-error-re@+1 {{{{.+}} operator {{.+}} not valid for {{.+}} 'bool'}}
+  __kitsune_reduce(&b, KIT_MAXIMUM_NUM, b);
+
+  // expected-error-re@+1 {{{{.+}} operator {{.+}} not valid for {{.+}} 'int'}}
+  __kitsune_reduce(&i, KIT_MAXIMUM_NUM, i);
+}
+
 void reduce_incompatible_min() {
   bool b;
 
@@ -201,28 +178,44 @@ void reduce_incompatible_min() {
   __kitsune_reduce(&b, KIT_MIN, b);
 }
 
-void reduce_incompatible_prod() {
+void reduce_incompatible_minimum() {
   bool b;
+  int i;
 
   // expected-error-re@+1 {{{{.+}} operator {{.+}} not valid for {{.+}} 'bool'}}
-  __kitsune_reduce(&b, KIT_PROD, b);
+  __kitsune_reduce(&b, KIT_MINIMUM, b);
+
+  // expected-error-re@+1 {{{{.+}} operator {{.+}} not valid for {{.+}} 'int'}}
+  __kitsune_reduce(&i, KIT_MINIMUM, i);
 }
 
-void reduce_incompatible_sum() {
+void reduce_incompatible_minimum_num() {
+  bool b;
+  int i;
+
+  // expected-error-re@+1 {{{{.+}} operator {{.+}} not valid for {{.+}} 'bool'}}
+  __kitsune_reduce(&b, KIT_MINIMUM_NUM, b);
+
+  // expected-error-re@+1 {{{{.+}} operator {{.+}} not valid for {{.+}} 'int'}}
+  __kitsune_reduce(&i, KIT_MINIMUM_NUM, i);
+}
+
+void reduce_incompatible_mul() {
   bool b;
 
   // expected-error-re@+1 {{{{.+}} operator {{.+}} not valid for {{.+}} 'bool'}}
-  __kitsune_reduce(&b, KIT_SUM, b);
+  __kitsune_reduce(&b, KIT_MUL, b);
+}
+
+void reduce_incompatible_add() {
+  bool b;
+
+  // expected-error-re@+1 {{{{.+}} operator {{.+}} not valid for {{.+}} 'bool'}}
+  __kitsune_reduce(&b, KIT_ADD, b);
 }
 
 void reduce_unsupported() {
   int64_t i64;
-
-  // expected-error-re@+1 {{{{.+}} operator '{{.+}}' is not yet supported}}
-  __kitsune_reduce(&i64, KIT_MAXLOC, i64);
-
-  // expected-error-re@+1 {{{{.+}} operator '{{.+}}' is not yet supported}}
-  __kitsune_reduce(&i64, KIT_MINLOC, i64);
 
   // expected-error-re@+1 {{{{.+}} operator '{{.+}}' is not yet supported}}
   __kitsune_reduce(&i64, KIT_CUSTOM, i64);

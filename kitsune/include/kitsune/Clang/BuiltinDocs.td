@@ -142,20 +142,21 @@ Reduce the value `v` into `dest` using the operator `op`. Currently, the
 following operators are supported. Note that each operator only works on a
 limited subset of types.
 
-================ ===================== =================
-Operator         Description           Supported Types
-================ ===================== =================
-:code:`KIT_BAND` Bitwise AND           Boolean, Integers
-:code:`KIT_BOR`  Bitwise OR            Boolean, Integers
-:code:`KIT_BXOR` Bitwise XOR           Boolean, Integers
-:code:`KIT_LAND` Logical AND           Boolean
-:code:`KIT_LOR`  Logical OR            Boolean
-:code:`KIT_LXOR` Logical XOR           Boolean
-:code:`KIT_MAX`  Maximum of two values Floats, Integers
-:code:`KIT_MIN`  Minimum of two values Floats, Integers
-:code:`KIT_PROD` Product               Floats, Integers
-:code:`KIT_SUM`  Sum                   Floats, Integers
-================ ===================== =================
+======================= ===================== =================
+Operator                Description           Supported Types
+======================= ===================== =================
+:code:`KIT_AND`         Bitwise AND           Boolean, Integers
+:code:`KIT_OR`          Bitwise OR            Boolean, Integers
+:code:`KIT_XOR`         Bitwise XOR           Boolean, Integers
+:code:`KIT_ADD`         Sum                   Floats, Integers
+:code:`KIT_MUL`         Product               Floats, Integers
+:code:`KIT_MAX`         Maximum of two values Floats, Integers
+:code:`KIT_MAXIMUM`
+:code:`KIT_MAXIMUM_NUM`
+:code:`KIT_MIN`         Minimum of two values Floats, Integers
+:code:`KIT_MINIMUM`
+:code:`KIT_MINIMUM_NUM`
+======================= ===================== =================
 
 Each entry in the 'Supported Types' column above is a set. The table below
 lists the types in each of these sets.
@@ -174,8 +175,6 @@ In addition, some operators are declared, but are not yet supported.
 Operator           Description
 ================== ===================================
 :code:`KIT_CUSTOM` Reduce with a custom reducer
-:code:`KIT_MAXLOC` Index in container with the maximum
-:code:`KIT_MINLOC` Index in container with the minimum
 ================== ===================================
 
 This builtin *must* be used when a reduction occurs in a parallel for loop.
@@ -195,7 +194,7 @@ below.
 .. code-block :: c++
 
   forall (int i = 0; i < n; ++i) {
-      __kitsune_reduce(&a, KIT_SUM, i);
+      __kitsune_reduce(&a, KIT_ADD, i);
   }
 
 Although the intrinsic is declared vararg, currently exactly one argument must

@@ -6,7 +6,7 @@
 // CHECK: %[[R:.+]] = alloca i8
 // CHECK-NEXT: %[[V:.+]] = load i8, ptr %[[R]]
 // CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
-// CHECK-SAME: (i32 0, ptr %[[R]], i32 1, i8 %[[V]], i8 -128,
+// CHECK-SAME: (i32 0, i32 24, ptr %[[R]], i32 1, i8 %[[V]], i8 -128,
 // CHECK-SAME: ptr @__kitsune_reduce.max.i8)
 //
 // CHECK-LABEL: define linkonce_odr void @__kitsune_reduce.max.i8
@@ -25,7 +25,7 @@ extern "C" void reduce_i8() {
 // CHECK: %[[R:.+]] = alloca i8
 // CHECK-NEXT: %[[V:.+]] = load i8, ptr %[[R]]
 // CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
-// CHECK-SAME: (i32 0, ptr %[[R]], i32 1, i8 %[[V]], i8 0,
+// CHECK-SAME: (i32 0, i32 26, ptr %[[R]], i32 1, i8 %[[V]], i8 0,
 // CHECK-SAME: ptr @__kitsune_reduce.max.u8)
 //
 // CHECK-LABEL: define linkonce_odr void @__kitsune_reduce.max.u8
@@ -44,7 +44,7 @@ extern "C" void reduce_u8() {
 // CHECK: %[[R:.+]] = alloca i16
 // CHECK-NEXT: %[[V:.+]] = load i16, ptr %[[R]]
 // CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
-// CHECK-SAME: (i32 0, ptr %[[R]], i32 2, i16 %[[V]], i16 -32768,
+// CHECK-SAME: (i32 0, i32 24, ptr %[[R]], i32 2, i16 %[[V]], i16 -32768,
 // CHECK-SAME: ptr @__kitsune_reduce.max.i16)
 //
 // CHECK-LABEL: define linkonce_odr void @__kitsune_reduce.max.i16
@@ -63,7 +63,7 @@ extern "C" void reduce_i16() {
 // CHECK: %[[R:.+]] = alloca i16
 // CHECK-NEXT: %[[V:.+]] = load i16, ptr %[[R]]
 // CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
-// CHECK-SAME: (i32 0, ptr %[[R]], i32 2, i16 %[[V]], i16 0,
+// CHECK-SAME: (i32 0, i32 26, ptr %[[R]], i32 2, i16 %[[V]], i16 0,
 // CHECK-SAME: ptr @__kitsune_reduce.max.u16)
 //
 // CHECK-LABEL: define linkonce_odr void @__kitsune_reduce.max.u16
@@ -82,7 +82,7 @@ extern "C" void reduce_u16() {
 // CHECK: %[[R:.+]] = alloca i32
 // CHECK-NEXT: %[[V:.+]] = load i32, ptr %[[R]]
 // CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
-// CHECK-SAME: (i32 0, ptr %[[R]], i32 4, i32 %[[V]], i32 -2147483648,
+// CHECK-SAME: (i32 0, i32 24, ptr %[[R]], i32 4, i32 %[[V]], i32 -2147483648,
 // CHECK-SAME: ptr @__kitsune_reduce.max.i32)
 //
 // CHECK-LABEL: define linkonce_odr void @__kitsune_reduce.max.i32
@@ -101,7 +101,7 @@ extern "C" void reduce_i32() {
 // CHECK: %[[R:.+]] = alloca i32
 // CHECK-NEXT: %[[V:.+]] = load i32, ptr %[[R]]
 // CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
-// CHECK-SAME: (i32 0, ptr %[[R]], i32 4, i32 %[[V]], i32 0,
+// CHECK-SAME: (i32 0, i32 26, ptr %[[R]], i32 4, i32 %[[V]], i32 0,
 // CHECK-SAME: ptr @__kitsune_reduce.max.u32)
 //
 // CHECK-LABEL: define linkonce_odr void @__kitsune_reduce.max.u32
@@ -120,7 +120,7 @@ extern "C" void reduce_u32() {
 // CHECK: %[[R:.+]] = alloca i64
 // CHECK-NEXT: %[[V:.+]] = load i64, ptr %[[R]]
 // CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
-// CHECK-SAME: (i32 0, ptr %[[R]], i32 8, i64 %[[V]], i64 -9223372036854775808,
+// CHECK-SAME: (i32 0, i32 24, ptr %[[R]], i32 8, i64 %[[V]], i64 -9223372036854775808,
 // CHECK-SAME: ptr @__kitsune_reduce.max.i64)
 //
 // CHECK-LABEL: define linkonce_odr void @__kitsune_reduce.max.i64
@@ -139,7 +139,7 @@ extern "C" void reduce_i64() {
 // CHECK: %[[R:.+]] = alloca i64
 // CHECK-NEXT: %[[V:.+]] = load i64, ptr %[[R]]
 // CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
-// CHECK-SAME: (i32 0, ptr %[[R]], i32 8, i64 %[[V]], i64 0,
+// CHECK-SAME: (i32 0, i32 26, ptr %[[R]], i32 8, i64 %[[V]], i64 0,
 // CHECK-SAME: ptr @__kitsune_reduce.max.u64)
 //
 // CHECK-LABEL: define linkonce_odr void @__kitsune_reduce.max.u64
@@ -158,7 +158,7 @@ extern "C" void reduce_u64() {
 // CHECK: %[[R:.+]] = alloca float
 // CHECK-NEXT: %[[V:.+]] = load float, ptr %[[R]]
 // CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
-// CHECK-SAME: (i32 0, ptr %[[R]], i32 4, float %[[V]],
+// CHECK-SAME: (i32 0, i32 16, ptr %[[R]], i32 4, float %[[V]],
 // CHECK-SAME: float 0x3810000000000000,
 // CHECK-SAME: ptr @__kitsune_reduce.max.f32)
 //
@@ -166,7 +166,7 @@ extern "C" void reduce_u64() {
 // CHECK-SAME: ptr %[[PTR:[^,]+]]
 // CHECK-SAME: float {{.*}}%[[V:[^)]+]]
 // CHECK-NEXT: %[[CURR:.+]] = load float, ptr %[[PTR]]
-// CHECK-NEXT: %[[UPD:.+]] = call float @llvm.maximum.f32(float %[[CURR]], float %[[V]])
+// CHECK-NEXT: %[[UPD:.+]] = call nsz float @llvm.maxnum.f32(float %[[CURR]], float %[[V]])
 // CHECK-NEXT: store float %[[UPD]], ptr %[[PTR]]
 // CHECK-NEXT: ret void
 extern "C" void reduce_f32() {
@@ -178,7 +178,7 @@ extern "C" void reduce_f32() {
 // CHECK: %[[R:.+]] = alloca double
 // CHECK-NEXT: %[[V:.+]] = load double, ptr %[[R]]
 // CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
-// CHECK-SAME: (i32 0, ptr %[[R]], i32 8, double %[[V]],
+// CHECK-SAME: (i32 0, i32 16, ptr %[[R]], i32 8, double %[[V]],
 // CHECK-SAME: double 0x10000000000000,
 // CHECK-SAME: ptr @__kitsune_reduce.max.f64)
 //
@@ -186,7 +186,7 @@ extern "C" void reduce_f32() {
 // CHECK-SAME: ptr %[[PTR:[^,]+]]
 // CHECK-SAME: double {{.*}}%[[V:[^)]+]]
 // CHECK-NEXT: %[[CURR:.+]] = load double, ptr %[[PTR]]
-// CHECK-NEXT: %[[UPD:.+]] = call double @llvm.maximum.f64(double %[[CURR]], double %[[V]])
+// CHECK-NEXT: %[[UPD:.+]] = call nsz double @llvm.maxnum.f64(double %[[CURR]], double %[[V]])
 // CHECK-NEXT: store double %[[UPD]], ptr %[[PTR]]
 // CHECK-NEXT: ret void
 extern "C" void reduce_f64() {

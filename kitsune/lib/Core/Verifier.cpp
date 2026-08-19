@@ -114,9 +114,9 @@ KitVerifier &KitVerifier::verifyIntrMobileInit(const CallBase &call) {
 KitVerifier &KitVerifier::verifyIntrReduce(const CallBase &call, Value *unitVal,
                                            Value *reducerVal,
                                            unsigned extraArgNum) {
-  // This is a best effort attempt at verifying the call. In most cases, the
-  // reducer argument to the call will be a function. It is possible, though
-  // unlikely that this will be some other value.
+  // This is a best effort attempt at verifying the call. The reducer may have
+  // been passed as an argument to the function containing this call, in which
+  // case, it cannot be cast to a Function object.
   Function *reducer = dyn_cast<Function>(reducerVal);
   if (!reducer)
     return *this;
@@ -149,7 +149,6 @@ KitVerifier &KitVerifier::verifyIntrReduce(const CallBase &call, Value *unitVal,
   if (hasExtraArgs) {
     unsigned numExtraFunc = numParams - 2;
     unsigned numExtraCall = numArgs - extraArgNum;
-    llvm::outs() << numExtraFunc << " " << numExtraCall << "\n";
     if (numExtraCall != numExtraFunc) {
       check(false, DiagID::ErrReducerNumParams, reducerName, numExtraCall + 2,
             numParams);
@@ -170,16 +169,16 @@ KitVerifier &KitVerifier::verifyIntrReduce(const CallBase &call, Value *unitVal,
 }
 
 KitVerifier &KitVerifier::verifyIntrReduce0(const CallBase &call) {
-  Value *val = call.getArgOperand(3);
-  Value *unit = call.getArgOperand(4);
-  Value *reducer = call.getArgOperand(5);
+  Value *val = call.getArgOperand(4);
+  Value *unit = call.getArgOperand(5);
+  Value *reducer = call.getArgOperand(6);
 
   Type *valTy = val->getType();
   Type *unitTy = unit->getType();
 
   check(valTy == unitTy, DiagID::ErrReduceUnitValMismatch);
 
-  return verifyIntrReduce(call, unit, reducer, 6);
+  return verifyIntrReduce(call, unit, reducer, 7);
 }
 
 KitVerifier &KitVerifier::verifyIntrReduce1(const CallBase &call) {

@@ -109,10 +109,10 @@ for.j.header:
 
 for.j.body:
   %j32 = trunc i64 %j to i32
-  call void(i32, ptr, i32, i64, i64, ptr, ...) @llvm.kit.reduce.0(i32 1024, ptr %r1, i32 8, i64 %j, i64 0, ptr @sum.i64)
-  call void(i32, ptr, i32, i64, i64, ptr, ...) @llvm.kit.reduce.0(i32 1024, ptr %r2, i32 8, i64 %j, i64 1, ptr @mul.i64)
-  call void(i32, ptr, i32, i32, i32, ptr, ...) @llvm.kit.reduce.0(i32 1024, ptr %r3, i32 4, i32 %j32, i32 1, ptr @mul.i32)
-  call void(i32, ptr, i32, i32, i32, ptr, ...) @llvm.kit.reduce.0(i32 1024, ptr %r4, i32 4, i32 %j32, i32 0, ptr @sum.i32)
+  call void(i32, i32, ptr, i32, i64, i64, ptr, ...) @llvm.kit.reduce.0(i32 1024, i32 5, ptr %r1, i32 8, i64 %j, i64 0, ptr @sum.i64)
+  call void(i32, i32, ptr, i32, i64, i64, ptr, ...) @llvm.kit.reduce.0(i32 1024, i32 7, ptr %r2, i32 8, i64 %j, i64 1, ptr @mul.i64)
+  call void(i32, i32, ptr, i32, i32, i32, ptr, ...) @llvm.kit.reduce.0(i32 1024, i32 7, ptr %r3, i32 4, i32 %j32, i32 1, ptr @mul.i32)
+  call void(i32, i32, ptr, i32, i32, i32, ptr, ...) @llvm.kit.reduce.0(i32 1024, i32 5, ptr %r4, i32 4, i32 %j32, i32 0, ptr @sum.i32)
   reattach within %syncreg, label %for.j.latch
 
 for.j.latch:

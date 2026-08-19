@@ -9,6 +9,6 @@ declare void @sum(ptr %dest)
 
 define void @f() {
   %r = alloca i64
-  call void(i32, ptr, i32, i64, i64, ptr, ...) @llvm.kit.reduce.0(i32 1, ptr %r, i32 8, i64 11, i64 0, ptr @sum)
+  call void(i32, i32, ptr, i32, i64, i64, ptr, ...) @llvm.kit.reduce.0(i32 1, i32 0, ptr %r, i32 8, i64 11, i64 0, ptr @sum)
   ret void
 }
