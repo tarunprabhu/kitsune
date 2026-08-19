@@ -6,17 +6,10 @@
 ; CHECK-SAME: i64 %[[N:[^)]+]]
 ; CHECK: %[[RESULT:.+]] = alloca float
 ; CHECK: %[[SYNCREG:.+]] = tail call token @llvm.syncregion.start()
-; CHECK: %[[NREDS:.+]] = call i64 @llvm.kit.cpu.num.threads(i32 8)
-; CHECK-NEXT: %[[BYTES:.+]] = mul {{.+}} 4, %[[NREDS]]
-; CHECK-NEXT: %[[REDS:.+]] = call {{.+}} @llvm.kit.mobile.alloc(i32 8, i64 %[[BYTES]])
-; CHECK-NEXT: call void {{.+}} @llvm.kit.mobile.init
-; CHECK-SAME: i32 8
-; CHECK-SAME: ptr {{[^%]+}} %[[REDS]]
-; CHECK-SAME: i64 %[[NREDS]]
-; CHECK-SAME: float [[UNIT:[^)]+]]
 ; CHECK-NEXT: br label %[[PH_O:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[PH_O]]:
+; CHECK-NEXT: %[[NREDS:.+]] = call i64 @llvm.kit.cpu.num.threads(i32 8)
 ; CHECK-NEXT: br label %[[HEADER_O:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[HEADER_O]]:
@@ -36,6 +29,8 @@
 ; CHECK-NEXT: br i1 %[[CMP_GUARD]], label %[[END_I:.+]], label %[[PH_I:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[PH_I]]:
+; CHECK-NEXT: %[[LOCAL:.+]] = tail call ptr @malloc(i64 4)
+; CHECK-NEXT: store float 0.000000e+00, ptr %[[LOCAL]]
 ; CHECK-NEXT: br label %[[HEADER_I:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[HEADER_I]]:
@@ -46,14 +41,12 @@
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[BODY_I]]:
 ; CHECK-NEXT: %[[TRUNC:.+]] = sitofp i64 %[[IV_I]] to float
-; CHECK-NEXT: %[[ADDR_DEST:.+]] = getelementptr {{.+}} %[[REDS]], i64 %[[IV_O]]
-; CHECK-NEXT: %[[ADDR_CAST:.+]] = addrspacecast {{.+}} %[[ADDR_DEST]] to ptr
 ; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{.*}}(
 ; CHECK-SAME: i32 8,
-; CHECK-SAME: ptr %[[ADDR_CAST]],
+; CHECK-SAME: ptr %[[LOCAL]],
 ; CHECK-SAME: i32 4,
 ; CHECK-SAME: float %[[TRUNC]],
-; CHECK-SAME: float [[UNIT]],
+; CHECK-SAME: float 0.000000e+00,
 ; CHECK-SAME: ptr @sum)
 ; CHECK-NEXT: br label %[[LATCH_I]]
 ; CHECK-EMPTY:
@@ -64,6 +57,9 @@
 ; CHECK-SAME: !llvm.loop ![[LOOP_I:[0-9]+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[EXIT_I]]:
+; CHECK-NEXT: %[[PARTIAL:.+]] = load float, ptr %[[LOCAL]]
+; CHECK-NEXT: atomicrmw fadd ptr %[[RESULT]], float %[[PARTIAL]] monotonic
+; CHECK-NEXT: tail call void @free(ptr %[[LOCAL]])
 ; CHECK-NEXT: br label %[[END_I]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[END_I]]:
@@ -79,21 +75,6 @@
 ; CHECK-SAME: !llvm.loop ![[LOOP_O:[0-9]+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[EXIT_O]]:
-; CHECK-NEXT: br label %[[PARTIAL_REDUCE:.+]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[PARTIAL_REDUCE]]
-; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.1{{[^(]*}}(
-; CHECK-SAME: i32 8,
-; CHECK-SAME: ptr %[[RESULT]],
-; CHECK-SAME: i32 4,
-; CHECK-SAME: ptr {{.+}} %[[REDS]],
-; CHECK-SAME: i64 %[[NREDS]],
-; CHECK-SAME: float [[UNIT]],
-; CHECK-SAME: ptr @sum)
-; CHECK-NEXT: br label %[[PARTIAL_FREE:.+]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[PARTIAL_FREE]]:
-; CHECK-NEXT: call void @llvm.kit.mobile.free(i32 8, ptr {{.+}} %[[REDS]])
 ; CHECK-NEXT: br label %[[SYNC:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[SYNC]]:
@@ -119,7 +100,7 @@ for.i.header:
 
 for.i.body:
   %f32 = sitofp i64 %i to float
-  call void(i32, ptr, i32, float, float, ptr, ...) @llvm.kit.reduce.0(i32 8, ptr %result, i32 4, float %f32, float 0.0, ptr @sum)
+  call void(i32, i32, ptr, i32, float, float, ptr, ...) @llvm.kit.reduce.0(i32 8, i32 6, ptr %result, i32 4, float %f32, float 0.0, ptr @sum)
   reattach within %syncreg, label %for.i.latch
 
 for.i.latch:
