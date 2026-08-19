@@ -11,6 +11,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/IRBuilderUtils.h"
+#include "kitsune/Core/ConstantUtils.h"
+#include "kitsune/Core/TTUtils.h"
 
 using namespace llvm;
 
@@ -34,4 +36,28 @@ Value *llvm::createCall(IRBuilder<> &builder, KitFunc libFunc,
 
   FunctionCallee f = getOrInsertLibFunc(*m, libFunc);
   return builder.CreateCall(f, args, name);
+}
+
+static CallInst *createKitMalloc(IRBuilder<> &builder, Intrinsic::ID intr,
+                                 TTID tt, Value *bytes, StringRef name) {
+  LLVMContext &ctx = builder.getContext();
+  Constant *ctt = toConstant(tt, ctx);
+
+  CallInst *call = cast<CallInst>(builder.CreateIntrinsic(intr, {ctt, bytes}));
+  call->setAttributes(AttributeList().addRetAttribute(ctx, Attribute::NoAlias));
+  call->setTailCall();
+
+  return call;
+}
+
+CallInst *llvm::createCPUMalloc(IRBuilder<> &builder, TTID tt, Value *bytes,
+                                StringRef name) {
+  assert(!isGPUTT(tt) && "Tapir target must be CPU-centric");
+  return createKitMalloc(builder, Intrinsic::kit_cpu_malloc, tt, bytes, name);
+}
+
+CallInst *llvm::createGPUMalloc(IRBuilder<> &builder, TTID tt, Value *bytes,
+                                StringRef name) {
+  assert(isGPUTT(tt) && "Tapir target must be GPU-centric");
+  return createKitMalloc(builder, Intrinsic::kit_gpu_malloc, tt, bytes, name);
 }
