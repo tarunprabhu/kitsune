@@ -6,17 +6,10 @@
 ; CHECK-SAME: i64 %[[N:[^)]+]]
 ; CHECK: %[[RESULT:.+]] = alloca i64
 ; CHECK: %[[SYNCREG:.+]] = tail call token @llvm.syncregion.start()
-; CHECK: %[[NREDS:.+]] = call i64 @llvm.kit.cpu.num.threads(i32 512)
-; CHECK-NEXT: %[[BYTES:.+]] = mul {{.+}} 8, %[[NREDS]]
-; CHECK-NEXT: %[[REDS:.+]] = call {{.+}} @llvm.kit.mobile.alloc(i32 512, i64 %[[BYTES]])
-; CHECK-NEXT: call void {{.+}} @llvm.kit.mobile.init
-; CHECK-SAME: i32 512
-; CHECK-SAME: ptr {{[^%]+}} %[[REDS]]
-; CHECK-SAME: i64 %[[NREDS]]
-; CHECK-SAME: i64 [[UNIT:[^)]+]]
 ; CHECK-NEXT: br label %[[PH_O:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[PH_O]]:
+; CHECK-NEXT: %[[NREDS:.+]] = call i64 @llvm.kit.cpu.num.threads(i32 512)
 ; CHECK-NEXT: br label %[[HEADER_O:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[HEADER_O]]:
@@ -36,6 +29,8 @@
 ; CHECK-NEXT: br i1 %[[CMP_GUARD]], label %[[END_I:.+]], label %[[PH_I:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[PH_I]]:
+; CHECK-NEXT: %[[LOCAL:.+]] = tail call ptr @malloc(i64 8)
+; CHECK-NEXT: store i64 0, ptr %[[LOCAL]]
 ; CHECK-NEXT: br label %[[HEADER_I:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[HEADER_I]]:
@@ -45,15 +40,13 @@
 ; CHECK-NEXT: br label %[[BODY_I:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[BODY_I]]:
-; CHECK-NEXT: %[[ADDR_DEST:.+]] = getelementptr {{.+}} %[[REDS]], i64 %[[IV_O]]
-; CHECK-NEXT: %[[ADDR_CAST:.+]] = addrspacecast {{.+}} %[[ADDR_DEST]] to ptr
 ; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{.*}}(
 ; CHECK-SAME: i32 512,
-; CHECK-SAME: ptr %[[ADDR_CAST]],
+; CHECK-SAME: ptr %[[LOCAL]],
 ; CHECK-SAME: i32 8,
 ; CHECK-SAME: i64 %[[IV_I]],
-; CHECK-SAME: i64 [[UNIT]],
-; CHECK-SAME: ptr @mul)
+; CHECK-SAME: i64 0,
+; CHECK-SAME: ptr @sum)
 ; CHECK-NEXT: br label %[[LATCH_I]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[LATCH_I]]:
@@ -63,9 +56,12 @@
 ; CHECK-SAME: !llvm.loop ![[LOOP_I:[0-9]+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[EXIT_I]]:
+; CHECK-NEXT: %[[PARTIAL:.+]] = load i64, ptr %[[LOCAL]]
+; CHECK-NEXT: atomicrmw add ptr %[[RESULT]], i64 %[[PARTIAL]] monotonic
+; CHECK-NEXT: tail call void @free(ptr %[[LOCAL]])
 ; CHECK-NEXT: br label %[[END_I]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[END_I]]
+; CHECK-NEXT: [[END_I]]:
 ; CHECK-NEXT: br label %[[REATTACH:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[REATTACH]]:
@@ -78,21 +74,6 @@
 ; CHECK-SAME: !llvm.loop ![[LOOP_O:[0-9]+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[EXIT_O]]:
-; CHECK-NEXT: br label %[[PARTIAL_REDUCE:.+]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[PARTIAL_REDUCE]]
-; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.1{{[^(]*}}(
-; CHECK-SAME: i32 512,
-; CHECK-SAME: ptr %[[RESULT]],
-; CHECK-SAME: i32 8,
-; CHECK-SAME: ptr {{.+}} %[[REDS]],
-; CHECK-SAME: i64 %[[NREDS]],
-; CHECK-SAME: i64 [[UNIT]],
-; CHECK-SAME: ptr @mul)
-; CHECK-NEXT: br label %[[PARTIAL_FREE:.+]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[PARTIAL_FREE]]:
-; CHECK-NEXT: call void @llvm.kit.mobile.free(i32 512, ptr {{.+}} %[[REDS]])
 ; CHECK-NEXT: br label %[[SYNC:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[SYNC]]:
@@ -104,7 +85,7 @@
 ; CHECK-DAG: ![[LOOP_I]] = distinct !{![[LOOP_I]]}
 ; CHECK-DAG: ![[LOOP_O]] = distinct !{![[LOOP_O]], ![[REDUCTION]], ![[TARGET]], ![[PREPARED]]}
 
-declare void @mul(ptr %res, i64 %v)
+declare void @sum(ptr %res, i64 %v)
 
 define void @f(i64 %n) {
 entry:
@@ -117,7 +98,7 @@ for.i.header:
   detach within %syncreg, label %for.i.body, label %for.i.latch
 
 for.i.body:
-  call void(i32, ptr, i32, i64, i64, ptr, ...) @llvm.kit.reduce.0(i32 512, ptr %result, i32 8, i64 %i, i64 1, ptr @mul)
+  call void(i32, i32, ptr, i32, i64, i64, ptr, ...) @llvm.kit.reduce.0(i32 512, i32 5, ptr %result, i32 8, i64 %i, i64 0, ptr @sum)
   reattach within %syncreg, label %for.i.latch
 
 for.i.latch:
