@@ -11,15 +11,13 @@ void *__attribute__((kitsune_mobile)) allocate(unsigned long n) {
   return kitsune_mobile_alloc(n);
 }
 
-void deallocate(void *[[kitsune::mobile]] ptr) {
-  kitsune_mobile_free(ptr);
-}
+void deallocate(void *[[kitsune::mobile]] ptr) { kitsune_mobile_free(ptr); }
 
 void *[[kitsune::mobile]] cast_unsafe(void *ptr) {
   return __kitsune_mobile_cast_unsafe(ptr);
 }
 
-void reduce_band() {
+void reduce_and() {
   int8_t i8;
   int16_t i16;
   int32_t i32;
@@ -29,17 +27,17 @@ void reduce_band() {
   uint32_t u32;
   uint64_t u64;
 
-  __kitsune_reduce(&i8, KIT_BAND, i8);
-  __kitsune_reduce(&u8, KIT_BAND, u8);
-  __kitsune_reduce(&i16, KIT_BAND, i16);
-  __kitsune_reduce(&u16, KIT_BAND, u16);
-  __kitsune_reduce(&i32, KIT_BAND, i32);
-  __kitsune_reduce(&u32, KIT_BAND, u32);
-  __kitsune_reduce(&i64, KIT_BAND, i64);
-  __kitsune_reduce(&u64, KIT_BAND, u64);
+  __kitsune_reduce(&i8, KIT_AND, i8);
+  __kitsune_reduce(&u8, KIT_AND, u8);
+  __kitsune_reduce(&i16, KIT_AND, i16);
+  __kitsune_reduce(&u16, KIT_AND, u16);
+  __kitsune_reduce(&i32, KIT_AND, i32);
+  __kitsune_reduce(&u32, KIT_AND, u32);
+  __kitsune_reduce(&i64, KIT_AND, i64);
+  __kitsune_reduce(&u64, KIT_AND, u64);
 }
 
-void reduce_bor() {
+void reduce_or() {
   int8_t i8;
   int16_t i16;
   int32_t i32;
@@ -49,17 +47,17 @@ void reduce_bor() {
   uint32_t u32;
   uint64_t u64;
 
-  __kitsune_reduce(&i8, KIT_BOR, i8);
-  __kitsune_reduce(&u8, KIT_BOR, u8);
-  __kitsune_reduce(&i16, KIT_BOR, i16);
-  __kitsune_reduce(&u16, KIT_BOR, u16);
-  __kitsune_reduce(&i32, KIT_BOR, i32);
-  __kitsune_reduce(&u32, KIT_BOR, u32);
-  __kitsune_reduce(&i64, KIT_BOR, i64);
-  __kitsune_reduce(&u64, KIT_BOR, u64);
+  __kitsune_reduce(&i8, KIT_OR, i8);
+  __kitsune_reduce(&u8, KIT_OR, u8);
+  __kitsune_reduce(&i16, KIT_OR, i16);
+  __kitsune_reduce(&u16, KIT_OR, u16);
+  __kitsune_reduce(&i32, KIT_OR, i32);
+  __kitsune_reduce(&u32, KIT_OR, u32);
+  __kitsune_reduce(&i64, KIT_OR, i64);
+  __kitsune_reduce(&u64, KIT_OR, u64);
 }
 
-void reduce_bxor() {
+void reduce_xor() {
   int8_t i8;
   int16_t i16;
   int32_t i32;
@@ -69,29 +67,14 @@ void reduce_bxor() {
   uint32_t u32;
   uint64_t u64;
 
-  __kitsune_reduce(&i8, KIT_BXOR, i8);
-  __kitsune_reduce(&u8, KIT_BXOR, u8);
-  __kitsune_reduce(&i16, KIT_BXOR, i16);
-  __kitsune_reduce(&u16, KIT_BXOR, u16);
-  __kitsune_reduce(&i32, KIT_BXOR, i32);
-  __kitsune_reduce(&u32, KIT_BXOR, u32);
-  __kitsune_reduce(&i64, KIT_BXOR, i64);
-  __kitsune_reduce(&u64, KIT_BXOR, u64);
-}
-
-void reduce_land() {
-  bool b;
-  __kitsune_reduce(&b, KIT_LAND, b);
-}
-
-void reduce_lor() {
-  bool b;
-  __kitsune_reduce(&b, KIT_LOR, b);
-}
-
-void reduce_lxor() {
-  bool b;
-  __kitsune_reduce(&b, KIT_LXOR, b);
+  __kitsune_reduce(&i8, KIT_XOR, i8);
+  __kitsune_reduce(&u8, KIT_XOR, u8);
+  __kitsune_reduce(&i16, KIT_XOR, i16);
+  __kitsune_reduce(&u16, KIT_XOR, u16);
+  __kitsune_reduce(&i32, KIT_XOR, i32);
+  __kitsune_reduce(&u32, KIT_XOR, u32);
+  __kitsune_reduce(&i64, KIT_XOR, i64);
+  __kitsune_reduce(&u64, KIT_XOR, u64);
 }
 
 void reduce_max() {
@@ -118,6 +101,22 @@ void reduce_max() {
   __kitsune_reduce(&f64, KIT_MAX, f64);
 }
 
+void reduce_maximum() {
+  float f32;
+  double f64;
+
+  __kitsune_reduce(&f32, KIT_MAXIMUM, f32);
+  __kitsune_reduce(&f64, KIT_MAXIMUM, f64);
+}
+
+void reduce_maximum_num() {
+  float f32;
+  double f64;
+
+  __kitsune_reduce(&f32, KIT_MAXIMUM_NUM, f32);
+  __kitsune_reduce(&f64, KIT_MAXIMUM_NUM, f64);
+}
+
 void reduce_min() {
   int8_t i8;
   int16_t i16;
@@ -142,31 +141,23 @@ void reduce_min() {
   __kitsune_reduce(&f64, KIT_MIN, f64);
 }
 
-void reduce_prod() {
-  int8_t i8;
-  int16_t i16;
-  int32_t i32;
-  int64_t i64;
-  uint8_t u8;
-  uint16_t u16;
-  uint32_t u32;
-  uint64_t u64;
+void reduce_minimum() {
   float f32;
   double f64;
 
-  __kitsune_reduce(&i8, KIT_PROD, i8);
-  __kitsune_reduce(&u8, KIT_PROD, u8);
-  __kitsune_reduce(&i16, KIT_PROD, i16);
-  __kitsune_reduce(&u16, KIT_PROD, u16);
-  __kitsune_reduce(&i32, KIT_PROD, i32);
-  __kitsune_reduce(&u32, KIT_PROD, u32);
-  __kitsune_reduce(&i64, KIT_PROD, i64);
-  __kitsune_reduce(&u64, KIT_PROD, u64);
-  __kitsune_reduce(&f32, KIT_PROD, f32);
-  __kitsune_reduce(&f64, KIT_PROD, f64);
+  __kitsune_reduce(&f32, KIT_MINIMUM, f32);
+  __kitsune_reduce(&f64, KIT_MINIMUM, f64);
 }
 
-void reduce_sum() {
+void reduce_minimum_num() {
+  float f32;
+  double f64;
+
+  __kitsune_reduce(&f32, KIT_MINIMUM_NUM, f32);
+  __kitsune_reduce(&f64, KIT_MINIMUM_NUM, f64);
+}
+
+void reduce_mul() {
   int8_t i8;
   int16_t i16;
   int32_t i32;
@@ -178,14 +169,38 @@ void reduce_sum() {
   float f32;
   double f64;
 
-  __kitsune_reduce(&i8, KIT_SUM, i8);
-  __kitsune_reduce(&u8, KIT_SUM, u8);
-  __kitsune_reduce(&i16, KIT_SUM, i16);
-  __kitsune_reduce(&u16, KIT_SUM, u16);
-  __kitsune_reduce(&i32, KIT_SUM, i32);
-  __kitsune_reduce(&u32, KIT_SUM, u32);
-  __kitsune_reduce(&i64, KIT_SUM, i64);
-  __kitsune_reduce(&u64, KIT_SUM, u64);
-  __kitsune_reduce(&f32, KIT_SUM, f32);
-  __kitsune_reduce(&f64, KIT_SUM, f64);
+  __kitsune_reduce(&i8, KIT_MUL, i8);
+  __kitsune_reduce(&u8, KIT_MUL, u8);
+  __kitsune_reduce(&i16, KIT_MUL, i16);
+  __kitsune_reduce(&u16, KIT_MUL, u16);
+  __kitsune_reduce(&i32, KIT_MUL, i32);
+  __kitsune_reduce(&u32, KIT_MUL, u32);
+  __kitsune_reduce(&i64, KIT_MUL, i64);
+  __kitsune_reduce(&u64, KIT_MUL, u64);
+  __kitsune_reduce(&f32, KIT_MUL, f32);
+  __kitsune_reduce(&f64, KIT_MUL, f64);
+}
+
+void reduce_add() {
+  int8_t i8;
+  int16_t i16;
+  int32_t i32;
+  int64_t i64;
+  uint8_t u8;
+  uint16_t u16;
+  uint32_t u32;
+  uint64_t u64;
+  float f32;
+  double f64;
+
+  __kitsune_reduce(&i8, KIT_ADD, i8);
+  __kitsune_reduce(&u8, KIT_ADD, u8);
+  __kitsune_reduce(&i16, KIT_ADD, i16);
+  __kitsune_reduce(&u16, KIT_ADD, u16);
+  __kitsune_reduce(&i32, KIT_ADD, i32);
+  __kitsune_reduce(&u32, KIT_ADD, u32);
+  __kitsune_reduce(&i64, KIT_ADD, i64);
+  __kitsune_reduce(&u64, KIT_ADD, u64);
+  __kitsune_reduce(&f32, KIT_ADD, f32);
+  __kitsune_reduce(&f64, KIT_ADD, f64);
 }

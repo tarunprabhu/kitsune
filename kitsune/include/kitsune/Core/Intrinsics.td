@@ -536,19 +536,22 @@ def int_kit_mobile_init
 def int_kit_reduce_0
     : KitIntrinsic<[],
                    [llvm_i32_ty,     // TTID
+                    llvm_i32_ty,     // The reduction operator enum value
                     llvm_ptr_ty,     // Pointer to result
                     llvm_i32_ty,     // sizeof(result)
                     llvm_any_ty,     // The value to pass to the reducer
                     llvm_any_ty,     // The unit value for the reducer
                     llvm_ptr_ty,     // The reducer function
                     llvm_vararg_ty], // Additional reducer arguments
-                   [ImmArg<ArgIndex<0>>, NonNull<ArgIndex<1>>,
-                    ImmArg<ArgIndex<2>>, NonNull<ArgIndex<5>>,
-                    ReadOnly<ArgIndex<5>>]> {
+                   [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>,
+                    NonNull<ArgIndex<2>>, ImmArg<ArgIndex<3>>,
+                    NonNull<ArgIndex<6>>, ReadOnly<ArgIndex<6>>]> {
   let Doc = KitReduce0Doc;
 }
 
 // Reduce the values in a contiguous 1D array using a given reduction function.
+// FIXME: We can probably remove this intrinsic now that tapir reduction loops
+// are lowered differently.
 def int_kit_reduce_1
     : KitIntrinsic<[],
                    [llvm_i32_ty,        // TTID

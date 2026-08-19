@@ -294,20 +294,25 @@ static bool checkReduceValueType(llvm::ReduceOp op, QualType argType) {
   switch (op) {
   case llvm::ReduceOp::Custom:
     llvm_unreachable("NOT YET IMPLEMENTED: checkReduceValue(ReduceOp::Custom)");
-  case llvm::ReduceOp::Sum:
-  case llvm::ReduceOp::Prod:
-  case llvm::ReduceOp::Max:
-  case llvm::ReduceOp::MaxLoc:
-  case llvm::ReduceOp::Min:
-  case llvm::ReduceOp::MinLoc:
+  case llvm::ReduceOp::Add:
+  case llvm::ReduceOp::FAdd:
+  case llvm::ReduceOp::Mul:
+  case llvm::ReduceOp::FMul:
+  case llvm::ReduceOp::SMax:
+  case llvm::ReduceOp::UMax:
+  case llvm::ReduceOp::FMax:
+  case llvm::ReduceOp::SMin:
+  case llvm::ReduceOp::UMin:
+  case llvm::ReduceOp::FMin:
     return !type->isBooleanType() && !type->isEnumeralType();
-  case llvm::ReduceOp::LAnd:
-  case llvm::ReduceOp::LOr:
-  case llvm::ReduceOp::LXor:
-    return type->isBooleanType();
-  case llvm::ReduceOp::BAnd:
-  case llvm::ReduceOp::BOr:
-  case llvm::ReduceOp::BXor:
+  case llvm::ReduceOp::FMaximum:
+  case llvm::ReduceOp::FMaximumNum:
+  case llvm::ReduceOp::FMinimum:
+  case llvm::ReduceOp::FMinimumNum:
+    return type->isFloatingType();
+  case llvm::ReduceOp::And:
+  case llvm::ReduceOp::Or:
+  case llvm::ReduceOp::Xor:
     return type->isIntegerType() && !type->isEnumeralType();
   }
   llvm_unreachable("checkReduceValueType: Reduction operator not handled");
@@ -329,8 +334,7 @@ bool SemaKitsune::checkReduceCall(CallExpr *theCall) {
     return false;
   }
 
-  if (*op == llvm::ReduceOp::Custom || *op == llvm::ReduceOp::MaxLoc ||
-      *op == llvm::ReduceOp::MinLoc) {
+  if (*op == llvm::ReduceOp::Custom) {
     Diag(loc, diag::err_kit_reduce_op_nyi) << toString(*op);
     return false;
   }
