@@ -548,22 +548,3 @@ def int_kit_reduce_0
                     NonNull<ArgIndex<6>>, ReadOnly<ArgIndex<6>>]> {
   let Doc = KitReduce0Doc;
 }
-
-// Reduce the values in a contiguous 1D array using a given reduction function.
-// FIXME: We can probably remove this intrinsic now that tapir reduction loops
-// are lowered differently.
-def int_kit_reduce_1
-    : KitIntrinsic<[],
-                   [llvm_i32_ty,        // TTID
-                    llvm_ptr_ty,        // Pointer to result
-                    llvm_i32_ty,        // sizeof(result)
-                    llvm_mobile_ptr_ty, // Pointer to 1D array to reduce
-                    llvm_i64_ty,        // The number of elements in the array
-                    llvm_any_ty,        // The unit value for the reducer
-                    llvm_ptr_ty,        // The reducer function
-                    llvm_vararg_ty],    // Additional reducer arguments
-                   [ImmArg<ArgIndex<0>>, NonNull<ArgIndex<1>>,
-                    ImmArg<ArgIndex<2>>, ReadOnly<ArgIndex<3>>,
-                    NonNull<ArgIndex<6>>, ReadOnly<ArgIndex<6>>]> {
-  let Doc = KitReduce1DDoc;
-}
