@@ -18,26 +18,31 @@ namespace {
 
 TEST(KitReductions, fromInt) {
   EXPECT_EQ(fromInt<ReduceOp>(0), ReduceOp::Custom);
-  EXPECT_EQ(fromInt<ReduceOp>(1), ReduceOp::BAnd);
-  EXPECT_EQ(fromInt<ReduceOp>(2), ReduceOp::BOr);
-  EXPECT_EQ(fromInt<ReduceOp>(3), ReduceOp::BXor);
-  EXPECT_EQ(fromInt<ReduceOp>(4), ReduceOp::LAnd);
-  EXPECT_EQ(fromInt<ReduceOp>(5), ReduceOp::LOr);
-  EXPECT_EQ(fromInt<ReduceOp>(6), ReduceOp::LXor);
-  EXPECT_EQ(fromInt<ReduceOp>(7), ReduceOp::Max);
-  EXPECT_EQ(fromInt<ReduceOp>(8), ReduceOp::MaxLoc);
-  EXPECT_EQ(fromInt<ReduceOp>(9), ReduceOp::Min);
-  EXPECT_EQ(fromInt<ReduceOp>(10), ReduceOp::MinLoc);
-  EXPECT_EQ(fromInt<ReduceOp>(11), ReduceOp::Prod);
-  EXPECT_EQ(fromInt<ReduceOp>(12), ReduceOp::Sum);
+  EXPECT_EQ(fromInt<ReduceOp>(1), ReduceOp::And);
+  EXPECT_EQ(fromInt<ReduceOp>(2), ReduceOp::Or);
+  EXPECT_EQ(fromInt<ReduceOp>(3), ReduceOp::Xor);
+  EXPECT_EQ(fromInt<ReduceOp>(5), ReduceOp::Add);
+  EXPECT_EQ(fromInt<ReduceOp>(6), ReduceOp::FAdd);
+  EXPECT_EQ(fromInt<ReduceOp>(7), ReduceOp::Mul);
+  EXPECT_EQ(fromInt<ReduceOp>(8), ReduceOp::FMul);
+  EXPECT_EQ(fromInt<ReduceOp>(16), ReduceOp::FMax);
+  EXPECT_EQ(fromInt<ReduceOp>(17), ReduceOp::FMaximum);
+  EXPECT_EQ(fromInt<ReduceOp>(18), ReduceOp::FMaximumNum);
+  EXPECT_EQ(fromInt<ReduceOp>(20), ReduceOp::FMin);
+  EXPECT_EQ(fromInt<ReduceOp>(21), ReduceOp::FMinimum);
+  EXPECT_EQ(fromInt<ReduceOp>(22), ReduceOp::FMinimumNum);
+  EXPECT_EQ(fromInt<ReduceOp>(24), ReduceOp::SMax);
+  EXPECT_EQ(fromInt<ReduceOp>(25), ReduceOp::SMin);
+  EXPECT_EQ(fromInt<ReduceOp>(26), ReduceOp::UMax);
+  EXPECT_EQ(fromInt<ReduceOp>(27), ReduceOp::UMin);
 
   EXPECT_FALSE(fromInt<ReduceOp>(-1).has_value());
-  EXPECT_FALSE(fromInt<ReduceOp>(13).has_value());
+  EXPECT_FALSE(fromInt<ReduceOp>(32).has_value());
 }
 
-TEST(KitReductions, getUnitBAnd) {
+TEST(KitReductions, getUnitAnd) {
   auto check = [](Type *ty) {
-    Constant *c = getUnitValueFor(ReduceOp::BAnd, ty);
+    Constant *c = getUnitValue(ReduceOp::And, ty);
 
     EXPECT_EQ(c->getType(), ty);
     EXPECT_TRUE(isa<ConstantInt>(c));
@@ -58,9 +63,9 @@ TEST(KitReductions, getUnitBAnd) {
   check(i64);
 }
 
-TEST(KitReductions, getUnitBOr) {
+TEST(KitReductions, getUnitOr) {
   auto check = [](Type *ty) {
-    Constant *c = getUnitValueFor(ReduceOp::BOr, ty);
+    Constant *c = getUnitValue(ReduceOp::Or, ty);
 
     EXPECT_EQ(c->getType(), ty);
     EXPECT_TRUE(isa<ConstantInt>(c));
@@ -81,9 +86,9 @@ TEST(KitReductions, getUnitBOr) {
   check(i64);
 }
 
-TEST(KitReductions, getUnitBXor) {
+TEST(KitReductions, getUnitXor) {
   auto check = [](Type *ty) {
-    Constant *c = getUnitValueFor(ReduceOp::BXor, ty);
+    Constant *c = getUnitValue(ReduceOp::Xor, ty);
 
     EXPECT_EQ(c->getType(), ty);
     EXPECT_TRUE(isa<ConstantInt>(c));
@@ -102,86 +107,33 @@ TEST(KitReductions, getUnitBXor) {
   check(i16);
   check(i32);
   check(i64);
-}
-
-TEST(KitReductions, getUnitLAnd) {
-  auto check = [](Type *ty) {
-    Constant *c = getUnitValueFor(ReduceOp::LAnd, ty);
-    EXPECT_EQ(c->getType(), ty);
-    EXPECT_TRUE(isa<ConstantInt>(c));
-    EXPECT_TRUE(cast<ConstantInt>(c)->isOne());
-  };
-
-  // In principle, this should be tested with any integer type, but the frontend
-  // will restrict the operands to LAnd to be booleans which are typically
-  // represented as i8.
-  LLVMContext ctx;
-  Type *i1 = Type::getInt1Ty(ctx);
-  Type *i8 = Type::getInt8Ty(ctx);
-
-  check(i1);
-  check(i8);
-}
-
-TEST(KitReductions, getUnitLOr) {
-  auto check = [](Type *ty) {
-    Constant *c = getUnitValueFor(ReduceOp::LOr, ty);
-    EXPECT_EQ(c->getType(), ty);
-    EXPECT_TRUE(isa<ConstantInt>(c));
-    EXPECT_TRUE(cast<ConstantInt>(c)->isZero());
-  };
-
-  // In principle, this should be tested with any integer type, but the frontend
-  // will restrict the operands to LAnd to be booleans which are typically
-  // represented as i8.
-  LLVMContext ctx;
-  Type *i1 = Type::getInt1Ty(ctx);
-  Type *i8 = Type::getInt8Ty(ctx);
-
-  check(i1);
-  check(i8);
-}
-
-TEST(KitReductions, getUnitLXor) {
-  auto check = [](Type *ty) {
-    Constant *c = getUnitValueFor(ReduceOp::LXor, ty);
-    EXPECT_EQ(c->getType(), ty);
-    EXPECT_TRUE(isa<ConstantInt>(c));
-    EXPECT_TRUE(cast<ConstantInt>(c)->isZero());
-  };
-
-  // In principle, this should be tested with any integer type, but the frontend
-  // will restrict the operands to LAnd to be booleans which are typically
-  // represented as i8.
-  LLVMContext ctx;
-  Type *i1 = Type::getInt1Ty(ctx);
-  Type *i8 = Type::getInt8Ty(ctx);
-
-  check(i1);
-  check(i8);
 }
 
 TEST(KitReductions, getUnitMax) {
-  auto checkInt = [](Type *ty, bool isSigned) {
-    Constant *c = getUnitValueFor(ReduceOp::Max, ty, isSigned);
-
-    EXPECT_EQ(c->getType(), ty);
-    EXPECT_TRUE(isa<ConstantInt>(c));
-    EXPECT_TRUE(cast<ConstantInt>(c)->isMinValue(isSigned));
+  auto checkInt = [](Constant *actual, Type *ty, bool isSigned) {
+    EXPECT_EQ(actual->getType(), ty);
+    EXPECT_TRUE(isa<ConstantInt>(actual));
+    EXPECT_TRUE(cast<ConstantInt>(actual)->isMinValue(isSigned));
   };
 
-  auto checkInts = [&](Type *ty) {
-    checkInt(ty, /*isSigned=*/false);
-    checkInt(ty, /*isSigned=*/true);
+  auto checkInts = [&checkInt](Type *ty) {
+    for (ReduceOp op : {ReduceOp::FMax, ReduceOp::FMaximum,
+                        ReduceOp::FMaximumNum, ReduceOp::SMax})
+      checkInt(getUnitValue(op, ty), ty, /*isSigned=*/true);
+    checkInt(getUnitValue(ReduceOp::UMax, ty), ty, /*isSigned=*/false);
   };
 
-  auto checkFP = [](Type *ty, APFloat expected) {
-    Constant *c = getUnitValueFor(ReduceOp::Max, ty);
-
-    EXPECT_EQ(c->getType(), ty);
-    EXPECT_TRUE(isa<ConstantFP>(c));
-    EXPECT_EQ(cast<ConstantFP>(c)->getValue().compare(expected),
+  auto checkFP = [](Constant *actual, Type *ty, APFloat expected) {
+    EXPECT_EQ(actual->getType(), ty);
+    EXPECT_TRUE(isa<ConstantFP>(actual));
+    EXPECT_EQ(cast<ConstantFP>(actual)->getValue().compare(expected),
               APFloat::cmpEqual);
+  };
+
+  auto checkFPs = [&checkFP](Type *ty, APFloat expected) {
+    for (ReduceOp op :
+         {ReduceOp::FMax, ReduceOp::FMaximum, ReduceOp::FMaximumNum})
+      checkFP(getUnitValue(op, ty), ty, expected);
   };
 
   LLVMContext ctx;
@@ -196,70 +148,35 @@ TEST(KitReductions, getUnitMax) {
   checkInts(i16);
   checkInts(i32);
   checkInts(i64);
-  checkFP(f32, APFloat(std::numeric_limits<float>::min()));
-  checkFP(f64, APFloat(std::numeric_limits<double>::min()));
-}
-
-TEST(KitReductions, getUnitMaxLoc) {
-  auto checkInt = [](Type *ty, bool isSigned) {
-    Constant *c = getUnitValueFor(ReduceOp::MaxLoc, ty, isSigned);
-
-    EXPECT_EQ(c->getType(), ty);
-    EXPECT_TRUE(isa<ConstantInt>(c));
-    EXPECT_TRUE(cast<ConstantInt>(c)->isMinValue(isSigned));
-  };
-
-  auto checkInts = [&](Type *ty) {
-    checkInt(ty, /*isSigned=*/false);
-    checkInt(ty, /*isSigned=*/true);
-  };
-
-  auto checkFP = [](Type *ty, APFloat expected) {
-    Constant *c = getUnitValueFor(ReduceOp::MaxLoc, ty);
-
-    EXPECT_EQ(c->getType(), ty);
-    EXPECT_TRUE(isa<ConstantFP>(c));
-    EXPECT_EQ(cast<ConstantFP>(c)->getValue().compare(expected),
-              APFloat::cmpEqual);
-  };
-
-  LLVMContext ctx;
-  Type *i8 = Type::getInt8Ty(ctx);
-  Type *i16 = Type::getInt16Ty(ctx);
-  Type *i32 = Type::getInt32Ty(ctx);
-  Type *i64 = Type::getInt64Ty(ctx);
-  Type *f32 = Type::getFloatTy(ctx);
-  Type *f64 = Type::getDoubleTy(ctx);
-
-  checkInts(i8);
-  checkInts(i16);
-  checkInts(i32);
-  checkInts(i64);
-  checkFP(f32, APFloat(std::numeric_limits<float>::min()));
-  checkFP(f64, APFloat(std::numeric_limits<double>::min()));
+  checkFPs(f32, APFloat(std::numeric_limits<float>::min()));
+  checkFPs(f64, APFloat(std::numeric_limits<double>::min()));
 }
 
 TEST(KitReductions, getUnitMin) {
-  auto checkInt = [](Type *ty, bool isSigned) {
-    Constant *c = getUnitValueFor(ReduceOp::Min, ty, isSigned);
-
-    EXPECT_EQ(c->getType(), ty);
-    EXPECT_TRUE(isa<ConstantInt>(c));
-    EXPECT_TRUE(cast<ConstantInt>(c)->isMaxValue(isSigned));
+  auto checkInt = [](Constant *actual, Type *ty, bool isSigned) {
+    EXPECT_EQ(actual->getType(), ty);
+    EXPECT_TRUE(isa<ConstantInt>(actual));
+    EXPECT_TRUE(cast<ConstantInt>(actual)->isMaxValue(isSigned));
   };
 
-  auto checkInts = [&](Type *ty) {
-    checkInt(ty, /*isSigned=*/false);
-    checkInt(ty, /*isSigned=*/true);
+  auto checkInts = [&checkInt](Type *ty) {
+    for (ReduceOp op : {ReduceOp::FMin, ReduceOp::FMinimum,
+                        ReduceOp::FMinimumNum, ReduceOp::SMin})
+      checkInt(getUnitValue(op, ty), ty, /*isSigned=*/true);
+    checkInt(getUnitValue(ReduceOp::UMin, ty), ty, /*isSigned=*/false);
   };
 
-  auto checkFP = [](Type *ty, APFloat expected) {
-    Constant *c = getUnitValueFor(ReduceOp::Min, ty);
-
-    EXPECT_EQ(c->getType(), ty);
-    EXPECT_TRUE(isa<ConstantFP>(c));
-    EXPECT_EQ(cast<ConstantFP>(c)->getValue().compare(expected),
+  auto checkFP = [](Constant *actual, Type *ty, APFloat expected) {
+    EXPECT_EQ(actual->getType(), ty);
+    EXPECT_TRUE(isa<ConstantFP>(actual));
+    EXPECT_EQ(cast<ConstantFP>(actual)->getValue().compare(expected),
               APFloat::cmpEqual);
+  };
+
+  auto checkFPs = [&checkFP](Type *ty, APFloat expected) {
+    for (ReduceOp op :
+         {ReduceOp::FMin, ReduceOp::FMinimum, ReduceOp::FMinimumNum})
+      checkFP(getUnitValue(op, ty), ty, expected);
   };
 
   LLVMContext ctx;
@@ -274,52 +191,13 @@ TEST(KitReductions, getUnitMin) {
   checkInts(i16);
   checkInts(i32);
   checkInts(i64);
-  checkFP(f32, APFloat(std::numeric_limits<float>::max()));
-  checkFP(f64, APFloat(std::numeric_limits<double>::max()));
+  checkFPs(f32, APFloat(std::numeric_limits<float>::max()));
+  checkFPs(f64, APFloat(std::numeric_limits<double>::max()));
 }
 
-TEST(KitReductions, getUnitMinLoc) {
+TEST(KitReductions, getUnitMul) {
   auto checkInt = [](Type *ty, bool isSigned) {
-    Constant *c = getUnitValueFor(ReduceOp::MinLoc, ty, isSigned);
-
-    EXPECT_EQ(c->getType(), ty);
-    EXPECT_TRUE(isa<ConstantInt>(c));
-    EXPECT_TRUE(cast<ConstantInt>(c)->isMaxValue(isSigned));
-  };
-
-  auto checkInts = [&](Type *ty) {
-    checkInt(ty, /*isSigned=*/false);
-    checkInt(ty, /*isSigned=*/true);
-  };
-
-  auto checkFP = [](Type *ty, APFloat expected) {
-    Constant *c = getUnitValueFor(ReduceOp::MinLoc, ty);
-
-    EXPECT_EQ(c->getType(), ty);
-    EXPECT_TRUE(isa<ConstantFP>(c));
-    EXPECT_EQ(cast<ConstantFP>(c)->getValue().compare(expected),
-              APFloat::cmpEqual);
-  };
-
-  LLVMContext ctx;
-  Type *i8 = Type::getInt8Ty(ctx);
-  Type *i16 = Type::getInt16Ty(ctx);
-  Type *i32 = Type::getInt32Ty(ctx);
-  Type *i64 = Type::getInt64Ty(ctx);
-  Type *f32 = Type::getFloatTy(ctx);
-  Type *f64 = Type::getDoubleTy(ctx);
-
-  checkInts(i8);
-  checkInts(i16);
-  checkInts(i32);
-  checkInts(i64);
-  checkFP(f32, APFloat(std::numeric_limits<float>::max()));
-  checkFP(f64, APFloat(std::numeric_limits<double>::max()));
-}
-
-TEST(KitReductions, getUnitProd) {
-  auto checkInt = [](Type *ty, bool isSigned) {
-    Constant *c = getUnitValueFor(ReduceOp::Prod, ty, isSigned);
+    Constant *c = getUnitValue(ReduceOp::Mul, ty);
 
     EXPECT_EQ(c->getType(), ty);
     EXPECT_TRUE(isa<ConstantInt>(c));
@@ -332,7 +210,7 @@ TEST(KitReductions, getUnitProd) {
   };
 
   auto checkFP = [](Type *ty) {
-    Constant *c = getUnitValueFor(ReduceOp::Prod, ty);
+    Constant *c = getUnitValue(ReduceOp::FMul, ty);
 
     EXPECT_EQ(c->getType(), ty);
     EXPECT_TRUE(isa<ConstantFP>(c));
@@ -358,9 +236,9 @@ TEST(KitReductions, getUnitProd) {
   checkFP(f64);
 }
 
-TEST(KitReductions, getUnitSum) {
+TEST(KitReductions, getUnitAdd) {
   auto checkInt = [](Type *ty, bool isSigned) {
-    Constant *c = getUnitValueFor(ReduceOp::Sum, ty, isSigned);
+    Constant *c = getUnitValue(ReduceOp::Add, ty);
 
     EXPECT_EQ(c->getType(), ty);
     EXPECT_TRUE(isa<ConstantInt>(c));
@@ -373,7 +251,7 @@ TEST(KitReductions, getUnitSum) {
   };
 
   auto checkFP = [](Type *ty) {
-    Constant *c = getUnitValueFor(ReduceOp::Sum, ty);
+    Constant *c = getUnitValue(ReduceOp::FAdd, ty);
 
     EXPECT_EQ(c->getType(), ty);
     EXPECT_TRUE(isa<ConstantFP>(c));

@@ -82,19 +82,26 @@ EXTERN_C inline void kitsune_mobile_free(void *ptr) { free(ptr); }
 // Everything here is available both when using Kitsune compiler drivers and
 // other compilers.
 
+// The integer values for these should not be changed. It can result in a
+// compiler crash at best, but silent miscompilation at worst. Some integer
+// values have deliberately not been used in case we want to add a "related"
+// reduction operation in the future (for example, 4 could be used for a bitwise
+// NAND). These also roughly correspond to the integer values of corresponding
+// members of the ReduceOp enum, but that is only for convenience. There will
+// likely never be a one-to-one correspondence between these and the ReduceOp
+// members.
 #define KIT_CUSTOM 0
-#define KIT_BAND 1U
-#define KIT_BOR 2U
-#define KIT_BXOR 3U
-#define KIT_LAND 4U
-#define KIT_LOR 5U
-#define KIT_LXOR 6U
-#define KIT_MAX 7U
-#define KIT_MAXLOC 8U
-#define KIT_MIN 9U
-#define KIT_MINLOC 10U
-#define KIT_PROD 11U
-#define KIT_SUM 12U
+#define KIT_AND 1U
+#define KIT_OR 2U
+#define KIT_XOR 3U
+#define KIT_ADD 5U
+#define KIT_MUL 7U
+#define KIT_MAX 16U
+#define KIT_MAXIMUM 17U
+#define KIT_MAXIMUM_NUM 18U
+#define KIT_MIN 20U
+#define KIT_MINIMUM 21U
+#define KIT_MINIMUM_NUM 22U
 
 #ifdef __cplusplus
 

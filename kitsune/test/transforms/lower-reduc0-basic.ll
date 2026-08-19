@@ -13,7 +13,7 @@ declare void @sum(ptr %res, double %v)
 ; CHECK-NEXT: call void @sum(ptr %[[RES]], double %[[V]])
 define void @fsum(double %v) {
   %res = alloca double
-  call void(i32, ptr, i32, double, double, ptr, ...) @llvm.kit.reduce.0(i32 1, ptr %res, i32 8, double %v, double 0.0, ptr @sum)
+  call void(i32, i32, ptr, i32, double, double, ptr, ...) @llvm.kit.reduce.0(i32 1, i32 6, ptr %res, i32 8, double %v, double 0.0, ptr @sum)
   ret void
 }
 
@@ -25,7 +25,7 @@ declare void @mul(ptr %res, i32 %v)
 ; CHECK-NEXT: call void @mul(ptr %[[RES]], i32 %[[V]])
 define void @fmul(i32 %v) {
   %res = alloca i32
-  call void(i32, ptr, i32, i32, i32, ptr, ...) @llvm.kit.reduce.0(i32 1, ptr %res, i32 4, i32 %v, i32 1, ptr @mul)
+  call void(i32, i32, ptr, i32, i32, i32, ptr, ...) @llvm.kit.reduce.0(i32 1, i32 7, ptr %res, i32 4, i32 %v, i32 1, ptr @mul)
   ret void
 }
 
@@ -38,7 +38,7 @@ declare void @custom(ptr %res, ptr %obj, ptr %class, i64 %more)
 ; CHECK-SAME: i64 %[[MORE:[^)]+]]
 ; CHECK-NEXT: call void @custom(ptr %[[RES]], ptr %[[OBJ]], ptr %[[CLASS]], i64 %[[MORE]])
 define void @fcustom(ptr %res, ptr %obj, ptr %class, i64 %more) {
-  call void (i32, ptr, i32, ptr, ptr, ptr, ...) @llvm.kit.reduce.0(i32 1, ptr %res, i32 64, ptr %obj, ptr null, ptr @custom, ptr %class, i64 %more)
+  call void (i32, i32, ptr, i32, ptr, ptr, ptr, ...) @llvm.kit.reduce.0(i32 1, i32 0, ptr %res, i32 64, ptr %obj, ptr null, ptr @custom, ptr %class, i64 %more)
   ret void
 }
 
@@ -49,7 +49,7 @@ define void @fcustom(ptr %res, ptr %obj, ptr %class, i64 %more) {
 ; CHECK-NEXT: call void %[[REDUCER]](ptr %[[RES]], double %[[V]])
 define void @ext(double %v, ptr %reducer) {
   %res = alloca double
-  call void(i32, ptr, i32, double, double, ptr, ...) @llvm.kit.reduce.0(i32 1, ptr %res, i32 8, double %v, double 0.0, ptr %reducer)
+  call void(i32, i32, ptr, i32, double, double, ptr, ...) @llvm.kit.reduce.0(i32 1, i32 0, ptr %res, i32 8, double %v, double 0.0, ptr %reducer)
   ret void
 }
 
@@ -62,6 +62,6 @@ define void @ext(double %v, ptr %reducer) {
 ; CHECK-NEXT: call void %[[REDUCER]](ptr %[[RES]], float %[[V]], ptr %[[CLASS]], i8 %[[MORE]])
 define void @ext_vararg(float %v, ptr %reducer, ptr %class, i8 %more) {
   %res = alloca float
-  call void(i32, ptr, i32, float, float, ptr, ...) @llvm.kit.reduce.0(i32 1, ptr %res, i32 8, float %v, float 0.0, ptr %reducer, ptr %class, i8 %more)
+  call void(i32, i32, ptr, i32, float, float, ptr, ...) @llvm.kit.reduce.0(i32 1, i32 0, ptr %res, i32 8, float %v, float 0.0, ptr %reducer, ptr %class, i8 %more)
   ret void
 }
