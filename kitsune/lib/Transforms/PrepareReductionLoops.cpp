@@ -170,10 +170,7 @@ private:
   void reducePartialIntoFinal(Loop &loop, Value *partial,
                               const ReductionInfo &info);
   void updateOuterLoopIV(Loop &outerLoop, Value *numPartials);
-  void updateInnerLoopIVCPU(Loop &outerLoop, Loop &innerLoop,
-                            Value *numPartials);
-  void updateInnerLoopIVGPU(Loop &outerLoop, Loop &innerLoop,
-                            Value *numPartials);
+  void updateInnerLoopIV(Loop &outerLoop, Loop &innerLoop, Value *numPartials);
   void updateInnerLoopGuardCondition(Loop &innerLoop, Value *numPartials);
   void parallelizeOuterLoop(Loop &outerLoop, Loop &loop);
   void serializeInnerLoop(Loop &loop);
@@ -239,18 +236,14 @@ PrepareReductionLoopCPU::computeNumPartialReductions(Loop &outerLoop,
       dbgs() << "PrepareReductionCPU: Compute number of partial reductions\n");
   sanityCheck(outerLoop, innerLoop);
 
-  BasicBlock &bb = *outerLoop.getLoopPreheader();
-  LLVMContext &ctx = bb.getContext();
-
+  LLVMContext &ctx = getContext(innerLoop);
   TTID tt = *getTargetAttr(innerLoop);
-  Intrinsic::ID numPartialsFunc = isGPUTT(tt)
-                                      ? Intrinsic::kit_gpu_num_compute_units
-                                      : Intrinsic::kit_cpu_num_threads;
   Constant *ctt = toConstant(tt, ctx);
 
+  BasicBlock &bb = *outerLoop.getLoopPreheader();
   IRBuilder<> builder(bb.getTerminator());
   Value *numPartials =
-      builder.CreateIntrinsic(numPartialsFunc, {ctt},
+      builder.CreateIntrinsic(Intrinsic::kit_cpu_num_threads, {ctt},
                               /*FMFSource=*/{}, "prduc.num.partials");
 
   return numPartials;
@@ -396,7 +389,7 @@ void PrepareReductionLoopCPU::updateOuterLoopIV(Loop &outerLoop,
 //
 // This function only changes the lower bound, upper bound and step of the
 // inner loop.
-void PrepareReductionLoopCPU::updateInnerLoopIVCPU(Loop &outerLoop,
+void PrepareReductionLoopCPU::updateInnerLoopIV(Loop &outerLoop,
                                                    Loop &innerLoop,
                                                    Value *numPartials) {
   auto sanityCheck = [](const Loop &outerLoop, const Loop &innerLoop,
@@ -454,98 +447,6 @@ void PrepareReductionLoopCPU::updateInnerLoopIVCPU(Loop &outerLoop,
 
 #ifndef NDEBUG
   dt.verify();
-  se.verify();
-#endif // NDEBUG
-}
-
-// For GPU's, a reduction loop of the form:
-//
-//     parallel_for (int i = 0; i < n; ++i)
-//         a += ...
-//
-// is transformed into
-//
-//     parallel_for (int j = 0; j < numPartials; ++j)
-//         for (int i = j; i < n; i += numPartials)
-//             partials[j] += ...
-//
-// This function only changes the lower bound, upper bound and step of the
-// inner loop.
-void PrepareReductionLoopCPU::updateInnerLoopIVGPU(Loop &outerLoop,
-                                                   Loop &innerLoop,
-                                                   Value *numPartials) {
-  auto sanityCheck = [](const Loop &outerLoop, const Loop &innerLoop,
-                        ScalarEvolution &se) {
-    assert(outerLoop.getInductionVariable(se) &&
-           "Outer loop must have an induction variable");
-    assert(innerLoop.isLoopSimplifyForm() &&
-           "Inner loop must be in loop-simplify form");
-    assert(innerLoop.getCanonicalInductionVariable() &&
-           "Inner loop must have a canonical induction variable");
-    assert(innerLoop.getBounds(se).has_value() &&
-           "Inner loop must have computable loop bounds");
-
-    CmpInst *cmp = innerLoop.getLatchCmpInst();
-    assert(cmp && "Inner loop must have a unique latch compare instruction");
-    assert(cmp->getPredicate() == ICmpInst::ICMP_EQ &&
-           "Expected inner loop comparison to be EQ");
-
-    BasicBlock *latch = innerLoop.getLoopLatch();
-    BranchInst *br = dyn_cast<BranchInst>(latch->getTerminator());
-    assert(br && "Inner loop latch terminator must be a branch instruction");
-    assert(br->getSuccessor(1) == innerLoop.getHeader() &&
-           "Second successor of inner loop latch must be loop header");
-  };
-
-  LLVM_DEBUG(
-      dbgs()
-      << "PrepareReductionCPU: Update inner loop induction variable (GPU)\n");
-  sanityCheck(outerLoop, innerLoop, se);
-
-  PHINode *outerIV = outerLoop.getInductionVariable(se);
-
-  BasicBlock *innerPh = innerLoop.getLoopPreheader();
-  PHINode *innerIV = innerLoop.getCanonicalInductionVariable();
-  Instruction *innerStep = &innerLoop.getBounds(se)->getStepInst();
-  ICmpInst *innerCmp = innerLoop.getLatchCmpInst();
-
-  innerIV->setIncomingValueForBlock(innerPh, outerIV);
-  replaceNonMatchingOperands(*innerStep, innerIV, numPartials);
-
-  // The predicate of the compare instruction typically checks if the value of
-  // loop induction variable is equal to the trip count and exits if it is. This
-  // works because the primary loop induction variable is canonical. However,
-  // since the inner loop may now have a non-unit step, it may go past the trip
-  // count.
-  //
-  // The sanity check has already ensured that the false branch is the backedge
-  // and the predicate is EQ. If the LHS of the comparison operand is the inner
-  // step, then the comparison is effectively:
-  //
-  //     if (i + 1 == N) goto EXIT else goto HEADER
-  //
-  // We can then replace it with
-  //
-  //     if (i + 1 >= N) goto EXIT else goto HEADER
-  //
-  // Otherwise, the comparison and the replacements are as shown below
-  //
-  //     if (N == i + 1) goto EXIT else goto HEADER
-  //     if (N <= i + 1) goto EXIT else goto HEADER
-  //
-  if (innerCmp->getOperand(0) == innerStep)
-    innerCmp->setPredicate(ICmpInst::ICMP_UGE);
-  else
-    innerCmp->setPredicate(ICmpInst::ICMP_ULE);
-
-  se.forgetValue(innerIV);
-  se.forgetValue(innerStep);
-  se.forgetValue(innerCmp);
-  se.forgetLoop(&innerLoop);
-
-#ifndef NDEBUG
-  dt.verify();
-  li.verify(dt);
   se.verify();
 #endif // NDEBUG
 }
@@ -728,12 +629,7 @@ bool PrepareReductionLoopCPU::run(
   // value, final value and step of the IV, but should not change the IV itself.
   // We do this late to minimize the analyses that need to be recomputed
   updateOuterLoopIV(*outerLoop, numPartials);
-
-  TTID tt = *getTargetAttr(loop);
-  if (isGPUTT(tt))
-    updateInnerLoopIVGPU(*outerLoop, loop, numPartials);
-  else
-    updateInnerLoopIVCPU(*outerLoop, loop, numPartials);
+  updateInnerLoopIV(*outerLoop, loop, numPartials);
   updateInnerLoopGuardCondition(loop, numPartials);
 
   // The outer loop is serial and the inner is parallel. But it needs to be the
