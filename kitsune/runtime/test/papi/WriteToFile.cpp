@@ -83,7 +83,7 @@
 
 CTOR(RT_PAPI | RT_OPENMP)
 
-static void thrdFn(uint64_t start, uint64_t stop, void *args) {
+static void thrdFn(uint64_t start, void *args) {
   KitPAPIEpoch *e =
       __kitpapi_start("mercedes", __kitomp_thread_id(), 2, "ins", "cyc");
   __kitpapi_stop(e);

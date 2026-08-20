@@ -159,7 +159,7 @@ static void staticLoopWrapper(int32_t *globalTID, int32_t *localTID,
 
   // Since each thread must run exactly one iteration, we can just use the
   // thread id to specify the range.
-  f(*localTID, *localTID + 1, args);
+  f(*localTID, args);
 }
 
 void OpenMPContext::launch(OMPThrdFunc *f, uint64_t start, uint64_t end,

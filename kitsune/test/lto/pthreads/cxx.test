@@ -31,5 +31,4 @@
 #
 # CHECK: define internal fastcc void @[[WRAPPER]](
 # CHECK-SAME: i64 {{[^%]*}}%[[BEG:[^,]+]],
-# CHECK-SAME: i64 {{[^%]*}}%[[END:[^,]+]],
 # CHECK-SAME: ptr {{[^%]*}}%[[ARGS:[^)]+]])

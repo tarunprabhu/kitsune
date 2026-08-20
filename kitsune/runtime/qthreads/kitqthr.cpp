@@ -118,7 +118,7 @@ static unsigned long launchOnThread(QthreadArgs *thrdArgs) {
   int64_t tid = thrdArgs->tid;
   void *args = thrdArgs->args;
 
-  f(tid, tid + 1, args);
+  f(tid, args);
 
   // We don't perform a reduction with the qt_sinc_t object, so pass nullptr as
   // the "value"
@@ -138,7 +138,7 @@ void QthreadsContext::launch(QthrThrdFunc *f, uint64_t start, uint64_t end,
 
   // If only a single worker is available, take the quick way out.
   if (numThrds == 1) {
-    f(0, 1, args);
+    f(0, args);
     return;
   }
 
