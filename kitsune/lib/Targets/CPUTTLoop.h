@@ -37,30 +37,34 @@ protected:
   CPUTTLoopProcessor(TTID tt, const TTOptions &opts, bool asynLaunch,
                      Module &m);
 
-  /// Generate a wrapper for the function \p outlined. \p outlined is obtained
-  /// by outlining the body of a tapir loop. \p outlined is assumed to have the
-  /// signature:
+  /// Generate a wrapper for the function \p outlined. This wrapper is what will
+  /// actually be launched by the CPU-centric runtime on each thread.
   ///
-  ///     void(i64 %beg, i64 %end, %args...)
+  /// \p outlined is obtained by outlining the body of a tapir loop. It will
+  /// have the signature:
+  ///
+  ///     void(i64 %beg, i64 %end, ...)
   ///
   /// Here %beg, and %end are the range of iterations that the function operates
-  /// on. %args... is a variadic list of arguments that consist of the entities
-  /// used by the tapir loop from which \p outlined was obtained.
+  /// on. This is followed by some number of arguments, each of which is a value
+  /// entities used in the tapir loop outlined into \p outlined.
   ///
-  /// The wrapper will have the signature
+  /// The wrapper, on the other hand, will have the signature:
   ///
-  ///     void(i64 %beg i64 %end, ptr %args)
+  ///     void(i64 %beg, ptr %args)
   ///
-  /// Here, %args is expected to be a struct. Each element of the struct is an
-  /// argument to be passed to \p outlined. The body of the generated wrapper
-  /// function will be roughly as follows:
+  /// Here, %args is expected to be a pointer to a struct, each element of which
+  /// will be a value that will be passed to the list of variadic arguments in
+  /// the outlined function. The body of the generated wrapper function will be
+  /// roughly as follows:
   ///
-  ///     void @wrapper(i64 %beg, i64 %end, ptr %args) {
+  ///     void @wrapper(i64 %beg, ptr %args) {
   ///     entry:
+  ///         %end = add i64 %beg + 1
   ///         %0 = getelementptr %bundleTy, ptr %args, i32 0, i32 0
   ///         %arg0 = load <ty0>, ptr %0
   ///         %1 = getelementptr %bundleTy, ptr %args, i32 0, i32 1
-  ///         %arg0 = load <ty0>, ptr %0
+  ///         %arg1 = load <ty1>, ptr %0
   ///         ...
   ///         <body of outlined function>
   ///         br label %exit
@@ -69,9 +73,9 @@ protected:
   ///         ret void
   ///     }
   ///
-  /// Here, %bundleTy is a struct with each element of the struct corresponding
-  /// to an argument in %args... expected by \p outlined. Note that \p outlined
-  /// is inlined into the generated wrapper function.
+  /// Note that \p outlined is inlined into the generated wrapper function. The
+  /// wrapper also does not have a %end argument because the end is expected to
+  /// be `%beg + 1`.
   Function *genWrapperFor(Function &outlined);
 
 public:

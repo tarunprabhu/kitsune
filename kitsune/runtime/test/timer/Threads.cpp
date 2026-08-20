@@ -56,7 +56,7 @@
 
 CTOR(RT_TIMER | RT_OPENMP)
 
-static void thrdFn(uint64_t start, uint64_t end, void *args) {
+static void thrdFn(uint64_t start, void *args) {
   KitTimerEpoch *e = __kittimer_start("thrd", __kitomp_thread_id());
   __kittimer_stop(e);
 }
