@@ -169,7 +169,6 @@ private:
   void reduceIntoPartial(Loop &loop, Value *partial, const ReductionInfo &info);
   void reducePartialIntoFinal(Loop &loop, Value *partial,
                               const ReductionInfo &info);
-  void freePartial(Loop &innerLoop, Value *partial);
   void updateOuterLoopIV(Loop &outerLoop, Value *numPartials);
   void updateInnerLoopIVCPU(Loop &outerLoop, Loop &innerLoop,
                             Value *numPartials);
@@ -263,24 +262,30 @@ PrepareReductionLoopCPU::computeNumPartialReductions(Loop &outerLoop,
 Value *PrepareReductionLoopCPU::allocPartial(Loop &innerLoop,
                                              const ReductionInfo &info) {
   auto sanityCheck = [](const Loop &innerLoop) -> void {
-    assert(hasTargetAttr(innerLoop) &&
-           "Loop must have tapir.loop.target attribute");
+    assert(innerLoop.getLoopPreheader() && "Inner loop must have a preheader");
   };
 
   LLVM_DEBUG(dbgs() << "PrepareReductionCPU: Allocate buffer for partial\n");
   sanityCheck(innerLoop);
 
-  TTID tt = *getTargetAttr(innerLoop);
   Value *unit = info.unit;
   Value *elemSize = info.elemSize;
 
   BasicBlock &bb = *innerLoop.getLoopPreheader();
   LLVMContext &ctx = bb.getContext();
-  Type *i64 = Type::getInt64Ty(ctx);
+  Type *i8 = Type::getInt8Ty(ctx);
+  ArrayType *partialTy =
+      ArrayType::get(i8, *fromConstant<unsigned>(*cast<ConstantInt>(elemSize)));
 
-  IRBuilder builder(bb.getTerminator());
-  Value *sz64 = builder.CreateIntCast(elemSize, i64, /*isSigned=*/true);
-  Value *partial = createCPUMalloc(builder, tt, sz64);
+  // We cannot, in general, get the type of the value being reduced from either
+  // the type of the unit value, or the value being reduced. One or both of
+  // these may be "passed by reference" - particularly in the case of custom
+  // reductions on objects. In this case, we cannot know the type of the
+  // underlying object being reduced since the pointers are opaque. Since the
+  // element size is explicitly passed to this intrinsic, we alloca that many
+  // bytes.
+  IRBuilder<> builder(bb.getTerminator());
+  Value *partial = builder.CreateAlloca(partialTy, nullptr, "reduc.partial");
   builder.CreateStore(unit, partial);
 
   return partial;
@@ -331,26 +336,6 @@ void PrepareReductionLoopCPU::reducePartialIntoFinal(
 
   Value *v = builder.CreateLoad(elemType, partial);
   builder.CreateAtomicRMW(*atomicOp, dest, v, align, AtomicOrdering::Monotonic);
-}
-
-// Free the buffer allocated for the partial reduction.
-void PrepareReductionLoopCPU::freePartial(Loop &innerLoop, Value *partial) {
-  auto sanityCheck = [](const Loop &innerLoop) -> void {
-    assert(hasTargetAttr(innerLoop) &&
-           "Loop must have tapir.loop.target attribute");
-  };
-
-  LLVM_DEBUG(dbgs() << "PrepareReductionCPU: Free partial buffer\n");
-  sanityCheck(innerLoop);
-
-  LLVMContext &ctx = getContext(innerLoop);
-  TTID tt = *getTargetAttr(innerLoop);
-  Constant *ctt = toConstant(tt, ctx);
-
-  BasicBlock &bb = *getExitBlockFromLatch(innerLoop);
-  IRBuilder<> builder(bb.getTerminator());
-
-  builder.CreateIntrinsic(Intrinsic::kit_cpu_free, {ctt, partial});
 }
 
 // When the outer loop was generated, the induction variable was canonical and
@@ -729,16 +714,13 @@ bool PrepareReductionLoopCPU::run(
   // to the trip count, it may be safer to leave them as canonical until we have
   // finished all the other transformations.
 
-  // This inserts code for the allocation, initialization, use and deallocation
-  // of the partial reduction buffers. Most of these only involve inserting
-  // calls to Kitsune-specific intrinsic and other relatively simple
-  // instructions to dedicated basic blocks.
+  // This inserts code for the allocation, initialization, and use of the
+  // partial reduction buffers.
   Value *numPartials = computeNumPartialReductions(*outerLoop, loop);
   for (const ReductionInfo &reduction : reductions) {
     Value *partial = allocPartial(loop, reduction);
     reduceIntoPartial(loop, partial, reduction);
     reducePartialIntoFinal(loop, partial, reduction);
-    freePartial(loop, partial);
   }
 
   // Now that everything else has been changed, we can fix up the induction

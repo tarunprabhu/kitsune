@@ -27,10 +27,10 @@
 ; CHECK: %[[IV_O:.+]] = phi i64
 ; CHECK-NEXT: detach within
 ;
-; CHECK: %[[LOCAL1:.+]] = tail call noalias ptr @llvm.kit.cpu.malloc(i32 1024, i64 8)
-; CHECK: %[[LOCAL2:.+]] = tail call noalias ptr @llvm.kit.cpu.malloc(i32 1024, i64 8)
-; CHECK: %[[LOCAL3:.+]] = tail call noalias ptr @llvm.kit.cpu.malloc(i32 1024, i64 4)
-; CHECK: %[[LOCAL4:.+]] = tail call noalias ptr @llvm.kit.cpu.malloc(i32 1024, i64 4)
+; CHECK: %[[LOCAL1:.+]] = alloca [8 x i8]
+; CHECK: %[[LOCAL2:.+]] = alloca [8 x i8]
+; CHECK: %[[LOCAL3:.+]] = alloca [4 x i8]
+; CHECK: %[[LOCAL4:.+]] = alloca [4 x i8]
 ;
 ; CHECK: %[[IV_I:.+]] = phi i64
 ; CHECK: %[[J32:.+]] = trunc i64 %[[IV_I]] to i32
@@ -49,19 +49,15 @@
 ;
 ; CHECK: %[[PARTIAL1:.+]] = load i64, ptr %[[LOCAL1]]
 ; CHECK-NEXT: atomicrmw add ptr %[[R1]], i64 %[[PARTIAL1]] monotonic
-; CHECK-NEXT: call void @llvm.kit.cpu.free(i32 1024, ptr %[[LOCAL1]])
 ;
 ; CHECK-NEXT: %[[PARTIAL2:.+]] = load i64, ptr %[[LOCAL2]]
 ; CHECK-NEXT: atomicrmw and ptr %[[R2]], i64 %[[PARTIAL2]] monotonic
-; CHECK-NEXT: call void @llvm.kit.cpu.free(i32 1024, ptr %[[LOCAL2]])
 ;
 ; CHECK-NEXT: %[[PARTIAL3:.+]] = load i32, ptr %[[LOCAL3]]
 ; CHECK-NEXT: atomicrmw and ptr %[[R3]], i32 %[[PARTIAL3]] monotonic
-; CHECK-NEXT: call void @llvm.kit.cpu.free(i32 1024, ptr %[[LOCAL3]])
 ;
 ; CHECK-NEXT: %[[PARTIAL4:.+]] = load i32, ptr %[[LOCAL4]]
 ; CHECK-NEXT: atomicrmw add ptr %[[R4]], i32 %[[PARTIAL4]] monotonic
-; CHECK-NEXT: call void @llvm.kit.cpu.free(i32 1024, ptr %[[LOCAL4]])
 
 declare void @sum.i64(ptr %res, i64 %v)
 
