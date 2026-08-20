@@ -4,80 +4,38 @@
 ;
 ; CHECK-LABEL: @f
 ; CHECK-SAME: i64 %[[N:[^)]+]]
+; CHECK: [[ENTRY:.+]]:
 ; CHECK: %[[RESULT:.+]] = alloca i64
 ; CHECK: %[[SYNCREG:.+]] = tail call token @llvm.syncregion.start()
-; CHECK-NEXT: br label %[[PH_O:.+]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[PH_O]]:
-; CHECK-NEXT: %[[NREDS:.+]] = call i64 @llvm.kit.gpu.num.compute.units(i32 2)
-; CHECK-NEXT: br label %[[HEADER_O:.+]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[HEADER_O]]:
-; CHECK-NEXT: %[[IV_O:.+]] = phi i64
-; CHECK-SAME: [ 0, %[[PH_O]] ],
-; CHECK-SAME: [ %[[INC_O:.+]], %[[LATCH_O:.+]] ]
-; CHECK-NEXT: detach within %[[SYNCREG]], label %[[GUARD_I:.+]], label %[[LATCH_O:.+]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[GUARD_I]]:
-; CHECK-NEXT: %[[CMP_GUARD:.+]] = icmp uge {{.+}} %[[IV_O]], %[[N]]
-; CHECK-NEXT: br i1 %[[CMP_GUARD]], label %[[END_I:.+]], label %[[PH_I:.+]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[PH_I]]:
 ; CHECK-NEXT: %[[LOCAL:.+]] = tail call noalias ptr @llvm.kit.gpu.malloc(i32 2, i64 8)
 ; CHECK-NEXT: store i64 0, ptr %[[LOCAL]]
-; CHECK-NEXT: br label %[[HEADER_I:.+]]
+; CHECK-NEXT: br label %[[HEADER:.+]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[HEADER_I]]:
-; CHECK-NEXT: %[[IV_I:.+]] = phi i64
-; CHECK-SAME: [ %[[IV_O]], %[[PH_I]] ]
-; CHECK-SAME: [ %[[INC_I:.+]], %[[LATCH_I:.+]] ]
-; CHECK-NEXT: br label %[[BODY_I:.+]]
+; CHECK-NEXT: [[HEADER]]:
+; CHECK-NEXT: %[[IV:.+]] = phi i64
+; CHECK-SAME: [ 0, %[[ENTRY]] ],
+; CHECK-SAME: [ %[[INC:.+]], %[[LATCH:.+]] ]
+; CHECK-NEXT: detach within %[[SYNCREG]], label %[[BODY:.+]], label %[[LATCH]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[BODY_I]]:
-; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{.*}}(
-; CHECK-SAME: i32 2,
-; CHECK-SAME: ptr %[[LOCAL]],
-; CHECK-SAME: i32 8,
-; CHECK-SAME: i64 %[[IV_I]],
-; CHECK-SAME: i64 0,
-; CHECK-SAME: ptr @sum)
-; CHECK-NEXT: br label %[[LATCH_I]]
+; CHECK-NEXT: [[BODY]]:
+; CHECK-NEXT: atomicrmw add ptr %[[LOCAL]], i64 %[[IV]] monotonic
+; CHECK-NEXT: reattach within %[[SYNCREG]], label %[[LATCH]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[LATCH_I]]:
-; CHECK-NEXT: %[[INC_I:.+]] = add i64 %[[IV_I]], %[[NREDS]]
-; CHECK-NEXT: %[[CMP_I:.+]] = icmp uge i64 %[[INC_I]], %[[N]]
-; CHECK-NEXT: br i1 %[[CMP_I]], label %[[EXIT_I:.+]], label %[[HEADER_I]],
-; CHECK-SAME: !llvm.loop ![[LOOP_I:[0-9]+]]
+; CHECK-NEXT: [[LATCH]]:
+; CHECK-NEXT: %[[INC:.+]] = add i64 %[[IV]], 1
+; CHECK-NEXT: %[[CMP:.+]] = icmp eq i64 %[[INC]], %[[N]]
+; CHECK-NEXT: br i1 %[[CMP]], label %[[EXIT:.+]], label %[[HEADER]],
+; CHECK-SAME: !llvm.loop ![[LOOP:[0-9]+]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[EXIT_I]]:
-; CHECK-NEXT: %[[PARTIAL:.+]] = load i64, ptr %[[LOCAL]]
-; CHECK-NEXT: atomicrmw add ptr %[[RESULT]], i64 %[[PARTIAL]] monotonic
+; CHECK-NEXT: [[EXIT]]:
+; CHECK-NEXT: call void @llvm.kit.gpu.memcpy.dtoh(i32 2, ptr %[[RESULT]], ptr %[[LOCAL]], i64 8)
 ; CHECK-NEXT: call void @llvm.kit.gpu.free(i32 2, ptr %[[LOCAL]])
-; CHECK-NEXT: br label %[[END_I]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[END_I]]:
-; CHECK-NEXT: br label %[[REATTACH:.+]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[REATTACH]]:
-; CHECK-NEXT: reattach within %[[SYNCREG]], label %[[LATCH_O]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[LATCH_O]]:
-; CHECK-NEXT: %[[INC_O:.+]] = add i64 %[[IV_O]], 1
-; CHECK-NEXT: %[[CMP_O:.+]] = icmp eq i64 %[[INC_O]], %[[NREDS]]
-; CHECK-NEXT: br i1 %[[CMP_O]], label %[[EXIT_O:.+]], label %[[HEADER_O]],
-; CHECK-SAME: !llvm.loop ![[LOOP_O:[0-9]+]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[EXIT_O]]:
-; CHECK-NEXT: br label %[[SYNC:.+]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[SYNC]]:
 ; CHECK-NEXT: sync within %[[SYNCREG]],
 ;
 ; CHECK-DAG: ![[TARGET:.+]] = !{!"tapir.loop.target", i32 2}
 ; CHECK-DAG: ![[REDUCTION:.+]] = !{!"tapir.loop.reduction"}
 ; CHECK-DAG: ![[PREPARED:.+]] = !{!"tapir.loop.prepared"}
-; CHECK-DAG: ![[LOOP_I]] = distinct !{![[LOOP_I]]}
-; CHECK-DAG: ![[LOOP_O]] = distinct !{![[LOOP_O]], ![[REDUCTION]], ![[TARGET]], ![[PREPARED]]}
+; CHECK-DAG: ![[LOOP]] = distinct !{![[LOOP]], ![[REDUCTION]], ![[TARGET]], ![[PREPARED]]}
 
 declare void @sum (ptr %res, i64 %v)
 

@@ -37,7 +37,7 @@
 // This pass will transform this into the following for parallel execution on a
 // CPU.
 //
-//     int64_t numPartials = ...
+//     int64_t numPartials = <num-cpu-threads-available>
 //     parallel_for (int j = 0; j < numPartials; ++j) {
 //         int start = j * sizePartial;
 //         int end = std::min(start + sizePartial, n);
@@ -57,29 +57,29 @@
 //
 // Here, numPartials is the number of partial reductions that are to be
 // performed in parallel. An outer parallel loop is added to carry these out.
-// Each iteration of the parallel loop will perform a sequential reduction. This
-// is followed by calls to kit.reduce.1 which computes the final result from the
-// partial reductions.
+// Each iteration of the parallel loop will perform a sequential reduction into
+// a thread-private variable. Once this has been computed, the local reduction
+// is accumulated into the final destination using an atomic operation.
 //
-// The code below is the transformation that is carried out for GPU's.
-// FIXME: This is obviously not correct since we cannot malloc on the GPU.
-// Clearly, this means that reductions will not work on the GPU at this time.
+// The code below is the transformation that is carried out for GPU's. Note that
+// the loop is
 //
-//     int64_t numPartials = ...;
-//     parallel_for (int j = 0; j < numPartials; ++j) {
-//         int32_t *local1 = (int32_t*)@llvm.kit.cpu.malloc(sizeof(int32_t));
-//         int64_t *local2 = (int64_t*)@llvm.kit.cpu.malloc(sizeof(int64_t));
-//         *local1 = 0;
-//         *local2 = 1;
-//         for (int i = j; i < n; i += numPartials) {
-//             kit.reduce.0(local1, sizeof(r_sum), i, 0, &sum);
-//             kit.reduce.0(local2, sizeof(r_and), i, 1, &and);
-//         }
-//         atomicReduce(&sum, &r_sum, *local1);
-//         atomicReduce(&and, &r_and, *local2);
-//         @llvm.kit.cpu.free(local1);
-//         @llvm.kit.cpu.free(local2);
+//     int32_t *g_sum = (int32_t*)@llvm.kit.gpu.malloc(sizeof(int32_t));
+//     *g_sum = 0;
+//     int64_t *g_and = (int64_t*)@llvm.kit.gpu.malloc(sizeof(int64_t));
+//     *g_and = 1;
+//     parallel_for (int i = 0; j < n; ++i) {
+//         atomicReduce(&sum, g_sum, i);
+//         atomicReduce(&and, g_and, i);
 //     }
+//     @llvm.kit.gpu.dtoh(&r_sum, g_sum, sizeof(int32_t));
+//     @llvm.kit.gpu.dtoh(&r_and, g_and, sizeof(int64_t));
+//
+// Here, some memory is allocated on the GPU, and the entire reduction is
+// directly written to that location using atomics.
+
+// FIXME: Obviously, the performance of this will be absolutely dreadful, but
+// as a first implementation using atomics, it will at least be correct.
 //
 // Note that this pass will not lower any existing reduce intrinsics - in fact,
 // it introduces additional calls to Kitsune's reduce intrinsics. These calls
@@ -132,6 +132,7 @@ struct ReductionInfo {
   ReduceOp reduceOp;             ///< The reduction operator
   Value *dest = nullptr;         ///< The destination for the reduced value
   Value *elemSize = nullptr;     ///< The size (in bytes) of the reduced result
+  Value *v = nullptr;            ///< The value being accumulated
   Value *unit = nullptr;         ///< The unit value for the reduction
   Value *reducer = nullptr;      ///< The reducer function
   SmallVector<Value *, 1> extra; ///< Extra arguments for the reducer function
@@ -141,6 +142,7 @@ struct ReductionInfo {
     reduceOp = *fromConstant<ReduceOp>(*cast<Constant>(call->getArgOperand(1)));
     dest = call->getArgOperand(2);
     elemSize = call->getArgOperand(3);
+    v = call->getArgOperand(4);
     unit = call->getArgOperand(5);
     reducer = call->getArgOperand(6);
     for (unsigned i = 7; i < call->arg_size(); ++i)
@@ -148,8 +150,8 @@ struct ReductionInfo {
   }
 };
 
-/// Base class to transform tapir reduction loops for parallel execution.
-class PrepareReductionLoop {
+/// Transform tapir reduction loops for parallel execution on CPU's.
+class PrepareReductionLoopCPU {
 private:
   DominatorTree &dt;
   LoopInfo &li;
@@ -178,20 +180,37 @@ private:
   void serializeInnerLoop(Loop &loop);
 
 public:
-  PrepareReductionLoop(DominatorTree &dt, LoopInfo &li, MemorySSA &mssa,
-                       ScalarEvolution &se, TaskInfo &ti)
+  PrepareReductionLoopCPU(DominatorTree &dt, LoopInfo &li, MemorySSA &mssa,
+                          ScalarEvolution &se, TaskInfo &ti)
       : dt(dt), li(li), mssa(mssa), se(se), ti(ti),
         dtu(dt, DomTreeUpdater::UpdateStrategy::Eager), mssau(&mssa) {}
 
-  bool run(TapirLoopInfo &tapirLoop);
+  bool run(TapirLoopInfo &tapirLoop,
+           const SmallVectorImpl<ReductionInfo> &reductions);
+};
+
+// Transform tapir reduction loops for parallel executions on GPU's.
+class PrepareReductionLoopGPU {
+private:
+  Value *allocResultVar(Loop &loop, const ReductionInfo &info);
+  void reduceIntoResultVar(Loop &loop, Value *resultVar,
+                           const ReductionInfo &info);
+  void copyResultVarToHost(Loop &loop, Value *resultVar,
+                           const ReductionInfo &info);
+  void freeResultVar(Loop &loop, Value *resultVar, const ReductionInfo &info);
+  void eraseReduceCall(Loop &loop, const ReductionInfo &info);
+
+public:
+  PrepareReductionLoopGPU() = default;
+
+  bool run(Loop &loop, const SmallVectorImpl<ReductionInfo> &reductions);
 };
 
 } // namespace
 
 // Collect the reduction intrinsics called in the loop being transformed,
 // \p loop.
-SmallVector<ReductionInfo, 1>
-PrepareReductionLoop::collectReductions(Loop &loop) {
+static SmallVector<ReductionInfo, 1> collectReductions(Loop &loop) {
   SmallVector<ReductionInfo, 1> reductions;
 
   for (BasicBlock *bb : loop.getBlocks())
@@ -203,12 +222,14 @@ PrepareReductionLoop::collectReductions(Loop &loop) {
   return reductions;
 }
 
+// -------------------------- PrepareReductionLoopCPU --------------------------
+
 // Insert code to calculate the number of partial reductions to use. On CPU's,
 // this inserts a call to Kitsune's kit.cpu.num.threads intrinsic. On GPU's,
 // this inserts a call to Kitsune's kit.gpu.num.compute.units.
 Value *
-PrepareReductionLoop::computeNumPartialReductions(Loop &outerLoop,
-                                                  const Loop &innerLoop) {
+PrepareReductionLoopCPU::computeNumPartialReductions(Loop &outerLoop,
+                                                     const Loop &innerLoop) {
   auto sanityCheck = [](const Loop &outerLoop, const Loop &innerLoop) {
     assert(outerLoop.getLoopPreheader() && "Outer loop must have a preheader");
     assert(hasTargetAttr(innerLoop) &&
@@ -216,7 +237,7 @@ PrepareReductionLoop::computeNumPartialReductions(Loop &outerLoop,
   };
 
   LLVM_DEBUG(
-      dbgs() << "PrepareReduction: Compute number of partial reductions\n");
+      dbgs() << "PrepareReductionCPU: Compute number of partial reductions\n");
   sanityCheck(outerLoop, innerLoop);
 
   BasicBlock &bb = *outerLoop.getLoopPreheader();
@@ -239,13 +260,14 @@ PrepareReductionLoop::computeNumPartialReductions(Loop &outerLoop,
 // Allocate a buffer into which a partial reduction will be accumulated. The
 // buffer will be allocated in the inner loop preheader. This will also
 // initialize the allocated buffer with the unit value for the reduction.
-Value *PrepareReductionLoop::allocPartial(Loop &innerLoop,
-                                          const ReductionInfo &info) {
+Value *PrepareReductionLoopCPU::allocPartial(Loop &innerLoop,
+                                             const ReductionInfo &info) {
   auto sanityCheck = [](const Loop &innerLoop) -> void {
     assert(hasTargetAttr(innerLoop) &&
            "Loop must have tapir.loop.target attribute");
   };
 
+  LLVM_DEBUG(dbgs() << "PrepareReductionCPU: Allocate buffer for partial\n");
   sanityCheck(innerLoop);
 
   TTID tt = *getTargetAttr(innerLoop);
@@ -258,11 +280,7 @@ Value *PrepareReductionLoop::allocPartial(Loop &innerLoop,
 
   IRBuilder builder(bb.getTerminator());
   Value *sz64 = builder.CreateIntCast(elemSize, i64, /*isSigned=*/true);
-
-  // FIXME: The GPU implementation should not be allocating memory at all, but
-  // we are happily working with a completely broken implementation anyway.
-  Value *partial = isGPUTT(tt) ? createGPUMalloc(builder, tt, sz64)
-                               : createCPUMalloc(builder, tt, sz64);
+  Value *partial = createCPUMalloc(builder, tt, sz64);
   builder.CreateStore(unit, partial);
 
   return partial;
@@ -271,13 +289,15 @@ Value *PrepareReductionLoop::allocPartial(Loop &innerLoop,
 // Change the destination of the reduction to accumulate into the buffer
 // allocated for the partial reduction. Essentially, this changes the
 // destination argument of the reduction intrinsic call.
-void PrepareReductionLoop::reduceIntoPartial(Loop &innerLoop, Value *partial,
-                                             const ReductionInfo &info) {
+void PrepareReductionLoopCPU::reduceIntoPartial(Loop &innerLoop, Value *partial,
+                                                const ReductionInfo &info) {
+  LLVM_DEBUG(dbgs() << "PrepareReductionCPU: Reduce into partial\n");
+
+  Value *dest = info.dest;
   CallBase *call = info.call;
 
   IRBuilder<> builder(call);
-  Value *cst =
-      builder.CreateAddrSpaceCast(partial, call->getArgOperand(2)->getType());
+  Value *cst = builder.CreateAddrSpaceCast(partial, dest->getType());
   call->setArgOperand(2, cst);
 }
 
@@ -285,15 +305,22 @@ void PrepareReductionLoop::reduceIntoPartial(Loop &innerLoop, Value *partial,
 // destination of the reduction. This is done using LLVM's AtomicRMW instruction
 // when it supports the reduction operator, or a custom atomic operation if it
 // does not.
-void PrepareReductionLoop::reducePartialIntoFinal(Loop &innerLoop,
-                                                  Value *partial,
-                                                  const ReductionInfo &info) {
+void PrepareReductionLoopCPU::reducePartialIntoFinal(
+    Loop &innerLoop, Value *partial, const ReductionInfo &info) {
+  auto sanityCheck = [](const Loop &innerLoop) -> void {
+    assert(getExitBlockFromLatch(innerLoop) &&
+           "Loop must have a unique exit block");
+  };
+
+  LLVM_DEBUG(dbgs() << "PrepareReductionCPU: Allocate buffer for partial\n");
+  sanityCheck(innerLoop);
+
   Value *dest = info.dest;
   Type *elemType = info.unit->getType();
   std::optional<AtomicRMWInst::BinOp> atomicOp = getAtomicOp(info.reduceOp);
   if (!atomicOp)
     emitDiagnostic(innerLoop, DiagID::ErrNYI,
-                   "Reduction operators not supported by AtomicRMWInst");
+                   "Reduction operator not supported by AtomicRMWInst");
 
   Module &m = *getModule(innerLoop);
   const DataLayout &dl = m.getDataLayout();
@@ -307,12 +334,13 @@ void PrepareReductionLoop::reducePartialIntoFinal(Loop &innerLoop,
 }
 
 // Free the buffer allocated for the partial reduction.
-void PrepareReductionLoop::freePartial(Loop &innerLoop, Value *partial) {
+void PrepareReductionLoopCPU::freePartial(Loop &innerLoop, Value *partial) {
   auto sanityCheck = [](const Loop &innerLoop) -> void {
     assert(hasTargetAttr(innerLoop) &&
            "Loop must have tapir.loop.target attribute");
   };
 
+  LLVM_DEBUG(dbgs() << "PrepareReductionCPU: Free partial buffer\n");
   sanityCheck(innerLoop);
 
   LLVMContext &ctx = getContext(innerLoop);
@@ -322,11 +350,7 @@ void PrepareReductionLoop::freePartial(Loop &innerLoop, Value *partial) {
   BasicBlock &bb = *getExitBlockFromLatch(innerLoop);
   IRBuilder<> builder(bb.getTerminator());
 
-  // FIXME: The GPU implementation should not be allocating memory at all, but
-  // we are happily working with a completely broken implementation anyway.
-  builder.CreateIntrinsic(isGPUTT(tt) ? Intrinsic::kit_gpu_free
-                                      : Intrinsic::kit_cpu_free,
-                          {ctt, partial});
+  builder.CreateIntrinsic(Intrinsic::kit_cpu_free, {ctt, partial});
 }
 
 // When the outer loop was generated, the induction variable was canonical and
@@ -334,8 +358,8 @@ void PrepareReductionLoop::freePartial(Loop &innerLoop, Value *partial) {
 // reduction loop being transformed. This must be changed so the range of the
 // IV is [0, numPartials] where numPartials is the number of partial reductions
 // to perform. The step will remain 1.
-void PrepareReductionLoop::updateOuterLoopIV(Loop &outerLoop,
-                                             Value *numPartials) {
+void PrepareReductionLoopCPU::updateOuterLoopIV(Loop &outerLoop,
+                                                Value *numPartials) {
   auto sanityCheck = [](const Loop &outerLoop, ScalarEvolution &se) {
     assert(outerLoop.isLoopSimplifyForm() &&
            "Outer loop must be in loop-simplify form");
@@ -346,7 +370,7 @@ void PrepareReductionLoop::updateOuterLoopIV(Loop &outerLoop,
   };
 
   LLVM_DEBUG(
-      dbgs() << "PrepareReduction: Update outer loop induction variable\n");
+      dbgs() << "PrepareReductionCPU: Update outer loop induction variable\n");
   sanityCheck(outerLoop, se);
 
   // The arguments to the comparison instruction will be the step instruction,
@@ -387,9 +411,9 @@ void PrepareReductionLoop::updateOuterLoopIV(Loop &outerLoop,
 //
 // This function only changes the lower bound, upper bound and step of the
 // inner loop.
-void PrepareReductionLoop::updateInnerLoopIVCPU(Loop &outerLoop,
-                                                Loop &innerLoop,
-                                                Value *numPartials) {
+void PrepareReductionLoopCPU::updateInnerLoopIVCPU(Loop &outerLoop,
+                                                   Loop &innerLoop,
+                                                   Value *numPartials) {
   auto sanityCheck = [](const Loop &outerLoop, const Loop &innerLoop,
                         ScalarEvolution &se) {
     assert(outerLoop.getInductionVariable(se) &&
@@ -412,7 +436,7 @@ void PrepareReductionLoop::updateInnerLoopIVCPU(Loop &outerLoop,
 
   LLVM_DEBUG(
       dbgs()
-      << "PrepareReduction: Update inner loop induction variable (CPU)\n");
+      << "PrepareReductionCPU: Update inner loop induction variable (CPU)\n");
   sanityCheck(outerLoop, innerLoop, se);
 
   PHINode *outerIV = outerLoop.getInductionVariable(se);
@@ -462,9 +486,9 @@ void PrepareReductionLoop::updateInnerLoopIVCPU(Loop &outerLoop,
 //
 // This function only changes the lower bound, upper bound and step of the
 // inner loop.
-void PrepareReductionLoop::updateInnerLoopIVGPU(Loop &outerLoop,
-                                                Loop &innerLoop,
-                                                Value *numPartials) {
+void PrepareReductionLoopCPU::updateInnerLoopIVGPU(Loop &outerLoop,
+                                                   Loop &innerLoop,
+                                                   Value *numPartials) {
   auto sanityCheck = [](const Loop &outerLoop, const Loop &innerLoop,
                         ScalarEvolution &se) {
     assert(outerLoop.getInductionVariable(se) &&
@@ -490,7 +514,7 @@ void PrepareReductionLoop::updateInnerLoopIVGPU(Loop &outerLoop,
 
   LLVM_DEBUG(
       dbgs()
-      << "PrepareReduction: Update inner loop induction variable (GPU)\n");
+      << "PrepareReductionCPU: Update inner loop induction variable (GPU)\n");
   sanityCheck(outerLoop, innerLoop, se);
 
   PHINode *outerIV = outerLoop.getInductionVariable(se);
@@ -541,8 +565,8 @@ void PrepareReductionLoop::updateInnerLoopIVGPU(Loop &outerLoop,
 #endif // NDEBUG
 }
 
-void PrepareReductionLoop::updateInnerLoopGuardCondition(Loop &loop,
-                                                         Value *numPartials) {
+void PrepareReductionLoopCPU::updateInnerLoopGuardCondition(
+    Loop &loop, Value *numPartials) {
   auto sanityCheck = [](Loop &loop, BranchInst *br, ScalarEvolution &se) {
     assert(br && "Inner loop must have a guard block");
     assert(isFalse(br->getCondition()) &&
@@ -552,7 +576,8 @@ void PrepareReductionLoop::updateInnerLoopGuardCondition(Loop &loop,
            "Inner loop must have finite bounds");
   };
 
-  LLVM_DEBUG(dbgs() << "PrepareReduction: Update inner loop guard condition\n");
+  LLVM_DEBUG(
+      dbgs() << "PrepareReductionCPU: Update inner loop guard condition\n");
   sanityCheck(loop, getWrappedLoopGuardBranch(loop), se);
 
   Loop::LoopBounds bounds = *loop.getBounds(se);
@@ -571,7 +596,8 @@ void PrepareReductionLoop::updateInnerLoopGuardCondition(Loop &loop,
 #endif // NDEBUG
 }
 
-void PrepareReductionLoop::parallelizeOuterLoop(Loop &outerLoop, Loop &loop) {
+void PrepareReductionLoopCPU::parallelizeOuterLoop(Loop &outerLoop,
+                                                   Loop &loop) {
   auto sanityCheck = [](const Loop &outerLoop, const Loop &loop, TaskInfo &ti) {
     BasicBlock *innerPh = loop.getLoopPreheader();
     BasicBlock *innerExit = getExitBlockFromLatch(loop);
@@ -609,7 +635,7 @@ void PrepareReductionLoop::parallelizeOuterLoop(Loop &outerLoop, Loop &loop) {
            "Inner loop not recognized as a tapir loop");
   };
 
-  LLVM_DEBUG(dbgs() << "PrepareReduction: Parallelize outer loop\n");
+  LLVM_DEBUG(dbgs() << "PrepareReductionCPU: Parallelize outer loop\n");
   sanityCheck(outerLoop, loop, ti);
 
   Value *syncRegion = getTapirLoopSyncRegion(loop);
@@ -650,12 +676,12 @@ void PrepareReductionLoop::parallelizeOuterLoop(Loop &outerLoop, Loop &loop) {
 #endif // NDEBUG
 }
 
-void PrepareReductionLoop::serializeInnerLoop(Loop &loop) {
+void PrepareReductionLoopCPU::serializeInnerLoop(Loop &loop) {
   auto sanityCheck = [](Loop &loop, TaskInfo &ti) {
     assert(getTaskIfTapirLoop(&loop, &ti) && "Getting task from tapir loop");
   };
 
-  LLVM_DEBUG(dbgs() << "PrepareReduction: Serialize inner loop\n");
+  LLVM_DEBUG(dbgs() << "PrepareReductionCPU: Serialize inner loop\n");
   sanityCheck(loop, ti);
 
   Task *task = getTaskIfTapirLoop(&loop, &ti);
@@ -681,40 +707,18 @@ void PrepareReductionLoop::serializeInnerLoop(Loop &loop) {
 // For example, if the loop does not perform any actual reductions, the
 // attribute will be added to the loop, but no other transformations will be
 // performed. In such cases, simply return false.
-bool PrepareReductionLoop::run(TapirLoopInfo &tapirLoop) {
-  auto sanityCheck = [](const TapirLoopInfo &tapirLoop) {
-    const Loop &loop = *tapirLoop.getLoop();
-
-    // These checks are mostly to ensure that the loop objects known to the
-    // driver don't get corrupted when processing a function with many tapir
-    // loops.
-    assert(isTapirLoop(loop) &&
-           "Loop with reduction attribute is a tapir loop");
-    assert(hasReductionAttr(loop) &&
-           "Loop is expected to have the reduction attribute");
-    assert(!hasPreparedAttr(loop) &&
-           "Tapir reduction loop has not been prepared");
-  };
-
-  LLVM_DEBUG(dbgs() << "PrepareReduction: BEGIN '"
-                    << getName(*tapirLoop.getLoop()) << "'\n");
-  sanityCheck(tapirLoop);
-
+bool PrepareReductionLoopCPU::run(
+    TapirLoopInfo &tapirLoop,
+    const SmallVectorImpl<ReductionInfo> &reductions) {
   Loop &loop = *tapirLoop.getLoop();
+  LLVM_DEBUG(dbgs() << "PrepareReductionCPU: BEGIN '" << getName(loop)
+                    << "'\n");
 
 #ifndef NDEBUG
   // Make sure that the parent loop, if any, is not affected by this
   // transformation.
   Loop *parentLoop = loop.getParentLoop();
 #endif // NDEBUG
-
-  // If the loop does not perform any actual reductions, mark it as prepared,
-  // but return false because only the metadata will have changed.
-  SmallVector<ReductionInfo, 1> reductions = collectReductions(loop);
-  if (reductions.empty()) {
-    addPreparedAttr(loop);
-    return false;
-  }
 
   // Generate the outer loop including all blocks. The analysis objects will
   // have been updated.
@@ -807,7 +811,7 @@ bool PrepareReductionLoop::run(TapirLoopInfo &tapirLoop) {
          "Inner loop not recognized as tapir loop");
 #endif // NDEBUG
 
-  LLVM_DEBUG(dbgs() << "PrepareReduction: END '" << getName(loop) << "'\n");
+  LLVM_DEBUG(dbgs() << "PrepareReductionCPU: END '" << getName(loop) << "'\n");
 
   // Mark the loop as having been prepared to ensure that we don't accidentally
   // attempt to process it more than once.
@@ -815,22 +819,152 @@ bool PrepareReductionLoop::run(TapirLoopInfo &tapirLoop) {
   return true;
 }
 
+// -------------------------- PrepareReductionLoopGPU --------------------------
+
+// Allocate space, on the GPU, where the values being reduced will be
+// accumulated. This will use Kitsune's kit.gpu.malloc intrinsic. The call will
+// be added to the preheader of the reduction loop.
+Value *PrepareReductionLoopGPU::allocResultVar(Loop &loop,
+                                               const ReductionInfo &info) {
+  LLVM_DEBUG(dbgs() << "PrepareReductionGPU: Allocate buffer for partial\n");
+
+  LLVMContext &ctx = getContext(loop);
+  Type *i64 = Type::getInt64Ty(ctx);
+
+  Value *unit = info.unit;
+  Value *elemSize = info.elemSize;
+  TTID tt = *getTargetAttr(loop);
+
+  BasicBlock &bb = *loop.getLoopPreheader();
+  IRBuilder<> builder(bb.getTerminator());
+
+  Value *sz64 = builder.CreateIntCast(elemSize, i64, /*isSigned=*/false);
+  Value *result = createGPUMalloc(builder, tt, sz64);
+  builder.CreateStore(unit, result);
+
+  return result;
+}
+
+// Ensure that the values being reduced are accumulated into the result variable
+// that was allocated by \ref allocResultVar. This involves replacing the calls
+// to the Kitsune's reduce intrinsic with an atomic read-modify-write
+// instruction if it supports the reduction operator. If it does not, a custom
+// atomic reduction will be used. The original call to the reduce intrinsic
+// will be removed.
+void PrepareReductionLoopGPU::reduceIntoResultVar(Loop &loop, Value *resultVar,
+                                                  const ReductionInfo &info) {
+  LLVM_DEBUG(dbgs() << "PrepareReductionGPU: Reduce into partial\n");
+
+  Value *call = info.call;
+  Value *v = info.v;
+
+  std::optional<AtomicRMWInst::BinOp> atomicOp = getAtomicOp(info.reduceOp);
+  if (!atomicOp)
+    emitDiagnostic(loop, DiagID::ErrNYI,
+                   "Reduction operator not supported by AtomicRMWInst");
+
+  Module &m = *getModule(loop);
+  const DataLayout &dl = m.getDataLayout();
+  Align align = dl.getPointerABIAlignment(KitAS::Default);
+
+  IRBuilder<> builder(cast<CallInst>(call));
+  builder.CreateAtomicRMW(*atomicOp, resultVar, v, align,
+                          AtomicOrdering::Monotonic);
+}
+
+// Once the reduction has been computed, copy the result from the device to the
+// final destination on the host.
+void PrepareReductionLoopGPU::copyResultVarToHost(Loop &loop, Value *resultVar,
+                                                  const ReductionInfo &info) {
+  LLVM_DEBUG(dbgs() << "PrepareReductionGPU: Copy result to host\n");
+
+  LLVMContext &ctx = getContext(loop);
+  Type *i64 = Type::getInt64Ty(ctx);
+
+  Value *tt = info.tt;
+  Value *dest = info.dest;
+  Value *elemSize = info.elemSize;
+
+  BasicBlock &bb = *getExitBlockFromLatch(loop);
+  IRBuilder<> builder(bb.getTerminator());
+
+  Value *sz64 = builder.CreateIntCast(elemSize, i64, /*isSigned=*/true);
+  builder.CreateIntrinsic(Intrinsic::kit_gpu_memcpy_dtoh,
+                          {tt, dest, resultVar, sz64});
+}
+
+// Free the result variable on the device into which the result was computed.
+void PrepareReductionLoopGPU::freeResultVar(Loop &loop, Value *resultVar,
+                                            const ReductionInfo &info) {
+  LLVM_DEBUG(dbgs() << "PrepareReductionGPU: Free partial buffer\n");
+
+  Value *tt = info.tt;
+
+  BasicBlock &bb = *getExitBlockFromLatch(loop);
+  IRBuilder<> builder(bb.getTerminator());
+
+  builder.CreateIntrinsic(Intrinsic::kit_gpu_free, {tt, resultVar});
+}
+
+// By this point, we know that the reduction is being computed with an
+// atomicrmw instruction (or the equivalent). The reduce call can, therefore,
+// be removed.
+void PrepareReductionLoopGPU::eraseReduceCall(Loop &loop,
+                                              const ReductionInfo &info) {
+  LLVM_DEBUG(dbgs() << "PrepareReductionGPU: Erase original reduce call\n");
+
+  info.call->eraseFromParent();
+}
+
+bool PrepareReductionLoopGPU::run(
+    Loop &loop, const SmallVectorImpl<ReductionInfo> &reductions) {
+  auto sanityCheck = [](const Loop &loop) {
+    assert(loop.getLoopPreheader() && "Loop must have a preheader");
+    assert(getExitBlockFromLatch(loop) && "Loop must have a unique exit block");
+    assert(hasTargetAttr(loop) &&
+           "Loop must have the tapir.loop.target attribute");
+  };
+
+  sanityCheck(loop);
+  LLVM_DEBUG(dbgs() << "PrepareReductionGPU: BEGIN '" << getName(loop)
+                    << "'\n");
+
+  for (const ReductionInfo &reduction : reductions) {
+    Value *result = allocResultVar(loop, reduction);
+    reduceIntoResultVar(loop, result, reduction);
+    copyResultVarToHost(loop, result, reduction);
+    freeResultVar(loop, result, reduction);
+    eraseReduceCall(loop, reduction);
+  }
+
+  LLVM_DEBUG(dbgs() << "PrepareReductionCPU: END '" << getName(loop) << "'\n");
+
+  // Mark the loop as having been prepared to ensure that we don't accidentally
+  // attempt to process it more than once.
+  addPreparedAttr(loop);
+  return true;
+}
+
+// -----------------------------------------------------------------------------
+
 template <typename... Args>
 static bool complain(const Loop &loop, DiagID diag, Args &&...args) {
   emitDiagnostic(loop, diag, args...);
   return false;
 }
 
-static bool prepareForCPU(TapirLoopInfo &tapirLoop, DominatorTree &dt,
-                          LoopInfo &li, MemorySSA &mssa, ScalarEvolution &se,
-                          TaskInfo &ti) {
-  return PrepareReductionLoop(dt, li, mssa, se, ti).run(tapirLoop);
+static bool prepareForCPU(TapirLoopInfo &tapirLoop,
+                          const SmallVectorImpl<ReductionInfo> &reductions,
+                          DominatorTree &dt, LoopInfo &li, MemorySSA &mssa,
+                          ScalarEvolution &se, TaskInfo &ti) {
+  return PrepareReductionLoopCPU(dt, li, mssa, se, ti)
+      .run(tapirLoop, reductions);
 }
 
-static bool prepareForGPU(TapirLoopInfo &tapirLoop, DominatorTree &dt,
-                          LoopInfo &li, MemorySSA &mssa, ScalarEvolution &se,
-                          TaskInfo &ti) {
-  return PrepareReductionLoop(dt, li, mssa, se, ti).run(tapirLoop);
+static bool prepareForGPU(TapirLoopInfo &tapirLoop,
+                          const SmallVectorImpl<ReductionInfo> &reductions) {
+  Loop &loop = *tapirLoop.getLoop();
+  return PrepareReductionLoopGPU().run(loop, reductions);
 }
 
 static bool prepareForSerial(TapirLoopInfo &tapirLoop) {
@@ -844,16 +978,37 @@ static bool prepareForSerial(TapirLoopInfo &tapirLoop) {
 bool llvm::prepareReductionLoop(TapirLoopInfo &tapirLoop, DominatorTree &dt,
                                 LoopInfo &li, MemorySSA &mssa,
                                 ScalarEvolution &se, TaskInfo &ti) {
+  auto sanityCheck = [](const Loop &loop) -> void {
+    // These checks are mostly to ensure that the loop objects known to the
+    // driver don't get corrupted when processing a function with many tapir
+    // loops.
+    assert(isTapirLoop(loop) &&
+           "Loop with reduction attribute is a tapir loop");
+    assert(hasReductionAttr(loop) &&
+           "Loop is expected to have the reduction attribute");
+    assert(!hasPreparedAttr(loop) &&
+           "Tapir reduction loop has not been prepared");
+  };
+
   Loop &loop = *tapirLoop.getLoop();
+  sanityCheck(loop);
+
+  // If the loop does not perform any actual reductions, mark it as prepared,
+  // but return false because only the metadata will have changed.
+  SmallVector<ReductionInfo, 1> reductions = collectReductions(loop);
+  if (reductions.empty()) {
+    addPreparedAttr(loop);
+    return false;
+  }
+
   TTID tt = *getTargetAttr(loop);
   if (tt == TTID::Serial)
     return prepareForSerial(tapirLoop);
   else if (isCPUTT(tt))
-    return prepareForCPU(tapirLoop, dt, li, mssa, se, ti);
+    return prepareForCPU(tapirLoop, reductions, dt, li, mssa, se, ti);
   else if (isGPUTT(tt))
-    return prepareForGPU(tapirLoop, dt, li, mssa, se, ti);
-  else
-    return false;
+    return prepareForGPU(tapirLoop, reductions);
+  llvm_unreachable("prepareReductionLoop: TT is neither CPU- nor GPU-centric");
 }
 
 bool llvm::checkReductionLoop(TapirLoopInfo &tapirLoop, DominatorTree &dt,
