@@ -174,7 +174,7 @@ static void *launchOnThread(Pthread *thread) {
   int64_t tid = thread->tid;
   void *args = thread->args;
 
-  f(tid, tid + 1, args);
+  f(tid, args);
 
   return nullptr;
 }
@@ -199,7 +199,7 @@ PthrLaunchContext *PthreadsContext::launch(PthrThrdFunc *f, uint64_t start,
       handleCreateError(err);
     LOG("Fork thread %ld (%ld)", thrd.tid, thrd.pthr);
   }
-  f(numThreads - 1, numThreads, ctx->args());
+  f(numThreads - 1, ctx->args());
 
   return ctx;
 }

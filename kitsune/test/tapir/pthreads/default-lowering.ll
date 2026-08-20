@@ -13,9 +13,9 @@
 ;
 ; CHECK: define internal fastcc void @[[WRAPPER]](
 ; CHECK-SAME: i64 {{[^%]*}}%[[BEG:[^,]+]],
-; CHECK-SAME: i64 {{[^%]*}}%[[END:[^,]+]],
 ; CHECK-SAME: ptr {{[^%]*}}%[[ARGS:[^)]+]])
 ; CHECK-NEXT: [[ENTRY:.+]]:
+; CHECK-NEXT: %[[END:.+]] = add i64 %[[BEG]], 1
 ; CHECK-NEXT: %[[OFF0:.+]] = getelementptr inbounds { ptr }, ptr %[[ARGS]], i32 0, i32 0
 ; CHECK-NEXT: %[[A:.+]] = load ptr, ptr %[[OFF0]]
 ; CHECK-NEXT: %[[SYNCREG:.+]] = call token @llvm.syncregion.start()

@@ -15,7 +15,7 @@ CTOR(RT_OPENMP)
 
 static pthread_mutex_t mut = PTHREAD_MUTEX_INITIALIZER;
 
-static void thrdFunc(uint64_t start, uint64_t stop, void *args) {
+static void thrdFunc(uint64_t start, void *args) {
   pthread_mutex_lock(&mut);
   printf("%ld\n", __kitomp_thread_id());
   pthread_mutex_unlock(&mut);
