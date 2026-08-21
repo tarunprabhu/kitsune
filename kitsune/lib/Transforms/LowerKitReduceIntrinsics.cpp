@@ -58,39 +58,30 @@ static SmallVector<CallBase *, 0> collectCalls(Function &f, Intrinsic::ID id) {
 // was passed to it.
 static bool lowerReduce0(Function &f) {
   LLVMContext &ctx = f.getContext();
-  bool changed = false;
-  for (CallBase *call : collectCalls(f, Intrinsic::kit_reduce_0)) {
-    Value *res = call->getArgOperand(2);
-    Value *val = call->getArgOperand(4);
-    Value *reducer = call->getArgOperand(6);
+  SmallVector<CallBase *, 0> calls = collectCalls(f, Intrinsic::kit_reduce_0);
 
-    SmallVector<Value *, 4> args = {res, val};
-    for (unsigned i = 7; i < call->arg_size(); ++i)
-      args.push_back(call->getArgOperand(i));
+  for (CallBase *call : calls) {
+    ReductionInfo redxn(call);
+
+    SmallVector<Value *, 2> args = {redxn.dest, redxn.value};
+    args.append(redxn.getExtraArgs());
 
     Type *voidTy = Type::getVoidTy(ctx);
-    SmallVector<Type *, 4> paramTys(args.size(), nullptr);
+    SmallVector<Type *, 2> paramTys(args.size(), nullptr);
     for (unsigned i = 0; i < args.size(); ++i)
       paramTys[i] = args[i]->getType();
 
     FunctionType *fty = FunctionType::get(voidTy, paramTys, /*isVarArg=*/false);
-    CallInst *newCall = CallInst::Create(fty, reducer, args);
+    CallInst *newCall = CallInst::Create(fty, redxn.reducer, args);
     ReplaceInstWithInst(call, newCall);
-
-    changed = true;
   }
-  return changed;
+
+  return calls.size();
 }
 
 PreservedAnalyses
 LowerKitReduceIntrinsicsPass::run(Function &f, FunctionAnalysisManager &am) {
-  DominatorTree &dt = am.getResult<DominatorTreeAnalysis>(f);
-  LoopInfo &li = am.getResult<LoopAnalysis>(f);
-  MemorySSA &mssa = am.getResult<MemorySSAAnalysis>(f).getMSSA();
-
-  bool changed = lowerReduce0(f);
-
-  if (changed)
+  if (lowerReduce0(f))
     return PreservedAnalyses::none();
   return PreservedAnalyses::all();
 }
