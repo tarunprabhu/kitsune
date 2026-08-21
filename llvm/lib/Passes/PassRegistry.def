@@ -182,6 +182,7 @@ MODULE_PASS("wholeprogramdevirt", WholeProgramDevirtPass())
 
 // Kitsune-specific passes. Keep these separate from the rest because it makes
 // merges a bit easier at times.
+MODULE_PASS("emb-hoist-allocas", EmbHoistAllocasPass())
 MODULE_PASS("emb-link-libdevice-bitcode", EmbLinkLibDeviceBitcodePass())
 MODULE_PASS("emb-lower-intrinsics", EmbLowerKitIntrinsicsPass())
 MODULE_PASS("emb-lower-intrinsics-early", EmbLowerKitIntrinsicsEarlyPass())
@@ -624,6 +625,7 @@ FUNCTION_PASS("wasm-eh-prepare", WasmEHPreparePass())
 FUNCTION_PASS("kit-annotate-early", EarlyAnnotatePass())
 FUNCTION_PASS("kit-annotate-prelower", PreLowerAnnotatePass())
 FUNCTION_PASS("kit-delicm", DeLICMPass())
+FUNCTION_PASS("kit-hoist-allocas", HoistAllocasPass())
 FUNCTION_PASS("kit-lower-intrinsics", LowerKitIntrinsicsPass())
 FUNCTION_PASS("kit-lower-reduce-intrinsics", LowerKitReduceIntrinsicsPass())
 FUNCTION_PASS("kit-prepare", PrepareTapirLoopsPass())

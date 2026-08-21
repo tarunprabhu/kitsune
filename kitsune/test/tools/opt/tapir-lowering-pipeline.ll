@@ -54,6 +54,7 @@
 ; O123S:      Running pass:     PreLowerAnnotatePass
 ; O123S:      Running pass:     SerializePass
 ; O123S:      Running pass:     LoopSpawningPass
+; O123S:      Running pass:     HoistAllocasPass
 ; O123S:      Running pass:     TapirToTargetPass
 ; O123S:      Running pass:     VerifierPass
 ;

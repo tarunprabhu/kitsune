@@ -31,6 +31,7 @@
 #include "kitsune/Transforms/EmbPrepare.h"
 #include "kitsune/Transforms/EmbResolveLibDeviceCalls.h"
 #include "kitsune/Transforms/GenerateCtors.h"
+#include "kitsune/Transforms/HoistAllocas.h"
 #include "kitsune/Transforms/Instrument.h"
 #include "kitsune/Transforms/LowerKitReduceIntrinsics.h"
 #include "kitsune/Transforms/NormalizeLoopControlBlocks.h"

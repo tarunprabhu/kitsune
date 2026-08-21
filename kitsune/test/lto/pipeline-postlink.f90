@@ -24,39 +24,41 @@
 !
 ! RUN: %kitfc -flto -O2 --tapir=serial -o /dev/null %s %sysroot \
 ! RUN:     -Xlinker --lto-debug-pass-manager -Xlinker --lto-emit-llvm 2>&1 \
-! RUN:     | FileCheck %s -check-prefix O23SZ
+! RUN:     | FileCheck %s -check-prefix O23
 !
 ! RUN: %kitfc -flto -O3 --tapir=serial -o /dev/null %s %sysroot \
 ! RUN:     -Xlinker --lto-debug-pass-manager -Xlinker --lto-emit-llvm 2>&1 \
-! RUN:     | FileCheck %s -check-prefix O23SZ
+! RUN:     | FileCheck %s -check-prefix O23
 !
 ! -----------------------------------------------------------------------------
 !
-! O23SZ-NOT:  Running pass:     EarlyVerificationPass
-! O23SZ-NOT:  Running pass:     EarlyAnnotatePass
+! O23-NOT:    Running pass:     EarlyVerificationPass
+! O23-NOT:    Running pass:     EarlyAnnotatePass
 !
-! O23SZ:      Running pass:     NormalizeLoopControlBlocksPass
-! O23SZ:      Running pass:     SecondaryIVEliminationPass
-! O23SZ:      Running pass:     PrepareTapirLoopsPass
-! O23SZ:      Running pass:     LowerKitReduceIntrinsicsPass
-! O23SZ:      Running pass:     DeLICMPass
-! O23SZ:      Running pass:     SimplifyCFGPass
-! O23SZ:      Running pass:     LoopSimplifyPass
-! O23SZ:      Running pass:     PreLowerVerificationPass
-! O23SZ:      Running pass:     PreLowerAnnotatePass
-! O23SZ-NEXT: Running pass:     SerializePass
-! O23SZ-NEXT: Running pass:     LoopSpawningPass
-! O23SZ-NEXT: Running pass:     TapirToTargetPass
-! O23SZ:      Running pass:     PrefetchForDevicePass
-! O23SZ-NEXT: Running pass:     EmbLowerKitIntrinsicsEarlyPass
-! O23SZ-NEXT: Running pass:     EmbResolveLibDeviceCallsPass
-! O23SZ-NEXT: Running pass:     EmbPreparePass
-! O23SZ-NEXT: Running pass:     EmbLinkLibDeviceBitcodePass
-! O23SZ-NEXT: Running pass:     EmbOptimizePass
-! O23SZ-NEXT: Running pass:     RecomputeKernelPropertiesPass
-! O23SZ-NEXT: Running pass:     GenerateCtorsPass
-! O23SZ-NEXT: Running pass:     VerifierPass
-! O23SZ-NEXT: Running analysis: VerifierAnalysis
+! O23:        Running pass:     NormalizeLoopControlBlocksPass
+! O23:        Running pass:     SecondaryIVEliminationPass
+! O23:        Running pass:     PrepareTapirLoopsPass
+! O23:        Running pass:     LowerKitReduceIntrinsicsPass
+! O23:        Running pass:     DeLICMPass
+! O23:        Running pass:     SimplifyCFGPass
+! O23:        Running pass:     LoopSimplifyPass
+! O23:        Running pass:     PreLowerVerificationPass
+! O23:        Running pass:     PreLowerAnnotatePass
+! O23:        Running pass:     SerializePass
+! O23:        Running pass:     LoopSpawningPass
+! O23:        Running pass:     HoistAllocasPass
+! O23:        Running pass:     EmbHoistAllocasPass
+! O23:        Running pass:     TapirToTargetPass
+! O23:        Running pass:     PrefetchForDevicePass
+! O23:        Running pass:     EmbLowerKitIntrinsicsEarlyPass
+! O23:        Running pass:     EmbResolveLibDeviceCallsPass
+! O23:        Running pass:     EmbPreparePass
+! O23:        Running pass:     EmbLinkLibDeviceBitcodePass
+! O23:        Running pass:     EmbOptimizePass
+! O23:        Running pass:     RecomputeKernelPropertiesPass
+! O23:        Running pass:     GenerateCtorsPass
+! O23:        Running pass:     VerifierPass
+! O23:        Running analysis: VerifierAnalysis
 
 ! XFAIL: *
 ! NOTE: This test will only work if there is a tapir loop in the body of

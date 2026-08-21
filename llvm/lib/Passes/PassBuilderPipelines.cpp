@@ -1793,6 +1793,8 @@ PassBuilder::buildTapirLoopLoweringPipeline(OptimizationLevel Level,
     MPM.addPass(createModuleToFunctionPassAdaptor(
         buildFunctionSimplificationPipeline(Level, Phase)));
 
+  MPM.addPass(populateKitPostLoopSpawningPasses(*this, Level, Phase, PTO));
+
   return MPM;
 }
 

@@ -36,6 +36,12 @@ passes can be very significant. See [here](EmbeddedBitcode.md) for a more
 detailed discussion of embedded bitcode and how it is used in Kitsune.
 
 
+(passes-emb-hoist-allocas)=
+### emb-hoist-allocas
+Exactly the same as the [hoist-allocas](passes-hoist-allocas) pass, except
+that it operates exclusively on embedded bitcode.
+
+
 (passes-emb-link-libdevice-bitcode)=
 ### emb-link-libdevice-bitcode
 
@@ -154,6 +160,16 @@ This pass should only be run once per module and should be run as late as
 possible.
 
 
+(passes-hoist-allocas)=
+### hoist-allocas
+
+Hoist any [alloca](https://llvm.org/docs/LangRef.html#alloca-instruction)
+instructions that are not already in the function entry block into the entry
+block. These will be moved before the first non-alloca instruction in the block.
+If any alloca instructions are present in the entry block after the first
+non-alloca, those will also be moved before the first non-alloca instruction.
+
+
 (passes-kit-ive)=
 ### kit-ive
 
@@ -201,9 +217,8 @@ Kitsune's runtime. This pass performs that replacement.
 (passes-kit-lower-reduce-intrinsics)=
 ### kit-lower-reduce-intrinsics
 
-Replaces calls to Kitsune's reduce intrinsics,
-[llvm.kit.reduce.0](llvm.kit.reduce.0),
-and [llvm.kit.reduce.1](llvm.kit.reduce.1) with an appropriate implementation.
+Replaces calls to Kitsune's reduce intrinsic,
+[llvm.kit.reduce.0](llvm.kit.reduce.0), with an appropriate implementation.
 Unlike the other intrinsic lowering passes, this is run as part of the
 middle-end in the pre-tapir lowering pipeline.
 

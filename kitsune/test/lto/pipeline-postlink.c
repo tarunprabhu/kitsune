@@ -48,6 +48,8 @@
 // O23S:      Running pass:     PreLowerAnnotatePass
 // O23S:      Running pass:     SerializePass
 // O23S:      Running pass:     LoopSpawningPass
+// O23S:      Running pass:     HoistAllocasPass
+// O23S:      Running pass:     EmbHoistAllocasPass
 // O23S:      Running pass:     TapirToTargetPass
 // O23S:      Running pass:     PrefetchForDevicePass
 // O23S:      Running pass:     EmbLowerKitIntrinsicsEarlyPass

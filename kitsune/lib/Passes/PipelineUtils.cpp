@@ -26,6 +26,7 @@
 #include "kitsune/Transforms/EmbPrepare.h"
 #include "kitsune/Transforms/EmbResolveLibDeviceCalls.h"
 #include "kitsune/Transforms/GenerateCtors.h"
+#include "kitsune/Transforms/HoistAllocas.h"
 #include "kitsune/Transforms/Instrument.h"
 #include "kitsune/Transforms/LowerKitReduceIntrinsics.h"
 #include "kitsune/Transforms/NormalizeLoopControlBlocks.h"
@@ -273,6 +274,21 @@ ModulePassManager llvm::populateKitPreLoopSpawningPasses(
     // serialize pass?
     addFunctionPass<PreLowerAnnotatePass>(mpm);
     addFunctionPass<SerializePass>(mpm);
+  }
+
+  return mpm;
+}
+
+ModulePassManager llvm::populateKitPostLoopSpawningPasses(
+    PassBuilder &pb, OptimizationLevel optLevel, ThinOrFullLTOPhase ltoPhase,
+    const PipelineTuningOptions &pto) {
+  ModulePassManager mpm;
+
+  // At optimization level O0, loop spawning will not be run, so there is no
+  // point in running the other Kitsune-specific passes.
+  if (optLevel.getSpeedupLevel() > 0) {
+    addFunctionPass<HoistAllocasPass>(mpm);
+    addModulePass<EmbHoistAllocasPass>(mpm);
   }
 
   return mpm;
