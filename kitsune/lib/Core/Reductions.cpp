@@ -19,6 +19,29 @@
 
 using namespace llvm;
 
+ReductionInfo::ReductionInfo(CallBase *call) : call(call) {
+  tt = *fromConstant<TTID>(*cast<Constant>(call->getArgOperand(0)));
+  reduceOp = *fromConstant<ReduceOp>(*cast<Constant>(call->getArgOperand(1)));
+  dest = call->getArgOperand(2);
+  elemSize = *fromConstant<unsigned>(*cast<Constant>(call->getArgOperand(3)));
+  value = call->getArgOperand(4);
+  unit = call->getArgOperand(5);
+  reducer = call->getArgOperand(6);
+}
+
+Value *ReductionInfo::getTTV() const { return call->getArgOperand(0); }
+
+Value *ReductionInfo::getReduceOpV() const { return call->getArgOperand(1); }
+
+Value *ReductionInfo::getElemSizeV() const { return call->getArgOperand(3); }
+
+SmallVector<Value *, 0> ReductionInfo::getExtraArgs() const {
+  SmallVector<Value *, 0> extra;
+  for (unsigned i = 7; i < call->arg_size(); ++i)
+    extra.push_back(call->getArgOperand(i));
+  return extra;
+}
+
 template <> std::optional<ReduceOp> llvm::fromInt(int64_t i) {
   switch (i) {
   case 0: return ReduceOp::Custom;

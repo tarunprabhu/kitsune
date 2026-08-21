@@ -13,8 +13,10 @@
 #ifndef KITSUNE_CORE_REDUCTIONS_H
 #define KITSUNE_CORE_REDUCTIONS_H
 
+#include "kitsune/Core/TTID.h"
 #include "kitsune/Support/FromInt.h"
 #include "kitsune/Support/ToString.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/Instructions.h"
 
 #include <cstdint>
@@ -25,6 +27,7 @@ namespace llvm {
 class Constant;
 class Function;
 class Module;
+class Value;
 class Type;
 
 /// The supported builtin reduction operators. We have signed, unsigned, and
@@ -64,6 +67,36 @@ enum class ReduceOp : uint32_t {
   SMin = 25,        ///< Minimum of two signed integers
   UMax = 26,        ///< Maximum of two unsigned integers
   UMin = 27,        ///< Minimum of two unsigned integers
+};
+
+/// Information about a reduction obtained by parsing a call to Kitsune's reduce
+/// intrinsic. This is tightly coupled with the call itself. If the call object
+/// is erased, this object will no longer be valid.
+class ReductionInfo {
+public:
+  CallBase *call = nullptr; ///< Call to the kit_reduce_0 intrinsic
+  TTID tt;                  ///< The TTID of the tapir reduction loop
+  ReduceOp reduceOp;        ///< The reduction operator
+  Value *dest = nullptr;    ///< The destination for the reduced value
+  unsigned elemSize = 0;    ///< The size (in bytes) of the reduced result
+  Value *value = nullptr;   ///< The value being accumulated
+  Value *unit = nullptr;    ///< The unit value for the reduction
+  Value *reducer = nullptr; ///< The reducer function
+
+public:
+  ReductionInfo(CallBase *call);
+
+  /// Get the operand corresponding to the tapir target in the call.
+  Value *getTTV() const;
+
+  /// Get the operand corresponding to the reduce operator in the call.
+  Value *getReduceOpV() const;
+
+  /// Get the operand corresponding to the element size in the call.
+  Value *getElemSizeV() const;
+
+  /// Get the extra arguments that are to be passed to the reducer function.
+  SmallVector<Value *, 0> getExtraArgs() const;
 };
 
 /// Get an AtomicRMWInst::BinOp corresponding to a reduction operator, if one
