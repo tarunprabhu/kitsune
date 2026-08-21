@@ -15,13 +15,12 @@
 
 #include "kitsune/Core/TTID.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Module.h"
 
 #include <optional>
 
 namespace llvm {
-
-class LLVMContext;
-class Module;
 
 /// \addtogroup kitsune
 /// @{
@@ -81,6 +80,20 @@ void cloneModuleFlagsMetadataInto(Module &devM, const Module &hostM);
 
 /// Clone LLVM's ident metadata from the host into the device module.
 void cloneIdentMetadataInto(Module &devM, const Module &hostM);
+
+/// Lookup a function with name \p name in the symbol table of module \p m. If
+/// it is not present, create a declaration for it with type \p fty.
+Function *getOrInsertFunction(Module &m, StringRef name, FunctionType *fty);
+
+/// Lookup a function with name \p name in the symbol table of module \p m. If
+/// it is not present, create a declaration for it with return type \p ret and
+/// parameter types \param params.
+template <typename... Params>
+Function *getOrInsertFunction(Module &m, StringRef name, Type *ret,
+                              Params... params) {
+  return cast<Function>(
+      m.getOrInsertFunction(name, ret, params...).getCallee());
+}
 
 /// @}
 
