@@ -43,6 +43,8 @@ MODULE_ANALYSIS("verify", VerifierAnalysis())
   MODULE_ANALYSIS(NAME, CREATE_PASS)
 #endif
 MODULE_ALIAS_ANALYSIS("globals-aa", GlobalsAA())
+
+#include "kitsune/Passes/PassRegistry.def"
 #undef MODULE_ALIAS_ANALYSIS
 #undef MODULE_ANALYSIS
 
@@ -179,26 +181,7 @@ MODULE_PASS("tysan", TypeSanitizerPass())
 MODULE_PASS("verify", VerifierPass())
 MODULE_PASS("view-callgraph", CallGraphViewerPass())
 MODULE_PASS("wholeprogramdevirt", WholeProgramDevirtPass())
-
-// Kitsune-specific passes. Keep these separate from the rest because it makes
-// merges a bit easier at times.
-MODULE_PASS("emb-hoist-allocas", EmbHoistAllocasPass())
-MODULE_PASS("emb-link-libdevice-bitcode", EmbLinkLibDeviceBitcodePass())
-MODULE_PASS("emb-lower-intrinsics", EmbLowerKitIntrinsicsPass())
-MODULE_PASS("emb-lower-intrinsics-early", EmbLowerKitIntrinsicsEarlyPass())
-MODULE_PASS("emb-optimize", EmbOptimizePass())
-MODULE_PASS("emb-prepare", EmbPreparePass())
-MODULE_PASS("emb-resolve-libdevice-calls", EmbResolveLibDeviceCallsPass())
-MODULE_PASS("kit-cgfb", CodeGenFatBinariesPass())
-MODULE_PASS("kit-ctors", GenerateCtorsPass())
-MODULE_PASS("kit-kernel-properties", RecomputeKernelPropertiesPass())
-MODULE_PASS("kit-instrument", InstrumentPass(PTO.KitInstrOpts))
-MODULE_PASS("kit-prefetch", PrefetchForDevicePass())
-MODULE_PASS("kit-strip-addrspaces", StripKitAddrSpacesPass())
-MODULE_PASS("kit-verify-early", EarlyVerificationPass(/*exitIfError=*/true))
-MODULE_PASS("kit-verify-prelower",
-            PreLowerVerificationPass(/*exitIfError=*/true))
-
+#include "kitsune/Passes/PassRegistry.def"
 #undef MODULE_PASS
 
 #ifndef MODULE_PASS_WITH_PARAMS
@@ -315,32 +298,8 @@ MODULE_PASS_WITH_PARAMS(
                                         Opts.EmitSummary);
     },
     parseFatLTOOptions, "O0;O1;O2;O3;Os;Oz;thinlto;emit-summary")
-
+#include "kitsune/Passes/PassRegistry.def"
 #undef MODULE_PASS_WITH_PARAMS
-
-#ifndef TAPIR_PIPELINE_PASS
-#define TAPIR_PIPELINE_PASS(NAME, CLASS, CREATE_PASS, PARSER, PARAMS)
-#endif
-TAPIR_PIPELINE_PASS(
-    "tapir-lowering", "", [&](OptimizationLevel L) {
-      setupOptionsForPipelineAlias(PTO, L);
-      return buildTapirLoweringPipeline(L, ThinOrFullLTOPhase::None);
-    },
-    parseOptLevelParam, "O0;O1;O2;O3;Os")
-TAPIR_PIPELINE_PASS(
-    "tapir-lowering-loops", "", [&](OptimizationLevel L) {
-      setupOptionsForPipelineAlias(PTO, L);
-      return buildTapirLoopLoweringPipeline(L, ThinOrFullLTOPhase::None);
-    },
-    parseOptLevelParam, "O0;O1;O2;O3;Os")
-TAPIR_PIPELINE_PASS(
-    "kit-lowering", "", [&](OptimizationLevel L) {
-      setupOptionsForPipelineAlias(PTO, L);
-      return buildKitsuneLoweringPipeline(L, ThinOrFullLTOPhase::None);
-    },
-    parseOptLevelParam, "O0;O1;O2;O3;Os")
-
-#undef TAPIR_PIPELINE_PASS
 
 #ifndef CGSCC_ANALYSIS
 #define CGSCC_ANALYSIS(NAME, CREATE_PASS)
@@ -348,6 +307,7 @@ TAPIR_PIPELINE_PASS(
 CGSCC_ANALYSIS("no-op-cgscc", NoOpCGSCCAnalysis())
 CGSCC_ANALYSIS("fam-proxy", FunctionAnalysisManagerCGSCCProxy())
 CGSCC_ANALYSIS("pass-instrumentation", PassInstrumentationAnalysis(PIC))
+#include "kitsune/Passes/PassRegistry.def"
 #undef CGSCC_ANALYSIS
 
 #ifndef CGSCC_PASS
@@ -360,6 +320,7 @@ CGSCC_PASS("invalidate<all>", InvalidateAllAnalysesPass())
 CGSCC_PASS("no-op-cgscc", NoOpCGSCCPass())
 CGSCC_PASS("openmp-opt-cgscc", OpenMPOptCGSCCPass())
 CGSCC_PASS("coro-annotation-elide", CoroAnnotationElidePass())
+#include "kitsune/Passes/PassRegistry.def"
 #undef CGSCC_PASS
 
 #ifndef CGSCC_PASS_WITH_PARAMS
@@ -379,6 +340,7 @@ CGSCC_PASS_WITH_PARAMS(
     "inline", "InlinerPass",
     [](bool OnlyMandatory) { return InlinerPass(OnlyMandatory); },
     parseInlinerPassOptions, "only-mandatory")
+#include "kitsune/Passes/PassRegistry.def"
 #undef CGSCC_PASS_WITH_PARAMS
 
 #ifndef FUNCTION_ANALYSIS
@@ -438,6 +400,8 @@ FUNCTION_ALIAS_ANALYSIS("scev-aa", SCEVAA())
 FUNCTION_ALIAS_ANALYSIS("scoped-noalias-aa", ScopedNoAliasAA())
 FUNCTION_ALIAS_ANALYSIS("tbaa", TypeBasedAA())
 FUNCTION_ALIAS_ANALYSIS("drf-aa", DRFAA())
+
+#include "kitsune/Passes/PassRegistry.def"
 #undef FUNCTION_ALIAS_ANALYSIS
 #undef FUNCTION_ANALYSIS
 
@@ -619,18 +583,7 @@ FUNCTION_PASS("view-dom-only", DomOnlyViewer())
 FUNCTION_PASS("view-post-dom", PostDomViewer())
 FUNCTION_PASS("view-post-dom-only", PostDomOnlyViewer())
 FUNCTION_PASS("wasm-eh-prepare", WasmEHPreparePass())
-
-// Kitsune-specific function passes. Keep these separate from the rest because
-// it makes merges a bit easier at times.
-FUNCTION_PASS("kit-annotate-early", EarlyAnnotatePass())
-FUNCTION_PASS("kit-annotate-prelower", PreLowerAnnotatePass())
-FUNCTION_PASS("kit-delicm", DeLICMPass())
-FUNCTION_PASS("kit-hoist-allocas", HoistAllocasPass())
-FUNCTION_PASS("kit-lower-intrinsics", LowerKitIntrinsicsPass())
-FUNCTION_PASS("kit-lower-reduce-intrinsics", LowerKitReduceIntrinsicsPass())
-FUNCTION_PASS("kit-prepare", PrepareTapirLoopsPass())
-FUNCTION_PASS("kit-serialize", SerializePass())
-
+#include "kitsune/Passes/PassRegistry.def"
 #undef FUNCTION_PASS
 
 #ifndef FUNCTION_PASS_WITH_PARAMS
@@ -787,6 +740,7 @@ FUNCTION_PASS_WITH_PARAMS(
     },
     parseBoundsCheckingOptions,
     "trap;rt;rt-abort;min-rt;min-rt-abort;merge;guard=N")
+#include "kitsune/Passes/PassRegistry.def"
 #undef FUNCTION_PASS_WITH_PARAMS
 
 #ifndef LOOPNEST_PASS
@@ -796,6 +750,7 @@ LOOPNEST_PASS("loop-flatten", LoopFlattenPass())
 LOOPNEST_PASS("loop-interchange", LoopInterchangePass())
 LOOPNEST_PASS("loop-unroll-and-jam", LoopUnrollAndJamPass())
 LOOPNEST_PASS("no-op-loopnest", NoOpLoopNestPass())
+#include "kitsune/Passes/PassRegistry.def"
 #undef LOOPNEST_PASS
 
 #ifndef LOOP_ANALYSIS
@@ -807,7 +762,7 @@ LOOP_ANALYSIS("no-op-loop", NoOpLoopAnalysis())
 LOOP_ANALYSIS("pass-instrumentation", PassInstrumentationAnalysis(PIC))
 LOOP_ANALYSIS("should-run-extra-simple-loop-unswitch",
               ShouldRunExtraSimpleLoopUnswitch())
-
+#include "kitsune/Passes/PassRegistry.def"
 #undef LOOP_ANALYSIS
 
 #ifndef LOOP_PASS
@@ -841,10 +796,7 @@ LOOP_PASS("print<loop-cache-cost>", LoopCachePrinterPass(errs()))
 LOOP_PASS("print<loopnest>", LoopNestPrinterPass(errs()))
 LOOP_PASS("tapir-indvars",
           IndVarSimplifyPass(/*WidenIndVars=*/true, /*TapirLoopsOnly=*/true))
-
-LOOP_PASS("kit-loop-ctrl", NormalizeLoopControlBlocksPass())
-LOOP_PASS("kit-ive", SecondaryIVEliminationPass())
-
+#include "kitsune/Passes/PassRegistry.def"
 #undef LOOP_PASS
 
 #ifndef LOOP_PASS_WITH_PARAMS
@@ -870,4 +822,23 @@ LOOP_PASS_WITH_PARAMS(
       return SimpleLoopUnswitchPass(Params.first, Params.second);
     },
     parseLoopUnswitchOptions, "nontrivial;no-nontrivial;trivial;no-trivial")
+#include "kitsune/Passes/PassRegistry.def"
 #undef LOOP_PASS_WITH_PARAMS
+
+#ifndef TAPIR_PIPELINE_PASS
+#define TAPIR_PIPELINE_PASS(NAME, CLASS, CREATE_PASS, PARSER, PARAMS)
+#endif
+TAPIR_PIPELINE_PASS(
+    "tapir-lowering", "", [&](OptimizationLevel L) {
+      setupOptionsForPipelineAlias(PTO, L);
+      return buildTapirLoweringPipeline(L, ThinOrFullLTOPhase::None);
+    },
+    parseOptLevelParam, "O0;O1;O2;O3;Os")
+TAPIR_PIPELINE_PASS(
+    "tapir-lowering-loops", "", [&](OptimizationLevel L) {
+      setupOptionsForPipelineAlias(PTO, L);
+      return buildTapirLoopLoweringPipeline(L, ThinOrFullLTOPhase::None);
+    },
+    parseOptLevelParam, "O0;O1;O2;O3;Os")
+#include "kitsune/Passes/PassRegistry.def"
+#undef TAPIR_PIPELINE_PASS
