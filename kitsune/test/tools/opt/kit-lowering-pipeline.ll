@@ -60,7 +60,13 @@
 ; O123S:      Running pass:     SerializePass
 ; </KIT-PRE-LOOP-SPAWNING>
 ;
-; O123S-NEXT: Running pass:     LoopSpawningPass
+; O123S:      Running pass:     LoopSpawningPass
+;
+; <KIT-POST-LOOP-SPAWNING>
+; O123SZ:      Running pass:     HoistAllocasPass
+; O123SZ:      Running pass:     EmbHoistAllocasPass
+; </KIT-POST-LOOP-SPAWNING>
+;
 ; O123S:      Running pass:     TapirToTargetPass
 ;
 ; <KIT-POST-TAPIR>

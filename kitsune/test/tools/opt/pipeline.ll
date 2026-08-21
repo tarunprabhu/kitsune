@@ -27,6 +27,8 @@
 ; DEFAULT-NOT: Running pass:     DeLICMPass
 ; DEFAULT-NOT: Running pass:     PreLowerAnnotatePass
 ; DEFAULT-NOT: Running pass:     LoopSpawningPass
+; DEFAULT-NOT: Running pass:     HoistAllocasPass
+; DEFAULT-NOT: Running pass:     EmbHoistAllocasPass
 ; DEFAULT-NOT: Running pass:     TapirToTargetPass
 ; DEFAULT-NOT: Running pass:     PrefetchForDevicePass
 ; DEFAULT-NOT: Running pass:     EmbLowerKitIntrinsicsEarlyPass
@@ -97,6 +99,12 @@
 ; </KIT-PRE-LOOP-SPAWNING>
 ;
 ; O123SZ:      Running pass:     LoopSpawningPass
+;
+; <KIT-POST-LOOP-SPAWNING>
+; O123SZ:      Running pass:     HoistAllocasPass
+; O123SZ:      Running pass:     EmbHoistAllocasPass
+; </KIT-POST-LOOP-SPAWNING>
+;
 ; O123SZ:      Running pass:     TapirToTargetPass
 ; O123SZ:      Running pass:     GlobalDCEPass
 ;

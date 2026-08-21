@@ -68,6 +68,12 @@
 // </KIT-PRE-LOOP-SPAWNING>
 //
 // O123S:      Running pass:     LoopSpawningPass
+//
+// <KIT-POST-LOOP-SPAWNING>
+// O123S:      Running pass:     HoistAllocasPass
+// O123S:      Running pass:     EmbHoistAllocasPass
+// </KIT-POST-LOOP-SPAWNING>
+//
 // O123S:      Running pass:     TapirToTargetPass
 // O123S:      Running pass:     GlobalDCEPass
 //

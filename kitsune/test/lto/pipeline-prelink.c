@@ -43,6 +43,8 @@
 // CHECK-NOT:  Running pass:      PreLowerAnnotatePass
 // CHECK-NOT:  Running pass:      SerializePass
 // CHECK-NOT:  Running pass:      LoopSpawningPass
+// CHECK-NOT:  Running pass:      HoistAllocasPass
+// CHECK-NOT:  Running pass:      EmbHoistAllocasPass
 // CHECK-NOT:  Running pass:      EmbResolveLibDeviceCallsPass
 // CHECK-NOT:  Running pass:      EmbPreparePass
 // CHECK-NOT:  Running pass:      EmbLinkLibDeviceBitcodePass
