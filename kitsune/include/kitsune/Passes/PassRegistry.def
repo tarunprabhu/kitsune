@@ -1,0 +1,104 @@
+//===- PassRegistry.def - Registry of Kitsune-specific passes ---*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This is Kitsune's equivalent of the llvm/lib/Passes/PassRegistry.def. This is
+// intended to be #include'ed in that file. The purpose of this file is to
+// ensure that, when we add a new Kitsune pass, we do not have to modify
+// anything in `llvm/`, we only have to make "local" changes in `kitsune/`.
+//
+// A more "appropriate" place for this would be kitsune/lib rather than
+// kitsune/include. But then we would have to ensure that that directory is
+// available as an include directory (-I) when building libLLVMPasses. On
+// balance, we would rather not make the implementation directories of Kitsune
+// visible to LLVM, so we make this part of Kitsune's "public" headers.
+//
+// THIS FILE MUST *NOT* BE USED ANYWHERE EXCEPT llvm/lib/Passes/PassRegistry.def
+//
+//===----------------------------------------------------------------------===//
+//
+// NOTE: An include guard has *MUST NOT* be added.
+
+#ifdef MODULE_ANALYSIS
+#endif // MODULE_ANALYSIS
+
+#ifdef MODULE_ALIAS_ANALYSIS
+#endif // MODULE_ALIAS_ANALYSIS
+
+#ifdef MODULE_PASS
+MODULE_PASS("emb-hoist-allocas", EmbHoistAllocasPass())
+MODULE_PASS("emb-link-libdevice-bitcode", EmbLinkLibDeviceBitcodePass())
+MODULE_PASS("emb-lower-intrinsics", EmbLowerKitIntrinsicsPass())
+MODULE_PASS("emb-lower-intrinsics-early", EmbLowerKitIntrinsicsEarlyPass())
+MODULE_PASS("emb-optimize", EmbOptimizePass())
+MODULE_PASS("emb-prepare", EmbPreparePass())
+MODULE_PASS("emb-resolve-libdevice-calls", EmbResolveLibDeviceCallsPass())
+MODULE_PASS("kit-cgfb", CodeGenFatBinariesPass())
+MODULE_PASS("kit-ctors", GenerateCtorsPass())
+MODULE_PASS("kit-kernel-properties", RecomputeKernelPropertiesPass())
+MODULE_PASS("kit-instrument", InstrumentPass(PTO.KitInstrOpts))
+MODULE_PASS("kit-prefetch", PrefetchForDevicePass())
+MODULE_PASS("kit-strip-addrspaces", StripKitAddrSpacesPass())
+MODULE_PASS("kit-verify-early", EarlyVerificationPass(/*exitIfError=*/true))
+MODULE_PASS("kit-verify-prelower", PreLowerVerificationPass(/*exitIfErr=*/true))
+#endif // MODULE_PASS
+
+#ifdef MODULE_PASS_WITH_PARAMS
+#endif // MODULE_PASS_WITH_PARAMS
+
+#ifdef CGSCC_ANALYSIS
+#endif // CGSCC_ANALYSIS
+
+#ifdef CGSCC_PASS
+#endif // CGSCC_PASS
+
+#ifdef CGSCC_PASS_WITH_PARAMS
+#endif // CGSCC_PASS_WITH_PARAMS
+
+#ifdef FUNCTION_ANALYSIS
+#endif // FUNCTION_ANALYSIS
+
+#ifdef FUNCTION_ALIAS_ANALYSIS
+#endif // FUNCTION_ALIAS_ANALYSIS
+
+#ifdef FUNCTION_PASS
+FUNCTION_PASS("kit-annotate-early", EarlyAnnotatePass())
+FUNCTION_PASS("kit-annotate-prelower", PreLowerAnnotatePass())
+FUNCTION_PASS("kit-delicm", DeLICMPass())
+FUNCTION_PASS("kit-hoist-allocas", HoistAllocasPass())
+FUNCTION_PASS("kit-lower-intrinsics", LowerKitIntrinsicsPass())
+FUNCTION_PASS("kit-lower-reduce-intrinsics", LowerKitReduceIntrinsicsPass())
+FUNCTION_PASS("kit-prepare", PrepareTapirLoopsPass())
+FUNCTION_PASS("kit-serialize", SerializePass())
+#endif // FUNCTION_PASS
+
+#ifdef FUNCTION_PASS_WITH_PARAMS
+#endif // FUNCTION_PASS_WITH_PARAMS
+
+#ifdef LOOPNEST_PASS
+#endif // LOOPNEST_PASS
+
+#ifdef LOOP_ANALYSIS
+#endif // LOOP_ANALYSIS
+
+#ifdef LOOP_PASS
+LOOP_PASS("kit-loop-ctrl", NormalizeLoopControlBlocksPass())
+LOOP_PASS("kit-ive", SecondaryIVEliminationPass())
+#endif // LOOP_PASS
+
+#ifdef LOOP_PASS_WITH_PARAMS
+#endif // LOOP_PASS_WITH_PARAMS
+
+#ifdef TAPIR_PIPELINE_PASS
+TAPIR_PIPELINE_PASS(
+    "kit-lowering", "",
+    [&](OptimizationLevel L) {
+      setupOptionsForPipelineAlias(PTO, L);
+      return buildKitsuneLoweringPipeline(L, ThinOrFullLTOPhase::None);
+    },
+    parseOptLevelParam, "O0;O1;O2;O3;Os")
+#endif // TAPIR_PIPELINE_PASS
