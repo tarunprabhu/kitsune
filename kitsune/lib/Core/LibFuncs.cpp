@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/LibFuncs.h"
+#include "kitsune/Core/ModuleUtils.h"
 #include "llvm/IR/Module.h"
 
 using namespace llvm;
@@ -150,12 +151,11 @@ Function *llvm::getDeclarationIfExists(Module &m, KitFunc f) {
 FunctionCallee llvm::getOrInsertLibFunc(Module &m, KitFunc libFunc) {
   StringRef funcName = getLibFuncName(libFunc);
   if (Function *f = m.getFunction(funcName))
-    return FunctionCallee(f);
+    return f;
 
   LLVMContext &ctx = m.getContext();
   FunctionType *funcTy = getLibFuncType(libFunc, ctx);
-  FunctionCallee callee = m.getOrInsertFunction(funcName, funcTy);
-  Function *f = cast<Function>(callee.getCallee());
+  Function *f = getOrInsertFunction(m, funcName, funcTy);
 
   // Even if we know that the function eventually calls free, we still set this
   // attribute because that is what LLVM does as well.
@@ -165,5 +165,5 @@ FunctionCallee llvm::getOrInsertLibFunc(Module &m, KitFunc libFunc) {
   f->setMemoryEffects(MemoryEffects::inaccessibleOrArgMemOnly());
   f->setWillReturn();
 
-  return callee;
+  return f;
 }

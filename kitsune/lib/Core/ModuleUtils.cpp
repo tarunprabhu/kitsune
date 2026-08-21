@@ -47,3 +47,8 @@ void llvm::cloneIdentMetadataInto(Module &devM, const Module &hostM) {
     for (const MDNode *md : ident->operands())
       nmd.addOperand(MDNode::replaceWithPermanent(md->clone()));
 }
+
+Function *llvm::getOrInsertFunction(Module &m, StringRef name,
+                                    FunctionType *fty) {
+  return cast<Function>(m.getOrInsertFunction(name, fty).getCallee());
+}
