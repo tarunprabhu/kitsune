@@ -12,6 +12,7 @@
 
 #include "kitsune/Core/Reductions.h"
 #include "kitsune/Core/ConstantUtils.h"
+#include "kitsune/Core/ModuleUtils.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Module.h"
@@ -322,10 +323,7 @@ Function *llvm::genReducer(ReduceOp op, Type *ty, Module &m) {
   Type *voidTy = Type::getVoidTy(ctx);
   Type *ptr = PointerType::getUnqual(ctx);
 
-  Type *params[] = {ptr, ty};
-  FunctionType *fty = FunctionType::get(voidTy, params, /*isVarArg=*/false);
-
-  Function *f = cast<Function>(m.getOrInsertFunction(fname, fty).getCallee());
+  Function *f = getOrInsertFunction(m, fname, voidTy, ptr, ty);
   Argument *res = f->getArg(0);
   Argument *v = f->getArg(1);
 

@@ -13,6 +13,7 @@
 
 #include "CPUTTLoop.h"
 #include "kitsune/Core/ConstantUtils.h"
+#include "kitsune/Core/ModuleUtils.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
 #include "llvm/Transforms/Utils/Cloning.h"
@@ -60,8 +61,6 @@ Function *CPUTTLoopProcessor::genWrapperFor(Function &outlined) {
 
   Type *ptrTy = PointerType::getUnqual(ctx);
   Type *voidTy = Type::getVoidTy(ctx);
-  FunctionType *wrapperTy =
-      FunctionType::get(voidTy, {begTy, ptrTy}, /*isVarArg=*/false);
 
   SmallVector<Type *, 4> bundleTys;
   for (unsigned i = 2; i < outlined.arg_size(); ++i)
@@ -70,8 +69,8 @@ Function *CPUTTLoopProcessor::genWrapperFor(Function &outlined) {
 
   Module &m = *outlined.getParent();
   Twine wrapperName = outlined.getName() + ".wrapper";
-  Function *wrapper = cast<Function>(
-      m.getOrInsertFunction(wrapperName.str(), wrapperTy).getCallee());
+  Function *wrapper =
+      getOrInsertFunction(m, wrapperName.str(), voidTy, begTy, ptrTy);
   wrapper->setLinkage(GlobalValue::LinkageTypes::InternalLinkage);
   wrapper->setCallingConv(CallingConv::Fast);
   wrapper->getArg(0)->setName("beg");
