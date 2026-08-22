@@ -22,6 +22,10 @@ namespace llvm {
 /// \addtogroup kitsune
 /// @{
 
+/// Is the type a primitive type. Currently, only integer and floating pointer
+/// types are considered to be primitive.
+bool isPrimitiveTy(Type *ty);
+
 /// Is the type an array of bytes.
 bool isByteArrayTy(Type *ty);
 
