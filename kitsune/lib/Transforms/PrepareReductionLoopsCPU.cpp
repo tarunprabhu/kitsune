@@ -60,13 +60,14 @@
 
 #include "LoopWrapping.h"
 #include "PrepareReductionLoops.h"
-#include "kitsune/Core/AddrSpace.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/Diagnostics.h"
 #include "kitsune/Core/InstUtils.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
+#include "kitsune/Core/ModuleUtils.h"
 #include "kitsune/Core/Reductions.h"
+#include "kitsune/Core/TypeUtils.h"
 #include "kitsune/Core/ValueUtils.h"
 #include "llvm/Analysis/DomTreeUpdater.h"
 #include "llvm/Analysis/LoopInfo.h"
@@ -165,23 +166,15 @@ Value *PrepareReductionLoopCPU::allocPartial(Loop &innerLoop,
   LLVM_DEBUG(dbgs() << "PrepareReductionCPU: Allocate buffer for partial\n");
   sanityCheck(innerLoop);
 
-  LLVMContext &ctx = getContext(innerLoop);
-  Type *i8 = Type::getInt8Ty(ctx);
-  ArrayType *partialTy = ArrayType::get(i8, redxn.elemSize);
-
-  // We cannot, in general, get the type of the value being reduced from either
-  // the type of the unit value, or the value being reduced. One or both of
-  // these may be "passed by reference" - particularly in the case of custom
-  // reductions on objects. In this case, we cannot know the type of the
-  // underlying object being reduced since the pointers are opaque. Since the
-  // element size is explicitly passed to this intrinsic, we alloca that many
-  // bytes.
   BasicBlock &bb = *innerLoop.getLoopPreheader();
   IRBuilder<> builder(bb.getTerminator());
-  Value *partial = builder.CreateAlloca(partialTy, nullptr, "reduc.partial");
-  builder.CreateStore(redxn.unit, partial);
 
-  return partial;
+  // The alloca is added to the body of the outer loop. The loop-spawning pass
+  // will outline the body into a function, at which point, it will become a
+  // "top-level" stack variable, which is what we want. At that point, the
+  // kit-host-allocas pass will hoist it to the entry block of that outlined
+  // function if needed.
+  return detail::createLocalResult(builder, redxn, /*initialize=*/true);
 }
 
 // Change the destination of the reduction to accumulate into the buffer
@@ -217,10 +210,7 @@ void PrepareReductionLoopCPU::reducePartialIntoFinal(
     emitDiagnostic(innerLoop, DiagID::ErrNYI,
                    "Reduction operator not supported by AtomicRMWInst");
 
-  Module &m = *getModule(innerLoop);
-  const DataLayout &dl = m.getDataLayout();
-  Align align = dl.getPointerABIAlignment(KitAS::Default);
-
+  Align align = getPointerAlignment(*getModule(innerLoop));
   BasicBlock &bb = *getExitBlockFromLatch(innerLoop);
   IRBuilder<> builder(bb.getTerminator());
 
