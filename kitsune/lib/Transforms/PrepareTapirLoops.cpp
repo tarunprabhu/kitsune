@@ -33,18 +33,18 @@ using namespace llvm;
 static bool check(TapirLoopInfo &tapirLoop, bool isReduction, DominatorTree &dt,
                   LoopInfo &li) {
   if (isReduction)
-    return checkReductionLoop(tapirLoop, dt, li);
+    return detail::checkReductionLoop(tapirLoop, dt, li);
   else
-    return checkParallelLoop(tapirLoop, dt, li);
+    return detail::checkParallelLoop(tapirLoop, dt, li);
 }
 
 static bool prepare(TapirLoopInfo &tapirLoop, bool isReduction,
                     DominatorTree &dt, LoopInfo &li, MemorySSA &mssa,
                     ScalarEvolution &se, TaskInfo &ti) {
   if (isReduction)
-    return prepareReductionLoop(tapirLoop, dt, li, mssa, se, ti);
+    return detail::prepareReductionLoop(tapirLoop, dt, li, mssa, se, ti);
   else
-    return prepareParallelLoop(tapirLoop, dt, li, mssa, se, ti);
+    return detail::prepareParallelLoop(tapirLoop, dt, li, mssa, se, ti);
 }
 
 static bool prepare(Loop &loop, DominatorTree &dt, LoopInfo &li,
