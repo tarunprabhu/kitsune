@@ -13,6 +13,7 @@
 #ifndef KITSUNE_CORE_MODULE_UTILS_H
 #define KITSUNE_CORE_MODULE_UTILS_H
 
+#include "kitsune/Core/AddrSpace.h"
 #include "kitsune/Core/TTID.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/Function.h"
@@ -94,6 +95,14 @@ Function *getOrInsertFunction(Module &m, StringRef name, Type *ret,
   return cast<Function>(
       m.getOrInsertFunction(name, ret, params...).getCallee());
 }
+
+/// Get the ABI alignment for pointers in address space \p addrSpace in the
+/// module \p m. If \p addrSpace is not given, the alignment of pointers in the
+/// default address space will be returned.
+Align getPointerAlignment(const Module &m, unsigned addrSpace = KitAS::Default);
+
+/// Get the ABI alignment for type \p t in module \p m.
+Align getTypeAlignment(const Module &m, Type *ty);
 
 /// @}
 

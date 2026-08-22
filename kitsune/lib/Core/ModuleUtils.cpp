@@ -52,3 +52,13 @@ Function *llvm::getOrInsertFunction(Module &m, StringRef name,
                                     FunctionType *fty) {
   return cast<Function>(m.getOrInsertFunction(name, fty).getCallee());
 }
+
+Align llvm::getPointerAlignment(const Module &m, unsigned addrSpace) {
+  const DataLayout &dl = m.getDataLayout();
+  return dl.getPointerABIAlignment(addrSpace);
+}
+
+Align llvm::getTypeAlignment(const Module &m, Type *ty) {
+  const DataLayout &dl = m.getDataLayout();
+  return dl.getABITypeAlign(ty);
+}
