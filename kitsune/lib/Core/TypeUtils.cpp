@@ -18,6 +18,10 @@
 
 using namespace llvm;
 
+bool llvm::isPrimitiveTy(Type *ty) {
+  return ty->isIntegerTy() || ty->isFloatingPointTy();
+}
+
 bool llvm::isByteArrayTy(Type *Ty) {
   if (auto *arrayTy = dyn_cast<ArrayType>(Ty))
     return arrayTy->getElementType()->isIntegerTy(8);
