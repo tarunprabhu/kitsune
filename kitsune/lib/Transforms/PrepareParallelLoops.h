@@ -14,8 +14,6 @@
 #ifndef KITSUNE_LIB_TRANSFORMS_PREPARE_PARALLEL_LOOPS_H
 #define KITSUNE_LIB_TRANSFORMS_PREPARE_PARALLEL_LOOPS_H
 
-#include "llvm/IR/PassManager.h"
-
 namespace llvm {
 
 class DominatorTree;
@@ -24,6 +22,8 @@ class MemorySSA;
 class ScalarEvolution;
 class TapirLoopInfo;
 class TaskInfo;
+
+namespace detail {
 
 /// Check that the given non-reduction tapir loop can be transformed to a form
 /// that is suitable for parallel execution.
@@ -35,6 +35,8 @@ bool checkParallelLoop(TapirLoopInfo &tapirLoop, DominatorTree &dt,
 bool prepareParallelLoop(TapirLoopInfo &tapirLoop, DominatorTree &dt,
                          LoopInfo &li, MemorySSA &mssa, ScalarEvolution &se,
                          TaskInfo &ti);
+
+} // namespace detail
 
 } // end namespace llvm
 

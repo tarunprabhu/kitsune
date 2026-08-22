@@ -1,4 +1,4 @@
-//===- PrepareParallelLoops.cpp - Transform non-reduction tapir loops -----===//
+//===- PrepareReductionLoopsCPU.cpp - Transform reduction loops for CPU ---===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,66 +6,76 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Transform tapir loops that do not perform reductions to a form that is
-// suitable for parallel execution.
+// Transform tapir loops that perform reductions to a form that is suitable for
+// parallel execution.
 //
 // Consider the loop shown below
 //
+//     int32_t r_sum = 0;
+//     int64_t r_and = 1;
 //     parallel_for (int i = 0; i < n; ++i) {
-//         ...
+//         r_sum += i;
+//         r_and &= 1;
+//     }
+//
+// Frontends are expected to use the kit.reduce.0 intrinsic to represent the
+// loop above
+//
+//     void sum(int32_t* res, int32_t v) {
+//         *res += v;
+//     }
+//
+//     void and(int64_t* res, int64_t v) {
+//         *res &= v;
+//     }
+//
+//     parallel_for (int i = 0; i < n; ++i) {
+//         kit.reduce.0(&r_sum, sizeof(r_sum), i, 0, &sum);
+//         kit.reduce.0(&r_and, sizeof(r_and), i, 1, &and);
 //     }
 //
 // This pass will transform this into the following for parallel execution on a
 // CPU.
 //
-//     int64_t numThreads = kit.cpu.num.threads();
-//     int64_t itersPerThread = (n + numThreads - 1) / numThreads;
-//     parallel_for (int j = 0; j < numThreads; ++j) {
-//         int start = j * itersPerThread;
-//         int end = std::min(start + itersPerThread, n);
+//     int64_t numPartials = <num-cpu-threads-available>
+//     parallel_for (int j = 0; j < numPartials; ++j) {
+//         int32_t local1 = 0;
+//         int64_t local2 = 1;
+//         int start = j * sizePartial;
 //         for (int i = start; i < end; ++i) {
-//             ...
+//             kit.reduce.0(local1, sizeof(r_sum), i, 0, &sum);
+//             kit.reduce.0(local2, sizeof(r_and), i, 1, &and);
 //         }
+//         atomicReduce(&sum, &r_sum, *local1);
+//         atomicReduce(&and, &r_and, *local2);
 //     }
 //
-// For GPU's, on the other hand, the loop will remain unchanged.
+// Here, numPartials is the number of partial reductions that are to be
+// performed in parallel. An outer parallel loop is added to carry these out.
+// Each iteration of the parallel loop will perform a sequential reduction into
+// a thread-private variable. Once this has been computed, the local reduction
+// is accumulated into the final destination using an atomic operation.
 //
-// The main reason for this transformation is to enable vectorization in
-// parallel loops. Currently, LLVM's vectorizer is not able to reason about
-// tapir loops since it cannot determine the correctness of vectorization in
-// the presence of tapir instructions. With this, and subsequent transformations
-// that will convert the inner loop to have a canonical induction variable, the
-// inner loop can be vectorized.
-//
-// The other advantage of this transformation is that it simplifies the
-// implementation of Kitsune's CPU-centric runtimes since they no longer need to
-// determine how many iterations of the parallel loop are to be performed on
-// each thread - every thread will perform exactly one iteration.
-//
-// ===---------------------------------------------------------------------===//
+//===----------------------------------------------------------------------===//
 
-#include "PrepareParallelLoops.h"
 #include "LoopWrapping.h"
+#include "PrepareReductionLoops.h"
+#include "kitsune/Core/AddrSpace.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/Diagnostics.h"
 #include "kitsune/Core/InstUtils.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
-#include "kitsune/Core/TTUtils.h"
-#include "kitsune/Core/TapirLoopUtils.h"
+#include "kitsune/Core/Reductions.h"
 #include "kitsune/Core/ValueUtils.h"
-#include "kitsune/Support/ErrorHandling.h"
-#include "llvm/ADT/PriorityWorklist.h"
 #include "llvm/Analysis/DomTreeUpdater.h"
-#include "llvm/Analysis/LoopAnalysisManager.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/MemorySSAUpdater.h"
-#include "llvm/Analysis/OptimizationRemarkEmitter.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
+#include "llvm/IR/IRBuilder.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
-#include "llvm/Transforms/Utils/LoopUtils.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
 
 #define DEBUG_TYPE "kit-prepare"
@@ -74,11 +84,7 @@ using namespace llvm;
 
 namespace {
 
-/// Base class to transform tapir loops for parallel execution. The default
-/// implementation is suitable for Kitsune's CPU-centric parallel tapir targets,
-/// such as openmp, pthreads, and qthreads. It may also be used with opencilk.
-/// Other tapir targets may need to specialize this.
-class PrepareParallelLoopBase {
+class PrepareReductionLoopCPU {
 private:
   DominatorTree &dt;
   LoopInfo &li;
@@ -90,79 +96,145 @@ private:
   MemorySSAUpdater mssau;
 
 private:
-  void updateOuterLoopIV(Loop &outerLoop, Value *numThreads);
-  void updateInnerLoopIV(Loop &outerLoop, Loop &innerLoop, Value *numThreads);
-  void updateInnerLoopGuardCondition(Loop &innerLoop);
+  SmallVector<ReductionInfo, 1> collectReductions(Loop &loop);
+  Value *computeNumPartialReductions(Loop &outerLoop, const Loop &innerLoop);
+  Value *allocPartial(Loop &innerLoop, const ReductionInfo &redxn);
+  void reduceIntoPartial(Loop &loop, Value *partial,
+                         const ReductionInfo &redxn);
+  void reducePartialIntoFinal(Loop &loop, Value *partial,
+                              const ReductionInfo &redxn);
+  void updateOuterLoopIV(Loop &outerLoop, Value *numPartials);
+  void updateInnerLoopIV(Loop &outerLoop, Loop &innerLoop, Value *numPartials);
+  void updateInnerLoopGuardCondition(Loop &innerLoop, Value *numPartials);
   void parallelizeOuterLoop(Loop &outerLoop, Loop &loop);
   void serializeInnerLoop(Loop &loop);
 
-protected:
-  virtual Value *computeNumCPUThreads(BasicBlock &bb,
-                                      const TapirLoopInfo &loop);
-
-  PrepareParallelLoopBase(DominatorTree &dt, LoopInfo &li, MemorySSA &mssa,
+public:
+  PrepareReductionLoopCPU(DominatorTree &dt, LoopInfo &li, MemorySSA &mssa,
                           ScalarEvolution &se, TaskInfo &ti)
       : dt(dt), li(li), mssa(mssa), se(se), ti(ti),
         dtu(dt, DomTreeUpdater::UpdateStrategy::Eager), mssau(&mssa) {}
 
-public:
-  bool run(TapirLoopInfo &tapirLoop);
-  virtual ~PrepareParallelLoopBase() = default;
-};
-
-/// Class to transform non-reduction tapir loops for parallel execution for
-/// Kitsune's CPU-centric parallel runtimes.
-class PrepareParallelLoopCPU : public PrepareParallelLoopBase {
-public:
-  PrepareParallelLoopCPU(DominatorTree &dt, LoopInfo &li, MemorySSA &mssa,
-                         ScalarEvolution &se, TaskInfo &ti)
-      : PrepareParallelLoopBase(dt, li, mssa, se, ti) {}
-  virtual ~PrepareParallelLoopCPU() = default;
+  bool run(TapirLoopInfo &tapirLoop,
+           const SmallVectorImpl<ReductionInfo> &reductions);
 };
 
 } // namespace
 
-// Insert code to calculate the number of CPU threads available for use. This
-// simply inserts a call to Kitsune's kit.cpu.num.threads intrinsic. The
-// intrinsic will be lowered in a later pass.
-//
-//      numThreads = call @llvm.kit.cpu.num.threads()
-//
+// Insert code to calculate the number of partial reductions to use. On CPU's,
+// this inserts a call to Kitsune's kit.cpu.num.threads intrinsic. On GPU's,
+// this inserts a call to Kitsune's kit.gpu.num.compute.units.
 Value *
-PrepareParallelLoopBase::computeNumCPUThreads(BasicBlock &bb,
-                                              const TapirLoopInfo &tapirLoop) {
-  auto sanityCheck = [](const TapirLoopInfo &tapirLoop) {
-    assert(hasTargetAttr(*tapirLoop.getLoop()) &&
-           "Outer loop must have tapir target attribute");
+PrepareReductionLoopCPU::computeNumPartialReductions(Loop &outerLoop,
+                                                     const Loop &innerLoop) {
+  auto sanityCheck = [](const Loop &outerLoop, const Loop &innerLoop) {
+    assert(outerLoop.getLoopPreheader() && "Outer loop must have a preheader");
+    assert(hasTargetAttr(innerLoop) &&
+           "Inner loop must have tapir target attribute");
   };
 
-  LLVM_DEBUG(dbgs() << "PrepareParallel: Get the number of parallel workers\n");
-  sanityCheck(tapirLoop);
+  LLVM_DEBUG(
+      dbgs() << "PrepareReductionCPU: Compute number of partial reductions\n");
+  sanityCheck(outerLoop, innerLoop);
 
-  LLVMContext &ctx = bb.getContext();
-
-  Loop &loop = *tapirLoop.getLoop();
-  TTID tt = *getTargetAttr(loop);
+  LLVMContext &ctx = getContext(innerLoop);
+  TTID tt = *getTargetAttr(innerLoop);
   Constant *ctt = toConstant(tt, ctx);
 
-  PHINode *iv = loop.getCanonicalInductionVariable();
-  Type *ivTy = iv->getType();
+  BasicBlock &bb = *outerLoop.getLoopPreheader();
+  IRBuilder<> builder(bb.getTerminator());
+  Value *numPartials =
+      builder.CreateIntrinsic(Intrinsic::kit_cpu_num_threads, {ctt},
+                              /*FMFSource=*/{}, "prduc.num.partials");
 
-  IRBuilder<> builder(&*bb.begin());
-  Value *thrds = builder.CreateIntrinsic(Intrinsic::kit_cpu_num_threads, {ctt});
-  Value *numThreads =
-      builder.CreateIntCast(thrds, ivTy, /*isSigned=*/true, "prll.num.threads");
+  return numPartials;
+}
 
-  return numThreads;
+// Allocate a buffer into which a partial reduction will be accumulated. The
+// buffer will be allocated in the inner loop preheader. This will also
+// initialize the allocated buffer with the unit value for the reduction. Since
+// the body of the outer loop will eventually be outlined ny the loop-spawning
+// pass, this will ensure that the alloca eventually ends up in a function, not
+// within a loop.
+Value *PrepareReductionLoopCPU::allocPartial(Loop &innerLoop,
+                                             const ReductionInfo &redxn) {
+  auto sanityCheck = [](const Loop &innerLoop) -> void {
+    assert(innerLoop.getLoopPreheader() && "Inner loop must have a preheader");
+  };
+
+  LLVM_DEBUG(dbgs() << "PrepareReductionCPU: Allocate buffer for partial\n");
+  sanityCheck(innerLoop);
+
+  LLVMContext &ctx = getContext(innerLoop);
+  Type *i8 = Type::getInt8Ty(ctx);
+  ArrayType *partialTy = ArrayType::get(i8, redxn.elemSize);
+
+  // We cannot, in general, get the type of the value being reduced from either
+  // the type of the unit value, or the value being reduced. One or both of
+  // these may be "passed by reference" - particularly in the case of custom
+  // reductions on objects. In this case, we cannot know the type of the
+  // underlying object being reduced since the pointers are opaque. Since the
+  // element size is explicitly passed to this intrinsic, we alloca that many
+  // bytes.
+  BasicBlock &bb = *innerLoop.getLoopPreheader();
+  IRBuilder<> builder(bb.getTerminator());
+  Value *partial = builder.CreateAlloca(partialTy, nullptr, "reduc.partial");
+  builder.CreateStore(redxn.unit, partial);
+
+  return partial;
+}
+
+// Change the destination of the reduction to accumulate into the buffer
+// allocated for the partial reduction. Essentially, this changes the
+// destination argument of the reduction intrinsic call.
+void PrepareReductionLoopCPU::reduceIntoPartial(Loop &innerLoop, Value *partial,
+                                                const ReductionInfo &redxn) {
+  LLVM_DEBUG(dbgs() << "PrepareReductionCPU: Reduce into partial\n");
+
+  IRBuilder<> builder(redxn.call);
+  Value *cst = builder.CreateAddrSpaceCast(partial, redxn.dest->getType());
+  redxn.call->setArgOperand(2, cst);
+}
+
+// Once the partial reduction has been computed, reduce this into the final
+// destination of the reduction. This is done using LLVM's AtomicRMW instruction
+// when it supports the reduction operator, or a custom atomic operation if it
+// does not.
+void PrepareReductionLoopCPU::reducePartialIntoFinal(
+    Loop &innerLoop, Value *partial, const ReductionInfo &redxn) {
+  auto sanityCheck = [](const Loop &innerLoop) -> void {
+    assert(getExitBlockFromLatch(innerLoop) &&
+           "Loop must have a unique exit block");
+  };
+
+  LLVM_DEBUG(dbgs() << "PrepareReductionCPU: Allocate buffer for partial\n");
+  sanityCheck(innerLoop);
+
+  Value *dest = redxn.dest;
+  Type *elemType = redxn.unit->getType();
+  std::optional<AtomicRMWInst::BinOp> atomicOp = getAtomicOp(redxn.reduceOp);
+  if (!atomicOp)
+    emitDiagnostic(innerLoop, DiagID::ErrNYI,
+                   "Reduction operator not supported by AtomicRMWInst");
+
+  Module &m = *getModule(innerLoop);
+  const DataLayout &dl = m.getDataLayout();
+  Align align = dl.getPointerABIAlignment(KitAS::Default);
+
+  BasicBlock &bb = *getExitBlockFromLatch(innerLoop);
+  IRBuilder<> builder(bb.getTerminator());
+
+  Value *v = builder.CreateLoad(elemType, partial);
+  builder.CreateAtomicRMW(*atomicOp, dest, v, align, AtomicOrdering::Monotonic);
 }
 
 // When the outer loop was generated, the induction variable was canonical and
 // in the range [0, n] in steps of 1 where `n` was the trip count of the tapir
-// loop being transformed. This must be changed so the range of the IV is [0,
-// numThreads] where numThreads is the number of CPU threads available. The step
-// will remain 1.
-void PrepareParallelLoopBase::updateOuterLoopIV(Loop &outerLoop,
-                                                Value *numThreads) {
+// reduction loop being transformed. This must be changed so the range of the
+// IV is [0, numPartials] where numPartials is the number of partial reductions
+// to perform. The step will remain 1.
+void PrepareReductionLoopCPU::updateOuterLoopIV(Loop &outerLoop,
+                                                Value *numPartials) {
   auto sanityCheck = [](const Loop &outerLoop, ScalarEvolution &se) {
     assert(outerLoop.isLoopSimplifyForm() &&
            "Outer loop must be in loop-simplify form");
@@ -173,7 +245,7 @@ void PrepareParallelLoopBase::updateOuterLoopIV(Loop &outerLoop,
   };
 
   LLVM_DEBUG(
-      dbgs() << "PrepareParallel: Update outer loop induction variable\n");
+      dbgs() << "PrepareReductionCPU: Update outer loop induction variable\n");
   sanityCheck(outerLoop, se);
 
   // The arguments to the comparison instruction will be the step instruction,
@@ -183,7 +255,7 @@ void PrepareParallelLoopBase::updateOuterLoopIV(Loop &outerLoop,
   ICmpInst *cmp = outerLoop.getLatchCmpInst();
   Instruction *inc = &outerLoop.getBounds(se)->getStepInst();
 
-  replaceNonMatchingOperands(*cmp, inc, numThreads);
+  replaceNonMatchingOperands(*cmp, inc, numPartials);
 
   // Update analyses that may have been invalidated. We can't recalculate SE,
   // but we can force it recompute the analyses for certain variables and loops
@@ -197,26 +269,11 @@ void PrepareParallelLoopBase::updateOuterLoopIV(Loop &outerLoop,
 #endif // NDEBUG
 }
 
-// For CPU's, a loop of the form:
-//
-//     parallel_for (int i = 0; i < n; ++i)
-//         ...
-//
-// is transformed into
-//
-//     parallel_for (int j = 0; j < numThreads; ++j) {
-//         itersPerThread = (n + numThreads - 1) / numThreads
-//         start = j * itersPerThread;
-//         end = min(start + itersPerThread, n)
-//         for (int i = start; i < end; ++i)
-//             ...
-//     }
-//
-// This function only changes the lower bound, upper bound and step of the
-// inner loop.
-void PrepareParallelLoopBase::updateInnerLoopIV(Loop &outerLoop,
+// Update the initial value and trip count of the inner loop. The step will
+// still be 1.
+void PrepareReductionLoopCPU::updateInnerLoopIV(Loop &outerLoop,
                                                 Loop &innerLoop,
-                                                Value *numThreads) {
+                                                Value *numPartials) {
   auto sanityCheck = [](const Loop &outerLoop, const Loop &innerLoop,
                         ScalarEvolution &se) {
     assert(outerLoop.getInductionVariable(se) &&
@@ -238,7 +295,8 @@ void PrepareParallelLoopBase::updateInnerLoopIV(Loop &outerLoop,
   };
 
   LLVM_DEBUG(
-      dbgs() << "PrepareParallel: Update inner loop induction variable\n");
+      dbgs()
+      << "PrepareReductionCPU: Update inner loop induction variable (CPU)\n");
   sanityCheck(outerLoop, innerLoop, se);
 
   PHINode *outerIV = outerLoop.getInductionVariable(se);
@@ -253,14 +311,14 @@ void PrepareParallelLoopBase::updateInnerLoopIV(Loop &outerLoop,
 
   IRBuilder<> builder(&*guard->begin());
   Constant *one = ConstantInt::get(ivTy, 1, /*isSigned=*/false);
-  Value *tcPlusThreads = builder.CreateAdd(tc, numThreads);
-  Value *tcPlusThreadsSub1 = builder.CreateSub(tcPlusThreads, one);
-  Value *itersPerThread =
-      builder.CreateUDiv(tcPlusThreadsSub1, numThreads, "prll.per.thrd");
-  Value *newStart = builder.CreateMul(outerIV, itersPerThread, "prll.start");
-  Value *newMax = builder.CreateAdd(newStart, itersPerThread);
+  Value *tcPlusPartials = builder.CreateAdd(tc, numPartials);
+  Value *tcPlusPartialsSub1 = builder.CreateSub(tcPlusPartials, one);
+  Value *sizePartials = builder.CreateUDiv(tcPlusPartialsSub1, numPartials,
+                                           "prduc.size.partials");
+  Value *newStart = builder.CreateMul(outerIV, sizePartials, "prduc.start");
+  Value *newMax = builder.CreateAdd(newStart, sizePartials);
   Value *newEnd = builder.CreateIntrinsic(Intrinsic::umin, {ivTy}, {newMax, tc},
-                                          /*FMFSource=*/{}, "prll.end");
+                                          /*FMFSource=*/{}, "prduc.end");
 
   iv->setIncomingValueForBlock(ph, newStart);
   replaceMatchingOperands(*cmp, tc, newEnd);
@@ -275,17 +333,19 @@ void PrepareParallelLoopBase::updateInnerLoopIV(Loop &outerLoop,
 #endif // NDEBUG
 }
 
-void PrepareParallelLoopBase::updateInnerLoopGuardCondition(Loop &loop) {
+void PrepareReductionLoopCPU::updateInnerLoopGuardCondition(
+    Loop &loop, Value *numPartials) {
   auto sanityCheck = [](Loop &loop, BranchInst *br, ScalarEvolution &se) {
     assert(br && "Inner loop must have a guard block");
     assert(isFalse(br->getCondition()) &&
-           "Placeholder condition of inner loop guard branch must be `false`");
+           "Temporary condition of inner loop guard branch must be `false`");
 
     assert(loop.getBounds(se).has_value() &&
            "Inner loop must have finite bounds");
   };
 
-  LLVM_DEBUG(dbgs() << "PrepareParallel: Update inner loop guard condition\n");
+  LLVM_DEBUG(
+      dbgs() << "PrepareReductionCPU: Update inner loop guard condition\n");
   sanityCheck(loop, getWrappedLoopGuardBranch(loop), se);
 
   Loop::LoopBounds bounds = *loop.getBounds(se);
@@ -294,6 +354,7 @@ void PrepareParallelLoopBase::updateInnerLoopGuardCondition(Loop &loop) {
 
   BranchInst *br = getWrappedLoopGuardBranch(loop);
   Value *cmp = new ICmpInst(br->getIterator(), ICmpInst::ICMP_UGE, start, end);
+
   br->setCondition(cmp);
 
   se.forgetValue(br);
@@ -303,7 +364,7 @@ void PrepareParallelLoopBase::updateInnerLoopGuardCondition(Loop &loop) {
 #endif // NDEBUG
 }
 
-void PrepareParallelLoopBase::parallelizeOuterLoop(Loop &outerLoop,
+void PrepareReductionLoopCPU::parallelizeOuterLoop(Loop &outerLoop,
                                                    Loop &loop) {
   auto sanityCheck = [](const Loop &outerLoop, const Loop &loop, TaskInfo &ti) {
     BasicBlock *innerPh = loop.getLoopPreheader();
@@ -342,7 +403,7 @@ void PrepareParallelLoopBase::parallelizeOuterLoop(Loop &outerLoop,
            "Inner loop not recognized as a tapir loop");
   };
 
-  LLVM_DEBUG(dbgs() << "PrepareParallel: Parallelize outer loop\n");
+  LLVM_DEBUG(dbgs() << "PrepareReductionCPU: Parallelize outer loop\n");
   sanityCheck(outerLoop, loop, ti);
 
   Value *syncRegion = getTapirLoopSyncRegion(loop);
@@ -383,12 +444,12 @@ void PrepareParallelLoopBase::parallelizeOuterLoop(Loop &outerLoop,
 #endif // NDEBUG
 }
 
-void PrepareParallelLoopBase::serializeInnerLoop(Loop &loop) {
+void PrepareReductionLoopCPU::serializeInnerLoop(Loop &loop) {
   auto sanityCheck = [](Loop &loop, TaskInfo &ti) {
     assert(getTaskIfTapirLoop(&loop, &ti) && "Getting task from tapir loop");
   };
 
-  LLVM_DEBUG(dbgs() << "PrepareParallel: Serialize inner loop\n");
+  LLVM_DEBUG(dbgs() << "PrepareReductionCPU: Serialize inner loop\n");
   sanityCheck(loop, ti);
 
   Task *task = getTaskIfTapirLoop(&loop, &ti);
@@ -409,24 +470,17 @@ void PrepareParallelLoopBase::serializeInnerLoop(Loop &loop) {
 #endif // NDEBUG
 }
 
-// Transform a tapir loop. Add the tapir.loop.prepared attribute to the loop and
-// return true if anything other than this attribute was changed.
-bool PrepareParallelLoopBase::run(TapirLoopInfo &tapirLoop) {
-  auto sanityCheck = [](const TapirLoopInfo &tapirLoop) {
-    const Loop &loop = *tapirLoop.getLoop();
-
-    // These checks are mostly to ensure that the loop objects known to the
-    // driver don't get corrupted when processing a function with many tapir
-    // loops.
-    assert(isTapirLoop(loop) && "Loop is a tapir loop");
-    assert(!hasPreparedAttr(loop) && "Tapir loop has not been prepared");
-  };
-
-  LLVM_DEBUG(dbgs() << "PrepareParallel: BEGIN '"
-                    << getName(*tapirLoop.getLoop()) << "'\n");
-  sanityCheck(tapirLoop);
-
+// Transform a tapir reduction loop. Add the tapir.loop.prepared attribute to
+// the loop and return true if anything other than this attribute was changed.
+// For example, if the loop does not perform any actual reductions, the
+// attribute will be added to the loop, but no other transformations will be
+// performed. In such cases, simply return false.
+bool PrepareReductionLoopCPU::run(
+    TapirLoopInfo &tapirLoop,
+    const SmallVectorImpl<ReductionInfo> &reductions) {
   Loop &loop = *tapirLoop.getLoop();
+  LLVM_DEBUG(dbgs() << "PrepareReductionCPU: BEGIN '" << getName(loop)
+                    << "'\n");
 
 #ifndef NDEBUG
   // Make sure that the parent loop, if any, is not affected by this
@@ -437,15 +491,28 @@ bool PrepareParallelLoopBase::run(TapirLoopInfo &tapirLoop) {
   // Generate the outer loop including all blocks. The analysis objects will
   // have been updated.
   Loop *outerLoop = wrapWithTapirLoop(tapirLoop, dt, li, mssa);
-  BasicBlock *outerLoopPreheader = outerLoop->getLoopPreheader();
-  Value *numThreads = computeNumCPUThreads(*outerLoopPreheader, tapirLoop);
 
-  // Fix up the induction variables of the outer and inner loops. These will
-  // only change the initial value, final value and step of the IV, but should
-  // not change the IV itself.
-  updateOuterLoopIV(*outerLoop, numThreads);
-  updateInnerLoopIV(*outerLoop, loop, numThreads);
-  updateInnerLoopGuardCondition(loop);
+  // Don't make any changes to the loop trip counts just yet. While the
+  // transformations to the reduction loop should not be affected by any change
+  // to the trip count, it may be safer to leave them as canonical until we have
+  // finished all the other transformations.
+
+  // This inserts code for the allocation, initialization, and use of the
+  // partial reduction buffers.
+  Value *numPartials = computeNumPartialReductions(*outerLoop, loop);
+  for (const ReductionInfo &redxn : reductions) {
+    Value *partial = allocPartial(loop, redxn);
+    reduceIntoPartial(loop, partial, redxn);
+    reducePartialIntoFinal(loop, partial, redxn);
+  }
+
+  // Now that everything else has been changed, we can fix up the induction
+  // variables of the outer and inner loops. These will only change the initial
+  // value, final value and step of the IV, but should not change the IV itself.
+  // We do this late to minimize the analyses that need to be recomputed
+  updateOuterLoopIV(*outerLoop, numPartials);
+  updateInnerLoopIV(*outerLoop, loop, numPartials);
+  updateInnerLoopGuardCondition(loop, numPartials);
 
   // The outer loop is serial and the inner is parallel. But it needs to be the
   // other way around. Once serializeInnerLoop is run, the syncregion associated
@@ -504,7 +571,7 @@ bool PrepareParallelLoopBase::run(TapirLoopInfo &tapirLoop) {
          "Inner loop not recognized as tapir loop");
 #endif // NDEBUG
 
-  LLVM_DEBUG(dbgs() << "PrepareParallel: END '" << getName(loop) << "'\n");
+  LLVM_DEBUG(dbgs() << "PrepareReductionCPU: END '" << getName(loop) << "'\n");
 
   // Mark the loop as having been prepared to ensure that we don't accidentally
   // attempt to process it more than once.
@@ -512,39 +579,10 @@ bool PrepareParallelLoopBase::run(TapirLoopInfo &tapirLoop) {
   return true;
 }
 
-static bool prepareForCPU(TapirLoopInfo &tapirLoop, DominatorTree &dt,
-                          LoopInfo &li, MemorySSA &mssa, ScalarEvolution &se,
-                          TaskInfo &ti) {
-  return PrepareParallelLoopCPU(dt, li, mssa, se, ti).run(tapirLoop);
-}
-
-static bool prepareForGPU(TapirLoopInfo &tapirLoop, DominatorTree &dt,
-                          LoopInfo &li, MemorySSA &mssa, ScalarEvolution &se,
-                          TaskInfo &ti) {
-  // We currently do not perform any transformation for parallel loops to be
-  // executed on the GPU. The main purpose of the CPU-side transformation is to
-  // enable vectorization. It is not clear if this is beneficial, or even
-  // possible, on GPU's. In the future, if there is some transformation is
-  // beneficial, that can be carried out here.
-  addPreparedAttr(*tapirLoop.getLoop());
-  return false;
-}
-
-bool llvm::detail::prepareParallelLoop(TapirLoopInfo &tapirLoop,
-                                       DominatorTree &dt, LoopInfo &li,
-                                       MemorySSA &mssa, ScalarEvolution &se,
-                                       TaskInfo &ti) {
-  Loop &loop = *tapirLoop.getLoop();
-  TTID tt = *getTargetAttr(loop);
-  if (isCPUTT(tt))
-    return prepareForCPU(tapirLoop, dt, li, mssa, se, ti);
-  else if (isGPUTT(tt))
-    return prepareForGPU(tapirLoop, dt, li, mssa, se, ti);
-  else
-    return false;
-}
-
-bool llvm::detail::checkParallelLoop(TapirLoopInfo &tapirLoop,
-                                     DominatorTree &dt, LoopInfo &li) {
-  return checkTapirLoopSafeToWrap(tapirLoop, dt, li);
+bool llvm::detail::prepareReductionLoopForCPU(
+    TapirLoopInfo &tapirLoop, const SmallVectorImpl<ReductionInfo> &reductions,
+    DominatorTree &dt, LoopInfo &li, MemorySSA &mssa, ScalarEvolution &se,
+    TaskInfo &ti) {
+  return PrepareReductionLoopCPU(dt, li, mssa, se, ti)
+      .run(tapirLoop, reductions);
 }
