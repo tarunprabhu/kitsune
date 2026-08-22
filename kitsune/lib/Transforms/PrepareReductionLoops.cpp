@@ -16,8 +16,10 @@
 #include "PrepareReductionLoops.h"
 #include "LoopWrapping.h"
 #include "kitsune/Core/Diagnostics.h"
+#include "kitsune/Core/IRBuilderUtils.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
+#include "kitsune/Core/ModuleUtils.h"
 #include "kitsune/Core/TTUtils.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
@@ -52,6 +54,43 @@ static bool prepareReductionLoopForSerialExecution(TapirLoopInfo &tapirLoop) {
   // in a separate pass.
   addPreparedAttr(*tapirLoop.getLoop());
   return false;
+}
+
+AllocaInst *llvm::detail::createLocalResult(IRBuilder<> &builder,
+                                            const ReductionInfo &redxn,
+                                            bool initialize) {
+  assert(builder.GetInsertBlock() &&
+         "Insert point of builder must be a basic block");
+  assert(getModule(builder) &&
+         "Insert point of builder must be set to a basic block in a module");
+
+  Value *value = redxn.value;
+  Value *unit = redxn.unit;
+  unsigned elemSize = redxn.elemSize;
+
+  // We cannot, in general, get the type of the value being reduced from either
+  // the type of the unit value, or the value being reduced. One or both of
+  // these may be "passed by reference" - particularly in the case of custom
+  // reductions on objects. In this case, we cannot know the type of the
+  // underlying object being reduced since the pointers are opaque. Since the
+  // element size is explicitly passed to this intrinsic, we alloca that many
+  // bytes.
+  LLVMContext &ctx = builder.getContext();
+  Type *i8 = Type::getInt8Ty(ctx);
+  ArrayType *resultTy = ArrayType::get(i8, elemSize);
+
+  AllocaInst *result = builder.CreateAlloca(resultTy, nullptr, "reduc.partial");
+  if (initialize) {
+    Type *valueTy = value->getType();
+    if (isa<PointerType>(valueTy)) {
+      Align align = getTypeAlignment(*getModule(builder), valueTy);
+      builder.CreateMemCpy(result, align, unit, align, elemSize);
+    } else {
+      builder.CreateStore(unit, result);
+    }
+  }
+
+  return result;
 }
 
 bool llvm::detail::prepareReductionLoop(TapirLoopInfo &tapirLoop,
