@@ -17,6 +17,38 @@ using namespace llvm;
 
 namespace {
 
+TEST(KitTypeUtils, isPrimitiveTy) {
+  LLVMContext ctx;
+  Type *voidTy = Type::getVoidTy(ctx);
+  Type *i1 = Type::getInt1Ty(ctx);
+  Type *i32 = Type::getInt32Ty(ctx);
+  Type *i129 = Type::getIntNTy(ctx, 129);
+  Type *f32 = Type::getFloatTy(ctx);
+  Type *f64 = Type::getDoubleTy(ctx);
+  Type *f80 = Type::getX86_FP80Ty(ctx);
+  Type *f128 = Type::getFP128Ty(ctx);
+  Type *ptr = PointerType::getUnqual(ctx);
+  Type *mobile = PointerType::get(ctx, KitAS::Mobile);
+  Type *arr = ArrayType::get(i32, 4);
+  Type *klass = StructType::get(i32, f32);
+  Type *vec = VectorType::get(i32, 4, /*scalable=*/false);
+
+  EXPECT_TRUE(isPrimitiveTy(i1));
+  EXPECT_TRUE(isPrimitiveTy(i32));
+  EXPECT_TRUE(isPrimitiveTy(i129));
+  EXPECT_TRUE(isPrimitiveTy(f32));
+  EXPECT_TRUE(isPrimitiveTy(f64));
+  EXPECT_TRUE(isPrimitiveTy(f80));
+  EXPECT_TRUE(isPrimitiveTy(f128));
+
+  EXPECT_FALSE(isPrimitiveTy(voidTy));
+  EXPECT_FALSE(isPrimitiveTy(ptr));
+  EXPECT_FALSE(isPrimitiveTy(mobile));
+  EXPECT_FALSE(isPrimitiveTy(arr));
+  EXPECT_FALSE(isPrimitiveTy(klass));
+  EXPECT_FALSE(isPrimitiveTy(vec));
+}
+
 TEST(KitTypeUtils, isMobilePointerTy) {
   LLVMContext ctx;
   Type *voidTy = Type::getVoidTy(ctx);
