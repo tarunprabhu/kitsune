@@ -530,9 +530,10 @@ static bool prepareForGPU(TapirLoopInfo &tapirLoop, DominatorTree &dt,
   return false;
 }
 
-bool llvm::prepareParallelLoop(TapirLoopInfo &tapirLoop, DominatorTree &dt,
-                               LoopInfo &li, MemorySSA &mssa,
-                               ScalarEvolution &se, TaskInfo &ti) {
+bool llvm::detail::prepareParallelLoop(TapirLoopInfo &tapirLoop,
+                                       DominatorTree &dt, LoopInfo &li,
+                                       MemorySSA &mssa, ScalarEvolution &se,
+                                       TaskInfo &ti) {
   Loop &loop = *tapirLoop.getLoop();
   TTID tt = *getTargetAttr(loop);
   if (isCPUTT(tt))
@@ -543,7 +544,7 @@ bool llvm::prepareParallelLoop(TapirLoopInfo &tapirLoop, DominatorTree &dt,
     return false;
 }
 
-bool llvm::checkParallelLoop(TapirLoopInfo &tapirLoop, DominatorTree &dt,
-                             LoopInfo &li) {
+bool llvm::detail::checkParallelLoop(TapirLoopInfo &tapirLoop,
+                                     DominatorTree &dt, LoopInfo &li) {
   return checkTapirLoopSafeToWrap(tapirLoop, dt, li);
 }
