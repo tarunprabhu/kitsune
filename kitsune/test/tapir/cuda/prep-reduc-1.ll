@@ -7,8 +7,8 @@
 ; CHECK: [[ENTRY:.+]]:
 ; CHECK: %[[RESULT:.+]] = alloca i64
 ; CHECK: %[[SYNCREG:.+]] = tail call token @llvm.syncregion.start()
-; CHECK-NEXT: %[[LOCAL:.+]] = tail call noalias ptr @llvm.kit.gpu.malloc(i32 2, i64 8)
-; CHECK-NEXT: store i64 0, ptr %[[LOCAL]]
+; CHECK-NEXT: %[[GLOBAL:.+]] = tail call noalias ptr @llvm.kit.gpu.malloc(i32 2, i64 8)
+; CHECK-NEXT: store i64 0, ptr %[[GLOBAL]]
 ; CHECK-NEXT: br label %[[HEADER:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[HEADER]]:
@@ -18,7 +18,15 @@
 ; CHECK-NEXT: detach within %[[SYNCREG]], label %[[BODY:.+]], label %[[LATCH]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[BODY]]:
-; CHECK-NEXT: atomicrmw add ptr %[[LOCAL]], i64 %[[IV]] monotonic
+; CHECK-NEXT: %[[LOCAL:.+]] = alloca [8 x i8]
+; CHECK-NEXT: store i64 0, ptr %[[LOCAL]]
+; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0
+; CHECK-SAME: i32 2
+; CHECK-SAME: i32 5
+; CHECK-SAME: ptr %[[LOCAL]]
+; CHECK-SAME: i64 %[[IV]]
+; CHECK-NEXT: %[[VALUE:.+]] = load i64, ptr %[[LOCAL]]
+; CHECK-NEXT: atomicrmw add ptr %[[GLOBAL]], i64 %[[VALUE]] monotonic
 ; CHECK-NEXT: reattach within %[[SYNCREG]], label %[[LATCH]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[LATCH]]:
@@ -28,8 +36,8 @@
 ; CHECK-SAME: !llvm.loop ![[LOOP:[0-9]+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[EXIT]]:
-; CHECK-NEXT: call void @llvm.kit.gpu.memcpy.dtoh(i32 2, ptr %[[RESULT]], ptr %[[LOCAL]], i64 8)
-; CHECK-NEXT: call void @llvm.kit.gpu.free(i32 2, ptr %[[LOCAL]])
+; CHECK-NEXT: call void @llvm.kit.gpu.memcpy.dtoh(i32 2, ptr %[[RESULT]], ptr %[[GLOBAL]], i64 8)
+; CHECK-NEXT: call void @llvm.kit.gpu.free(i32 2, ptr %[[GLOBAL]])
 ; CHECK-NEXT: sync within %[[SYNCREG]],
 ;
 ; CHECK-DAG: ![[TARGET:.+]] = !{!"tapir.loop.target", i32 2}

@@ -21,17 +21,17 @@
 // Frontends are expected to use the kit.reduce.0 intrinsic to represent the
 // loop above
 //
-//     void sum(int32_t* res, int32_t v) {
+//     void f_sum(int32_t* res, int32_t v) {
 //         *res += v;
 //     }
 //
-//     void and(int64_t* res, int64_t v) {
+//     void f_and(int64_t* res, int64_t v) {
 //         *res &= v;
 //     }
 //
 //     parallel_for (int i = 0; i < n; ++i) {
-//         kit.reduce.0(&r_sum, sizeof(r_sum), i, 0, &sum);
-//         kit.reduce.0(&r_and, sizeof(r_and), i, 1, &and);
+//         kit.reduce.0(&r_sum, sizeof(r_sum), i, 0, &f_sum);
+//         kit.reduce.0(&r_and, sizeof(r_and), i, 1, &f_and);
 //     }
 //
 // This pass will transform this into the following for parallel execution on a
@@ -42,8 +42,12 @@
 //     int64_t *g_and = (int64_t*)kit.gpu.malloc(sizeof(int64_t));
 //     *g_and = 1;
 //     parallel_for (int i = 0; j < n; ++i) {
-//         atomicReduce(&sum, g_sum, i);
-//         atomicReduce(&and, g_and, i);
+//         int32_t l_sum = 0;
+//         int64_t l_and = 1;
+//         kit.reduce.0(&l_sum, sizeof(r_sum), i, 0, &f_sum);
+//         kit.reduce.0(&l_and, sizeof(r_and), i, 1, &f_and);
+//         atomicReduce(g_sum, l_sum, &sum);
+//         atomicReduce(g_and, l_and, &and);
 //     }
 //     kit.gpu.memcpy.dtoh(&r_sum, g_sum, sizeof(int32_t));
 //     kit.gpu.memcpy.dtoh(&r_and, g_and, sizeof(int64_t));
@@ -59,12 +63,13 @@
 //===----------------------------------------------------------------------===//
 
 #include "PrepareReductionLoops.h"
-#include "kitsune/Core/AddrSpace.h"
 #include "kitsune/Core/Diagnostics.h"
 #include "kitsune/Core/IRBuilderUtils.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
+#include "kitsune/Core/ModuleUtils.h"
 #include "kitsune/Core/Reductions.h"
+#include "kitsune/Core/TypeUtils.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Module.h"
@@ -78,13 +83,15 @@ namespace {
 // Transform tapir reduction loops for parallel executions on GPU's.
 class PrepareReductionLoopGPU {
 private:
-  Value *allocResultVar(Loop &loop, const ReductionInfo &redxn);
-  void reduceIntoResultVar(Loop &loop, Value *resultVar,
-                           const ReductionInfo &redxn);
-  void copyResultVarToHost(Loop &loop, Value *resultVar,
-                           const ReductionInfo &redxn);
-  void freeResultVar(Loop &loop, Value *resultVar, const ReductionInfo &redxn);
-  void eraseReduceCall(Loop &loop, const ReductionInfo &redxn);
+  Value *allocGlobalResult(Loop &loop, const ReductionInfo &redxn);
+  Value *allocLocalResult(Loop &loop, const ReductionInfo &redxn);
+  void reduceIntoLocalResult(Value *localResult, const ReductionInfo &redxn);
+  void reduceIntoGlobalResult(Loop &loop, Value *globalResult,
+                              Value *localResult, const ReductionInfo &redxn);
+  void copyGlobalResultToHost(Loop &loop, Value *globalResult,
+                              const ReductionInfo &redxn);
+  void freeGlobalResult(Loop &loop, Value *globalResult,
+                        const ReductionInfo &redxn);
 
 public:
   PrepareReductionLoopGPU() = default;
@@ -97,9 +104,9 @@ public:
 // Allocate space, on the GPU, where the values being reduced will be
 // accumulated. This will use Kitsune's kit.gpu.malloc intrinsic. The call will
 // be added to the preheader of the reduction loop.
-Value *PrepareReductionLoopGPU::allocResultVar(Loop &loop,
-                                               const ReductionInfo &redxn) {
-  LLVM_DEBUG(dbgs() << "PrepareReductionGPU: Allocate buffer for partial\n");
+Value *PrepareReductionLoopGPU::allocGlobalResult(Loop &loop,
+                                                  const ReductionInfo &redxn) {
+  LLVM_DEBUG(dbgs() << "PrepareReductionGPU: Allocate global result\n");
 
   LLVMContext &ctx = getContext(loop);
   Type *i64 = Type::getInt64Ty(ctx);
@@ -108,10 +115,61 @@ Value *PrepareReductionLoopGPU::allocResultVar(Loop &loop,
   IRBuilder<> builder(bb.getTerminator());
   Value *sz64 =
       builder.CreateIntCast(redxn.getElemSizeV(), i64, /*isSigned=*/false);
-  Value *result = createGPUMalloc(builder, redxn.tt, sz64);
-  builder.CreateStore(redxn.unit, result);
+  Value *globalResult = createGPUMalloc(builder, redxn.tt, sz64);
+  builder.CreateStore(redxn.unit, globalResult);
 
-  return result;
+  return globalResult;
+}
+
+// Allocate a stack variable into which the per-thread reduction will be
+// stored. The reductions may not be as simple as `res += i`, or even
+// `res &= a[i]`. A single thread may contain a loop that reduces multiple times
+// into the result variable `res`. For instance, something like this:
+//
+//     parallel_for (int i = 0; i < n; ++i) {
+//       for (auto j : x)
+//         for (auto k : y)
+//           res += f(i, j, k);
+//     }
+//
+// In such cases, it is better to create a local variable to accumulate all the
+// values of `f` that are computed in a single thread, then accumulate the final
+// result into `res`.
+//
+//     parallel_for (int i = 0; i < n; ++i) {
+//       decltype(res) local = 0;
+//       for (auto j : x)
+//         for (auto k : y)
+//           local += f(i, j, k);
+//       res += local;
+//     }
+//
+// This transformation is absolutely necessary for an implementation based on
+// warp shuffles since all threads in the warp must perform the shuffle. If,
+// for whatever reason, we were to forgo this implementation, and reduce into
+// `res` directly, this would also reduce the number of atomic reduce operations
+// that would be performed on `res`.
+Value *PrepareReductionLoopGPU::allocLocalResult(Loop &loop,
+                                                 const ReductionInfo &redxn) {
+  LLVM_DEBUG(dbgs() << "PrepareReductionGPU: Allocate per-thread result\n");
+
+  BasicBlock &body = *getTapirLoopDetachedBlock(loop);
+  IRBuilder<> builder(&*body.begin());
+
+  // The alloca is added to the body of the loop because, when loop-spawning
+  // outlines the body, it will become a "top-level" stack variable in that
+  // outlined function, which is exactly what we want.
+  return detail::createLocalResult(builder, redxn, /*initialize=*/true);
+}
+
+// Change the destination of the reduce intrinsic to write to the local buffer
+// \p localResult. In a later step, an atomic reduction will be performed with
+// the value of this local result.
+void PrepareReductionLoopGPU::reduceIntoLocalResult(
+    Value *localResult, const ReductionInfo &redxn) {
+  LLVM_DEBUG(dbgs() << "PrepareReductionGPU: Reduction into local result\n");
+
+  redxn.call->setArgOperand(2, localResult);
 }
 
 // Ensure that the values being reduced are accumulated into the result variable
@@ -120,29 +178,34 @@ Value *PrepareReductionLoopGPU::allocResultVar(Loop &loop,
 // instruction if it supports the reduction operator. If it does not, a custom
 // atomic reduction will be used. The original call to the reduce intrinsic
 // will be removed.
-void PrepareReductionLoopGPU::reduceIntoResultVar(Loop &loop, Value *resultVar,
-                                                  const ReductionInfo &redxn) {
-  LLVM_DEBUG(dbgs() << "PrepareReductionGPU: Reduce into partial\n");
+void PrepareReductionLoopGPU::reduceIntoGlobalResult(
+    Loop &loop, Value *globalResult, Value *localResult,
+    const ReductionInfo &redxn) {
+  LLVM_DEBUG(dbgs() << "PrepareReductionGPU: Reduce into global result\n");
+
+  Type *valueTy = redxn.value->getType();
 
   std::optional<AtomicRMWInst::BinOp> atomicOp = getAtomicOp(redxn.reduceOp);
   if (!atomicOp)
     emitDiagnostic(loop, DiagID::ErrNYI,
                    "Reduction operator not supported by AtomicRMWInst");
+  else if (!isPrimitiveTy(valueTy))
+    emitDiagnostic(loop, DiagID::ErrNYI, "Reducing values passed by pointer");
 
-  Module &m = *getModule(loop);
-  const DataLayout &dl = m.getDataLayout();
-  Align align = dl.getPointerABIAlignment(KitAS::Default);
+  Align align = getPointerAlignment(*getModule(loop));
+  ReattachInst *reattach = getTapirLoopReattachInst(loop);
+  IRBuilder<> builder(reattach);
 
-  IRBuilder<> builder(redxn.call);
-  builder.CreateAtomicRMW(*atomicOp, resultVar, redxn.value, align,
+  Value *value = builder.CreateLoad(valueTy, localResult);
+  builder.CreateAtomicRMW(*atomicOp, globalResult, value, align,
                           AtomicOrdering::Monotonic);
 }
 
 // Once the reduction has been computed, copy the result from the device to the
 // final destination on the host.
-void PrepareReductionLoopGPU::copyResultVarToHost(Loop &loop, Value *resultVar,
-                                                  const ReductionInfo &redxn) {
-  LLVM_DEBUG(dbgs() << "PrepareReductionGPU: Copy result to host\n");
+void PrepareReductionLoopGPU::copyGlobalResultToHost(
+    Loop &loop, Value *globalResult, const ReductionInfo &redxn) {
+  LLVM_DEBUG(dbgs() << "PrepareReductionGPU: Copy global result to host\n");
 
   LLVMContext &ctx = getContext(loop);
   Type *i64 = Type::getInt64Ty(ctx);
@@ -152,27 +215,18 @@ void PrepareReductionLoopGPU::copyResultVarToHost(Loop &loop, Value *resultVar,
   Value *sz64 =
       builder.CreateIntCast(redxn.getElemSizeV(), i64, /*isSigned=*/true);
   builder.CreateIntrinsic(Intrinsic::kit_gpu_memcpy_dtoh,
-                          {redxn.getTTV(), redxn.dest, resultVar, sz64});
+                          {redxn.getTTV(), redxn.dest, globalResult, sz64});
 }
 
 // Free the result variable on the device into which the result was computed.
-void PrepareReductionLoopGPU::freeResultVar(Loop &loop, Value *resultVar,
-                                            const ReductionInfo &redxn) {
+void PrepareReductionLoopGPU::freeGlobalResult(Loop &loop, Value *globalResult,
+                                               const ReductionInfo &redxn) {
   LLVM_DEBUG(dbgs() << "PrepareReductionGPU: Free partial buffer\n");
 
   BasicBlock &bb = *getExitBlockFromLatch(loop);
   IRBuilder<> builder(bb.getTerminator());
-  builder.CreateIntrinsic(Intrinsic::kit_gpu_free, {redxn.getTTV(), resultVar});
-}
-
-// By this point, we know that the reduction is being computed with an
-// atomicrmw instruction (or the equivalent). The reduce call can, therefore,
-// be removed.
-void PrepareReductionLoopGPU::eraseReduceCall(Loop &loop,
-                                              const ReductionInfo &redxn) {
-  LLVM_DEBUG(dbgs() << "PrepareReductionGPU: Erase original reduce call\n");
-
-  redxn.call->eraseFromParent();
+  builder.CreateIntrinsic(Intrinsic::kit_gpu_free,
+                          {redxn.getTTV(), globalResult});
 }
 
 bool PrepareReductionLoopGPU::run(
@@ -189,11 +243,12 @@ bool PrepareReductionLoopGPU::run(
                     << "'\n");
 
   for (const ReductionInfo &redxn : reductions) {
-    Value *result = allocResultVar(loop, redxn);
-    reduceIntoResultVar(loop, result, redxn);
-    copyResultVarToHost(loop, result, redxn);
-    freeResultVar(loop, result, redxn);
-    eraseReduceCall(loop, redxn);
+    Value *globalResult = allocGlobalResult(loop, redxn);
+    Value *localResult = allocLocalResult(loop, redxn);
+    reduceIntoLocalResult(localResult, redxn);
+    reduceIntoGlobalResult(loop, globalResult, localResult, redxn);
+    copyGlobalResultToHost(loop, globalResult, redxn);
+    freeGlobalResult(loop, globalResult, redxn);
   }
 
   LLVM_DEBUG(dbgs() << "PrepareReductionGPU: END '" << getName(loop) << "'\n");
