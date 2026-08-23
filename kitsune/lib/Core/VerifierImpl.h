@@ -40,7 +40,7 @@ protected:
   KitVerifier &verifyIntrReduce(const CallBase &call, Value *unit,
                                 Value *reducer, unsigned extraArgNum);
   KitVerifier &verifyIntrReduce0(const CallBase &call);
-  KitVerifier &verifyIntrReduce1(const CallBase &call);
+  KitVerifier &verifyIntrWarpIdOrLane(const CallBase &call);
   KitVerifier &verify(const CallBase &call);
 
   KitVerifier &verify(const Argument &a);

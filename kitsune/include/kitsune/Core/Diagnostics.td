@@ -311,6 +311,9 @@ def ErrSecIVOperator
 def ErrSecIVNonConstStep
   : Error<"secondary induction variable has non-constant step">;
 
+def ErrGPUDimensionsNotInRange
+  : Error<"Dimensions in GPU intrinsic call must be in range [1,3]. Got '{}'">;
+
 // Generic errors that can be used to emit any error message.
 def ErrGeneric
   : Error<"{}">;

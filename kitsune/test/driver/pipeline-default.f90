@@ -55,7 +55,8 @@
 ! O123S:      Running pass:     PreLowerPreparePass
 ! O123S:      Running pass:     SecondaryIVEliminationPass
 ! O123S:      Running pass:     PrepareTapirLoopsPass
-! O123S:      Running pass:     InstrumentPass
+! O123S-NOT:  Running pass:     InstrumentPass
+! O123S:      Running pass:     LowerKitWarpIntrinsicsPass
 ! O123S:      Running pass:     LowerKitReduceIntrinsicsPass
 ! O123S:      Running pass:     DeLICMPass
 ! O123S:      Running pass:     SimplifyCFGPass

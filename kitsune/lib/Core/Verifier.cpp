@@ -181,6 +181,15 @@ KitVerifier &KitVerifier::verifyIntrReduce0(const CallBase &call) {
   return verifyIntrReduce(call, unit, reducer, 7);
 }
 
+KitVerifier &KitVerifier::verifyIntrWarpIdOrLane(const CallBase &call) {
+  Value *dimsV = call.getArgOperand(1);
+  unsigned dims = *fromConstant<unsigned>(cast<Constant>(*dimsV));
+
+  check(dims > 0 && dims < 4, DiagID::ErrGPUDimensionsNotInRange, dims);
+
+  return *this;
+}
+
 KitVerifier &KitVerifier::verify(const CallBase &call) {
   Intrinsic::ID id = call.getIntrinsicID();
   if (isKitIntrinsic(id)) {
@@ -198,6 +207,8 @@ KitVerifier &KitVerifier::verify(const CallBase &call) {
     if (std::optional<TTID> tt = getTTIDFromKitIntrCall(call))
       check(*tt == TTID::Cuda, DiagID::ErrKitIntrWrongTTID, TTID::Cuda);
     return *this;
+  case Intrinsic::kit_gpu_warp_id:
+  case Intrinsic::kit_gpu_warp_lane: return verifyIntrWarpIdOrLane(call);
   case Intrinsic::kit_mobile_init: return verifyIntrMobileInit(call);
   case Intrinsic::kit_reduce_0: return verifyIntrReduce0(call);
   default: return *this;

@@ -113,7 +113,10 @@ bool LowerKitIntrinsicsBase::replaceSimple(IRBuilder<> &builder, CallBase *call,
 bool LowerKitIntrinsicsBase::run(Module &m) {
   // Some intrinsics should have been lowered already, regardless of the tapir
   // target. If these are encountered here, raise an error.
-  static const SmallSet<Intrinsic::ID, 2> unexpected = {};
+  static const SmallSet<Intrinsic::ID, 2> unexpected = {
+      Intrinsic::kit_gpu_warp_id,
+      Intrinsic::kit_gpu_warp_lane,
+  };
 
   SmallVector<CallBase *, 4> calls;
   for (Function &f : m)
