@@ -137,8 +137,8 @@ private:
   std::string cudaVirtArch;
 
   /// NVIDIA GPU target features, computed by the driver, for @ref cudaArch.
-  /// This is a string that can be used by the NVPTX module that is generated
-  /// when lowering with the cuda tapir target.
+  /// This is a string that can be used by the device code module that is
+  /// generated when lowering with the cuda tapir target.
   std::string cudaFeatures;
 
   /// Absolute path to the cuda runtime bitcode file. This will only be
@@ -153,7 +153,7 @@ private:
   std::string hipArch = defaultHipArch.str();
 
   /// AMD GPU target features, computed by the driver, for @ref hipArch. This is
-  /// a string that can be used by the NVPTX module that is generated when
+  /// a string that can be used by the device code module that is generated when
   /// lowering with the hip tapir target.
   std::string hipFeatures;
 

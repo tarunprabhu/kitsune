@@ -299,6 +299,12 @@ def int_kit_gpu_grid_size_z
   let Doc = KitGPUGridSizeZDoc;
 }
 
+// Get the number of threads per warp.
+def int_kit_gpu_warp_size
+    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty], [IntrNoMem, IntrWillReturn]> {
+  let Doc = KitGPUWarpSizeDoc;
+}
+
 // Get the number of compute units available to a GPU tapir target.
 def int_kit_gpu_num_compute_units
     : KitIntrinsic<[llvm_i64_ty], [llvm_i32_ty], [ImmArg<ArgIndex<0>>]> {
