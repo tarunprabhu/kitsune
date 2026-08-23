@@ -737,6 +737,78 @@ this could be lowered to a runtime call.
 }];
 }
 
+def KitGPUWarpIDDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [
+    KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
+    KitDocParam<"dims", "The number of dimensions in the thread block">
+  ];
+  let Descr = [{
+Get the index of a warp within a thread block. In general, this is computed as
+follows
+
+.. code :: c++
+
+  warpID = (threadIdx.x
+               + threadIdx.y * blockDim.x
+               + threadIdx.z * blockDim.x * blockDim.y) / warpSize;
+
+Here `warpSize` is the number of threads in a warp. `dims` must be in the range
+`[1,3]`, inclusive. This is a hint that can be used to enable a more efficient
+lowering of this intrinsic. The table below shows the expression used to compute
+the warp ID for the allowed values of `dims`. An entry of `warpID` in the "ID"
+column indicates that the full expression shown above is used.
+
+.. csv-table::
+   :header: "`dims`", "ID"
+
+   1, `threadIdx.x / warpSize`
+   2, `(threadIdx.x + threadIdx.y * blockDim.x) / warpSize`
+   3, `warpID`
+
+If the number of dimensions in a thread block is not known, `dims` should be set
+to 3. This works even for 1D launches because the values of `blockDim.y`,
+`blockDim.z`, `threadIdx.y`, and `threadIdx.z` will be 0. However, performing
+the full calulation in such cases is, obviously, inefficient.
+}];
+}
+
+def KitGPUWarpLaneDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [
+    KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
+    KitDocParam<"dims", "The number of dimensions in the thread block">
+  ];
+  let Descr = [{
+Get the lane of a warp within a thread block. In general, this is computed as
+follows
+
+.. code :: c++
+
+  warpLane = (threadIdx.x
+                 + threadIdx.y * blockDim.x
+                 + threadIdx.z * blockDim.x * blockDim.y) % warpSize;
+
+Here `warpSize` is the number of threads in a warp. `dims` must be in the range
+`[1,3]`, inclusive. This is a hint that can be used to enable a more efficient
+lowering of this intrinsic. The table below shows the expression used to compute
+the warp lane for the allowed values of `dims`. An entry of `warpLane` in the
+"Lane" column indicates that the full expression shown above is used.
+
+.. csv-table::
+   :header: "`dims`", "Lane"
+
+   1, `threadIdx.x % warpSize`
+   2, `(threadIdx.x + threadIdx.y * blockDim.x) % warpSize`
+   3, `warpLane`
+
+If the number of dimensions in a thread block is not known, `dims` should be set
+to 3. This works even for 1D launches because the values of `blockDim.y`,
+`blockDim.z`, `threadIdx.y`, and `threadIdx.z` will be 0. However, performing
+the full calulation in such cases is, obviously, inefficient.
+}];
+}
+
 def KitAsyncGPULaunchKernelDoc : KitDocIntrinsic {
   let Category = KitDocCatGPU;
   let ParamDocs = [
