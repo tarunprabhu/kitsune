@@ -40,7 +40,7 @@
 #include "llvm/IR/InstIterator.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
-#define DEBUG_TYPE "kit-reduce-intrinsics"
+#define DEBUG_TYPE "kit-lower-reduce-intrinsics"
 
 using namespace llvm;
 

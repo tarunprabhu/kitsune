@@ -8,49 +8,50 @@
 ; RUN:      | %kit-mbc --tapir=hip -S \
 ; RUN:      | FileCheck %s
 ;
-; CHECK: threadidx:
-; CHECK-NEXT: %tid.x = call i32 @llvm.amdgcn.workitem.id.x()
-; CHECK-NEXT: %tid.y = call i32 @llvm.amdgcn.workitem.id.y()
-; CHECK-NEXT: %tid.z = call i32 @llvm.amdgcn.workitem.id.z()
-; CHECK-NEXT: br label %blockidx
+; CHECK-LABEL: @f
+; CHECK-NEXT: [[THREADIDX:.+]]:
+; CHECK-NEXT: %[[TIDX:.+]] = call i32 @llvm.amdgcn.workitem.id.x()
+; CHECK-NEXT: %[[TIDY:.+]] = call i32 @llvm.amdgcn.workitem.id.y()
+; CHECK-NEXT: %[[TIDZ:.+]] = call i32 @llvm.amdgcn.workitem.id.z()
+; CHECK-NEXT: br label %[[BLOCKIDX:.+]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: blockidx:
-; CHECK-NEXT: %bid.x = call i32 @llvm.amdgcn.workgroup.id.x()
-; CHECK-NEXT: %bid.y = call i32 @llvm.amdgcn.workgroup.id.y()
-; CHECK-NEXT: %bid.z = call i32 @llvm.amdgcn.workgroup.id.z()
-; CHECK-NEXT: br label %blockdim
+; CHECK-NEXT: [[BLOCKIDX]]:
+; CHECK-NEXT: %[[BIDX:.+]] = call i32 @llvm.amdgcn.workgroup.id.x()
+; CHECK-NEXT: %[[BIDY:.+]] = call i32 @llvm.amdgcn.workgroup.id.y()
+; CHECK-NEXT: %[[BIDZ:.+]] = call i32 @llvm.amdgcn.workgroup.id.z()
+; CHECK-NEXT: br label %[[BLOCKDIM:.+]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: blockdim:
-; CHECK-NEXT: %bsz.x.64 = call i64 @__ockl_get_local_size(i32 0)
-; CHECK-NEXT: %bsz.x = trunc i64 %bsz.x.64 to i32
-; CHECK-NEXT: %bsz.y.64 = call i64 @__ockl_get_local_size(i32 1)
-; CHECK-NEXT: %bsz.y = trunc i64 %bsz.y.64 to i32
-; CHECK-NEXT: %bsz.z.64 = call i64 @__ockl_get_local_size(i32 2)
-; CHECK-NEXT: %bsz.z = trunc i64 %bsz.z.64 to i32
-; CHECK-NEXT: br label %griddim
+; CHECK-NEXT: [[BLOCKDIM]]:
+; CHECK-NEXT: %[[BSZX64:.+]] = call i64 @__ockl_get_local_size(i32 0)
+; CHECK-NEXT: %[[BSZX:.+]] = trunc i64 %[[BSZX64]] to i32
+; CHECK-NEXT: %[[BSZY64:.+]] = call i64 @__ockl_get_local_size(i32 1)
+; CHECK-NEXT: %[[BSZY:.+]] = trunc i64 %[[BSZY64]] to i32
+; CHECK-NEXT: %[[BSZZ64:.+]] = call i64 @__ockl_get_local_size(i32 2)
+; CHECK-NEXT: %[[BSZZ:.+]] = trunc i64 %[[BSZZ64]] to i32
+; CHECK-NEXT: br label %[[GRIDDIM:.+]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: griddim:
-; CHECK-NEXT: %gsz.x.64 = call i64 @__ockl_get_global_size(i32 0)
-; CHECK-NEXT: %gsz.x = trunc i64 %gsz.x.64 to i32
-; CHECK-NEXT: %gsz.y.64 = call i64 @__ockl_get_global_size(i32 1)
-; CHECK-NEXT: %gsz.y = trunc i64 %gsz.y.64 to i32
-; CHECK-NEXT: %gsz.z.64 = call i64 @__ockl_get_global_size(i32 2)
-; CHECK-NEXT: %gsz.z = trunc i64 %gsz.z.64 to i32
-; CHECK-NEXT: br label %uses
+; CHECK-NEXT: [[GRIDDIM]]:
+; CHECK-NEXT: %[[GSZX64:.+]] = call i64 @__ockl_get_global_size(i32 0)
+; CHECK-NEXT: %[[GSZX:.+]] = trunc i64 %[[GSZX64]] to i32
+; CHECK-NEXT: %[[GSZY64:.+]] = call i64 @__ockl_get_global_size(i32 1)
+; CHECK-NEXT: %[[GSZY:.+]] = trunc i64 %[[GSZY64]] to i32
+; CHECK-NEXT: %[[GSZZ64:.+]] = call i64 @__ockl_get_global_size(i32 2)
+; CHECK-NEXT: %[[GSZZ:.+]] = trunc i64 %[[GSZZ64]] to i32
+; CHECK-NEXT: br label %[[USES:.+]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: uses:
-; CHECK-NEXT: call void @ext(i32 %tid.x)
-; CHECK-NEXT: call void @ext(i32 %tid.y)
-; CHECK-NEXT: call void @ext(i32 %tid.z)
-; CHECK-NEXT: call void @ext(i32 %bid.x)
-; CHECK-NEXT: call void @ext(i32 %bid.y)
-; CHECK-NEXT: call void @ext(i32 %bid.z)
-; CHECK-NEXT: call void @ext(i32 %bsz.x)
-; CHECK-NEXT: call void @ext(i32 %bsz.y)
-; CHECK-NEXT: call void @ext(i32 %bsz.z)
-; CHECK-NEXT: call void @ext(i32 %gsz.x)
-; CHECK-NEXT: call void @ext(i32 %gsz.y)
-; CHECK-NEXT: call void @ext(i32 %gsz.z)
+; CHECK-NEXT: [[USES]]:
+; CHECK-NEXT: call void @ext(i32 %[[TIDX]])
+; CHECK-NEXT: call void @ext(i32 %[[TIDY]])
+; CHECK-NEXT: call void @ext(i32 %[[TIDZ]])
+; CHECK-NEXT: call void @ext(i32 %[[BIDX]])
+; CHECK-NEXT: call void @ext(i32 %[[BIDY]])
+; CHECK-NEXT: call void @ext(i32 %[[BIDZ]])
+; CHECK-NEXT: call void @ext(i32 %[[BSZX]])
+; CHECK-NEXT: call void @ext(i32 %[[BSZY]])
+; CHECK-NEXT: call void @ext(i32 %[[BSZZ]])
+; CHECK-NEXT: call void @ext(i32 %[[GSZX]])
+; CHECK-NEXT: call void @ext(i32 %[[GSZY]])
+; CHECK-NEXT: call void @ext(i32 %[[GSZZ]])
 ; CHECK-NEXT: ret void
 
 declare void @ext(i32)
