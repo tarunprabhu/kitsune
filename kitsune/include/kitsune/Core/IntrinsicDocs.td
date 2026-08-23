@@ -722,6 +722,21 @@ vendor-provided bitcode file, which is called with a specific argument.
 }];
 }
 
+def KitGPUWarpSizeDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [
+    KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">
+  ];
+  let Descr = [{
+The number of threads per warp. This is generally lowered to a compile-time
+constant of 32 or 64 depending on the device. On NVIDIA GPU's, this is always
+32, but on AMD GPU's, it may be 32 or 64 depending on the device. Some AMD GPU's
+support warp sizes of both 32 and 64, in which case the value being used will
+depend on a compile-time option. On devices that support customizing at runtime,
+this could be lowered to a runtime call.
+}];
+}
+
 def KitAsyncGPULaunchKernelDoc : KitDocIntrinsic {
   let Category = KitDocCatGPU;
   let ParamDocs = [

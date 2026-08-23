@@ -50,6 +50,8 @@ add_llvm_component_library(LLVMKitTransforms
   Linker
   Passes
   Support
+  Target
+  TargetParser
 )
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
