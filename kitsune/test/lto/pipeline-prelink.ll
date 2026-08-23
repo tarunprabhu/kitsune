@@ -33,6 +33,7 @@
 ; CHECK:      Running pass:      NormalizeLoopControlBlocksPass
 ; CHECK:      Running pass:      SecondaryIVEliminationPass
 ; CHECK:      Running pass:      PrepareTapirLoopsPass
+; CHECK:      Running pass:      LowerKitWarpIntrinsicsPass
 ; CHECK:      Running pass:      LowerKitReduceIntrinsicsPass
 ; CHECK-NOT:  Running pass:      InstrumentPass
 ;

@@ -229,73 +229,85 @@ def int_kit_cpu_threads_sync
 
 // Get the thread index in the x dimension in a GPU kernel.
 def int_kit_gpu_thread_id_x
-    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty], [IntrNoMem]> {
+    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty],
+                   [ImmArg<ArgIndex<0>>, IntrNoMem, IntrWillReturn]> {
   let Doc = KitGPUTIDXDoc;
 }
 
 // Get the thread index in the y dimension in a GPU kernel.
 def int_kit_gpu_thread_id_y
-    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty], [IntrNoMem]> {
+    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty],
+                   [ImmArg<ArgIndex<0>>, IntrNoMem, IntrWillReturn]> {
   let Doc = KitGPUTIDYDoc;
 }
 
 // Get the thread index in the z dimension in a GPU kernel.
 def int_kit_gpu_thread_id_z
-    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty], [IntrNoMem]> {
+    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty],
+                   [ImmArg<ArgIndex<0>>, IntrNoMem, IntrWillReturn]> {
   let Doc = KitGPUTIDZDoc;
 }
 
 // Get the block index in the x dimension in a GPU kernel.
 def int_kit_gpu_block_id_x
-    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty], [IntrNoMem]> {
+    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty],
+                   [ImmArg<ArgIndex<0>>, IntrNoMem, IntrWillReturn]> {
   let Doc = KitGPUBlockIDXDoc;
 }
 
 // Get the block index in the y dimension in a GPU kernel.
 def int_kit_gpu_block_id_y
-    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty], [IntrNoMem]> {
+    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty],
+                   [ImmArg<ArgIndex<0>>, IntrNoMem, IntrWillReturn]> {
   let Doc = KitGPUBlockIDYDoc;
 }
 
 // Get the block index in the z dimension in a GPU kernel.
 def int_kit_gpu_block_id_z
-    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty], [IntrNoMem]> {
+    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty],
+                   [ImmArg<ArgIndex<0>>, IntrNoMem, IntrWillReturn]> {
   let Doc = KitGPUBlockIDZDoc;
 }
 
 // Get the number of blocks in the x dimension in a GPU kernel.
 def int_kit_gpu_block_size_x
-    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty], [IntrNoMem]> {
+    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty],
+                   [ImmArg<ArgIndex<0>>, IntrNoMem, IntrWillReturn]> {
   let Doc = KitGPUBlockSizeXDoc;
 }
 
 // Get the number of blocks in the y dimension in a GPU kernel.
 def int_kit_gpu_block_size_y
-    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty], [IntrNoMem]> {
+    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty],
+                   [ImmArg<ArgIndex<0>>, IntrNoMem, IntrWillReturn]> {
   let Doc = KitGPUBlockSizeYDoc;
 }
 
-// Get the number of blocks in the x dimension in a GPU kernel.
+// Get the number of blocks in the z dimension in a GPU kernel.
 def int_kit_gpu_block_size_z
-    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty], [IntrNoMem]> {
+    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty],
+                   [ImmArg<ArgIndex<0>>, IntrNoMem, IntrWillReturn]> {
   let Doc = KitGPUBlockSizeZDoc;
 }
 
 // Get the number of grids in the x dimension in a GPU kernel.
 def int_kit_gpu_grid_size_x
-    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty], [IntrNoMem]> {
+    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty],
+                   [ImmArg<ArgIndex<0>>, IntrNoMem, IntrWillReturn]> {
   let Doc = KitGPUGridSizeXDoc;
 }
 
 // Get the number of blocks in the y dimension in a GPU kernel.
 def int_kit_gpu_grid_size_y
-    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty], [IntrNoMem]> {
+    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty],
+                   [ImmArg<ArgIndex<0>>, IntrNoMem, IntrWillReturn]> {
   let Doc = KitGPUGridSizeYDoc;
 }
 
-// Get the number of blocks in the x dimension in a GPU kernel.
+// Get the number of blocks in the z dimension in a GPU kernel.
 def int_kit_gpu_grid_size_z
-    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty], [IntrNoMem]> {
+    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty],
+                   [ImmArg<ArgIndex<0>>, IntrNoMem, IntrWillReturn]> {
   let Doc = KitGPUGridSizeZDoc;
 }
 
@@ -303,6 +315,22 @@ def int_kit_gpu_grid_size_z
 def int_kit_gpu_warp_size
     : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty], [IntrNoMem, IntrWillReturn]> {
   let Doc = KitGPUWarpSizeDoc;
+}
+
+// Get the ID of a warp within a block in a GPU kernel.
+def int_kit_gpu_warp_id
+    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty],
+                   [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>,
+                    IntrNoMem, IntrWillReturn]> {
+  let Doc = KitGPUWarpIDDoc;
+}
+
+// Get the lane number of a thread within a warp in a GPU kernel.
+def int_kit_gpu_warp_lane
+    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty],
+                   [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>,
+                    IntrNoMem, IntrWillReturn]> {
+  let Doc = KitGPUWarpLaneDoc;
 }
 
 // Get the number of compute units available to a GPU tapir target.
