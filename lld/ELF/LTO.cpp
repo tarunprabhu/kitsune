@@ -46,9 +46,8 @@ static std::string getThinLTOOutputFile(Ctx &ctx, StringRef modulePath) {
 static lto::Config createConfig(Ctx &ctx) {
   lto::Config c;
 
-  c.PTO.TTOpts = TTOptions::createFromCommandLine(ctx.arg.ltoo);
-  if (c.PTO.TTOpts)
-    if (Error err = c.PTO.TTOpts->validate())
+  if (c.PTO.TTOpts.initFromCommandLine(ctx.arg.ltoo))
+    if (Error err = c.PTO.TTOpts.validate())
       ErrAlways(ctx) << std::move(err);
 
   // LLD supports the new relocations and address-significance tables.

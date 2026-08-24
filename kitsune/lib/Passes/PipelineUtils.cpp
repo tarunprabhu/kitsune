@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Passes/PipelineUtils.h"
+#include "kitsune/Core/TTOptions.h"
 #include "kitsune/Passes/Passes.h"
 #include "llvm/Transforms/InstCombine/InstCombine.h"
 #include "llvm/Transforms/Scalar/ADCE.h"
@@ -42,7 +43,7 @@ bool llvm::isKitsuneOrTapirPipelineAlias(StringRef name) {
 
 bool llvm::runKitEarlyVerificationPasses(ThinOrFullLTOPhase phase,
                                          const PipelineTuningOptions &pto) {
-  return pto.TTOpts.has_value();
+  return pto.TTOpts.hasTTID();
 }
 
 bool llvm::runKitPreparePasses(ThinOrFullLTOPhase phase,
@@ -50,7 +51,7 @@ bool llvm::runKitPreparePasses(ThinOrFullLTOPhase phase,
   // Kitsune's early transform passes should only be run during the pre-link
   // LTO phase since these passes generally prepare tapir loops for lowering,
   // but do not perform the actual lowering.
-  if (not pto.TTOpts.has_value())
+  if (not pto.TTOpts.hasTTID())
     return false;
   else if (phase == ThinOrFullLTOPhase::None or
            phase == ThinOrFullLTOPhase::FullLTOPreLink or
@@ -70,9 +71,9 @@ bool llvm::runTapirLoweringPasses(ThinOrFullLTOPhase phase,
   // different translation unit have to be added to the embedded bitcode modules
   // before it is compiled to GPU code.
   //
-  if (not pto.TTOpts.has_value())
+  if (not pto.TTOpts.hasTTID())
     return false;
-  else if (pto.TTOpts->getTTID() == TTID::Nolo)
+  else if (pto.TTOpts.getTTID() == TTID::Nolo)
     return false;
   else if (phase == ThinOrFullLTOPhase::FullLTOPreLink or
            phase == ThinOrFullLTOPhase::ThinLTOPreLink)
@@ -301,8 +302,8 @@ llvm::populateKitPostTapirPasses(PassBuilder &pb, OptimizationLevel optLevel,
 }
 
 void llvm::populateKitCodeGenPasses(legacy::PassManager &pm,
-                                    std::optional<TTOptions> tto) {
-  if (tto) {
+                                    const TTOptions &tto) {
+  if (tto.hasTTID()) {
     pm.add(createTTObjectsAnalysisWrapperPass(tto));
     pm.add(createEmbLowerKitIntrinsicsLegacyPass());
     pm.add(createLowerKitIntrinsicsLegacyPass());

@@ -63,9 +63,10 @@ public:
       FPOpFusionMode::Standard;
 
 private:
-  /// The primary tapir target. This is guaranteed to always be set since there
-  /// must always be at least one tapir target.
-  TTID tt;
+  /// The primary tapir target, if one has been set. An instance of this object
+  /// may be created even if tapir lowering is not enabled. In that case, this
+  /// will be set to std::nullopt.
+  std::optional<TTID> tt = std::nullopt;
 
   /// When multiple tapir targets are fully supported, these are the secondary
   /// tapir targets. This set will *not* include the primary tapir target.
@@ -155,17 +156,14 @@ private:
   /// @}
 
 private:
-  TTOptions() = default;
-
-  /// Create an options object with the given primary tapir target.
-  TTOptions(TTID tt);
-
   Error validateCudaOptions() const;
   Error validateCustomOptions() const;
   Error validateHipOptions() const;
   Error validateOpenCilkOptions() const;
 
 public:
+  TTOptions() = default;
+
   // Check the object for inconsistencies and invalid values. If none are found,
   // return Error::success(). Otherwise, return an error.
   Error validate() const;
@@ -174,8 +172,12 @@ public:
   void setOptznLevel(OptznLevel optLevel) { this->optLevel = optLevel; }
   void setOptznLevelFrom(OptimizationLevel optLevel);
 
-  /// Get the primary tapir target ID.
-  TTID getTTID() const { return tt; }
+  /// Check if a primary tapir target has been set.
+  bool hasTTID() const { return tt.has_value(); }
+
+  /// Get the primary tapir target ID. This must only be called when a TTID has
+  /// been set.
+  TTID getTTID() const { return *tt; }
 
   /// @{
   /// Options common to all tapir targets.
@@ -241,33 +243,34 @@ public:
   /// the primary tapir target will be printed.
   void print(llvm::raw_ostream &os, bool all = false) const;
 
-  /// Construct an options object from the given frontend options. If a TTID
-  /// is not set in the kitsune options, std::nullopt is returned.
-  static std::optional<TTOptions> create(const KitOptions &kitOpts,
-                                         OptznLevel optLevel,
-                                         FPOpFusionMode fpOpFusionMode);
+  /// Initialize this object from the given frontend options, \p kitOpts. If a
+  /// TTID is not set in \p kitOpts, leave the object unchanged and return
+  /// false. Otherwise, return true.
+  bool init(const KitOptions &kitOpts, OptznLevel optLevel,
+            FPOpFusionMode fpOpFusionMode);
 
-  /// Construct an minimal options object from the command-line options. This
-  /// only examines the "shared" command line options. The "shared" options are
-  /// those used by one or more tools or utilities in addition to being
-  /// available to opt.
-  static std::optional<TTOptions> createFromCommandLineMinimal();
+  /// Minimally initialize this object from the command-line options. This only
+  /// examines the "shared" i.e. those that used by Kitsune's utilities in
+  /// addition to opt and llc. If the --tapir option is not provided, leave the
+  /// object unchanged and return false. Otherwise, return true.
+  bool initFromCommandLineMinimal();
 
-  /// Construct an options object initialized from the command line options
-  /// if the --tapir option was provided. If the --tapir option is not provided,
-  /// return std::nullopt.
-  static std::optional<TTOptions> createFromCommandLine(OptznLevel optznLevel);
+  /// Initialize this object from the command line options. If the --tapir
+  /// option is not provided, leave the object unchanged and return false.
+  /// Otherwise, return true.
+  bool initFromCommandLine(OptznLevel optznLevel);
 
-  /// Construct an options object initialized from the command line options
-  /// if the --tapir option was provided. If the --tapir option is not provided,
-  /// return std::nullopt.
-  static std::optional<TTOptions> createFromCommandLine(unsigned speedupLevel);
+  /// Initialize this object from the command line options. If the --tapir
+  /// option is not provided, leave the object unchanged and return false.
+  /// Otherwise, return true.
+  bool initFromCommandLine(unsigned speedupLevel);
 
-  /// Construct an options object initialized from the command line options
-  /// with the given optimization level. \p optLevel must be one of {0, 1, 2,
-  /// 3, s, z}. It is an error if \p optLevel is not one of these. If the
-  /// --tapir option is not provided, return std::nullopt.
-  static std::optional<TTOptions> createFromCommandLine(char optLevel);
+  /// Initialize this object from the command line options and the given
+  /// optimization level. \p optLevel must be one of {0, 1, 2, 3, s, z}. It is
+  /// an error if \p optLevel is not one of these. If the --tapir option is not
+  /// provided, leave the object unchanged and return false. Otherwise, return
+  /// true.
+  bool initFromCommandLine(char optLevel);
 };
 
 /// @}

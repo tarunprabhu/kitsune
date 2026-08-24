@@ -39,9 +39,8 @@ static std::string getThinLTOOutputFile(StringRef modulePath) {
 
 static lto::Config createConfig() {
   lto::Config c;
-  c.PTO.TTOpts = TTOptions::createFromCommandLine(config->ltoo);
-  if (c.PTO.TTOpts)
-    if (Error err = c.PTO.TTOpts->validate())
+  if (c.PTO.TTOpts.initFromCommandLine(config->ltoo))
+    if (Error err = c.PTO.TTOpts.validate())
       fatal(toString(std::move(err)));
   c.Options = initTargetOptionsFromCodeGenFlags();
   c.Options.EmitAddrsig = config->icfLevel == ICFLevel::safe;

@@ -29,7 +29,7 @@ protected:
   SMDiagnostic err;
   std::unique_ptr<Module> m;
   std::unique_ptr<TTObjectsAnalysis> tta;
-  std::optional<TTOptions> tto;
+  TTOptions tto;
   FunctionAnalysisManager fam;
   ModuleAnalysisManager mam;
   Function *f = nullptr;
@@ -51,7 +51,7 @@ public:
     mam.registerPass([&] { return FunctionAnalysisManagerModuleProxy(fam); });
     mam.registerPass([&] { return PassInstrumentationAnalysis(); });
 
-    tto = TTOptions::create(kitOpts, OptznLevel::O2, FPOpFusion::Standard);
+    tto.init(kitOpts, OptznLevel::O2, FPOpFusion::Standard);
     tta = std::make_unique<TTObjectsAnalysis>(tto);
 
     return tta->run(*m, mam);

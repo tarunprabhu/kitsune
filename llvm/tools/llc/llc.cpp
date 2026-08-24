@@ -729,11 +729,11 @@ static int compileModule(char **argv, LLVMContext &Context) {
       PM.add(createPrintMIRPass(*OS));
       PM.add(createFreeMachineFunctionPass());
     } else {
-      if (std::optional<TTOptions> TTOpts =
-              TTOptions::createFromCommandLine(OptLevel)) {
-        if (Error Err = TTOpts->validate())
+      TTOptions TTOpts;
+      if (TTOpts.initFromCommandLine(OptLevel)) {
+        if (Error Err = TTOpts.validate())
           reportError(toString(std::move(Err)), "");
-        populateKitCodeGenPasses(PM, *TTOpts);
+        populateKitCodeGenPasses(PM, TTOpts);
       }
       if (Target->addPassesToEmitFile(
                    PM, *OS, DwoOut ? &DwoOut->os() : nullptr,

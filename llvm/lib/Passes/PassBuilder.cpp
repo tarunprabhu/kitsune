@@ -1900,10 +1900,10 @@ Error PassBuilder::parseModulePass(ModulePassManager &MPM,
   }
 #define TAPIR_PIPELINE_PASS(NAME, CLASS, CREATE_PASS, PARSER, PARAMS)          \
   if (checkParametrizedPassName(Name, NAME)) {                                 \
-    if (not PTO.TTOpts)                                                        \
+    if (not PTO.TTOpts.hasTTID())                                              \
       return createStringError(                                                \
           formatv("{} passes require the --tapir option", NAME).str());        \
-    else if (Error Err = PTO.TTOpts->validate())                               \
+    else if (Error Err = PTO.TTOpts.validate())                                \
       return createStringError(                                                \
           formatv("error: {}", toString(std::move(Err))).str());               \
                                                                                \
@@ -1917,7 +1917,7 @@ Error PassBuilder::parseModulePass(ModulePassManager &MPM,
       return createStringError(                                                \
           formatv("error: unsupported optimization level '-Oz'"));             \
                                                                                \
-    PTO.TTOpts->setOptznLevelFrom(L);                                          \
+    PTO.TTOpts.setOptznLevelFrom(L);                                           \
                                                                                \
     MPM.addPass(CREATE_PASS(L));                                               \
     return Error::success();                                                   \

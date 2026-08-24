@@ -337,7 +337,6 @@ PipelineTuningOptions::PipelineTuningOptions() {
   MergeFunctions = EnableMergeFunctions;
   InlinerThreshold = -1;
   EagerlyInvalidateAnalyses = EnableEagerlyInvalidateAnalyses;
-  TTOpts = std::nullopt;
 }
 
 namespace llvm {

@@ -218,8 +218,6 @@ static SmallVector<std::string, 4> makeSmallVector(const Container &c) {
   return SmallVector<std::string, 4>(c.begin(), c.end());
 }
 
-TTOptions::TTOptions(TTID tt) : tt(tt) {}
-
 Error TTOptions::validateCudaOptions() const {
   CHECK(validateRequiredStringOption(clCudaArch))
   ELSE_CHECK(validateRequiredStringOption(clCudaRuntimeBCFile))
@@ -250,7 +248,7 @@ Error TTOptions::validateOpenCilkOptions() const {
 }
 
 Error TTOptions::validate() const {
-  switch (tt) {
+  switch (*tt) {
   case TTID::Cuda: return validateCudaOptions();
   case TTID::Custom: return validateCustomOptions();
   case TTID::Hip: return validateHipOptions();
@@ -280,30 +278,31 @@ void TTOptions::setOptznLevelFrom(OptimizationLevel optLevel) {
   setOptznLevel(optznLevel);
 }
 
-std::optional<TTOptions> TTOptions::createFromCommandLineMinimal() {
-  if (clTapir.getNumOccurrences())
-    return TTOptions(clTapir);
-  return std::nullopt;
+bool TTOptions::initFromCommandLineMinimal() {
+  if (!clTapir.getNumOccurrences())
+    return false;
+
+  this->tt = clTapir;
+  return true;
 }
 
-std::optional<TTOptions>
-TTOptions::createFromCommandLine(OptznLevel optznLevel) {
+bool TTOptions::initFromCommandLine(OptznLevel optznLevel) {
   if (!clTapir.getNumOccurrences())
-    return std::nullopt;
+    return false;
 
-  TTOptions tto(clTapir);
+  this->tt = clTapir;
 
   // Set common tapir target options
-  tto.optLevel = optznLevel;
-  tto.fpOpFusionMode = codegen::getFuseFPOps();
-  tto.lld = clLLD;
-  tto.gpuPrefetch = clGPUPrefetch;
+  this->optLevel = optznLevel;
+  this->fpOpFusionMode = codegen::getFuseFPOps();
+  this->lld = clLLD;
+  this->gpuPrefetch = clGPUPrefetch;
 
   // Set cuda tapir target options
-  tto.cudaArch = clCudaArch;
-  tto.cudaVirtArch = clCudaVirtArch;
-  tto.cudaTargetFeatures = clCudaFeatures;
-  tto.cudaRuntimeBCFile = clCudaRuntimeBCFile;
+  this->cudaArch = clCudaArch;
+  this->cudaVirtArch = clCudaVirtArch;
+  this->cudaTargetFeatures = clCudaFeatures;
+  this->cudaRuntimeBCFile = clCudaRuntimeBCFile;
 
   // Set 'custom' tapir target options
   if (clCustomTTPlugin.getNumOccurrences()) {
@@ -311,74 +310,72 @@ TTOptions::createFromCommandLine(OptznLevel optznLevel) {
     // the validate() method will be called by users before using this object,
     // at which time the error will be caught and returned.
     if (Expected<TTPlugin> ttPlugin = TTPlugin::load(clCustomTTPlugin))
-      tto.ttPlugin = *ttPlugin;
+      this->ttPlugin = *ttPlugin;
     else
       (void)toString(ttPlugin.takeError());
   }
 
   // Set hip tapir target options
-  tto.hipArch = clHipArch;
-  tto.hipSRAMECC = clHipSRAMECC;
-  tto.hipXnack = clHipXnack;
-  tto.hipTargetFeatures = clHipFeatures;
-  tto.hipRuntimeBCFiles = makeSmallVector(clHipRuntimeBCFiles);
+  this->hipArch = clHipArch;
+  this->hipSRAMECC = clHipSRAMECC;
+  this->hipXnack = clHipXnack;
+  this->hipTargetFeatures = clHipFeatures;
+  this->hipRuntimeBCFiles = makeSmallVector(clHipRuntimeBCFiles);
 
   // Set opencilk tapir target options
-  tto.openCilkRuntimeBCFile = clOpenCilkRuntimeBCFile;
+  this->openCilkRuntimeBCFile = clOpenCilkRuntimeBCFile;
 
-  return tto;
+  return true;
 }
 
-std::optional<TTOptions>
-TTOptions::createFromCommandLine(unsigned speedupLevel) {
-  return createFromCommandLine(createOptznLevelFrom(speedupLevel));
+bool TTOptions::initFromCommandLine(unsigned speedupLevel) {
+  return initFromCommandLine(createOptznLevelFrom(speedupLevel));
 }
 
-std::optional<TTOptions> TTOptions::createFromCommandLine(char optLevel) {
-  return createFromCommandLine(createOptznLevelFrom(optLevel));
+bool TTOptions::initFromCommandLine(char optLevel) {
+  return initFromCommandLine(createOptznLevelFrom(optLevel));
 }
 
-std::optional<TTOptions> TTOptions::create(const KitOptions &kitOpts,
-                                           OptznLevel optznLevel,
-                                           FPOpFusionMode fpOpFusionMode) {
+bool TTOptions::init(const KitOptions &kitOpts, OptznLevel optznLevel,
+                     FPOpFusionMode fpOpFusionMode) {
   if (!kitOpts.getTTID())
-    return std::nullopt;
+    return false;
 
-  TTOptions tto(*kitOpts.getTTID());
+  this->tt = kitOpts.getTTID();
 
   // Set common tapir target options.
-  tto.fpOpFusionMode = fpOpFusionMode;
-  tto.optLevel = optznLevel;
-  tto.lld = kitOpts.getLLD();
+  this->fpOpFusionMode = fpOpFusionMode;
+  this->optLevel = optznLevel;
+  this->lld = kitOpts.getLLD();
 
   // Set tapir target options shared by GPU-centric tapir targets.
-  tto.gpuPrefetch = kitOpts.getGPUPrefetch();
+  this->gpuPrefetch = kitOpts.getGPUPrefetch();
 
   // Set cuda tapir target options.
-  tto.cudaArch = kitOpts.getCudaArch();
-  tto.cudaVirtArch = kitOpts.getCudaVirtArch();
-  tto.cudaTargetFeatures = kitOpts.getCudaFeatures();
-  tto.cudaRuntimeBCFile = kitOpts.getCudaRuntimeBCFile();
+  this->cudaArch = kitOpts.getCudaArch();
+  this->cudaVirtArch = kitOpts.getCudaVirtArch();
+  this->cudaTargetFeatures = kitOpts.getCudaFeatures();
+  this->cudaRuntimeBCFile = kitOpts.getCudaRuntimeBCFile();
 
   // Set 'custom' tapir target options.
   if (kitOpts.getTTPlugin().size()) {
     if (Expected<TTPlugin> ttPlugin = TTPlugin::load(kitOpts.getTTPlugin()))
-      tto.ttPlugin = *ttPlugin;
+      this->ttPlugin = *ttPlugin;
     else
       llvm_unreachable("Tapir target plugin load failure not caught earlier");
   }
 
   // Set hip tapir target options.
-  tto.hipArch = kitOpts.getHipArch();
-  tto.hipSRAMECC = kitOpts.getHipSRAMECC();
-  tto.hipXnack = kitOpts.getHipXnack();
-  tto.hipTargetFeatures = kitOpts.getHipFeatures();
-  tto.hipRuntimeBCFiles = makeSmallVector(kitOpts.getHipRuntimeBCFiles());
+  this->hipArch = kitOpts.getHipArch();
+  this->hipSRAMECC = kitOpts.getHipSRAMECC();
+  this->hipXnack = kitOpts.getHipXnack();
+  this->hipTargetFeatures = kitOpts.getHipFeatures();
+  this->hipRuntimeBCFiles = makeSmallVector(kitOpts.getHipRuntimeBCFiles());
 
   // Set opencilk tapir target options.
-  tto.openCilkRuntimeBCFile = kitOpts.getOpenCilkRuntimeBCFile();
+  this->openCilkRuntimeBCFile = kitOpts.getOpenCilkRuntimeBCFile();
 
-  return tto;
+  return true;
 }
 
 void TTOptions::print(raw_ostream &os, bool all) const {
