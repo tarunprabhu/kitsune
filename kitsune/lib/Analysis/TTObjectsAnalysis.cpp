@@ -39,7 +39,7 @@ static cl::opt<bool>
 /// called with a function that does not contain any tapir loops.
 static const std::vector<TTID> noTTs;
 
-TTObjects::TTObjects(std::optional<TTOptions> ttOpts) : ttOpts(ttOpts) {}
+TTObjects::TTObjects(const TTOptions &ttOpts) : ttOpts(ttOpts) {}
 
 void TTObjects::computeRequiredTTs(Module &m, GetLoopInfo getLoopInfo,
                                    GetTaskInfo getTaskInfo) {
@@ -93,19 +93,19 @@ TapirTarget *TTObjects::getTT(TTID id) const {
 }
 
 TTID TTObjects::getTTID() const {
-  assert(ttOpts && "Tapir target options have not been set");
-  return ttOpts->getTTID();
+  assert(ttOpts.hasTTID() && "Tapir target options have not been set");
+  return ttOpts.getTTID();
 }
 
 std::optional<TTID> TTObjects::getTTIDOrNull() const {
-  if (ttOpts)
-    return ttOpts->getTTID();
+  if (ttOpts.hasTTID())
+    return ttOpts.getTTID();
   return std::nullopt;
 }
 
 const TTOptions &TTObjects::getOptions() const {
-  assert(ttOpts && "Tapir target options have not been set");
-  return *ttOpts;
+  assert(ttOpts.hasTTID() && "Tapir target options have not been set");
+  return ttOpts;
 }
 
 ArrayRef<TTID> TTObjects::getRequiredTTs(Function &f) const {
@@ -126,8 +126,7 @@ bool TTObjects::invalidate(Module &, const PreservedAnalyses &pa,
 
 AnalysisKey TTObjectsAnalysis::Key;
 
-TTObjectsAnalysis::TTObjectsAnalysis(std::optional<TTOptions> tto)
-    : ttObjs(tto) {
+TTObjectsAnalysis::TTObjectsAnalysis(const TTOptions &tto) : ttObjs(tto) {
   if (clDumpTTO and ttObjs.hasTTID())
     ttObjs.getOptions().print(outs(), /*all=*/true);
 }
@@ -168,12 +167,12 @@ INITIALIZE_PASS(TTObjectsAnalysisWrapperPass, DEBUG_TYPE,
                 "Tapir Target Analysis", false, true)
 
 TTObjectsAnalysisWrapperPass::TTObjectsAnalysisWrapperPass()
-    : ImmutablePass(ID), ttObjs(std::nullopt) {
+    : ImmutablePass(ID), ttObjs(TTOptions()) {
   initializeTTObjectsAnalysisWrapperPassPass(*PassRegistry::getPassRegistry());
 }
 
 TTObjectsAnalysisWrapperPass::TTObjectsAnalysisWrapperPass(
-    std::optional<TTOptions> ttOpts)
+    const TTOptions &ttOpts)
     : ImmutablePass(ID), ttObjs(ttOpts) {
   initializeTTObjectsAnalysisWrapperPassPass(*PassRegistry::getPassRegistry());
 }
@@ -187,7 +186,6 @@ TTObjectsAnalysisWrapperPass::getResult() const {
   return ttObjs;
 }
 
-ModulePass *
-llvm::createTTObjectsAnalysisWrapperPass(std::optional<TTOptions> ttOpts) {
+ModulePass *llvm::createTTObjectsAnalysisWrapperPass(const TTOptions &ttOpts) {
   return new TTObjectsAnalysisWrapperPass(ttOpts);
 }

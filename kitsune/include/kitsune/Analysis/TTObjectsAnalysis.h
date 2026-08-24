@@ -17,13 +17,12 @@
 #include "kitsune/Core/TTID.h"
 #include "kitsune/Core/TTOptions.h"
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/Pass.h"
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
 
 #include <map>
-#include <optional>
-#include <vector>
 
 namespace llvm {
 
@@ -44,13 +43,13 @@ public:
 
 private:
   /// Options for the primary tapir target.
-  std::optional<TTOptions> ttOpts;
+  const TTOptions &ttOpts;
 
   /// The tapir targets used by each function in the module.
-  std::map<Function *, std::vector<TTID>> ttsInFunc;
+  std::map<Function *, SmallVector<TTID, 2>> ttsInFunc;
 
   /// The tapir targets needed by the functions in the module.
-  std::vector<TTID> ttsInModule;
+  SmallVector<TTID, 2> ttsInModule;
 
   /// The TapirTarget objects needed by the module. These will be created
   /// when \ref computeRequiredTTs is run. If computeRequiredTTs is run more
@@ -60,7 +59,7 @@ private:
   std::map<TTID, TapirTarget *> tts;
 
 private:
-  TTObjects(std::optional<TTOptions> ttOpts);
+  TTObjects(const TTOptions &ttOpts);
 
   /// Compute the tapir target objects required by every function in a module.
   void computeRequiredTTs(Module &m, GetLoopInfo getLoopInfo,
@@ -71,7 +70,7 @@ private:
   void addTT(TTID id, TapirTarget *tt);
 
 public:
-  bool hasTTID() const { return ttOpts.has_value(); }
+  bool hasTTID() const { return ttOpts.hasTTID(); }
 
   /// Get the primary tapir target ID if the tapir target options have been set.
   std::optional<TTID> getTTIDOrNull() const;
@@ -128,10 +127,8 @@ private:
 public:
   using Result = TTObjects;
 
-  /// Construct an analysis pass with an optional TTOptions object.
-  /// This may be std::nullopt if the frontend creating this pass has not been
-  /// given a tapir target to use.
-  TTObjectsAnalysis(std::optional<TTOptions> ttOpts);
+  /// Construct an analysis pass.
+  TTObjectsAnalysis(const TTOptions &ttOpts);
 
   Result run(Module &m, ModuleAnalysisManager &mam);
 
@@ -163,10 +160,8 @@ public:
   /// manager, but this should never be used anywhere else.
   TTObjectsAnalysisWrapperPass();
 
-  /// Construct an analysis pass with an optional TTOptions object.
-  /// This may be std::nullopt if the frontend creating this pass has not been
-  /// given a tapir target to use.
-  TTObjectsAnalysisWrapperPass(std::optional<TTOptions> ttOpts);
+  /// Construct an analysis pass.
+  TTObjectsAnalysisWrapperPass(const TTOptions &tto);
 
   void getAnalysisUsage(AnalysisUsage &au) const override;
 
@@ -178,8 +173,16 @@ public:
 
 /// \ingroup kitsune
 /// Create a an instance of the tapir target analysis pass for the legacy pass
-/// manager.
-ModulePass *createTTObjectsAnalysisWrapperPass(std::optional<TTOptions> ttOpts);
+/// manager. This should never be called without a TTOptions object. The only
+/// reason we allow it is because we call this LinkAllPasses.h where we don't
+/// have a TTOptions object - and that call is solely to ensure that the code
+/// associated with this pass does not get DCE'ed.
+///
+/// NOTE: The only reason to have this legacy pass is because this pass is used
+/// as a vehicle for the TTOptions object. Since we are in the process of
+/// removing that, this whole mess will workaround will soon become unnecessary.
+ModulePass *
+createTTObjectsAnalysisWrapperPass(const TTOptions &tto = TTOptions());
 
 } // namespace llvm
 

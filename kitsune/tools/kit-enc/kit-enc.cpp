@@ -73,8 +73,8 @@ int main(int argc, char *argv[]) {
   InitializeAllAsmPrinters();
   InitializeAllAsmParsers();
 
-  std::optional<TTOptions> tto = TTOptions::createFromCommandLineMinimal();
-  TTID tt = tto ? tto->getTTID() : ttDefault;
+  TTOptions tto;
+  TTID tt = tto.initFromCommandLineMinimal() ? tto.getTTID() : ttDefault;
   if (not generatesEmbBC(tt)) {
     WithColor::error() << "'" << tt
                        << "' tapir target does not generate embedded bitcode\n";
