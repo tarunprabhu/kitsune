@@ -73,8 +73,7 @@ int main(int argc, char *argv[]) {
   InitializeAllAsmPrinters();
   InitializeAllAsmParsers();
 
-  std::optional<TTOptions> tto =
-      TTOptions::createFromSharedCommandLineOptions();
+  std::optional<TTOptions> tto = TTOptions::createFromCommandLineMinimal();
   TTID tt = tto ? tto->getTTID() : ttDefault;
   if (not generatesEmbBC(tt)) {
     WithColor::error() << "'" << tt
