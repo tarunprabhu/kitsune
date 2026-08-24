@@ -31,7 +31,7 @@ struct ForceKitsunePassLinking {
     if (std::getenv("bar") != (char *)-1)
       return;
 
-    (void)llvm::createTTObjectsAnalysisWrapperPass(std::nullopt);
+    (void)llvm::createTTObjectsAnalysisWrapperPass();
     (void)llvm::createCodeGenFatBinariesLegacyPass();
     (void)llvm::createEmbLowerKitIntrinsicsLegacyPass();
     (void)llvm::createLowerKitIntrinsicsLegacyPass();

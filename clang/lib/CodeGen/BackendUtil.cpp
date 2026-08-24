@@ -144,11 +144,11 @@ static std::string getProfileGenName(const CodeGenOptions &CodeGenOpts) {
   return FileName;
 }
 
-static std::optional<TTOptions>
-createTTOptions(const KitOptions &KitOpts, unsigned SpeedupLevel,
-                unsigned SizeLevel, FPOpFusion::FPOpFusionMode FPOpFusionMode) {
+bool initTTOptions(TTOptions &TTOpts, const KitOptions &KitOpts,
+                   unsigned SpeedupLevel, unsigned SizeLevel,
+                   FPOpFusion::FPOpFusionMode FPOpFusionMode) {
   OptznLevel OptznLevel = createOptznLevelFrom(SpeedupLevel, SizeLevel);
-  return TTOptions::create(KitOpts, OptznLevel, FPOpFusionMode);
+  return TTOpts.init(KitOpts, OptznLevel, FPOpFusionMode);
 }
 
 namespace {
@@ -160,6 +160,7 @@ class EmitAssemblyHelper {
   const clang::TargetOptions &TargetOpts;
   const LangOptions &LangOpts;
   const KitOptions &KitOpts;
+  TTOptions TTOpts;
   llvm::Module *TheModule;
   IntrusiveRefCntPtr<llvm::vfs::FileSystem> VFS;
 
@@ -174,12 +175,8 @@ class EmitAssemblyHelper {
     return TargetIRAnalysis();
   }
 
-  std::optional<TTOptions> getTTOptions() const {
-    FPOpFusion::FPOpFusionMode FPOpFusionMode = FPOpFusion::Standard;
-    if (TM)
-      FPOpFusionMode = TM->Options.AllowFPOpFusion;
-    return createTTOptions(KitOpts, CodeGenOpts.OptimizationLevel,
-                           CodeGenOpts.OptimizeSize, FPOpFusionMode);
+  FPOpFusion::FPOpFusionMode getFPOpFusionMode() const {
+    return TM ? TM->Options.AllowFPOpFusion : FPOpFusion::Standard;
   }
 
   /// Generates the TargetMachine.
@@ -691,7 +688,9 @@ bool EmitAssemblyHelper::AddEmitPasses(legacy::PassManager &CodeGenPasses,
       llvm::driver::createTLII(TargetTriple, CodeGenOpts.getVecLib()));
   CodeGenPasses.add(new TargetLibraryInfoWrapperPass(*TLII));
 
-  populateKitCodeGenPasses(CodeGenPasses, getTTOptions());
+  if (initTTOptions(TTOpts, KitOpts, CodeGenOpts.OptimizationLevel,
+                    CodeGenOpts.OptimizeSize, getFPOpFusionMode()))
+    populateKitCodeGenPasses(CodeGenPasses, TTOpts);
 
   // Normal mode, emit a .s or .o file by running the code generator. Note,
   // this also adds codegenerator level optimization passes.
@@ -993,7 +992,8 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
   PTO.UnifiedLTO = CodeGenOpts.UnifiedLTO;
   PTO.DevirtualizeSpeculatively = CodeGenOpts.DevirtualizeSpeculatively;
   PTO.LoopStripmine = KitOpts.getStripmineLoops();
-  PTO.TTOpts = getTTOptions();
+  initTTOptions(PTO.TTOpts, KitOpts, CodeGenOpts.OptimizationLevel,
+                CodeGenOpts.OptimizeSize, getFPOpFusionMode());
   PTO.KitInstrOpts = KitOpts.getKitInstrOpts();
 
   LoopAnalysisManager LAM;
@@ -1506,9 +1506,8 @@ runThinLTOBackend(CompilerInstance &CI, ModuleSummaryIndex *CombinedIndex,
   // Only enable CGProfilePass when using integrated assembler, since
   // non-integrated assemblers don't recognize .cgprofile section.
   Conf.PTO.CallGraphProfile = !CGOpts.DisableIntegratedAS;
-  Conf.PTO.TTOpts =
-      createTTOptions(KitOpts, CGOpts.OptimizationLevel, CGOpts.OptimizeSize,
-                      Conf.Options.AllowFPOpFusion);
+  initTTOptions(Conf.PTO.TTOpts, KitOpts, CGOpts.OptimizationLevel,
+                CGOpts.OptimizeSize, Conf.Options.AllowFPOpFusion);
   Conf.PTO.KitInstrOpts = KitOpts.getKitInstrOpts();
 
   // Context sensitive profile.

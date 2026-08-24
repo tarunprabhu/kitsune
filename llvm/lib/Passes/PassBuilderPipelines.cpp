@@ -367,7 +367,6 @@ PipelineTuningOptions::PipelineTuningOptions() {
   InlinerThreshold = -1;
   EagerlyInvalidateAnalyses = EnableEagerlyInvalidateAnalyses;
   DevirtualizeSpeculatively = EnableDevirtualizeSpeculatively;
-  TTOpts = std::nullopt;
 }
 
 namespace llvm {

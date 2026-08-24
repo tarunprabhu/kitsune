@@ -112,7 +112,7 @@ public:
 
   /// The options for the primary tapir target, if any. If this is set, the
   /// primary tapir target id can be determined from it.
-  std::optional<TTOptions> TTOpts;
+  TTOptions TTOpts;
 
   /// Options for Kitsune's instrumentation.
   KitInstrOptions KitInstrOpts;
@@ -152,9 +152,7 @@ public:
       PassInstrumentationCallbacks *PIC = nullptr,
       IntrusiveRefCntPtr<vfs::FileSystem> FS = vfs::getRealFileSystem());
 
-  const std::optional<TTOptions> getTTOptions() const {
-    return PTO.TTOpts;
-  }
+  const TTOptions &getTTOptions() const { return PTO.TTOpts; }
 
   /// Cross register the analysis managers through their proxies.
   ///
@@ -289,7 +287,7 @@ public:
   ///
   /// This is intended to be used with the PerModuleDefault pipeline and various
   /// LTO pipelines. This runs late in the parent pipelines.
-  LLVM_ABI ModulePassManager 
+  LLVM_ABI ModulePassManager
   buildKitsuneLoweringPipeline(OptimizationLevel, ThinOrFullLTOPhase Phase);
 
   /// Build a per-module default optimization pipeline.

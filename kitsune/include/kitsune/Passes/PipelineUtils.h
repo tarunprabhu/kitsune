@@ -13,15 +13,14 @@
 #ifndef KITSUNE_PASSES_PIPELINE_UTILS_H
 #define KITSUNE_PASSES_PIPELINE_UTILS_H
 
-#include "kitsune/Core/TTOptions.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/Pass.h"
 #include "llvm/Passes/OptimizationLevel.h"
 
-#include <optional>
-
 namespace llvm {
+
+class TTOptions;
 
 /// \addtogroup kitsune
 /// @{
@@ -103,8 +102,7 @@ ModulePassManager populateKitPostTapirPasses(PassBuilder &pb,
                                              const PipelineTuningOptions &pto);
 
 /// Populate a pass manager with Kitsune's codegen passes.
-void populateKitCodeGenPasses(legacy::PassManager &pm,
-                              std::optional<TTOptions> tto);
+void populateKitCodeGenPasses(legacy::PassManager &pm, const TTOptions &tto);
 
 /// @}
 
