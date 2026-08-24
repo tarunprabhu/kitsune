@@ -98,6 +98,22 @@ TEST(KitFuncUtils, copyAttrsArgs) {
   EXPECT_FALSE(dup1->hasRetAttribute(Attribute::NoAlias));
 }
 
+TEST(KitFuncUtils, getAttrAsString) {
+  LLVMContext ctx;
+  Type *ret = Type::getVoidTy(ctx);
+  FunctionType *fty = FunctionType::get(ret, {}, /*IsVarArg=*/false);
+  Function *f = Function::Create(fty, GlobalValue::InternalLinkage, "f");
+  f->addFnAttr("attr", "val");
+  f->addFnAttr(Attribute::WillReturn);
+  f->setUWTableKind(UWTableKind::Sync);
+
+  EXPECT_FALSE(getAttrAsString(*f, "non-existent"));
+  EXPECT_FALSE(getAttrAsString(*f, "willreturn"));
+  EXPECT_FALSE(getAttrAsString(*f, "uwtable"));
+
+  EXPECT_EQ(*getAttrAsString(*f, "attr"), "val");
+}
+
 TEST(KitFuncUtils, getBlockNamed) {
   LLVMContext ctx;
   Type *ret = Type::getVoidTy(ctx);
