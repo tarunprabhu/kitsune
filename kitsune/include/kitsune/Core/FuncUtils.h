@@ -50,10 +50,23 @@ std::string getName(const Function &f);
 ///  - prefix data
 ///  - prolog data
 ///
+/// NOTE: This will *NOT* copy Kitsune-specific attributes.
 void copyAttrs(Function &dst, const Function &src);
 
 /// Copy attributes from the argument \p src to the argument \p dst.
+/// NOTE: This will *NOT* copy Kitsune-specific attributes.
 void copyAttrs(Argument &dst, const Argument &src);
+
+/// Get the value of the attribute named \p attrName in function \p f. This
+/// returns std::nullpot if any of the following is true:
+///
+///   - The attribute has not been set on \p f
+///   - The attribute does not have a value (i.e. it is a flag attribute)
+///   - The attribute is not a string-valued attribute.
+///
+/// This is only intended to be used with LLVM's built-in attributes. This
+/// *cannot* be used with Kitsune-specific attributes.
+std::optional<StringRef> getAttrAsString(const Function &f, StringRef attrName);
 
 /// Get the basic block with the name \p name in function \f, or nullptr if such
 /// a block does not exist.

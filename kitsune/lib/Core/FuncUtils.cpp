@@ -59,6 +59,16 @@ void llvm::copyAttrs(Argument &dst, const Argument &src) {
     dst.addAttr(attr);
 }
 
+std::optional<StringRef> llvm::getAttrAsString(const Function &f,
+                                               StringRef attrName) {
+  if (f.hasFnAttribute(attrName)) {
+    Attribute attr = f.getFnAttribute(attrName);
+    if (attr.isStringAttribute())
+      return attr.getValueAsString();
+  }
+  return std::nullopt;
+}
+
 BasicBlock *llvm::getBlockNamed(StringRef name, Function &f) {
   for (BasicBlock &bb : f)
     if (bb.hasName() && bb.getName() == name)
