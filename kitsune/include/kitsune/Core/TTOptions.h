@@ -247,12 +247,11 @@ public:
                                          OptznLevel optLevel,
                                          FPOpFusionMode fpOpFusionMode);
 
-  /// Construct an options object initialized from the "shared" command line
-  /// options. The "shared" options are those used by one or more tools or
-  /// utilities in addition to being available to opt. This is intended to be a
-  /// very minimal set, and guaranteed to succeed.
-  static std::optional<TTOptions>
-  createFromSharedCommandLineOptions(OptznLevel optznLevel = OptznLevel::O0);
+  /// Construct an minimal options object from the command-line options. This
+  /// only examines the "shared" command line options. The "shared" options are
+  /// those used by one or more tools or utilities in addition to being
+  /// available to opt.
+  static std::optional<TTOptions> createFromCommandLineMinimal();
 
   /// Construct an options object initialized from the command line options
   /// if the --tapir option was provided. If the --tapir option is not provided,

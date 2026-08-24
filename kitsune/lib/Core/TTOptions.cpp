@@ -280,8 +280,7 @@ void TTOptions::setOptznLevelFrom(OptimizationLevel optLevel) {
   setOptznLevel(optznLevel);
 }
 
-std::optional<TTOptions>
-TTOptions::createFromSharedCommandLineOptions(OptznLevel optznLevel) {
+std::optional<TTOptions> TTOptions::createFromCommandLineMinimal() {
   if (clTapir.getNumOccurrences())
     return TTOptions(clTapir);
   return std::nullopt;
