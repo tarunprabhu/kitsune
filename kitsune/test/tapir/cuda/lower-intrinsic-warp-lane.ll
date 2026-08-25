@@ -24,8 +24,7 @@
 ; CHECK-NEXT: %[[HASZ:.+]] = icmp ugt i32 %[[DIMS]], 2
 ; CHECK-NEXT: %[[Z:.+]] = select i1 %[[HASZ]], i32 %[[OFFZ]], i32 0
 ; CHECK-NEXT: %[[OFFXYZ:.+]] = add i32 %[[OFFXY]], %[[Z]]
-; CHECK-NEXT: %[[WARPSIZE:.+]] = call i32 @llvm.kit.gpu.warp.size(i32 2)
-; CHECK-NEXT: %[[RESULT:.+]] = urem i32 %[[OFFXYZ]], %[[WARPSIZE]]
+; CHECK-NEXT: %[[RESULT:.+]] = urem i32 %[[OFFXYZ]], 32
 ; CHECK-NEXT: ret i32 %[[RESULT]]
 ;
 ; CHECK-NOT: define
