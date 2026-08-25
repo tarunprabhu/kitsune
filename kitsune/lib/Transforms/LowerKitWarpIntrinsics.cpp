@@ -31,10 +31,9 @@
 #include "kitsune/Core/IRBuilderUtils.h"
 #include "kitsune/Core/IntrinsicUtils.h"
 #include "kitsune/Core/ModuleUtils.h"
-#include "kitsune/Core/PassUtils.h"
 #include "kitsune/Core/TTID.h"
 #include "kitsune/Core/TTOptions.h"
-#include "kitsune/Core/TargetUtils.h"
+#include "kitsune/Passes/PassUtils.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Module.h"
@@ -44,191 +43,73 @@
 
 using namespace llvm;
 
-static bool lowerWarpIdOrLaneIntrinsic(Module &m, Intrinsic::ID intr) {
-  // The name of the implementation function of these intrinsics only depends on
-  // the TTID. We pass the number of dimensions as an argument to it. Since that
-  // argument is guaranteed to be a compile-time constant, the optimizer will
-  // get rid of any unnecessary calculations. As a result, there is no need to
-  // specialize this for the various dimensions.
-  auto getImplName = [](const CallBase &call) -> std::string {
-    std::string buf;
-    raw_string_ostream os(buf);
-    TTID tt = *getTTIDFromKitIntrCall(call);
-    Intrinsic::ID intr = call.getIntrinsicID();
+namespace {
 
-    os << "__kit_" << toString(tt) << "_warp_";
-    if (intr == Intrinsic::kit_gpu_warp_id)
-      os << "id";
-    else if (intr == Intrinsic::kit_gpu_warp_lane)
-      os << "lane";
-    else
-      llvm_unreachable("getImplName: Unexpected intrinsic");
-    os.flush();
-
-    return buf;
-  };
-
-  // The final result is obtained by dividing the offset by the warp size and
-  // returning either the quotient, or the remainder, depending on whether we
-  // want the id of the warp containing a given thread, or the lane within a
-  // warp of that thread.
-  auto calcResult = [](IRBuilder<> &builder, Intrinsic::ID intr, Value *offset,
-                       Value *warpSize) -> Value * {
-    if (intr == Intrinsic::kit_gpu_warp_id)
-      return builder.CreateUDiv(offset, warpSize);
-    else if (intr == Intrinsic::kit_gpu_warp_lane)
-      return builder.CreateURem(offset, warpSize);
-    else
-      llvm_unreachable("getOrInsertImplFunc: Unexpected intrinsic");
-  };
-
-  // Calculate the offset based on the threadIdx and blockIdx in all three
-  // dimensions. This is the general calculation:
-  //
-  //   tid = threadIdx.x
-  //           + threadIdx.y * blockDim.x
-  //           + threadIdx.z * blockDim.x * blockDim.y
-  //
-  // This will be correct even if some dimensions are not used since the
-  // threadIdx and blockDim values in those dimensions will be 0. This is not
-  // wasteful because the functions is guaranteed to be called with
-  // compile-time constants. Between inlining and the standard function
-  // simplification passes that will definitely be run after this has been
-  // generated, any unnecessary calculations will be optimized away.
-  auto genOffset = [](IRBuilder<> &builder, Value *tt) -> Value * {
-    LLVMContext &ctx = builder.getContext();
-    Type *i32 = Type::getInt32Ty(ctx);
-    Constant *zero = ConstantInt::get(i32, 0, /*isSigned=*/false);
-    Constant *one = ConstantInt::get(i32, 1, /*isSigned=*/false);
-    Constant *two = ConstantInt::get(i32, 2, /*isSigned=*/false);
-
-    // Calculate the offset in the Z-dimension. This is the calculation:
-    //
-    //     offz = threadIdx.z * blockDim.x * blockDim.y
-    //
-    Value *bszx = builder.CreateIntrinsic(Intrinsic::kit_gpu_block_size_x, {tt},
-                                          /*FMFSource=*/{}, "bszx");
-    Value *bszy = builder.CreateIntrinsic(Intrinsic::kit_gpu_block_size_y, {tt},
-                                          /*FMFSource=*/{}, "bszy");
-    Value *bszxy = builder.CreateMul(bszx, bszy, "bszxy");
-    Value *tidz = builder.CreateIntrinsic(Intrinsic::kit_gpu_thread_id_z, {tt},
-                                          /*FMFSource=*/{}, "tidz");
-    Value *offz = builder.CreateMul(tidz, bszxy, "offz");
-
-    // Calculate the offset in the Y-dimension. This is the calculation
-    //
-    //     offy = threadIdx.y * blockDim.x
-    //
-    Value *tidy = builder.CreateIntrinsic(Intrinsic::kit_gpu_thread_id_y, {tt},
-                                          /*FMFSource=*/{}, "tidy");
-    Value *offy = builder.CreateMul(tidy, bszx, "offy");
-
-    // The offset in the X-dimension is just the thread index in that dimension.
-    //
-    //     offx = threadIdx.x
-    //
-    // This essentially sets the final offset to offx i.e.
-    //
-    //     off = offx
-    //
-    Value *off = builder.CreateIntrinsic(Intrinsic::kit_gpu_thread_id_x, {tt},
-                                         /*FMFSource=*/{}, "x");
-
-    Function *f = getFunction(builder);
-    Value *dims = f->getArg(0);
-
-    // Conditionally add the offset in the Y-dimension. This gives the optimizer
-    // a chance to eliminate the computation since the dimension argument is
-    // known at compile-time.
-    //
-    //     off += (dims > 1) ? offy : 0
-    //
-    Value *hasy = builder.CreateICmpUGT(dims, one, "hasy");
-    Value *y = builder.CreateSelect(hasy, offy, zero, "y");
-    off = builder.CreateAdd(off, y, "offxy");
-
-    // Conditionally add the offset in the Z-dimension. This gives the optimizer
-    // a chance to eliminate the computation since the dimension argument is
-    // known at compile-time.
-    //
-    //     off += (dims > 2) ? offz : 0;
-    //
-    Value *hasz = builder.CreateICmpUGT(dims, two, "hasz");
-    Value *z = builder.CreateSelect(hasz, offz, zero, "z");
-    off = builder.CreateAdd(off, z, "offxyz");
-
-    return off;
-  };
-
-  // The implementation function returns a 32-bit integer since the warp index
-  // and lane are guaranteed to be 32 bits, and takes a 32-bit integer as the
-  // sole argument. This argument is a hint about the number of dimensions in
-  // the computation.
-  auto getOrInsertImplFunc = [&](Module &m, CallBase &call) -> Function * {
-    std::string implName = getImplName(call);
-    if (Function *repl = m.getFunction(implName))
-      return repl;
-
-    LLVMContext &ctx = m.getContext();
-    Type *i32 = Type::getInt32Ty(ctx);
-    Function *f = getOrInsertFunction(m, implName, i32, i32);
-    f->setLinkage(GlobalValue::LinkOnceODRLinkage);
-    f->getArg(0)->setName("dims");
-
-    Value *tt = call.getArgOperand(0);
-    BasicBlock *entry = BasicBlock::Create(ctx, "", f);
-    IRBuilder<> builder(entry);
-    Value *offset = genOffset(builder, tt);
-    Value *warpSz = builder.CreateIntrinsic(Intrinsic::kit_gpu_warp_size, {tt});
-    Value *res = calcResult(builder, call.getIntrinsicID(), offset, warpSz);
-    builder.CreateRet(res);
-
-    return f;
-  };
-
-  std::map<CallBase *, Function *> repls;
-  if (Function *f = Intrinsic::getDeclarationIfExists(&m, intr))
-    for (Use &u : f->uses())
-      if (auto *call = dyn_cast<CallInst>(u.getUser()))
-        if (call->getCalledFunction() == f)
-          repls[call] = getOrInsertImplFunc(m, *call);
-
-  for (auto [call, replF] : repls) {
-    FunctionType *replTy = replF->getFunctionType();
-    Value *dims = call->getArgOperand(1);
-    InsertPosition insertPt = call->getIterator();
-    CallInst *newCall = CallInst::Create(replTy, replF, {dims}, "", insertPt);
-    newCall->takeName(call);
-    call->replaceAllUsesWith(newCall);
-    call->eraseFromParent();
+// Base class to replace a warp intrinsic.
+template <Intrinsic::ID Intr> class LowerWarpIntrinsicBase {
+private:
+  Value *replaceImpl(CallBase *call) {
+    switch (*getTTIDFromKitIntrCall(*call)) {
+    case TTID::Cuda: return replaceIntrCuda(call);
+    case TTID::Hip: return replaceIntrHip(call);
+    default:
+      llvm_unreachable("LowerWarpIntrinsicBase::replace:  TTID not handled!");
+    }
   }
 
-  return repls.size();
+protected:
+  virtual Value *replaceIntrCuda(CallBase *call) = 0;
+  virtual Value *replaceIntrHip(CallBase *call) = 0;
+
+public:
+  bool run(Module &m) {
+    SmallVector<CallBase *, 0> calls;
+    for (Function &f : m)
+      for (BasicBlock &bb : f)
+        for (Instruction &inst : bb)
+          if (auto *call = dyn_cast<CallInst>(&inst))
+            if (call->getIntrinsicID() == Intr)
+              calls.push_back(call);
+
+    for (CallBase *call : calls) {
+      Value *newVal = replaceImpl(call);
+      if (!isa<Constant>(newVal))
+        newVal->takeName(call);
+      call->replaceAllUsesWith(newVal);
+      call->eraseFromParent();
+    }
+
+    return calls.size();
+  }
+};
+
+} // namespace
+
+// ------------------------------- LowerWarpSize -------------------------------
+
+namespace {
+
+class LowerWarpSize
+    : public LowerWarpIntrinsicBase<Intrinsic::kit_gpu_warp_size> {
+protected:
+  const TTOptions &tto;
+
+protected:
+  virtual Value *replaceIntrCuda(CallBase *call) override;
+  virtual Value *replaceIntrHip(CallBase *call) override;
+
+public:
+  LowerWarpSize(const TTOptions &tto) : tto(tto) {}
+};
+
+} // namespace
+
+// On NVIDIA GPU's, the warp size is always 32.
+Value *LowerWarpSize::replaceIntrCuda(CallBase *call) {
+  return toConstant(32U, call->getContext());
 }
 
-static bool lowerWarpIdIntrinsic(Module &m) {
-  return lowerWarpIdOrLaneIntrinsic(m, Intrinsic::kit_gpu_warp_id);
-}
-
-static bool lowerWarpLaneIntrinsic(Module &m) {
-  return lowerWarpIdOrLaneIntrinsic(m, Intrinsic::kit_gpu_warp_lane);
-}
-
-static bool lowerWarpShuffleIntrinsics(Module &m) {
-  // TODO: Implement this.
-  return false;
-}
-
-static bool replaceWarpSizeCuda(CallBase *call) {
-  // On NVIDIA GPU's, the warp size is always 32.
-  LLVMContext &ctx = call->getContext();
-  call->replaceAllUsesWith(toConstant(32U, ctx));
-  call->eraseFromParent();
-
-  return true;
-}
-
-static bool replaceWarpSizeHip(CallBase *call, const TTOptions &tto) {
+Value *LowerWarpSize::replaceIntrHip(CallBase *call) {
   auto getWavefrontSize = [](StringRef arch) -> unsigned {
     if (AMDGPU::GPUKind kind = AMDGPU::parseArchAMDGCN(arch)) {
       const unsigned archAttrs = AMDGPU::getArchAttrAMDGCN(kind);
@@ -256,7 +137,6 @@ static bool replaceWarpSizeHip(CallBase *call, const TTOptions &tto) {
   // At this point, if we have been unable to determine a wavefrontsize for
   // whatever reason, raise an error. We do not revert to a default because
   // there is no guarantee that the chosen default will work across devices.
-  Function *f = call->getFunction();
   StringRef features = tto.getHipTargetFeatures();
   bool hasFeature32 = features.contains("+wavefrontsize32");
   bool hasFeature64 = features.contains("+wavefrontsize64");
@@ -270,39 +150,206 @@ static bool replaceWarpSizeHip(CallBase *call, const TTOptions &tto) {
   else
     llvm_unreachable("Could not determine wavefront size");
 
-  LLVMContext &ctx = f->getContext();
-  call->replaceAllUsesWith(toConstant(wavefrontSize, ctx));
-  call->eraseFromParent();
-  return true;
+  return toConstant(wavefrontSize, call->getContext());
 }
 
-static bool lowerWarpSizeIntrinsic(Module &m, const TTOptions &tto) {
-  SmallVector<CallBase *, 0> calls;
-  if (Function *f =
-          Intrinsic::getDeclarationIfExists(&m, Intrinsic::kit_gpu_warp_size))
-    for (Use &u : f->uses())
-      if (auto *call = dyn_cast<CallInst>(u.getUser()))
-        if (call->getCalledFunction() == f)
-          calls.push_back(call);
+// ----------------------------- LowerWarpIdOrLane -----------------------------
 
-  for (CallBase *call : calls) {
-    switch (*getTTIDFromKitIntrCall(*call)) {
-    case TTID::Cuda: replaceWarpSizeCuda(call); break;
-    case TTID::Hip: replaceWarpSizeHip(call, tto); break;
-    default: llvm_unreachable("Unexpected TTID in warp size intrinsic call");
-    }
-  }
+namespace {
 
-  return calls.size();
+template <Intrinsic::ID Intr>
+class LowerWarpIdOrLane : public LowerWarpIntrinsicBase<Intr> {
+protected:
+  // The final result is obtained by dividing the offset by the warp size and
+  // returning either the quotient, or the remainder, depending on whether we
+  // want the id of the warp containing a given thread, or the lane within a
+  // warp of that thread.
+  Value *calcResult(IRBuilder<> &builder, Value *offset, Value *warpSize);
+  Value *genOffset(IRBuilder<> &builder, Value *tt);
+  std::string getImplName(const CallBase &call);
+  Function *getOrInsertImplFunc(Module &m, CallBase &call);
+  Value *replaceIntr(CallBase *call);
+
+protected:
+  virtual Value *replaceIntrCuda(CallBase *call) override;
+  virtual Value *replaceIntrHip(CallBase *call) override;
+};
+
+} // namespace
+
+template <>
+Value *LowerWarpIdOrLane<Intrinsic::kit_gpu_warp_id>::calcResult(
+    IRBuilder<> &builder, Value *offset, Value *warpSize) {
+  return builder.CreateUDiv(offset, warpSize);
 }
+
+template <>
+Value *LowerWarpIdOrLane<Intrinsic::kit_gpu_warp_lane>::calcResult(
+    IRBuilder<> &builder, Value *offset, Value *warpSize) {
+  return builder.CreateURem(offset, warpSize);
+}
+
+// Calculate the offset based on the threadIdx and blockIdx in all three
+// dimensions. This is the general calculation:
+//
+//   tid = threadIdx.x
+//           + threadIdx.y * blockDim.x
+//           + threadIdx.z * blockDim.x * blockDim.y
+//
+// This will be correct even if some dimensions are not used since the threadIdx
+// and blockDim values in those dimensions will be 0. This is not wasteful
+// because the functions is guaranteed to be called with compile-time constants.
+// Between inlining and the standard function simplification passes that will
+// definitely be run after this has been generated, any unnecessary calculations
+// will be optimized away.
+template <Intrinsic::ID Intr>
+Value *LowerWarpIdOrLane<Intr>::genOffset(IRBuilder<> &builder, Value *tt) {
+  LLVMContext &ctx = builder.getContext();
+  Type *i32 = Type::getInt32Ty(ctx);
+  Constant *zero = ConstantInt::get(i32, 0, /*isSigned=*/false);
+  Constant *one = ConstantInt::get(i32, 1, /*isSigned=*/false);
+  Constant *two = ConstantInt::get(i32, 2, /*isSigned=*/false);
+
+  // Calculate the offset in the Z-dimension. This is the calculation:
+  //
+  //     offz = threadIdx.z * blockDim.x * blockDim.y
+  //
+  Value *bszx = builder.CreateIntrinsic(Intrinsic::kit_gpu_block_size_x, {tt},
+                                        /*FMFSource=*/{}, "bszx");
+  Value *bszy = builder.CreateIntrinsic(Intrinsic::kit_gpu_block_size_y, {tt},
+                                        /*FMFSource=*/{}, "bszy");
+  Value *bszxy = builder.CreateMul(bszx, bszy, "bszxy");
+  Value *tidz = builder.CreateIntrinsic(Intrinsic::kit_gpu_thread_id_z, {tt},
+                                        /*FMFSource=*/{}, "tidz");
+  Value *offz = builder.CreateMul(tidz, bszxy, "offz");
+
+  // Calculate the offset in the Y-dimension. This is the calculation
+  //
+  //     offy = threadIdx.y * blockDim.x
+  //
+  Value *tidy = builder.CreateIntrinsic(Intrinsic::kit_gpu_thread_id_y, {tt},
+                                        /*FMFSource=*/{}, "tidy");
+  Value *offy = builder.CreateMul(tidy, bszx, "offy");
+
+  // The offset in the X-dimension is just the thread index in that dimension.
+  //
+  //     offx = threadIdx.x
+  //
+  // This essentially sets the final offset to offx i.e.
+  //
+  //     off = offx
+  //
+  Value *off = builder.CreateIntrinsic(Intrinsic::kit_gpu_thread_id_x, {tt},
+                                       /*FMFSource=*/{}, "x");
+
+  Function *f = getFunction(builder);
+  Value *dims = f->getArg(0);
+
+  // Conditionally add the offset in the Y-dimension. This gives the optimizer
+  // a chance to eliminate the computation since the dimension argument is
+  // known at compile-time.
+  //
+  //     off += (dims > 1) ? offy : 0
+  //
+  Value *hasy = builder.CreateICmpUGT(dims, one, "hasy");
+  Value *y = builder.CreateSelect(hasy, offy, zero, "y");
+  off = builder.CreateAdd(off, y, "offxy");
+
+  // Conditionally add the offset in the Z-dimension. This gives the optimizer
+  // a chance to eliminate the computation since the dimension argument is
+  // known at compile-time.
+  //
+  //     off += (dims > 2) ? offz : 0;
+  //
+  Value *hasz = builder.CreateICmpUGT(dims, two, "hasz");
+  Value *z = builder.CreateSelect(hasz, offz, zero, "z");
+  off = builder.CreateAdd(off, z, "offxyz");
+
+  return off;
+}
+
+// The name of the implementation function of these intrinsics only depends on
+// the TTID. We pass the number of dimensions as an argument to it. Since that
+// argument is guaranteed to be a compile-time constant, the optimizer will get
+// rid of any unnecessary calculations. As a result, there is no need to
+// specialize this for the various dimensions.
+template <Intrinsic::ID Intr>
+std::string LowerWarpIdOrLane<Intr>::getImplName(const CallBase &call) {
+  std::string buf;
+  raw_string_ostream os(buf);
+  TTID tt = *getTTIDFromKitIntrCall(call);
+  Intrinsic::ID intr = call.getIntrinsicID();
+
+  os << "__kit_" << toString(tt) << "_warp_";
+  if (intr == Intrinsic::kit_gpu_warp_id)
+    os << "id";
+  else if (intr == Intrinsic::kit_gpu_warp_lane)
+    os << "lane";
+  else
+    llvm_unreachable("getImplName: Unexpected intrinsic");
+  os.flush();
+
+  return buf;
+}
+
+// The implementation function returns a 32-bit integer since the warp index and
+// lane are guaranteed to be 32 bits, and takes a 32-bit integer as the sole
+// argument. This argument is a hint about the number of dimensions in the
+// computation.
+template <Intrinsic::ID Intr>
+Function *LowerWarpIdOrLane<Intr>::getOrInsertImplFunc(Module &m,
+                                                       CallBase &call) {
+  std::string implName = getImplName(call);
+  if (Function *repl = m.getFunction(implName))
+    return repl;
+
+  LLVMContext &ctx = m.getContext();
+  Type *i32 = Type::getInt32Ty(ctx);
+  Function *f = getOrInsertFunction(m, implName, i32, i32);
+  f->setLinkage(GlobalValue::LinkOnceODRLinkage);
+  f->getArg(0)->setName("dims");
+
+  Value *tt = call.getArgOperand(0);
+  BasicBlock *entry = BasicBlock::Create(ctx, "", f);
+  IRBuilder<> builder(entry);
+  Value *offset = genOffset(builder, tt);
+  Value *warpSz = builder.CreateIntrinsic(Intrinsic::kit_gpu_warp_size, {tt});
+  Value *res = calcResult(builder, offset, warpSz);
+  builder.CreateRet(res);
+
+  return f;
+}
+
+template <Intrinsic::ID Intr>
+Value *LowerWarpIdOrLane<Intr>::replaceIntr(CallBase *call) {
+  Function *replF = getOrInsertImplFunc(*call->getModule(), *call);
+  FunctionType *replTy = replF->getFunctionType();
+
+  Value *dims = call->getArgOperand(1);
+  InsertPosition insertPt = call->getIterator();
+  CallInst *newCall = CallInst::Create(replTy, replF, {dims}, "", insertPt);
+
+  return newCall;
+}
+
+template <Intrinsic::ID Intr>
+Value *LowerWarpIdOrLane<Intr>::replaceIntrCuda(CallBase *call) {
+  return replaceIntr(call);
+}
+
+template <Intrinsic::ID Intr>
+Value *LowerWarpIdOrLane<Intr>::replaceIntrHip(CallBase *call) {
+  return replaceIntr(call);
+}
+
+// -----------------------------------------------------------------------------
 
 static bool lowerKitIntrinsics(Module &m, const TTOptions &tto) {
   bool changed = false;
 
-  changed |= lowerWarpIdIntrinsic(m);
-  changed |= lowerWarpLaneIntrinsic(m);
-  changed |= lowerWarpShuffleIntrinsics(m);
-  changed |= lowerWarpSizeIntrinsic(m, tto);
+  changed |= LowerWarpIdOrLane<Intrinsic::kit_gpu_warp_id>().run(m);
+  changed |= LowerWarpIdOrLane<Intrinsic::kit_gpu_warp_lane>().run(m);
+  changed |= LowerWarpSize(tto).run(m);
 
   return changed;
 }
