@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/Instrumentation.h"
+#include "kitsune/Core/KitOptions.h"
 #include "kitsune/Support/CommandLineOptions.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/raw_ostream.h"
@@ -129,27 +130,31 @@ void KitInstrOptions::print(raw_ostream &os) const {
   }
 }
 
-KitInstrOptions KitInstrOptions::createFromCommandLine() {
-  KitInstrOptions opts;
+bool KitInstrOptions::init(const driver::KitOptions &kitOpts) {
+  *this = kitOpts.getKitInstrOpts();
+  return enabled();
+}
+
+bool KitInstrOptions::initFromCommandLine() {
   if (!clKitInstr.getNumOccurrences())
-    return opts;
+    return false;
 
   for (StringRef kind : clKitInstr)
-    opts.addKind(*llvm::fromString<InstrumentKind>(kind));
+    addKind(*llvm::fromString<InstrumentKind>(kind));
 
   if (clKitInstrUnit.size() == 1 && clKitInstrUnit[0] == "all")
-    opts.setUnitsAll();
+    setUnitsAll();
   else if (clKitInstrUnit.size() == 1 && clKitInstrUnit[0] == "default")
-    opts.setUnitsDefault();
+    setUnitsDefault();
   else
     for (StringRef unit : clKitInstrUnit)
-      opts.addUnit(*llvm::fromString<InstrumentUnit>(unit));
+      addUnit(*llvm::fromString<InstrumentUnit>(unit));
 
   for (StringRef name : clKitInstrOnly)
-    opts.addName(name);
+    addName(name);
 
   for (StringRef evt : clKitInstrPAPI)
-    opts.addPAPIEvent(evt);
+    addPAPIEvent(evt);
 
-  return opts;
+  return true;
 }
