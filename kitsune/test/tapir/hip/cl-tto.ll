@@ -1,4 +1,5 @@
-; Check that opt's command line options make it to the tapir target options.
+; Check that the tapir target options specific to the hip tapir target are set
+; correctly.
 ;
 ; RUN: opt --tapir=hip %s -disable-output \
 ; RUN:     --tapir-gpu-prefetch=false \
@@ -8,12 +9,12 @@
 ; RUN:     --tapir-hip-features="-sramecc,+xnack" \
 ; RUN:     --tapir-hip-runtime-bcs="%S/input/amd.bc" \
 ; RUN:     --tapir-lld="%S/input/ld.lld" \
-; RUN:     -passes="loop-spawning" -dump-tapir-target-options 2>&1 \
+; RUN:     -passes="kit-print-tt-options" 2>&1 \
 ; RUN:     | FileCheck %s -check-prefixes ALL,CHECK
 ;
 ; RUN: opt --tapir=hip %s -disable-output \
 ; RUN:     --tapir-gpu-prefetch=true \
-; RUN:     -passes="loop-spawning" -dump-tapir-target-options 2>&1 \
+; RUN:     -passes="kit-print-tt-options" 2>&1 \
 ; RUN:     | FileCheck %s -check-prefixes ALL,PREFETCH
 ;
 ; ALL:       Tapir target options

@@ -30,14 +30,9 @@
 
 using namespace llvm;
 
-static cl::opt<bool>
-    clDumpTTO("dump-tapir-target-options", cl::init(false),
-              cl::desc("Dump the tapir target options if they have been set"),
-              cl::Hidden, cl::cat(cl::catKitClOpts));
-
 /// Empty vector of tapir targets to be used when TTObjects::getRequiredTTs is
 /// called with a function that does not contain any tapir loops.
-static const std::vector<TTID> noTTs;
+static const SmallVector<TTID, 0> noTTs;
 
 TTObjects::TTObjects(const TTOptions &ttOpts) : ttOpts(ttOpts) {}
 
@@ -126,10 +121,7 @@ bool TTObjects::invalidate(Module &, const PreservedAnalyses &pa,
 
 AnalysisKey TTObjectsAnalysis::Key;
 
-TTObjectsAnalysis::TTObjectsAnalysis(const TTOptions &tto) : ttObjs(tto) {
-  if (clDumpTTO and ttObjs.hasTTID())
-    ttObjs.getOptions().print(outs(), /*all=*/true);
-}
+TTObjectsAnalysis::TTObjectsAnalysis(const TTOptions &tto) : ttObjs(tto) {}
 
 TTObjectsAnalysis::Result TTObjectsAnalysis::run(Module &m,
                                                  ModuleAnalysisManager &mam) {

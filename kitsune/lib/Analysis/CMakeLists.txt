@@ -3,6 +3,7 @@ add_llvm_component_library(LLVMKitAnalysis
   PreLowerVerification.cpp
   TapirLoopNestAnalysis.cpp
   TTObjectsAnalysis.cpp
+  TTOptionsPrinter.cpp
 
   DEPENDS
   intrinsics_gen

@@ -1,9 +1,10 @@
 ; REQUIRES: kitsune-examples
 ;
 ; RUN: opt --tapir=custom --tapir-plugin=%kit-tt-plugin-demo %s \
-; RUN:     -o /dev/null -O2 \
-; RUN:     -dump-tapir-target-options 2>&1 \
-; RUN:     | FileCheck %s --check-prefix=TTO
+; RUN:     -passes=kit-print-tt-options -disable-output \
+; RUN:     | FileCheck %s
 ;
-; TTO: Custom plugin: TTPluginDemo 1.0
-; TTO: Custom plugin file: {{.+}}/kit-tt-plugin-demo.{{.+}}
+; CHECK: Tapir target options:
+; CHECK: Primary: custom
+; CHECK: Custom plugin: TTPluginDemo 1.0
+; CHECK: Custom plugin file: {{.+}}/kit-tt-plugin-demo.{{.+}}

@@ -20,6 +20,7 @@
 #include "kitsune/Analysis/EarlyVerification.h"
 #include "kitsune/Analysis/PreLowerVerification.h"
 #include "kitsune/Analysis/TTObjectsAnalysis.h"
+#include "kitsune/Analysis/TTOptionsPrinter.h"
 #include "kitsune/CodeGen/CodeGenFatBinaries.h"
 #include "kitsune/CodeGen/EmbLowerKitIntrinsics.h"
 #include "kitsune/CodeGen/LowerKitIntrinsics.h"
