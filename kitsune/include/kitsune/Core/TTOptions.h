@@ -257,8 +257,11 @@ public:
 
   /// Initialize this object from the command line options. If the --tapir
   /// option is not provided, leave the object unchanged and return false.
-  /// Otherwise, return true.
-  bool initFromCommandLine(OptznLevel optznLevel);
+  /// Otherwise, return true. The optimization level is not really used for
+  /// anything, so we use a "reasonable" default if one is not provided. Since
+  /// Kitsune requires optimizations, we just use the minimum optimization level
+  /// that is known to work.
+  bool initFromCommandLine(OptznLevel optznLevel = OptznLevel::O1);
 
   /// Initialize this object from the command line options. If the --tapir
   /// option is not provided, leave the object unchanged and return false.
