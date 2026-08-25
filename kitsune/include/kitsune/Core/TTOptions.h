@@ -164,6 +164,44 @@ private:
 public:
   TTOptions() = default;
 
+  /// Initialize this object from the frontend options \p kitOpts. If a TTID is
+  /// not set in \p kitOpts, leave the object unchanged and return false.
+  /// Otherwise, return true.
+  bool init(const KitOptions &kitOpts, OptznLevel optLevel,
+            FPOpFusionMode fpOpFusionMode);
+
+  /// Initialize this object from the frontend options \p kitOpts. If a TTID is
+  /// not set in \p kitOpts, leave the object unchanged and return false.
+  /// Otherwise, return true.
+  bool init(const KitOptions &kitOpts, unsigned speedupLevel,
+            unsigned sizeLevel, FPOpFusionMode fpOpFusionMode);
+
+  /// Minimally initialize this object from the command-line options. This only
+  /// examines the "shared" i.e. those that used by Kitsune's utilities in
+  /// addition to opt and llc. If the --tapir option is not provided, leave the
+  /// object unchanged and return false. Otherwise, return true.
+  bool initFromCommandLineMinimal();
+
+  /// Initialize this object from the command line options. If the --tapir
+  /// option is not provided, leave the object unchanged and return false.
+  /// Otherwise, return true. The optimization level is not really used for
+  /// anything, so we use a "reasonable" default if one is not provided. Since
+  /// Kitsune requires optimizations, we just use the minimum optimization level
+  /// that is known to work.
+  bool initFromCommandLine(OptznLevel optznLevel = OptznLevel::O1);
+
+  /// Initialize this object from the command line options. If the --tapir
+  /// option is not provided, leave the object unchanged and return false.
+  /// Otherwise, return true.
+  bool initFromCommandLine(unsigned speedupLevel);
+
+  /// Initialize this object from the command line options and the given
+  /// optimization level. \p optLevel must be one of {0, 1, 2, 3, s, z}. It is
+  /// an error if \p optLevel is not one of these. If the --tapir option is not
+  /// provided, leave the object unchanged and return false. Otherwise, return
+  /// true.
+  bool initFromCommandLine(char optLevel);
+
   // Check the object for inconsistencies and invalid values. If none are found,
   // return Error::success(). Otherwise, return an error.
   Error validate() const;
@@ -242,38 +280,6 @@ public:
   /// all the options will be printed, otherwise only those options relevant to
   /// the primary tapir target will be printed.
   void print(llvm::raw_ostream &os, bool all = false) const;
-
-  /// Initialize this object from the given frontend options, \p kitOpts. If a
-  /// TTID is not set in \p kitOpts, leave the object unchanged and return
-  /// false. Otherwise, return true.
-  bool init(const KitOptions &kitOpts, OptznLevel optLevel,
-            FPOpFusionMode fpOpFusionMode);
-
-  /// Minimally initialize this object from the command-line options. This only
-  /// examines the "shared" i.e. those that used by Kitsune's utilities in
-  /// addition to opt and llc. If the --tapir option is not provided, leave the
-  /// object unchanged and return false. Otherwise, return true.
-  bool initFromCommandLineMinimal();
-
-  /// Initialize this object from the command line options. If the --tapir
-  /// option is not provided, leave the object unchanged and return false.
-  /// Otherwise, return true. The optimization level is not really used for
-  /// anything, so we use a "reasonable" default if one is not provided. Since
-  /// Kitsune requires optimizations, we just use the minimum optimization level
-  /// that is known to work.
-  bool initFromCommandLine(OptznLevel optznLevel = OptznLevel::O1);
-
-  /// Initialize this object from the command line options. If the --tapir
-  /// option is not provided, leave the object unchanged and return false.
-  /// Otherwise, return true.
-  bool initFromCommandLine(unsigned speedupLevel);
-
-  /// Initialize this object from the command line options and the given
-  /// optimization level. \p optLevel must be one of {0, 1, 2, 3, s, z}. It is
-  /// an error if \p optLevel is not one of these. If the --tapir option is not
-  /// provided, leave the object unchanged and return false. Otherwise, return
-  /// true.
-  bool initFromCommandLine(char optLevel);
 };
 
 /// @}

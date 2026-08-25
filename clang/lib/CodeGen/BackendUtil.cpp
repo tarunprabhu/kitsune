@@ -144,13 +144,6 @@ static std::string getProfileGenName(const CodeGenOptions &CodeGenOpts) {
   return FileName;
 }
 
-bool initTTOptions(TTOptions &TTOpts, const KitOptions &KitOpts,
-                   unsigned SpeedupLevel, unsigned SizeLevel,
-                   FPOpFusion::FPOpFusionMode FPOpFusionMode) {
-  OptznLevel OptznLevel = createOptznLevelFrom(SpeedupLevel, SizeLevel);
-  return TTOpts.init(KitOpts, OptznLevel, FPOpFusionMode);
-}
-
 namespace {
 
 class EmitAssemblyHelper {
@@ -688,8 +681,8 @@ bool EmitAssemblyHelper::AddEmitPasses(legacy::PassManager &CodeGenPasses,
       llvm::driver::createTLII(TargetTriple, CodeGenOpts.getVecLib()));
   CodeGenPasses.add(new TargetLibraryInfoWrapperPass(*TLII));
 
-  if (initTTOptions(TTOpts, KitOpts, CodeGenOpts.OptimizationLevel,
-                    CodeGenOpts.OptimizeSize, getFPOpFusionMode()))
+  if (TTOpts.init(KitOpts, CodeGenOpts.OptimizationLevel,
+                  CodeGenOpts.OptimizeSize, getFPOpFusionMode()))
     populateKitCodeGenPasses(CodeGenPasses, TTOpts);
 
   // Normal mode, emit a .s or .o file by running the code generator. Note,
@@ -992,8 +985,8 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
   PTO.UnifiedLTO = CodeGenOpts.UnifiedLTO;
   PTO.DevirtualizeSpeculatively = CodeGenOpts.DevirtualizeSpeculatively;
   PTO.LoopStripmine = KitOpts.getStripmineLoops();
-  initTTOptions(PTO.TTOpts, KitOpts, CodeGenOpts.OptimizationLevel,
-                CodeGenOpts.OptimizeSize, getFPOpFusionMode());
+  PTO.TTOpts.init(KitOpts, CodeGenOpts.OptimizationLevel,
+                  CodeGenOpts.OptimizeSize, getFPOpFusionMode());
   PTO.KitInstrOpts.init(KitOpts);
 
   LoopAnalysisManager LAM;
@@ -1506,8 +1499,8 @@ runThinLTOBackend(CompilerInstance &CI, ModuleSummaryIndex *CombinedIndex,
   // Only enable CGProfilePass when using integrated assembler, since
   // non-integrated assemblers don't recognize .cgprofile section.
   Conf.PTO.CallGraphProfile = !CGOpts.DisableIntegratedAS;
-  initTTOptions(Conf.PTO.TTOpts, KitOpts, CGOpts.OptimizationLevel,
-                CGOpts.OptimizeSize, Conf.Options.AllowFPOpFusion);
+  Conf.PTO.TTOpts.init(KitOpts, CGOpts.OptimizationLevel, CGOpts.OptimizeSize,
+                       Conf.Options.AllowFPOpFusion);
   Conf.PTO.KitInstrOpts.init(KitOpts);
 
   // Context sensitive profile.
