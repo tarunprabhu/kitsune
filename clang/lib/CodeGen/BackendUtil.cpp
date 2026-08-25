@@ -930,7 +930,7 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
   PTO.LoopStripmine = KitOpts.getStripmineLoops();
   initTTOptions(PTO.TTOpts, KitOpts, CodeGenOpts.OptimizationLevel,
                 CodeGenOpts.OptimizeSize, getFPOpFusionMode());
-  PTO.KitInstrOpts = KitOpts.getKitInstrOpts();
+  PTO.KitInstrOpts.init(KitOpts);
 
   LoopAnalysisManager LAM;
   FunctionAnalysisManager FAM;
@@ -1373,7 +1373,7 @@ runThinLTOBackend(CompilerInstance &CI, ModuleSummaryIndex *CombinedIndex,
   Conf.PTO.CallGraphProfile = !CGOpts.DisableIntegratedAS;
   initTTOptions(Conf.PTO.TTOpts, KitOpts, CGOpts.OptimizationLevel,
                 CGOpts.OptimizeSize, Conf.Options.AllowFPOpFusion);
-  Conf.PTO.KitInstrOpts = KitOpts.getKitInstrOpts();
+  Conf.PTO.KitInstrOpts.init(KitOpts);
 
   // Context sensitive profile.
   if (CGOpts.hasProfileCSIRInstr()) {

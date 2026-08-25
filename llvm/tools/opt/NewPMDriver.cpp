@@ -13,7 +13,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "NewPMDriver.h"
-#include "kitsune/Core/Instrumentation.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/StringRef.h"
@@ -447,7 +446,7 @@ bool llvm::runPassPipeline(
   PTO.LoopUnrolling = !DisableLoopUnrolling;
   PTO.UnifiedLTO = UnifiedLTO;
   PTO.TTOpts.initFromCommandLine();
-  PTO.KitInstrOpts = KitInstrOptions::createFromCommandLine();
+  PTO.KitInstrOpts.initFromCommandLine();
   PassBuilder PB(TM, PTO, P, &PIC);
   registerEPCallbacks(PB);
 
