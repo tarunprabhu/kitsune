@@ -14,8 +14,6 @@
 
 #include "NewPMDriver.h"
 #include "kitsune/Core/Instrumentation.h"
-#include "kitsune/Core/TTOptions.h"
-#include "kitsune/Support/ErrorUtils.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/StringRef.h"
@@ -345,30 +343,6 @@ static void registerEPCallbacks(PassBuilder &PB) {
         });
 }
 
-// We have to parse the pass pipeline to get an optimization level. We need this
-// here because we dump the tapir target options early - before the pass
-// pipeline is parsed and the correct optmization level overriden.
-static OptznLevel getOptznLevel(TargetMachine *TM, StringRef PassPipeline) {
-  PipelineTuningOptions PTO;
-  PTO.TTOpts.initFromCommandLine(OptznLevel::O1);
-  PassBuilder PB(TM, PTO, /* PGOOptions */ std::nullopt,
-                 /* PassInstrumentationCallback*/ nullptr);
-
-  // We don't care about setting up the analysis passes and, for now at least,
-  // it doesn't cause us any problems when we parse the pass pipeline.
-  ModulePassManager MPM;
-
-  // If an error occurred while parsing the pipeline, silently return. The
-  // actual error will be shown when the main pass builder is constructed.
-  // However, we do need to pretend to handle the error here to keep LLVM happy.
-  if (Error Err = PB.parsePassPipeline(MPM, PassPipeline)) {
-    ignoreAllErrors(std::move(Err));}
-
-  // If the pipeline was parsed successfully, the TTOptions object owned by the
-  // pass builder (if any) will have been updated with the optimization.
-  return PB.getTTOptions().getOptznLevel();
-}
-
 #define HANDLE_EXTENSION(Ext)                                                  \
   llvm::PassPluginLibraryInfo get##Ext##PluginInfo();
 #include "llvm/Support/Extension.def"
@@ -472,7 +446,7 @@ bool llvm::runPassPipeline(
   // option has been enabled.
   PTO.LoopUnrolling = !DisableLoopUnrolling;
   PTO.UnifiedLTO = UnifiedLTO;
-  PTO.TTOpts.initFromCommandLine(getOptznLevel(TM, PassPipeline));
+  PTO.TTOpts.initFromCommandLine();
   PTO.KitInstrOpts = KitInstrOptions::createFromCommandLine();
   PassBuilder PB(TM, PTO, P, &PIC);
   registerEPCallbacks(PB);
