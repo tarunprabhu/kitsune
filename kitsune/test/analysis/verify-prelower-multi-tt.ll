@@ -4,9 +4,8 @@
 ;
 ; When we do support multi-target execution, this test should be removed because
 ; the corresponding code in the kit-verify-prelower pass will also have been
-; removed.
-; Tests for valid (and invalid) combinations of tapir targets should be done
-; in other tests.
+; removed. Tests for valid (and invalid) combinations of tapir targets should be
+; done in other tests.
 ;
 ; RUN: not opt --tapir=serial -passes='kit-verify-prelower' %s 2>&1 \
 ; RUN:     -disable-output \
@@ -69,8 +68,8 @@ for.i.end:
   ret void
 }
 
-!0 = !{!0, !3}
-!1 = !{!1, !4}
-!2 = !{!2}
+!0 = distinct !{!0, !3}
+!1 = distinct !{!1, !4}
+!2 = distinct !{!2}
 !3 = !{!"tapir.loop.target", i32 1}
 !4 = !{!"tapir.loop.target", i32 1024}

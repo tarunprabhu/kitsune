@@ -1,8 +1,7 @@
 ; Check that the correct diagnostic is emitted when a tapir loop has more than
 ; one induction variable.
 ;
-; RUN: not opt --tapir=nolo -passes='kit-verify-prelower' %s 2>&1 \
-; RUN:     -disable-output \
+; RUN: not opt -passes='kit-verify-prelower' %s -disable-output 2>&1 \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: tapir loop must have at most one induction variable

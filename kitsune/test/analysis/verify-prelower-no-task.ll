@@ -1,6 +1,6 @@
 ; Tapir loops must have the tapir loop structure.
 ;
-; RUN: not opt --tapir=nolo -passes='kit-verify-prelower' %s 2>&1 \
+; RUN: not opt -passes='kit-verify-prelower' %s -disable-output 2>&1 \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: cannot get task for tapir loop

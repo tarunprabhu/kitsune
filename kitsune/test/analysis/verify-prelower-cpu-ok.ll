@@ -1,8 +1,7 @@
 ; Check that no diagnostics are emitted when a perfectly nested tapir loop nest
 ; where the root has a CPU-based tapir target
 ;
-; RUN: opt -passes="kit-verify-prelower" \
-; RUN:     --tapir=pthreads -disable-output %s 2>&1 \
+; RUN: opt -passes=kit-verify-prelower %s -disable-output 2>&1 \
 ; RUN:     | FileCheck %s --allow-empty
 ;
 ; CHECK-NOT: {{.+}}

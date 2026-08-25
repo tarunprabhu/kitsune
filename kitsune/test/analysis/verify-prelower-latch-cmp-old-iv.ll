@@ -3,7 +3,7 @@
 ; This is a reduced example from actual code, where `%tc = add i64 %n, -2` was
 ; present.
 ;
-; RUN: opt --tapir=nolo -passes=kit-verify-prelower -disable-output %s 2>&1 \
+; RUN: opt -passes=kit-verify-prelower -disable-output %s 2>&1 \
 ; RUN:     | FileCheck %s --allow-empty
 ;
 ; CHECK-NOT: {{^.+$}}

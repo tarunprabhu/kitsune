@@ -2,10 +2,6 @@
 ; disabled even if it has been explicitly requested. Normally, this module
 ; would raise an error.
 ;
-; RUN: opt --tapir=nolo -passes='kit-verify-prelower' -kit-no-verify-prelower \
-; RUN:     -disable-output %s 2>&1 \
-; RUN:     | FileCheck %s --allow-empty
-;
 ; RUN: opt -passes='kit-verify-prelower' -kit-no-verify-prelower \
 ; RUN:     -disable-output %s 2>&1 \
 ; RUN:     | FileCheck %s --allow-empty

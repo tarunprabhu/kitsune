@@ -2,8 +2,7 @@
 ; task-simplify will have run earlier in the pipeline and may have merged the
 ; syncregions.
 ;
-; RUN: opt --tapir=nolo -passes='kit-verify-prelower' %s 2>&1 \
-; RUN:     -disable-output \
+; RUN: opt -passes='kit-verify-prelower' %s -disable-output 2>&1 \
 ; RUN:     | FileCheck %s --allow-empty
 ;
 ; CHECK-NOT: {{.+}}

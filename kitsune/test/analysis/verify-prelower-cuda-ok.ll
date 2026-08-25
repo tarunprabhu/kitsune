@@ -3,7 +3,7 @@
 ; Check that no diagnostics are emitted when a perfectly nested tapir loop nest
 ; where the root has the 'cuda' tapir target is verified.
 ;
-; RUN: opt -passes="kit-verify-prelower" --tapir=cuda -disable-output %s 2>&1 \
+; RUN: opt -passes=kit-verify-prelower -disable-output %s 2>&1 \
 ; RUN:     | FileCheck %s --allow-empty
 ;
 ; CHECK-NOT: {{.+}}
