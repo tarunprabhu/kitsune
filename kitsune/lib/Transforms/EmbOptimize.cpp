@@ -15,7 +15,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Transforms/EmbOptimize.h"
-#include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/TTUtils.h"
 #include "kitsune/Core/TargetUtils.h"
@@ -170,9 +169,6 @@ public:
 
 bool EmbOptimizePass::run(TTID tt, Module &devM, Module &hostM,
                           ModuleAnalysisManager &hostMAM) {
-  const TTObjects &ttObjs = hostMAM.getResult<TTObjectsAnalysis>(hostM);
-  const TTOptions &tto = ttObjs.getOptions();
-
   switch (tt) {
   case TTID::Cuda: return EmbOptimizeCuda(tto).run(devM);
   case TTID::Hip: return EmbOptimizeHip(tto).run(devM);

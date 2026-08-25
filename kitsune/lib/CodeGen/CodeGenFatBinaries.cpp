@@ -14,13 +14,12 @@
 
 #include "kitsune/CodeGen/CodeGenFatBinaries.h"
 #include "CGFBImpl.h"
-#include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/Config/Config.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/TTUtils.h"
-#include "kitsune/Support/ToString.h"
 #include "kitsune/Support/CommandLineOptions.h"
+#include "kitsune/Support/ToString.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
@@ -206,8 +205,12 @@ public:
 
 /// Legacy pass to compile the embedded bitcode to fat binaries.
 class CodeGenFatBinariesLegacyPass : public ModulePass {
+protected:
+  const TTOptions &tto;
+
 public:
-  CodeGenFatBinariesLegacyPass() : ModulePass(ID) {
+  CodeGenFatBinariesLegacyPass(const TTOptions &tto)
+      : ModulePass(ID), tto(tto) {
     initializeCodeGenFatBinariesLegacyPassPass(
         *PassRegistry::getPassRegistry());
   }
@@ -216,17 +219,12 @@ public:
     return "Generate Kitsune fat binaries";
   }
 
-  void getAnalysisUsage(AnalysisUsage &au) const override {
-    au.addRequired<TTObjectsAnalysisWrapperPass>();
-  }
+  void getAnalysisUsage(AnalysisUsage &au) const override {}
 
   bool runOnModule(Module &m) override {
-    TTObjects ttObjs = getAnalysis<TTObjectsAnalysisWrapperPass>().getResult();
-    if (not ttObjs.hasTTID())
+    if (!tto.hasTTID())
       return false;
-
-    const TTOptions &ttOpts = ttObjs.getOptions();
-    return CodeGenFatBinaries(ttOpts).run(m);
+    return CodeGenFatBinaries(tto).run(m);
   }
 
 public:
@@ -238,24 +236,21 @@ public:
 char CodeGenFatBinariesLegacyPass::ID = 0;
 INITIALIZE_PASS_BEGIN(CodeGenFatBinariesLegacyPass, DEBUG_TYPE,
                       "Compile Kitsune fat binaries", false, false)
-INITIALIZE_PASS_DEPENDENCY(TTObjectsAnalysisWrapperPass)
 INITIALIZE_PASS_END(CodeGenFatBinariesLegacyPass, DEBUG_TYPE,
                     "Compile Kitsune fat binaries", false, false)
 
-ModulePass *llvm::createCodeGenFatBinariesLegacyPass() {
-  return new CodeGenFatBinariesLegacyPass();
+ModulePass *llvm::createCodeGenFatBinariesLegacyPass(const TTOptions &tto) {
+  return new CodeGenFatBinariesLegacyPass(tto);
 }
 
 PreservedAnalyses CodeGenFatBinariesPass::run(Module &m,
                                               ModuleAnalysisManager &mam) {
   // If a primary tapir target ID has not been set, then tapir lowering was not
   // enabled and there is nothing to be done.
-  const TTObjects &ttObjs = mam.getResult<TTObjectsAnalysis>(m);
-  if (not ttObjs.hasTTID())
+  if (!tto.hasTTID())
     return PreservedAnalyses::all();
 
-  const TTOptions &ttOpts = ttObjs.getOptions();
-  CodeGenFatBinaries(ttOpts).run(m);
+  CodeGenFatBinaries(tto).run(m);
 
   // This does not invalidate any analyses, even if any fat binaries were
   // generated since only global variables will have been modified.

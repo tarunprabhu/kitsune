@@ -19,13 +19,20 @@
 
 namespace llvm {
 
+class TTOptions;
+
 /// \ingroup Kitsune
 /// Resolve the calls to functions in the embedded bitcode that have
 /// device-specific implementations in one or more vendor-provided bitcode
 /// files.
 class EmbResolveLibDeviceCallsPass
     : public EmbModulePass<EmbResolveLibDeviceCallsPass> {
+protected:
+  const TTOptions &tto;
+
 public:
+  EmbResolveLibDeviceCallsPass(const TTOptions &tto) : tto(tto) {}
+
   bool run(TTID tt, Module &devM, Module &hostM, ModuleAnalysisManager &hostAM);
 
   using EmbModulePass<EmbResolveLibDeviceCallsPass>::run;

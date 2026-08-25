@@ -17,11 +17,18 @@
 
 namespace llvm {
 
+class TTOptions;
+
 /// \ingroup kitsune
 /// Link the appropriate device bitcode modules into the embedded bitcode.
 class EmbLinkLibDeviceBitcodePass
     : public EmbModulePass<EmbLinkLibDeviceBitcodePass> {
+protected:
+  const TTOptions &tto;
+
 public:
+  EmbLinkLibDeviceBitcodePass(const TTOptions &tto) : tto(tto) {}
+
   bool run(TTID tt, Module &km, Module &hostM, ModuleAnalysisManager &hostMAM);
 
   using EmbModulePass<EmbLinkLibDeviceBitcodePass>::run;

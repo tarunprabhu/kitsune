@@ -192,7 +192,7 @@ end:
 )m";
 
 // There are no tapir loops. getRequiredTTs() should return an empty list. Even
-// so, a tapir target for the prrimary tapir target must have been created.
+// so, a tapir target for the primary tapir target must have been created.
 TEST_F(KitTTObjectsAnalysis, noTapirLoops) {
   driver::KitOptions kitOpts;
   kitOpts.setTTID(TTID::Serial);
@@ -204,7 +204,6 @@ TEST_F(KitTTObjectsAnalysis, noTapirLoops) {
   EXPECT_TRUE(ttObjs.getTTIDOrNull());
   EXPECT_EQ(*ttObjs.getTTIDOrNull(), TTID::Serial);
   EXPECT_EQ(ttObjs.getTTID(), TTID::Serial);
-  EXPECT_EQ(ttObjs.getOptions().getCudaArch(), StringRef("sm_17"));
   EXPECT_EQ(ttObjs.getRequiredTTs(*f).size(), 0UL);
   EXPECT_EQ(ttObjs.getRequiredTTs(*m).size(), 0UL);
 

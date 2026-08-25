@@ -17,11 +17,18 @@
 
 namespace llvm {
 
+class TTOptions;
+
 /// \ingroup kitsune
 /// This pass generates calls to initiate movement of data between host and
 /// device.
 class PrefetchForDevicePass : public PassInfoMixin<PrefetchForDevicePass> {
+protected:
+  const TTOptions &tto;
+
 public:
+  PrefetchForDevicePass(const TTOptions &tto) : tto(tto) {}
+
   PreservedAnalyses run(Module &m, ModuleAnalysisManager &am);
 };
 

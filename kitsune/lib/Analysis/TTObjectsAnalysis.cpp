@@ -88,7 +88,7 @@ TapirTarget *TTObjects::getTT(TTID id) const {
 }
 
 TTID TTObjects::getTTID() const {
-  assert(ttOpts.hasTTID() && "Tapir target options have not been set");
+  assert(ttOpts.hasTTID() && "Tapir target options must be set");
   return ttOpts.getTTID();
 }
 
@@ -96,11 +96,6 @@ std::optional<TTID> TTObjects::getTTIDOrNull() const {
   if (ttOpts.hasTTID())
     return ttOpts.getTTID();
   return std::nullopt;
-}
-
-const TTOptions &TTObjects::getOptions() const {
-  assert(ttOpts.hasTTID() && "Tapir target options have not been set");
-  return ttOpts;
 }
 
 ArrayRef<TTID> TTObjects::getRequiredTTs(Function &f) const {
@@ -152,32 +147,4 @@ TTObjectsAnalysis::Result TTObjectsAnalysis::run(Module &m,
   }
 
   return ttObjs;
-}
-
-char TTObjectsAnalysisWrapperPass::ID = 0;
-INITIALIZE_PASS(TTObjectsAnalysisWrapperPass, DEBUG_TYPE,
-                "Tapir Target Analysis", false, true)
-
-TTObjectsAnalysisWrapperPass::TTObjectsAnalysisWrapperPass()
-    : ImmutablePass(ID), ttObjs(TTOptions()) {
-  initializeTTObjectsAnalysisWrapperPassPass(*PassRegistry::getPassRegistry());
-}
-
-TTObjectsAnalysisWrapperPass::TTObjectsAnalysisWrapperPass(
-    const TTOptions &ttOpts)
-    : ImmutablePass(ID), ttObjs(ttOpts) {
-  initializeTTObjectsAnalysisWrapperPassPass(*PassRegistry::getPassRegistry());
-}
-
-void TTObjectsAnalysisWrapperPass::getAnalysisUsage(AnalysisUsage &au) const {
-  au.setPreservesAll();
-}
-
-TTObjectsAnalysisWrapperPass::Result
-TTObjectsAnalysisWrapperPass::getResult() const {
-  return ttObjs;
-}
-
-ModulePass *llvm::createTTObjectsAnalysisWrapperPass(const TTOptions &ttOpts) {
-  return new TTObjectsAnalysisWrapperPass(ttOpts);
 }
