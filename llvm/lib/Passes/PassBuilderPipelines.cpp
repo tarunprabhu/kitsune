@@ -15,6 +15,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Passes/PipelineUtils.h"
+#include "kitsune/Analysis/TTOptionsPrinter.h"
+#include "kitsune/Support/CommandLineOptions.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/BasicAliasAnalysis.h"
@@ -343,6 +345,11 @@ static cl::opt<bool>
     VerifyTapirLowering("verify-tapir-lowering-npm", cl::init(false),
                         cl::Hidden,
                         cl::desc("Verify IR after Tapir lowering steps"));
+
+static cl::opt<bool>
+    clPrintTTOptions("print-tt-options", cl::init(false),
+                     cl::desc("Write the tapir target options to stdout"),
+                     cl::Hidden, cl::cat(cl::catKitClOpts));
 
 extern cl::opt<std::string> UseCtxProfile;
 extern cl::opt<bool> PGOInstrumentColdFunctionOnly;
@@ -2078,6 +2085,9 @@ PassBuilder::buildPerModuleDefaultPipeline(OptimizationLevel Level,
   if (Phase == ThinOrFullLTOPhase::None)
     MPM.addPass(MemProfRemoveInfo());
 
+  if (clPrintTTOptions)
+    MPM.addPass(TTOptionsPrinterPass(PTO.TTOpts));
+
   // Convert @llvm.global.annotations to !annotation metadata.
   MPM.addPass(Annotation2MetadataPass());
 
@@ -2750,6 +2760,9 @@ PassBuilder::buildO0DefaultPipeline(OptimizationLevel Level,
          "buildO0DefaultPipeline should only be used with O0");
 
   ModulePassManager MPM;
+
+  if (clPrintTTOptions)
+    MPM.addPass(TTOptionsPrinterPass(PTO.TTOpts));
 
   instructionCountersPass(MPM, /* IsPreOptimization */ true);
 

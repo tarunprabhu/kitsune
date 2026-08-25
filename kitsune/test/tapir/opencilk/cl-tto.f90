@@ -10,7 +10,7 @@
 ! options.
 !
 ! RUN: %kitfc -fc1 --tapir=opencilk -O2 %s -emit-llvm -o /dev/null \
-! RUN:     -mllvm -dump-tapir-target-options \
+! RUN:     -mllvm -print-tt-options \
 ! RUN:     --tapir-opencilk-runtime-bc="%S/input/libopencilk-abi.bc" 2>&1 \
 ! RUN:     | FileCheck %s --check-prefixes ALL,FC1
 !

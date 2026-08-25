@@ -380,6 +380,9 @@ bool TTOptions::init(const KitOptions &kitOpts, OptznLevel optznLevel,
 
 void TTOptions::print(raw_ostream &os, bool all) const {
   os << "Tapir target options:\n";
+  if (!hasTTID())
+    return;
+
   os << "  Primary:                 " << tt << "\n";
   os << "  Optimization level:      " << getOptznLevel() << "\n";
   os << "  FP fusion:               " << toString(getFPOpFusionMode()) << "\n";

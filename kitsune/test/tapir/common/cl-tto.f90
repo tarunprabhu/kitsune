@@ -6,24 +6,24 @@
 ! here.
 !
 ! RUN: %kitfc --tapir=serial -O2 -S -emit-llvm -o /dev/null %s \
-! RUN:     -mllvm -dump-tapir-target-options \
+! RUN:     -mllvm -print-tt-options \
 ! RUN:     | FileCheck %s -check-prefixes ALL
 !
 ! RUN: %kitfc --tapir=serial -O1 -S -emit-llvm -o /dev/null %s \
-! RUN:     -mllvm -dump-tapir-target-options \
+! RUN:     -mllvm -print-tt-options \
 ! RUN:     | FileCheck %s --check-prefixes ALL,O1
 !
 ! RUN: %kitfc --tapir=serial -O3 -S -emit-llvm -o /dev/null %s \
-! RUN:     -mllvm -dump-tapir-target-options \
+! RUN:     -mllvm -print-tt-options \
 ! RUN:     | FileCheck %s --check-prefixes ALL,O3
 !
 ! RUN: %kitfc --tapir=serial -O2 -S -emit-llvm -o /dev/null %s \
-! RUN:     -mllvm -dump-tapir-target-options \
+! RUN:     -mllvm -print-tt-options \
 ! RUN:     -ffp-contract=off \
 ! RUN:     | FileCheck %s -check-prefixes ALL,FP_STANDARD
 !
 ! RUN: %kitfc --tapir=serial -O2 -S -emit-llvm -o /dev/null %s \
-! RUN:     -mllvm -dump-tapir-target-options \
+! RUN:     -mllvm -print-tt-options \
 ! RUN:     -ffp-contract=fast \
 ! RUN:     | FileCheck %s -check-prefixes ALL,FP_FAST
 !

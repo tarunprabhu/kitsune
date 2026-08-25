@@ -1,13 +1,12 @@
-; Check that the opt command line options make it to the tapir target options.
-; This is intended for options that are specific to the qthreads tapir target.
+; Check that the tapir target options specific to the qthreads tapir target are
+; set correctly.
 ;
-; NOTE: Currently, there are no such options, so this is mostly just a
-; placeholder and is around for consistency with the tests for the other tapir
-; targets.
+; NOTE: Currently, there are no such options, so this is just a placeholder for
+; consistency with the tests for the other tapir targets.
 ;
 ; RUN: opt --tapir=qthreads %s -disable-output \
-; RUN:     -passes="loop-spawning" -dump-tapir-target-options \
+; RUN:     -passes="kit-print-tt-options" \
 ; RUN:     | FileCheck %s -check-prefixes ALL
 ;
-; ALL:          Tapir target options
-; ALL:          Primary: qthreads
+; ALL: Tapir target options
+; ALL: Primary: qthreads

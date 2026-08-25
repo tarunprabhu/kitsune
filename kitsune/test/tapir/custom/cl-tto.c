@@ -6,7 +6,7 @@
 //
 // RUN: %kitcc --tapir=custom --tapir-plugin=%kit-tt-plugin-demo %s \
 // RUN:     -S -emit-llvm -o /dev/null -O2 \
-// RUN:     -mllvm -dump-tapir-target-options 2>&1 \
+// RUN:     -mllvm -print-tt-options 2>&1 \
 // RUN:     | FileCheck %s --check-prefix=ALL
 //
 // ALL: Tapir target options

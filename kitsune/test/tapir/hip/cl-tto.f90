@@ -4,62 +4,62 @@
 ! Check that the options provided to kit++ make it to the tapir target.
 !
 ! RUN: %kitfc --tapir=hip -O2 -S -emit-llvm -o /dev/null %s \
-! RUN:     -mllvm -dump-tapir-target-options \
+! RUN:     -mllvm -print-tt-options \
 ! RUN:     --tapir-gpu-prefetch \
 ! RUN:     | FileCheck %s -check-prefixes ALL,PREFETCH
 !
 ! RUN: %kitfc --tapir=hip -O2 -S -emit-llvm -o /dev/null %s \
-! RUN:     -mllvm -dump-tapir-target-options \
+! RUN:     -mllvm -print-tt-options \
 ! RUN:     --tapir-gpu-no-prefetch \
 ! RUN:     | FileCheck %s -check-prefixes ALL,NO-PREFETCH
 !
 ! RUN: %kitfc --tapir=hip -O2 -S -emit-llvm -o /dev/null %s \
-! RUN:     -mllvm -dump-tapir-target-options \
+! RUN:     -mllvm -print-tt-options \
 ! RUN:     --tapir-hip-arch=gfx906 \
 ! RUN:     | FileCheck %s -check-prefixes ALL,ARCH
 !
 ! RUN: %kitfc --tapir=hip -O2 -S -emit-llvm -o /dev/null %s \
-! RUN:     -mllvm -dump-tapir-target-options \
+! RUN:     -mllvm -print-tt-options \
 ! RUN:     --tapir-hip-sramecc=off \
 ! RUN:     | FileCheck %s -check-prefixes ALL,SRAMECC_OFF
 !
 ! RUN: %kitfc --tapir=hip -O2 -S -emit-llvm -o /dev/null %s \
-! RUN:     -mllvm -dump-tapir-target-options \
+! RUN:     -mllvm -print-tt-options \
 ! RUN:     --tapir-hip-sramecc=on \
 ! RUN:     | FileCheck %s -check-prefixes ALL,SRAMECC_ON
 !
 ! RUN: %kitfc --tapir=hip -O2 -S -emit-llvm -o /dev/null %s \
-! RUN:     -mllvm -dump-tapir-target-options \
+! RUN:     -mllvm -print-tt-options \
 ! RUN:     --tapir-hip-sramecc=any \
 ! RUN:     | FileCheck %s -check-prefixes ALL,SRAMECC_ANY
 !
 ! RUN: %kitfc --tapir=hip -O2 -S -emit-llvm -o /dev/null %s \
-! RUN:     -mllvm -dump-tapir-target-options \
+! RUN:     -mllvm -print-tt-options \
 ! RUN:     --tapir-hip-xnack=off \
 ! RUN:     | FileCheck %s -check-prefixes ALL,XNACK_OFF
 !
 ! RUN: %kitfc --tapir=hip -O2 -S -emit-llvm -o /dev/null %s \
-! RUN:     -mllvm -dump-tapir-target-options \
+! RUN:     -mllvm -print-tt-options \
 ! RUN:     --tapir-hip-xnack=on \
 ! RUN:     | FileCheck %s -check-prefixes ALL,XNACK_ON
 !
 ! RUN: %kitfc --tapir=hip -O2 -S -emit-llvm -o /dev/null %s \
-! RUN:     -mllvm -dump-tapir-target-options \
+! RUN:     -mllvm -print-tt-options \
 ! RUN:     --tapir-hip-xnack=any \
 ! RUN:     | FileCheck %s -check-prefixes ALL,XNACK_ANY
 !
 ! RUN: %kitfc --tapir=hip -O2 -S -emit-llvm -o /dev/null %s \
-! RUN:     -mllvm -dump-tapir-target-options \
+! RUN:     -mllvm -print-tt-options \
 ! RUN:     --tapir-hip-arch=gfx1103 --tapir-hip-wavefront64 \
 ! RUN:     | FileCheck %s -check-prefixes ALL,W_64
 !
 ! RUN: %kitfc --tapir=hip -O2 -S -emit-llvm -o /dev/null %s \
-! RUN:     -mllvm -dump-tapir-target-options \
+! RUN:     -mllvm -print-tt-options \
 ! RUN:     --tapir-hip-arch=gfx1103 --tapir-hip-wavefront32 \
 ! RUN:     | FileCheck %s -check-prefixes ALL,W_32
 !
 ! RUN: %kitfc --tapir=hip -O2 -S -emit-llvm -o /dev/null %s \
-! RUN:     -mllvm -dump-tapir-target-options \
+! RUN:     -mllvm -print-tt-options \
 ! RUN:     --tapir-hip-abi-version=5 \
 ! RUN:     | FileCheck %s -check-prefixes ALL,ABI_VER_5
 !
@@ -67,7 +67,7 @@
 ! Check that the options only allowed in -cc1 make it to the tapir targets.
 !
 ! RUN: %kitfc -fc1 --tapir=hip -O2 %s -emit-llvm -o /dev/null \
-! RUN:     -mllvm -dump-tapir-target-options \
+! RUN:     -mllvm -print-tt-options \
 ! RUN:     --tapir-hip-arch=gfx906 \
 ! RUN:     --tapir-hip-sramecc=off \
 ! RUN:     --tapir-hip-xnack=on \
