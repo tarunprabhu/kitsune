@@ -6,7 +6,7 @@
 // targets.
 //
 // RUN: %kitxx --tapir=qthreads -O2 -S -emit-llvm -o /dev/null %s \
-// RUN:     -mllvm -dump-tapir-target-options \
+// RUN:     -mllvm -print-tt-options \
 // RUN:     | FileCheck %s -check-prefixes ALL
 //
 // ALL:          Tapir target options

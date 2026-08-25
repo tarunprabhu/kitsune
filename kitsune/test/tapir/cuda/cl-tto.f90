@@ -7,17 +7,17 @@
 ! really add up. So just provide an architecture to have these run fast.
 !
 ! RUN: %kitfc --tapir=cuda -O1 -S -emit-llvm -o /dev/null %s \
-! RUN:     -mllvm -dump-tapir-target-options \
+! RUN:     -mllvm -print-tt-options \
 ! RUN:     --tapir-cuda-arch=sm_72 --tapir-gpu-prefetch 2>&1 \
 ! RUN:     | FileCheck %s -check-prefixes ALL,PREFETCH
 !
 ! RUN: %kitfc --tapir=cuda -O1 -S -emit-llvm -o /dev/null %s \
-! RUN:     -mllvm -dump-tapir-target-options \
+! RUN:     -mllvm -print-tt-options \
 ! RUN:     --tapir-cuda-arch=sm_72 --tapir-gpu-no-prefetch 2>&1 \
 ! RUN:     | FileCheck %s -check-prefixes ALL,NO-PREFETCH
 !
 ! RUN: %kitfc --tapir=cuda -O1 -S -emit-llvm -o /dev/null %s \
-! RUN:     -mllvm -dump-tapir-target-options \
+! RUN:     -mllvm -print-tt-options \
 ! RUN:     --tapir-cuda-arch=sm_60 2>&1 \
 ! RUN:     | FileCheck %s -check-prefixes ALL,ARCH
 !
@@ -25,7 +25,7 @@
 ! Check that the options only allowed in -cc1 make it to the tapir targets.
 !
 ! RUN: %kitfc -fc1 --tapir=cuda -O1 %s -emit-llvm -o /dev/null \
-! RUN:     -mllvm -dump-tapir-target-options \
+! RUN:     -mllvm -print-tt-options \
 ! RUN:     --tapir-cuda-arch=sm_72 \
 ! RUN:     --tapir-cuda-virt-arch=compute_72 \
 ! RUN:     --tapir-cuda-features="+ptx72" \

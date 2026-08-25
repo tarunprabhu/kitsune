@@ -8,7 +8,7 @@
 // options.
 //
 // RUN: %kitxx -cc1 --tapir=opencilk -O2 -emit-llvm -o /dev/null %s \
-// RUN:     -disable-free -mllvm -dump-tapir-target-options \
+// RUN:     -disable-free -mllvm -print-tt-options \
 // RUN:     --tapir-opencilk-runtime-bc="%S/input/libopencilk-abi.bc" 2>&1 \
 // RUN:     | FileCheck %s --check-prefixes ALL,CC1
 //

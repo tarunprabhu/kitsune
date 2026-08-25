@@ -1,12 +1,11 @@
 ; Check that the tapir target options specific to the serial tapir target are
-; set correctly depending on the corresponding options passed to LLVM's opt
-; utility.
+; set correctly.
 ;
-; Currently, there are no options specific to the serial tapir target. We just
-; check that the tapir target ID is set correctly.
+; NOTE: Currently, there are no such options, so this is just a placeholder for
+; consistency with the tests for the other tapir targets.
 ;
 ; RUN: opt --tapir=serial %s -disable-output \
-; RUN:     -passes="loop-spawning" -dump-tapir-target-options \
+; RUN:     -passes="kit-print-tt-options" \
 ; RUN:     | FileCheck %s -check-prefixes ALL
 ;
 ; ALL: Tapir target options
