@@ -22,6 +22,10 @@ namespace llvm {
 /// preserved.
 PreservedAnalyses getPreservedAnalysesAll();
 
+/// Get a PreservedAnalyses object that indicates that all analyses except the
+/// callgraph analyses have been preserved.
+PreservedAnalyses getPreservedAnalysesCallGraph();
+
 /// Get a PreservedAnalyses object that indicates that all analyses that depend
 /// on the CFG are preserved.
 PreservedAnalyses getPreservedAnalysesCFG();
