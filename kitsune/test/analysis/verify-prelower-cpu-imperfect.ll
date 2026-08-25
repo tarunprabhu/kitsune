@@ -3,8 +3,7 @@
 ; code for the CPU. Currently, imperfect loops are allowed on the CPU, but if
 ; this changes, additional tests may have to be added.
 ;
-; RUN: opt -passes="kit-verify-prelower" \
-; RUN:     --tapir=pthreads -disable-output %s 2>&1 \
+; RUN: opt -passes="kit-verify-prelower" %s -disable-output 2>&1 \
 ; RUN:     | FileCheck %s --allow-empty
 ;
 ; CHECK-NOT: {{.+}}

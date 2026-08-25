@@ -6,7 +6,7 @@
 ; DbgRecord's when this file is parsed. But we keep this test around in case
 ; that ever changes.
 ;
-; RUN: opt --tapir=nolo -passes=kit-verify-prelower -disable-output %s 2>&1 \
+; RUN: opt -passes=kit-verify-prelower -disable-output %s 2>&1 \
 ; RUN:     | FileCheck %s --allow-empty
 ;
 ; CHECK-NOT: {{^.+$}}

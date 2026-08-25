@@ -2,7 +2,8 @@
 ; count is known at compile time, it only needs to be loop-invariant and
 ; computed outside the loop.
 ;
-; RUN: not opt --tapir=nolo -passes=kit-verify-prelower %s 2>&1 | FileCheck %s
+; RUN: not opt -passes=kit-verify-prelower %s -disable-output 2>&1 \
+; RUN:     | FileCheck %s
 
 ; CHECK: tapir loop trip count is not finite
 

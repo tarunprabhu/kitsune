@@ -523,7 +523,7 @@ public:
 PreservedAnalyses PreLowerVerificationPass::run(Module &m,
                                                 ModuleAnalysisManager &mam) {
   TTObjects &ttObjs = mam.getResult<TTObjectsAnalysis>(m);
-  if (clDisableVerifyPreLower || !ttObjs.hasTTID())
+  if (clDisableVerifyPreLower)
     return PreservedAnalyses::all();
 
   FunctionAnalysisManager &fam =

@@ -1,8 +1,7 @@
 ; Check that the kit-verify-prelower pass does not produce any output when
 ; there are no tapir loops in the module.
 ;
-; RUN: opt --tapir=serial -passes='kit-verify-prelower' %s 2>&1 \
-; RUN:     -disable-output \
+; RUN: opt -passes='kit-verify-prelower' %s -disable-output 2>&1 \
 ; RUN:     | FileCheck %s --allow-empty
 ;
 ; CHECK-NOT: {{.+}}

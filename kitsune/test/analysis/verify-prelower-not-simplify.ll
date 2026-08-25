@@ -2,7 +2,8 @@
 ; loops must be in loop-simplify form. This is generally required by nearly all
 ; passes that operate on tapir loops, so we test for it several times. The
 ;
-; RUN: not opt --tapir=nolo -passes='kit-verify-prelower' %s 2>&1 | FileCheck %s
+; RUN: not opt -passes='kit-verify-prelower' %s -disable-output 2>&1 \
+; RUN:     | FileCheck %s
 ;
 ; CHECK: loop is not in loop-simplify form
 

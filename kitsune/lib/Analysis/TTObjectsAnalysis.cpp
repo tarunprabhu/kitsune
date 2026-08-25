@@ -92,12 +92,6 @@ TTID TTObjects::getTTID() const {
   return ttOpts.getTTID();
 }
 
-std::optional<TTID> TTObjects::getTTIDOrNull() const {
-  if (ttOpts.hasTTID())
-    return ttOpts.getTTID();
-  return std::nullopt;
-}
-
 ArrayRef<TTID> TTObjects::getRequiredTTs(Function &f) const {
   if (ttsInFunc.find(&f) == ttsInFunc.end())
     return noTTs;

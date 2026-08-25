@@ -3,7 +3,7 @@
 ; Check that the correct diagnostics are emitted for each imperfectly nested
 ; tapir loop in a loop nest where the root has the 'hip' tapir target.
 ;
-; RUN: opt -passes="kit-verify-prelower" --tapir=hip -disable-output %s 2>&1 \
+; RUN: opt -passes=kit-verify-prelower -disable-output %s 2>&1 \
 ; RUN:     | FileCheck %s
 
 ; CHECK: parallel loop not perfectly nested

@@ -8,8 +8,7 @@
 ; An incompatible GPU-centric target is tested elsewhere since that is a
 ; combination that will almost certainly never be supported.
 ;
-; RUN: not opt --tapir=nolo --passes=kit-verify-prelower %s 2>&1 \
-; RUN:     -disable-output \
+; RUN: not opt --passes=kit-verify-prelower %s -disable-output 2>&1 \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: tapir targets 'pthreads' and 'hip' are incompatible in GPU loop nest

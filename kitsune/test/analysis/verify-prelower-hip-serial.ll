@@ -6,7 +6,7 @@
 ; handled by serializing the loop, but we do not yet do so. Until that changes,
 ; this should raise an error.
 ;
-; RUN: not opt --tapir=nolo --passes=kit-verify-prelower %s 2>&1 \
+; RUN: not opt --passes=kit-verify-prelower %s 2>&1 \
 ; RUN:     -disable-output \
 ; RUN:     | FileCheck %s
 ;

@@ -7,7 +7,7 @@
 ; itself acts as an indicator of the various preconditions for tapir loop
 ; lowering.
 ;
-; RUN: not opt --tapir=nolo -passes=kit-verify-prelower %s 2>&1 | FileCheck %s
+; RUN: not opt -passes=kit-verify-prelower %s 2>&1 | FileCheck %s
 ;
 ; CHECK: cannot get task for tapir loop
 
