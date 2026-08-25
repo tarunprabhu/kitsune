@@ -378,6 +378,12 @@ bool TTOptions::init(const KitOptions &kitOpts, OptznLevel optznLevel,
   return true;
 }
 
+bool TTOptions::init(const KitOptions &kitOpts, unsigned speedupLevel,
+                     unsigned sizeLevel, FPOpFusionMode fpOpFusionMode) {
+  OptznLevel optznLevel = createOptznLevelFrom(speedupLevel, sizeLevel);
+  return init(kitOpts, optznLevel, fpOpFusionMode);
+}
+
 void TTOptions::print(raw_ostream &os, bool all) const {
   os << "Tapir target options:\n";
   if (!hasTTID())
