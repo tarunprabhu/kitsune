@@ -6,8 +6,7 @@
 ; NOTE: This combination will likely never be supported, which is why it
 ; probably merits is own test.
 ;
-; RUN: not opt --tapir=nolo --passes=kit-verify-prelower %s 2>&1 \
-; RUN:     -disable-output \
+; RUN: not opt --passes=kit-verify-prelower %s -disable-output 2>&1 \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: tapir targets 'cuda' and 'hip' are incompatible in GPU loop nest

@@ -2,7 +2,7 @@
 ; update the sole induction variable and check if the loop termination condition
 ; has been met.
 ;
-; RUN: not opt --tapir=nolo -passes=kit-verify-prelower %s 2>&1 | FileCheck %s
+; RUN: not opt -passes=kit-verify-prelower %s 2>&1 | FileCheck %s
 ;
 ; CHECK: tapir loop latch contains unexpected instruction: <call ext>
 

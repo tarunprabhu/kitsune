@@ -2,8 +2,7 @@
 ; instruction terminates the exit block, or the immediate successor of the
 ; exit block.
 ;
-; RUN: opt --tapir=nolo -passes='kit-verify-prelower' %s 2>&1 \
-; RUN:     -disable-output \
+; RUN: opt -passes='kit-verify-prelower' %s -disable-output 2>&1 \
 ; RUN:     | FileCheck %s --allow-empty
 ;
 ; CHECK-NOT: {{.+}}

@@ -1,6 +1,7 @@
 ; The termination of the tapir loop latch must be a conditional branch.
 ;
-; RUN: not opt --tapir=nolo -passes='kit-verify-prelower' %s 2>&1 | FileCheck %s
+; RUN: not opt -passes='kit-verify-prelower' -disable-output %s 2>&1 \
+; RUN:     | FileCheck %s
 ;
 ; CHECK: tapir loop latch must be terminated by a conditional branch
 

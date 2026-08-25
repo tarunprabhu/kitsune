@@ -73,16 +73,13 @@ private:
   /// target options are guaranteed to have been set.
   const TTOptions &getOptions() const { return ttOpts; }
 
-public:
   bool hasTTID() const { return ttOpts.hasTTID(); }
-
-  /// Get the primary tapir target ID if the tapir target options have been set.
-  std::optional<TTID> getTTIDOrNull() const;
 
   /// Get the primary tapir target ID. This should only be called when the tapir
   /// target options are guaranteed to have been set.
   TTID getTTID() const;
 
+public:
   /// Check if a TapirTarget exists for the given ID.
   bool hasTT(TTID id) const;
 

@@ -1,8 +1,7 @@
 ; Check that the syncregion passed to the detach, reattach and sync instructions
 ; are the result of a call to the llvm.syncregion.start intrinsic.
 ;
-; RUN: not opt --tapir=nolo -passes='kit-verify-prelower' %s 2>&1 \
-; RUN:     -disable-output \
+; RUN: not opt -passes='kit-verify-prelower' %s -disable-output 2>&1 \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: syncregion is not the result of an intrinsic call

@@ -1,8 +1,7 @@
 ; Tapir instructions, in principle, may appear outside loops. However, Kitsune
 ; does not yet support this, so don't allow it.
 ;
-; RUN: not opt --tapir=nolo -passes='kit-verify-prelower' %s 2>&1 \
-; RUN:     -disable-output \
+; RUN: not opt -passes='kit-verify-prelower' %s -disable-output 2>&1 \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: tapir instructions outside tapir loops are not yet supported

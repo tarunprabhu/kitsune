@@ -1,8 +1,7 @@
 ; Check that the pre-lowering verifier emits the correct diagnostic when the
 ; sync instruction for a tapir loop does not immediately follow the loop.
 ;
-; RUN: not opt --tapir=nolo -passes='kit-verify-prelower' %s 2>&1 \
-; RUN:     -disable-output \
+; RUN: not opt -passes='kit-verify-prelower' %s -disable-output 2>&1 \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: tapir loop not post-dominated by sync instruction

@@ -200,10 +200,6 @@ TEST_F(KitTTObjectsAnalysis, noTapirLoops) {
 
   TTObjects ttObjs = setup(noTapirLoops, kitOpts);
 
-  EXPECT_TRUE(ttObjs.hasTTID());
-  EXPECT_TRUE(ttObjs.getTTIDOrNull());
-  EXPECT_EQ(*ttObjs.getTTIDOrNull(), TTID::Serial);
-  EXPECT_EQ(ttObjs.getTTID(), TTID::Serial);
   EXPECT_EQ(ttObjs.getRequiredTTs(*f).size(), 0UL);
   EXPECT_EQ(ttObjs.getRequiredTTs(*m).size(), 0UL);
 
@@ -216,8 +212,6 @@ TEST_F(KitTTObjectsAnalysis, noTTO) {
   KitOptions kitOpts;
   TTObjects ttObjs = setup(mixed1, kitOpts);
 
-  EXPECT_FALSE(ttObjs.hasTTID());
-  EXPECT_FALSE(ttObjs.getTTIDOrNull());
   EXPECT_EQ(ttObjs.getRequiredTTs(*f).size(), 0UL);
   EXPECT_EQ(ttObjs.getRequiredTTs(*m).size(), 0UL);
 }

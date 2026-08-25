@@ -3,8 +3,7 @@
 ; The loop bounds of perfectly nested tapir loops with the 'cuda' tapir target
 ; must be invariant with respect to the root.
 ;
-; RUN: not opt -passes='kit-verify-prelower' --tapir=nolo \
-; RUN:     -disable-output %s 2>&1 \
+; RUN: not opt -passes='kit-verify-prelower' %s -disable-output 2>&1 \
 ; RUN:     | FileCheck %s
 
 ; CHECK: bounds of GPU loop must be invariant in the nest
