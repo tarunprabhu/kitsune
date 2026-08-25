@@ -21,6 +21,10 @@
 
 namespace llvm {
 
+namespace driver {
+class KitOptions;
+}
+
 class raw_ostream;
 
 /// The kinds of instrumentation currently supported in Kitsune. The values of
@@ -77,6 +81,14 @@ private:
 public:
   KitInstrOptions() = default;
 
+  /// Initialize this object.
+  bool init(const driver::KitOptions &kitOpts);
+
+  /// Initialize this object from command-line options known to opt. If
+  /// instrumentation was not enabled on the command-line, leave the object
+  /// unchanged and return false. Otherwise, return true.
+  bool initFromCommandLine();
+
   operator bool() const { return enabled(); }
 
   void addKind(InstrumentKind kind) { kinds |= static_cast<uint32_t>(kind); }
@@ -128,13 +140,6 @@ public:
   /// Dump the options using the given output stream. This is useful for
   /// debugging and testing, but not much else.
   void print(raw_ostream &os) const;
-
-public:
-  /// Create an instrument options object from command-line options. These are
-  /// the LLVM options known to opt. This will always return a valid object, but
-  /// the object will have to be checked to determine if instrumentation has
-  /// been enabled.
-  static KitInstrOptions createFromCommandLine();
 };
 
 static_assert(static_cast<uint32_t>(InstrumentKind::SentinelFirst) == 0x1,
