@@ -18,14 +18,17 @@
 
 namespace llvm {
 
+class TTOptions;
+
 /// The LoopSpawning Pass.
 struct LoopSpawningPass : public PassInfoMixin<LoopSpawningPass> {
-  LoopSpawningPass(OptimizationLevel OptLevel = OptimizationLevel::O2)
-    : Level(OptLevel) { }
-  
-  PreservedAnalyses run(Module &M, ModuleAnalysisManager &AM);
+protected:
+  const TTOptions &TTOpts;
 
-  OptimizationLevel Level;
+public:
+  LoopSpawningPass(const TTOptions &TTOpts) : TTOpts(TTOpts) {}
+
+  PreservedAnalyses run(Module &M, ModuleAnalysisManager &AM);
 };
 
 } // end namespace llvm

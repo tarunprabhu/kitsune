@@ -17,10 +17,17 @@
 
 namespace llvm {
 
+class TTOptions;
+
 /// \ingroup kitsune
 /// Generates global constructors and destructors needed by Kitsune.
 class GenerateCtorsPass : public PassInfoMixin<GenerateCtorsPass> {
+private:
+  const TTOptions &tto;
+
 public:
+  GenerateCtorsPass(const TTOptions &tto) : tto(tto) {}
+
   PreservedAnalyses run(Module &m, ModuleAnalysisManager &am);
 };
 

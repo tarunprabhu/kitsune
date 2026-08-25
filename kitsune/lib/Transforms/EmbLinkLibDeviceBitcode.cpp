@@ -11,7 +11,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Transforms/EmbLinkLibDeviceBitcode.h"
-#include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/Core/TTUtils.h"
 #include "llvm/Linker/Linker.h"
 
@@ -22,8 +21,6 @@ using namespace llvm;
 bool EmbLinkLibDeviceBitcodePass::run(TTID tt, Module &devM, Module &hostM,
                                       ModuleAnalysisManager &hostMAM) {
   LLVMContext &ctx = devM.getContext();
-  const TTObjects &ttObjs = hostMAM.getResult<TTObjectsAnalysis>(hostM);
-  const TTOptions &tto = ttObjs.getOptions();
 
   Linker linker(devM);
   Expected<OwnedModule> mOrErr = getLibDeviceModule(tt, tto, ctx);

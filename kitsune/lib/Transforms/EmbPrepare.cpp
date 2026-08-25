@@ -25,7 +25,6 @@
 
 #include "kitsune/Transforms/EmbPrepare.h"
 #include "EmbPrepareImpl.h"
-#include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/Support/CommandLineOptions.h"
 
 using namespace llvm;
@@ -48,8 +47,6 @@ bool EmbPreparePass::run(TTID tt, Module &devM, Module &hostM,
   prepOpts.inlineAll = clInlineAll;
   prepOpts.inlineAllForce = clInlineAllForce;
 
-  const TTObjects &ttObjs = hostMAM.getResult<TTObjectsAnalysis>(hostM);
-  const TTOptions &tto = ttObjs.getOptions();
   switch (tt) {
   case TTID::Cuda: return detail::embPrepareCuda(devM, tto, prepOpts);
   case TTID::Hip: return detail::embPrepareHip(devM, tto, prepOpts);
