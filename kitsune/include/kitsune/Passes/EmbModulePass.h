@@ -15,7 +15,6 @@
 #ifndef KITSUNE_PASSES_EMB_MODULE_PASS_H
 #define KITSUNE_PASSES_EMB_MODULE_PASS_H
 
-#include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/GVAttrs.h"
 #include "kitsune/Core/TTID.h"
@@ -86,12 +85,6 @@ template <typename DerivedT>
 class EmbModulePass : public PassInfoMixin<DerivedT> {
 public:
   PreservedAnalyses run(Module &hostM, ModuleAnalysisManager &hostMAM) {
-    // If no primary tapir target has been set, the tapir target options will
-    // not have been set, so there is nothing that we can do.
-    const TTObjects &ttObjs = hostMAM.getResult<TTObjectsAnalysis>(hostM);
-    if (not ttObjs.hasTTID())
-      return PreservedAnalyses::all();
-
     // Calling resetEmbBCGlobal() will delete the global variable whose
     // initializer is being reset. In this case, we can't iterate over the
     // globals while running passes on them, so collect the globals first, then

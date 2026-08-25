@@ -17,8 +17,16 @@
 
 namespace llvm {
 
+class TTOptions;
+
 /// The TapirToTarget Pass.
 struct TapirToTargetPass : public PassInfoMixin<TapirToTargetPass> {
+protected:
+  const TTOptions &TTOpts;
+
+public:
+  TapirToTargetPass(const TTOptions &TTOpts) : TTOpts(TTOpts) {}
+
   /// \brief Run the pass over the module.
   PreservedAnalyses run(Module &M, ModuleAnalysisManager &AM);
 };

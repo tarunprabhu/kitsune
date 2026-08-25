@@ -20,17 +20,17 @@ namespace llvm {
 class ModulePass;
 
 /// \ingroup kitsune
-/// Lower Kitsune-specific intrinsics in embedded modules.
+/// Lower Kitsune's intrinsics in embedded modules.
 class EmbLowerKitIntrinsicsPass
     : public EmbModulePass<EmbLowerKitIntrinsicsPass> {
 public:
-  bool run(TTID tt, Module &devM, Module &hostM,
-           ModuleAnalysisManager &hostMAM);
+  bool run(TTID tt, Module &devM, Module &hostM, ModuleAnalysisManager &hostAM);
 
   using EmbModulePass<EmbLowerKitIntrinsicsPass>::run;
 };
 
 /// \ingroup kitsune
+/// Create a legacy pass to lower Kitsune's intrinsics in an embedded module.
 ModulePass *createEmbLowerKitIntrinsicsLegacyPass();
 
 } // namespace llvm

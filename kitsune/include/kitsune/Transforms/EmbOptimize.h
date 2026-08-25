@@ -17,11 +17,18 @@
 
 namespace llvm {
 
+class TTOptions;
+
 /// \ingroup kitsune
 /// This will run the standard optimization passes on the embedded module for
 /// the given tapir target.
 class EmbOptimizePass : public EmbModulePass<EmbOptimizePass> {
+protected:
+  const TTOptions &tto;
+
 public:
+  EmbOptimizePass(const TTOptions &tto) : tto(tto) {}
+
   bool run(TTID tt, Module &devM, Module &hostM, ModuleAnalysisManager &hostAM);
 
   using EmbModulePass<EmbOptimizePass>::run;

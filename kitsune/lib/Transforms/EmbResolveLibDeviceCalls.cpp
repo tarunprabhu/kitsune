@@ -23,7 +23,6 @@
 
 #include "kitsune/Transforms/EmbResolveLibDeviceCalls.h"
 #include "EmbResolveCallsImpl.h"
-#include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
@@ -108,9 +107,6 @@ bool resolveCallees(Function &f, Module &libDeviceM,
 
 bool EmbResolveLibDeviceCallsPass::run(TTID tt, Module &devM, Module &hostM,
                                        ModuleAnalysisManager &hostMAM) {
-  const TTObjects &ttObjs = hostMAM.getResult<TTObjectsAnalysis>(hostM);
-  const TTOptions &tto = ttObjs.getOptions();
-
   switch (tt) {
   case TTID::Cuda: return detail::resolveLibDeviceCallsCuda(devM, tto);
   case TTID::Hip: return detail::resolveLibDeviceCallsHip(devM, tto);

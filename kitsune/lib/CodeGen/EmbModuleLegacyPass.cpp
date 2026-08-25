@@ -13,7 +13,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/CodeGen/EmbModuleLegacyPass.h"
-#include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/GVAttrs.h"
 #include "kitsune/Support/ErrorHandling.h"
@@ -24,20 +23,13 @@ using namespace llvm;
 
 EmbModuleLegacyPass::EmbModuleLegacyPass(char ID) : ModulePass(ID) {}
 
-void EmbModuleLegacyPass::getAnalysisUsage(AnalysisUsage &au) const {
-  au.addRequired<TTObjectsAnalysisWrapperPass>();
-}
+void EmbModuleLegacyPass::getAnalysisUsage(AnalysisUsage &au) const {}
 
 bool EmbModuleLegacyPass::runOnModule(Module &m) {
-  const TTObjects &ttObjs =
-      getAnalysis<TTObjectsAnalysisWrapperPass>().getResult();
-  if (not ttObjs.hasTTID())
-    return false;
-
   // Calling resetEmbBCGlobal() will delete the global variable whose
-  // initializer is being reset. In this case, we can't iterate over the
-  // globals while running passes on them, so collect the globals first, then
-  // run the pass on each.
+  // initializer is being reset. In this case, we can't iterate over the globals
+  // while running passes on them, so collect the globals first, then run the
+  // pass on each.
   SmallVector<GlobalVariable *, 4> gs;
   for (GlobalVariable &g : m.globals())
     if (hasBitCodeAttr(g))

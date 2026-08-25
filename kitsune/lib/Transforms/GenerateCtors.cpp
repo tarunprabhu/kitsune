@@ -26,7 +26,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Transforms/GenerateCtors.h"
-#include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/Core/AddrSpace.h"
 #include "kitsune/Core/BasicBlockUtils.h"
 #include "kitsune/Core/ConstantUtils.h"
@@ -639,18 +638,14 @@ public:
 
 PreservedAnalyses GenerateCtorsPass::run(Module &m,
                                          ModuleAnalysisManager &mam) {
-  // If no primary tapir target has been set, there will be nothing to do, so
-  // bail out immediately.
-  const TTObjects &ttObjs = mam.getResult<TTObjectsAnalysis>(m);
-  if (!ttObjs.hasTTID() || !hasTTsAttr(m))
+  if (!hasTTsAttr(m))
     return PreservedAnalyses::all();
 
-  const TTOptions &ttOpts = ttObjs.getOptions();
   GenerateCtorOptions genCtorOpts;
   if (&clUseYLaunch)
     genCtorOpts.useYLaunch = clUseYLaunch;
 
-  GenerateCtorsImpl(ttOpts, genCtorOpts).run(m);
+  GenerateCtorsImpl(tto, genCtorOpts).run(m);
 
   // This never invalidates any analyses since, at most, only the initializer of
   // a global variable will have changed. The generated ctors will not be called

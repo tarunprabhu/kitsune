@@ -560,9 +560,9 @@ public:
   LoopSpawningImpl(Function &F, DominatorTree &DT, LoopInfo &LI, TaskInfo &TI,
                    ScalarEvolution &SE, AssumptionCache &AC,
                    TargetTransformInfo &TTI, OptimizationRemarkEmitter &ORE,
-                   const TTObjects &TTObjs)
-      : F(F), DT(DT), LI(LI), TI(TI), SE(SE), AC(AC), TTI(TTI), TTObjs(TTObjs),
-        ORE(ORE) {}
+                   const TTObjects &TTObjs, const TTOptions &TTOpts)
+      : F(F), DT(DT), LI(LI), TI(TI), SE(SE), AC(AC), TTI(TTI), ORE(ORE),
+        TTObjs(TTObjs), TTOpts(TTOpts) {}
 
   ~LoopSpawningImpl() {
     for (TapirLoopInfo *TL : TapirLoops)
@@ -677,8 +677,9 @@ private:
   ScalarEvolution &SE;
   AssumptionCache &AC;
   TargetTransformInfo &TTI;
-  const TTObjects &TTObjs;
   OptimizationRemarkEmitter &ORE;
+  const TTObjects &TTObjs;
+  const TTOptions &TTOpts;
 
   std::vector<TapirLoopInfo *> TapirLoops;
   DenseMap<Task *, TapirLoopInfo *> TaskToTapirLoop;
@@ -1072,7 +1073,6 @@ LoopOutlineProcessor *LoopSpawningImpl::getOutlineProcessor(TapirLoopInfo *TL) {
   Module &M = *F.getParent();
   Loop *L = TL->getLoop();
   TTID TT = *getTargetAttr(*L);
-  const TTOptions &TTOpts = TTObjs.getOptions();
 
   // Support for multiple targets is currently broken. Some of the frontend
   // elements have been implemented but the middle-end support is not yet there.
@@ -1882,9 +1882,10 @@ PreservedAnalyses LoopSpawningPass::run(Module &M, ModuleAnalysisManager &AM) {
 
   // Now process each loop.
   for (Function *F : WorkList) {
-    Changed |= LoopSpawningImpl(*F, GetDT(*F), GetLI(*F), GetTI(*F), GetSE(*F),
-                                GetAC(*F), GetTTI(*F), GetORE(*F), TTObjs)
-                   .run();
+    Changed |=
+        LoopSpawningImpl(*F, GetDT(*F), GetLI(*F), GetTI(*F), GetSE(*F),
+                         GetAC(*F), GetTTI(*F), GetORE(*F), TTObjs, TTOpts)
+            .run();
   }
 
   // FIXME: This code is a remnant from an initial attempt at multi-target

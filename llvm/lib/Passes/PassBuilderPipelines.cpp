@@ -1631,7 +1631,7 @@ PassBuilder::buildModuleOptimizationPipeline(OptimizationLevel Level,
         createFunctionToLoopPassAdaptor(std::move(LPM1),
                                         /*UseMemorySSA=*/true,
                                         /*UseBlockFrequencyInfo=*/true));
-    OptimizePM.addPass(LoopStripMinePass());
+    OptimizePM.addPass(LoopStripMinePass(PTO.TTOpts));
     // Cleanup tasks after stripmining loops.
     OptimizePM.addPass(TaskSimplifyPass());
     // Cleanup after stripmining loops.
@@ -1789,7 +1789,7 @@ PassBuilder::buildTapirLoopLoweringPipeline(OptimizationLevel Level,
   MPM.addPass(populateKitPreLoopSpawningPasses(*this, Level, Phase, PTO));
 
   // Outline Tapir loops as needed.
-  MPM.addPass(LoopSpawningPass(Level));
+  MPM.addPass(LoopSpawningPass(PTO.TTOpts));
   if (VerifyTapirLowering)
     MPM.addPass(VerifierPass());
 
@@ -1818,7 +1818,7 @@ PassBuilder::buildTapirLoweringPipeline(OptimizationLevel Level,
       C(MPM, Level);
 
     // Lower Tapir constructs to target runtime calls.
-    MPM.addPass(TapirToTargetPass());
+    MPM.addPass(TapirToTargetPass(PTO.TTOpts));
     if (VerifyTapirLowering)
       MPM.addPass(VerifierPass());
 
@@ -1838,7 +1838,7 @@ PassBuilder::buildTapirLoweringPipeline(OptimizationLevel Level,
   MPM.addPass(createModuleToFunctionPassAdaptor(TaskCanonicalizePass()));
 
   // Lower Tapir to target runtime calls.
-  MPM.addPass(TapirToTargetPass());
+  MPM.addPass(TapirToTargetPass(PTO.TTOpts));
   if (VerifyTapirLowering)
     MPM.addPass(VerifierPass());
 

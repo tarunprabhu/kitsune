@@ -28,7 +28,7 @@ namespace llvm {
 class EmbLowerKitIntrinsicsEarlyPass
     : public EmbModulePass<EmbLowerKitIntrinsicsEarlyPass> {
 public:
-  bool run(TTID tt, Module &km, Module &hostM, ModuleAnalysisManager &hostMAM);
+  bool run(TTID tt, Module &devM, Module &hostM, ModuleAnalysisManager &hostAM);
 
   using EmbModulePass<EmbLowerKitIntrinsicsEarlyPass>::run;
 };

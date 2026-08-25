@@ -15,14 +15,18 @@
 namespace llvm {
 
 class Function;
+class TTOptions;
 
 extern cl::opt<bool> EnableTapirLoopStripmine;
 
 /// Loop stripmining pass.  It is a function pass to have access to function and
 /// module analyses.
 class LoopStripMinePass : public PassInfoMixin<LoopStripMinePass> {
+protected:
+  const TTOptions &TTOpts;
+
 public:
-  explicit LoopStripMinePass() {}
+  LoopStripMinePass(const TTOptions &TTOpts) : TTOpts(TTOpts) {}
 
   PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
 };

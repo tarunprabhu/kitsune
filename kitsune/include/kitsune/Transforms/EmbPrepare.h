@@ -20,7 +20,12 @@ namespace llvm {
 /// \ingroup kitsune
 /// Prepare the embedded bitcode for code generation.
 class EmbPreparePass : public EmbModulePass<EmbPreparePass> {
+protected:
+  const TTOptions &tto;
+
 public:
+  EmbPreparePass(const TTOptions &tto) : tto(tto) {}
+
   bool run(TTID tt, Module &devM, Module &hostM, ModuleAnalysisManager &hostAM);
 
   using EmbModulePass<EmbPreparePass>::run;

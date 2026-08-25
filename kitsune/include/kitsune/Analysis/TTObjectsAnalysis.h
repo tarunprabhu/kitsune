@@ -19,7 +19,6 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/PassManager.h"
-#include "llvm/Pass.h"
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
 
 #include <map>
@@ -30,6 +29,7 @@ class LoopInfo;
 class TapirTarget;
 class TTObjectsAnalysis;
 class TTObjectsAnalysisWrapperPass;
+class TTOptions;
 class TaskInfo;
 
 /// \ingroup kitsune
@@ -69,6 +69,10 @@ private:
   /// the TTObjectsAnalysis object.
   void addTT(TTID id, TapirTarget *tt);
 
+  /// Get the tapir target options. This should only be called when the tapir
+  /// target options are guaranteed to have been set.
+  const TTOptions &getOptions() const { return ttOpts; }
+
 public:
   bool hasTTID() const { return ttOpts.hasTTID(); }
 
@@ -84,10 +88,6 @@ public:
 
   /// Get the TapirTarget for the given ID. The id is assumed to exist.
   TapirTarget *getTT(TTID id) const;
-
-  /// Get the tapir target options. This should only be called when the tapir
-  /// target options are guaranteed to have been set.
-  const TTOptions &getOptions() const;
 
   /// Get the tapir target ID's required by a function. This will be an empty
   /// vector if there are no tapir loops in the function. If there is at least
@@ -137,52 +137,6 @@ private:
 
   friend AnalysisInfoMixin<TTObjectsAnalysis>;
 };
-
-/// Legacy wrapper pass to provide the tapir target analysis results. This is
-/// provided since some transformations are run as part of code generation
-/// which still uses the legacy pass manager. This is an immutable pass because
-/// only function passes are allowed during the code generation phase. This
-/// means that the results returned by this pass will be slightly different from
-/// those returned by the new pass manager. Specifically, the required tapir
-/// targets will never be computed by this pass. This is ok since during
-/// codegen, we should never need anything other than the tapir target options.
-class TTObjectsAnalysisWrapperPass : public ImmutablePass {
-private:
-  /// The TTObjects instance that will be populated when @ref run() is called.
-  /// A copy of this will be returned whenever the analysis is retrieved.
-  TTObjects ttObjs;
-
-public:
-  using Result = TTObjects;
-
-public:
-  /// Create a default constructor because it is needed by the legacy pass
-  /// manager, but this should never be used anywhere else.
-  TTObjectsAnalysisWrapperPass();
-
-  /// Construct an analysis pass.
-  TTObjectsAnalysisWrapperPass(const TTOptions &tto);
-
-  void getAnalysisUsage(AnalysisUsage &au) const override;
-
-  Result getResult() const;
-
-public:
-  static char ID;
-};
-
-/// \ingroup kitsune
-/// Create a an instance of the tapir target analysis pass for the legacy pass
-/// manager. This should never be called without a TTOptions object. The only
-/// reason we allow it is because we call this LinkAllPasses.h where we don't
-/// have a TTOptions object - and that call is solely to ensure that the code
-/// associated with this pass does not get DCE'ed.
-///
-/// NOTE: The only reason to have this legacy pass is because this pass is used
-/// as a vehicle for the TTOptions object. Since we are in the process of
-/// removing that, this whole mess will workaround will soon become unnecessary.
-ModulePass *
-createTTObjectsAnalysisWrapperPass(const TTOptions &tto = TTOptions());
 
 } // namespace llvm
 

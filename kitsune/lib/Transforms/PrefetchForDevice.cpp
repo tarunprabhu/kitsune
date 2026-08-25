@@ -16,7 +16,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Transforms/PrefetchForDevice.h"
-#include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/Core/AddrSpace.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/InstUtils.h"
@@ -135,12 +134,7 @@ PreservedAnalyses PrefetchForDevicePass::run(Module &m,
                                              ModuleAnalysisManager &am) {
   // If no primary tapir target has been set, there will be nothing to do, so
   // bail out immediately.
-  const TTObjects &ttObjs = am.getResult<TTObjectsAnalysis>(m);
-  if (not ttObjs.hasTTID())
-    return PreservedAnalyses::all();
-
-  const TTOptions &tto = ttObjs.getOptions();
-  if (not tto.getGPUPrefetch())
+  if (!tto.hasTTID() || !tto.getGPUPrefetch())
     return PreservedAnalyses::all();
 
   if (Prefetch().run(m))

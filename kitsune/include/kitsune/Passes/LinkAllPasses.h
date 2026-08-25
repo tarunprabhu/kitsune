@@ -13,7 +13,6 @@
 #ifndef KITSUNE_PASSES_LINK_ALL_PASSES_H
 #define KITSUNE_PASSES_LINK_ALL_PASSES_H
 
-#include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/CodeGen/CodeGenFatBinaries.h"
 #include "kitsune/CodeGen/EmbLowerKitIntrinsics.h"
 #include "kitsune/CodeGen/LowerKitIntrinsics.h"
@@ -31,7 +30,6 @@ struct ForceKitsunePassLinking {
     if (std::getenv("bar") != (char *)-1)
       return;
 
-    (void)llvm::createTTObjectsAnalysisWrapperPass();
     (void)llvm::createCodeGenFatBinariesLegacyPass();
     (void)llvm::createEmbLowerKitIntrinsicsLegacyPass();
     (void)llvm::createLowerKitIntrinsicsLegacyPass();

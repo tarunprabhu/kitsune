@@ -49,9 +49,9 @@ public:
                     function_ref<DominatorTree &(Function &)> GetDT,
                     function_ref<TaskInfo &(Function &)> GetTI,
                     function_ref<AssumptionCache &(Function &)> GetAC,
-                    const TTObjects& TTObjs)
+                    const TTObjects& TTObjs, const TTOptions &TTOpts)
       : M(M), GetAA(GetAA), GetDT(GetDT), GetTI(GetTI), GetAC(GetAC),
-        TTObjs(TTObjs) {}
+        TTObjs(TTObjs), TTOpts(TTOpts) {}
   ~TapirToTargetImpl() {}
 
   bool run();
@@ -81,6 +81,7 @@ private:
   function_ref<TaskInfo &(Function &)> GetTI;
   function_ref<AssumptionCache &(Function &)> GetAC;
   const TTObjects &TTObjs;
+  const TTOptions &TTOpts;
 };
 
 /// Outline all tasks in this function in post order.
@@ -431,10 +432,8 @@ bool TapirToTargetImpl::run() {
     if (F.empty())
       continue;
     // TODO: Use per-function Tapir targets?
-    if (!Target) {
-      const TTOptions &TTOpts = TTObjs.getOptions();
+    if (!Target)
       Target = TTObjs.getTT(TTOpts.getTTID());
-    }
     assert(Target && "Missing Tapir target");
     if (Target->shouldProcessFunction(F))
       WorkList.push_back(&F);
@@ -488,7 +487,7 @@ PreservedAnalyses TapirToTargetPass::run(Module &M, ModuleAnalysisManager &AM) {
   const TTObjects &TTObjs = AM.getResult<TTObjectsAnalysis>(M);
 
   bool Changed =
-      TapirToTargetImpl(M, GetAA, GetDT, GetTI, GetAC, TTObjs).run();
+      TapirToTargetImpl(M, GetAA, GetDT, GetTI, GetAC, TTObjs, TTOpts).run();
 
   if (Changed)
     return PreservedAnalyses::none();

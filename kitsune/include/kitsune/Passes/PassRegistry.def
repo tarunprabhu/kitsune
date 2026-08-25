@@ -31,18 +31,20 @@
 
 #ifdef MODULE_PASS
 MODULE_PASS("emb-hoist-allocas", EmbHoistAllocasPass())
-MODULE_PASS("emb-link-libdevice-bitcode", EmbLinkLibDeviceBitcodePass())
+MODULE_PASS("emb-link-libdevice-bitcode",
+            EmbLinkLibDeviceBitcodePass(PTO.TTOpts))
 MODULE_PASS("emb-lower-intrinsics", EmbLowerKitIntrinsicsPass())
 MODULE_PASS("emb-lower-intrinsics-early", EmbLowerKitIntrinsicsEarlyPass())
-MODULE_PASS("emb-optimize", EmbOptimizePass())
-MODULE_PASS("emb-prepare", EmbPreparePass())
-MODULE_PASS("emb-resolve-libdevice-calls", EmbResolveLibDeviceCallsPass())
-MODULE_PASS("kit-cgfb", CodeGenFatBinariesPass())
-MODULE_PASS("kit-ctors", GenerateCtorsPass())
+MODULE_PASS("emb-optimize", EmbOptimizePass(PTO.TTOpts))
+MODULE_PASS("emb-prepare", EmbPreparePass(PTO.TTOpts))
+MODULE_PASS("emb-resolve-libdevice-calls",
+            EmbResolveLibDeviceCallsPass(PTO.TTOpts))
+MODULE_PASS("kit-cgfb", CodeGenFatBinariesPass(PTO.TTOpts))
+MODULE_PASS("kit-ctors", GenerateCtorsPass(PTO.TTOpts))
 MODULE_PASS("kit-kernel-properties", RecomputeKernelPropertiesPass())
 MODULE_PASS("kit-instrument", InstrumentPass(PTO.KitInstrOpts))
 MODULE_PASS("kit-lower-warp-intrinsics", LowerKitWarpIntrinsicsPass())
-MODULE_PASS("kit-prefetch", PrefetchForDevicePass())
+MODULE_PASS("kit-prefetch", PrefetchForDevicePass(PTO.TTOpts))
 MODULE_PASS("kit-print-tt-options", TTOptionsPrinterPass(PTO.TTOpts))
 MODULE_PASS("kit-strip-addrspaces", StripKitAddrSpacesPass())
 MODULE_PASS("kit-verify-early", EarlyVerificationPass(/*exitIfError=*/true))
