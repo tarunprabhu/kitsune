@@ -11,11 +11,18 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Passes/PassUtils.h"
+#include "llvm/Analysis/CallGraph.h"
 
 using namespace llvm;
 
 PreservedAnalyses llvm::getPreservedAnalysesAll() {
   return PreservedAnalyses::all();
+}
+
+PreservedAnalyses llvm::getPreservedAnalysesCallGraph() {
+  PreservedAnalyses pa = PreservedAnalyses::all();
+  pa.abandon<CallGraphAnalysis>();
+  return pa;
 }
 
 PreservedAnalyses llvm::getPreservedAnalysesCFG() {
