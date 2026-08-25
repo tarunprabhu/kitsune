@@ -9,38 +9,37 @@
 ; RUN:      | %kit-mbc --tapir=cuda -S \
 ; RUN:      | FileCheck %s
 ;
-; CHECK: entry:
-; CHECK-NEXT: %tid.x = call i32 @llvm.nvvm.read.ptx.sreg.tid.x()
-; CHECK-NEXT: %tid.y = call i32 @llvm.nvvm.read.ptx.sreg.tid.y()
-; CHECK-NEXT: %tid.z = call i32 @llvm.nvvm.read.ptx.sreg.tid.z()
-; CHECK-NEXT: %bid.x = call i32 @llvm.nvvm.read.ptx.sreg.ctaid.x()
-; CHECK-NEXT: %bid.y = call i32 @llvm.nvvm.read.ptx.sreg.ctaid.y()
-; CHECK-NEXT: %bid.z = call i32 @llvm.nvvm.read.ptx.sreg.ctaid.z()
-; CHECK-NEXT: %bsz.x = call i32 @llvm.nvvm.read.ptx.sreg.ntid.x()
-; CHECK-NEXT: %bsz.y = call i32 @llvm.nvvm.read.ptx.sreg.ntid.y()
-; CHECK-NEXT: %bsz.z = call i32 @llvm.nvvm.read.ptx.sreg.ntid.z()
-; CHECK-NEXT: %gsz.x = call i32 @llvm.nvvm.read.ptx.sreg.nctaid.x()
-; CHECK-NEXT: %gsz.y = call i32 @llvm.nvvm.read.ptx.sreg.nctaid.y()
-; CHECK-NEXT: %gsz.z = call i32 @llvm.nvvm.read.ptx.sreg.nctaid.z()
-; CHECK-NEXT: br label %uses
+; CHECK: [[ENTRY:.+]]:
+; CHECK-NEXT: %[[TIDX:.+]] = call i32 @llvm.nvvm.read.ptx.sreg.tid.x()
+; CHECK-NEXT: %[[TIDY:.+]] = call i32 @llvm.nvvm.read.ptx.sreg.tid.y()
+; CHECK-NEXT: %[[TIDZ:.+]] = call i32 @llvm.nvvm.read.ptx.sreg.tid.z()
+; CHECK-NEXT: %[[BIDX:.+]] = call i32 @llvm.nvvm.read.ptx.sreg.ctaid.x()
+; CHECK-NEXT: %[[BIDY:.+]] = call i32 @llvm.nvvm.read.ptx.sreg.ctaid.y()
+; CHECK-NEXT: %[[BIDZ:.+]] = call i32 @llvm.nvvm.read.ptx.sreg.ctaid.z()
+; CHECK-NEXT: %[[BSZX:.+]] = call i32 @llvm.nvvm.read.ptx.sreg.ntid.x()
+; CHECK-NEXT: %[[BSZY:.+]] = call i32 @llvm.nvvm.read.ptx.sreg.ntid.y()
+; CHECK-NEXT: %[[BSZZ:.+]] = call i32 @llvm.nvvm.read.ptx.sreg.ntid.z()
+; CHECK-NEXT: %[[GSZX:.+]] = call i32 @llvm.nvvm.read.ptx.sreg.nctaid.x()
+; CHECK-NEXT: %[[GSZY:.+]] = call i32 @llvm.nvvm.read.ptx.sreg.nctaid.y()
+; CHECK-NEXT: %[[GSZZ:.+]] = call i32 @llvm.nvvm.read.ptx.sreg.nctaid.z()
+; CHECK-NEXT: br label %[[USES:.+]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: uses:
-; CHECK-NEXT: call void @ext(i32 %tid.x)
-; CHECK-NEXT: call void @ext(i32 %tid.y)
-; CHECK-NEXT: call void @ext(i32 %tid.z)
-; CHECK-NEXT: call void @ext(i32 %bid.x)
-; CHECK-NEXT: call void @ext(i32 %bid.y)
-; CHECK-NEXT: call void @ext(i32 %bid.z)
-; CHECK-NEXT: call void @ext(i32 %bsz.x)
-; CHECK-NEXT: call void @ext(i32 %bsz.y)
-; CHECK-NEXT: call void @ext(i32 %bsz.z)
-; CHECK-NEXT: call void @ext(i32 %gsz.x)
-; CHECK-NEXT: call void @ext(i32 %gsz.y)
-; CHECK-NEXT: call void @ext(i32 %gsz.z)
-; CHECK-NEXT: call void @ext(i32 32)
-; CHECK-NEXT: br label %exit
+; CHECK-NEXT: [[USES]]:
+; CHECK-NEXT: call void @ext(i32 %[[TIDX]])
+; CHECK-NEXT: call void @ext(i32 %[[TIDY]])
+; CHECK-NEXT: call void @ext(i32 %[[TIDZ]])
+; CHECK-NEXT: call void @ext(i32 %[[BIDX]])
+; CHECK-NEXT: call void @ext(i32 %[[BIDY]])
+; CHECK-NEXT: call void @ext(i32 %[[BIDZ]])
+; CHECK-NEXT: call void @ext(i32 %[[BSZX]])
+; CHECK-NEXT: call void @ext(i32 %[[BSZY]])
+; CHECK-NEXT: call void @ext(i32 %[[BSZZ]])
+; CHECK-NEXT: call void @ext(i32 %[[GSZX]])
+; CHECK-NEXT: call void @ext(i32 %[[GSZY]])
+; CHECK-NEXT: call void @ext(i32 %[[GSZZ]])
+; CHECK-NEXT: br label %[[EXIT:.+]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: exit:
+; CHECK-NEXT: [[EXIT]]:
 ; CHECK-NEXT: ret void
 
 declare void @ext(i32)
@@ -59,7 +58,6 @@ entry:
   %gsz.x = call i32 @llvm.kit.gpu.grid.size.x(i32 2)
   %gsz.y = call i32 @llvm.kit.gpu.grid.size.y(i32 2)
   %gsz.z = call i32 @llvm.kit.gpu.grid.size.z(i32 2)
-  %warpSize = call i32 @llvm.kit.gpu.warp.size(i32 2)
   br label %uses
 
 uses:
@@ -75,7 +73,6 @@ uses:
   call void @ext(i32 %gsz.x)
   call void @ext(i32 %gsz.y)
   call void @ext(i32 %gsz.z)
-  call void @ext(i32 %warpSize)
   br label %exit
 
 exit:

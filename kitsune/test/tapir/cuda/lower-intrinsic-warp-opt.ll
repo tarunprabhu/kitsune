@@ -6,8 +6,7 @@
 
 ; CHECK-LABEL: @id1
 ; CHECK-NEXT: %[[X:.+]] = tail call i32 @llvm.kit.gpu.thread.id.x(i32 2)
-; CHECK-NEXT: %[[WARPSIZE:.+]] = tail call i32 @llvm.kit.gpu.warp.size(i32 2)
-; CHECK-NEXT: %[[RESULT:.+]] = udiv i32 %[[X]], %[[WARPSIZE]]
+; CHECK-NEXT: %[[RESULT:.+]] = lshr i32 %[[X]], 5
 ; CHECK-NEXT: ret i32 %[[RESULT]]
 define i32 @id1() {
   %1 = call i32 @llvm.kit.gpu.warp.id(i32 2, i32 1)
@@ -20,8 +19,7 @@ define i32 @id1() {
 ; CHECK-NEXT: %[[Y:.+]] = mul i32 %[[TIDY]], %[[BSZX]]
 ; CHECK-NEXT: %[[X:.+]] = tail call i32 @llvm.kit.gpu.thread.id.x(i32 2)
 ; CHECK-NEXT: %[[OFFXY:.+]] = add i32 %[[X]], %[[Y]]
-; CHECK-NEXT: %[[WARPSIZE:.+]] = tail call i32 @llvm.kit.gpu.warp.size(i32 2)
-; CHECK-NEXT: %[[RESULT:.+]] = udiv i32 %[[OFFXY]], %[[WARPSIZE]]
+; CHECK-NEXT: %[[RESULT:.+]] = lshr i32 %[[OFFXY]], 5
 ; CHECK-NEXT: ret i32 %[[RESULT]]
 define i32 @id2() {
   %1 = call i32 @llvm.kit.gpu.warp.id(i32 2, i32 2)
@@ -38,8 +36,7 @@ define i32 @id2() {
 ; CHECK-NEXT: %[[ADD:.+]] = add i32 %[[TIDY]], %[[Z]]
 ; CHECK-NEXT: %[[MUL:.+]] = mul i32 %[[ADD]], %[[BSZX]]
 ; CHECK-NEXT: %[[OFFXYZ:.+]] = add i32 %[[MUL]], %[[X]]
-; CHECK-NEXT: %[[WARPSIZE:.+]] = tail call i32 @llvm.kit.gpu.warp.size(i32 2)
-; CHECK-NEXT: %[[RESULT:.+]] = udiv i32 %[[OFFXYZ]], %[[WARPSIZE]]
+; CHECK-NEXT: %[[RESULT:.+]] = lshr i32 %[[OFFXYZ]], 5
 ; CHECK-NEXT: ret i32 %[[RESULT]]
 define i32 @id3() {
   %1 = call i32 @llvm.kit.gpu.warp.id(i32 2, i32 3)
@@ -48,8 +45,7 @@ define i32 @id3() {
 
 ; CHECK-LABEL: @lane1
 ; CHECK-NEXT: %[[X:.+]] = tail call i32 @llvm.kit.gpu.thread.id.x(i32 2)
-; CHECK-NEXT: %[[WARPSIZE:.+]] = tail call i32 @llvm.kit.gpu.warp.size(i32 2)
-; CHECK-NEXT: %[[RESULT:.+]] = urem i32 %[[X]], %[[WARPSIZE]]
+; CHECK-NEXT: %[[RESULT:.+]] = and i32 %[[X]], 31
 ; CHECK-NEXT: ret i32 %[[RESULT]]
 define i32 @lane1() {
   %1 = call i32 @llvm.kit.gpu.warp.lane(i32 2, i32 1)
@@ -62,8 +58,7 @@ define i32 @lane1() {
 ; CHECK-NEXT: %[[Y:.+]] = mul i32 %[[TIDY]], %[[BSZX]]
 ; CHECK-NEXT: %[[X:.+]] = tail call i32 @llvm.kit.gpu.thread.id.x(i32 2)
 ; CHECK-NEXT: %[[OFFXY:.+]] = add i32 %[[X]], %[[Y]]
-; CHECK-NEXT: %[[WARPSIZE:.+]] = tail call i32 @llvm.kit.gpu.warp.size(i32 2)
-; CHECK-NEXT: %[[RESULT:.+]] = urem i32 %[[OFFXY]], %[[WARPSIZE]]
+; CHECK-NEXT: %[[RESULT:.+]] = and i32 %[[OFFXY]], 31
 ; CHECK-NEXT: ret i32 %[[RESULT]]
 define i32 @lane2() {
   %1 = call i32 @llvm.kit.gpu.warp.lane(i32 2, i32 2)
@@ -80,8 +75,7 @@ define i32 @lane2() {
 ; CHECK-NEXT: %[[ADD:.+]] = add i32 %[[TIDY]], %[[Z]]
 ; CHECK-NEXT: %[[MUL:.+]] = mul i32 %[[ADD]], %[[BSZX]]
 ; CHECK-NEXT: %[[OFFXYZ:.+]] = add i32 %[[MUL]], %[[X]]
-; CHECK-NEXT: %[[WARPSIZE:.+]] = tail call i32 @llvm.kit.gpu.warp.size(i32 2)
-; CHECK-NEXT: %[[RESULT:.+]] = urem i32 %[[OFFXYZ]], %[[WARPSIZE]]
+; CHECK-NEXT: %[[RESULT:.+]] = and i32 %[[OFFXYZ]], 31
 ; CHECK-NEXT: ret i32 %[[RESULT]]
 define i32 @lane3() {
   %1 = call i32 @llvm.kit.gpu.warp.lane(i32 2, i32 3)

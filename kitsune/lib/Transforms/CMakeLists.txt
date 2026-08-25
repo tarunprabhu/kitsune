@@ -51,7 +51,6 @@ add_llvm_component_library(LLVMKitTransforms
   Linker
   Passes
   Support
-  Target
   TargetParser
 )
 

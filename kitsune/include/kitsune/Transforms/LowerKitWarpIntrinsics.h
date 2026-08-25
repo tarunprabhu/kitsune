@@ -17,11 +17,18 @@
 
 namespace llvm {
 
+class TTOptions;
+
 /// \ingroup kitsune
 /// Lower Kitsune's warp intrinsics.
 class LowerKitWarpIntrinsicsPass
     : public PassInfoMixin<LowerKitWarpIntrinsicsPass> {
+protected:
+  const TTOptions &tto;
+
 public:
+  LowerKitWarpIntrinsicsPass(const TTOptions &tto) : tto(tto) {}
+
   PreservedAnalyses run(Module &m, ModuleAnalysisManager &am);
 };
 

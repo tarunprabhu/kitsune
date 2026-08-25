@@ -192,6 +192,8 @@ llvm::populateKitPreparePasses(PassBuilder &pb, OptimizationLevel optLevel,
   ModulePassManager mpm;
 
   if (optLevel.getSpeedupLevel() > 0) {
+    const TTOptions &tto = pto.TTOpts;
+
     addFunctionPass<LoopSimplifyPass>(mpm);
     addLoopPass<LoopRotatePass>(mpm);
     addLoopPass<IndVarSimplifyPass>(mpm, /*WidenIndVars=*/true,
@@ -205,7 +207,7 @@ llvm::populateKitPreparePasses(PassBuilder &pb, OptimizationLevel optLevel,
     addFunctionPass<LoopSimplifyPass>(mpm);
     addFunctionPass<LCSSAPass>(mpm);
     addFunctionPass<PrepareTapirLoopsPass>(mpm);
-    addModulePass<LowerKitWarpIntrinsicsPass>(mpm);
+    addModulePass<LowerKitWarpIntrinsicsPass>(mpm, tto);
     addFunctionPass<LowerKitReduceIntrinsicsPass>(mpm);
 
     // We must run the module inliner because the reducer function should be
