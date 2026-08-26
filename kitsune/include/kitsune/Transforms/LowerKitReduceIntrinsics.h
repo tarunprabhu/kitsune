@@ -22,7 +22,7 @@ namespace llvm {
 class LowerKitReduceIntrinsicsPass
     : public PassInfoMixin<LowerKitReduceIntrinsicsPass> {
 public:
-  PreservedAnalyses run(Function &f, FunctionAnalysisManager &am);
+  PreservedAnalyses run(Module &m, ModuleAnalysisManager &am);
 };
 
 } // end namespace llvm
