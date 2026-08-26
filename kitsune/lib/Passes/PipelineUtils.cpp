@@ -208,7 +208,7 @@ llvm::populateKitPreparePasses(PassBuilder &pb, OptimizationLevel optLevel,
     addFunctionPass<LCSSAPass>(mpm);
     addFunctionPass<PrepareTapirLoopsPass>(mpm);
     addModulePass<LowerKitWarpIntrinsicsPass>(mpm, tto);
-    addFunctionPass<LowerKitReduceIntrinsicsPass>(mpm);
+    addModulePass<LowerKitReduceIntrinsicsPass>(mpm);
 
     // We must run the module inliner because the reducer function should be
     // inlined after the loop has been prepared. The IR may also need to be
