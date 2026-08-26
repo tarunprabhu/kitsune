@@ -29,59 +29,34 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Transforms/LowerKitReduceIntrinsics.h"
-#include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/Diagnostics.h"
+#include "kitsune/Core/ModuleUtils.h"
 #include "kitsune/Core/Reductions.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/Analysis/DomTreeUpdater.h"
-#include "llvm/Analysis/LoopInfo.h"
-#include "llvm/Analysis/MemorySSAUpdater.h"
-#include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/InstIterator.h"
+#include "llvm/IR/Module.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
 #define DEBUG_TYPE "kit-lower-reduce-intrinsics"
 
 using namespace llvm;
 
-// Collect all calls to the intrinsic \p id in a function.
-static SmallVector<CallBase *, 0> collectCalls(Function &f, Intrinsic::ID id) {
-  SmallVector<CallBase *, 0> calls;
-  for (inst_iterator i = inst_begin(f), e = inst_end(f); i != e; ++i)
-    if (auto *call = dyn_cast<CallBase>(&*i))
-      if (call->getIntrinsicID() == id)
-        calls.push_back(call);
-  return calls;
-}
-
 // The kit.reduce.0 intrinsics are replaced with a call to the reducer that
 // was passed to it.
-static bool lowerReduce0(Function &f) {
-  LLVMContext &ctx = f.getContext();
-  SmallVector<CallBase *, 0> calls = collectCalls(f, Intrinsic::kit_reduce_0);
-
-  for (CallBase *call : calls) {
+static bool lowerReduce0(Module &m) {
+  SmallVector<CallInst *, 0> calls = collectCalls(m, Intrinsic::kit_reduce_0);
+  for (CallInst *call : calls) {
     ReductionInfo redxn(call);
-
-    SmallVector<Value *, 2> args = {redxn.dest, redxn.value};
-    args.append(redxn.getExtraArgs());
-
-    Type *voidTy = Type::getVoidTy(ctx);
-    SmallVector<Type *, 2> paramTys(args.size(), nullptr);
-    for (unsigned i = 0; i < args.size(); ++i)
-      paramTys[i] = args[i]->getType();
-
-    FunctionType *fty = FunctionType::get(voidTy, paramTys, /*isVarArg=*/false);
-    CallInst *newCall = CallInst::Create(fty, redxn.reducer, args);
+    FunctionType *reducerTy = redxn.getReducerType();
+    SmallVector<Value *, 2> args = redxn.getReducerArgs();
+    CallInst *newCall = CallInst::Create(reducerTy, redxn.reducer, args);
     ReplaceInstWithInst(call, newCall);
   }
-
   return calls.size();
 }
 
-PreservedAnalyses
-LowerKitReduceIntrinsicsPass::run(Function &f, FunctionAnalysisManager &am) {
-  if (lowerReduce0(f))
+PreservedAnalyses LowerKitReduceIntrinsicsPass::run(Module &m,
+                                                    ModuleAnalysisManager &am) {
+  if (lowerReduce0(m))
     return PreservedAnalyses::none();
   return PreservedAnalyses::all();
 }
