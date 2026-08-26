@@ -103,14 +103,7 @@ protected:
 
 public:
   bool run(Module &m) {
-    SmallVector<CallBase *, 0> calls;
-    for (Function &f : m)
-      for (BasicBlock &bb : f)
-        for (Instruction &inst : bb)
-          if (auto *call = dyn_cast<CallInst>(&inst))
-            if (call->getIntrinsicID() == Intr)
-              calls.push_back(call);
-
+    SmallVector<CallInst *, 0> calls = collectCalls(m, Intr);
     for (CallBase *call : calls) {
       Value *newVal = replaceImpl(call);
       if (!isa<Constant>(newVal))
@@ -118,7 +111,6 @@ public:
       call->replaceAllUsesWith(newVal);
       call->eraseFromParent();
     }
-
     return calls.size();
   }
 };

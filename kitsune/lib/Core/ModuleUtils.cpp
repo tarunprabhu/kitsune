@@ -13,6 +13,7 @@
 #include "kitsune/Core/ModuleUtils.h"
 #include "kitsune/Core/ModuleAttrs.h"
 #include "llvm/ADT/SmallSet.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
 
@@ -61,4 +62,15 @@ Align llvm::getPointerAlignment(const Module &m, unsigned addrSpace) {
 Align llvm::getTypeAlignment(const Module &m, Type *ty) {
   const DataLayout &dl = m.getDataLayout();
   return dl.getABITypeAlign(ty);
+}
+
+SmallVector<CallInst *, 0> llvm::collectCalls(Module &m, Intrinsic::ID intr) {
+  SmallVector<CallInst *, 0> calls;
+  for (Function &f : m)
+    for (BasicBlock &bb : f)
+      for (Instruction &inst : bb)
+        if (auto *call = dyn_cast<CallInst>(&inst))
+          if (call->getIntrinsicID() == intr)
+            calls.push_back(call);
+  return calls;
 }
