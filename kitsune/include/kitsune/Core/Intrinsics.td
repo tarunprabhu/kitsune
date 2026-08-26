@@ -333,6 +333,13 @@ def int_kit_gpu_warp_lane
   let Doc = KitGPUWarpLaneDoc;
 }
 
+// The equivalent of the __shfl_down_sync builtin available in cuda and hip.
+def int_kit_gpu_warp_shfl_down_sync
+    : KitIntrinsic<[llvm_any_ty], [llvm_i32_ty, llvm_any_ty, llvm_i32_ty],
+                   [ImmArg<ArgIndex<0>>, IntrWillReturn]> {
+  let Doc = KitGPUWarpShflDownSyncDoc;
+}
+
 // Get the number of compute units available to a GPU tapir target.
 def int_kit_gpu_num_compute_units
     : KitIntrinsic<[llvm_i64_ty], [llvm_i32_ty], [ImmArg<ArgIndex<0>>]> {

@@ -35,13 +35,32 @@
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Passes/PassUtils.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/IntrinsicsAMDGPU.h"
+#include "llvm/IR/IntrinsicsNVPTX.h"
 #include "llvm/IR/Module.h"
 #include "llvm/TargetParser/TargetParser.h"
 
 #define DEBUG_TYPE "kit-lower-warp-intrinsics"
 
 using namespace llvm;
+
+static std::string toString(Type *ty) {
+  std::string buf;
+  raw_string_ostream os(buf);
+
+  if (ty->isIntegerTy())
+    os << "i";
+  else if (ty->isFloatingPointTy())
+    os << "f";
+  else
+    llvm_unreachable("toString: Unsupported type");
+  os << ty->getPrimitiveSizeInBits();
+  os.flush();
+
+  return buf;
+}
 
 namespace {
 
@@ -55,6 +74,27 @@ private:
     default:
       llvm_unreachable("LowerWarpIntrinsicBase::replace:  TTID not handled!");
     }
+  }
+
+protected:
+  template <typename... Args>
+  Function *addImplFunc(Module &m, StringRef name, Type *ret, Args &&...args) {
+    Function *f = getOrInsertFunction(m, name, ret, args...);
+    f->setLinkage(GlobalValue::LinkOnceODRLinkage);
+    f->addFnAttr(Attribute::Convergent);
+    f->addFnAttr(Attribute::MustProgress);
+    f->addFnAttr(Attribute::NoFree);
+    f->addFnAttr(Attribute::NoRecurse);
+    f->addFnAttr(Attribute::NoUnwind);
+    f->addFnAttr(Attribute::WillReturn);
+    f->setMemoryEffects(MemoryEffects::none());
+
+    return f;
+  }
+
+  template <typename... T>
+  std::string makeImplName(TTID tt, StringRef base, T &&...rest) {
+    return join_items(".", "__kit", toString(tt), "warp", base, rest...);
   }
 
 protected:
@@ -275,21 +315,18 @@ Value *LowerWarpIdOrLane<Intr>::genOffset(IRBuilder<> &builder, Value *tt) {
 // specialize this for the various dimensions.
 template <Intrinsic::ID Intr>
 std::string LowerWarpIdOrLane<Intr>::getImplName(const CallBase &call) {
-  std::string buf;
-  raw_string_ostream os(buf);
+  auto getKind = []() -> StringRef {
+    switch (Intr) {
+    case Intrinsic::kit_gpu_warp_id: return "id";
+    case Intrinsic::kit_gpu_warp_lane: return "lane";
+    default: llvm_unreachable("getImplName: Unexpected intrinsic");
+    }
+  };
+
   TTID tt = *getTTIDFromKitIntrCall(call);
-  Intrinsic::ID intr = call.getIntrinsicID();
+  StringRef kind = getKind();
 
-  os << "__kit_" << toString(tt) << "_warp_";
-  if (intr == Intrinsic::kit_gpu_warp_id)
-    os << "id";
-  else if (intr == Intrinsic::kit_gpu_warp_lane)
-    os << "lane";
-  else
-    llvm_unreachable("getImplName: Unexpected intrinsic");
-  os.flush();
-
-  return buf;
+  return this->makeImplName(tt, kind);
 }
 
 // The implementation function returns a 32-bit integer since the warp index and
@@ -305,8 +342,7 @@ Function *LowerWarpIdOrLane<Intr>::getOrInsertImplFunc(Module &m,
 
   LLVMContext &ctx = m.getContext();
   Type *i32 = Type::getInt32Ty(ctx);
-  Function *f = getOrInsertFunction(m, implName, i32, i32);
-  f->setLinkage(GlobalValue::LinkOnceODRLinkage);
+  Function *f = this->addImplFunc(m, implName, i32, i32);
   f->getArg(0)->setName("dims");
 
   Value *tt = call.getArgOperand(0);
@@ -342,11 +378,283 @@ Value *LowerWarpIdOrLane<Intr>::replaceIntrHip(CallBase *call) {
   return replaceIntr(call);
 }
 
+// ----------------------------- LowerWarpShuffle -----------------------------
+
+namespace {
+
+class LowerWarpShuffleDownSync
+    : public LowerWarpIntrinsicBase<Intrinsic::kit_gpu_warp_shfl_down_sync> {
+protected:
+  std::string getCoreImplName(TTID tt);
+  Function *getOrInsertLaneIdImplHip(Module &m);
+  Function *getOrInsertCoreImplHip(Module &m);
+  Function *getOrInsertCoreImplCuda(Module &m);
+  Function *getOrInsertPiecewiseImpl(Module &m, TTID tt, Function *coreImpl,
+                                     Type *ty);
+  Value *genPiecewise32(IRBuilder<> &builder, TTID tt, Function *coreImpl,
+                        Value *val, Value *offset);
+  Value *genPiecewise64(IRBuilder<> &builder, TTID tt, Function *coreImpl,
+                        Value *val, Value *offset);
+  Value *replaceIntr(CallBase *call, TTID tt, Function *coreImpl);
+
+protected:
+  virtual Value *replaceIntrCuda(CallBase *call) override;
+  virtual Value *replaceIntrHip(CallBase *call) override;
+};
+
+} // namespace
+
+std::string LowerWarpShuffleDownSync::getCoreImplName(TTID tt) {
+  return makeImplName(tt, "shfl.down.sync.core");
+}
+
+Function *LowerWarpShuffleDownSync::getOrInsertCoreImplCuda(Module &m) {
+  std::string fname = getCoreImplName(TTID::Cuda);
+  if (Function *f = m.getFunction(fname))
+    return f;
+
+  LLVMContext &ctx = m.getContext();
+  Type *i32 = Type::getInt32Ty(ctx);
+  Function *f = addImplFunc(m, fname, i32, i32, i32);
+  f->getArg(0)->setName("val");
+  f->getArg(1)->setName("offset");
+
+  BasicBlock *entry = BasicBlock::Create(ctx, "", f);
+  IRBuilder<> builder(entry);
+
+  // This implementation calls the @llvm.nvvm.shfl.down.sync intrinsic. The
+  // default NVIDIA implementation is something like this:
+  //
+  //     c = ((warpSize - width) << 8) | 0x1f;
+  //     __nvvm_shfl_down_sync(mask, var, offset, c)
+  //
+  // Here mask is a bitmask indicating which threads are participate in the
+  // warp shuffle. Since we only use this when lowering reductions, and we do
+  // not support conditional reductions, the mask is always 0xFFFFFFFFU. By
+  // default, even in cuda, width == warpSize. Presumably the reason to have
+  // this be different is if only some threads in a warp were participating in
+  // the shuffle. As we have already stated, we require all threads to
+  // participate, so we assume that `c` is 0x1f.
+  //
+  // The implementation of this function then simply becomes a call to the
+  // intrinsic.
+  Value *val = f->getArg(0);
+  Value *offset = f->getArg(1);
+  Value *maskThrds = toConstant(0xffffffffU, ctx);
+  Value *maskLanes = toConstant(0x1fU, ctx);
+  Value *result = builder.CreateIntrinsic(Intrinsic::nvvm_shfl_sync_down_i32,
+                                          {maskThrds, val, offset, maskLanes});
+  builder.CreateRet(result);
+
+  return f;
+}
+
+Function *LowerWarpShuffleDownSync::getOrInsertLaneIdImplHip(Module &m) {
+  StringRef fname = "__kit.hip.lane.id";
+  if (Function *f = m.getFunction(fname))
+    return f;
+
+  LLVMContext &ctx = m.getContext();
+  Type *i32 = Type::getInt32Ty(ctx);
+
+  Constant *ctt = toConstant(TTID::Hip, ctx);
+  Constant *c32 = toConstant(32U, ctx);
+  Constant *neg1 = toConstant(-1, ctx);
+  Constant *zero = toConstant(0, ctx);
+
+  Function *f = addImplFunc(m, fname, i32);
+
+  BasicBlock *bbEntry = BasicBlock::Create(ctx, "entry", f);
+  BasicBlock *bb64 = BasicBlock::Create(ctx, "64", f);
+  BasicBlock *bbExit = BasicBlock::Create(ctx, "exit", f);
+
+  IRBuilder<> builder(ctx);
+
+  builder.SetInsertPoint(bbEntry);
+  Value *warpSize =
+      builder.CreateIntrinsic(Intrinsic::kit_gpu_warp_size, {ctt});
+  Value *lane32 = builder.CreateIntrinsic(
+      Intrinsic::amdgcn_mbcnt_lo, {neg1, zero}, /*FMFSource=*/{}, "l32");
+  Value *is32 = builder.CreateICmpEQ(warpSize, c32, "is32");
+  builder.CreateCondBr(is32, bbExit, bb64);
+
+  builder.SetInsertPoint(bb64);
+  Value *lane64 =
+      builder.CreateIntrinsic(Intrinsic::amdgcn_mbcnt_hi, {neg1, lane32});
+  builder.CreateBr(bbExit);
+
+  builder.SetInsertPoint(bbExit);
+  PHINode *result = builder.CreatePHI(i32, /*reserved=*/32, "res");
+  result->addIncoming(lane32, bbEntry);
+  result->addIncoming(lane64, bb64);
+  builder.CreateRet(result);
+
+  return f;
+}
+
+Function *LowerWarpShuffleDownSync::getOrInsertCoreImplHip(Module &m) {
+  std::string fname = getCoreImplName(TTID::Hip);
+  if (Function *f = m.getFunction(fname))
+    return f;
+
+  LLVMContext &ctx = m.getContext();
+  Type *i32 = Type::getInt32Ty(ctx);
+  Function *f = addImplFunc(m, fname, i32, i32, i32);
+
+  BasicBlock *entry = BasicBlock::Create(ctx, "", f);
+  IRBuilder<> builder(entry);
+
+  Value *ctt = toConstant(TTID::Hip, ctx);
+  Value *one = toConstant(1U, ctx);
+
+  Value *val = f->getArg(0);
+  Value *offset = f->getArg(1);
+
+  // This implementation does not perform any error checking. It assumes that,
+  // when the offset is added to the current lane, the resulting lane is valid.
+  // The basic implementation here is:
+  //
+  //     ngbr = (lane_id() & (width - 1)) + offset.
+  //
+  // Here `width` is the warp size. It is not clear why we need to mask the lane
+  // id, but the implementation in AMD's implementation does so.
+  Function *laneIdFunc = getOrInsertLaneIdImplHip(m);
+  Value *laneId = builder.CreateCall(laneIdFunc, /*args=*/{}, "id");
+  Value *width = builder.CreateIntrinsic(Intrinsic::kit_gpu_warp_size, {ctt});
+  Value *mask = builder.CreateSub(width, one, "mask");
+  Value *lane = builder.CreateAnd(laneId, mask, "lane");
+  Value *ngbr = builder.CreateAdd(lane, offset, "ngbr");
+  Value *index = builder.CreateShl(ngbr, 2, "index");
+  Value *result =
+      builder.CreateIntrinsic(Intrinsic::amdgcn_ds_bpermute, {index, val});
+  builder.CreateRet(result);
+
+  return f;
+}
+
+Value *LowerWarpShuffleDownSync::genPiecewise32(IRBuilder<> &builder, TTID tt,
+                                                Function *coreImpl, Value *val,
+                                                Value *offset) {
+  Type *ty = val->getType();
+
+  LLVMContext &ctx = builder.getContext();
+  Type *i32 = Type::getInt32Ty(ctx);
+
+  Value *v32 = builder.CreateBitCast(val, i32, "v32");
+  Value *r32 = builder.CreateCall(coreImpl, {v32, offset});
+  Value *res = builder.CreateBitCast(r32, ty, "res");
+
+  return res;
+}
+
+Value *LowerWarpShuffleDownSync::genPiecewise64(IRBuilder<> &builder, TTID tt,
+                                                Function *coreImpl, Value *val,
+                                                Value *offset) {
+  LLVMContext &ctx = builder.getContext();
+  Type *i64 = Type::getInt64Ty(ctx);
+  Type *i32 = Type::getInt32Ty(ctx);
+  Type *ty = val->getType();
+
+  // The 64-bit value must be split into 2 32-bit pieces.
+  Value *v64 = builder.CreateBitCast(val, i64, "v64");
+
+  // Truncate so we are left with the lower 32-bits. The core implementation
+  // will return a 32-bit result which is then zero-extended to get the lower
+  // 32-bits of the result.
+  Value *l32 = builder.CreateTrunc(v64, i32, "l32");
+  Value *resL32 =
+      builder.CreateCall(coreImpl, {l32, offset}, /*FMFSource=*/{}, "rl32");
+  Value *resL64 = builder.CreateZExt(resL32, i64, "rl64");
+
+  // Shift right by 32 bits and obtain the upper 32 bits of the result.
+  // Zero-extend it to 64 bits and shift it left to get the final upper 32 bits.
+  Value *u64 = builder.CreateLShr(v64, 32);
+  Value *u32 = builder.CreateTrunc(u64, i32, "u32", /*nuw=*/true);
+  Value *resU32 =
+      builder.CreateCall(coreImpl, {u32, offset}, /*FMFSource=*/{}, "ru32");
+  Value *resU64Tmp = builder.CreateZExt(resU32, i64);
+  Value *resU64 =
+      builder.CreateShl(resU64Tmp, 32, "ru64", /*nuw=*/false, /*nsw=*/true);
+
+  // Bitwise OR the bits to get the final result, and cast it back to the
+  // correct type.
+  Value *res64 = builder.CreateOr(resU64, resL64, "res64", /*disjoint=*/true);
+  Value *res = builder.CreateBitCast(res64, ty, "res");
+
+  return res;
+}
+
+Function *LowerWarpShuffleDownSync::getOrInsertPiecewiseImpl(Module &m, TTID tt,
+                                                             Function *coreImpl,
+                                                             Type *ty) {
+  std::string fname = makeImplName(tt, "shfl.down.sync", toString(ty));
+  if (Function *f = m.getFunction(fname))
+    return f;
+
+  LLVMContext &ctx = m.getContext();
+  Type *i32 = Type::getInt32Ty(ctx);
+
+  Function *f = addImplFunc(m, fname, ty, ty, i32);
+  Value *val = f->getArg(0);
+  Value *offset = f->getArg(1);
+
+  val->setName("val");
+  offset->setName("offset");
+  unsigned size = ty->getPrimitiveSizeInBits();
+
+  BasicBlock *entry = BasicBlock::Create(ctx, "", f);
+  IRBuilder<> builder(entry);
+  Value *result = nullptr;
+  if (size == 32)
+    result = genPiecewise32(builder, tt, coreImpl, val, offset);
+  else if (size == 64)
+    result = genPiecewise64(builder, tt, coreImpl, val, offset);
+  else
+    llvm_unreachable("getPiecewiseImpl: Unsupported type size");
+  builder.CreateRet(result);
+
+  return f;
+}
+
+Value *LowerWarpShuffleDownSync::replaceIntr(CallBase *call, TTID tt,
+                                             Function *coreImpl) {
+  Module &m = *call->getModule();
+  Value *val = call->getArgOperand(1);
+  Value *offset = call->getArgOperand(2);
+  Type *ty = val->getType();
+  Function *impl = getOrInsertPiecewiseImpl(m, tt, coreImpl, ty);
+  FunctionType *implTy = impl->getFunctionType();
+  InsertPosition insertPt = call->getIterator();
+  CallInst *newCall =
+      CallInst::Create(implTy, impl, {val, offset}, "", insertPt);
+
+  return newCall;
+}
+
+Value *LowerWarpShuffleDownSync::replaceIntrCuda(CallBase *call) {
+  // There is a single core implementation for a given TTID, so generate it
+  // right away.
+  Function *coreImpl = getOrInsertCoreImplCuda(*call->getModule());
+  return replaceIntr(call, TTID::Cuda, coreImpl);
+}
+
+Value *LowerWarpShuffleDownSync::replaceIntrHip(CallBase *call) {
+  // Some core implementation functions are not specialized by type. We might
+  // as well generate those early.
+  getOrInsertLaneIdImplHip(*call->getModule());
+  Function *coreImpl = getOrInsertCoreImplHip(*call->getModule());
+  return replaceIntr(call, TTID::Hip, coreImpl);
+}
+
 // -----------------------------------------------------------------------------
 
 static bool lowerKitIntrinsics(Module &m, const TTOptions &tto) {
   bool changed = false;
 
+  // The order in which the intrinsics are lowered is important. The lowering of
+  // some intrinsics may involve calls to other warp intrinsics. Those must,
+  // naturally be lowered first to avoid having to iterate until convergence.
+  changed |= LowerWarpShuffleDownSync().run(m);
   changed |= LowerWarpIdOrLane<Intrinsic::kit_gpu_warp_id>().run(m);
   changed |= LowerWarpIdOrLane<Intrinsic::kit_gpu_warp_lane>().run(m);
   changed |= LowerWarpSize(tto).run(m);

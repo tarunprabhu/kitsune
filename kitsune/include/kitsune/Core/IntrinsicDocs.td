@@ -809,6 +809,31 @@ the full calulation in such cases is, obviously, inefficient.
 }];
 }
 
+def KitGPUWarpShflDownSyncDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [
+    KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
+    KitDocParam<"v", "The variable whose value is to be obtained from the source thread">,
+    KitDocParam<"offset", "The offset of the source thread from the current thread">
+  ];
+  let Descr = [{
+For a thread at lane `n` in a warp, get the value of the variable `v` from the
+thread in the lane with id `n + offset` in the same warp. This is equivalent to
+the following call in high-level source:
+
+.. code :: c++
+
+  __shfl_down_sync(0xFFFFFFFF, v, offset);
+
+Since this intrinsic does not accept a mask, it assumes that all threads in the
+warp participate in this call. Failing to ensure this may result in a deadlock.
+When called from a thread in lane `n`, the thread in lane `n + offset` *must* be
+in the same warp. It is the caller's responsibility to ensure this. Failing to
+to do so may result in a catastrophic failure at runtime, or the production of
+garbage results.
+}];
+}
+
 def KitAsyncGPULaunchKernelDoc : KitDocIntrinsic {
   let Category = KitDocCatGPU;
   let ParamDocs = [

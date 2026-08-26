@@ -5,13 +5,14 @@
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: define void @f() {
-; CHECK-NEXT: call i32 @__kit_hip_warp_lane(i32 1)
-; CHECK-NEXT: call i32 @__kit_hip_warp_lane(i32 2)
-; CHECK-NEXT: call i32 @__kit_hip_warp_lane(i32 3)
+; CHECK-NEXT: call i32 @__kit.hip.warp.lane(i32 1)
+; CHECK-NEXT: call i32 @__kit.hip.warp.lane(i32 2)
+; CHECK-NEXT: call i32 @__kit.hip.warp.lane(i32 3)
 ; CHECK-NEXT: ret void
 ;
-; CHECK: define linkonce_odr i32 @__kit_hip_warp_lane
+; CHECK: define linkonce_odr i32 @__kit.hip.warp.lane
 ; CHECK-SAME: i32 %[[DIMS:[^)]+]]
+; CHECK-SAME: #[[ATTRS:[0-9]+]]
 ; CHECK-NEXT: %[[BSZX:.+]] = call i32 @llvm.kit.gpu.block.size.x(i32 4)
 ; CHECK-NEXT: %[[BSZY:.+]] = call i32 @llvm.kit.gpu.block.size.y(i32 4)
 ; CHECK-NEXT: %[[BSZXY:.+]] = mul i32 %[[BSZX]], %[[BSZY]]
@@ -30,6 +31,15 @@
 ; CHECK-NEXT: ret i32 %[[RESULT]]
 ;
 ; CHECK-NOT: define
+;
+; CHECK: attributes #[[ATTRS]]
+; CHECK-SAME: convergent
+; CHECK-SAME: mustprogress
+; CHECK-SAME: nofree
+; CHECK-SAME: norecurse
+; CHECK-SAME: nounwind
+; CHECK-SAME: willreturn
+; CHECK-SAME: memory(none)
 
 define void @f() {
   %1 = call i32 @llvm.kit.gpu.warp.lane(i32 4, i32 1)
