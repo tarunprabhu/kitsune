@@ -15,13 +15,14 @@
 
 #include "kitsune/Core/AddrSpace.h"
 #include "kitsune/Core/TTID.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Module.h"
 
-#include <optional>
-
 namespace llvm {
+
+class CallInst;
 
 /// \addtogroup kitsune
 /// @{
@@ -103,6 +104,9 @@ Align getPointerAlignment(const Module &m, unsigned addrSpace = KitAS::Default);
 
 /// Get the ABI alignment for type \p t in module \p m.
 Align getTypeAlignment(const Module &m, Type *ty);
+
+/// Get all calls to the intrinsic \p intr in a module.
+SmallVector<CallInst *, 0> collectCalls(Module &m, Intrinsic::ID intr);
 
 /// @}
 
