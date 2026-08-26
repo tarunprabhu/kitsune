@@ -7,7 +7,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/Reductions.h"
+#include "kitsune/Core/ModuleUtils.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Module.h"
 
 #include "gtest/gtest.h"
@@ -272,6 +274,47 @@ TEST(KitReductions, getUnitAdd) {
   checkInts(i64);
   checkFP(f32);
   checkFP(f64);
+}
+
+TEST(KitReductions, getReducerType) {
+  LLVMContext ctx;
+  Module m("", ctx);
+
+  PointerType *ptr = PointerType::getUnqual(ctx);
+  Type *i32 = Type::getInt32Ty(ctx);
+
+  Constant *cnull = ConstantPointerNull::get(ptr);
+  Constant *zero = ConstantInt::get(i32, 0);
+  Constant *one = ConstantInt::get(i32, 1);
+  Constant *four = ConstantInt::get(i32, 4);
+  Constant *five = ConstantInt::get(i32, 5);
+  Constant *ten = ConstantInt::get(i32, 10);
+
+  Function *f = getOrInsertFunction(m, "test", i32);
+  BasicBlock *bb = BasicBlock::Create(ctx, "", f);
+  IRBuilder<> builder(bb);
+
+  CallInst *cf =
+      builder.CreateIntrinsic(Intrinsic::kit_reduce_0, {i32, i32},
+                              {one, five, cnull, four, ten, zero, cnull});
+  ReductionInfo redf(cf);
+  FunctionType *tyf = redf.getReducerType();
+
+  EXPECT_EQ(tyf->getNumParams(), 2U);
+  EXPECT_EQ(tyf->getParamType(0), ptr);
+  EXPECT_EQ(tyf->getParamType(1), i32);
+  EXPECT_FALSE(tyf->isVarArg());
+  EXPECT_EQ(redf.getReducerArgs(), (SmallVector<Value *, 2>{cnull, ten}));
+
+  CallInst *cv = builder.CreateIntrinsic(
+      Intrinsic::kit_reduce_0, {i32, i32, ptr},
+      {one, five, cnull, four, ten, zero, cnull, cnull});
+  ReductionInfo redv(cv);
+  FunctionType *tyv = redv.getReducerType();
+
+  EXPECT_FALSE(tyv->isVarArg());
+  EXPECT_EQ(redv.getReducerArgs(),
+            (SmallVector<Value *, 2>{cnull, ten, cnull}));
 }
 
 } // namespace

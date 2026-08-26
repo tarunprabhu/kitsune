@@ -42,6 +42,24 @@ SmallVector<Value *, 0> ReductionInfo::getExtraArgs() const {
   return extra;
 }
 
+FunctionType *ReductionInfo::getReducerType() const {
+  LLVMContext &ctx = dest->getContext();
+  Type *voidTy = Type::getVoidTy(ctx);
+  SmallVector<Type *, 2> params = {dest->getType(), value->getType()};
+  for (Value *arg : getExtraArgs())
+    params.push_back(arg->getType());
+  return FunctionType::get(voidTy, params, /*isVarArg=*/false);
+}
+
+SmallVector<Value *, 2> ReductionInfo::getReducerArgs() const {
+  SmallVector<Value *, 2> args = {dest, value};
+  for (Value *arg : getExtraArgs())
+    args.push_back(arg);
+  return args;
+}
+
+// -----------------------------------------------------------------------------
+
 template <> std::optional<ReduceOp> llvm::fromInt(int64_t i) {
   switch (i) {
   case 0: return ReduceOp::Custom;
