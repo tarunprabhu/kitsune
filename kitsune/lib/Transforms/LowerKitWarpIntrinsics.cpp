@@ -33,6 +33,7 @@
 #include "kitsune/Core/ModuleUtils.h"
 #include "kitsune/Core/TTID.h"
 #include "kitsune/Core/TTOptions.h"
+#include "kitsune/Core/TypeUtils.h"
 #include "kitsune/Passes/PassUtils.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringExtras.h"
@@ -41,26 +42,11 @@
 #include "llvm/IR/IntrinsicsNVPTX.h"
 #include "llvm/IR/Module.h"
 #include "llvm/TargetParser/TargetParser.h"
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
 #define DEBUG_TYPE "kit-lower-warp-intrinsics"
 
 using namespace llvm;
-
-static std::string toString(Type *ty) {
-  std::string buf;
-  raw_string_ostream os(buf);
-
-  if (ty->isIntegerTy())
-    os << "i";
-  else if (ty->isFloatingPointTy())
-    os << "f";
-  else
-    llvm_unreachable("toString: Unsupported type");
-  os << ty->getPrimitiveSizeInBits();
-  os.flush();
-
-  return buf;
-}
 
 namespace {
 
@@ -104,12 +90,9 @@ protected:
 public:
   bool run(Module &m) {
     SmallVector<CallInst *, 0> calls = collectCalls(m, Intr);
-    for (CallBase *call : calls) {
-      Value *newVal = replaceImpl(call);
-      if (!isa<Constant>(newVal))
-        newVal->takeName(call);
-      call->replaceAllUsesWith(newVal);
-      call->eraseFromParent();
+    for (CallInst *call : calls) {
+      BasicBlock::iterator pos = call->getIterator();
+      ReplaceInstWithValue(pos, replaceImpl(call));
     }
     return calls.size();
   }
@@ -579,7 +562,7 @@ Value *LowerWarpShuffleDownSync::genPiecewise64(IRBuilder<> &builder, TTID tt,
 Function *LowerWarpShuffleDownSync::getOrInsertPiecewiseImpl(Module &m, TTID tt,
                                                              Function *coreImpl,
                                                              Type *ty) {
-  std::string fname = makeImplName(tt, "shfl.down.sync", toString(ty));
+  std::string fname = makeImplName(tt, "shfl.down.sync", getShortName(ty));
   if (Function *f = m.getFunction(fname))
     return f;
 
