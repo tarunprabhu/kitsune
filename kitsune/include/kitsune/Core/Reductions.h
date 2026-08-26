@@ -97,6 +97,13 @@ public:
 
   /// Get the extra arguments that are to be passed to the reducer function.
   SmallVector<Value *, 0> getExtraArgs() const;
+
+  /// Get the type of the reducer function. This is inferred from the types of
+  /// the value and any extra arguments that might be provided.
+  FunctionType *getReducerType() const;
+
+  /// Get all arguments that will be passed to a call to the reducer.
+  SmallVector<Value *, 2> getReducerArgs() const;
 };
 
 /// Get an AtomicRMWInst::BinOp corresponding to a reduction operator, if one
