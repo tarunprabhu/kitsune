@@ -3,13 +3,14 @@
 ; RUN: opt -passes=kit-lower-warp-intrinsics -S %s | FileCheck %s
 ;
 ; CHECK: define void @f() {
-; CHECK-NEXT: call i32 @__kit_cuda_warp_id(i32 1)
-; CHECK-NEXT: call i32 @__kit_cuda_warp_id(i32 2)
-; CHECK-NEXT: call i32 @__kit_cuda_warp_id(i32 3)
+; CHECK-NEXT: call i32 @__kit.cuda.warp.id(i32 1)
+; CHECK-NEXT: call i32 @__kit.cuda.warp.id(i32 2)
+; CHECK-NEXT: call i32 @__kit.cuda.warp.id(i32 3)
 ; CHECK-NEXT: ret void
 ;
-; CHECK: define linkonce_odr i32 @__kit_cuda_warp_id
+; CHECK: define linkonce_odr i32 @__kit.cuda.warp.id
 ; CHECK-SAME: i32 %[[DIMS:[^)]+]]
+; CHECK-SAME: #[[ATTRS:[0-9]+]]
 ; CHECK-NEXT: %[[BSZX:.+]] = call i32 @llvm.kit.gpu.block.size.x(i32 2)
 ; CHECK-NEXT: %[[BSZY:.+]] = call i32 @llvm.kit.gpu.block.size.y(i32 2)
 ; CHECK-NEXT: %[[BSZXY:.+]] = mul i32 %[[BSZX]], %[[BSZY]]
@@ -28,6 +29,15 @@
 ; CHECK-NEXT: ret i32 %[[RESULT]]
 ;
 ; CHECK-NOT: define
+;
+; CHECK: attributes #[[ATTRS]]
+; CHECK-SAME: convergent
+; CHECK-SAME: mustprogress
+; CHECK-SAME: nofree
+; CHECK-SAME: norecurse
+; CHECK-SAME: nounwind
+; CHECK-SAME: willreturn
+; CHECK-SAME: memory(none)
 
 define void @f() {
   %1 = call i32 @llvm.kit.gpu.warp.id(i32 2, i32 1)
