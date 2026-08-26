@@ -127,7 +127,8 @@ bool llvm::detail::prepareReductionLoop(TapirLoopInfo &tapirLoop,
     return detail::prepareReductionLoopForCPU(tapirLoop, reductions, dt, li,
                                               mssa, se, ti);
   else if (isGPUTT(tt))
-    return detail::prepareReductionLoopForGPU(*tapirLoop.getLoop(), reductions);
+    return detail::prepareReductionLoopForGPU(*tapirLoop.getLoop(), reductions,
+                                              dt, li, mssa);
   llvm_unreachable("prepareReductionLoop: TT is neither CPU- nor GPU-centric");
 }
 

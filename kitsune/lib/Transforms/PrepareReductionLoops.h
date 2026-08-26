@@ -56,7 +56,8 @@ bool prepareReductionLoopForCPU(
     TaskInfo &ti);
 
 bool prepareReductionLoopForGPU(
-    Loop &loop, const SmallVectorImpl<ReductionInfo> &reductions);
+    Loop &loop, const SmallVectorImpl<ReductionInfo> &reductions,
+    DominatorTree &dt, LoopInfo &li, MemorySSA &mssa);
 
 } // namespace detail
 
