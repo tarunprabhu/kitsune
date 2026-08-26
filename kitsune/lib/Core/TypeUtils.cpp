@@ -35,6 +35,22 @@ bool llvm::isMobilePointerTy(Type *ty) {
   return false;
 }
 
+std::string llvm::getShortName(Type *ty) {
+  std::string buf;
+  raw_string_ostream os(buf);
+
+  if (ty->isIntegerTy())
+    os << "i";
+  else if (ty->isFloatingPointTy())
+    os << "f";
+  else
+    llvm_unreachable("getShortName: Unexpected type");
+  os << ty->getPrimitiveSizeInBits();
+  os.flush();
+
+  return buf;
+}
+
 template <typename T, std::enable_if_t<std::is_bool_v<T>, int> = 0>
 static Type *getLLVMTypeImpl(LLVMContext &ctx) {
   return Type::getInt1Ty(ctx);

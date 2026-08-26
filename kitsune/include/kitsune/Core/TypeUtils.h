@@ -50,6 +50,14 @@ ArrayType *getLLVMByteArrayTypeFor(LLVMContext &ctx) {
   return ArrayType::get(Type::getInt8Ty(ctx), sizeof(T));
 }
 
+/// Get a short name for the type. This is only available for primitive types,
+/// i.e. integers and floating point types. The returned name will be of the
+/// form "[i|f]<N>" where the first character will be 'i' for integer types,
+/// and 'f' for pointer types. '<N>' is the bit-width of the type with booleans
+/// always having a bitwidth of 1. It is an error to pass a non-primitive type
+/// to this method.
+std::string getShortName(Type *ty);
+
 /// @}
 
 } // namespace llvm
