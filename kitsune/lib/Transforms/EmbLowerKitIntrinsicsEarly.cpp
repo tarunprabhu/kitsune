@@ -35,11 +35,12 @@
 
 #include "kitsune/Transforms/EmbLowerKitIntrinsicsEarly.h"
 #include "kitsune/Core/ConstantUtils.h"
+#include "kitsune/Core/ModuleUtils.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicsAMDGPU.h"
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
 #define DEBUG_TYPE "emb-lower-intrinsics-early"
 
@@ -75,11 +76,10 @@ static bool lowerKitIntrinsicsHip(Module &embM) {
   // intrinsic is assumed to take no arguments other than the TTID. The
   // replacement intrinsic is assumed to not take any arguments at all.
   auto replaceSimple = [](CallBase *call, Intrinsic::ID newIntr) -> void {
-    IRBuilder<> builder(call);
-    CallInst *newCall = builder.CreateIntrinsic(newIntr, {});
-    newCall->takeName(call);
-    call->replaceAllUsesWith(newCall);
-    call->eraseFromParent();
+    Module *m = call->getModule();
+    Function *f = Intrinsic::getOrInsertDeclaration(m, newIntr);
+    CallInst *newCall = CallInst::Create(f);
+    ReplaceInstWithInst(call, newCall);
   };
 
   // Replace a call with another to a function with the given name. A
@@ -94,16 +94,18 @@ static bool lowerKitIntrinsicsHip(Module &embM) {
     Type *i64 = Type::getInt64Ty(ctx);
 
     Type *type = call->getType();
-    FunctionCallee libF = m->getOrInsertFunction(fname, i64, i32);
+    Function *libF = getOrInsertFunction(*m, fname, i64, i32);
     Constant *farg = toConstant(dirxn, ctx);
 
-    IRBuilder<> builder(call);
-    Value *newCall = builder.CreateCall(libF, {farg});
-    Value *newVal = builder.CreateIntCast(newCall, type, /*isSigned=*/false);
-
-    newVal->takeName(call);
-    call->replaceAllUsesWith(newVal);
-    call->eraseFromParent();
+    CallInst *newCall = CallInst::Create(libF, {farg});
+    if (libF->getReturnType() != type) {
+      CastInst *newVal =
+          CastInst::CreateIntegerCast(newCall, type, /*isSigned=*/false);
+      ReplaceInstWithInst(call, newVal);
+      newCall->insertBefore(newVal->getIterator());
+    } else {
+      ReplaceInstWithInst(call, newCall);
+    }
   };
 
   // Replace the given call instruction.
