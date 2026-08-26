@@ -14,13 +14,13 @@
 #include "kitsune/CodeGen/EmbModuleLegacyPass.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicsAMDGPU.h"
 #include "llvm/IR/IntrinsicsNVPTX.h"
 #include "llvm/IR/Module.h"
 #include "llvm/InitializePasses.h"
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
 #define DEBUG_TYPE "emb-lower-intrinsics"
 
@@ -32,7 +32,7 @@ class LowerKitIntrinsicsBase {
 protected:
 private:
   bool shouldReplace(Intrinsic::ID intr);
-  bool replaceSimple(IRBuilder<> &builder, CallBase *call, Intrinsic::ID intr);
+  bool replaceSimple(CallBase *call, Intrinsic::ID intr);
 
 protected:
   // Certain intrinsics should have been lowered already. If they make it here,
@@ -68,20 +68,18 @@ bool LowerKitIntrinsicsBase::shouldReplace(Intrinsic::ID intr) {
   return getReplIntr(intr).has_value();
 }
 
-bool LowerKitIntrinsicsBase::replaceSimple(IRBuilder<> &builder, CallBase *call,
+bool LowerKitIntrinsicsBase::replaceSimple(CallBase *call,
                                            Intrinsic::ID newIntr) {
-  builder.SetInsertPoint(call);
-
   // The first argument of the call will be the TTID. This is never needed when
   // lowering a simple call.
   SmallVector<Value *, 4> args;
   for (unsigned i = 1; i < call->arg_size(); ++i)
     args.push_back(call->getArgOperand(i));
 
-  CallInst *newCall = builder.CreateIntrinsic(newIntr, args);
-  newCall->takeName(call);
-  call->replaceAllUsesWith(newCall);
-  call->eraseFromParent();
+  Module *m = call->getModule();
+  Function *f = Intrinsic::getOrInsertDeclaration(m, newIntr);
+  CallInst *newCall = CallInst::Create(f, args);
+  ReplaceInstWithInst(call, newCall);
 
   return true;
 }
@@ -109,13 +107,11 @@ bool LowerKitIntrinsicsBase::run(Module &m) {
             llvm_unreachable(msg->data());
         }
 
-  IRBuilder<> builder(m.getContext());
-
   bool changed = false;
   for (CallBase *call : calls) {
     Intrinsic::ID intr = call->getIntrinsicID();
     if (std::optional<Intrinsic::ID> replIntr = getReplIntr(intr))
-      changed |= replaceSimple(builder, call, *replIntr);
+      changed |= replaceSimple(call, *replIntr);
     else
       llvm_unreachable("LowerKitIntrinsicsBase::run: Unexpected intrinsic");
   }
