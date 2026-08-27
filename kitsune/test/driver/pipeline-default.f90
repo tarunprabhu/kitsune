@@ -56,7 +56,6 @@
 ! O123S:      Running pass:     SecondaryIVEliminationPass
 ! O123S:      Running pass:     PrepareTapirLoopsPass
 ! O123S-NOT:  Running pass:     InstrumentPass
-! O123S:      Running pass:     LowerKitWarpIntrinsicsPass
 ! O123S:      Running pass:     LowerKitReduceIntrinsicsPass
 ! O123S:      Running pass:     DeLICMPass
 ! O123S:      Running pass:     SimplifyCFGPass
@@ -78,6 +77,7 @@
 !
 ! <KIT-POST-TAPIR>
 ! O123S:      Running pass:     PrefetchForDevicePass
+! O123S:      Running pass:     EmbLowerKitWarpIntrinsicsPass
 ! O123S:      Running pass:     EmbLowerKitIntrinsicsEarlyPass
 ! O123S:      Running pass:     EmbResolveLibDeviceCallsPass
 ! O123S:      Running pass:     EmbPreparePass

@@ -26,7 +26,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Transforms/LowerKitWarpIntrinsics.h"
+#include "kitsune/Transforms/EmbLowerKitWarpIntrinsics.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/IRBuilderUtils.h"
 #include "kitsune/Core/IntrinsicUtils.h"
@@ -44,7 +44,7 @@
 #include "llvm/TargetParser/TargetParser.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
-#define DEBUG_TYPE "kit-lower-warp-intrinsics"
+#define DEBUG_TYPE "emb-lower-warp-intrinsics"
 
 using namespace llvm;
 
@@ -637,9 +637,7 @@ static bool lowerKitIntrinsics(Module &m, const TTOptions &tto) {
   return changed;
 }
 
-PreservedAnalyses LowerKitWarpIntrinsicsPass::run(Module &m,
-                                                  ModuleAnalysisManager &am) {
-  if (lowerKitIntrinsics(m, tto))
-    return getPreservedAnalysesCallGraph();
-  return getPreservedAnalysesAll();
+bool EmbLowerKitWarpIntrinsicsPass::run(TTID tt, Module &devM, Module &hostM,
+                                        ModuleAnalysisManager &hostAM) {
+  return lowerKitIntrinsics(devM, tto);
 }

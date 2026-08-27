@@ -23,7 +23,6 @@
 ; DEFAULT-NOT: Running pass:     NormalizeLoopControlBlocksPass
 ; DEFAULT-NOT: Running pass:     SecondaryIVEliminationPass
 ; DEFAULT-NOT: Running pass:     PrepareTapirLoopsPass
-; DEFAULT-NOT: Running pass:     LowerKitWarpIntrinsicsPass
 ; DEFAULT-NOT: Running pass:     LowerKitReduceIntrinsicsPass
 ; DEFAULT-NOT: Running pass:     DeLICMPass
 ; DEFAULT-NOT: Running pass:     PreLowerAnnotatePass
@@ -32,6 +31,7 @@
 ; DEFAULT-NOT: Running pass:     EmbHoistAllocasPass
 ; DEFAULT-NOT: Running pass:     TapirToTargetPass
 ; DEFAULT-NOT: Running pass:     PrefetchForDevicePass
+; DEFAULT-NOT: Running pass:     EmbLowerKitWarpIntrinsicsPass
 ; DEFAULT-NOT: Running pass:     EmbLowerKitIntrinsicsEarlyPass
 ; DEFAULT-NOT: Running pass:     EmbResolveLibDeviceCallsPass
 ; DEFAULT-NOT: Running pass:     EmbPreparePass
@@ -90,7 +90,6 @@
 ; O123SZ:      Running pass:     SecondaryIVEliminationPass
 ; O123SZ:      Running pass:     PrepareTapirLoopsPass
 ; O123SZ-NOT:  Running pass:     InstrumentPass
-; O123SZ:      Running pass:     LowerKitWarpIntrinsicsPass
 ; O123SZ:      Running pass:     LowerKitReduceIntrinsicsPass
 ; O123SZ:      Running pass:     DeLICMPass
 ; O123SZ:      Running pass:     SimplifyCFGPass
@@ -112,6 +111,7 @@
 ;
 ; <KIT-POST-TAPIR>
 ; O123SZ:      Running pass:     PrefetchForDevicePass
+; O123SZ:      Running pass:     EmbLowerKitWarpIntrinsicsPass
 ; O123SZ:      Running pass:     EmbLowerKitIntrinsicsEarlyPass
 ; O123SZ:      Running pass:     EmbResolveLibDeviceCallsPass
 ; O123SZ:      Running pass:     EmbPreparePass
