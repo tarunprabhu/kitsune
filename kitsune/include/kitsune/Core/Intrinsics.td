@@ -312,8 +312,12 @@ def int_kit_gpu_grid_size_z
 }
 
 // Get the number of threads per warp.
+// NOTE: This is not really convergent. Doing so is overly conservative, but,
+// this way, it does not get hoisted out of tapir loops. Once we fix the
+// lowering of warp shuffles, we can probably remove this attribute.
 def int_kit_gpu_warp_size
-    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty], [IntrNoMem, IntrWillReturn]> {
+    : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty],
+                   [IntrConvergent, IntrNoMem, IntrWillReturn]> {
   let Doc = KitGPUWarpSizeDoc;
 }
 
@@ -321,7 +325,7 @@ def int_kit_gpu_warp_size
 def int_kit_gpu_warp_id
     : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty],
                    [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>,
-                    IntrNoMem, IntrWillReturn]> {
+                    IntrConvergent, IntrNoMem, IntrWillReturn]> {
   let Doc = KitGPUWarpIDDoc;
 }
 
@@ -329,14 +333,14 @@ def int_kit_gpu_warp_id
 def int_kit_gpu_warp_lane
     : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty],
                    [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>,
-                    IntrNoMem, IntrWillReturn]> {
+                    IntrConvergent, IntrNoMem, IntrWillReturn]> {
   let Doc = KitGPUWarpLaneDoc;
 }
 
 // The equivalent of the __shfl_down_sync builtin available in cuda and hip.
 def int_kit_gpu_warp_shfl_down_sync
     : KitIntrinsic<[llvm_any_ty], [llvm_i32_ty, llvm_any_ty, llvm_i32_ty],
-                   [ImmArg<ArgIndex<0>>, IntrWillReturn]> {
+                   [ImmArg<ArgIndex<0>>, IntrConvergent, IntrWillReturn]> {
   let Doc = KitGPUWarpShflDownSyncDoc;
 }
 
@@ -619,7 +623,7 @@ def int_kit_reduce_0
                    [llvm_i32_ty,     // TTID
                     llvm_i32_ty,     // The reduction operator enum value
                     llvm_ptr_ty,     // Pointer to result
-                    llvm_i32_ty,     // sizeof(result)
+                    llvm_i32_ty,     // Size, in bytes, of the reduced result
                     llvm_any_ty,     // The value to pass to the reducer
                     llvm_any_ty,     // The unit value for the reducer
                     llvm_ptr_ty,     // The reducer function
