@@ -1,7 +1,10 @@
 ; Check that calls to the kit.gpu.warp.size intrinsic are lowered correctly.
 ; On NVIDIA GPU's, the warp size is always 32.
 ;
-; RUN: opt -passes=kit-lower-warp-intrinsics -S %s | FileCheck %s
+; RUN: %kit-enc --tapir=cuda %s \
+; RUN:     | opt -passes=emb-lower-warp-intrinsics \
+; RUN:     | %kit-mbc -S -o - \
+; RUN:     | FileCheck %s
 
 ; CHECK-LABEL: @f
 ; CHECK-NEXT: ret i32 32

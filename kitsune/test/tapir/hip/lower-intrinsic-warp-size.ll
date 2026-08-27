@@ -14,12 +14,16 @@
 ; check for the error case here - it is unlikely to happen in practice because
 ; the frontend will generally have set the target features and architecture.
 ;
-; RUN: opt -passes=kit-lower-warp-intrinsics -S %s \
-; RUN:     --tapir=hip --tapir-hip-arch=gfx1103 \
+; RUN: %kit-enc --tapir=hip %s \
+; RUN:     | opt -passes=emb-lower-warp-intrinsics \
+; RUN:           --tapir=hip --tapir-hip-arch=gfx1103 \
+; RUN:     | %kit-mbc -S -o - \
 ; RUN:     | FileCheck %s --check-prefixes=CHECK,WARP32
 ;
-; RUN: opt -passes=kit-lower-warp-intrinsics -S %s \
-; RUN:     --tapir=hip --tapir-hip-arch=gfx90a \
+; RUN: %kit-enc --tapir=hip %s \
+; RUN:     | opt -passes=emb-lower-warp-intrinsics \
+; RUN:           --tapir=hip --tapir-hip-arch=gfx90a \
+; RUN:     | %kit-mbc -S -o - \
 ; RUN:     | FileCheck %s --check-prefixes=CHECK,WARP64
 
 ; This function has +wavefrontsize32 in the target features. This should

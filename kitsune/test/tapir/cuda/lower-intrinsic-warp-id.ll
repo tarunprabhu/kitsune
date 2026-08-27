@@ -1,6 +1,9 @@
 ; Check the Kitsune's warp.id intrinsics are lowered as expected.
 ;
-; RUN: opt -passes=kit-lower-warp-intrinsics -S %s | FileCheck %s
+; RUN: %kit-enc --tapir=cuda %s \
+; RUN:     | opt -passes=emb-lower-warp-intrinsics \
+; RUN:     | %kit-mbc -S -o - \
+; RUN:     | FileCheck %s
 ;
 ; CHECK: define void @f() {
 ; CHECK-NEXT: call i32 @__kit.cuda.warp.id(i32 1)

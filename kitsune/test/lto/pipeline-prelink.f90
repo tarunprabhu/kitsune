@@ -38,7 +38,6 @@
 ! CHECK:      Running pass:      NormalizeLoopControlBlocksPass
 ! CHECK:      Running pass:      SecondaryIVEliminationPass
 ! CHECK:      Running pass:      PrepareTapirLoopsPass
-! CHECK:      Running pass:      LowerKitWarpIntrinsicsPass
 ! CHECK:      Running pass:      LowerKitReduceIntrinsicsPass
 ! CHECK-NOT:  Running pass:      InstrumentPass
 !
@@ -51,6 +50,7 @@
 ! CHECK-NOT:  Running pass:      LoopSpawningPass
 ! CHECK-NOT:  Running pass:      HoistAllocasPass
 ! CHECK-NOT:  Running pass:      EmbHoistAllocasPass
+! CHECK-NOT:  Running pass:      EmbLowerKitWarpIntrinsicsPass
 ! CHECK-NOT:  Running pass:      EmbResolveLibDeviceCallsPass
 ! CHECK-NOT:  Running pass:      EmbPreparePass
 ! CHECK-NOT:  Running pass:      EmbLinkLibDeviceBitcodePass

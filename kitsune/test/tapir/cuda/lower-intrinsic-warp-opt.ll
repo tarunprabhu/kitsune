@@ -1,8 +1,9 @@
 ; Check the Kitsune's warp index and lane intrinsics get optimized as expected.
 ;
-; RUN: opt -passes='kit-lower-warp-intrinsics,default<O2>' -S %s \
+; RUN: %kit-enc --tapir=cuda %s \
+; RUN:     | opt -passes='emb-lower-warp-intrinsics,emb-optimize' -emb-O2 \
+; RUN:     | %kit-mbc -S -o - \
 ; RUN:     | FileCheck %s
-;
 
 ; CHECK-LABEL: @id1
 ; CHECK-NEXT: %[[X:.+]] = tail call i32 @llvm.kit.gpu.thread.id.x(i32 2)

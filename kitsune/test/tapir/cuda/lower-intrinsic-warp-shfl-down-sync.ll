@@ -1,7 +1,8 @@
 ; Check the Kitsune's warp.shfl.down.sync intrinsics are lowered as expected.
 ;
-; RUN: opt -passes=kit-lower-warp-intrinsics -S %s \
-; RUN:     --tapir=cuda \
+; RUN: %kit-enc --tapir=cuda %s \
+; RUN:     | opt -passes='emb-lower-warp-intrinsics' \
+; RUN:     | %kit-mbc -S -o - \
 ; RUN:     | FileCheck %s
 
 ; CHECK-LABEL: @i32
