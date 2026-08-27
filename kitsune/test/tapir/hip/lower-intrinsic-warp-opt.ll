@@ -1,8 +1,10 @@
 ; Check the Kitsune's warp index and lane intrinsics get optimized as expected.
 ;
-; RUN: opt -passes='kit-lower-warp-intrinsics,default<O1>' -S %s \
-; RUN:     --tapir=hip --tapir-hip-arch=gfx1103 \
-; RUN:     --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
+; RUN: %kit-enc --tapir=hip %s \
+; RUN:     | opt -passes='emb-lower-warp-intrinsics,emb-optimize' -emb-O2 \
+; RUN:           --tapir=hip --tapir-hip-arch=gfx1103 \
+; RUN:           --tapir-hip-runtime-bcs=%S/input/libdevice.ll \
+; RUN:     | %kit-mbc -S -o - \
 ; RUN:     | FileCheck %s
 
 ; CHECK-LABEL: @id1

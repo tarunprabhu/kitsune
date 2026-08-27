@@ -1,7 +1,9 @@
 ; Check the Kitsune's warp.lane intrinsics are lowered as expected.
 ;
-; RUN: opt -passes=kit-lower-warp-intrinsics -S %s \
-; RUN:     --tapir=hip --tapir-hip-arch=gfx90a \
+; RUN: %kit-enc --tapir=hip %s \
+; RUN:     | opt -passes=emb-lower-warp-intrinsics \
+; RUN:           --tapir=hip --tapir-hip-arch=gfx90a \
+; RUN:     | %kit-mbc -S -o - \
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: define void @f() {

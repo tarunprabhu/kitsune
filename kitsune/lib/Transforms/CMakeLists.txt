@@ -3,6 +3,7 @@ add_llvm_component_library(LLVMKitTransforms
   EarlyAnnotate.cpp
   EmbLinkLibDeviceBitcode.cpp
   EmbLowerKitIntrinsicsEarly.cpp
+  EmbLowerKitWarpIntrinsics.cpp
   EmbPrepare.cpp
   EmbPrepareCuda.cpp
   EmbPrepareHip.cpp
@@ -15,7 +16,6 @@ add_llvm_component_library(LLVMKitTransforms
   Instrument.cpp
   LoopWrapping.cpp
   LowerKitReduceIntrinsics.cpp
-  LowerKitWarpIntrinsics.cpp
   NormalizeLoopControlBlocks.cpp
   PreLowerAnnotate.cpp
   PrefetchForDevice.cpp
