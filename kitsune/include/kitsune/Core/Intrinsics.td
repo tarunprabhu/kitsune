@@ -344,6 +344,81 @@ def int_kit_gpu_warp_shfl_down_sync
   let Doc = KitGPUWarpShflDownSyncDoc;
 }
 
+// Perform a simple reduction on a GPU where threads accumulate their
+// contribution to the final result independently of all other threads.
+def int_kit_gpu_reduce_direct
+    : KitIntrinsic<[],
+                   [llvm_i32_ty,     // TTID
+                    llvm_i32_ty,     // The reduction operator enum value
+                    llvm_ptr_ty,     // Pointer to the reduced result
+                    llvm_i32_ty,     // Size, in bytes, of the reduced result
+                    llvm_any_ty,     // The value to pass to the reducer
+                    llvm_any_ty,     // The unit value for the reducer
+                    llvm_ptr_ty,     // The reducer function
+                    llvm_vararg_ty], // Additional reducer arguments
+                   [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>,
+                    NonNull<ArgIndex<2>>, ImmArg<ArgIndex<3>>,
+                    NonNull<ArgIndex<6>>, ReadOnly<ArgIndex<6>>,
+                    IntrConvergent, IntrNoFree, IntrWillReturn]> {
+  let Doc = KitGPUReduceDirectDoc;
+}
+
+// Perform a reduction on a GPU using shared memory.
+def int_kit_gpu_reduce_shared_memory
+    : KitIntrinsic<[],
+                   [llvm_i32_ty,     // TTID
+                    llvm_i32_ty,     // The reduction operator enum value
+                    llvm_ptr_ty,     // Pointer to the reduced result
+                    llvm_i32_ty,     // Size, in bytes, of the reduced result
+                    llvm_any_ty,     // The value to pass to the reducer
+                    llvm_any_ty,     // The unit value for the reducer
+                    llvm_ptr_ty,     // The reducer function
+                    llvm_vararg_ty], // Additional reducer arguments
+                   [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>,
+                    NonNull<ArgIndex<2>>, ImmArg<ArgIndex<3>>,
+                    NonNull<ArgIndex<6>>, ReadOnly<ArgIndex<6>>,
+                    IntrConvergent, IntrNoFree, IntrWillReturn]> {
+  let Doc = KitGPUReduceSharedMemoryDoc;
+}
+
+// Perform a reduction on a GPU using the warp shuffle technique without any
+// shared memory.
+def int_kit_gpu_reduce_warp_shuffle
+    : KitIntrinsic<[],
+                   [llvm_i32_ty,     // TTID
+                    llvm_i32_ty,     // The reduction operator enum value
+                    llvm_ptr_ty,     // Pointer to the reduced result
+                    llvm_i32_ty,     // Size, in bytes, of the reduced result
+                    llvm_any_ty,     // The value to pass to the reducer
+                    llvm_any_ty,     // The unit value for the reducer
+                    llvm_ptr_ty,     // The reducer function
+                    llvm_vararg_ty], // Additional reducer arguments
+                   [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>,
+                    NonNull<ArgIndex<2>>, ImmArg<ArgIndex<3>>,
+                    NonNull<ArgIndex<6>>, ReadOnly<ArgIndex<6>>,
+                    IntrConvergent, IntrNoFree, IntrWillReturn]> {
+  let Doc = KitGPUReduceWarpShuffleDoc;
+}
+
+// Perform a reduction on a GPU using the warp shuffle technique together with
+// shared memory
+def int_kit_gpu_reduce_warp_shuffle_shared_memory
+    : KitIntrinsic<[],
+                   [llvm_i32_ty,     // TTID
+                    llvm_i32_ty,     // The reduction operator enum value
+                    llvm_ptr_ty,     // Pointer to the reduced result
+                    llvm_i32_ty,     // Size, in bytes, of the reduced result
+                    llvm_any_ty,     // The value to pass to the reducer
+                    llvm_any_ty,     // The unit value for the reducer
+                    llvm_ptr_ty,     // The reducer function
+                    llvm_vararg_ty], // Additional reducer arguments
+                   [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>,
+                    NonNull<ArgIndex<2>>, ImmArg<ArgIndex<3>>,
+                    NonNull<ArgIndex<6>>, ReadOnly<ArgIndex<6>>,
+                    IntrConvergent, IntrNoFree, IntrWillReturn]> {
+  let Doc = KitGPUReduceWarpShuffleSharedMemoryDoc;
+}
+
 // Get the number of compute units available to a GPU tapir target.
 def int_kit_gpu_num_compute_units
     : KitIntrinsic<[llvm_i64_ty], [llvm_i32_ty], [ImmArg<ArgIndex<0>>]> {

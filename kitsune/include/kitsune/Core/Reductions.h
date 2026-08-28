@@ -74,7 +74,7 @@ enum class ReduceOp : uint32_t {
 /// is erased, this object will no longer be valid.
 class ReductionInfo {
 public:
-  CallBase *call = nullptr; ///< Call to the kit_reduce_0 intrinsic
+  CallInst *call = nullptr; ///< The call to a reduce intrinsic
   TTID tt;                  ///< The TTID of the tapir reduction loop
   ReduceOp reduceOp;        ///< The reduction operator
   Value *dest = nullptr;    ///< The destination for the reduced value
@@ -84,16 +84,26 @@ public:
   Value *reducer = nullptr; ///< The reducer function
 
 public:
-  ReductionInfo(CallBase *call);
+  ReductionInfo(CallInst *call);
 
   /// Get the operand corresponding to the tapir target in the call.
-  Value *getTTV() const;
+  Value *getTTV() const { return call->getArgOperand(0); }
 
   /// Get the operand corresponding to the reduce operator in the call.
-  Value *getReduceOpV() const;
+  Value *getReduceOpV() const { return call->getArgOperand(1); }
 
   /// Get the operand corresponding to the element size in the call.
-  Value *getElemSizeV() const;
+  Value *getElemSizeV() const { return call->getArgOperand(3); }
+
+  /// Get the type of the value being reduced. This simply returns the type of
+  /// the value being reduced. If we ever support pointer operands here, the
+  /// result of this function will not be correct since we will almost
+  /// certainly be reducing the pointee in such cases.
+  Type *getType() const { return value->getType(); }
+
+  /// Get the overload types needed by this intrinsic. This is useful when
+  /// creating an equivalent call to this intrinsic.
+  SmallVector<Type *, 2> getOverloadTypes() const;
 
   /// Get the extra arguments that are to be passed to the reducer function.
   SmallVector<Value *, 0> getExtraArgs() const;

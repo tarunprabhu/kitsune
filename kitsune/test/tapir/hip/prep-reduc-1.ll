@@ -1,50 +1,83 @@
 ; Check that a simple reduction loop of depth 1 is prepared as expected.
 ;
-; RUN: opt --tapir=hip --passes=kit-prepare -S %s | FileCheck %s
+; By default, the WarpShuffleOnly strategy is used for GPU reductions.
 ;
-; CHECK-LABEL: @f
-; CHECK-SAME: i64 %[[N:[^)]+]]
-; CHECK: [[ENTRY:.+]]:
-; CHECK: %[[RESULT:.+]] = alloca i32
-; CHECK: %[[SYNCREG:.+]] = tail call token @llvm.syncregion.start()
-; CHECK-NEXT: %[[GLOBAL:.+]] = tail call noalias ptr @llvm.kit.gpu.malloc(i32 4, i64 4)
-; CHECK-NEXT: store i32 0, ptr %[[GLOBAL]]
-; CHECK-NEXT: br label %[[HEADER:.+]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[HEADER]]:
-; CHECK-NEXT: %[[IV:.+]] = phi i64
-; CHECK-SAME: [ 0, %[[ENTRY]] ],
-; CHECK-SAME: [ %[[INC:.+]], %[[LATCH:.+]] ]
-; CHECK-NEXT: detach within %[[SYNCREG]], label %[[BODY:.+]], label %[[LATCH]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[BODY]]:
-; CHECK-NEXT: %[[LOCAL:.+]] = alloca [4 x i8]
-; CHECK-NEXT: store i32 0, ptr %[[LOCAL]]
-; CHECK-NEXT: %[[TRUNC:.+]] = trunc i64 %[[IV]] to i32
-; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0
-; CHECK-SAME: i32 4
-; CHECK-SAME: i32 5
-; CHECK-SAME: ptr %[[LOCAL]]
-; CHECK-SAME: i32 %[[TRUNC]]
-; CHECK-NEXT: %[[VALUE:.+]] = load i32, ptr %[[LOCAL]]
-; CHECK-NEXT: atomicrmw add ptr %[[GLOBAL]], i32 %[[VALUE]] monotonic
-; CHECK-NEXT: reattach within %[[SYNCREG]], label %[[LATCH]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[LATCH]]:
-; CHECK-NEXT: %[[INC:.+]] = add i64 %[[IV]], 1
-; CHECK-NEXT: %[[CMP:.+]] = icmp eq i64 %[[INC]], %[[N]]
-; CHECK-NEXT: br i1 %[[CMP]], label %[[EXIT:.+]], label %[[HEADER]],
-; CHECK-SAME: !llvm.loop ![[LOOP:[0-9]+]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[EXIT]]:
-; CHECK-NEXT: call void @llvm.kit.gpu.memcpy.dtoh(i32 4, ptr %[[RESULT]], ptr %[[GLOBAL]], i64 4)
-; CHECK-NEXT: call void @llvm.kit.gpu.free(i32 4, ptr %[[GLOBAL]])
-; CHECK-NEXT: sync within %[[SYNCREG]],
+; RUN: opt --passes=kit-prepare -S %s \
+; RUN:     | FileCheck %s --check-prefixes=ALL,WSHF
 ;
-; CHECK-DAG: ![[TARGET:.+]] = !{!"tapir.loop.target", i32 4}
-; CHECK-DAG: ![[REDUCTION:.+]] = !{!"tapir.loop.reduction"}
-; CHECK-DAG: ![[PREPARED:.+]] = !{!"tapir.loop.prepared"}
-; CHECK-DAG: ![[LOOP]] = distinct !{![[LOOP]], ![[REDUCTION]], ![[TARGET]], ![[PREPARED]]}
+; Otherwise, a reduce mode can be specified explicitly.
+;
+; RUN: opt --passes=kit-prepare --tapir-gpu-reduce-mode=direct -S %s \
+; RUN:     | FileCheck %s --check-prefixes=ALL,DIRECT
+;
+; RUN: opt --passes=kit-prepare --tapir-gpu-reduce-mode=mem -S %s \
+; RUN:     | FileCheck %s --check-prefixes=ALL,MEM
+;
+; RUN: opt --passes=kit-prepare --tapir-gpu-reduce-mode=wshf -S %s \
+; RUN:     | FileCheck %s --check-prefixes=ALL,WSHF
+;
+; RUN: opt --passes=kit-prepare --tapir-gpu-reduce-mode=wshfmem -S %s \
+; RUN:     | FileCheck %s --check-prefixes=ALL,WSHFMEM
+;
+; ------------------------------------------------------------------------------
+
+; ALL-LABEL: @f
+; ALL-SAME: i64 %[[N:[^)]+]]
+; ALL: [[ENTRY:.+]]:
+; ALL: %[[RESULT:.+]] = alloca i32
+; ALL: %[[SYNCREG:.+]] = tail call token @llvm.syncregion.start()
+; ALL-NEXT: %[[GLOBAL:.+]] = tail call noalias ptr @llvm.kit.gpu.malloc(i32 4, i64 4)
+; ALL-NEXT: %[[INIT:.+]] = load i32, ptr %[[RESULT]]
+; ALL-NEXT: call {{.+}} @llvm.kit.gpu.memset.i32(i32 4, ptr %[[GLOBAL]], i64 1, i32 %[[INIT]])
+; ALL-NEXT: br label %[[HEADER:.+]]
+; ALL-EMPTY:
+; ALL-NEXT: [[HEADER]]:
+; ALL-NEXT: %[[IV:.+]] = phi i64
+; ALL-SAME: [ 0, %[[ENTRY]] ],
+; ALL-SAME: [ %[[INC:.+]], %[[LATCH:.+]] ]
+; ALL-NEXT: detach within %[[SYNCREG]], label %[[BODY:.+]], label %[[LATCH]]
+; ALL-EMPTY:
+; ALL-NEXT: [[BODY]]:
+; ALL-NEXT: %[[LOCAL:.+]] = alloca [4 x i8]
+; ALL-NEXT: store i32 0, ptr %[[LOCAL]]
+; ALL-NEXT: %[[TRUNC:.+]] = trunc i64 %[[IV]] to i32
+; ALL-NEXT: call {{.+}} @llvm.kit.reduce.0
+; ALL-SAME: i32 4
+; ALL-SAME: i32 5
+; ALL-SAME: ptr %[[LOCAL]]
+; ALL-SAME: i32 4
+; ALL-SAME: i32 %[[TRUNC]]
+; ALL-SAME: i32 0
+; ALL-SAME: ptr @sum
+; ALL-NEXT: %[[VALUE:.+]] = load i32, ptr %[[LOCAL]]
+; DIRECT-NEXT: call {{.+}} @llvm.kit.gpu.reduce.direct
+; MEM-NEXT: call {{.+}} @llvm.kit.gpu.reduce.shared.memory
+; WSHF-NEXT: call {{.+}} @llvm.kit.gpu.reduce.warp.shuffle
+; WSHFMEM-NEXT: call {{.+}} @llvm.kit.gpu.reduce.warp.shuffle.shared.memory
+; ALL-SAME: i32 4
+; ALL-SAME: i32 5
+; ALL-SAME: ptr %[[GLOBAL]]
+; ALL-SAME: i32 4
+; ALL-SAME: i32 %[[VALUE]]
+; ALL-SAME: i32 0
+; ALL-SAME: ptr @sum
+; ALL-NEXT: reattach within %[[SYNCREG]], label %[[LATCH]]
+; ALL-EMPTY:
+; ALL-NEXT: [[LATCH]]:
+; ALL-NEXT: %[[INC:.+]] = add i64 %[[IV]], 1
+; ALL-NEXT: %[[CMP:.+]] = icmp eq i64 %[[INC]], %[[N]]
+; ALL-NEXT: br i1 %[[CMP]], label %[[EXIT:.+]], label %[[HEADER]],
+; ALL-SAME: !llvm.loop ![[LOOP:[0-9]+]]
+; ALL-EMPTY:
+; ALL-NEXT: [[EXIT]]:
+; ALL-NEXT: call void @llvm.kit.gpu.memcpy.dtoh(i32 4, ptr %[[RESULT]], ptr %[[GLOBAL]], i64 4)
+; ALL-NEXT: call void @llvm.kit.gpu.free(i32 4, ptr %[[GLOBAL]])
+; ALL-NEXT: sync within %[[SYNCREG]],
+;
+; ALL-DAG: ![[TARGET:.+]] = !{!"tapir.loop.target", i32 4}
+; ALL-DAG: ![[REDUCTION:.+]] = !{!"tapir.loop.reduction"}
+; ALL-DAG: ![[PREPARED:.+]] = !{!"tapir.loop.prepared"}
+; ALL-DAG: ![[LOOP]] = distinct !{![[LOOP]], ![[REDUCTION]], ![[TARGET]], ![[PREPARED]]}
 
 declare void @sum(ptr %res, i32 %v)
 

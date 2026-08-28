@@ -35,7 +35,7 @@ static SmallVector<ReductionInfo, 1> collectReductions(Loop &loop) {
 
   for (BasicBlock *bb : loop.getBlocks())
     for (Instruction &inst : *bb)
-      if (auto *call = dyn_cast<CallBase>(&inst))
+      if (auto *call = dyn_cast<CallInst>(&inst))
         if (call->getIntrinsicID() == Intrinsic::kit_reduce_0)
           reductions.emplace_back(call);
 
@@ -64,7 +64,7 @@ AllocaInst *llvm::detail::createLocalResult(IRBuilder<> &builder,
   assert(getModule(builder) &&
          "Insert point of builder must be set to a basic block in a module");
 
-  Value *value = redxn.value;
+  Type *type = redxn.getType();
   Value *unit = redxn.unit;
   unsigned elemSize = redxn.elemSize;
 
@@ -81,9 +81,8 @@ AllocaInst *llvm::detail::createLocalResult(IRBuilder<> &builder,
 
   AllocaInst *result = builder.CreateAlloca(resultTy, nullptr, "reduc.partial");
   if (initialize) {
-    Type *valueTy = value->getType();
-    if (isa<PointerType>(valueTy)) {
-      Align align = getTypeAlignment(*getModule(builder), valueTy);
+    if (isa<PointerType>(type)) {
+      Align align = getTypeAlignment(*getModule(builder), type);
       builder.CreateMemCpy(result, align, unit, align, elemSize);
     } else {
       builder.CreateStore(unit, result);
@@ -144,6 +143,11 @@ bool llvm::detail::checkReductionLoop(TapirLoopInfo &tapirLoop,
   if (!isTopLevelTapirLoop(loop))
     return complain(loop, DiagID::ErrGeneric,
                     "tapir reduction loop must be a top-level loop");
+
+  for (const ReductionInfo &redxn : collectReductions(*tapirLoop.getLoop()))
+    if (redxn.getType()->isPointerTy())
+      return complain(loop, DiagID::ErrNYI,
+                      "Reductions with values passed by pointer");
 
   return true;
 }

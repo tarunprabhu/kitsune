@@ -857,6 +857,84 @@ garbage results.
 }];
 }
 
+def KitGPUReduceDirectDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [
+      KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
+      KitDocParam<"op", "The reduction operator enum value">,
+      KitDocParam<"size", "The size (in bytes) of the reduced result">,
+      KitDocParam<"value", "The thread-local value to reduce">,
+      KitDocParam<"unit", "The unit value for the reducer">,
+      KitDocParam<"reducer", "The reducer function">,
+      KitDocParam<"extra...", "Additional parameters to pass to `reducer`">
+  ];
+  let Descr = [{
+Simple technique where every GPU thread accumulates its contribution into the
+final result directly using an atomic operation. There is no other direct
+coordination with any other thread.
+}];
+}
+
+def KitGPUReduceSharedMemoryDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [
+      KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
+      KitDocParam<"op", "The reduction operator enum value">,
+      KitDocParam<"size", "The size (in bytes) of the reduced result">,
+      KitDocParam<"value", "The thread-local value to reduce">,
+      KitDocParam<"unit", "The unit value for the reducer">,
+      KitDocParam<"reducer", "The reducer function">,
+      KitDocParam<"extra...", "Additional parameters to pass to `reducer`">
+  ];
+  let Descr = [{
+Reduce the values in a warp using shared memory. Each thread in a thread block
+writes its contribution to the final result into a dedicated location in
+shared memory. All threads in the block then coordinate to reduce these values
+to a single value. A single thread in the block will accumulate this value into
+the final result using an atomic operation.
+}];
+}
+
+def KitGPUReduceWarpShuffleDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [
+      KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
+      KitDocParam<"op", "The reduction operator enum value">,
+      KitDocParam<"size", "The size (in bytes) of the reduced result">,
+      KitDocParam<"value", "The thread-local value to reduce">,
+      KitDocParam<"unit", "The unit value for the reducer">,
+      KitDocParam<"reducer", "The reducer function">,
+      KitDocParam<"extra...", "Additional parameters to pass to `reducer`">
+  ];
+  let Descr = [{
+Reduce the values in a warp using the warp shuffle technique. This intrinsic is
+run on all threads in warp on the GPU. However, only the value returned by the
+thread in lane 0 (the first lane) of the warp will be the value reduced across
+all threads in the warp.
+}];
+}
+
+def KitGPUReduceWarpShuffleSharedMemoryDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [
+      KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
+      KitDocParam<"op", "The reduction operator enum value">,
+      KitDocParam<"size", "The size (in bytes) of the reduced result">,
+      KitDocParam<"value", "The thread-local value to reduce">,
+      KitDocParam<"unit", "The unit value for the reducer">,
+      KitDocParam<"reducer", "The reducer function">,
+      KitDocParam<"extra...", "Additional parameters to pass to `reducer`">
+  ];
+  let Descr = [{
+Reduce the values in a warp using a combination of warp shuffles and shared
+memory. The threads in a warp reduce their contributions to the final result
+to a single per-warp value. This is written to a dedicated location in shared
+memory. Following this, all threads in the block coordinate to reduce these
+values from shared memory to a single value for the block. This is accumulated
+into the final result using an atomic operation.
+}];
+}
+
 def KitAsyncGPULaunchKernelDoc : KitDocIntrinsic {
   let Category = KitDocCatGPU;
   let ParamDocs = [

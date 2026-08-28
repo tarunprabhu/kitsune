@@ -63,6 +63,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "PrepareReductionLoops.h"
+#include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/Diagnostics.h"
 #include "kitsune/Core/IRBuilderUtils.h"
 #include "kitsune/Core/LoopAttrs.h"
@@ -70,6 +71,7 @@
 #include "kitsune/Core/ModuleUtils.h"
 #include "kitsune/Core/Reductions.h"
 #include "kitsune/Core/TypeUtils.h"
+#include "kitsune/Support/CommandLineOptions.h"
 #include "llvm/Analysis/DomTreeUpdater.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/MemorySSAUpdater.h"
@@ -94,13 +96,13 @@ enum Strategy {
   // dedicated location in shared memory. These are then reduced into a single
   // value for the block. This is accumulated into the result variable using an
   // atomic operation.
-  SharedMemoryOnly,
+  SharedMemory,
 
   // Each thread in a warp computes its contribution to the result, which are
   // the reduced to a single value for the warp using warp shuffles. A single
   // thread in the warp will accumulate this directly into the result variable
   // using an atomic operation.
-  WarpShuffleOnly,
+  WarpShuffle,
 
   // Each thread in a warp computes its contribution to the result, which are
   // the reduced to a single value for the warp using warp shuffles. A single
@@ -160,64 +162,26 @@ public:
 
 } // namespace
 
+static cl::opt<Strategy> clStrategy(
+    "tapir-gpu-reduce-mode",
+    cl::desc("The strategy to use for tapir reduction loops on GPUs"),
+    cl::init(Strategy::WarpShuffle), cl::value_desc("strategy"),
+    cl::cat(cl::catKitClOpts),
+    cl::values(clEnumValN(Strategy::Direct, "direct", ""),
+               clEnumValN(Strategy::SharedMemory, "mem", ""),
+               clEnumValN(Strategy::WarpShuffle, "wshf", ""),
+               clEnumValN(Strategy::WarpShuffleWithSharedMemory, "wshfmem",
+                          "")));
+
 // Perform some analysis on the loop given the reductions that are performed in
 // it and determine which reduction strategy to use.
 Strategy PrepareReductionLoopGPU::chooseStrategy(
     const Loop &loop, const SmallVectorImpl<ReductionInfo> &redxns) {
+  if (clStrategy.getNumOccurrences())
+    return clStrategy;
+
   // TODO: Implement this.
-  return Strategy::Direct;
-}
-
-void PrepareReductionLoopGPU::reduceIntoGlobalResult(
-    IRBuilder<> &builder, Loop &loop, Value *globalResult, Value *value,
-    const ReductionInfo &redxn) {
-  std::optional<AtomicRMWInst::BinOp> atomicOp = getAtomicOp(redxn.reduceOp);
-  if (!atomicOp)
-    emitDiagnostic(loop, DiagID::ErrNYI,
-                   "Reduction operator not supported by AtomicRMWInst");
-
-  Align align = getPointerAlignment(*getModule(builder));
-  builder.CreateAtomicRMW(*atomicOp, globalResult, value, align,
-                          AtomicOrdering::Monotonic);
-}
-
-// Every thread will accumulate its contribution to the reduction directly
-// into the final result variable using an atomic operation.
-void PrepareReductionLoopGPU::reduceDirect(IRBuilder<> &builder, Loop &loop,
-                                           Value *globalResult, Value *value,
-                                           const ReductionInfo &redxn) {
-  reduceIntoGlobalResult(builder, loop, globalResult, value, redxn);
-}
-
-// Every thread in a block will write its contribution to the final result into
-// a dedicated location in shared memory. All of these elements will then be
-// reduced into a single value for the block. This value will be accumulated
-// into the global result using an atomic operation.
-void PrepareReductionLoopGPU::reduceSharedMemoryOnly(
-    IRBuilder<> &builder, Loop &loop, Value *globalResult, Value *value,
-    const ReductionInfo &redxn) {
-  llvm_unreachable("NOT YET IMPLEMENTED: reduceSharedMemoryOnly");
-}
-
-// The contributions of each thread in a warp will be reduced to a warp-level
-// contribution using the warp shuffle technique. A single thread in a each
-// warp will write accumulate this contribution directly into the global result
-// using an atomic operation.
-void PrepareReductionLoopGPU::reduceWarpShuffleOnly(
-    IRBuilder<> &builder, Loop &loop, Value *globalResult, Value *value,
-    const ReductionInfo &redxn) {
-  llvm_unreachable("NOT YET IMPLEMENTED: reduceWarpShuffleOnly");
-}
-
-// The contributions of each thread in a warp will be reduced to a warp-level
-// contribution using the warp shuffle technique. A single thread in a each
-// warp will write this contribution to a dedicated location in shared memory.
-// The values will then be reduced to into a single value for the block. This
-// value will be accumulated into the global result using an atomic operation.
-void PrepareReductionLoopGPU::reduceWarpShuffleWithSharedMemory(
-    IRBuilder<> &builder, Loop &loop, Value *globalResult, Value *value,
-    const ReductionInfo &redxn) {
-  llvm_unreachable("NOT YET IMPLEMENTED: reduceWarpShuffleWithSharedMemory");
+  return Strategy::WarpShuffle;
 }
 
 // Allocate space, on the GPU, where the values being reduced will be
@@ -230,12 +194,25 @@ Value *PrepareReductionLoopGPU::allocGlobalResult(Loop &loop,
   LLVMContext &ctx = getContext(loop);
   Type *i64 = Type::getInt64Ty(ctx);
 
+  Type *type = redxn.getType();
+  Value *dest = redxn.dest;
+  Value *tt = redxn.getTTV();
+  Constant *one = toConstant(1L, ctx);
+
   BasicBlock &bb = *loop.getLoopPreheader();
   IRBuilder<> builder(bb.getTerminator());
+
+  // Allocate memory for the global result and initialize it to the current
+  // value of the final result variable. We could also initialize it to the unit
+  // value, but that would require us to do an additional reduction into the
+  // final result when we return from the GPU. This eliminates the need for that
+  // step.
   Value *sz64 =
       builder.CreateIntCast(redxn.getElemSizeV(), i64, /*isSigned=*/false);
   Value *globalResult = createGPUMalloc(builder, redxn.tt, sz64);
-  builder.CreateStore(redxn.unit, globalResult);
+  Value *globalInit = builder.CreateLoad(type, dest);
+  builder.CreateIntrinsic(Intrinsic::kit_gpu_memset, {type},
+                          {tt, globalResult, one, globalInit});
 
   return globalResult;
 }
@@ -302,9 +279,12 @@ void PrepareReductionLoopGPU::reduceIntoGlobalResult(
     const ReductionInfo &redxn) {
   LLVM_DEBUG(dbgs() << "PrepareReductionGPU: Reduce into global result\n");
 
-  Type *valueTy = redxn.value->getType();
-  if (!isPrimitiveTy(valueTy))
-    emitDiagnostic(loop, DiagID::ErrNYI, "Reducing values passed by pointer");
+  Value *tt = redxn.getTTV();
+  Value *op = redxn.getReduceOpV();
+  Type *type = redxn.value->getType();
+  Value *elemSize = redxn.getElemSizeV();
+  Value *unit = redxn.unit;
+  Value *reducer = redxn.reducer;
 
   // Once control reaches the reattach instruction, we can be certain that the
   // iteration's contribution to the final result has been computed. This will
@@ -314,20 +294,24 @@ void PrepareReductionLoopGPU::reduceIntoGlobalResult(
 
   // Loading from the localResult is the final value that is to be accumulated
   // into the global result.
-  Value *value = builder.CreateLoad(valueTy, localResult);
+  Value *value = builder.CreateLoad(type, localResult);
 
-  switch (strategy) {
-  case Strategy::Direct:
-    return reduceDirect(builder, loop, globalResult, value, redxn);
-  case Strategy::SharedMemoryOnly:
-    return reduceSharedMemoryOnly(builder, loop, globalResult, value, redxn);
-  case Strategy::WarpShuffleOnly:
-    return reduceWarpShuffleOnly(builder, loop, globalResult, value, redxn);
-  case Strategy::WarpShuffleWithSharedMemory:
-    return reduceWarpShuffleWithSharedMemory(builder, loop, globalResult, value,
-                                             redxn);
-  }
-  llvm_unreachable("reduceIntoGlobalResult: Strategy not handled");
+  SmallVector<Type *, 2> overloadTys = redxn.getOverloadTypes();
+  SmallVector<Value *, 8> args = {tt,    op,   globalResult, elemSize,
+                                  value, unit, reducer};
+  args.append(redxn.getExtraArgs());
+
+  auto getIntrinsic = [](Strategy strategy) -> Intrinsic::ID {
+    switch (strategy) {
+    case Strategy::Direct: return Intrinsic::kit_gpu_reduce_direct;
+    case Strategy::SharedMemory: return Intrinsic::kit_gpu_reduce_shared_memory;
+    case Strategy::WarpShuffle: return Intrinsic::kit_gpu_reduce_warp_shuffle;
+    case Strategy::WarpShuffleWithSharedMemory:
+      return Intrinsic::kit_gpu_reduce_warp_shuffle_shared_memory;
+    }
+    llvm_unreachable("reduceIntoGlobalResult: Strategy not handled");
+  };
+  builder.CreateIntrinsic(getIntrinsic(strategy), overloadTys, args);
 }
 
 // Once the reduction has been computed, copy the result from the device to the
@@ -339,12 +323,16 @@ void PrepareReductionLoopGPU::copyGlobalResultToHost(
   LLVMContext &ctx = getContext(loop);
   Type *i64 = Type::getInt64Ty(ctx);
 
+  Value *tt = redxn.getTTV();
+  Value *dest = redxn.dest;
+  Value *elemSize = redxn.getElemSizeV();
+
   BasicBlock &bb = *getExitBlockFromLatch(loop);
   IRBuilder<> builder(bb.getTerminator());
-  Value *sz64 =
-      builder.CreateIntCast(redxn.getElemSizeV(), i64, /*isSigned=*/true);
+
+  Value *sz64 = builder.CreateIntCast(elemSize, i64, /*isSigned=*/true);
   builder.CreateIntrinsic(Intrinsic::kit_gpu_memcpy_dtoh,
-                          {redxn.getTTV(), redxn.dest, globalResult, sz64});
+                          {tt, dest, globalResult, sz64});
 }
 
 // Free the result variable on the device into which the result was computed.
@@ -352,10 +340,11 @@ void PrepareReductionLoopGPU::freeGlobalResult(Loop &loop, Value *globalResult,
                                                const ReductionInfo &redxn) {
   LLVM_DEBUG(dbgs() << "PrepareReductionGPU: Free partial buffer\n");
 
+  Value *tt = redxn.getTTV();
+
   BasicBlock &bb = *getExitBlockFromLatch(loop);
   IRBuilder<> builder(bb.getTerminator());
-  builder.CreateIntrinsic(Intrinsic::kit_gpu_free,
-                          {redxn.getTTV(), globalResult});
+  builder.CreateIntrinsic(Intrinsic::kit_gpu_free, {tt, globalResult});
 }
 
 bool PrepareReductionLoopGPU::run(

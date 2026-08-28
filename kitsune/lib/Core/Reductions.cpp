@@ -19,7 +19,7 @@
 
 using namespace llvm;
 
-ReductionInfo::ReductionInfo(CallBase *call) : call(call) {
+ReductionInfo::ReductionInfo(CallInst *call) : call(call) {
   tt = *fromConstant<TTID>(*cast<Constant>(call->getArgOperand(0)));
   reduceOp = *fromConstant<ReduceOp>(*cast<Constant>(call->getArgOperand(1)));
   dest = call->getArgOperand(2);
@@ -29,11 +29,13 @@ ReductionInfo::ReductionInfo(CallBase *call) : call(call) {
   reducer = call->getArgOperand(6);
 }
 
-Value *ReductionInfo::getTTV() const { return call->getArgOperand(0); }
-
-Value *ReductionInfo::getReduceOpV() const { return call->getArgOperand(1); }
-
-Value *ReductionInfo::getElemSizeV() const { return call->getArgOperand(3); }
+SmallVector<Type *,2> ReductionInfo::getOverloadTypes() const {
+  Type *type = value->getType();
+  SmallVector<Type *, 2> overloadTypes = {type, type};
+  for (Value* arg : getExtraArgs())
+    overloadTypes.push_back(arg->getType());
+  return overloadTypes;
+}
 
 SmallVector<Value *, 0> ReductionInfo::getExtraArgs() const {
   SmallVector<Value *, 0> extra;
@@ -94,16 +96,16 @@ template <> std::string llvm::toString(const ReduceOp &op) {
   case ReduceOp::FAdd: return "add";
   case ReduceOp::Mul:
   case ReduceOp::FMul: return "mul";
-  case ReduceOp::FMax:
-  case ReduceOp::SMax:
-  case ReduceOp::UMax: return "max";
+  case ReduceOp::FMax: return "fmax";
+  case ReduceOp::SMax: return "smax";
+  case ReduceOp::UMax: return "umax";
   case ReduceOp::FMaximum: return "maximum";
-  case ReduceOp::FMaximumNum: return "maximum_num";
-  case ReduceOp::FMin:
-  case ReduceOp::SMin:
+  case ReduceOp::FMaximumNum: return "maximumnum";
+  case ReduceOp::FMin: return "fmin";
+  case ReduceOp::SMin: return "smin";
   case ReduceOp::UMin: return "min";
   case ReduceOp::FMinimum: return "minimum";
-  case ReduceOp::FMinimumNum: return "minimum_num";
+  case ReduceOp::FMinimumNum: return "minimumnum";
   }
   llvm_unreachable("toString: Reduction operator not handled");
 }
