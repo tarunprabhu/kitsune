@@ -330,6 +330,63 @@ static bool lowerMobileInit(CallInst &call, IRBuilder<> &builder) {
   return lowerCall(call, rtFunc, builder);
 }
 
+static bool lowerGPUMemset(CallInst &call, IRBuilder<> &builder) {
+  auto getMemsetFuncCuda = [](CallInst &call) -> KitFunc {
+    Value *init = call.getArgOperand(3);
+    if (isBool(init))
+      return KitFunc::kitcuda_memset_bool;
+    else if (isInt8(init))
+      return KitFunc::kitcuda_memset_i8;
+    else if (isInt16(init))
+      return KitFunc::kitcuda_memset_i16;
+    else if (isInt32(init))
+      return KitFunc::kitcuda_memset_i32;
+    else if (isInt64(init))
+      return KitFunc::kitcuda_memset_i64;
+    else if (isFloat(init))
+      return KitFunc::kitcuda_memset_float;
+    else if (isDouble(init))
+      return KitFunc::kitcuda_memset_double;
+    else if (isPointer(init))
+      return KitFunc::kitcuda_memset_from;
+    else
+      llvm_unreachable("Unsupported initializer type");
+  };
+
+  auto getMemsetFuncHip = [](CallInst &call) -> KitFunc {
+    Value *init = call.getArgOperand(3);
+    if (isBool(init))
+      return KitFunc::kithip_memset_bool;
+    else if (isInt8(init))
+      return KitFunc::kithip_memset_i8;
+    else if (isInt16(init))
+      return KitFunc::kithip_memset_i16;
+    else if (isInt32(init))
+      return KitFunc::kithip_memset_i32;
+    else if (isInt64(init))
+      return KitFunc::kithip_memset_i64;
+    else if (isFloat(init))
+      return KitFunc::kithip_memset_float;
+    else if (isDouble(init))
+      return KitFunc::kithip_memset_double;
+    else if (isPointer(init))
+      return KitFunc::kithip_memset_from;
+    else
+      llvm_unreachable("Unsupported initializer type");
+  };
+
+  auto getMemsetFunc = [&](CallInst &call) -> KitFunc {
+    switch (*getTTIDFromKitIntrCall(call)) {
+    case TTID::Cuda: return getMemsetFuncCuda(call);
+    case TTID::Hip: return getMemsetFuncHip(call);
+    default: llvm_unreachable("lowerGPUInit: TTID not handled");
+    }
+  };
+
+  FunctionCallee rtFunc = getRuntimeFunc(call, getMemsetFunc(call));
+  return lowerCall(call, rtFunc, builder);
+}
+
 // Replace the Kitsune intrinsic called in the given instruction with an
 // appropriate runtime function. The arguments passed to the intrinsic will
 // be passed to the runtime function. Always returns true.
@@ -357,8 +414,8 @@ static bool lowerKitIntrinsic(CallInst &call) {
     case Intrinsic::kit_async_cpu_threads_launch:
     case Intrinsic::kit_cpu_threads_launch:
       return lowerLaunchThreads(call, builder);
-    case Intrinsic::kit_mobile_init: //
-      return lowerMobileInit(call, builder);
+    case Intrinsic::kit_gpu_memset: return lowerGPUMemset(call, builder);
+    case Intrinsic::kit_mobile_init: return lowerMobileInit(call, builder);
     default:
       llvm_unreachable(
           "lowerKitIntrinsic: Intrinsic requiring custom lowering not handled");

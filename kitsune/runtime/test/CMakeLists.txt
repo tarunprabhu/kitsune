@@ -31,7 +31,7 @@ function(add_kitrt_systest source)
     ${KITRT_SOURCE_DIR}
     ${KITRT_SOURCE_DIR}/test/include)
   if (ARG_INCDIRS)
-    target_include_directories(${target} PUBLIC ${ARG_INCDIRS})
+    target_include_directories(${target} PUBLIC ${ARG_INCDIRS} SYSTEM)
   endif ()
 
   target_link_libraries(${target} PUBLIC ${KITRT_DSO})

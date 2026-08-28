@@ -154,9 +154,7 @@ extern "C" [[gnu::malloc]] void *__kithip_malloc(uint64_t bytes) {
   return ptr;
 }
 
-extern "C" void __kithip_free(void *ptr) {
-  HIP_SAFE_CALL(hipFree(ptr));
-}
+extern "C" void __kithip_free(void *ptr) { HIP_SAFE_CALL(hipFree(ptr)); }
 
 // Allocate a block of managed memory (UVM) of 'size' bytes.
 extern "C" [[gnu::malloc]] void *__kithip_mem_alloc_managed(size_t size) {
@@ -391,4 +389,49 @@ extern "C" void __kithip_memcpy_sym_to_host(void *hostPtr, void *devPtr,
   assert(size && "kitrt[hip]: requested a 0 byte copy!");
 
   HIP_SAFE_CALL(hipMemcpyDtoH(hostPtr, devPtr, size));
+}
+
+template <typename T> static void memInitImpl(T *buf, uint64_t n, T init) {
+  // FIXME: This is a truly wasteful way of doing this. It might be better to
+  // launch a kernel and directly initialize the buffer on the GPU.
+  T *tmp = new T[n];
+  for (uint64_t i = 0; i < n; ++i)
+    tmp[i] = init;
+
+  HIP_SAFE_CALL(hipMemcpyHtoD(buf, tmp, n * sizeof(T)));
+
+  delete[] tmp;
+}
+
+extern "C" void __kithip_memset_bool(void *buf, uint64_t n, bool init) {
+  memInitImpl((bool *)buf, n, init);
+}
+
+extern "C" void __kithip_memset_i8(void *buf, uint64_t n, int8_t init) {
+  HIP_SAFE_CALL(hipMemsetD8(buf, init, n));
+}
+
+extern "C" void __kithip_memset_i16(void *buf, uint64_t n, int16_t init) {
+  HIP_SAFE_CALL(hipMemsetD16(buf, init, n));
+}
+
+extern "C" void __kithip_memset_i32(void *buf, uint64_t n, int32_t init) {
+  HIP_SAFE_CALL(hipMemsetD32(buf, init, n));
+}
+
+extern "C" void __kithip_memset_i64(void *buf, uint64_t n, int64_t init) {
+  memInitImpl((int64_t *)buf, n, init);
+}
+
+extern "C" void __kithip_memset_float(void *buf, uint64_t n, float init) {
+  HIP_SAFE_CALL(hipMemsetD32(buf, *((unsigned int *)&init), n));
+}
+
+extern "C" void __kithip_memset_double(void *buf, uint64_t n, double init) {
+  memInitImpl((double *)buf, n, init);
+}
+
+extern "C" void __kithip_memset_from(void *buf, uint64_t n, void *obj,
+                                     uint32_t objSize) {
+  FATAL("NOT YET IMPLEMENTED: initialize memory from non-primitive type");
 }

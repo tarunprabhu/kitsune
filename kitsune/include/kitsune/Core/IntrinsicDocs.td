@@ -474,6 +474,29 @@ Free memory that was previously allocated by :ref:`llvm.kit.gpu.malloc`.
 }];
 }
 
+def KitGPUMemsetDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [
+      KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
+      KitDocParam<"ptr", "Pointer to device memory">,
+      KitDocParam<"n", "The number of bytes to initialize">,
+      KitDocParam<"v", "Initializer for each byte">,
+      KitDocParam<"size", "If :code:`v` is a pointer, the size of the pointee">
+  ];
+  let Descr = [{
+Initialize a contiguous block of GPU memory. If :code:`v` is a
+pointer, the optional :code:`size` argument must be provided and will be treated
+as the size of the object pointed to by :code:`v`. This treats the block pointed
+to by :code:`ptr` as a contiguous 1D array of :code:`n` elements. Each element
+of this array will be initialized with :code:`v` if :code:`v` is not a pointer,
+or :code:`*v` if :code:`v` is a pointer.
+
+.. note::
+  Currently, only the following types are supported for the initializer
+  :code:`v`: :code:`i8 i16 i32 i64 float double ptr`.
+}];
+}
+
 def KitGPUSymbolAddressDoc : KitDocIntrinsic {
   let Category = KitDocCatGPU;
   let ParamDocs = [

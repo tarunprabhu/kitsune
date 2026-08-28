@@ -459,6 +459,20 @@ def int_kit_gpu_memcpy_htod
                 RT<Hip, kithip_memcpy_htod>];
 }
 
+// Initialize GPU memory.
+def int_kit_gpu_memset
+    : KitIntrinsic<[],
+                   [llvm_i32_ty,     // TTID
+                    llvm_ptr_ty,     // Pointer to device memory,
+                    llvm_i64_ty,     // Number of bytes to initialize
+                    llvm_any_ty,     // The initial value
+                    llvm_vararg_ty],
+                   [ImmArg<ArgIndex<0>>]> {
+  let Doc = KitGPUMemsetDoc;
+  let AllowParamCast = true;
+  let RequiresCustomLowering = true;
+}
+
 // Issue a prefetch from a device (usually a GPU) to the host.
 def int_kit_async_gpu_prefetch_dtoh
     : KitIntrinsic<[llvm_ptr_ty], // stream
