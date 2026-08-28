@@ -283,6 +283,90 @@ void __kitcuda_memcpy_dtoh(void *hostPtr, uint64_t devicePtr, uint64_t bytes);
 void __kitcuda_memcpy_htod(uint64_t devicePtr, void *hostPtr, uint64_t bytes);
 
 /**
+ * Initialize elements of a contiguous array on the device with a given value.
+ *
+ * @param buf Pointer to the array on the device.
+ * @param n The number of elements to initialize
+ * @param v The initial value.
+ */
+void __kitcuda_memset_bool(void *buf, uint64_t n, bool v);
+
+/**
+ * Initialize elements of a contiguous array on the device with a given value.
+ *
+ * @param buf Pointer to the array on the device.
+ * @param n The number of elements to initialize
+ * @param v The initial value.
+ */
+void __kitcuda_memset_i8(void *buf, uint64_t n, int8_t v);
+
+/**
+ * Initialize elements of a contiguous array on the device with a given value.
+ *
+ * @param buf Pointer to the array on the device.
+ * @param n The number of elements to initialize
+ * @param v The initial value.
+ */
+void __kitcuda_memset_i16(void *buf, uint64_t n, int16_t v);
+/**
+ * Initialize elements of a contiguous array on the device with a given value.
+ *
+ * @param buf Pointer to the array on the device.
+ * @param n The number of elements to initialize
+ * @param v The initial value.
+ */
+void __kitcuda_memset_i32(void *buf, uint64_t n, int32_t v);
+/**
+ * Initialize elements of a contiguous array on the device with a given value.
+ *
+ * @param buf Pointer to the array on the device.
+ * @param n The number of elements to initialize
+ * @param v The initial value.
+ */
+void __kitcuda_memset_i64(void *buf, uint64_t n, int64_t v);
+/**
+ * Initialize elements of a contiguous array on the device with a given value.
+ *
+ * @param buf Pointer to the array on the device.
+ * @param n The number of elements to initialize
+ * @param v The initial value.
+ */
+void __kitcuda_memset_float(void *buf, uint64_t n, float v);
+/**
+ * Initialize elements of a contiguous array on the device with a given value.
+ *
+ * @param buf Pointer to the array on the device.
+ * @param n The number of elements to initialize
+ * @param v The initial value.
+ */
+void __kitcuda_memset_double(void *buf, uint64_t n, double v);
+
+/**
+ * Initialize elements of a contiguous array on the device with an object.
+ *
+ * @param buf Pointer to the array on the device.
+ * @param n The number of elements to initialize
+ * @param obj Pointer to the object.
+ * @param objSize Size, in bytes, of the object.
+ *
+ */
+void __kitcuda_memset_from(void *buf, uint64_t n, void *obj, uint32_t objSize);
+
+/**
+ * Allocate memory on the GPU. This memory is not tracked by Kitsune's runtime.
+ *
+ * @param bytes The number of bytes to allocate
+ */
+[[gnu::malloc]] void *__kitcuda_malloc(uint64_t bytes);
+
+/**
+ * Free GPU memory previously allocated using __kitcuda_malloc
+ *
+ * @param ptr Pointer to the memory to free
+ */
+void __kitcuda_free(void *ptr);
+
+/**
  * Get the number of streaming multiprocessors (SM's) on the default device.
  */
 uint64_t __kitcuda_num_sms(void);

@@ -1,9 +1,5 @@
 set(TESTS
-)
-
-# These tests call functions from cuda directly, and require appropriate include
-# and link options.
-set(TESTS_WITH_CUDA
+  Memset.cpp
 )
 
 # These tests call PAPI's API functions directly, and require appropriate
@@ -12,9 +8,9 @@ set(TESTS_WITH_PAPI
   PAPIInit.cpp
 )
 
-add_kitrt_systests("${TESTS}")
-
-add_kitrt_systests("${TESTS_WITH_CUDA}"
+# We may include kitcuda.h, which currently itself includes the cuda headers,
+# so we have to provide a path where they can be found.
+add_kitrt_systests("${TESTS}"
   INCDIRS ${KITSUNE_CUDA_INCDIRS})
 
 if (KITSUNE_PAPI_ENABLED)
