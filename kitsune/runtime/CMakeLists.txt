@@ -90,6 +90,7 @@ if (KITSUNE_CUDA_ENABLED)
   set (SOURCES
     cuda/kitcuda.cpp
     cuda/dylib_support.cpp
+    cuda/kernels.cu
     cuda/launching.cpp
     cuda/memory.cpp
     cuda/streams.cpp
@@ -115,6 +116,7 @@ if (KITSUNE_HIP_ENABLED)
   set(SOURCES
     hip/kithip.cpp
     hip/dylib_support.cpp
+    hip/kernels.hip
     hip/launching.cpp
     hip/memory.cpp
     hip/streams.cpp
