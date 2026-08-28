@@ -5,8 +5,17 @@
 # license.
 #
 
-cmake_minimum_required(VERSION 3.20)
-project(kitsune C CXX)
+# The minimum version here may be greater than the minimum required by LLVM,
+# but it should never be less than LLVM's required minimum. Support for features
+# required by languages like Cuda, and Hip may only be available in newer
+# versions.
+cmake_minimum_required(VERSION 3.24)
+
+# We don't strictly need to, but we explicitly enable C and C++. Depending on
+# the build configuration, we may need to enable other languages like Cuda and
+# Hip, so this makes everything more explicit.
+project(kitsune
+  LANGUAGES C CXX)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
 
@@ -35,10 +44,10 @@ include(GetClangResourceDir)
 # Kitsune, some, like Cheetah, must be built with Kitsune itself. When doing so,
 # we suppress the checks that the compiler works by setting
 # `-DCMAKE_<LANG>_COMPILER_WORKS=1` in the Cheetah's configuration command. On
-# On systems where clang requires --sysroot to function correctly (such as many
-# HPC clusters with their wonderfully antique system software stack), the
-# compiler checks often fail since they do not set --sysroot. It is reasonable
-# to expect that the clang that was just build works (if it doesn't, the cause
+# systems where clang requires --sysroot to function correctly (such as many HPC
+# clusters with their wonderfully antique system software stack), the compiler
+# checks often fail since they do not set --sysroot. It is reasonable to expect
+# that the clang that was just build works (if it doesn't, the cause should
 # should nearly always be a bug introduced by a Kitsune developer who will,
 # naturally, fix the issue promptly). We ensure that
 # --sysroot=${KITSUNE_SYSROOT} is added to the build commands for such
@@ -381,6 +390,14 @@ if (KITSUNE_CUDA_ENABLED)
 
   list(APPEND KITSUNE_CUDA_INCDIRS "${CUDAToolkit_INCLUDE_DIRS}")
 
+  # libkitrt provides some custom GPU kernels, for which the CUDA language
+  # must be enabled.
+  find_program(KITSUNE_CUDA_NVCC nvcc REQUIRED
+    PATHS ${CUDAToolkit_BIN_DIR}
+    NO_DEFAULT_PATH)
+  set(CMAKE_CUDA_COMPILER ${KITSUNE_CUDA_NVCC})
+  enable_language(CUDA)
+
   # This is expected to be installed on the system, so look for it in the usual
   # places.
   find_library(KITSUNE_CUDA_LIB_CUDA cuda REQUIRED)
@@ -461,10 +478,19 @@ if (KITSUNE_HIP_ENABLED)
   set(KITSUNE_HIP_PREFIX ${ROCM_PATH})
 
   message(STATUS "  Hip prefix: ${KITSUNE_HIP_PREFIX}")
+  message(STATUS "  Hip binary dirs: ${HIP_BIN_INSTALL_DIR}")
   message(STATUS "  Hip include dirs: ${HIP_INCLUDE_DIR}")
   message(STATUS "  Hip library dirs: ${HIP_LIB_INSTALL_DIR}")
 
   list(APPEND KITSUNE_HIP_INCDIRS "${HIP_INCLUDE_DIR}")
+
+  # libkitrt provides some custom GPU kernels, for which the HIP language must
+  # be enabled. Unlike cuda, setting CMAKE_HIP_COMPILER directly is not
+  # allowed.
+  find_program(KITSUNE_HIP_HIPCC hipcc REQUIRED
+    PATHS ${HIP_BIN_INSTALL_DIR}
+    NO_DEFAULT_PATH)
+  enable_language(HIP)
 
   find_library(KITSUNE_HIP_LIB_AMDHIP64 amdhip64 REQUIRED
     PATHS ${HIP_LIB_INSTALL_DIR}

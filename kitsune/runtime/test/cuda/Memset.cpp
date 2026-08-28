@@ -22,19 +22,19 @@ template <typename T> static T max() { return std::numeric_limits<T>::max(); }
 template <typename T> static unsigned test(unsigned n, T init) {
   T *buf = (T *)__kitcuda_malloc(n * sizeof(T));
   if constexpr (std::is_same_v<T, bool>)
-    __kitcuda_memset_bool((T*)buf, n, init);
+    __kitcuda_memset_bool(buf, n, init);
   else if constexpr (std::is_same_v<T, int8_t> || std::is_same_v<T, uint8_t>)
-    __kitcuda_memset_i8((T*)buf, n, init);
+    __kitcuda_memset_i8(buf, n, init);
   else if constexpr (std::is_same_v<T, int16_t> || std::is_same_v<T, uint16_t>)
-    __kitcuda_memset_i16((T*)buf, n, init);
+    __kitcuda_memset_i16(buf, n, init);
   else if constexpr (std::is_same_v<T, int32_t> || std::is_same_v<T, uint32_t>)
-    __kitcuda_memset_i32((T*)buf, n, init);
+    __kitcuda_memset_i32(buf, n, init);
   else if constexpr (std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t>)
-    __kitcuda_memset_i64((T*)buf, n, init);
+    __kitcuda_memset_i64(buf, n, init);
   else if constexpr (std::is_same_v<T, float>)
-    __kitcuda_memset_float((T*)buf, n, init);
+    __kitcuda_memset_float(buf, n, init);
   else if constexpr (std::is_same_v<T, double>)
-    __kitcuda_memset_double((T*)buf, n, init);
+    __kitcuda_memset_double(buf, n, init);
   else
     UNREACHABLE("Unsupported type");
 
@@ -58,7 +58,7 @@ int main(int argc, char *argv[]) {
     n = atol(argv[1]);
 
   long errs = 0;
-  errs += test<bool>(n, false);
+  errs += test<bool>(n, true);
   errs += test<int8_t>(n, min<int8_t>() + 1);
   errs += test<uint8_t>(n, max<uint8_t>() - 1);
   errs += test<int16_t>(n, min<int16_t>() + 1);

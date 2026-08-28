@@ -49,6 +49,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "common/logging.h"
+#include "kernels.h"
 #include "kitcuda.h"
 #include "kitcuda_dylib.h"
 #include "memory_map.h"
@@ -439,22 +440,12 @@ void __kitcuda_memcpy_sym_to_host(void *hostPtr, uint64_t devPtr, size_t size) {
 }
 }
 
-template <typename T> static void memInitImpl(T *buf, uint64_t n, T init) {
-  // FIXME: This is a truly wasteful way of doing this. It might be better to
-  // launch a kernel and directly initialize the buffer on the GPU.
-  T *tmp = new T[n];
-  for (uint64_t i = 0; i < n; ++i)
-    tmp[i] = init;
-
-  KIT_NVTX_PUSH("kitcuda:mem_init", KIT_NVTX_MEM);
-  CU_SAFE_CALL(cuMemcpyHtoD((CUdeviceptr)buf, tmp, n * sizeof(T)));
-  KIT_NVTX_POP();
-
-  delete[] tmp;
-}
-
 extern "C" void __kitcuda_memset_bool(void *buf, uint64_t n, bool init) {
-  memInitImpl((bool *)buf, n, init);
+  static_assert(sizeof(bool) == 1, "Expect sizeof(bool) == 1");
+
+  KIT_NVTX_PUSH("kitcuda:memset_bool", KIT_NVTX_MEM);
+  CU_SAFE_CALL(cuMemsetD8((CUdeviceptr)buf, *((uint8_t *)&init), n));
+  KIT_NVTX_POP();
 }
 
 extern "C" void __kitcuda_memset_i8(void *buf, uint64_t n, int8_t init) {
@@ -476,17 +467,21 @@ extern "C" void __kitcuda_memset_i32(void *buf, uint64_t n, int32_t init) {
 }
 
 extern "C" void __kitcuda_memset_i64(void *buf, uint64_t n, int64_t init) {
-  memInitImpl((int64_t *)buf, n, init);
+  KIT_NVTX_PUSH("kitcuda:memset_i64", KIT_NVTX_MEM);
+  kitrt::kitcuMemset64Launch((uint64_t *)buf, n, *((uint64_t *)&init));
+  KIT_NVTX_POP();
 }
 
 extern "C" void __kitcuda_memset_float(void *buf, uint64_t n, float init) {
   KIT_NVTX_PUSH("kitcuda:memset_float", KIT_NVTX_MEM);
-  CU_SAFE_CALL(cuMemsetD32((CUdeviceptr)buf, *((unsigned int *)&init), n));
+  CU_SAFE_CALL(cuMemsetD32((CUdeviceptr)buf, *((uint32_t *)&init), n));
   KIT_NVTX_POP();
 }
 
 extern "C" void __kitcuda_memset_double(void *buf, uint64_t n, double init) {
-  memInitImpl((double *)buf, n, init);
+  KIT_NVTX_PUSH("kitcuda:memset_double", KIT_NVTX_MEM);
+  kitrt::kitcuMemset64Launch((uint64_t *)buf, n, *((uint64_t *)&init));
+  KIT_NVTX_POP();
 }
 
 extern "C" void __kitcuda_memset_from(void *buf, uint64_t n, void *obj,
