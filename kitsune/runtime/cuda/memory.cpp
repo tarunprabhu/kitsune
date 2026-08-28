@@ -64,10 +64,10 @@ extern "C" {
 [[gnu::malloc]] void *__kitcuda_malloc(uint64_t bytes) {
   CUdeviceptr ptr;
   CU_SAFE_CALL(cuMemAlloc(&ptr, bytes));
-  return (void*)ptr;
+  return (void *)ptr;
 }
 
-void __kitcuda_free(CUdeviceptr ptr) { CU_SAFE_CALL(cuMemFree(ptr)); }
+void __kitcuda_free(void *ptr) { CU_SAFE_CALL(cuMemFree((CUdeviceptr)ptr)); }
 
 [[gnu::malloc]] void *__kitcuda_mem_alloc_managed(size_t size) {
   KIT_NVTX_PUSH("kitcuda:mem_alloc_managed", KIT_NVTX_MEM);
@@ -437,4 +437,59 @@ void __kitcuda_memcpy_sym_to_host(void *hostPtr, uint64_t devPtr, size_t size) {
   CU_SAFE_CALL(cuMemcpyDtoH(hostPtr, devPtr, size));
   KIT_NVTX_POP();
 }
+}
+
+template <typename T> static void memInitImpl(T *buf, uint64_t n, T init) {
+  // FIXME: This is a truly wasteful way of doing this. It might be better to
+  // launch a kernel and directly initialize the buffer on the GPU.
+  T *tmp = new T[n];
+  for (uint64_t i = 0; i < n; ++i)
+    tmp[i] = init;
+
+  KIT_NVTX_PUSH("kitcuda:mem_init", KIT_NVTX_MEM);
+  CU_SAFE_CALL(cuMemcpyHtoD((CUdeviceptr)buf, tmp, n * sizeof(T)));
+  KIT_NVTX_POP();
+
+  delete[] tmp;
+}
+
+extern "C" void __kitcuda_memset_bool(void *buf, uint64_t n, bool init) {
+  memInitImpl((bool *)buf, n, init);
+}
+
+extern "C" void __kitcuda_memset_i8(void *buf, uint64_t n, int8_t init) {
+  KIT_NVTX_PUSH("kitcuda:memset_i8", KIT_NVTX_MEM);
+  CU_SAFE_CALL(cuMemsetD8((CUdeviceptr)buf, init, n));
+  KIT_NVTX_POP();
+}
+
+extern "C" void __kitcuda_memset_i16(void *buf, uint64_t n, int16_t init) {
+  KIT_NVTX_PUSH("kitcuda:memset_i16", KIT_NVTX_MEM);
+  CU_SAFE_CALL(cuMemsetD16((CUdeviceptr)buf, init, n));
+  KIT_NVTX_POP();
+}
+
+extern "C" void __kitcuda_memset_i32(void *buf, uint64_t n, int32_t init) {
+  KIT_NVTX_PUSH("kitcuda:memset_i32", KIT_NVTX_MEM);
+  CU_SAFE_CALL(cuMemsetD32((CUdeviceptr)buf, init, n));
+  KIT_NVTX_POP();
+}
+
+extern "C" void __kitcuda_memset_i64(void *buf, uint64_t n, int64_t init) {
+  memInitImpl((int64_t *)buf, n, init);
+}
+
+extern "C" void __kitcuda_memset_float(void *buf, uint64_t n, float init) {
+  KIT_NVTX_PUSH("kitcuda:memset_float", KIT_NVTX_MEM);
+  CU_SAFE_CALL(cuMemsetD32((CUdeviceptr)buf, *((unsigned int *)&init), n));
+  KIT_NVTX_POP();
+}
+
+extern "C" void __kitcuda_memset_double(void *buf, uint64_t n, double init) {
+  memInitImpl((double *)buf, n, init);
+}
+
+extern "C" void __kitcuda_memset_from(void *buf, uint64_t n, void *obj,
+                                      uint32_t objSize) {
+  FATAL("NOT YET IMPLEMENTED: initialize memory from non-primitive type");
 }

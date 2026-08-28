@@ -158,6 +158,39 @@ def kitcuda_memcpy_dtoh :
 def kitcuda_memcpy_htod :
     KitFunc<"__kitcuda_memcpy_htod", Void, [U64, Ptr, U64]>;
 
+// void __kitcuda_memset_bool(void *buf, uint64_t n, bool init)
+def kitcuda_memset_bool :
+    KitFunc<"__kitcuda_memset_bool", Void, [Ptr, U64, Bool]>;
+
+// void __kitcuda_memset_i8(void *buf, uint64_t n, int8_t init)
+def kitcuda_memset_i8 :
+    KitFunc<"__kitcuda_memset_i8", Void, [Ptr, U64, I8]>;
+
+// void __kitcuda_memset_i16(void *buf, uint64_t n, int16_t init)
+def kitcuda_memset_i16 :
+    KitFunc<"__kitcuda_memset_i16", Void, [Ptr, U64, I16]>;
+
+// void __kitcuda_memset_i32(void *buf, uint64_t n, int32_t init)
+def kitcuda_memset_i32 :
+    KitFunc<"__kitcuda_memset_i32", Void, [Ptr, U64, I32]>;
+
+// void __kitcuda_memset_i64(void *buf, uint64_t n, int64_t init)
+def kitcuda_memset_i64 :
+    KitFunc<"__kitcuda_memset_i64", Void, [Ptr, U64, I64]>;
+
+// void __kitcuda_memset_float(void *buf, uint64_t n, float init)
+def kitcuda_memset_float :
+    KitFunc<"__kitcuda_memset_float", Void, [Ptr, U64, Float]>;
+
+// void __kitcuda_memset_double(void *buf, uint64_t n, double init)
+def kitcuda_memset_double :
+    KitFunc<"__kitcuda_memset_double", Void, [Ptr, U64, Double]>;
+
+// void __kitcuda_memset_from(void *buf, uint64_t n, void *obj,
+//                             uint32_t objSize)
+def kitcuda_memset_from :
+    KitFunc<"__kitcuda_memset_from", Void, [Ptr, U64, Ptr, U32]>;
+
 // uint64_t __kitcuda_num_sms()
 def kitcuda_num_sms :
     KitFunc<"__kitcuda_num_sms", U64, []>;
@@ -262,6 +295,39 @@ def kithip_memcpy_dtoh :
 // void __kithip_memcpy_htod(void *hostPtr, void *devicePtr, uint64_t n)
 def kithip_memcpy_htod :
     KitFunc<"__kithip_memcpy_htod", Void, [Ptr, Ptr, U64]>;
+
+// void __kithip_memset_bool(void *buf, uint64_t n, bool init)
+def kithip_memset_bool :
+    KitFunc<"__kithip_memset_bool", Void, [Ptr, U64, Bool]>;
+
+// void __kithip_memset_i8(void *buf, uint64_t n, int8_t init)
+def kithip_memset_i8 :
+    KitFunc<"__kithip_memset_i8", Void, [Ptr, U64, I8]>;
+
+// void __kithip_memset_i16(void *buf, uint64_t n, int16_t init)
+def kithip_memset_i16 :
+    KitFunc<"__kithip_memset_i16", Void, [Ptr, U64, I16]>;
+
+// void __kithip_memset_i32(void *buf, uint64_t n, int32_t init)
+def kithip_memset_i32 :
+    KitFunc<"__kithip_memset_i32", Void, [Ptr, U64, I32]>;
+
+// void __kithip_memset_i64(void *buf, uint64_t n, int64_t init)
+def kithip_memset_i64 :
+    KitFunc<"__kithip_memset_i64", Void, [Ptr, U64, I64]>;
+
+// void __kithip_memset_float(void *buf, uint64_t n, float init)
+def kithip_memset_float :
+    KitFunc<"__kithip_memset_float", Void, [Ptr, U64, Float]>;
+
+// void __kithip_memset_double(void *buf, uint64_t n, double init)
+def kithip_memset_double :
+    KitFunc<"__kithip_memset_double", Void, [Ptr, U64, Double]>;
+
+// void __kithip_memset_from(void *buf, uint64_t n, void *obj,
+//                             uint32_t objSize)
+def kithip_memset_from :
+    KitFunc<"__kithip_memset_from", Void, [Ptr, U64, Ptr, U32]>;
 
 // uint64_t __kithip_num_cus()
 def kithip_num_cus :

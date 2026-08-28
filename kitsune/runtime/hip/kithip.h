@@ -278,6 +278,90 @@ void __kithip_memcpy_dtoh(void *hostPtr, void *devicePtr, uint64_t bytes);
 void __kithip_memcpy_htod(void *devicePtr, void *hostPtr, uint64_t bytes);
 
 /**
+ * Initialize elements of a contiguous array on the device with a given value.
+ *
+ * @param buf Pointer to the array on the device.
+ * @param n The number of elements to initialize
+ * @param v The initial value.
+ */
+void __kithip_memset_bool(void *buf, uint64_t n, bool v);
+
+/**
+ * Initialize elements of a contiguous array on the device with a given value.
+ *
+ * @param buf Pointer to the array on the device.
+ * @param n The number of elements to initialize
+ * @param v The initial value.
+ */
+void __kithip_memset_i8(void *buf, uint64_t n, int8_t v);
+
+/**
+ * Initialize elements of a contiguous array on the device with a given value.
+ *
+ * @param buf Pointer to the array on the device.
+ * @param n The number of elements to initialize
+ * @param v The initial value.
+ */
+void __kithip_memset_i16(void *buf, uint64_t n, int16_t v);
+/**
+ * Initialize elements of a contiguous array on the device with a given value.
+ *
+ * @param buf Pointer to the array on the device.
+ * @param n The number of elements to initialize
+ * @param v The initial value.
+ */
+void __kithip_memset_i32(void *buf, uint64_t n, int32_t v);
+/**
+ * Initialize elements of a contiguous array on the device with a given value.
+ *
+ * @param buf Pointer to the array on the device.
+ * @param n The number of elements to initialize
+ * @param v The initial value.
+ */
+void __kithip_memset_i64(void *buf, uint64_t n, int64_t v);
+/**
+ * Initialize elements of a contiguous array on the device with a given value.
+ *
+ * @param buf Pointer to the array on the device.
+ * @param n The number of elements to initialize
+ * @param v The initial value.
+ */
+void __kithip_memset_float(void *buf, uint64_t n, float v);
+/**
+ * Initialize elements of a contiguous array on the device with a given value.
+ *
+ * @param buf Pointer to the array on the device.
+ * @param n The number of elements to initialize
+ * @param v The initial value.
+ */
+void __kithip_memset_double(void *buf, uint64_t n, double v);
+
+/**
+ * Initialize elements of a contiguous array on the device with an object.
+ *
+ * @param buf Pointer to the array on the device.
+ * @param n The number of elements to initialize
+ * @param obj Pointer to the object.
+ * @param objSize Size, in bytes, of the object.
+ *
+ */
+void __kithip_memset_from(void *buf, uint64_t n, void *obj, uint32_t objSize);
+
+/**
+ * Allocate memory on the GPU. This memory is not tracked by Kitsune's runtime.
+ *
+ * @param bytes The number of bytes to allocate
+ */
+[[gnu::malloc]] void *__kithip_malloc(uint64_t bytes);
+
+/**
+ * Free GPU memory previously allocated using __kithip_malloc
+ *
+ * @param ptr Pointer to the memory to free
+ */
+void __kithip_free(void *ptr);
+
+/**
  * Get the number of compute units on the default device.
  */
 uint64_t __kithip_num_cus(void);
