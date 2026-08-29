@@ -21,6 +21,7 @@
 #include "kitsune/Core/LoopUtils.h"
 #include "kitsune/Core/ModuleUtils.h"
 #include "kitsune/Core/TTUtils.h"
+#include "kitsune/Core/ValueUtils.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
 
@@ -139,12 +140,63 @@ bool llvm::detail::checkReductionLoop(TapirLoopInfo &tapirLoop,
   // If this is not a top-level tapir loop, it is nested within another tapir
   // loop.
   // FIXME: Add support for reductions in nested tapir loops.
-  const Loop &loop = *tapirLoop.getLoop();
+  Loop &loop = *tapirLoop.getLoop();
   if (!isTopLevelTapirLoop(loop))
     return complain(loop, DiagID::ErrGeneric,
                     "tapir reduction loop must be a top-level loop");
 
-  for (const ReductionInfo &redxn : collectReductions(*tapirLoop.getLoop()))
+  SmallVector<ReductionInfo, 1> redxns = collectReductions(loop);
+
+  // The transformations for parallel reductions, especially on the GPU, might
+  // result in incorrect code if the destination of the reduction is used
+  // anywhere except in a reduction intrinsic. This is certainly the case for
+  // side-effecting uses such as passing it to printf. But it is less clear if
+  // this is true in other cases. To be safe, we require the only uses of the
+  // destination of a reduction to be in an equivalent reduction intrinsic. We
+  // cannot require exactly one use because the reduction intrinsic could be in
+  // an unrolled sequential loop within this tapir loop, which would appear as
+  // multiple uses, though that case is not actually an error.
+  SmallDenseMap<Value *, SmallVector<Instruction *, 1>> usesOfDest;
+  for (const ReductionInfo &redxn : redxns)
+    for (const Use &use : redxn.dest->uses())
+      if (auto *inst = dyn_cast<Instruction>(use.getUser()))
+        if (isInLoop(*inst, loop, li))
+          usesOfDest[redxn.dest].push_back(inst);
+
+  for (const auto &[dest, uses] : usesOfDest) {
+    if (uses.size() == 1)
+      continue;
+
+    std::optional<ReduceOp> reduceOp;
+    for (Instruction *inst : uses) {
+      auto *call = dyn_cast<CallInst>(inst);
+      if (!call || call->getIntrinsicID() != Intrinsic::kit_reduce_0)
+        return complain(loop, DiagID::ErrReduceDestUsedInLoop, getName(*dest));
+
+      // At this point, the instruction is a reduce intrinsic.
+      const ReductionInfo redxn(call);
+      if (redxn.value == dest || redxn.unit == dest || redxn.reducer == dest)
+        return complain(loop, DiagID::ErrReduceDestUsedInLoop, getName(*dest));
+
+      SmallVector<Value *, 0> extraArgs = redxn.getExtraArgs();
+      for (Value *arg : extraArgs)
+        if (arg == dest)
+          return complain(loop, DiagID::ErrReduceDestUsedInLoop,
+                          getName(*dest));
+
+      ReduceOp op = redxn.reduceOp;
+      if (reduceOp.has_value() && *reduceOp != op)
+        return complain(loop, DiagID::ErrReduceDestMultipleOps, getName(*dest));
+
+      reduceOp = op;
+    }
+  }
+
+  // We don't currently support reductions where the value being reduced is
+  // passed by pointer. This will most likely happen with custom reductions. On
+  // CPU, this may be ok, but getting this right on GPUs is trickier, so we just
+  // don't allow it anywhere.
+  for (const ReductionInfo &redxn : redxns)
     if (redxn.getType()->isPointerTy())
       return complain(loop, DiagID::ErrNYI,
                       "Reductions with values passed by pointer");
