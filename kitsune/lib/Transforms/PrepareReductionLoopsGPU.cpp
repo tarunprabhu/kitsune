@@ -230,7 +230,8 @@ Value *PrepareReductionLoopGPU::allocGlobalResult(Loop &loop,
 //
 // In such cases, it is better to create a local variable to accumulate all the
 // values of `f` that are computed in a single thread, then accumulate the final
-// result into `res`.
+// result into `res`. Note that the initial value of res here is set to 0
+// because that is the identity for the += operator.
 //
 //     parallel_for (int i = 0; i < n; ++i) {
 //       decltype(res) local = 0;
