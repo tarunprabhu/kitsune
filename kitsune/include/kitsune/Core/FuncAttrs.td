@@ -44,8 +44,9 @@ def EarlyAnnotatePass : FuncAttr<> {
   let Documentation = KitEarlyAnnotatePassDoc;
 }
 
-// Flag indicating that the function is a "kernel function".
-def Kernel : FuncAttr<> {
+// The presence of this attribute indicates that the function is a "kernel
+// function" i.e. it is launched from the host and run on a GPU.
+def Kernel : FuncAttr<U32Ty> {
   let HasCustomVerifier = true;
   let Documentation = KitKernelDoc;
 }
