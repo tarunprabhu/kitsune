@@ -62,6 +62,9 @@ def ErrAttrAdd
 def ErrAttrNotCompatible
   : Error<"attribute '{}': not compatible with '{}'">;
 
+def ErrAttrValueNotInRange
+  : Error<"attribute '{}': value '{}' not in range [{},{}]">;
+
 def ErrAttrBadValues
   : Error<"attribute '{}': incorrect value count '{}' (expecting '{}')">;
 

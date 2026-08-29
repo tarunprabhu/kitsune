@@ -139,8 +139,10 @@ void llvm::verifyDeviceAttr(KitVerifier &v, const Function &f,
 }
 
 void llvm::verifyKernelAttr(KitVerifier &v, const Function &f,
-                            const bool &hasAttr) {
+                            const uint32_t &dims) {
   FuncAttrKind attr = FuncAttrKind::Kernel;
   v.check(!hasDeviceAttr(f), f, DiagID::ErrAttrNotCompatible, attr,
           FuncAttrKind::Device);
+  v.check(dims >= 1 && dims <= 3, f, DiagID::ErrAttrValueNotInRange, attr, dims,
+          1, 3);
 }

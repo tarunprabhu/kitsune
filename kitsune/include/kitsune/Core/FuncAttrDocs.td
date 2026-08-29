@@ -32,7 +32,8 @@ def KitKernelDoc : KitDocAttr {
 The function is a "kernel function". This is a function in the device module
 that was obtained by outlining a tapir loop. With GPU-centric tapir targets,
 this is the entry point into the GPU and will be launched onto the GPU by
-Kitsune's runtime.
+Kitsune's runtime. The value of the attribute must be 1, 2, or 3 and indicates
+the dimensionality of the kernel.
 }];
 }
 

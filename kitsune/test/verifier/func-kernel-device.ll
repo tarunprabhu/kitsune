@@ -13,5 +13,5 @@ define void @f() !kit.func !0 {
 }
 
 !0 = distinct !{!0, !1, !2}
-!1 = !{!"kit.func.kernel"}
+!1 = !{!"kit.func.kernel", i32 1}
 !2 = !{!"kit.func.device"}

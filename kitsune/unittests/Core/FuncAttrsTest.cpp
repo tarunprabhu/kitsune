@@ -23,7 +23,17 @@ namespace {
 
 // Override get<>() and verifyAttr<> if needed. See documentation in the base
 // class for details.
-class KitFuncAttrs : public TestAttrsBase<KitFuncAttrs, FuncAttrKind> {};
+class KitFuncAttrs : public TestAttrsBase<KitFuncAttrs, FuncAttrKind> {
+public:
+  template <typename T, FuncAttrKind Attr> T get(unsigned idx) {
+    if constexpr (Attr == FuncAttrKind::Kernel) {
+      static constexpr T pool[] = {1, 2, 3};
+      return pool[idx % (sizeof(pool) / sizeof(T))];
+    } else {
+      return TestAttrsBase::get<T>(idx);
+    }
+  }
+};
 
 TEST_F(KitFuncAttrs, attrName) {
 #define FUNC_ATTR(NAME, IRNAME, ...)                                           \
