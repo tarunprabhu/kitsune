@@ -612,7 +612,7 @@ void GPUTTLoopBase::postProcessOutline(TapirLoopInfo &tl, TaskOutlineInfo &toi,
 
   Function *kernelF = toi.Outline;
   kernelF->setName(kernelName);
-  addKernelAttr(*kernelF);
+  addKernelAttr(*kernelF, getDepth());
 
   setKernelFuncAttrs(*kernelF);
   setKernelFuncCallingConv(*kernelF);
