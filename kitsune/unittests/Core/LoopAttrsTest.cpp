@@ -25,12 +25,10 @@ namespace {
 // class for details.
 class KitLoopAttrs : public TestAttrsBase<KitLoopAttrs, LoopAttrKind> {
 public:
-  // This is required in order to specialize for LoopAttrKind::ThreadsPerBlock
-  // below.
   template <typename T, LoopAttrKind Attr> T get(unsigned idx) {
-    if constexpr (std::is_same_v<T, uint32_t>) {
-      static constexpr int32_t pool[] = {0, 4, 16, 64, 128, 256, 512, 1024};
-      return pool[idx % (sizeof(pool) / sizeof(int32_t))];
+    if constexpr (Attr == LoopAttrKind::ThreadsPerBlock) {
+      static constexpr T pool[] = {0, 4, 16, 64, 128, 256, 512, 1024};
+      return pool[idx % (sizeof(pool) / sizeof(T))];
     } else {
       return TestAttrsBase::get<T>(idx);
     }
