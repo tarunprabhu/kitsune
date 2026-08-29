@@ -272,6 +272,12 @@ def ErrMobileInitExpectExtra
 def ErrMobileInitUnsupportedType
   : Error<"unsupported initializer type '{}' in call '{}'">;
 
+def ErrReduceDestUsedInLoop
+  : Error<"value '{}' must only be used as destination of reduction in loop">;
+
+def ErrReduceDestMultipleOps
+  : Error<"value '{}' used as destination of inconsistent reduce operations">;
+
 def ErrReduceUnitValMismatch
   : Error<"type mismatch between value being reduced and unit">;
 
