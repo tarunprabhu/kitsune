@@ -1,4 +1,4 @@
-//===- LowerKitWarpIntrinsics.cpp - Lower Kitsune's warp intrinsics -------===//
+//===- LowerWarpIntrinsics.cpp - Lower Kitsune's warp intrinsics ----------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -26,7 +26,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Transforms/EmbLowerKitWarpIntrinsics.h"
+#include "kitsune/Transforms/EmbLowerWarpIntrinsics.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/IRBuilderUtils.h"
 #include "kitsune/Core/IntrinsicUtils.h"
@@ -623,7 +623,7 @@ Value *LowerWarpShuffleDownSync::replaceIntrHip(CallBase *call) {
 
 // -----------------------------------------------------------------------------
 
-static bool lowerKitIntrinsics(Module &m, const TTOptions &tto) {
+static bool lowerIntrinsics(Module &m, const TTOptions &tto) {
   bool changed = false;
 
   // The order in which the intrinsics are lowered is important. The lowering of
@@ -637,7 +637,7 @@ static bool lowerKitIntrinsics(Module &m, const TTOptions &tto) {
   return changed;
 }
 
-bool EmbLowerKitWarpIntrinsicsPass::run(TTID tt, Module &devM, Module &hostM,
-                                        ModuleAnalysisManager &hostAM) {
-  return lowerKitIntrinsics(devM, tto);
+bool EmbLowerWarpIntrinsicsPass::run(TTID tt, Module &devM, Module &hostM,
+                                     ModuleAnalysisManager &hostAM) {
+  return lowerIntrinsics(devM, tto);
 }

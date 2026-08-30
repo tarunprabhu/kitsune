@@ -45,7 +45,7 @@
 ; CHECK-NOT:  Running pass:      LoopSpawningPass
 ; CHECK-NOT:  Running pass:      HoistAllocasPass
 ; CHECK-NOT:  Running pass:      EmbHoistAllocasPass
-; CHECK-NOT:  Running pass:      EmbLowerKitWarpIntrinsicsPass
+; CHECK-NOT:  Running pass:      EmbLowerWarpIntrinsicsPass
 ; CHECK-NOT:  Running pass:      EmbResolveLibDeviceCallsPass
 ; CHECK-NOT:  Running pass:      EmbPreparePass
 ; CHECK-NOT:  Running pass:      EmbLinkLibDeviceBitcodePass

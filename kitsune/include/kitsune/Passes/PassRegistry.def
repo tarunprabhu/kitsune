@@ -36,7 +36,7 @@ MODULE_PASS("emb-link-libdevice-bitcode",
 MODULE_PASS("emb-lower-intrinsics", EmbLowerKitIntrinsicsPass())
 MODULE_PASS("emb-lower-intrinsics-early", EmbLowerKitIntrinsicsEarlyPass())
 MODULE_PASS("emb-lower-warp-intrinsics",
-            EmbLowerKitWarpIntrinsicsPass(PTO.TTOpts))
+            EmbLowerWarpIntrinsicsPass(PTO.TTOpts))
 MODULE_PASS("emb-optimize", EmbOptimizePass(PTO.TTOpts))
 MODULE_PASS("emb-prepare", EmbPreparePass(PTO.TTOpts))
 MODULE_PASS("emb-resolve-libdevice-calls",

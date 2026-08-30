@@ -37,7 +37,7 @@
 ; O23S-NOT:   Running pass:      EarlyAnnotatePass
 ; O23S-NOT:   Running pass:      PrepareTapirLoopsPass
 ; O23S-NOT:   Running pass:      LowerReduceIntrinsicsPass
-; O23S-NOT:   Running pass:      LowerKitWarpIntrinsicsPass
+; O23S-NOT:   Running pass:      LowerWarpIntrinsicsPass
 ;
 ; O23S:       Running pass:      NormalizeLoopControlBlocksPass
 ; O23S:       Running pass:      SecondaryIVEliminationPass
@@ -52,6 +52,7 @@
 ; O23S:       Running pass:      EmbHoistAllocasPass
 ; O23S:       Running pass:      TapirToTargetPass
 ; O23S:       Running pass:      PrefetchForDevicePass
+; O23S:       Running pass:      EmbLowerWarpIntrinsicsPass
 ; O23S:       Running pass:      EmbLowerKitIntrinsicsEarlyPass
 ; O23S:       Running pass:      EmbResolveLibDeviceCallsPass
 ; O23S:       Running pass:      EmbPreparePass
