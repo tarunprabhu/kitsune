@@ -16,6 +16,7 @@ add_llvm_component_library(LLVMKitTransforms
   Instrument.cpp
   LoopWrapping.cpp
   LowerKitReduceIntrinsics.cpp
+  LowerReduceIntrinsicsCore.cpp
   NormalizeLoopControlBlocks.cpp
   PreLowerAnnotate.cpp
   PrefetchForDevice.cpp
