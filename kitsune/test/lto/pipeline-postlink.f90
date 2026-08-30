@@ -49,6 +49,7 @@
 ! O23:        Running pass:     EmbHoistAllocasPass
 ! O23:        Running pass:     TapirToTargetPass
 ! O23:        Running pass:     PrefetchForDevicePass
+! O23:        Running pass:     EmbLowerWarpIntrinsicsPass
 ! O23:        Running pass:     EmbLowerKitIntrinsicsEarlyPass
 ! O23:        Running pass:     EmbResolveLibDeviceCallsPass
 ! O23:        Running pass:     EmbPreparePass
