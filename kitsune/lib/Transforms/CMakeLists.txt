@@ -15,7 +15,7 @@ add_llvm_component_library(LLVMKitTransforms
   HoistAllocas.cpp
   Instrument.cpp
   LoopWrapping.cpp
-  LowerKitReduceIntrinsics.cpp
+  LowerReduceIntrinsics.cpp
   LowerReduceIntrinsicsCore.cpp
   NormalizeLoopControlBlocks.cpp
   PreLowerAnnotate.cpp
