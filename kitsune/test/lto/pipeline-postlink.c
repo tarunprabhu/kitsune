@@ -52,7 +52,7 @@
 // O23S:      Running pass:     TapirToTargetPass
 // O23S:      Running pass:     PrefetchForDevicePass
 // O23S:      Running pass:     EmbLowerWarpIntrinsicsPass
-// O23S:      Running pass:     EmbLowerKitIntrinsicsEarlyPass
+// O23S:      Running pass:     EmbLowerIntrinsicsEarlyPass
 // O23S:      Running pass:     EmbResolveLibDeviceCallsPass
 // O23S:      Running pass:     EmbPreparePass
 // O23S:      Running pass:     EmbLinkLibDeviceBitcodePass
