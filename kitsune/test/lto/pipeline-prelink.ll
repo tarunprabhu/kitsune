@@ -33,7 +33,7 @@
 ; CHECK:      Running pass:      NormalizeLoopControlBlocksPass
 ; CHECK:      Running pass:      SecondaryIVEliminationPass
 ; CHECK:      Running pass:      PrepareTapirLoopsPass
-; CHECK:      Running pass:      LowerKitReduceIntrinsicsPass
+; CHECK:      Running pass:      LowerReduceIntrinsicsPass
 ; CHECK-NOT:  Running pass:      InstrumentPass
 ;
 ; CHECK-NOT:  Running pass:      PreLowerPreparePass
@@ -45,7 +45,7 @@
 ; CHECK-NOT:  Running pass:      LoopSpawningPass
 ; CHECK-NOT:  Running pass:      HoistAllocasPass
 ; CHECK-NOT:  Running pass:      EmbHoistAllocasPass
-; CHECK-NOT:  Running pass:      LowerKitWarpIntrinsicsPass
+; CHECK-NOT:  Running pass:      EmbLowerKitWarpIntrinsicsPass
 ; CHECK-NOT:  Running pass:      EmbResolveLibDeviceCallsPass
 ; CHECK-NOT:  Running pass:      EmbPreparePass
 ; CHECK-NOT:  Running pass:      EmbLinkLibDeviceBitcodePass
@@ -78,7 +78,6 @@
 ; INSTR:      Running pass:      NormalizeLoopControlBlocksPass
 ; INSTR:      Running pass:      SecondaryIVEliminationPass
 ; INSTR:      Running pass:      PrepareTapirLoopsPass
-; INSTR:      Running pass:      LowerKitReduceIntrinsicsPass
 ; INSTR:      Running pass:      InstrumentPass
 ;
 ; -----------------------------------------------------------------------------

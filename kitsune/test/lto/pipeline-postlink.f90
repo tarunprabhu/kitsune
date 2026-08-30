@@ -14,7 +14,6 @@
 !
 ! NOLO:      Running pass:     VerifierPass
 ! NOLO-NOT:  Running pass:     LoopSpawning
-! NOLO-NOT:  Running pass:     LowerRuntimeIntrinsicsPass
 ! NOLO:      Running pass:     VerifierPass
 ! NOLO-NEXT: Running analysis: VerifierAnalysis
 !
@@ -35,8 +34,7 @@
 ! O23-NOT:    Running pass:     EarlyVerificationPass
 ! O23-NOT:    Running pass:     EarlyAnnotatePass
 ! O23-NOT:    Running pass:     PrepareTapirLoopsPass
-! O23-NOT:    Running pass:     LowerKitWarpIntrinsicsPass
-! O23-NOT:    Running pass:     LowerKitReduceIntrinsicsPass
+! O23-NOT:    Running pass:     LowerReduceIntrinsicsPass
 !
 ! O23:        Running pass:     NormalizeLoopControlBlocksPass
 ! O23:        Running pass:     SecondaryIVEliminationPass
