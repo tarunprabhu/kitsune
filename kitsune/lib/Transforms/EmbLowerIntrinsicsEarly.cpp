@@ -1,4 +1,4 @@
-//===- EmbLowerKitIntrinsicsEarly.cpp - Lower Kitsune-specific intrinsics -===//
+//===- EmbLowerIntrinsicsEarly.cpp - Lower Kitsune-specific intrinsics ----===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -33,7 +33,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Transforms/EmbLowerKitIntrinsicsEarly.h"
+#include "kitsune/Transforms/EmbLowerIntrinsicsEarly.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/ModuleUtils.h"
 #include "llvm/ADT/SmallVector.h"
@@ -158,7 +158,7 @@ static bool lowerKitIntrinsicsHip(Module &embM) {
   return calls.size();
 }
 
-static bool lowerKitIntrinsics(TTID tt, Module &embM) {
+static bool lowerIntrinsics(TTID tt, Module &embM) {
   switch (tt) {
   case TTID::Cuda: return lowerKitIntrinsicsCuda(embM);
   case TTID::Hip: return lowerKitIntrinsicsHip(embM);
@@ -167,7 +167,7 @@ static bool lowerKitIntrinsics(TTID tt, Module &embM) {
   llvm_unreachable("lowerKitIntrinsics: TTID not handled");
 }
 
-bool EmbLowerKitIntrinsicsEarlyPass::run(TTID tt, Module &devM, Module &hostM,
-                                         ModuleAnalysisManager &hostMAM) {
-  return lowerKitIntrinsics(tt, devM);
+bool EmbLowerIntrinsicsEarlyPass::run(TTID tt, Module &devM, Module &hostM,
+                                      ModuleAnalysisManager &hostMAM) {
+  return lowerIntrinsics(tt, devM);
 }
