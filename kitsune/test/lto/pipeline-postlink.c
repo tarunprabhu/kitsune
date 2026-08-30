@@ -8,7 +8,6 @@
 //
 // NOLO:      Running pass:     VerifierPass
 // NOLO-NOT:  Running pass:     LoopSpawning
-// NOLO-NOT:  Running pass:     LowerRuntimeIntrinsicsPass
 // NOLO:      Running pass:     VerifierPass
 // NOLO-NEXT: Running analysis: VerifierAnalysis
 //
@@ -37,8 +36,7 @@
 // O23S-NOT:  Running pass:     EarlyVerificationPass
 // O23S-NOT:  Running pass:     EarlyAnnotatePass
 // O23S-NOT:  Running pass:     PrepareTapirLoopsPass
-// O23S-NOT:  Running pass:     LowerKitWarpIntrinsicsPass
-// O23S-NOT:  Running pass:     LowerKitReduceIntrinsicsPass
+// O23S-NOT:  Running pass:     LowerReduceIntrinsicsPass
 //
 // O23S:      Running pass:     NormalizeLoopControlBlocksPass
 // O23S:      Running pass:     SecondaryIVEliminationPass
