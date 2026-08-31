@@ -25,6 +25,28 @@ namespace llvm {
 class CallBase;
 class Value;
 
+/// How a Kitsune-specific intrinsic is to be lowered. These are used by the
+/// intrinsic lowering passes.
+enum class KitIntrLowerMode {
+  /// The lowering mode is unspecified.
+  Unspecified = 0,
+
+  /// The intrinsic is not lowered. The intrinsic lowering passes will delete
+  /// calls to this intrinsic.
+  Delete,
+
+  /// The intrinsic maps to a function from Kitsune's runtime. The exact
+  /// function that it maps to will depend on the tapir target ID and must be
+  /// specified in the RTSpec field of the intrinsic definition.
+  Runtime,
+
+  /// The intrinsic requires custom handling.
+  Custom,
+};
+
+/// Get the lowering mode for the Kitsune-specific intrinsic \p id.
+KitIntrLowerMode getKitIntrLowerMode(Intrinsic::ID id);
+
 /// Check if the intrinsic is a Kitsune intrinsic.
 bool isKitIntrinsic(Intrinsic::ID id);
 

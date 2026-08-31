@@ -17,6 +17,17 @@
 
 using namespace llvm;
 
+KitIntrLowerMode llvm::getKitIntrLowerMode(Intrinsic::ID id) {
+  assert(isKitIntrinsic(id) && "Must be a Kitsune intrinsic");
+  switch (id) {
+#define GET_INTR_LOWERING_SPEC
+#define INTR(NAME, LOWER_MODE, ALLOW_PARAM_CAST, ALLOW_RETURN_CAST)            \
+  case Intrinsic::NAME: return LOWER_MODE;
+#include "kitsune/Core/IntrLibFuncMap.inc"
+  }
+  llvm_unreachable("getKitIntrLowerMode: Intrinsic ID not handled");
+}
+
 bool llvm::isKitIntrinsic(Intrinsic::ID id) {
   return Intrinsic::getBaseName(id).starts_with("llvm.kit.");
 }
