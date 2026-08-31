@@ -25,7 +25,6 @@
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/LegacyPassManager.h"
-#include "llvm/InitializePasses.h"
 
 #include <map>
 

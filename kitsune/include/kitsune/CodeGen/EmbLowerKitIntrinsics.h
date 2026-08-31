@@ -18,9 +18,12 @@
 namespace llvm {
 
 class ModulePass;
+class PassRegistry;
 
 /// \ingroup kitsune
-/// Lower Kitsune's intrinsics in embedded modules.
+/// @{
+
+/// Lower Kitsune-specific intrinsics in embedded modules.
 class EmbLowerKitIntrinsicsPass
     : public EmbModulePass<EmbLowerKitIntrinsicsPass> {
 public:
@@ -29,9 +32,12 @@ public:
   using EmbModulePass<EmbLowerKitIntrinsicsPass>::run;
 };
 
-/// \ingroup kitsune
-/// Create a legacy pass to lower Kitsune's intrinsics in an embedded module.
+/// Create a legacy pass to lower Kitsune-specific intrinsics in embedded
+/// bitcode modules.
 ModulePass *createEmbLowerKitIntrinsicsLegacyPass();
+void initializeEmbLowerKitIntrinsicsLegacyPassPass(PassRegistry &);
+
+/// @}
 
 } // namespace llvm
 
