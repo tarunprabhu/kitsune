@@ -44,7 +44,6 @@
 ! RUN:     | FileCheck %s -check-prefix TAPIR
 !
 ! TAPIR: ModulePass Manager
-! TAPIR-NEXT: Lower Kitsune intrinsics (embedded)
 ! TAPIR: FunctionPass Manager
 ! TAPIR-NEXT: Lower Kitsune intrinsics
 ! TAPIR-NEXT: Strip Kitsune address spaces

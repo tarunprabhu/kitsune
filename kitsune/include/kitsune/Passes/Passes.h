@@ -22,7 +22,6 @@
 #include "kitsune/Analysis/TTObjectsAnalysis.h"
 #include "kitsune/Analysis/TTOptionsPrinter.h"
 #include "kitsune/CodeGen/CodeGenFatBinaries.h"
-#include "kitsune/CodeGen/EmbLowerKitIntrinsics.h"
 #include "kitsune/CodeGen/LowerIntrinsics.h"
 #include "kitsune/CodeGen/StripKitAddrSpaces.h"
 #include "kitsune/Transforms/DeLICM.h"
