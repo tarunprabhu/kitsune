@@ -2,7 +2,7 @@
 ; are lowered correctly.
 ;
 ; RUN: %kit-enc --tapir=cuda %s \
-; RUN:      | opt -passes='emb-lower-intrinsics-early' \
+; RUN:      | opt -passes='emb-lower-intrinsics' \
 ; RUN:      | %kit-mbc -S \
 ; RUN:      | FileCheck %s
 ;

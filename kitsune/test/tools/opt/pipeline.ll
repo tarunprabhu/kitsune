@@ -32,7 +32,7 @@
 ; DEFAULT-NOT: Running pass:     TapirToTargetPass
 ; DEFAULT-NOT: Running pass:     PrefetchForDevicePass
 ; DEFAULT-NOT: Running pass:     EmbLowerWarpIntrinsicsPass
-; DEFAULT-NOT: Running pass:     EmbLowerIntrinsicsEarlyPass
+; DEFAULT-NOT: Running pass:     EmbLowerIntrinsicsPass
 ; DEFAULT-NOT: Running pass:     EmbResolveLibDeviceCallsPass
 ; DEFAULT-NOT: Running pass:     EmbPreparePass
 ; DEFAULT-NOT: Running pass:     EmbLinkLibDeviceBitcodePass
@@ -112,7 +112,7 @@
 ; <KIT-POST-TAPIR>
 ; O123SZ:      Running pass:     PrefetchForDevicePass
 ; O123SZ:      Running pass:     EmbLowerWarpIntrinsicsPass
-; O123SZ:      Running pass:     EmbLowerIntrinsicsEarlyPass
+; O123SZ:      Running pass:     EmbLowerIntrinsicsPass
 ; O123SZ:      Running pass:     EmbResolveLibDeviceCallsPass
 ; O123SZ:      Running pass:     EmbPreparePass
 ; O123SZ:      Running pass:     EmbLinkLibDeviceBitcodePass
