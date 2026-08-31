@@ -306,7 +306,6 @@ llvm::populateKitPostTapirPasses(PassBuilder &pb, OptimizationLevel optLevel,
 void llvm::populateKitCodeGenPasses(legacy::PassManager &pm,
                                     const TTOptions &tto) {
   if (tto.hasTTID()) {
-    pm.add(createEmbLowerKitIntrinsicsLegacyPass());
     pm.add(createLowerIntrinsicsLegacyPass());
     pm.add(createStripKitAddrSpacesLegacyPass());
     pm.add(createCodeGenFatBinariesLegacyPass(tto));
