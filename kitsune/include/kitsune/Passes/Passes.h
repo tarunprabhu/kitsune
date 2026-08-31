@@ -28,7 +28,6 @@
 #include "kitsune/Transforms/EarlyAnnotate.h"
 #include "kitsune/Transforms/EmbLinkLibDeviceBitcode.h"
 #include "kitsune/Transforms/EmbLowerIntrinsics.h"
-#include "kitsune/Transforms/EmbLowerWarpIntrinsics.h"
 #include "kitsune/Transforms/EmbOptimize.h"
 #include "kitsune/Transforms/EmbPrepare.h"
 #include "kitsune/Transforms/EmbResolveLibDeviceCalls.h"

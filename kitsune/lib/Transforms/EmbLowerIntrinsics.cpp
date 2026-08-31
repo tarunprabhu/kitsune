@@ -37,77 +37,77 @@
 
 using namespace llvm;
 
-using LowerFunc = bool(CallInst *call);
+using LowerIntrImpl = detail::LowerGPUIntrImpl;
+using LowerFunc = bool (LowerIntrImpl::*)(CallInst *);
 
-namespace {
-struct LoweringInfo {
-  unsigned priority;
-  LowerFunc *lower;
-};
-} // namespace
-
-// The lowering of some intrinsics will result in the introduction to calls to
-// other intrinsics. Therefore, we need to lower them in order. Intrinsics with
-// smaller priority values will be lowered before those with higher priority
-// values. Intrinsics that have the same priority may be lowered in any order
-// relative to one another. The value of 1024 is generally used for intrinsics
-// that can be safely lowered after all other intrinsics in the map.
-static const DenseMap<Intrinsic::ID, LoweringInfo> loweringInfo = {
+static const DenseMap<Intrinsic::ID, LowerFunc> lowerFuncs = {
     // Reduce intrinsics
     {Intrinsic::kit_gpu_reduce_warp_shuffle_shared_memory,
-     {64, detail::lowerGPUReduceWarpShflShmemIntr}},
+     &LowerIntrImpl::lowerReduceWarpShflShmemIntr},
     {Intrinsic::kit_gpu_reduce_shared_memory,
-     {68, detail::lowerGPUReduceShmemIntr}},
+     &LowerIntrImpl::lowerReduceShmemIntr},
     {Intrinsic::kit_gpu_reduce_warp_shuffle,
-     {72, detail::lowerGPUReduceWarpShflIntr}},
-    {Intrinsic::kit_gpu_reduce_direct, {80, detail::lowerGPUReduceDirectIntr}},
+     &LowerIntrImpl::lowerReduceWarpShflIntr},
+    {Intrinsic::kit_gpu_reduce_direct, &LowerIntrImpl::lowerReduceDirectIntr},
 
     // Warp intrinsics
     {Intrinsic::kit_gpu_warp_shfl_down_sync,
-     {128, detail::lowerGPUWarpShflDownSyncIntr}},
-    {Intrinsic::kit_gpu_warp_id, {136, detail::lowerGPUWarpIdIntr}},
-    {Intrinsic::kit_gpu_warp_lane, {136, detail::lowerGPUWarpLaneIntr}},
-    {Intrinsic::kit_gpu_warp_size, {144, detail::lowerGPUWarpSizeIntr}},
+     &LowerIntrImpl::lowerWarpShflDownSyncIntr},
+    {Intrinsic::kit_gpu_warp_id, &LowerIntrImpl::lowerWarpIdIntr},
+    {Intrinsic::kit_gpu_warp_lane, &LowerIntrImpl::lowerWarpLaneIntr},
+    {Intrinsic::kit_gpu_warp_size, &LowerIntrImpl::lowerWarpSizeIntr},
 
     // Index intrinsics
-    {Intrinsic::kit_gpu_thread_id_x, {1024, detail::lowerGPUIndexIntr}},
-    {Intrinsic::kit_gpu_thread_id_y, {1024, detail::lowerGPUIndexIntr}},
-    {Intrinsic::kit_gpu_thread_id_z, {1024, detail::lowerGPUIndexIntr}},
-    {Intrinsic::kit_gpu_block_id_x, {1024, detail::lowerGPUIndexIntr}},
-    {Intrinsic::kit_gpu_block_id_y, {1024, detail::lowerGPUIndexIntr}},
-    {Intrinsic::kit_gpu_block_id_z, {1024, detail::lowerGPUIndexIntr}},
-    {Intrinsic::kit_gpu_block_size_x, {1024, detail::lowerGPUIndexIntr}},
-    {Intrinsic::kit_gpu_block_size_y, {1024, detail::lowerGPUIndexIntr}},
-    {Intrinsic::kit_gpu_block_size_z, {1024, detail::lowerGPUIndexIntr}},
-    {Intrinsic::kit_gpu_grid_size_x, {1024, detail::lowerGPUIndexIntr}},
-    {Intrinsic::kit_gpu_grid_size_y, {1024, detail::lowerGPUIndexIntr}},
-    {Intrinsic::kit_gpu_grid_size_z, {1024, detail::lowerGPUIndexIntr}},
+    {Intrinsic::kit_gpu_thread_id_x, &LowerIntrImpl::lowerIndexIntr},
+    {Intrinsic::kit_gpu_thread_id_y, &LowerIntrImpl::lowerIndexIntr},
+    {Intrinsic::kit_gpu_thread_id_z, &LowerIntrImpl::lowerIndexIntr},
+    {Intrinsic::kit_gpu_block_id_x, &LowerIntrImpl::lowerIndexIntr},
+    {Intrinsic::kit_gpu_block_id_y, &LowerIntrImpl::lowerIndexIntr},
+    {Intrinsic::kit_gpu_block_id_z, &LowerIntrImpl::lowerIndexIntr},
+    {Intrinsic::kit_gpu_block_size_x, &LowerIntrImpl::lowerIndexIntr},
+    {Intrinsic::kit_gpu_block_size_y, &LowerIntrImpl::lowerIndexIntr},
+    {Intrinsic::kit_gpu_block_size_z, &LowerIntrImpl::lowerIndexIntr},
+    {Intrinsic::kit_gpu_grid_size_x, &LowerIntrImpl::lowerIndexIntr},
+    {Intrinsic::kit_gpu_grid_size_y, &LowerIntrImpl::lowerIndexIntr},
+    {Intrinsic::kit_gpu_grid_size_z, &LowerIntrImpl::lowerIndexIntr},
 };
 
-static bool lowerIntrs(Module &m) {
+static bool lowerImpl(Module &m, LowerIntrImpl &lowerIntrImpl) {
   SmallVector<CallInst *, 0> calls;
   for (Function &f : m)
     for (BasicBlock &bb : f)
       for (Instruction &inst : bb)
         if (auto *call = dyn_cast<CallInst>(&inst))
-          if (loweringInfo.contains(call->getIntrinsicID()))
+          if (lowerFuncs.contains(call->getIntrinsicID()))
             calls.push_back(call);
 
-  std::sort(calls.begin(), calls.end(),
-            [](const CallInst *l, const CallInst *r) -> bool {
-              const LoweringInfo &li = loweringInfo.at(l->getIntrinsicID());
-              const LoweringInfo &ri = loweringInfo.at(r->getIntrinsicID());
-              return li.priority < ri.priority;
-            });
-
-  for (CallInst *call : calls)
-    if (Intrinsic::ID id = call->getIntrinsicID())
-      loweringInfo.at(id).lower(call);
+  for (CallInst *call : calls) {
+    if (Intrinsic::ID id = call->getIntrinsicID()) {
+      LowerFunc lower = lowerFuncs.at(id);
+      (lowerIntrImpl.*lower)(call);
+    }
+  }
 
   return calls.size();
 }
 
+static bool lowerIntrs(Module &m, const TTOptions &tto) {
+  LowerIntrImpl lowerIntrImpl(tto);
+
+  // The lowering of some intrinsics introduces calls to other intrinsics that
+  // are to be lowered by this pass. Iterate until no new intrinsics are
+  // generated.
+  bool result = false;
+  bool changed = false;
+  do {
+    changed = lowerImpl(m, lowerIntrImpl);
+    result |= changed;
+  } while (changed);
+
+  return result;
+}
+
 bool EmbLowerIntrinsicsPass::run(TTID tt, Module &devM, Module &hostM,
-                                 ModuleAnalysisManager &hostMAM) {
-  return lowerIntrs(devM);
+                                 ModuleAnalysisManager &hostAM) {
+  return lowerIntrs(devM, tto);
 }

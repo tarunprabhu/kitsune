@@ -1,12 +1,12 @@
 ; Check the Kitsune's warp index and lane intrinsics get optimized as expected.
 ;
 ; RUN: %kit-enc --tapir=cuda %s \
-; RUN:     | opt -passes='emb-lower-warp-intrinsics,emb-optimize' -emb-O2 \
+; RUN:     | opt -passes='emb-lower-intrinsics,emb-optimize' -emb-O2 \
 ; RUN:     | %kit-mbc -S -o - \
 ; RUN:     | FileCheck %s
 
 ; CHECK-LABEL: @id1
-; CHECK-NEXT: %[[X:.+]] = tail call i32 @llvm.kit.gpu.thread.id.x(i32 2)
+; CHECK-NEXT: %[[X:.+]] = tail call i32 @llvm.nvvm.read.ptx.sreg.tid.x()
 ; CHECK-NEXT: %[[RESULT:.+]] = lshr i32 %[[X]], 5
 ; CHECK-NEXT: ret i32 %[[RESULT]]
 define i32 @id1() {
@@ -15,11 +15,11 @@ define i32 @id1() {
 }
 
 ; CHECK-LABEL: @id2
-; CHECK-NEXT: %[[BSZX:.+]] = tail call i32 @llvm.kit.gpu.block.size.x(i32 2)
-; CHECK-NEXT: %[[TIDY:.+]] = tail call i32 @llvm.kit.gpu.thread.id.y(i32 2)
-; CHECK-NEXT: %[[Y:.+]] = mul i32 %[[TIDY]], %[[BSZX]]
-; CHECK-NEXT: %[[X:.+]] = tail call i32 @llvm.kit.gpu.thread.id.x(i32 2)
-; CHECK-NEXT: %[[OFFXY:.+]] = add i32 %[[X]], %[[Y]]
+; CHECK-NEXT: %[[BSZX:.+]] = tail call i32 @llvm.nvvm.read.ptx.sreg.ntid.x()
+; CHECK-NEXT: %[[TIDY:.+]] = tail call i32 @llvm.nvvm.read.ptx.sreg.tid.y()
+; CHECK-NEXT: %[[Y:.+]] = mul nuw nsw i32 %[[TIDY]], %[[BSZX]]
+; CHECK-NEXT: %[[X:.+]] = tail call i32 @llvm.nvvm.read.ptx.sreg.tid.x()
+; CHECK-NEXT: %[[OFFXY:.+]] = add nuw nsw i32 %[[Y]], %[[X]]
 ; CHECK-NEXT: %[[RESULT:.+]] = lshr i32 %[[OFFXY]], 5
 ; CHECK-NEXT: ret i32 %[[RESULT]]
 define i32 @id2() {
@@ -28,15 +28,15 @@ define i32 @id2() {
 }
 
 ; CHECK-LABEL: @id3
-; CHECK-NEXT: %[[BSZX:.+]] = tail call i32 @llvm.kit.gpu.block.size.x(i32 2)
-; CHECK-NEXT: %[[BSZY:.+]] = tail call i32 @llvm.kit.gpu.block.size.y(i32 2)
-; CHECK-NEXT: %[[TIDZ:.+]] = tail call i32 @llvm.kit.gpu.thread.id.z(i32 2)
-; CHECK-NEXT: %[[Z:.+]] = mul i32 %[[TIDZ]], %[[BSZY]]
-; CHECK-NEXT: %[[TIDY:.+]] = tail call i32 @llvm.kit.gpu.thread.id.y(i32 2)
-; CHECK-NEXT: %[[X:.+]] = tail call i32 @llvm.kit.gpu.thread.id.x(i32 2)
-; CHECK-NEXT: %[[ADD:.+]] = add i32 %[[TIDY]], %[[Z]]
-; CHECK-NEXT: %[[MUL:.+]] = mul i32 %[[ADD]], %[[BSZX]]
-; CHECK-NEXT: %[[OFFXYZ:.+]] = add i32 %[[MUL]], %[[X]]
+; CHECK-NEXT: %[[BSZX:.+]] = tail call i32 @llvm.nvvm.read.ptx.sreg.ntid.x()
+; CHECK-NEXT: %[[BSZY:.+]] = tail call i32 @llvm.nvvm.read.ptx.sreg.ntid.y()
+; CHECK-NEXT: %[[TIDZ:.+]] = tail call i32 @llvm.nvvm.read.ptx.sreg.tid.z()
+; CHECK-NEXT: %[[Z:.+]] = mul nuw nsw i32 %[[TIDZ]], %[[BSZY]]
+; CHECK-NEXT: %[[TIDY:.+]] = tail call i32 @llvm.nvvm.read.ptx.sreg.tid.y()
+; CHECK-NEXT: %[[X:.+]] = tail call i32 @llvm.nvvm.read.ptx.sreg.tid.x()
+; CHECK-NEXT: %[[ADD:.+]] = add nuw nsw i32 %[[Z]], %[[TIDY]]
+; CHECK-NEXT: %[[MUL:.+]] = mul nuw nsw i32 %[[ADD]], %[[BSZX]]
+; CHECK-NEXT: %[[OFFXYZ:.+]] = add nuw nsw i32 %[[MUL]], %[[X]]
 ; CHECK-NEXT: %[[RESULT:.+]] = lshr i32 %[[OFFXYZ]], 5
 ; CHECK-NEXT: ret i32 %[[RESULT]]
 define i32 @id3() {
@@ -45,7 +45,7 @@ define i32 @id3() {
 }
 
 ; CHECK-LABEL: @lane1
-; CHECK-NEXT: %[[X:.+]] = tail call i32 @llvm.kit.gpu.thread.id.x(i32 2)
+; CHECK-NEXT: %[[X:.+]] = tail call i32 @llvm.nvvm.read.ptx.sreg.tid.x()
 ; CHECK-NEXT: %[[RESULT:.+]] = and i32 %[[X]], 31
 ; CHECK-NEXT: ret i32 %[[RESULT]]
 define i32 @lane1() {
@@ -54,11 +54,11 @@ define i32 @lane1() {
 }
 
 ; CHECK-LABEL: @lane2
-; CHECK-NEXT: %[[BSZX:.+]] = tail call i32 @llvm.kit.gpu.block.size.x(i32 2)
-; CHECK-NEXT: %[[TIDY:.+]] = tail call i32 @llvm.kit.gpu.thread.id.y(i32 2)
-; CHECK-NEXT: %[[Y:.+]] = mul i32 %[[TIDY]], %[[BSZX]]
-; CHECK-NEXT: %[[X:.+]] = tail call i32 @llvm.kit.gpu.thread.id.x(i32 2)
-; CHECK-NEXT: %[[OFFXY:.+]] = add i32 %[[X]], %[[Y]]
+; CHECK-NEXT: %[[BSZX:.+]] = tail call i32 @llvm.nvvm.read.ptx.sreg.ntid.x()
+; CHECK-NEXT: %[[TIDY:.+]] = tail call i32 @llvm.nvvm.read.ptx.sreg.tid.y()
+; CHECK-NEXT: %[[Y:.+]] = mul nuw nsw i32 %[[TIDY]], %[[BSZX]]
+; CHECK-NEXT: %[[X:.+]] = tail call i32 @llvm.nvvm.read.ptx.sreg.tid.x()
+; CHECK-NEXT: %[[OFFXY:.+]] = add nuw nsw i32 %[[Y]], %[[X]]
 ; CHECK-NEXT: %[[RESULT:.+]] = and i32 %[[OFFXY]], 31
 ; CHECK-NEXT: ret i32 %[[RESULT]]
 define i32 @lane2() {
@@ -67,15 +67,15 @@ define i32 @lane2() {
 }
 
 ; CHECK-LABEL: @lane3
-; CHECK-NEXT: %[[BSZX:.+]] = tail call i32 @llvm.kit.gpu.block.size.x(i32 2)
-; CHECK-NEXT: %[[BSZY:.+]] = tail call i32 @llvm.kit.gpu.block.size.y(i32 2)
-; CHECK-NEXT: %[[TIDZ:.+]] = tail call i32 @llvm.kit.gpu.thread.id.z(i32 2)
-; CHECK-NEXT: %[[Z:.+]] = mul i32 %[[TIDZ]], %[[BSZY]]
-; CHECK-NEXT: %[[TIDY:.+]] = tail call i32 @llvm.kit.gpu.thread.id.y(i32 2)
-; CHECK-NEXT: %[[X:.+]] = tail call i32 @llvm.kit.gpu.thread.id.x(i32 2)
-; CHECK-NEXT: %[[ADD:.+]] = add i32 %[[TIDY]], %[[Z]]
-; CHECK-NEXT: %[[MUL:.+]] = mul i32 %[[ADD]], %[[BSZX]]
-; CHECK-NEXT: %[[OFFXYZ:.+]] = add i32 %[[MUL]], %[[X]]
+; CHECK-NEXT: %[[BSZX:.+]] = tail call i32 @llvm.nvvm.read.ptx.sreg.ntid.x()
+; CHECK-NEXT: %[[BSZY:.+]] = tail call i32 @llvm.nvvm.read.ptx.sreg.ntid.y()
+; CHECK-NEXT: %[[TIDZ:.+]] = tail call i32 @llvm.nvvm.read.ptx.sreg.tid.z()
+; CHECK-NEXT: %[[Z:.+]] = mul nuw nsw i32 %[[TIDZ]], %[[BSZY]]
+; CHECK-NEXT: %[[TIDY:.+]] = tail call i32 @llvm.nvvm.read.ptx.sreg.tid.y()
+; CHECK-NEXT: %[[X:.+]] = tail call i32 @llvm.nvvm.read.ptx.sreg.tid.x()
+; CHECK-NEXT: %[[ADD:.+]] = add nuw nsw i32 %[[Z]], %[[TIDY]]
+; CHECK-NEXT: %[[MUL:.+]] = mul{{.*}} i32 %[[ADD]], %[[BSZX]]
+; CHECK-NEXT: %[[OFFXYZ:.+]] = add nuw nsw i32 %[[MUL]], %[[X]]
 ; CHECK-NEXT: %[[RESULT:.+]] = and i32 %[[OFFXYZ]], 31
 ; CHECK-NEXT: ret i32 %[[RESULT]]
 define i32 @lane3() {

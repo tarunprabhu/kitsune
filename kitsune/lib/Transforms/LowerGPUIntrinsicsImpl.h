@@ -16,37 +16,46 @@
 namespace llvm {
 
 class CallInst;
+class TTOptions;
 
 namespace detail {
 
-// Lower a call to Kitsune's index intrinsic. These intrinsics correspond to
-// the threadIdx, blockIdx, blockDim, gridSize, and gridDim builtin objects.
-bool lowerGPUIndexIntr(CallInst *call);
+class LowerGPUIntrImpl {
+protected:
+  const TTOptions &tto;
 
-// Lower a call to Kitsune's kit.gpu.reduce.direct intrinsic.
-bool lowerGPUReduceDirectIntr(CallInst *call);
+public:
+  LowerGPUIntrImpl(const TTOptions &tto) : tto(tto) {}
 
-// Lower a call to Kitsnue's kit.gpu.reduce.shared.memory intrinsic.
-bool lowerGPUReduceShmemIntr(CallInst *call);
+  // Lower a call to Kitsune's index intrinsic. These intrinsics correspond to
+  // the threadIdx, blockIdx, blockDim, gridSize, and gridDim builtin objects.
+  bool lowerIndexIntr(CallInst *call);
 
-// Lower a call to Kitsune's kit.gpu.reduce.warp.shuffle intrinsic.
-bool lowerGPUReduceWarpShflIntr(CallInst *call);
+  // Lower a call to Kitsune's kit.gpu.reduce.direct intrinsic.
+  bool lowerReduceDirectIntr(CallInst *call);
 
-// Lower a call to Kitsune's kit.gpu.reduce.warp.shuffle.shared.memory
-// intrinsic.
-bool lowerGPUReduceWarpShflShmemIntr(CallInst *call);
+  // Lower a call to Kitsnue's kit.gpu.reduce.shared.memory intrinsic.
+  bool lowerReduceShmemIntr(CallInst *call);
 
-// Lower a call to Kitsune's kit.gpu.warp.shfl.down.sync intrinsic.
-bool lowerGPUWarpShflDownSyncIntr(CallInst *call);
+  // Lower a call to Kitsune's kit.gpu.reduce.warp.shuffle intrinsic.
+  bool lowerReduceWarpShflIntr(CallInst *call);
 
-// Lower a call to Kitsune's kit.gpu.warp.id intrinsic.
-bool lowerGPUWarpIdIntr(CallInst *call);
+  // Lower a call to Kitsune's kit.gpu.reduce.warp.shuffle.shared.memory
+  // intrinsic.
+  bool lowerReduceWarpShflShmemIntr(CallInst *call);
 
-// Lower a call to Kitsune's kit.gpu.warp.lane intrinsic.
-bool lowerGPUWarpLaneIntr(CallInst *call);
+  // Lower a call to Kitsune's kit.gpu.warp.shfl.down.sync intrinsic.
+  bool lowerWarpShflDownSyncIntr(CallInst *call);
 
-// Lower a call to Kitsune's kit.gpu.warp.size intrinsic.
-bool lowerGPUWarpSizeIntr(CallInst *call);
+  // Lower a call to Kitsune's kit.gpu.warp.id intrinsic.
+  bool lowerWarpIdIntr(CallInst *call);
+
+  // Lower a call to Kitsune's kit.gpu.warp.lane intrinsic.
+  bool lowerWarpLaneIntr(CallInst *call);
+
+  // Lower a call to Kitsune's kit.gpu.warp.size intrinsic.
+  bool lowerWarpSizeIntr(CallInst *call);
+};
 
 } // namespace detail
 

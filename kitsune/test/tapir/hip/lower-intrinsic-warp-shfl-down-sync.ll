@@ -1,7 +1,7 @@
 ; Check the Kitsune's warp.shfl.down.sync intrinsics are lowered as expected.
 ;
 ; RUN: %kit-enc --tapir=hip %s \
-; RUN:     | opt -passes='emb-lower-warp-intrinsics' \
+; RUN:     | opt -passes='emb-lower-intrinsics' \
 ; RUN:           --tapir=hip --tapir-hip-arch=gfx90a \
 ; RUN:     | %kit-mbc -S -o - \
 ; RUN:     | FileCheck %s
