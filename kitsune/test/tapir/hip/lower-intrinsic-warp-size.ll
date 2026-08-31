@@ -15,13 +15,13 @@
 ; the frontend will generally have set the target features and architecture.
 ;
 ; RUN: %kit-enc --tapir=hip %s \
-; RUN:     | opt -passes=emb-lower-warp-intrinsics \
+; RUN:     | opt -passes=emb-lower-intrinsics \
 ; RUN:           --tapir=hip --tapir-hip-arch=gfx1103 \
 ; RUN:     | %kit-mbc -S -o - \
 ; RUN:     | FileCheck %s --check-prefixes=CHECK,WARP32
 ;
 ; RUN: %kit-enc --tapir=hip %s \
-; RUN:     | opt -passes=emb-lower-warp-intrinsics \
+; RUN:     | opt -passes=emb-lower-intrinsics \
 ; RUN:           --tapir=hip --tapir-hip-arch=gfx90a \
 ; RUN:     | %kit-mbc -S -o - \
 ; RUN:     | FileCheck %s --check-prefixes=CHECK,WARP64

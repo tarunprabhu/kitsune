@@ -1,7 +1,7 @@
 ; Check the Kitsune's warp.id intrinsics are lowered as expected.
 ;
 ; RUN: %kit-enc --tapir=cuda %s \
-; RUN:     | opt -passes=emb-lower-warp-intrinsics \
+; RUN:     | opt -passes=emb-lower-intrinsics \
 ; RUN:     | %kit-mbc -S -o - \
 ; RUN:     | FileCheck %s
 ;
@@ -14,14 +14,14 @@
 ; CHECK: define linkonce_odr i32 @__kit.cuda.warp.id
 ; CHECK-SAME: i32 %[[DIMS:[^)]+]]
 ; CHECK-SAME: #[[ATTRS:[0-9]+]]
-; CHECK-NEXT: %[[BSZX:.+]] = call i32 @llvm.kit.gpu.block.size.x(i32 2)
-; CHECK-NEXT: %[[BSZY:.+]] = call i32 @llvm.kit.gpu.block.size.y(i32 2)
+; CHECK-NEXT: %[[BSZX:.+]] = call i32 @llvm.nvvm.read.ptx.sreg.ntid.x()
+; CHECK-NEXT: %[[BSZY:.+]] = call i32 @llvm.nvvm.read.ptx.sreg.ntid.y()
 ; CHECK-NEXT: %[[BSZXY:.+]] = mul i32 %[[BSZX]], %[[BSZY]]
-; CHECK-NEXT: %[[TIDZ:.+]] = call i32 @llvm.kit.gpu.thread.id.z(i32 2)
+; CHECK-NEXT: %[[TIDZ:.+]] = call i32 @llvm.nvvm.read.ptx.sreg.tid.z()
 ; CHECK-NEXT: %[[OFFZ:.+]] = mul i32 %[[TIDZ]], %[[BSZXY]]
-; CHECK-NEXT: %[[TIDY:.+]] = call i32 @llvm.kit.gpu.thread.id.y(i32 2)
+; CHECK-NEXT: %[[TIDY:.+]] = call i32 @llvm.nvvm.read.ptx.sreg.tid.y()
 ; CHECK-NEXT: %[[OFFY:.+]] = mul i32 %[[TIDY]], %[[BSZX]]
-; CHECK-NEXT: %[[X:.+]] = call i32 @llvm.kit.gpu.thread.id.x(i32 2)
+; CHECK-NEXT: %[[X:.+]] = call i32 @llvm.nvvm.read.ptx.sreg.tid.x()
 ; CHECK-NEXT: %[[HASY:.+]] = icmp ugt i32 %[[DIMS]], 1
 ; CHECK-NEXT: %[[Y:.+]] = select i1 %[[HASY]], i32 %[[OFFY]], i32 0
 ; CHECK-NEXT: %[[OFFXY:.+]] = add i32 %[[X]], %[[Y]]

@@ -1,7 +1,7 @@
 ; Check the Kitsune's warp.id intrinsics are lowered as expected.
 ;
 ; RUN: %kit-enc --tapir=hip %s \
-; RUN:     | opt -passes=emb-lower-warp-intrinsics \
+; RUN:     | opt -passes=emb-lower-intrinsics \
 ; RUN:           --tapir=hip --tapir-hip-arch=gfx1103 \
 ; RUN:     | %kit-mbc -S -o - \
 ; RUN:     | FileCheck %s
@@ -15,14 +15,16 @@
 ; CHECK: define linkonce_odr i32 @__kit.hip.warp.id
 ; CHECK-SAME: i32 %[[DIMS:[^)]+]]
 ; CHECK-SAME: #[[ATTRS:[0-9]+]]
-; CHECK-NEXT: %[[BSZX:.+]] = call i32 @llvm.kit.gpu.block.size.x(i32 4)
-; CHECK-NEXT: %[[BSZY:.+]] = call i32 @llvm.kit.gpu.block.size.y(i32 4)
+; CHECK-NEXT: %[[BSZX64:.+]] = call i64 @__ockl_get_local_size(i32 0)
+; CHECK-NEXT: %[[BSZX:.+]] = trunc i64 %[[BSZX64]] to i32
+; CHECK-NEXT: %[[BSZY64:.+]] = call i64 @__ockl_get_local_size(i32 1)
+; CHECK-NEXT: %[[BSZY:.+]] = trunc i64 %[[BSZY64]] to i32
 ; CHECK-NEXT: %[[BSZXY:.+]] = mul i32 %[[BSZX]], %[[BSZY]]
-; CHECK-NEXT: %[[TIDZ:.+]] = call i32 @llvm.kit.gpu.thread.id.z(i32 4)
+; CHECK-NEXT: %[[TIDZ:.+]] = call i32 @llvm.amdgcn.workitem.id.z()
 ; CHECK-NEXT: %[[OFFZ:.+]] = mul i32 %[[TIDZ]], %[[BSZXY]]
-; CHECK-NEXT: %[[TIDY:.+]] = call i32 @llvm.kit.gpu.thread.id.y(i32 4)
+; CHECK-NEXT: %[[TIDY:.+]] = call i32 @llvm.amdgcn.workitem.id.y()
 ; CHECK-NEXT: %[[OFFY:.+]] = mul i32 %[[TIDY]], %[[BSZX]]
-; CHECK-NEXT: %[[X:.+]] = call i32 @llvm.kit.gpu.thread.id.x(i32 4)
+; CHECK-NEXT: %[[X:.+]] = call i32 @llvm.amdgcn.workitem.id.x()
 ; CHECK-NEXT: %[[HASY:.+]] = icmp ugt i32 %[[DIMS]], 1
 ; CHECK-NEXT: %[[Y:.+]] = select i1 %[[HASY]], i32 %[[OFFY]], i32 0
 ; CHECK-NEXT: %[[OFFXY:.+]] = add i32 %[[X]], %[[Y]]

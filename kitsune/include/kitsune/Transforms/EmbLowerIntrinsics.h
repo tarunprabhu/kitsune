@@ -20,7 +20,12 @@ namespace llvm {
 /// \ingroup kitsune
 /// Lower Kitsune-specific intrinsics in an embedded module.
 class EmbLowerIntrinsicsPass : public EmbModulePass<EmbLowerIntrinsicsPass> {
+protected:
+  const TTOptions &tto;
+
 public:
+  EmbLowerIntrinsicsPass(const TTOptions &tto) : tto(tto) {}
+
   bool run(TTID tt, Module &devM, Module &hostM, ModuleAnalysisManager &hostAM);
 
   using EmbModulePass<EmbLowerIntrinsicsPass>::run;

@@ -2,7 +2,7 @@
 ; On NVIDIA GPU's, the warp size is always 32.
 ;
 ; RUN: %kit-enc --tapir=cuda %s \
-; RUN:     | opt -passes=emb-lower-warp-intrinsics \
+; RUN:     | opt -passes=emb-lower-intrinsics \
 ; RUN:     | %kit-mbc -S -o - \
 ; RUN:     | FileCheck %s
 
