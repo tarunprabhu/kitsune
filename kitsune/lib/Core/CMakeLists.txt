@@ -10,6 +10,7 @@ add_llvm_component_library(LLVMKitCore
   EmbUtils.cpp
   FuncAttrs.cpp
   FuncUtils.cpp
+  GPUMemUtils.cpp
   GVAttrs.cpp
   GVUtils.cpp
   InstAttrs.cpp
