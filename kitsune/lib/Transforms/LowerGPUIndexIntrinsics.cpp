@@ -131,7 +131,7 @@ static bool lowerForCuda(CallInst *call) {
   llvm_unreachable("lowerGPUIndexIntrinsic[cuda]: Unexpected intrinsic");
 }
 
-bool llvm::detail::lowerGPUIndexIntr(CallInst *call) {
+bool detail::LowerGPUIntrImpl::lowerIndexIntr(CallInst *call) {
   switch (*getTTIDFromKitIntrCall(*call)) {
   case TTID::Cuda: return lowerForCuda(call);
   case TTID::Hip: return lowerForHip(call);

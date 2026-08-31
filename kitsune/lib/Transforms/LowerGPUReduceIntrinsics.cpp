@@ -14,22 +14,22 @@
 
 using namespace llvm;
 
-bool llvm::detail::lowerGPUReduceDirectIntr(CallInst *call) {
+bool detail::LowerGPUIntrImpl::lowerReduceDirectIntr(CallInst *call) {
   // TODO: Implement this.
   return true;
 }
 
-bool llvm::detail::lowerGPUReduceShmemIntr(CallInst *call) {
+bool detail::LowerGPUIntrImpl::lowerReduceShmemIntr(CallInst *call) {
   // TODO: Implement this.
   return true;
 }
 
-bool llvm::detail::lowerGPUReduceWarpShflIntr(CallInst *call) {
+bool detail::LowerGPUIntrImpl::lowerReduceWarpShflIntr(CallInst *call) {
   // TODO: Implement this.
   return true;
 }
 
-bool llvm::detail::lowerGPUReduceWarpShflShmemIntr(CallInst *call) {
+bool detail::LowerGPUIntrImpl::lowerReduceWarpShflShmemIntr(CallInst *call) {
   // TODO: Implement this.
   return true;
 }
