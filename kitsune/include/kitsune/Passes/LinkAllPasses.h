@@ -14,7 +14,6 @@
 #define KITSUNE_PASSES_LINK_ALL_PASSES_H
 
 #include "kitsune/CodeGen/CodeGenFatBinaries.h"
-#include "kitsune/CodeGen/EmbLowerKitIntrinsics.h"
 #include "kitsune/CodeGen/LowerIntrinsics.h"
 #include "kitsune/CodeGen/StripKitAddrSpaces.h"
 
@@ -31,7 +30,6 @@ struct ForceKitsunePassLinking {
       return;
 
     (void)llvm::createCodeGenFatBinariesLegacyPass();
-    (void)llvm::createEmbLowerKitIntrinsicsLegacyPass();
     (void)llvm::createLowerIntrinsicsLegacyPass();
     (void)llvm::createStripKitAddrSpacesLegacyPass();
   }
