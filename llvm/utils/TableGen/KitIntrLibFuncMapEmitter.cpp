@@ -11,6 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/TableGen/Error.h"
 #include "llvm/TableGen/Record.h"
 #include "llvm/TableGen/TableGenBackend.h"
 
@@ -38,13 +39,34 @@ public:
 
 } // namespace
 
+static std::string getLowerMode(const Record &intr) {
+  std::string buf;
+  raw_string_ostream os(buf);
+
+  // This is the name of the scoped enum in kitsune/Core/IntrinsicUtils.h that
+  // is used in the lowering mode field.
+  os << "KitIntrLowerMode::";
+
+  // If an RTSpec has been set, then the lowering mode is Runtime. Otherwise,
+  // use the value of the LowerMode field. The value is guaranteed to be set.
+  // The name will always be prefixed with Lower, so that must be stripped.
+  std::vector<const Record *> rtSpec = intr.getValueAsListOfDefs("RTSpec");
+  if (!rtSpec.empty())
+    os << "Runtime";
+  else
+    os << intr.getValueAsDef("LowerMode")->getName().substr(5);
+  os.flush();
+
+  return buf;
+}
+
 raw_ostream &KitIntrLibFuncMapEmitter::emitIntr(const Record &intr,
                                                 raw_ostream &os) {
   os << "INTR(";
   // The name is always prefixed with int_. This should be removed to get the
   // corresponding enum name.
   os << intr.getName().substr(4) << ", ";
-  os << intr.getValueAsBit("RequiresCustomLowering") << ", ";
+  os << getLowerMode(intr) << ", ";
   os << intr.getValueAsBit("AllowParamCast") << ", ";
   os << intr.getValueAsBit("AllowReturnCast");
   os << ")";
@@ -115,6 +137,15 @@ raw_ostream &KitIntrLibFuncMapEmitter::emitIntrLibFuncMap(raw_ostream &os) {
 }
 
 void KitIntrLibFuncMapEmitter::run(raw_ostream &os) {
+  for (const Record *intr : records.getAllDerivedDefinitions("KitIntrinsic")) {
+    std::vector<const Record *> rtSpec = intr->getValueAsListOfDefs("RTSpec");
+    StringRef lowerMode = intr->getValueAsDef("LowerMode")->getName();
+    if (!rtSpec.empty() && lowerMode != "LowerUnspecified")
+      PrintFatalError(
+          intr->getLoc(),
+          "If an RTSpec is provided, the LowerMode must be unspecfied");
+  }
+
   emitIntrLibFuncMap(os);
   emitIntrs(os);
 }
