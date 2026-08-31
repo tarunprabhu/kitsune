@@ -15,6 +15,7 @@ add_kitsune_unittest(KitCore
   EmbUtilsTest.cpp
   FuncAttrsTest.cpp
   FuncUtilsTest.cpp
+  GPUMemUtilsTest.cpp
   GVAttrsTest.cpp
   GVUtilsTest.cpp
   InstAttrsTest.cpp
