@@ -76,7 +76,7 @@ FUNCTION_PASS("kit-annotate-early", EarlyAnnotatePass())
 FUNCTION_PASS("kit-annotate-prelower", PreLowerAnnotatePass())
 FUNCTION_PASS("kit-delicm", DeLICMPass())
 FUNCTION_PASS("kit-hoist-allocas", HoistAllocasPass())
-FUNCTION_PASS("kit-lower-intrinsics", LowerKitIntrinsicsPass())
+FUNCTION_PASS("kit-lower-intrinsics", LowerIntrinsicsPass())
 FUNCTION_PASS("kit-prepare", PrepareTapirLoopsPass())
 FUNCTION_PASS("kit-serialize", SerializePass())
 #endif // FUNCTION_PASS

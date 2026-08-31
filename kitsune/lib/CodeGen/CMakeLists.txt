@@ -4,7 +4,7 @@ add_llvm_component_library(LLVMKitCodeGen
   CodeGenFatBinaries.cpp
   EmbLowerKitIntrinsics.cpp
   EmbModuleLegacyPass.cpp
-  LowerKitIntrinsics.cpp
+  LowerIntrinsics.cpp
   StripKitAddrSpaces.cpp
 
   DEPENDS

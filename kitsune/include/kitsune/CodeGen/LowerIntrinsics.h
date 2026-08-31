@@ -1,4 +1,4 @@
-//=- LowerKitIntrinsics.h - Lower Kitsune-specific intrinsics -----*- C++ -*-=//
+//===- LowerIntrinsics.h - Lower Kitsune-specific intrinsics ----*- C++ -*-===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -10,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef KITSUNE_CODEGEN_LOWER_KIT_INTRINSICS_H
-#define KITSUNE_CODEGEN_LOWER_KIT_INTRINSICS_H
+#ifndef KITSUNE_CODEGEN_LOWER_INTRINSICS_H
+#define KITSUNE_CODEGEN_LOWER_INTRINSICS_H
 
 #include "llvm/IR/PassManager.h"
 
@@ -21,14 +21,14 @@ class FunctionPass;
 
 /// \ingroup kitsune
 /// Lower Kitsune-specific intrinsics.
-class LowerKitIntrinsicsPass : public PassInfoMixin<LowerKitIntrinsicsPass> {
+class LowerIntrinsicsPass : public PassInfoMixin<LowerIntrinsicsPass> {
 public:
   PreservedAnalyses run(Function &f, FunctionAnalysisManager &am);
 };
 
 /// \ingroup kitsune
-FunctionPass *createLowerKitIntrinsicsLegacyPass();
+FunctionPass *createLowerIntrinsicsLegacyPass();
 
 } // namespace llvm
 
-#endif // KITSUNE_CODEGEN_LOWER_KIT_INTRINSICS_H
+#endif // KITSUNE_CODEGEN_LOWER_INTRINSICS_H
