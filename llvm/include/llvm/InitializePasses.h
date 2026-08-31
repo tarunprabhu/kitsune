@@ -343,13 +343,6 @@ LLVM_ABI void initializeWinEHPreparePass(PassRegistry &);
 LLVM_ABI void initializeWriteBitcodePassPass(PassRegistry &);
 LLVM_ABI void initializeXRayInstrumentationLegacyPass(PassRegistry &);
 
-// Initialize Kitsune codegen passes
-LLVM_ABI void initializeCodeGenFatBinariesLegacyPassPass(PassRegistry &);
-LLVM_ABI void initializeEmbLowerKitIntrinsicsLegacyPassPass(PassRegistry &);
-LLVM_ABI void initializeLowerIntrinsicsLegacyPassPass(PassRegistry &);
-LLVM_ABI void initializeStripKitAddrSpacesLegacyPassPass(PassRegistry &);
-LLVM_ABI void initializeTTObjectsAnalysisWrapperPassPass(PassRegistry &);
-
 } // end namespace llvm
 
 #endif // LLVM_INITIALIZEPASSES_H

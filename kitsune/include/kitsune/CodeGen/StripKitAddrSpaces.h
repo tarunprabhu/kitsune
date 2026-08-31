@@ -19,8 +19,11 @@
 namespace llvm {
 
 class ModulePass;
+class PassRegistry;
 
 /// \ingroup kitsune
+/// @{
+
 /// Move pointers from Kitsune-specific address spaces to the default address
 /// space. This will mutate the types of the appropriate entities.
 class StripKitAddrSpacesPass : public PassInfoMixin<StripKitAddrSpacesPass> {
@@ -28,8 +31,12 @@ public:
   PreservedAnalyses run(Module &m, ModuleAnalysisManager &am);
 };
 
-/// \ingroup kitsune
+/// Create a legacy pass to strip Kitsune-specific address spaces from a host
+/// module.
 ModulePass *createStripKitAddrSpacesLegacyPass();
+void initializeStripKitAddrSpacesLegacyPassPass(PassRegistry &);
+
+/// @}
 
 } // namespace llvm
 

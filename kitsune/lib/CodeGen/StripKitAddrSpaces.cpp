@@ -17,7 +17,6 @@
 #include "kitsune/Core/AddrSpace.h"
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
-#include "llvm/InitializePasses.h"
 #include "llvm/Pass.h"
 
 #define DEBUG_TYPE "kit-strip-addrspaces"

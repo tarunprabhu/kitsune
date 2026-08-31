@@ -20,8 +20,11 @@
 namespace llvm {
 
 class ModulePass;
+class PassRegistry;
 
 /// \ingroup kitsune
+/// @{
+
 /// Compiles embedded in a module to device code. Updates the initializers of
 /// the global variables that are to contain the device code. These will already
 /// be present in the module. Remove the globals containing the embedded
@@ -36,12 +39,14 @@ public:
   PreservedAnalyses run(Module &m, ModuleAnalysisManager &am);
 };
 
-/// \ingroup kitsune
 /// Create a legacy pass to compile embedded bitcode in a module to device code.
 /// This must always be called with a TTOptions object. The only reason a
 /// default is provided is so this can be called from LinkAllPasses.h.
 ModulePass *
 createCodeGenFatBinariesLegacyPass(const TTOptions &tto = TTOptions());
+void initializeCodeGenFatBinariesLegacyPassPass(PassRegistry &);
+
+/// @}
 
 } // namespace llvm
 

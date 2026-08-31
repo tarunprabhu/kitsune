@@ -18,16 +18,23 @@
 namespace llvm {
 
 class FunctionPass;
+class PassRegistry;
 
-/// \ingroup kitsune
-/// Lower Kitsune-specific intrinsics.
+///\ingroup kitsune
+/// @{
+
+/// Lower Kitsune-specific intrinsics in the host module.
 class LowerIntrinsicsPass : public PassInfoMixin<LowerIntrinsicsPass> {
 public:
   PreservedAnalyses run(Function &f, FunctionAnalysisManager &am);
 };
 
-/// \ingroup kitsune
+/// Create a legacy pass to lower Kitsune-specific intrinsics in the host
+/// module.
 FunctionPass *createLowerIntrinsicsLegacyPass();
+void initializeLowerIntrinsicsLegacyPassPass(PassRegistry &);
+
+/// @}
 
 } // namespace llvm
 
