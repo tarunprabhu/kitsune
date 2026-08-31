@@ -1,4 +1,4 @@
-//===- EmbLowerIntrinsicsEarly.cpp - Lower Kitsune-specific intrinsics ----===//
+//===- EmbLowerIntrinsics.cpp - Lower Kitsune-specific intrinsics ---------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------===//
 //
 // Lower Kitsune-specific intrinsics in an embedded module. Although most
-// Kitsune-specific intrinsics are lowered by the backend, lower of the
+// Kitsune-specific intrinsics are lowered by the backend, lowering of the
 // GPU-specific intrinsics is run as part of Kitsune's lowering pipeline in the
 // middle-end.
 //
@@ -26,14 +26,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Transforms/EmbLowerIntrinsicsEarly.h"
+#include "kitsune/Transforms/EmbLowerIntrinsics.h"
 #include "LowerGPUIntrinsicsImpl.h"
 #include "kitsune/Core/ModuleUtils.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/Instructions.h"
 
-#define DEBUG_TYPE "emb-lower-intrinsics-early"
+#define DEBUG_TYPE "emb-lower-intrinsics"
 
 using namespace llvm;
 
@@ -107,7 +107,7 @@ static bool lowerIntrs(Module &m) {
   return calls.size();
 }
 
-bool EmbLowerIntrinsicsEarlyPass::run(TTID tt, Module &devM, Module &hostM,
-                                      ModuleAnalysisManager &hostMAM) {
+bool EmbLowerIntrinsicsPass::run(TTID tt, Module &devM, Module &hostM,
+                                 ModuleAnalysisManager &hostMAM) {
   return lowerIntrs(devM);
 }

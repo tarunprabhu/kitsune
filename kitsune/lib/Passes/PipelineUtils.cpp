@@ -1,4 +1,4 @@
-//===- PipelineUtils.h - Utilities to populate pass pipelines --*- C++ -*--===//
+//===- PipelineUtils.cpp - Utilities to populate pass pipelines -----------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -286,7 +286,7 @@ llvm::populateKitPostTapirPasses(PassBuilder &pb, OptimizationLevel optLevel,
 
     addModulePass<PrefetchForDevicePass>(mpm, tto);
     addModulePass<EmbLowerWarpIntrinsicsPass>(mpm, tto);
-    addModulePass<EmbLowerIntrinsicsEarlyPass>(mpm);
+    addModulePass<EmbLowerIntrinsicsPass>(mpm);
     addModulePass<EmbResolveLibDeviceCallsPass>(mpm, tto);
     addModulePass<EmbPreparePass>(mpm, tto);
     addModulePass<EmbLinkLibDeviceBitcodePass>(mpm, tto);
