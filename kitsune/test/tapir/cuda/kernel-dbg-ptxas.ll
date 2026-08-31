@@ -8,13 +8,13 @@
 ; optimization level will result in a compiler crash.
 ;
 ; RUN: opt --tapir=cuda -disable-output %s \
-; RUN:     -passes='loop-spawning,emb-lower-intrinsics,kit-cgfb' \
+; RUN:     -passes='loop-spawning,emb-lower-intrinsics-early,kit-cgfb' \
 ; RUN:     -cgfb-### 2>&1 \
 ; RUN:     | FileCheck %s --check-prefixes ALL,DEFAULT
 ;
 ; RUN: not --crash \
 ; RUN: opt --tapir=cuda -disable-output %s \
-; RUN:     -passes='loop-spawning,emb-lower-intrinsics,kit-cgfb' \
+; RUN:     -passes='loop-spawning,emb-lower-intrinsics-early,kit-cgfb' \
 ; RUN:         -cgfb-### --cgfb-ptxas-O3 2>&1 \
 ; RUN:     | FileCheck %s --check-prefixes ALL,OVERRIDE
 ;

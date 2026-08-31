@@ -1,11 +1,9 @@
-; REQUIRES: kitsune-hip
-;
-; Check that the Kitsune-specific GPU thread intriniscs in an embedded module
+; Check that the Kitsune-specific GPU index intrinsics in an embedded module
 ; are lowered correctly.
 ;
 ; RUN: %kit-enc --tapir=hip %s \
-; RUN:      | opt --tapir=hip -passes='emb-lower-intrinsics-early' \
-; RUN:      | %kit-mbc --tapir=hip -S \
+; RUN:      | opt -passes='emb-lower-intrinsics-early' \
+; RUN:      | %kit-mbc -S \
 ; RUN:      | FileCheck %s
 ;
 ; CHECK-LABEL: @f
