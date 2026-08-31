@@ -38,20 +38,10 @@ using KitIntrLibFuncMap = std::map<Intrinsic::ID, LibFuncMap>;
 #include "kitsune/Core/IntrLibFuncMap.inc"
 static const KitIntrLibFuncMap intrLibFuncMap = INTR_LIBFUNC_MAP;
 
-static bool requiresCustomLowering(const CallInst &call) {
-  switch (call.getIntrinsicID()) {
-#define GET_INTR_LOWERING_SPEC
-#define INTR(NAME, CUSTOM_LOWERING, ALLOW_PARAM_CAST, ALLOW_RETURN_CAST)       \
-  case Intrinsic::NAME: return CUSTOM_LOWERING;
-#include "kitsune/Core/IntrLibFuncMap.inc"
-  }
-  llvm_unreachable("requiresCustomLowering: Intrinsic ID not handled");
-}
-
 static bool allowParamCast(const CallInst &call) {
   switch (call.getIntrinsicID()) {
 #define GET_INTR_LOWERING_SPEC
-#define INTR(NAME, CUSTOM_LOWERING, ALLOW_PARAM_CAST, ALLOW_RETURN_CAST)       \
+#define INTR(NAME, LOWER_MODE, ALLOW_PARAM_CAST, ALLOW_RETURN_CAST)            \
   case Intrinsic::NAME: return ALLOW_PARAM_CAST;
 #include "kitsune/Core/IntrLibFuncMap.inc"
   }
@@ -61,15 +51,14 @@ static bool allowParamCast(const CallInst &call) {
 static bool allowReturnCast(const CallInst &call) {
   switch (call.getIntrinsicID()) {
 #define GET_INTR_LOWERING_SPEC
-#define INTR(NAME, CUSTOM_LOWERING, ALLOW_PARAM_CAST, ALLOW_RETURN_CAST)       \
+#define INTR(NAME, LOWER_MODE, ALLOW_PARAM_CAST, ALLOW_RETURN_CAST)            \
   case Intrinsic::NAME: return ALLOW_RETURN_CAST;
 #include "kitsune/Core/IntrLibFuncMap.inc"
   }
   llvm_unreachable("allowReturnCast: Intrinsic ID not handled");
 }
 
-static FunctionCallee getRuntimeFunc(CallInst &call, KitFunc rtFunc) {
-  Module &m = *call.getModule();
+static FunctionCallee getRuntimeFunc(Module &m, KitFunc rtFunc) {
   return getOrInsertLibFunc(m, rtFunc);
 }
 
@@ -83,7 +72,8 @@ static FunctionCallee getRuntimeFunc(CallInst &call) {
   assert(libFuncMap.find(tt) != libFuncMap.end() &&
          "No library function for tapir target");
 
-  return getRuntimeFunc(call, libFuncMap.at(tt));
+  Module &m = *call.getModule();
+  return getRuntimeFunc(m, libFuncMap.at(tt));
 }
 
 // If the type of \p v does not match \p dstTy, insert a cast using the given
@@ -220,6 +210,15 @@ static bool lowerCall(CallInst &call, FunctionCallee rtFunc,
 // TODO: We should look at the number of arguments that are required and
 // consider allocating a struct on the heap instead.
 static bool lowerLaunchThreads(CallInst &call, IRBuilder<> &builder) {
+  auto getLaunchThreadsFunc = [](CallInst &call) -> KitFunc {
+    switch (*getTTIDFromKitIntrCall(call)) {
+    case TTID::OpenMP: return KitFunc::kitomp_launch;
+    case TTID::Pthreads: return KitFunc::kitpthr_async_launch;
+    case TTID::Qthreads: return KitFunc::kitqthr_launch;
+    default: llvm_unreachable("lowerLaunchThreads: TTID not handled");
+    }
+  };
+
   Function &f = *call.getFunction();
   LLVMContext &ctx = f.getContext();
 
@@ -247,7 +246,7 @@ static bool lowerLaunchThreads(CallInst &call, IRBuilder<> &builder) {
   launchArgs.push_back(bundle);
   launchArgs.push_back(toConstant(bundleSize, ctx));
 
-  FunctionCallee rtFunc = getRuntimeFunc(call);
+  FunctionCallee rtFunc = getRuntimeFunc(m, getLaunchThreadsFunc(call));
   Value *newCall = createNewCallFor(call, rtFunc, launchArgs, builder);
 
   // The call will use the argument bundle, so it cannot be a tail call.
@@ -263,6 +262,14 @@ static bool lowerLaunchThreads(CallInst &call, IRBuilder<> &builder) {
 // these stack slots. The runtime function is passed a pointer to this array of
 // pointers.
 static bool lowerLaunchKernel(CallInst &call, IRBuilder<> &builder) {
+  auto getLaunchFunc = [](CallInst &call) -> KitFunc {
+    switch (*getTTIDFromKitIntrCall(call)) {
+    case TTID::Cuda: return KitFunc::kitcuda_kernel_launch;
+    case TTID::Hip: return KitFunc::kithip_kernel_launch;
+    default: llvm_unreachable("lowerLaunchKernel: TTID not handled");
+    }
+  };
+
   LLVMContext &ctx = call.getContext();
   PointerType *ptrTy = PointerType::getUnqual(ctx);
 
@@ -290,7 +297,8 @@ static bool lowerLaunchKernel(CallInst &call, IRBuilder<> &builder) {
     args.push_back(call.getArgOperand(i));
   args.push_back(argArray);
 
-  FunctionCallee rtFunc = getRuntimeFunc(call);
+  Module &m = *call.getModule();
+  FunctionCallee rtFunc = getRuntimeFunc(m, getLaunchFunc(call));
   Value *newCall = createNewCallFor(call, rtFunc, args, builder);
 
   // The call will use the argument bundle, so it cannot be a tail call.
@@ -326,7 +334,8 @@ static bool lowerMobileInit(CallInst &call, IRBuilder<> &builder) {
       llvm_unreachable("Unsupported initializer type");
   };
 
-  FunctionCallee rtFunc = getRuntimeFunc(call, getMobileInitFunc(call));
+  Module &m = *call.getModule();
+  FunctionCallee rtFunc = getRuntimeFunc(m, getMobileInitFunc(call));
   return lowerCall(call, rtFunc, builder);
 }
 
@@ -383,14 +392,35 @@ static bool lowerGPUMemset(CallInst &call, IRBuilder<> &builder) {
     }
   };
 
-  FunctionCallee rtFunc = getRuntimeFunc(call, getMemsetFunc(call));
+  Module &m = *call.getModule();
+  FunctionCallee rtFunc = getRuntimeFunc(m, getMemsetFunc(call));
   return lowerCall(call, rtFunc, builder);
 }
 
-// Replace the Kitsune intrinsic called in the given instruction with an
-// appropriate runtime function. The arguments passed to the intrinsic will
-// be passed to the runtime function. Always returns true.
-static bool lowerDefault(CallInst &call, IRBuilder<> &builder) {
+static bool lowerCustom(CallInst &call, IRBuilder<> &builder) {
+  switch (call.getIntrinsicID()) {
+  case Intrinsic::kit_async_gpu_kernel_launch:
+    return lowerLaunchKernel(call, builder);
+  case Intrinsic::kit_async_cpu_threads_launch:
+  case Intrinsic::kit_cpu_threads_launch:
+    return lowerLaunchThreads(call, builder);
+  case Intrinsic::kit_gpu_memset: return lowerGPUMemset(call, builder);
+  case Intrinsic::kit_mobile_init: return lowerMobileInit(call, builder);
+  default:
+    llvm_unreachable(
+        "lowerIntrinsic: Intrinsic requiring custom lowering not handled");
+  }
+}
+
+static bool lowerNone(CallInst &call) {
+  call.eraseFromParent();
+  return true;
+}
+
+// Replace the call to a Kitsune-specific intrinsic with a call to a runtime
+// function. With the exception of the TTID, the arguments in the call will be
+// passed to the runtime function. Always returns true.
+static bool lowerToRuntimeFunc(CallInst &call, IRBuilder<> &builder) {
   FunctionCallee rtFunc = getRuntimeFunc(call);
   return lowerCall(call, rtFunc, builder);
 }
@@ -407,21 +437,13 @@ static bool lowerIntrinsic(CallInst &call) {
   LLVMContext &ctx = call.getContext();
   IRBuilder<> builder(ctx);
 
-  if (requiresCustomLowering(call)) {
-    switch (call.getIntrinsicID()) {
-    case Intrinsic::kit_async_gpu_kernel_launch:
-      return lowerLaunchKernel(call, builder);
-    case Intrinsic::kit_async_cpu_threads_launch:
-    case Intrinsic::kit_cpu_threads_launch:
-      return lowerLaunchThreads(call, builder);
-    case Intrinsic::kit_gpu_memset: return lowerGPUMemset(call, builder);
-    case Intrinsic::kit_mobile_init: return lowerMobileInit(call, builder);
-    default:
-      llvm_unreachable(
-          "lowerIntrinsic: Intrinsic requiring custom lowering not handled");
-    }
+  switch (getKitIntrLowerMode(call.getIntrinsicID())) {
+  case KitIntrLowerMode::Delete: return lowerNone(call);
+  case KitIntrLowerMode::Custom: return lowerCustom(call, builder);
+  case KitIntrLowerMode::Runtime: return lowerToRuntimeFunc(call, builder);
+  case KitIntrLowerMode::Unspecified: break;
   }
-  return lowerDefault(call, builder);
+  llvm_unreachable("lowerIntrinsic: Intrinsic with unspecified lowering");
 }
 
 static bool lowerIntrinsics(Function &f) {

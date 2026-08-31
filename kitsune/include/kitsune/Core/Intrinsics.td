@@ -45,7 +45,7 @@ include "../../kitsune/include/kitsune/Core/LibFuncs.td"
 // Pointers to data in Kitsune's mobile address space.
 def llvm_mobile_ptr_ty : LLVMQualPointerType<67>;
 
-// A representaion of a tapir target. The definitions here should be kept in
+// A representation of a tapir target. The definitions here should be kept in
 // sync with the corresponding members of the llvm::TTID enum. The spelling of
 // each def should match that of the llvm::TTID enum member.
 class TTID;
@@ -56,6 +56,37 @@ def OpenMP : TTID;
 def Pthreads : TTID;
 def Qthreads : TTID;
 def Serial : TTID;
+
+// The intrinsic lowering mode. Not specifying a lowering mode for an intrinsic
+// is not required. However, doing so will likely result in more useful error
+// messages if something goes wrong.
+class KitIntrLowerMode;
+
+// This indicates that the intrinsic is not to be lowered. Calls to the
+// intrinsic will be removed by the lowering passes.
+def LowerDelete : KitIntrLowerMode;
+
+// Some intrinsics require custom lowering. Some common situations when custom
+// lowering may be required include:
+//
+//   - When the signatures of the intrinsic and the runtime function to use when
+//     lowering do not match, and simple casting is not possible.
+//
+//   - When simply replacing the intrinsic with a runtime function, even with
+//     casting is not sufficient. This can happen if the arguments need to be
+//     preprocessed, or additional memory must be used, for instance.
+//
+//   - When only the TTID alone is not sufficient to determine the runtime
+//     function to use. This is often the case with overloaded intrinsics.
+//     Kitsune's runtime functions strictly expose a C interface, so the runtime
+//     functions cannot be overloaded.
+//
+def LowerCustom : KitIntrLowerMode;
+
+// This is a pseudo lowering mode indicating that the lowering mode has not been
+// set explicitly. Leaving the lowering mode implies that the lowering mode has
+// not been specified.
+def LowerUnspecified : KitIntrLowerMode;
 
 // A pair of a tapir target and a runtime function. This is used in Kitsune's
 // intrinsics when they support default lowering.
@@ -114,21 +145,10 @@ class KitIntrinsic<list<LLVMType> ret_types,
   // be required.
   bit AllowReturnCast = false;
 
-  // Some intrinsics require custom lowering. Some common situations when custom
-  // lowering may be required include:
-  //
-  //   - When the signatures of the intrinsic and the runtime function to use
-  //     when lowering do not match, and simple casting is not possible
-  //
-  //   - When simply replacing the intrinsic with a runtime function, even with
-  //     casting is not sufficient. This can happen if the arguments need to be
-  //     preprocessed, or additional memory must be used, for instance.
-  //
-  //   - When only the TTID alone is not sufficient to determine the runtime
-  //     function to use. This is often the case with overloaded intrinsics.
-  //     Kitsune's runtime functions strictly expose a C interface, so
-  //     the runtime functions cannot be overloaded.
-  bit RequiresCustomLowering = false;
+  // The lowering mode for this intrinsic. See the definitions of the
+  // KitIntrLowerMode class for more information on what value are allowed for
+  // this field.
+  KitIntrLowerMode LowerMode = LowerUnspecified;
 
   // If this intrinsic does not require custom lowering, this is a map from
   // a tapir target to the corresponding runtime function. If this map is not
@@ -196,8 +216,7 @@ def int_kit_async_cpu_threads_launch
                    [NonNull<RetIndex>, ImmArg<ArgIndex<0>>,
                     NonNull<ArgIndex<1>>]> {
   let Doc = KitAsyncLaunchThreadsDoc;
-  let RTSpec = [RT<Pthreads, kitpthr_async_launch>];
-  let RequiresCustomLowering = true;
+  let LowerMode = LowerCustom;
 }
 
 // Launch a function on one or more CPU threads (synchronous).
@@ -210,9 +229,7 @@ def int_kit_cpu_threads_launch
                     llvm_vararg_ty],
                    [ImmArg<ArgIndex<0>>, NonNull<ArgIndex<1>>]> {
   let Doc = KitLaunchThreadsDoc;
-  let RTSpec = [RT<OpenMP, kitomp_launch>,
-                RT<Qthreads, kitqthr_launch>];
-  let RequiresCustomLowering = true;
+  let LowerMode = LowerCustom;
 }
 
 // Sync the threads launched by an earlier call to
@@ -319,6 +336,7 @@ def int_kit_gpu_warp_size
     : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty],
                    [IntrConvergent, IntrNoMem, IntrWillReturn]> {
   let Doc = KitGPUWarpSizeDoc;
+  let LowerMode = LowerCustom;
 }
 
 // Get the ID of a warp within a block in a GPU kernel.
@@ -327,6 +345,7 @@ def int_kit_gpu_warp_id
                    [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>,
                     IntrConvergent, IntrNoMem, IntrWillReturn]> {
   let Doc = KitGPUWarpIDDoc;
+  let LowerMode = LowerCustom;
 }
 
 // Get the lane number of a thread within a warp in a GPU kernel.
@@ -335,6 +354,7 @@ def int_kit_gpu_warp_lane
                    [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>,
                     IntrConvergent, IntrNoMem, IntrWillReturn]> {
   let Doc = KitGPUWarpLaneDoc;
+  let LowerMode = LowerCustom;
 }
 
 // The equivalent of the __shfl_down_sync builtin available in cuda and hip.
@@ -342,6 +362,7 @@ def int_kit_gpu_warp_shfl_down_sync
     : KitIntrinsic<[llvm_any_ty], [llvm_i32_ty, llvm_any_ty, llvm_i32_ty],
                    [ImmArg<ArgIndex<0>>, IntrConvergent, IntrWillReturn]> {
   let Doc = KitGPUWarpShflDownSyncDoc;
+  let LowerMode = LowerCustom;
 }
 
 // Perform a simple reduction on a GPU where threads accumulate their
@@ -361,6 +382,7 @@ def int_kit_gpu_reduce_direct
                     NonNull<ArgIndex<6>>, ReadOnly<ArgIndex<6>>,
                     IntrConvergent, IntrNoFree, IntrWillReturn]> {
   let Doc = KitGPUReduceDirectDoc;
+  let LowerMode = LowerCustom;
 }
 
 // Perform a reduction on a GPU using shared memory.
@@ -379,6 +401,7 @@ def int_kit_gpu_reduce_shared_memory
                     NonNull<ArgIndex<6>>, ReadOnly<ArgIndex<6>>,
                     IntrConvergent, IntrNoFree, IntrWillReturn]> {
   let Doc = KitGPUReduceSharedMemoryDoc;
+  let LowerMode = LowerCustom;
 }
 
 // Perform a reduction on a GPU using the warp shuffle technique without any
@@ -398,6 +421,7 @@ def int_kit_gpu_reduce_warp_shuffle
                     NonNull<ArgIndex<6>>, ReadOnly<ArgIndex<6>>,
                     IntrConvergent, IntrNoFree, IntrWillReturn]> {
   let Doc = KitGPUReduceWarpShuffleDoc;
+  let LowerMode = LowerCustom;
 }
 
 // Perform a reduction on a GPU using the warp shuffle technique together with
@@ -417,6 +441,7 @@ def int_kit_gpu_reduce_warp_shuffle_shared_memory
                     NonNull<ArgIndex<6>>, ReadOnly<ArgIndex<6>>,
                     IntrConvergent, IntrNoFree, IntrWillReturn]> {
   let Doc = KitGPUReduceWarpShuffleSharedMemoryDoc;
+  let LowerMode = LowerCustom;
 }
 
 // Get the number of compute units available to a GPU tapir target.
@@ -475,9 +500,7 @@ def int_kit_async_gpu_kernel_launch
                     llvm_vararg_ty],
                    [ImmArg<ArgIndex<0>>]> {
   let Doc = KitAsyncGPULaunchKernelDoc;
-  let RTSpec = [RT<Cuda, kitcuda_kernel_launch>,
-                RT<Hip, kithip_kernel_launch>];
-  let RequiresCustomLowering = true;
+  let LowerMode = LowerCustom;
 }
 
 // Copy data from a device (usually a GPU) to the host.
@@ -545,7 +568,7 @@ def int_kit_gpu_memset
                    [ImmArg<ArgIndex<0>>]> {
   let Doc = KitGPUMemsetDoc;
   let AllowParamCast = true;
-  let RequiresCustomLowering = true;
+  let LowerMode = LowerCustom;
 }
 
 // Issue a prefetch from a device (usually a GPU) to the host.
@@ -700,7 +723,7 @@ def int_kit_mobile_init
                    [ImmArg<ArgIndex<0>>]> {
   let Doc = KitMobileInitDoc;
   let AllowParamCast = true;
-  let RequiresCustomLowering = true;
+  let LowerMode = LowerCustom;
 }
 
 //------------------------------------------------------------------------------
@@ -721,4 +744,5 @@ def int_kit_reduce_0
                     NonNull<ArgIndex<2>>, ImmArg<ArgIndex<3>>,
                     NonNull<ArgIndex<6>>, ReadOnly<ArgIndex<6>>]> {
   let Doc = KitReduce0Doc;
+  let LowerMode = LowerCustom;
 }
