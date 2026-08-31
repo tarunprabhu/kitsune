@@ -1,4 +1,4 @@
-//===- LowerKitIntrinsics.cpp - Lower Kitsune-specific intrinsics ---------===//
+//===- LowerIntrinsics.cpp - Lower Kitsune-specific intrinsics ------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -9,11 +9,12 @@
 // Lower kitsune-specific intrinsics.
 //
 // These are nearly always lowered to a corresponding Kitsune's runtime
-// function, but this need not always be the case.
+// function, but this need not always be the case. This only lowers calls to
+// intrinsics in the host module.
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/CodeGen/LowerKitIntrinsics.h"
+#include "kitsune/CodeGen/LowerIntrinsics.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/InstUtils.h"
 #include "kitsune/Core/IntrinsicUtils.h"
@@ -399,7 +400,7 @@ static bool lowerDefault(CallInst &call, IRBuilder<> &builder) {
 // it (in some cases, the instruction will not be lowered - for instance if the
 // the primary tapir target is one that does not permit lowering). Returns true
 // if the call to the intrinsic was replaced, false otherwise.
-static bool lowerKitIntrinsic(CallInst &call) {
+static bool lowerIntrinsic(CallInst &call) {
   TTID tt = *getTTIDFromKitIntrCall(call);
   if (tt == TTID::Nolo)
     return false;
@@ -418,13 +419,13 @@ static bool lowerKitIntrinsic(CallInst &call) {
     case Intrinsic::kit_mobile_init: return lowerMobileInit(call, builder);
     default:
       llvm_unreachable(
-          "lowerKitIntrinsic: Intrinsic requiring custom lowering not handled");
+          "lowerIntrinsic: Intrinsic requiring custom lowering not handled");
     }
   }
   return lowerDefault(call, builder);
 }
 
-static bool lowerKitIntrinsics(Function &f) {
+static bool lowerIntrinsics(Function &f) {
   // Kitsune's intrinsics cannot be invoked. The verifier will already have
   // caught this, so we only need to check for call instructions.
   SmallVector<CallInst *, 4> calls;
@@ -435,25 +436,24 @@ static bool lowerKitIntrinsics(Function &f) {
 
   bool changed = false;
   for (CallInst *call : calls)
-    changed |= lowerKitIntrinsic(*call);
+    changed |= lowerIntrinsic(*call);
   return changed;
 }
 
 namespace {
 
 /// Pass, for the legacy pass manager, that lowers kitsune-specific intrinsics.
-class LowerKitIntrinsicsLegacyPass : public FunctionPass {
+class LowerIntrinsicsLegacyPass : public FunctionPass {
 public:
-  LowerKitIntrinsicsLegacyPass() : FunctionPass(ID) {
-    initializeLowerKitIntrinsicsLegacyPassPass(
-        *PassRegistry::getPassRegistry());
+  LowerIntrinsicsLegacyPass() : FunctionPass(ID) {
+    initializeLowerIntrinsicsLegacyPassPass(*PassRegistry::getPassRegistry());
   }
 
   StringRef getPassName() const override { return "Lower Kitsune intrinsics"; }
 
   void getAnalysisUsage(AnalysisUsage &au) const override {}
 
-  bool runOnFunction(Function &f) override { return lowerKitIntrinsics(f); }
+  bool runOnFunction(Function &f) override { return lowerIntrinsics(f); }
 
 public:
   static char ID;
@@ -461,22 +461,22 @@ public:
 
 } // namespace
 
-char LowerKitIntrinsicsLegacyPass::ID = 0;
+char LowerIntrinsicsLegacyPass::ID = 0;
 
-INITIALIZE_PASS_BEGIN(LowerKitIntrinsicsLegacyPass, DEBUG_TYPE,
+INITIALIZE_PASS_BEGIN(LowerIntrinsicsLegacyPass, DEBUG_TYPE,
                       "Lower Kitsune intrinsics", false, false)
-INITIALIZE_PASS_END(LowerKitIntrinsicsLegacyPass, DEBUG_TYPE,
+INITIALIZE_PASS_END(LowerIntrinsicsLegacyPass, DEBUG_TYPE,
                     "Lower Kitsune intrinsics", false, false)
 
-FunctionPass *llvm::createLowerKitIntrinsicsLegacyPass() {
-  return new LowerKitIntrinsicsLegacyPass();
+FunctionPass *llvm::createLowerIntrinsicsLegacyPass() {
+  return new LowerIntrinsicsLegacyPass();
 }
 
-PreservedAnalyses LowerKitIntrinsicsPass::run(Function &f,
-                                              FunctionAnalysisManager &am) {
+PreservedAnalyses LowerIntrinsicsPass::run(Function &f,
+                                           FunctionAnalysisManager &am) {
   // If any kitsune intrinsics were replaced, the call graph will have changed,
   // but other analyses will not have been invalidated.
-  bool changed = lowerKitIntrinsics(f);
+  bool changed = lowerIntrinsics(f);
   if (changed) {
     PreservedAnalyses pa;
     pa.preserve<FunctionAnalysisManagerCGSCCProxy>();

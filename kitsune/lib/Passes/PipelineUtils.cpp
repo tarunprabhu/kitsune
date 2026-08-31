@@ -307,7 +307,7 @@ void llvm::populateKitCodeGenPasses(legacy::PassManager &pm,
                                     const TTOptions &tto) {
   if (tto.hasTTID()) {
     pm.add(createEmbLowerKitIntrinsicsLegacyPass());
-    pm.add(createLowerKitIntrinsicsLegacyPass());
+    pm.add(createLowerIntrinsicsLegacyPass());
     pm.add(createStripKitAddrSpacesLegacyPass());
     pm.add(createCodeGenFatBinariesLegacyPass(tto));
   }
