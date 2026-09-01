@@ -27,8 +27,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Transforms/EmbLowerIntrinsics.h"
-#include "kitsune/Transforms/LowerReduceIntrinsics.h"
 #include "LowerGPUIntrinsicsImpl.h"
+#include "LowerReduceIntrinsics.h"
+#include "kitsune/Core/IntrinsicUtils.h"
 #include "kitsune/Core/ModuleUtils.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/Instructions.h"
