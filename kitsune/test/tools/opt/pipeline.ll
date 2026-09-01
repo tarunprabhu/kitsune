@@ -23,7 +23,6 @@
 ; DEFAULT-NOT: Running pass:     NormalizeLoopControlBlocksPass
 ; DEFAULT-NOT: Running pass:     SecondaryIVEliminationPass
 ; DEFAULT-NOT: Running pass:     PrepareTapirLoopsPass
-; DEFAULT-NOT: Running pass:     LowerReduceIntrinsicsPass
 ; DEFAULT-NOT: Running pass:     DeLICMPass
 ; DEFAULT-NOT: Running pass:     PreLowerAnnotatePass
 ; DEFAULT-NOT: Running pass:     LoopSpawningPass
@@ -89,7 +88,6 @@
 ; O123SZ:      Running pass:     SecondaryIVEliminationPass
 ; O123SZ:      Running pass:     PrepareTapirLoopsPass
 ; O123SZ-NOT:  Running pass:     InstrumentPass
-; O123SZ:      Running pass:     LowerReduceIntrinsicsPass
 ; O123SZ:      Running pass:     DeLICMPass
 ; O123SZ:      Running pass:     SimplifyCFGPass
 ; O123SZ:      Running pass:     LoopSimplifyPass

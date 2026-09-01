@@ -38,7 +38,6 @@
 ! CHECK:      Running pass:      NormalizeLoopControlBlocksPass
 ! CHECK:      Running pass:      SecondaryIVEliminationPass
 ! CHECK:      Running pass:      PrepareTapirLoopsPass
-! CHECK:      Running pass:      LowerReduceIntrinsicsPass
 ! CHECK-NOT:  Running pass:      InstrumentPass
 !
 ! CHECK-NOT:  Running pass:      PreLowerPreparePass

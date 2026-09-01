@@ -36,8 +36,6 @@
 ; O23S-NOT:   Running pass:      EarlyVerificationPass
 ; O23S-NOT:   Running pass:      EarlyAnnotatePass
 ; O23S-NOT:   Running pass:      PrepareTapirLoopsPass
-; O23S-NOT:   Running pass:      LowerReduceIntrinsicsPass
-; O23S-NOT:   Running pass:      LowerWarpIntrinsicsPass
 ;
 ; O23S:       Running pass:      NormalizeLoopControlBlocksPass
 ; O23S:       Running pass:      SecondaryIVEliminationPass

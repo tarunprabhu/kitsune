@@ -10,10 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef KITSUNE_TRANSFORMS_LOWER_REDUCE_INTRINSICS_H
-#define KITSUNE_TRANSFORMS_LOWER_REDUCE_INTRINSICS_H
-
-#include "llvm/IR/PassManager.h"
+#ifndef KITSUNE_LIB_TRANSFORMS_LOWER_REDUCE_INTRINSICS_H
+#define KITSUNE_LIB_TRANSFORMS_LOWER_REDUCE_INTRINSICS_H
 
 namespace llvm {
 
@@ -26,17 +24,6 @@ bool lowerReduce0Intr(CallInst *call);
 
 } // namespace detail
 
-/// \ingroup kitsune
-/// Lower Kitsune's reduce intrinsics. Instead of the lowering for most other
-/// Kitsune intrinsics, this is intended to be run as part of the middle end.
-/// The lowering may involve generation of LLVM loops, or even tapir loops, so
-/// this should be run when other passes can optimize this lowered code.
-class LowerReduceIntrinsicsPass
-    : public PassInfoMixin<LowerReduceIntrinsicsPass> {
-public:
-  PreservedAnalyses run(Module &m, ModuleAnalysisManager &am);
-};
-
 } // end namespace llvm
 
-#endif // KITSUNE_TRANSFORMS_LOWER_REDUCE_INTRINSICS_H
+#endif // KITSUNE_LIB_TRANSFORMS_LOWER_REDUCE_INTRINSICS_H
