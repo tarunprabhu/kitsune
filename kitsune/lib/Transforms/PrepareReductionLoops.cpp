@@ -15,6 +15,7 @@
 
 #include "PrepareReductionLoops.h"
 #include "LoopWrapping.h"
+#include "LowerReduceIntrinsics.h"
 #include "kitsune/Core/Diagnostics.h"
 #include "kitsune/Core/IRBuilderUtils.h"
 #include "kitsune/Core/LoopAttrs.h"
