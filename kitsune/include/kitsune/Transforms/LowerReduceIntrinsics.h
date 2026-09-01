@@ -17,6 +17,15 @@
 
 namespace llvm {
 
+class CallInst;
+
+namespace detail {
+
+// Lower a call to Kitsune's kit.reduce.0 intrinsic. Always returns true.
+bool lowerReduce0Intr(CallInst *call);
+
+} // namespace detail
+
 /// \ingroup kitsune
 /// Lower Kitsune's reduce intrinsics. Instead of the lowering for most other
 /// Kitsune intrinsics, this is intended to be run as part of the middle end.
