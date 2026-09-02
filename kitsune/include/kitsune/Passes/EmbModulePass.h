@@ -30,21 +30,44 @@ class GlobalVariable;
 
 namespace detail {
 
-// SFINAE helper classes to determine if the embedded bitcode pass needs a
-// module analysis manager to operate on the embedded bitcode module.
+// Signature of run function in an embedded module pass that requires an
+// analysis manager for the embedded module.
+template <typename T>
+using run_with_manager_t = bool (T::*)(TTID, Module &, ModuleAnalysisManager &,
+                                       Module &, ModuleAnalysisManager &);
+
+// SFINAE helper classe to determine if an embedded module pass has a run method
+// that requires an analysis manager for the embedded module.
 template <typename T, typename = void>
-struct needs_analysis_manager : std::false_type {};
+struct has_run_with_manager_t : std::false_type {};
 
 template <typename T>
-struct needs_analysis_manager<
-    T, std::void_t<decltype(std::declval<T>().*
-                            std::declval<bool(
-                                T::*(TTID, Module &, ModuleAnalysisManager &,
-                                     Module &, ModuleAnalysisManager &))>())>>
+struct has_run_with_manager_t<
+    T, std::void_t<decltype(static_cast<run_with_manager_t<T>>(&T::run))>>
     : std::true_type {};
 
 template <typename T>
-static constexpr bool needsAnalysisManager = needs_analysis_manager<T>::value;
+static constexpr bool has_run_with_manager_v = has_run_with_manager_t<T>::value;
+
+// Signature of run function in an embedded module pass that does not require an
+// analysis manager for the embedded module.
+template <typename T>
+using run_without_manager_t = bool (T::*)(TTID, Module &, Module &,
+                                          ModuleAnalysisManager &);
+
+// SFINAE helper classe to determine if an embedded module pass has a run method
+// that does not require an analysis manager for the embedded module.
+template <typename T, typename = void>
+struct has_run_without_manager_t : std::false_type {};
+
+template <typename T>
+struct has_run_without_manager_t<
+    T, std::void_t<decltype(static_cast<run_without_manager_t<T>>(&T::run))>>
+    : std::true_type {};
+
+template <typename T>
+static constexpr bool has_run_without_manager_v =
+    has_run_without_manager_t<T>::value;
 
 } // namespace detail
 
@@ -101,9 +124,18 @@ public:
         exitOnError(kmOrErr.takeError());
       std::unique_ptr<Module> km = std::move(kmOrErr.get());
 
+      // We have to add the static assertion here because this is the first time
+      // that DerivedT is complete. If we add this assertion into the body of
+      // the class (which is the more natural place for it), DerivedT will be
+      // incomplete and the assertion will always fail. Exactly one of
+      // has_run_with_manager_v and has_run_without_manager_v must be true. If
+      // both methods are present, or neither is, we should raise an error.
+      static_assert(detail::has_run_with_manager_v<DerivedT> !=
+                        detail::has_run_without_manager_v<DerivedT>,
+                    "Embedded module pass must have exactly one run method");
       TTID tt = *getBitCodeAttr(*g);
       bool changed = false;
-      if constexpr (detail::needsAnalysisManager<DerivedT>) {
+      if constexpr (detail::has_run_with_manager_v<DerivedT>) {
         LoopAnalysisManager lam;
         FunctionAnalysisManager fam;
         CGSCCAnalysisManager cgam;
