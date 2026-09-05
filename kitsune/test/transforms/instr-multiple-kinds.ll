@@ -17,13 +17,13 @@
 ; CHECK-NEXT: [[HEADER]]:
 ; CHECK: [[BODY:.+]]:
 ; CHECK: [[LATCH:.+]]:
-; CHECK: [[EXIT:.+]]:
-; CHECK-NEXT: sync within {{.+}}, label %[[INSTR_STOP:.+]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[INSTR_STOP]]:
+; CHECK: [[INSTR_STOP:.+]]:
 ; CHECK-NEXT: call i64 @__kittimer_stop(ptr %[[EPOCHT]])
 ; CHECK-NEXT: call void @__kit_instr_stop(ptr %[[EPOCHG]])
-; CHECK-NEXT: br label %[[RET:.+]]
+; CHECK-NEXT: br label %[[SYNC:.+]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[SYNC]]:
+; CHECK-NEXT: sync within {{.+}}, label %[[RET:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[RET]]:
 ; CHECK-NEXT: ret void

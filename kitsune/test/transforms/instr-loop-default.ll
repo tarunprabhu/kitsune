@@ -1,6 +1,7 @@
 ; If --kit-instr-unit=default is provided, check that the default set of
 ; constructs is instrumented. This test only has tapir loops. If new
-; Kitsune-specific constructs are added, those be tested in a separate test.
+; Kitsune-specific constructs are added, those must be tested in a separate
+; test.
 ;
 ; RUN: opt -passes=kit-instrument -S %s \
 ; RUN:     --kit-instr=generic --kit-instr-unit=default \
@@ -14,21 +15,21 @@
 ; CHECK: %[[EPOCH1:.+]] = call ptr @__kit_instr_start(ptr @[[NAME1]], i64 0)
 ; CHECK: phi
 ; CHECK: !llvm.loop ![[LOOP1:[0-9]+]]
-; CHECK: sync
 ; CHECK: call void @__kit_instr_stop(ptr %[[EPOCH1]])
+; CHECK: sync
 ; CHECK: ret void
 ;
 ; CHECK-LABEL @f2
 ; CHECK: %[[EPOCH2:.+]] = call ptr @__kit_instr_start(ptr @[[NAME2]], i64 0)
 ; CHECK: phi
 ; CHECK: !llvm.loop ![[LOOP2:[0-9]+]]
-; CHECK: sync
 ; CHECK: call void @__kit_instr_stop(ptr %[[EPOCH2]])
+; CHECK: sync
 ; CHECK: %[[EPOCH3:.+]] = call ptr @__kit_instr_start(ptr @[[NAME3]], i64 0)
 ; CHECK: phi
 ; CHECK: !llvm.loop ![[LOOP3:[0-9]+]]
-; CHECK: sync
 ; CHECK: call void @__kit_instr_stop(ptr %[[EPOCH3]])
+; CHECK: sync
 ; CHECK: ret void
 
 define void @f1(i64 %n) {
