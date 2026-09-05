@@ -33,7 +33,7 @@
 ; CHECK-NEXT: br i1 %[[CMP_GUARD]], label %[[END_I:.+]], label %[[PH_I:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[PH_I]]:
-; CHECK-NEXT: %[[LOCAL:.+]] = alloca [8 x i8]
+; CHECK-NEXT: %[[LOCAL:.+]] = alloca i64
 ; CHECK-NEXT: store i64 0, ptr %[[LOCAL]]
 ; CHECK-NEXT: br label %[[HEADER_I:.+]]
 ; CHECK-EMPTY:
@@ -44,13 +44,7 @@
 ; CHECK-NEXT: br label %[[BODY_I:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[BODY_I]]:
-; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{.*}}(
-; CHECK-SAME: i32 512,
-; CHECK-SAME: ptr %[[LOCAL]],
-; CHECK-SAME: i32 8,
-; CHECK-SAME: i64 %[[IV_I]],
-; CHECK-SAME: i64 0,
-; CHECK-SAME: ptr @max)
+; CHECK-NEXT: call void @max(ptr %[[LOCAL]], i64 %[[IV_I]])
 ; CHECK-NEXT: %[[CHK:.+]] = icmp eq i64 %[[IV_I]], %[[B]]
 ; CHECK-NEXT: br i1 %[[CHK]], label %[[DEADEND:.+]], label %[[REATTACH:.+]]
 ; CHECK-EMPTY:

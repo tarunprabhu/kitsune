@@ -30,6 +30,7 @@
 #endif // MODULE_ALIAS_ANALYSIS
 
 #ifdef MODULE_PASS
+MODULE_PASS("emb-finalize-reductions", EmbFinalizeReductionsPass())
 MODULE_PASS("emb-hoist-allocas", EmbHoistAllocasPass())
 MODULE_PASS("emb-link-libdevice-bitcode",
             EmbLinkLibDeviceBitcodePass(PTO.TTOpts))

@@ -1,23 +1,17 @@
 ; Check that a simple reduction loop of depth 1 is prepared as expected.
 ;
-; By default, the WarpShuffleOnly strategy is used for GPU reductions.
+; By default, shadow memory is allocated using UVM.
 ;
 ; RUN: opt --passes=kit-prepare -S %s \
-; RUN:     | FileCheck %s --check-prefixes=ALL,WSHF
+; RUN:     | FileCheck %s --check-prefixes=ALL,UVM
 ;
-; Otherwise, a reduce mode can be specified explicitly.
+; Otherwise, the shadow memory to use can be specified explicitly.
 ;
-; RUN: opt --passes=kit-prepare --tapir-gpu-reduce-mode=direct -S %s \
-; RUN:     | FileCheck %s --check-prefixes=ALL,DIRECT
+; RUN: opt --passes=kit-prepare --tapir-gpu-reduce-shadow=global -S %s \
+; RUN:     | FileCheck %s --check-prefixes=ALL,GLOBAL
 ;
-; RUN: opt --passes=kit-prepare --tapir-gpu-reduce-mode=mem -S %s \
-; RUN:     | FileCheck %s --check-prefixes=ALL,MEM
-;
-; RUN: opt --passes=kit-prepare --tapir-gpu-reduce-mode=wshf -S %s \
-; RUN:     | FileCheck %s --check-prefixes=ALL,WSHF
-;
-; RUN: opt --passes=kit-prepare --tapir-gpu-reduce-mode=wshfmem -S %s \
-; RUN:     | FileCheck %s --check-prefixes=ALL,WSHFMEM
+; RUN: opt --passes=kit-prepare --tapir-gpu-reduce-shadow=uvm -S %s \
+; RUN:     | FileCheck %s --check-prefixes=ALL,UVM
 ;
 ; ------------------------------------------------------------------------------
 
@@ -26,9 +20,11 @@
 ; ALL: [[ENTRY:.+]]:
 ; ALL: %[[RESULT:.+]] = alloca i32
 ; ALL: %[[SYNCREG:.+]] = tail call token @llvm.syncregion.start()
-; ALL-NEXT: %[[GLOBAL:.+]] = tail call noalias ptr @llvm.kit.gpu.malloc(i32 4, i64 4)
-; ALL-NEXT: %[[INIT:.+]] = load i32, ptr %[[RESULT]]
-; ALL-NEXT: call {{.+}} @llvm.kit.gpu.memset.i32(i32 4, ptr %[[GLOBAL]], i64 1, i32 %[[INIT]])
+; GLOBAL-NEXT: %[[SHADOW:.+]] = tail call noalias ptr @llvm.kit.gpu.malloc(i32 4, i64 4)
+; GLOBAL-NEXT: call void @llvm.kit.gpu.memcpy.htod(i32 4, ptr %[[SHADOW]], ptr %[[RESULT]], i64 4)
+; UVM-NEXT: %[[SHADOWBUF:.+]] = call ptr addrspace(67) @llvm.kit.mobile.alloc(i32 4, i64 4)
+; UVM-NEXT: %[[SHADOW:.+]] = addrspacecast ptr addrspace(67) %[[SHADOWBUF]] to ptr
+; UVM-NEXT: call void @llvm.memcpy.inline{{.+}}(ptr %[[SHADOW]], ptr %[[RESULT]], i64 4, i1 false)
 ; ALL-NEXT: br label %[[HEADER:.+]]
 ; ALL-EMPTY:
 ; ALL-NEXT: [[HEADER]]:
@@ -38,27 +34,13 @@
 ; ALL-NEXT: detach within %[[SYNCREG]], label %[[BODY:.+]], label %[[LATCH]]
 ; ALL-EMPTY:
 ; ALL-NEXT: [[BODY]]:
-; ALL-NEXT: %[[LOCAL:.+]] = alloca [4 x i8]
-; ALL-NEXT: store i32 0, ptr %[[LOCAL]]
 ; ALL-NEXT: %[[TRUNC:.+]] = trunc i64 %[[IV]] to i32
 ; ALL-NEXT: call {{.+}} @llvm.kit.reduce.0
 ; ALL-SAME: i32 4
 ; ALL-SAME: i32 5
-; ALL-SAME: ptr %[[LOCAL]]
+; ALL-SAME: ptr %[[SHADOW]]
 ; ALL-SAME: i32 4
 ; ALL-SAME: i32 %[[TRUNC]]
-; ALL-SAME: i32 0
-; ALL-SAME: ptr @sum
-; ALL-NEXT: %[[VALUE:.+]] = load i32, ptr %[[LOCAL]]
-; DIRECT-NEXT: call {{.+}} @llvm.kit.gpu.reduce.direct
-; MEM-NEXT: call {{.+}} @llvm.kit.gpu.reduce.shared.memory
-; WSHF-NEXT: call {{.+}} @llvm.kit.gpu.reduce.warp.shuffle
-; WSHFMEM-NEXT: call {{.+}} @llvm.kit.gpu.reduce.warp.shuffle.shared.memory
-; ALL-SAME: i32 4
-; ALL-SAME: i32 5
-; ALL-SAME: ptr %[[GLOBAL]]
-; ALL-SAME: i32 4
-; ALL-SAME: i32 %[[VALUE]]
 ; ALL-SAME: i32 0
 ; ALL-SAME: ptr @sum
 ; ALL-NEXT: reattach within %[[SYNCREG]], label %[[LATCH]]
@@ -70,8 +52,11 @@
 ; ALL-SAME: !llvm.loop ![[LOOP:[0-9]+]]
 ; ALL-EMPTY:
 ; ALL-NEXT: [[EXIT]]:
-; ALL-NEXT: call void @llvm.kit.gpu.memcpy.dtoh(i32 4, ptr %[[RESULT]], ptr %[[GLOBAL]], i64 4)
-; ALL-NEXT: call void @llvm.kit.gpu.free(i32 4, ptr %[[GLOBAL]])
+; GLOBAL-NEXT: call void @llvm.kit.gpu.memcpy.dtoh(i32 4, ptr %[[RESULT]], ptr %[[SHADOW]], i64 4)
+; GLOBAL-NEXT: call void @llvm.kit.gpu.free(i32 4, ptr %[[SHADOW]])
+; UVM-NEXT: call void @llvm.memcpy.inline{{.+}}(ptr %[[RESULT]], ptr %[[SHADOW]], i64 4, i1 false)
+; UVM-NEXT: %[[SHADOWBUF:.+]] = addrspacecast ptr %[[SHADOW]] to ptr addrspace(67)
+; UVM-NEXT: call void @llvm.kit.mobile.free(i32 4, ptr addrspace(67) %[[SHADOWBUF]])
 ; ALL-NEXT: sync within %[[SYNCREG]],
 ;
 ; ALL-DAG: ![[TARGET:.+]] = !{!"tapir.loop.target", i32 4}

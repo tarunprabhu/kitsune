@@ -75,6 +75,7 @@
 !
 ! <KIT-POST-TAPIR>
 ! O123S:      Running pass:     PrefetchForDevicePass
+! O123S:      Running pass:     EmbFinalizeReductionsPass
 ! O123S:      Running pass:     EmbLowerIntrinsicsPass
 ! O123S:      Running pass:     EmbResolveLibDeviceCallsPass
 ! O123S:      Running pass:     EmbPreparePass

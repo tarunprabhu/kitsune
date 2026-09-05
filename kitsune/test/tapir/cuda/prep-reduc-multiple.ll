@@ -25,42 +25,30 @@
 ; CHECK-NEXT: detach within %[[SYNCREG]], label %[[BODY:.+]], label %[[LATCH]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[BODY]]:
-; CHECK-NEXT: %[[LOCAL2:.+]] = alloca [8 x i8]
-; CHECK-NEXT: store i64 0, ptr %[[LOCAL2]]
-; CHECK-NEXT: %[[LOCAL1:.+]] = alloca [8 x i8]
-; CHECK-NEXT: store i64 0, ptr %[[LOCAL1]]
 ; CHECK-NEXT: %[[ODD:.+]] = and i64 %i, 1
 ; CHECK-NEXT: %[[ISODD:.+]] = icmp eq i64 %[[ODD]], 1
 ; CHECK-NEXT: br i1 %[[ISODD]], label %[[REDUCE:.+]], label %[[REATTACH:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[REDUCE]]:
-; CHECK-NEXT: call void @sum(ptr %[[LOCAL1]], i64 %[[IV]])
-; CHECK-NEXT: br label %[[REATTACH]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[REATTACH]]:
-; CHECK-NEXT: call void @umax(ptr %[[LOCAL2]], i64 %[[IV]])
-; CHECK-NEXT: %[[TOKEN1:.+]] = call token @llvm.kit.gpu.convergent.begin(i32 2)
-; CHECK-NEXT: %[[VALUE1:.+]] = load i64, ptr %[[LOCAL1]]
-; CHECK-NEXT: call {{.+}} @llvm.kit.gpu.reduce.warp.shuffle
+; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0
 ; CHECK-SAME: i32 2
 ; CHECK-SAME: i32 5
 ; CHECK-SAME: ptr %[[SHADOW1]]
 ; CHECK-SAME: i32 8
-; CHECK-SAME: i64 %[[VALUE1]]
+; CHECK-SAME: i64 %[[IV]]
 ; CHECK-SAME: i64 0
 ; CHECK-SAME: ptr @sum
-; CHECK-NEXT: call void @llvm.kit.gpu.convergent.end(i32 2, token %[[TOKEN1]])
-; CHECK-NEXT: %[[TOKEN2:.+]] = call token @llvm.kit.gpu.convergent.begin(i32 2)
-; CHECK-NEXT: %[[VALUE2:.+]] = load i64, ptr %[[LOCAL2]]
-; CHECK-NEXT: call {{.+}} @llvm.kit.gpu.reduce.warp.shuffle
+; CHECK-NEXT: br label %[[REATTACH]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[REATTACH]]:
+; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0
 ; CHECK-SAME: i32 2
 ; CHECK-SAME: i32 26
 ; CHECK-SAME: ptr %[[SHADOW2]]
 ; CHECK-SAME: i32 8
-; CHECK-SAME: i64 %[[VALUE2]]
+; CHECK-SAME: i64 %[[IV]]
 ; CHECK-SAME: i64 0
 ; CHECK-SAME: ptr @umax
-; CHECK-NEXT: call void @llvm.kit.gpu.convergent.end(i32 2, token %[[TOKEN2]])
 ; CHECK-NEXT: reattach within %[[SYNCREG]], label %[[LATCH]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[LATCH]]:
