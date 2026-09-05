@@ -13,6 +13,7 @@
 #include "kitsune/Core/Reductions.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/ModuleUtils.h"
+#include "llvm/Analysis/LoopInfo.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Module.h"
@@ -22,17 +23,13 @@ using namespace llvm;
 ReductionInfo::ReductionInfo(CallInst *call) : call(call) {
   tt = *fromConstant<TTID>(*cast<Constant>(call->getArgOperand(0)));
   reduceOp = *fromConstant<ReduceOp>(*cast<Constant>(call->getArgOperand(1)));
-  dest = call->getArgOperand(2);
   elemSize = *fromConstant<unsigned>(*cast<Constant>(call->getArgOperand(3)));
-  value = call->getArgOperand(4);
-  unit = call->getArgOperand(5);
-  reducer = call->getArgOperand(6);
 }
 
-SmallVector<Type *,2> ReductionInfo::getOverloadTypes() const {
-  Type *type = value->getType();
+SmallVector<Type *, 2> ReductionInfo::getOverloadTypes() const {
+  Type *type = getValue()->getType();
   SmallVector<Type *, 2> overloadTypes = {type, type};
-  for (Value* arg : getExtraArgs())
+  for (Value *arg : getExtraArgs())
     overloadTypes.push_back(arg->getType());
   return overloadTypes;
 }
@@ -45,20 +42,31 @@ SmallVector<Value *, 0> ReductionInfo::getExtraArgs() const {
 }
 
 FunctionType *ReductionInfo::getReducerType() const {
-  LLVMContext &ctx = dest->getContext();
+  LLVMContext &ctx = call->getContext();
   Type *voidTy = Type::getVoidTy(ctx);
-  SmallVector<Type *, 2> params = {dest->getType(), value->getType()};
+  SmallVector<Type *, 2> params = {getDest()->getType(), getValue()->getType()};
   for (Value *arg : getExtraArgs())
     params.push_back(arg->getType());
   return FunctionType::get(voidTy, params, /*isVarArg=*/false);
 }
 
 SmallVector<Value *, 2> ReductionInfo::getReducerArgs() const {
-  SmallVector<Value *, 2> args = {dest, value};
+  SmallVector<Value *, 2> args = {getDest(), getValue()};
   for (Value *arg : getExtraArgs())
     args.push_back(arg);
   return args;
 }
+
+Type *ReductionInfo::getResultBufferType() const {
+  Type *type = getType();
+  if (!isa<PointerType>(type))
+    return type;
+
+  LLVMContext &ctx = type->getContext();
+  Type *i8 = Type::getInt8Ty(ctx);
+  return ArrayType::get(i8, elemSize);
+};
+
 
 // -----------------------------------------------------------------------------
 
@@ -386,4 +394,14 @@ Function *llvm::genReducer(ReduceOp op, Type *ty, Module &m) {
   f->setLinkage(GlobalValue::LinkOnceODRLinkage);
 
   return f;
+}
+
+SmallVector<ReductionInfo, 1> llvm::collectReductions(Loop &loop) {
+  SmallVector<ReductionInfo, 1> reductions;
+  for (BasicBlock *bb : loop.getBlocks())
+    for (Instruction &inst : *bb)
+      if (auto *call = dyn_cast<CallInst>(&inst))
+        if (call->getIntrinsicID() == Intrinsic::kit_reduce_0)
+          reductions.emplace_back(call);
+  return reductions;
 }

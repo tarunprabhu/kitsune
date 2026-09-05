@@ -18,14 +18,7 @@
 ; CHECK-NEXT: detach within %[[SYNCREG]], label %[[BODY:.+]], label %[[LATCH]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[BODY]]:
-; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0
-; CHECK-SAME: i32 1
-; CHECK-SAME: i32 5
-; CHECK-SAME: ptr %[[RESULT]]
-; CHECK-SAME: i32 8
-; CHECK-SAME: i64 %[[IV]]
-; CHECK-SAME: i64 0
-; CHECK-SAME: ptr @sum
+; CHECK-NEXT: call void @sum(ptr %[[RESULT]], i64 %[[IV]])
 ; CHECK-NEXT: reattach within %[[SYNCREG]], label %[[LATCH]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[LATCH]]:

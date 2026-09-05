@@ -9,26 +9,8 @@
 // Transform tapir loops that perform reductions to a form that is suitable for
 // parallel execution.
 //
-// Consider the loop shown below
-//
 //     int32_t r_sum = 0;
-//     int64_t r_and = 1;
-//     parallel_for (int i = 0; i < n; ++i) {
-//         r_sum += i;
-//         r_and &= 1;
-//     }
-//
-// Frontends are expected to use the kit.reduce.0 intrinsic to represent the
-// loop above
-//
-//     void sum(int32_t* res, int32_t v) {
-//         *res += v;
-//     }
-//
-//     void and(int64_t* res, int64_t v) {
-//         *res &= v;
-//     }
-//
+//     int64_t r_and = 0;
 //     parallel_for (int i = 0; i < n; ++i) {
 //         kit.reduce.0(&r_sum, sizeof(r_sum), i, 0, &sum);
 //         kit.reduce.0(&r_and, sizeof(r_and), i, 1, &and);
@@ -37,21 +19,22 @@
 // This pass will transform this into the following for parallel execution on a
 // CPU.
 //
-//     int64_t numPartials = <num-cpu-threads-available>
+//     int64_t numPartials = kit.num.cpu.threads();
+//     int64_t sizePartial = (n + numPartials - 1) / numPartials;
 //     parallel_for (int j = 0; j < numPartials; ++j) {
-//         int32_t local1 = 0;
-//         int64_t local2 = 1;
+//         int32_t l_sum = 0;
+//         int64_t l_and = 1;
 //         int start = j * sizePartial;
+//         int end = (j + 1) * sizePartial;
 //         for (int i = start; i < end; ++i) {
-//             kit.reduce.0(local1, sizeof(r_sum), i, 0, &sum);
-//             kit.reduce.0(local2, sizeof(r_and), i, 1, &and);
+//             kit.reduce.0(KIT_ADD, &l_sum, sizeof(r_sum), i, 0, &sum);
+//             kit.reduce.0(KIT_AND, &l_and, sizeof(r_and), i, 1, &and);
 //         }
-//         atomicReduce(&sum, &r_sum, *local1);
-//         atomicReduce(&and, &r_and, *local2);
+//         atomicReduce(&r_sum, l_sum, KIT_ADD);
+//         atomicReduce(&r_and, l_and, KIT_AND);
 //     }
 //
-// Here, numPartials is the number of partial reductions that are to be
-// performed in parallel. An outer parallel loop is added to carry these out.
+// Here, an outer parallel loop performs a partial reduction on each CPU thread.
 // Each iteration of the parallel loop will perform a sequential reduction into
 // a thread-private variable. Once this has been computed, the local reduction
 // is accumulated into the final destination using an atomic operation.
@@ -59,6 +42,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "LoopWrapping.h"
+#include "LowerReduceIntrinsics.h"
 #include "PrepareReductionLoops.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/Diagnostics.h"
@@ -102,7 +86,7 @@ private:
   Value *allocPartial(Loop &innerLoop, const ReductionInfo &redxn);
   void reduceIntoPartial(Loop &loop, Value *partial,
                          const ReductionInfo &redxn);
-  void reducePartialIntoFinal(Loop &loop, Value *partial,
+  void reducePartialIntoFinal(Loop &loop, Value *partial, Value *dest,
                               const ReductionInfo &redxn);
   void updateOuterLoopIV(Loop &outerLoop, Value *numPartials);
   void updateInnerLoopIV(Loop &outerLoop, Loop &innerLoop, Value *numPartials);
@@ -166,15 +150,27 @@ Value *PrepareReductionLoopCPU::allocPartial(Loop &innerLoop,
   LLVM_DEBUG(dbgs() << "PrepareReductionCPU: Allocate buffer for partial\n");
   sanityCheck(innerLoop);
 
+  Type *type = redxn.getType();
+  Value *unit = redxn.getUnit();
+  unsigned size = redxn.elemSize;
+
   BasicBlock &bb = *innerLoop.getLoopPreheader();
   IRBuilder<> builder(bb.getTerminator());
 
-  // The alloca is added to the body of the outer loop. The loop-spawning pass
-  // will outline the body into a function, at which point, it will become a
-  // "top-level" stack variable, which is what we want. At that point, the
-  // kit-host-allocas pass will hoist it to the entry block of that outlined
-  // function if needed.
-  return detail::createLocalResult(builder, redxn, /*initialize=*/true);
+
+  // The alloca is added to the body of the outer loop because we need it to be
+  // "local" to the parallel loop. Once the loop-spawning pass has outlined the
+  // body into separate function, the kit-host-allocas pass will be run which
+  // will hoist it to the entry block of that function.
+  Type *partialTy = redxn.getResultBufferType();
+  AllocaInst *partial =
+      builder.CreateAlloca(partialTy, nullptr, "reduc.partial");
+  if (isa<PointerType>(type))
+    builder.CreateMemCpy(partial, MaybeAlign(), unit, MaybeAlign(), size);
+  else
+    builder.CreateStore(unit, partial);
+
+  return partial;
 }
 
 // Change the destination of the reduction to accumulate into the buffer
@@ -185,7 +181,7 @@ void PrepareReductionLoopCPU::reduceIntoPartial(Loop &innerLoop, Value *partial,
   LLVM_DEBUG(dbgs() << "PrepareReductionCPU: Reduce into partial\n");
 
   IRBuilder<> builder(redxn.call);
-  Value *cst = builder.CreateAddrSpaceCast(partial, redxn.dest->getType());
+  Value *cst = builder.CreateAddrSpaceCast(partial, redxn.getDest()->getType());
   redxn.call->setArgOperand(2, cst);
 }
 
@@ -194,7 +190,7 @@ void PrepareReductionLoopCPU::reduceIntoPartial(Loop &innerLoop, Value *partial,
 // when it supports the reduction operator, or a custom atomic operation if it
 // does not.
 void PrepareReductionLoopCPU::reducePartialIntoFinal(
-    Loop &innerLoop, Value *partial, const ReductionInfo &redxn) {
+    Loop &innerLoop, Value *partial, Value *dest, const ReductionInfo &redxn) {
   auto sanityCheck = [](const Loop &innerLoop) -> void {
     assert(getExitBlockFromLatch(innerLoop) &&
            "Loop must have a unique exit block");
@@ -203,8 +199,7 @@ void PrepareReductionLoopCPU::reducePartialIntoFinal(
   LLVM_DEBUG(dbgs() << "PrepareReductionCPU: Allocate buffer for partial\n");
   sanityCheck(innerLoop);
 
-  Value *dest = redxn.dest;
-  Type *elemType = redxn.unit->getType();
+  Type *elemType = redxn.getType();
   std::optional<AtomicRMWInst::BinOp> atomicOp = getAtomicOp(redxn.reduceOp);
   if (!atomicOp)
     emitDiagnostic(innerLoop, DiagID::ErrNYI,
@@ -491,9 +486,12 @@ bool PrepareReductionLoopCPU::run(
   // partial reduction buffers.
   Value *numPartials = computeNumPartialReductions(*outerLoop, loop);
   for (const ReductionInfo &redxn : reductions) {
+    // We have to save the destination because the operands to the original call
+    // will be changed.
+    Value *dest = redxn.getDest();
     Value *partial = allocPartial(loop, redxn);
     reduceIntoPartial(loop, partial, redxn);
-    reducePartialIntoFinal(loop, partial, redxn);
+    reducePartialIntoFinal(loop, partial, dest, redxn);
   }
 
   // Now that everything else has been changed, we can fix up the induction

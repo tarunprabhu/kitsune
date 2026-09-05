@@ -260,6 +260,12 @@ def ErrVarArgCallRequiredType
 def ErrNumCallArgs
   : Error<"incorrect number of arguments to call '{}'. Expected {}. Got {}">;
 
+def ErrKernelNoMainLoop
+  : Error<"kernel function must contain exactly one top-level loop">;
+
+def ErrKernelMainLoopNoExitBlock
+  : Error<"main kernel loop must have a unique exit block">;
+
 def ErrMobileInitExpectSize
   : Error<"call '{}' requires an additional size argument of type '{}'">;
 

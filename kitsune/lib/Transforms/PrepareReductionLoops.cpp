@@ -30,68 +30,37 @@
 
 using namespace llvm;
 
-// Collect the reduction intrinsics called in the loop being transformed,
-// \p loop.
-static SmallVector<ReductionInfo, 1> collectReductions(Loop &loop) {
-  SmallVector<ReductionInfo, 1> reductions;
-
-  for (BasicBlock *bb : loop.getBlocks())
-    for (Instruction &inst : *bb)
-      if (auto *call = dyn_cast<CallInst>(&inst))
-        if (call->getIntrinsicID() == Intrinsic::kit_reduce_0)
-          reductions.emplace_back(call);
-
-  return reductions;
-}
-
 template <typename... Args>
 static bool complain(const Loop &loop, DiagID diag, Args &&...args) {
   emitDiagnostic(loop, diag, args...);
   return false;
 }
 
-static bool prepareReductionLoopForSerialExecution(TapirLoopInfo &tapirLoop) {
-  // There is nothing to be done to prepare a tapir reduction loop for the
-  // serial tapir target. Calls to Kitsune's reduce intrinsics will be lowered
-  // in a separate pass.
-  addPreparedAttr(*tapirLoop.getLoop());
-  return false;
+static bool lowerReduce0Intrs(const SmallVectorImpl<ReductionInfo> &redxns) {
+  bool changed = false;
+  for (const ReductionInfo &redxn : redxns)
+    changed |= detail::lowerReduce0Intr(redxn.call);
+  return changed;
 }
 
-AllocaInst *llvm::detail::createLocalResult(IRBuilder<> &builder,
-                                            const ReductionInfo &redxn,
-                                            bool initialize) {
-  assert(builder.GetInsertBlock() &&
-         "Insert point of builder must be a basic block");
-  assert(getModule(builder) &&
-         "Insert point of builder must be set to a basic block in a module");
+static bool
+prepareReductionLoopSerial(Loop &loop,
+                           const SmallVectorImpl<ReductionInfo> &redxns) {
+  bool changed = lowerReduce0Intrs(redxns);
+  addPreparedAttr(loop);
+  return changed;
+}
 
-  Type *type = redxn.getType();
-  Value *unit = redxn.unit;
-  unsigned elemSize = redxn.elemSize;
-
-  // We cannot, in general, get the type of the value being reduced from either
-  // the type of the unit value, or the value being reduced. One or both of
-  // these may be "passed by reference" - particularly in the case of custom
-  // reductions on objects. In this case, we cannot know the type of the
-  // underlying object being reduced since the pointers are opaque. Since the
-  // element size is explicitly passed to this intrinsic, we alloca that many
-  // bytes.
-  LLVMContext &ctx = builder.getContext();
-  Type *i8 = Type::getInt8Ty(ctx);
-  ArrayType *resultTy = ArrayType::get(i8, elemSize);
-
-  AllocaInst *result = builder.CreateAlloca(resultTy, nullptr, "reduc.partial");
-  if (initialize) {
-    if (isa<PointerType>(type)) {
-      Align align = getTypeAlignment(*getModule(builder), type);
-      builder.CreateMemCpy(result, align, unit, align, elemSize);
-    } else {
-      builder.CreateStore(unit, result);
-    }
-  }
-
-  return result;
+static bool
+prepareReductionLoopCPU(TapirLoopInfo &tapirLoop,
+                        const SmallVectorImpl<ReductionInfo> &redxns,
+                        DominatorTree &dt, LoopInfo &li, MemorySSA &mssa,
+                        ScalarEvolution &se, TaskInfo &ti) {
+  bool changed = false;
+  changed |= detail::prepareReductionLoopForCPU(tapirLoop, redxns, dt, li, mssa,
+                                                se, ti);
+  changed |= lowerReduce0Intrs(redxns);
+  return changed;
 }
 
 bool llvm::detail::prepareReductionLoop(TapirLoopInfo &tapirLoop,
@@ -115,22 +84,21 @@ bool llvm::detail::prepareReductionLoop(TapirLoopInfo &tapirLoop,
 
   // If the loop does not perform any actual reductions, mark it as prepared,
   // but return false because only the metadata will have changed.
-  SmallVector<ReductionInfo, 1> reductions = collectReductions(loop);
-  if (reductions.empty()) {
+  SmallVector<ReductionInfo, 1> redxns = collectReductions(loop);
+  if (redxns.empty()) {
     addPreparedAttr(loop);
     return false;
   }
 
   TTID tt = *getTargetAttr(loop);
   if (tt == TTID::Serial)
-    return prepareReductionLoopForSerialExecution(tapirLoop);
+    return prepareReductionLoopSerial(loop, redxns);
   else if (isCPUTT(tt))
-    return detail::prepareReductionLoopForCPU(tapirLoop, reductions, dt, li,
-                                              mssa, se, ti);
+    return prepareReductionLoopCPU(tapirLoop, redxns, dt, li, mssa, se, ti);
   else if (isGPUTT(tt))
-    return detail::prepareReductionLoopForGPU(*tapirLoop.getLoop(), reductions,
-                                              dt, li, mssa);
-  llvm_unreachable("prepareReductionLoop: TT is neither CPU- nor GPU-centric");
+    return detail::prepareReductionLoopForGPU(loop, redxns);
+  else
+    llvm_unreachable("prepareReductionLoop: TT is neither CPU nor GPU-centric");
 }
 
 bool llvm::detail::checkReductionLoop(TapirLoopInfo &tapirLoop,
@@ -159,10 +127,10 @@ bool llvm::detail::checkReductionLoop(TapirLoopInfo &tapirLoop,
   // multiple uses, though that case is not actually an error.
   SmallDenseMap<Value *, SmallVector<Instruction *, 1>> usesOfDest;
   for (const ReductionInfo &redxn : redxns)
-    for (const Use &use : redxn.dest->uses())
+    for (const Use &use : redxn.getDest()->uses())
       if (auto *inst = dyn_cast<Instruction>(use.getUser()))
         if (isInLoop(*inst, loop, li))
-          usesOfDest[redxn.dest].push_back(inst);
+          usesOfDest[redxn.getDest()].push_back(inst);
 
   for (const auto &[dest, uses] : usesOfDest) {
     if (uses.size() == 1)
@@ -176,7 +144,8 @@ bool llvm::detail::checkReductionLoop(TapirLoopInfo &tapirLoop,
 
       // At this point, the instruction is a reduce intrinsic.
       const ReductionInfo redxn(call);
-      if (redxn.value == dest || redxn.unit == dest || redxn.reducer == dest)
+      if (redxn.getValue() == dest || redxn.getUnit() == dest ||
+          redxn.getReducer() == dest)
         return complain(loop, DiagID::ErrReduceDestUsedInLoop, getName(*dest));
 
       SmallVector<Value *, 0> extraArgs = redxn.getExtraArgs();

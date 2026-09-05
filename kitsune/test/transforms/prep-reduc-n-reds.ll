@@ -1,7 +1,7 @@
-; When more than one reduction is performed in a tapir reduction loop, check
-; that:
+; When more than one reduction is performed in a tapir reduction loop for the
+; CPU, check that:
 ;
-;   - Distinct local reduction buffers are allocated (and freed) for each
+;   - Distinct local reduction buffers are allocated for each reduction
 ;
 ;   - This final reduction is performed in the same order as in the original
 ;     code (this isn't strictly necessary, but we generate code in this order,
@@ -27,25 +27,18 @@
 ; CHECK: %[[IV_O:.+]] = phi i64
 ; CHECK-NEXT: detach within
 ;
-; CHECK: %[[LOCAL1:.+]] = alloca [8 x i8]
-; CHECK: %[[LOCAL2:.+]] = alloca [8 x i8]
-; CHECK: %[[LOCAL3:.+]] = alloca [4 x i8]
-; CHECK: %[[LOCAL4:.+]] = alloca [4 x i8]
+; CHECK: %[[LOCAL1:.+]] = alloca i64
+; CHECK: %[[LOCAL2:.+]] = alloca i64
+; CHECK: %[[LOCAL3:.+]] = alloca i32
+; CHECK: %[[LOCAL4:.+]] = alloca i32
 ;
 ; CHECK: %[[IV_I:.+]] = phi i64
 ; CHECK: %[[J32:.+]] = trunc i64 %[[IV_I]] to i32
 ;
-; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0
-; CHECK-SAME: i32 1024, i32 5, ptr %[[LOCAL1]], i32 8, i64 %[[IV_I]], i64 0, ptr @sum.i64
-;
-; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0
-; CHECK-SAME: i32 1024, i32 1, ptr %[[LOCAL2]], i32 8, i64 %[[IV_I]], i64 1, ptr @and.i64
-;
-; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0
-; CHECK-SAME: i32 1024, i32 1, ptr %[[LOCAL3]], i32 4, i32 %[[J32]], i32 1, ptr @and.i32
-;
-; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0
-; CHECK-SAME: i32 1024, i32 5, ptr %[[LOCAL4]], i32 4, i32 %[[J32]], i32 0, ptr @sum.i32
+; CHECK-NEXT: call void @sum.i64(ptr %[[LOCAL1]], i64 %[[IV_I]])
+; CHECK-NEXT: call void @and.i64(ptr %[[LOCAL2]], i64 %[[IV_I]])
+; CHECK-NEXT: call void @and.i32(ptr %[[LOCAL3]], i32 %[[J32]])
+; CHECK-NEXT: call void @sum.i32(ptr %[[LOCAL4]], i32 %[[J32]])
 ;
 ; CHECK: %[[PARTIAL1:.+]] = load i64, ptr %[[LOCAL1]]
 ; CHECK-NEXT: atomicrmw add ptr %[[R1]], i64 %[[PARTIAL1]] monotonic
