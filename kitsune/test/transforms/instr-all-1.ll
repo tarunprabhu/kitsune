@@ -32,14 +32,14 @@
 ; CHECK-NEXT: reattach within {{.+}}, label %[[LATCH]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[LATCH]]:
-; CHECK: br {{.+}}, label %[[EXIT:.+]], label %[[HEADER]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[EXIT]]:
-; CHECK-NEXT: sync within {{.+}}, label %[[INSTR_STOP_O:.+]]
+; CHECK: br {{.+}}, label %[[INSTR_STOP_O:.+]], label %[[HEADER]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[INSTR_STOP_O]]:
 ; CHECK-NEXT: call void @__kit_instr_stop(ptr %[[EPOCHO]])
-; CHECK-NEXT: br label %[[RET:.+]]
+; CHECK-NEXT: br label %[[SYNC:.+]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[SYNC]]:
+; CHECK-NEXT: sync within {{.+}}, label %[[RET:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[RET]]:
 ; CHECK-NEXT: ret void

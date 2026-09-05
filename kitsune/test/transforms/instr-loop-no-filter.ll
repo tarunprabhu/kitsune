@@ -14,21 +14,21 @@
 ; CHECK: %[[EPOCH1:.+]] = call ptr @__kit_instr_start(ptr @[[NAME1]], i64 0)
 ; CHECK: phi
 ; CHECK: !llvm.loop ![[LOOP1:[0-9]+]]
-; CHECK: sync
 ; CHECK: call void @__kit_instr_stop(ptr %[[EPOCH1]])
+; CHECK: sync
 ; CHECK: ret void
 ;
 ; CHECK-LABEL @f2
 ; CHECK: %[[EPOCH2:.+]] = call ptr @__kit_instr_start(ptr @[[NAME2]], i64 0)
 ; CHECK: phi
 ; CHECK: !llvm.loop ![[LOOP2:[0-9]+]]
-; CHECK: sync
 ; CHECK: call void @__kit_instr_stop(ptr %[[EPOCH2]])
+; CHECK: sync
 ; CHECK: %[[EPOCH3:.+]] = call ptr @__kit_instr_start(ptr @[[NAME3]], i64 0)
 ; CHECK: phi
 ; CHECK: !llvm.loop ![[LOOP3:[0-9]+]]
-; CHECK: sync
 ; CHECK: call void @__kit_instr_stop(ptr %[[EPOCH3]])
+; CHECK: sync
 ; CHECK: ret void
 
 define void @f1(i64 %n) {

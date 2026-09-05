@@ -10,8 +10,8 @@
 ; CHECK: %[[EPOCH1:.+]] = call ptr @__kittimer_start(ptr @[[LOOP1]], i64 0)
 ; CHECK: phi i64
 ; CHECK: !llvm.loop ![[LOOP1:[0-9]+]]
-; CHECK: sync within
 ; CHECK: call i64 @__kittimer_stop(ptr %[[EPOCH1]])
+; CHECK: sync within
 ; CHECK-NOT: __kittimer_start
 ; CHECK: phi i64
 ; CHECK: !llvm.loop ![[LOOP2:[0-9]+]]
@@ -20,8 +20,8 @@
 ; CHECK: %[[EPOCH3:.+]] = call ptr @__kittimer_start(ptr @[[LOOP3]], i64 0)
 ; CHECK: phi i64
 ; CHECK: !llvm.loop ![[LOOP3:[0-9]+]]
-; CHECK: sync within
 ; CHECK: call i64 @__kittimer_stop(ptr %[[EPOCH3]])
+; CHECK: sync within
 ; CHECK: ret void
 ;
 ; CHECK-DAG: ![[LOOP1]] = distinct !{![[LOOP1]], !{{[^,]+}}, ![[NAME1:[0-9]+]]}

@@ -144,74 +144,70 @@ bool InstrumentImpl::addInstrumentation(
   return true;
 }
 
-// Add instrumentation around a tapir loop. Consider a loop as shown below. Here
-// we have only shown the loop guard, and the exit and end blocks.
+// Add instrumentation around a tapir loop. The instrumentation start functions
+// will always be added to the loop header, while the end functions will always
+// be added to the exit block. The loop is required to be in simplify form,
+// which ensures that the exit block will always be dominated by the loop
+// header, which is what we want. If the loop is guarded, this means that
+// instrumentation for the loop will not be recorded if it was never entered.
 //
-//     guard:
-//       %cmp.n = icmp eq i64 %trip.count, 0
-//       br i1 %cmp.n, label %end, label %loop
+//     preheader:
+//       ...
+//       br label %header
 //
-//     loop: ...
+//     header:
+//       ...
+//
+//     latch:
+//       ...
+//       %cond = ...
+//       br cmp i1 %cond, label %exit, label %header
+//
 //     exit:
-//       br label %end
-//
-//     end:
-//       sync within <sync-region>, label %post
-//
-//     post:
+//       ...
 //
 // This will be transformed as shown:
 //
-//     guard:
-//       %cmp.n = icmp ...
-//       br instr-start:
+//     preheader:
+//       ...
+//       br label %instr-start
 //
 //     instr-start:
-//       %epoch = call <instrument-start>("loop-name", 0)
-//       br i1 %cmp.n, label %end, label %loop
+//       %epoch = call <instrument-start>("loop-name", i64 0)
+//       br label %header
 //
-//     loop:
-//     exit:
-//       br label %end
+//     header:
+//       ...
 //
-//     end:
-//       sync within <sync-region>, label %instr-stop
+//     latch:
+//       ...
+//       %cond = ...
+//       br i1 %cond, label %instr-stop, label %header
 //
 //     instr-stop:
 //       call <instrument-stop>(ptr %epoch)
-//       br label %post
+//       br %exit
 //
-//     post:
+//     exit:
+//       ...
 //
-// Not that instrumentation is added before the guard and after the sync. A
-// sync is expected to be found for the loop. If one isn't, found the loop will
-// not be instrumented. If the loop is not guarded, the instrumentation start
-// functions will be added to the lopo preheader.
+// We intentionally ignore the sync instruction here. Unlike Tapir, Kitsune's
+// does not use the sync instruction, but immediately synchronizes all tapir
+// loops immediately after they have terminated. When the loop is lowered, this
+// will ensure that a synchronization will be added before any instrumentation.
 bool InstrumentImpl::instrumentLoop(Loop &loop) {
   assert(loop.isLoopSimplifyForm() && "Loop must be in loop-simplify form");
-
-  auto getBlockToInsertStart = [](Loop &loop) -> BasicBlock * {
-    // If the loop is guarded, the guard instruction will typically branch to
-    // the block containing the sync, which will be a successor of the loop
-    // exit block. This is because the loop is in simplify form and is required
-    // to have dedicated exits.
-    if (BranchInst *br = loop.getLoopGuardBranch())
-      return br->getParent();
-    else
-      return loop.getLoopPreheader();
-  };
 
   // We don't strictly need to split the block in which to insert the
   // instrumentation, but we do so for consistency, and because it makes testing
   // this pass in isolation a shade more reliable.
-  BasicBlock *bbBefore = getBlockToInsertStart(loop);
+  BasicBlock *bbBefore = loop.getLoopPreheader();
   BasicBlock *bbStart =
       SplitBlock(bbBefore, bbBefore->getTerminator(), &dtu, &li, &mssau,
                  "kit.instr.start", /*Before=*/false);
   InsertPosition startPt = bbStart->getTerminator()->getIterator();
 
-  SyncInst *syncInst = getTapirLoopUniqueSyncInst(loop);
-  BasicBlock *bbAfter = syncInst->getSuccessor(0);
+  BasicBlock *bbAfter = getUniqueNonDeadEndExitBlock(loop);
   BasicBlock *bbEnd = SplitBlock(bbAfter, bbAfter->begin(), &dtu, &li, &mssau,
                                  "kit.instr.stop", /*Before=*/true);
   InsertPosition endPt = bbEnd->begin();

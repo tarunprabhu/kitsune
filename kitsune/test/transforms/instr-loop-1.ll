@@ -19,19 +19,27 @@
 ; TIMER: @[[TIMER:.+]] = private{{.*}} constant [3 x i8] c"ft\00"
 ;
 ; GENERIC-LABEL: @generic
-; GENERIC: br label %[[INSTR_START:.+]]
+; GENERIC: br {{.+}} label %[[SYNC:.+]], label %[[PH:.+]]
+; GENERIC-EMPTY:
+; GENERIC-NEXT: [[PH]]:
+; GENERIC-NEXT: br label %[[INSTR_START:.+]]
 ; GENERIC-EMPTY:
 ; GENERIC-NEXT: [[INSTR_START]]:
 ; GENERIC-NEXT: %[[EPOCH:.+]] = call ptr @__kit_instr_start(ptr @[[GENERIC]], i64 0)
-; GENERIC-NEXT: br {{.+}} label %[[END:.+]], label %[[PH:.+]]
+; GENERIC-NEXT: br label %[[HEADER:.+]]
 ; GENERIC-EMPTY:
-; GENERIC-NEXT: [[PH]]:
-; GENERIC: [[END]]:
-; GENERIC-NEXT: sync within {{.+}}, label %[[INSTR_STOP:.+]]
-; GENERIC-EMPTY:
-; GENERIC-NEXT: [[INSTR_STOP]]:
+; GENERIC-NEXT: [[HEADER]]:
+; GENERIC: [[BODY:.+]]:
+; GENERIC: [[LATCH:.+]]:
+; GENERIC: [[INSTR_STOP:.+]]:
 ; GENERIC-NEXT: call void @__kit_instr_stop(ptr %[[EPOCH]])
-; GENERIC-NEXT: br label %[[RET:.+]]
+; GENERIC-NEXT: br label %[[EXIT:.+]]
+; GENERIC-EMPTY:
+; GENERIC-NEXT: [[EXIT]]:
+; GENERIC-NEXT: br label %[[SYNC]]
+; GENERIC-EMPTY:
+; GENERIC: [[SYNC]]:
+; GENERIC-NEXT: sync within {{.+}}, label %[[RET:.+]]
 ; GENERIC-EMPTY:
 ; GENERIC-NEXT: [[RET]]:
 ; GENERIC-NEXT: ret void
@@ -76,12 +84,12 @@ ret:
 ; PAPI-NEXT: [[HEADER]]:
 ; PAPI: [[BODY:.+]]:
 ; PAPI: [[LATCH:.+]]:
-; PAPI: [[EXIT:.+]]:
-; PAPI-NEXT: sync within {{.+}}, label %[[INSTR_STOP:.+]]
-; PAPI-EMPTY:
-; PAPI-NEXT: [[INSTR_STOP]]:
+; PAPI: [[INSTR_STOP:.+]]:
 ; PAPI-NEXT: call void @__kitpapi_stop(ptr %[[EPOCH]])
-; PAPI-NEXT: br label %[[RET:.+]]
+; PAPI-NEXT: br label %[[SYNC:.+]]
+; PAPI-EMPTY:
+; PAPI-NEXT: [[SYNC:.+]]:
+; PAPI-NEXT: sync within {{.+}}, label %[[RET:.+]]
 ; PAPI-EMPTY:
 ; PAPI-NEXT: [[RET]]:
 ; PAPI-NEXT: ret void
@@ -119,12 +127,12 @@ end:
 ; TIMER-NEXT: [[HEADER]]:
 ; TIMER: [[BODY:.+]]:
 ; TIMER: [[LATCH:.+]]:
-; TIMER: [[EXIT:.+]]:
-; TIMER-NEXT: sync within {{.+}}, label %[[INSTR_STOP:.+]]
-; TIMER-EMPTY:
-; TIMER-NEXT: [[INSTR_STOP]]:
+; TIMER: [[INSTR_STOP:.+]]:
 ; TIMER-NEXT: call i64 @__kittimer_stop(ptr %[[EPOCH]])
-; TIMER-NEXT: br label %[[RET:.+]]
+; TIMER-NEXT: br label %[[SYNC:.+]]
+; TIMER-EMPTY:
+; TIMER-NEXT: [[SYNC:.+]]:
+; TIMER-NEXT: sync within {{.+}}, label %[[RET:.+]]
 ; TIMER-EMPTY:
 ; TIMER-NEXT: [[RET]]:
 ; TIMER-NEXT: ret void
