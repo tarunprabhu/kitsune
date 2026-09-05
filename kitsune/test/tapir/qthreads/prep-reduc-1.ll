@@ -29,7 +29,7 @@
 ; CHECK-NEXT: br i1 %[[CMP_GUARD]], label %[[END_I:.+]], label %[[PH_I:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[PH_I]]:
-; CHECK-NEXT: %[[LOCAL:.+]] = alloca [4 x i8]
+; CHECK-NEXT: %[[LOCAL:.+]] = alloca i32
 ; CHECK-NEXT: store i32 -1, ptr %[[LOCAL]]
 ; CHECK-NEXT: br label %[[HEADER_I:.+]]
 ; CHECK-EMPTY:
@@ -41,13 +41,7 @@
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[BODY_I]]:
 ; CHECK-NEXT: %[[TRUNC:.+]] = trunc i64 %[[IV_I]] to i32
-; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{.*}}(
-; CHECK-SAME: i32 32,
-; CHECK-SAME: ptr %[[LOCAL]],
-; CHECK-SAME: i32 4,
-; CHECK-SAME: i32 %[[TRUNC]],
-; CHECK-SAME: i32 -1,
-; CHECK-SAME: ptr @min)
+; CHECK-NEXT: call void @min(ptr %[[LOCAL]], i32 %[[TRUNC]])
 ; CHECK-NEXT: br label %[[LATCH_I]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[LATCH_I]]:

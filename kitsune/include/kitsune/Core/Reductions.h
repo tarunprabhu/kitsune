@@ -26,6 +26,7 @@ namespace llvm {
 
 class Constant;
 class Function;
+class Loop;
 class Module;
 class Value;
 class Type;
@@ -77,11 +78,7 @@ public:
   CallInst *call = nullptr; ///< The call to a reduce intrinsic
   TTID tt;                  ///< The TTID of the tapir reduction loop
   ReduceOp reduceOp;        ///< The reduction operator
-  Value *dest = nullptr;    ///< The destination for the reduced value
   unsigned elemSize = 0;    ///< The size (in bytes) of the reduced result
-  Value *value = nullptr;   ///< The value being accumulated
-  Value *unit = nullptr;    ///< The unit value for the reduction
-  Value *reducer = nullptr; ///< The reducer function
 
 public:
   ReductionInfo(CallInst *call);
@@ -92,14 +89,32 @@ public:
   /// Get the operand corresponding to the reduce operator in the call.
   Value *getReduceOpV() const { return call->getArgOperand(1); }
 
+  /// Get the destination of the reduction.
+  Value *getDest() const { return call->getArgOperand(2); }
+
   /// Get the operand corresponding to the element size in the call.
   Value *getElemSizeV() const { return call->getArgOperand(3); }
+
+  /// Get the value being reduced in the call
+  Value *getValue() const { return call->getArgOperand(4); }
+
+  /// Get the unit value for this reduction.
+  Value *getUnit() const { return call->getArgOperand(5); }
+
+  /// Get the reducer for this reduction.
+  Value *getReducer() const { return call->getArgOperand(6); }
 
   /// Get the type of the value being reduced. This simply returns the type of
   /// the value being reduced. If we ever support pointer operands here, the
   /// result of this function will not be correct since we will almost
   /// certainly be reducing the pointee in such cases.
-  Type *getType() const { return value->getType(); }
+  Type *getType() const { return getValue()->getType(); }
+
+  /// Get a type into which the result of the reduction can be stored. This will
+  /// be the same as the type of the value being reduced if the value is not a
+  /// pointer. If it is a pointer, an array of bytes of suitable size will be
+  /// returned.
+  Type *getResultBufferType() const;
 
   /// Get the overload types needed by this intrinsic. This is useful when
   /// creating an equivalent call to this intrinsic.
@@ -115,6 +130,9 @@ public:
   /// Get all arguments that will be passed to a call to the reducer.
   SmallVector<Value *, 2> getReducerArgs() const;
 };
+
+/// Collect the reductions in loop \p loop.
+SmallVector<ReductionInfo, 1> collectReductions(Loop &loop);
 
 /// Get an AtomicRMWInst::BinOp corresponding to a reduction operator, if one
 /// exists. Otherwise, return std::nullopt.

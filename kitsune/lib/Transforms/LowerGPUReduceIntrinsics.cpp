@@ -149,8 +149,8 @@ LowerWarpShuffle::getOrInsertFinalReduceImpl(Module &m, unsigned dims,
   Value *tt = redxn.getTTV();
   Value *op = redxn.getReduceOpV();
   Value *elemSize = redxn.getElemSizeV();
-  Value *unit = redxn.unit;
-  Value *reducer = redxn.reducer;
+  Value *unit = redxn.getUnit();
+  Value *reducer = redxn.getReducer();
   Type *ty = redxn.getType();
 
   Function *f = addImplFunc(m, implName, voidTy, ptr, ty);
@@ -227,8 +227,8 @@ Function *LowerWarpShuffle::getOrInsertShuffleImpl(Module &m, unsigned dims,
   Value *tt = redxn.getTTV();
   Value *op = redxn.getReduceOpV();
   Value *size = redxn.getElemSizeV();
-  Value *unit = redxn.unit;
-  Value *reducer = redxn.reducer;
+  Value *unit = redxn.getUnit();
+  Value *reducer = redxn.getReducer();
   Type *ty = redxn.getType();
   Constant *zero = ConstantInt::get(i32, 0, /*isSigned=*/false);
   Constant *two = ConstantInt::get(i32, 2, /*isSigned=*/false);
@@ -284,8 +284,8 @@ void LowerWarpShuffle::lower(CallInst *call) {
   sanityCheck(call);
 
   const ReductionInfo redxn(call);
-  Value *value = redxn.value;
-  Value *dest = redxn.dest;
+  Value *value = redxn.getValue();
+  Value *dest = redxn.getDest();
 
   Module &m = *call->getModule();
   Function &f = *call->getFunction();
@@ -315,8 +315,8 @@ protected:
 void LowerDirect::lower(CallInst *call) {
   const ReductionInfo redxn(call);
   ReduceOp reduceOp = redxn.reduceOp;
-  Value *result = redxn.dest;
-  Value *value = redxn.value;
+  Value *result = redxn.getDest();
+  Value *value = redxn.getValue();
 
   Module &m = *call->getModule();
   Function &f = *call->getFunction();

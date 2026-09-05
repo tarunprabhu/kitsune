@@ -29,7 +29,7 @@
 ; CHECK-NEXT: br i1 %[[CMP_GUARD]], label %[[END_I:.+]], label %[[PH_I:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[PH_I]]:
-; CHECK-NEXT: %[[LOCAL:.+]] = alloca [4 x i8]
+; CHECK-NEXT: %[[LOCAL:.+]] = alloca float
 ; CHECK-NEXT: store float 0.000000e+00, ptr %[[LOCAL]]
 ; CHECK-NEXT: br label %[[HEADER_I:.+]]
 ; CHECK-EMPTY:
@@ -41,13 +41,7 @@
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[BODY_I]]:
 ; CHECK-NEXT: %[[TRUNC:.+]] = sitofp i64 %[[IV_I]] to float
-; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{.*}}(
-; CHECK-SAME: i32 8,
-; CHECK-SAME: ptr %[[LOCAL]],
-; CHECK-SAME: i32 4,
-; CHECK-SAME: float %[[TRUNC]],
-; CHECK-SAME: float 0.000000e+00,
-; CHECK-SAME: ptr @sum)
+; CHECK-NEXT: call void @sum(ptr %[[LOCAL]], float %[[TRUNC]])
 ; CHECK-NEXT: br label %[[LATCH_I]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[LATCH_I]]:

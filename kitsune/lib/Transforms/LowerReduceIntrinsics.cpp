@@ -20,8 +20,9 @@ using namespace llvm;
 bool llvm::detail::lowerReduce0Intr(CallInst *call) {
   ReductionInfo redxn(call);
   FunctionType *reducerTy = redxn.getReducerType();
+  Value *reducer = redxn.getReducer();
   SmallVector<Value *, 2> args = redxn.getReducerArgs();
-  CallInst *newCall = CallInst::Create(reducerTy, redxn.reducer, args);
+  CallInst *newCall = CallInst::Create(reducerTy, reducer, args);
   ReplaceInstWithInst(call, newCall);
 
   return true;
