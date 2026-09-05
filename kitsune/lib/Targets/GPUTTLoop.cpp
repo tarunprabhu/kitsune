@@ -195,11 +195,10 @@ void GPUTTLoopBase::cloneReachableFuncs(ValueToValueMapTy &vmap) {
   for (GlobalValue *g : usedGlobalValues) {
     if (auto *f = dyn_cast<Function>(g)) {
       StringRef fname = f->getName();
-      Function *devf = devM.getFunction(fname);
-      if (not devf) {
+      if (!devM.getFunction(fname)) {
         FunctionType *fty = f->getFunctionType();
         GlobalValue::LinkageTypes linkage = f->getLinkage();
-        devf = Function::Create(fty, linkage, fname, devM);
+        Function *devf = Function::Create(fty, linkage, fname, devM);
         for (unsigned i = 0; i < f->arg_size(); ++i) {
           Argument *a = f->getArg(i);
           Argument *deva = devf->getArg(i);
@@ -207,7 +206,7 @@ void GPUTTLoopBase::cloneReachableFuncs(ValueToValueMapTy &vmap) {
           vmap[a] = deva;
         }
       }
-      vmap[f] = devf;
+      vmap[f] = devM.getFunction(fname);
     }
   }
 
@@ -217,11 +216,13 @@ void GPUTTLoopBase::cloneReachableFuncs(ValueToValueMapTy &vmap) {
   for (GlobalValue *g : usedGlobalValues) {
     if (auto *f = dyn_cast<Function>(g)) {
       if (f->size() and not f->isIntrinsic()) {
-        SmallVector<ReturnInst *, 8> returns;
-        auto *devf = cast<Function>(vmap[f]);
-        CloneFunctionInto(devf, f, vmap,
-                          CloneFunctionChangeType::DifferentModule, returns);
-        addDeviceAttr(*devf);
+        Function *devf = cast<Function>(vmap[f]);
+        if (not devf->size()) {
+          SmallVector<ReturnInst *, 8> returns;
+          CloneFunctionInto(devf, f, vmap,
+                            CloneFunctionChangeType::DifferentModule, returns);
+          addDeviceAttr(*devf);
+        }
       }
     }
   }
