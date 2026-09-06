@@ -201,15 +201,15 @@ void CudaContext::initialize(void) {
   // goes.  The remainder of the initialization checks to see if any
   // environment variables are set that tweak the runtime behavior.
 
-  if (std::optional<int> tpb =
-          kitrt::envLookup<int>("KITCUDA_THREADS_PER_BLOCK")) {
+  if (std::optional<int> tpb = kitrt::envLookup<int>(
+          kitrt::envThreadsPerBlock, "KITCUDA_THREADS_PER_BLOCK")) {
     __kitcuda_set_default_threads_per_blk(*tpb);
     if (kitrt::gctx.verbose())
       fprintf(stderr, "  kitcuda: threads/block: %d\n", *tpb);
   }
 
-  if (std::optional<int> tpb =
-          kitrt::envLookup<int>("KITCUDA_MAX_THREADS_PER_BLOCK")) {
+  if (std::optional<int> tpb = kitrt::envLookup<int>(
+          kitrt::envMaxThreadsPerBlock, "KITCUDA_MAX_THREADS_PER_BLOCK")) {
     __kitcuda_set_max_threads_per_blk(*tpb);
     if (kitrt::gctx.verbose())
       fprintf(stderr, "  kitcuda: max threads/block: %d\n", *tpb);

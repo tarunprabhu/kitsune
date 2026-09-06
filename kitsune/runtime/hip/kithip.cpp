@@ -163,15 +163,15 @@ void HipContext::initialize() {
     abort();
   }
 
-  if (std::optional<int> tpb =
-          kitrt::envLookup<int>("KITHIP_THREADS_PER_BLOCK")) {
+  if (std::optional<int> tpb = kitrt::envLookup<int>(
+          kitrt::envThreadsPerBlock, "KITHIP_THREADS_PER_BLOCK")) {
     __kithip_set_threads_per_blk(*tpb);
     if (kitrt::gctx.verbose())
       fprintf(stderr, "  kithip: threads/block: %d\n", *tpb);
   }
 
-  if (std::optional<int> tpb =
-          kitrt::envLookup<int>("KITHIP_MAX_THREADS_PER_BLOCK")) {
+  if (std::optional<int> tpb = kitrt::envLookup<int>(
+          kitrt::envMaxThreadsPerBlock, "KITHIP_MAX_THREADS_PER_BLOCK")) {
     __kithip_set_max_threads_per_blk(*tpb);
     if (kitrt::gctx.verbose())
       fprintf(stderr, "  kithip: max threads/block: %d\n", *tpb);
