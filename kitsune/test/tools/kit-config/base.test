@@ -88,3 +88,30 @@
 # OFF: OFF
 #
 # -----------------------------------------------------------------------------
+#
+# We can't reasonably check for the full path, so just make check that the 
+# result is "reasonable"
+#
+# RUN: %if system-darwin %{ \
+# RUN:   %kit-config --rtlib-shared \
+# RUN:       | FileCheck %s --check-prefix=SHARED-DARWIN \
+# RUN: %} %else %{ \
+# RUN:   %kit-config --rtlib-shared \
+# RUN:       | FileCheck %s --check-prefix=SHARED-UNIX \
+# RUN: %}
+#
+# SHARED-DARWIN: {{.+}}/libkitrt.dylib
+# SHARED-UNIX: {{.+}}/libkitrt.so
+#
+# RUN: %if system-darwin %{ \
+# RUN:   %kit-config --rtlib-static \
+# RUN:       | FileCheck %s --check-prefix=STATIC-DARWIN \
+# RUN: %} %else %{ \
+# RUN:   %kit-config --rtlib-static \
+# RUN:       | FileCheck %s --check-prefix=STATIC-UNIX \
+# RUN: %}
+#
+# STATIC-DARWIN: {{.+}}/libkitrt_static.a
+# STATIC-UNIX: {{.+}}/libkitrt_static.a
+#
+# -----------------------------------------------------------------------------

@@ -138,10 +138,30 @@ constexpr StringRef kitEnabledLangs() { return KITSUNE_ENABLED_LANGS; }
 
 //------------------------------------------------------------------------------
 
+/// The name of lib directory into which Kitsune's libraries are installed. This
+/// is usually lib, but may be lib64, or something similar.
+constexpr StringRef kitLibDirName() { return KITSUNE_LIBDIR_NAME; }
+
+/// The prefix for dynamic shared objects.
+constexpr StringRef kitRuntimeSharedLibPrefix() { return KITSUNE_DSO_PREFIX; }
+
+/// The suffix for dynamic shared objects.
+constexpr StringRef kitRuntimeSharedLibSuffix() { return KITSUNE_DSO_SUFFIX; }
+
+/// The prefix for static archives.
+constexpr StringRef kitRuntimeStaticLibPrefix() {
+  return KITSUNE_STATIC_PREFIX;
+}
+
+/// The suffix for static archives.
+constexpr StringRef kitRuntimeStaticLibSuffix() {
+  return KITSUNE_STATIC_SUFFIX;
+}
+
 /// The base name of Kitsune's runtime library that is distributed as a dynamic
 /// shared object. This does not include any file extensions such as .so and
 /// .dll, nor any prefix such as "lib".
-constexpr StringRef kitRuntimeDSOLibName() { return KITRT_DSO; }
+constexpr StringRef kitRuntimeSharedLibName() { return KITRT_DSO; }
 
 /// The base name of Kitsune's runtime library that is distributed as a static
 /// archive. This does not include any file extensions such as .a, nor any
