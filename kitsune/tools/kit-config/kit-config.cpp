@@ -14,6 +14,7 @@
 
 #include "kitsune/Config/Config.h"
 #include "kitsune/Core/TTUtils.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/Config/config.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
@@ -50,9 +51,12 @@ Options:\n\
   --omptask-target      Has the omptask tapir target been built (ON or OFF)\n\
   --opencilk-target     Has the opencilk tapir target been built (ON or OFF)\n\
   --openmp-target       Has the openmp tapir target been built (ON or OFF)\n\
+  --prefix              Prefix for this Kitsune installation\n\
   --pthreads-target     Has the pthreads tapir target been built (ON or OFF)\n\
   --qthreads-target     Has the qthreads tapir target been built (ON or OFF)\n\
   --realm-target        Has the realm tapir target been built (ON or OFF)\n\
+  --rtlib-shared        Path to the runtime's dynamic shared object\n\
+  --rtlib-static        Path to the runtime's static archive\n\
   --serial-target       Has the serial tapir target been built (ON or OFF)\n\
   --tapir-targets       The tapir targets that have been built\n\
   --version             Prints both LLVM and Kitsune versions\n\
@@ -63,14 +67,35 @@ that frontend or tapir target has not been built\n";
     exit(1);
 }
 
-// Get the path to the given frontend. @ref kitConfig is the full path to the
-// this kit-config executable. The frontend is expected to be in the same
-// directory as kit-config.
-static std::string frontendPath(StringRef kitConfig, StringRef frontend) {
-  SmallString<256> path(sys::path::parent_path(kitConfig));
-  sys::path::append(path, frontend);
+// Get the path to this executable.
+static std::string getMainExecutable(const char *argv0) {
+  // The second argument is nominally the name of the main function, but taking
+  // the address of main is not permitted. So we put in the address of some
+  // other function.
+  return sys::fs::getMainExecutable(argv0, /*main=*/(void *)usage);
+}
 
-  return std::string(path);
+static SmallString<256> getBinDir(const char *argv0) {
+  return sys::path::parent_path(getMainExecutable(argv0));
+}
+
+static SmallString<256> getPrefix(const char *argv0) {
+  SmallString<256> bin = getBinDir(argv0);
+  return sys::path::parent_path(bin);
+}
+
+static SmallString<256> getResourceDir(const char *argv0) {
+  SmallString<256> path(getPrefix(argv0));
+  sys::path::append(path, kitLibDirName());
+  sys::path::append(path, "kitsune");
+  sys::path::append(path, std::to_string(LLVM_VERSION_MAJOR));
+  return path;
+}
+
+static SmallString<256> getResourceLibDir(const char *argv0) {
+  SmallString<256> path = getResourceDir(argv0);
+  sys::path::append(path, "lib");
+  return path;
 }
 
 static void render(bool b) { outs() << (b ? "ON" : "OFF") << "\n"; }
@@ -91,9 +116,28 @@ static void renderVersions() {
 
 static void renderPathIf(bool cond, const char *argv0, StringRef base) {
   if (cond) {
-    std::string exe = sys::fs::getMainExecutable(argv0, (void *)usage);
-    outs() << frontendPath(exe, base) << "\n";
+    SmallString<256> path = getBinDir(argv0);
+    sys::path::append(path, base);
+    outs() << path << "\n";
   }
+}
+
+static void renderRuntimeSharedLib(const char *argv0) {
+  StringRef pfx = kitRuntimeSharedLibPrefix();
+  StringRef sfx = kitRuntimeSharedLibSuffix();
+  SmallString<256> path = getResourceLibDir(argv0);
+  sys::path::append(path, join_items("", pfx, kitRuntimeSharedLibName(), sfx));
+
+  outs() << path << "\n";
+}
+
+static void renderRuntimeStaticLib(const char *argv0) {
+  StringRef pfx = kitRuntimeStaticLibPrefix();
+  StringRef sfx = kitRuntimeStaticLibSuffix();
+  SmallString<256> path = getResourceLibDir(argv0);
+  sys::path::append(path, join_items("", pfx, kitRuntimeStaticLibName(), sfx));
+
+  outs() << path << "\n";
 }
 
 int main(int argc, char **argv) {
@@ -148,10 +192,16 @@ int main(int argc, char **argv) {
       render(isEnabledTT(TTID::OpenMP));
     else if (arg == "--pthreads-target")
       render(isEnabledTT(TTID::Pthreads));
+    else if (arg == "--prefix")
+      render(getPrefix(argv[0]));
     else if (arg == "--qthreads-target")
       render(isEnabledTT(TTID::Qthreads));
     else if (arg == "--realm-target")
       render(isEnabledTT(TTID::Realm));
+    else if (arg == "--rtlib-shared")
+      renderRuntimeSharedLib(argv[0]);
+    else if (arg == "--rtlib-static")
+      renderRuntimeStaticLib(argv[0]);
     else if (arg == "--serial-target")
       render(isEnabledTT(TTID::Serial));
     else if (arg == "--tapir-targets")
