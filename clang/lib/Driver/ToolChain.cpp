@@ -2449,7 +2449,7 @@ void ToolChain::AddKitsuneLinkerArgs(const ArgList &Args,
     } else {
       CmdArgs.push_back("-rpath");
       CmdArgs.push_back(LibDir);
-      CmdArgs.push_back(Args.MakeArgString("-l" + kitRuntimeDSOLibName()));
+      CmdArgs.push_back(Args.MakeArgString("-l" + kitRuntimeSharedLibName()));
     }
   }
 }

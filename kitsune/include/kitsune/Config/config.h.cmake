@@ -102,6 +102,23 @@
 
 //------------------------------------------------------------------------------
 
+// The prefix for dynamic shared objects.
+#define KITSUNE_DSO_PREFIX "@CMAKE_SHARED_LIBRARY_PREFIX@"
+
+// The suffix for dynamic shared objects.
+#define KITSUNE_DSO_SUFFIX "@CMAKE_SHARED_LIBRARY_SUFFIX@"
+
+// The prefix for static archives.
+#define KITSUNE_STATIC_PREFIX "@CMAKE_STATIC_LIBRARY_PREFIX@"
+
+// The suffix for static archives.
+#define KITSUNE_STATIC_SUFFIX "@CMAKE_STATIC_LIBRARY_SUFFIX@"
+
+// The name of the directory into which Kitsune's libraries are installed. This
+// is usually lib, but may be lib64, or something similar if LLVM_LIBDIR_SUFFIX
+// was set.
+#define KITSUNE_LIBDIR_NAME "lib@LLVM_LIBDIR_SUFFIX@"
+
 // The basename of the dynamic library containing Kitsune's runtime. This does
 // not contain any platform-specific prefixes or extensions.
 #define KITRT_DSO "@KITRT_DSO@"
