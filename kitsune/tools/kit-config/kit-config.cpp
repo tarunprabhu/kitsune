@@ -67,6 +67,11 @@ that frontend or tapir target has not been built\n";
     exit(1);
 }
 
+static std::string getMainExecutable(const char *argv0);
+static SmallString<256> getPrefix(const char *argv0);
+static SmallString<256> getBinDir(const char *argv0);
+static SmallString<256> getLibDir(const char *argv0);
+
 // Get the path to this executable.
 static std::string getMainExecutable(const char *argv0) {
   // The second argument is nominally the name of the main function, but taking
@@ -75,18 +80,23 @@ static std::string getMainExecutable(const char *argv0) {
   return sys::fs::getMainExecutable(argv0, /*main=*/(void *)usage);
 }
 
-static SmallString<256> getBinDir(const char *argv0) {
-  return sys::path::parent_path(getMainExecutable(argv0));
-}
-
 static SmallString<256> getPrefix(const char *argv0) {
   SmallString<256> bin = getBinDir(argv0);
   return sys::path::parent_path(bin);
 }
 
-static SmallString<256> getResourceDir(const char *argv0) {
+static SmallString<256> getBinDir(const char *argv0) {
+  return sys::path::parent_path(getMainExecutable(argv0));
+}
+
+static SmallString<256> getLibDir(const char *argv0) {
   SmallString<256> path(getPrefix(argv0));
   sys::path::append(path, kitLibDirName());
+  return path;
+}
+
+static SmallString<256> getResourceDir(const char *argv0) {
+  SmallString<256> path = getLibDir(argv0);
   sys::path::append(path, "kitsune");
   sys::path::append(path, std::to_string(LLVM_VERSION_MAJOR));
   return path;
@@ -148,6 +158,8 @@ int main(int argc, char **argv) {
     StringRef arg = argv[i];
     if (arg == "--help")
       usage(false);
+    else if (arg == "--bindir")
+      render(getBinDir(argv[0]));
     else if (arg == "--c")
       render(kitCEnabled());
     else if (arg == "--c-frontend")
@@ -182,6 +194,8 @@ int main(int argc, char **argv) {
       render(isEnabledTT(TTID::Lambda));
     else if (arg == "--langs")
       render(kitEnabledLangs());
+    else if (arg == "--libdir")
+      render(getLibDir(argv[0]));
     else if (arg == "--llvm-version")
       render(PACKAGE_VERSION);
     else if (arg == "--omptask-target")
