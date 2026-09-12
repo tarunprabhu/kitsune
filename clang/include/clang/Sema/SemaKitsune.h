@@ -101,6 +101,25 @@ public:
   ///                         "C-style cast", "const_cast" etc.
   bool checkMobileCast(Expr *srcExpr, QualType destType, bool allowStripMobile,
                        SourceLocation loc, StringRef castKind);
+
+  /// Check that all forall loops in the function \p f are correctly nested.
+  /// If any ancestor, a, of a forall loop, l, is also a forall loop, then l
+  /// must be perfectly nested with a. There cannot be any statements between
+  /// a and l. The following are all disallowed:
+  ///
+  ///   forall (...)            forall (...)
+  ///     for (...)               if (...)
+  ///       forall (...)            forall (...)
+  ///
+  ///   forall (...) {          forall (...) {        forall (...) {
+  ///     int m;                  forall (...)          forall (...)
+  ///     forall (...)            int m;                forall (...)
+  ///   }                       }                     }
+  ///
+  /// Note that even non-executable statements such as variable declarations are
+  /// not allowed.
+  ///
+  bool checkForallNesting(FunctionDecl &f);
 };
 
 } // namespace clang
