@@ -15,7 +15,10 @@
 #include "kitsune/Clang/ASTUtils.h"
 #include "kitsune/Core/KitOptions.h"
 #include "kitsune/Core/Reductions.h"
+#include "clang/AST/EvaluatedExprVisitor.h"
+#include "clang/AST/ParentMapContext.h"
 #include "clang/AST/StmtKitsune.h"
+#include "clang/Basic/SourceManager.h"
 #include "clang/Sema/Sema.h"
 
 using namespace clang;
@@ -406,4 +409,86 @@ bool SemaKitsune::checkMobileCast(Expr *srcExpr, QualType destType,
     }
   }
   return true;
+}
+
+bool SemaKitsune::checkForallNesting(FunctionDecl &f) {
+  class ForallNestingChecker
+      : public ConstEvaluatedExprVisitor<ForallNestingChecker> {
+  private:
+    Sema &sema;
+    ParentMapContext &parentCtx;
+    bool ok = true;
+
+  private:
+    const Stmt *getParent(const Stmt *stmt) {
+      const DynTypedNodeList parents = parentCtx.getParents(*stmt);
+      if (parents.size() == 0)
+        return nullptr;
+      else if (parents.size() == 1)
+        return parents[0].get<Stmt>();
+      llvm_unreachable("Stmt has more than one parent");
+    }
+
+    const Stmt *getAncestorForall(const Stmt *stmt) {
+      const Stmt *parent = getParent(stmt);
+      if (!parent)
+        return nullptr;
+      else if (isa<ForallStmt>(parent) || isa<CXXForallRangeStmt>(parent))
+        return parent;
+      else
+        return getAncestorForall(parent);
+    }
+
+    bool isPerfectlyNestedWithAncestor(const Stmt *forall,
+                                       const Stmt *ancestorForall) {
+      const Stmt *parent = getParent(forall);
+      if (isa<ForallStmt>(parent) || isa<CXXForallRangeStmt>(parent))
+        return true;
+      else if (auto *cmpnd = dyn_cast<CompoundStmt>(parent))
+        return getParent(cmpnd) == ancestorForall && cmpnd->size() == 1 &&
+               cmpnd->body_front() == forall;
+      else
+        return false;
+    }
+
+    void check(const Stmt *forall, const Stmt *forallBody) {
+      if (const Stmt *ancestor = getAncestorForall(forall)) {
+        if (!isPerfectlyNestedWithAncestor(forall, ancestor)) {
+          SourceManager &sm = sema.getASTContext().getSourceManager();
+          SourceLocation loc = sm.getExpansionLoc(forall->getBeginLoc());
+          SourceLocation ancestorLoc =
+              sm.getExpansionLoc(ancestor->getBeginLoc());
+          sema.Diag(loc, diag::err_kit_forall_not_perfectly_nested);
+          sema.Diag(ancestorLoc, diag::note_kit_forall_ancestor);
+          ok = false;
+        }
+      }
+      ok &= ForallNestingChecker(sema, forallBody);
+    }
+
+  public:
+    ForallNestingChecker(Sema &sema, const Stmt *body)
+        : ConstEvaluatedExprVisitor<ForallNestingChecker>(sema.Context),
+          sema(sema), parentCtx(sema.getASTContext().getParentMapContext()),
+          ok(true) {
+      // We clear the context to force the parent relationships to be
+      // recomputed. It's probably inefficient, but, if we don't do so, we risk
+      // getting incorrect results if the map has been manually managed
+      // elsewhere in the code.
+      parentCtx.clear();
+      Visit(body);
+    }
+
+    void VisitForallStmt(const ForallStmt *forall) {
+      check(forall, forall->getBody());
+    }
+
+    void VisitCXXForallRangeStmt(const CXXForallRangeStmt *forall) {
+      check(forall, forall->getBody());
+    }
+
+    operator bool() const { return ok; }
+  };
+
+  return ForallNestingChecker(sema, f.getBody());
 }

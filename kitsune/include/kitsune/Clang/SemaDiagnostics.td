@@ -62,6 +62,11 @@ def err_kit_forall_init_not_decl: Error<
 def err_kit_forall_init_multiple: Error<
     "initializer in a forall statement must declare exactly one variable">;
 
+def err_kit_forall_not_perfectly_nested: Error<
+    "forall loop not perfectly nested">;
+def note_kit_forall_ancestor: Note<
+    "loop has an imperfectly nested child">;
+
 // memory access qualifiers
 def err_kit_multiple_access_qualifiers : Error<
     "multiple access qualifiers">;
