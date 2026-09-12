@@ -23,8 +23,15 @@ void loop() {
 
   forall(int i = 0; i < 10; i++) {
     if (i == 4) {
-      // expected-error@+1 {{forall body may not have a break statement}}
+      // expected-error@+1 {{'break' statements are not allowed in forall loops}}
       break;
+    }
+  }
+
+  forall(int i = 0; i < 10; i++) {
+    if (i == 4) {
+      // expected-error@+1 {{'continue' statements are not allowed in forall loops}}
+      continue;
     }
   }
 
