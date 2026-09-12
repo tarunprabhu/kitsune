@@ -4866,6 +4866,9 @@ StmtResult Sema::ActOnForallStmt(SourceLocation ForLoc,
   auto BCF = BreakContinueFinder(*this, Body);
   if (BCF.BreakFound())
     return StmtError(Diag(BCF.GetBreakLoc(), diag::err_kit_forall_has_break));
+  else if (BCF.ContinueFound())
+    return StmtError(
+        Diag(BCF.GetContinueLoc(), diag::err_kit_forall_has_continue));
 
   // KITSUNE FIXME: This needs to be a considerably more sophisticated check.
   //

@@ -54,7 +54,9 @@ def err_kit_forall_no_cond: Error<
 def err_kit_forall_no_inc: Error<
     "forall statement must have an increment expression">;
 def err_kit_forall_has_break: Error<
-    "forall body may not have a break statement">;
+    "'break' statements are not allowed in forall loops">;
+def err_kit_forall_has_continue: Error<
+    "'continue' statements are not allowed in forall loops">;
 def err_kit_forall_init_not_decl: Error<
     "initializer in a forall statement must be a variable declaration">;
 def err_kit_forall_init_multiple: Error<
