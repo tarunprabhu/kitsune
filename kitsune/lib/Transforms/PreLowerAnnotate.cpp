@@ -34,39 +34,6 @@
 
 using namespace llvm;
 
-/// Annotate tapir loops for use by the GPU-centric tapir targets, 'cuda' and
-/// 'hip'. Loop is the root of a tapir loop nest containing zero or more
-/// perfectly nested tapir loops. This only adds the perfect depth and perfect
-/// level annotations to the appropriate tapir loops and the lowering enabled
-/// annotation to the root.
-static void annotateTapirLoopsForGPU(Loop &root, ScalarEvolution &se) {
-  std::unique_ptr<TapirLoopNest> nest = TapirLoopNest::create(root, se);
-  assert(nest && "Loop must be a tapir loop");
-
-  ArrayRef<Loop *> perfectLoops = nest->getPerfectTapirLoops();
-  assert(perfectLoops.size() && "Root of tapir loop nest must be perfect");
-  assert(perfectLoops[0] == &root &&
-         "First perfect loop in tapir loop nest must be the root");
-
-  // The "perfect.depth" annotation must only be set on the root of the
-  // tapir loop nest. The "perfect.level" annotation must be added to all
-  // loops, including the root.
-  unsigned depth = nest->getMaxPerfectDepth();
-  addLoweringEnabledAttr(root);
-  addPerfectDepthAttr(root, depth);
-  LLVM_DEBUG(dbgs() << "PreLowerAnnotate: Add lowering enable on root '"
-                    << getName(root) << "'\n");
-  LLVM_DEBUG(dbgs() << "PreLowerAnnotate: Add perfect depth '" << depth
-                    << "' on root\n");
-
-  for (unsigned d = 1; d <= depth; ++d) {
-    Loop *loop = perfectLoops[d - 1];
-    addPerfectLevelAttr(*loop, d);
-    LLVM_DEBUG(dbgs() << "PreLowerAnnotate: Add perfect level on loop '"
-                      << getName(*loop) << "'\n");
-  }
-}
-
 PreservedAnalyses PreLowerAnnotatePass::run(Function &f,
                                             FunctionAnalysisManager &am) {
   LoopInfo &li = am.getResult<LoopAnalysis>(f);
@@ -80,15 +47,12 @@ PreservedAnalyses PreLowerAnnotatePass::run(Function &f,
       for (Loop *subLoop : getAllSubLoops(*loop))
         ignore.insert(subLoop);
 
-  for (Loop *loop : li.getLoopsInPreorder()) {
-    if (ignore.contains(loop))
-      continue;
-
-    if (isTopLevelTapirLoopForGPU(*loop))
-      annotateTapirLoopsForGPU(*loop, se);
-    else if (isTapirLoop(*loop))
+  // Any tapir loop that is not ignored should be annotated with the
+  // tapir.loop.lowering.enabled attribute that indicates to loop-spawning that
+  // the loop must be lowered.
+  for (Loop *loop : li.getLoopsInPreorder())
+    if (isTapirLoop(*loop) && !ignore.contains(loop))
       addLoweringEnabledAttr(*loop);
-  }
 
   // At best, this pass will only change the metadata on existing loops and the
   // module. It will not add or remove any loops, or change any other code.

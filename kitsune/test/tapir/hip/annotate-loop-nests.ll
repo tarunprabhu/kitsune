@@ -1,8 +1,7 @@
 ; Check that the tapir loop annotator pass annotates loops correctly. Every
-; function contains a single, imperfect loop nest.
+; function here contains a single, imperfect loop nest.
 ;
-; RUN: opt -passes="kit-annotate-prelower" -S %s \
-; RUN:     | FileCheck %s
+; RUN: opt -passes="kit-annotate-prelower" -S %s | FileCheck %s
 
 ; CHECK-LABEL: @pep
 ; CHECK: !llvm.loop ![[PEP_J:[0-9]+]]
@@ -212,11 +211,7 @@ for.i.end:
 
 ;-------------------------------------------------------------------------------
 ;
-; CHECK-DAG: ![[TARGET:[0-9]+]] = !{!"tapir.loop.target", i32 2}
-; CHECK-DAG: ![[D1:[0-9]+]] = !{!"tapir.loop.perfect.depth", i32 1}
-; CHECK-DAG: ![[D2:[0-9]+]] = !{!"tapir.loop.perfect.depth", i32 2}
-; CHECK-DAG: ![[L1:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 1}
-; CHECK-DAG: ![[L2:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 2}
+; CHECK-DAG: ![[TARGET:[0-9]+]] = !{!"tapir.loop.target", i32 4}
 ; CHECK-DAG: ![[LOWER:[0-9]+]] = !{!"tapir.loop.lowering.enabled"}
 ;
 ; ------------------------------------------------------------------------------
@@ -228,7 +223,7 @@ for.i.end:
 ; }
 ;
 ; CHECK-DAG: ![[PEP_J]] = distinct !{![[PEP_J]], ![[TARGET]]}
-; CHECK-DAG: ![[PEP_I]] = distinct !{![[PEP_I]], ![[TARGET]], ![[LOWER]], ![[D1]], ![[L1]]}
+; CHECK-DAG: ![[PEP_I]] = distinct !{![[PEP_I]], ![[TARGET]], ![[LOWER]]}
 ;
 ;-------------------------------------------------------------------------------
 ;
@@ -242,7 +237,7 @@ for.i.end:
 ;
 ; CHECK-DAG: ![[PEPP_K]] = distinct !{![[PEPP_K]], ![[TARGET]]}
 ; CHECK-DAG: ![[PEPP_J]] = distinct !{![[PEPP_J]], ![[TARGET]]}
-; CHECK-DAG: ![[PEPP_I]] = distinct !{![[PEPP_I]], ![[TARGET]], ![[LOWER]], ![[D1]], ![[L1]]}
+; CHECK-DAG: ![[PEPP_I]] = distinct !{![[PEPP_I]], ![[TARGET]], ![[LOWER]]}
 ;
 ;-------------------------------------------------------------------------------
 ;
@@ -256,12 +251,12 @@ for.i.end:
 ; }
 ;
 ; CHECK-DAG: ![[PPEP_K]] = distinct !{![[PPEP_K]], ![[TARGET]]}
-; CHECK-DAG: ![[PPEP_J]] = distinct !{![[PPEP_J]], ![[TARGET]], ![[L2]]}
-; CHECK-DAG: ![[PPEP_I]] = distinct !{![[PPEP_I]], ![[TARGET]], ![[LOWER]], ![[D2]], ![[L1]]}
+; CHECK-DAG: ![[PPEP_J]] = distinct !{![[PPEP_J]], ![[TARGET]]}
+; CHECK-DAG: ![[PPEP_I]] = distinct !{![[PPEP_I]], ![[TARGET]], ![[LOWER]]}
 ;
 ;-------------------------------------------------------------------------------
 
-!0 = !{!"tapir.loop.target", i32 2}
+!0 = !{!"tapir.loop.target", i32 4}
 !1 = distinct !{!1, !0}
 !2 = distinct !{!2, !0}
 !3 = distinct !{!3, !0}

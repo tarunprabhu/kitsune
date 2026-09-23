@@ -2,8 +2,7 @@
 ; function here contains a single loop nest. Each nest will contain exactly two
 ; tapir loops. The loop nest may contain other, non-tapir loops.
 ;
-; RUN: opt -passes="kit-annotate-prelower" -S %s \
-; RUN:     | FileCheck %s
+; RUN: opt -passes="kit-annotate-early" -S %s | FileCheck %s
 
 ; CHECK-LABEL: @pp
 ; CHECK: llvm.loop ![[PP_J:[0-9]+]]
@@ -179,20 +178,18 @@ for.i.end:
 
 ;-------------------------------------------------------------------------------
 ;
-; CHECK-DAG: ![[TARGET:[0-9]+]] = !{!"tapir.loop.target", i32 4}
 ; CHECK-DAG: ![[D1:[0-9]+]] = !{!"tapir.loop.perfect.depth", i32 1}
 ; CHECK-DAG: ![[D2:[0-9]+]] = !{!"tapir.loop.perfect.depth", i32 2}
 ; CHECK-DAG: ![[L1:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 1}
 ; CHECK-DAG: ![[L2:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 2}
-; CHECK-DAG: ![[LOWER:[0-9]+]] = !{!"tapir.loop.lowering.enabled"}
 ;
 ;-------------------------------------------------------------------------------
 ;
 ; forall (i ...)
 ;   forall (j ...)
 ;
-; CHECK-DAG: ![[PP_J]] = distinct !{![[PP_J]], ![[TARGET]], ![[L2]]}
-; CHECK-DAG: ![[PP_I]] = distinct !{![[PP_I]], ![[TARGET]], ![[LOWER]], ![[D2]], ![[L1]]}
+; CHECK-DAG: ![[PP_J]] = distinct !{![[PP_J]], {{.+}}, ![[L2]]}
+; CHECK-DAG: ![[PP_I]] = distinct !{![[PP_I]], {{.+}}, ![[L1]], ![[D2]]}
 ;
 ;-------------------------------------------------------------------------------
 ;
@@ -201,8 +198,8 @@ for.i.end:
 ;     for (k ...)
 ;
 ; CHECK-DAG: ![[PPS_K]] = distinct !{![[PPS_K]]}
-; CHECK-DAG: ![[PPS_J]] = distinct !{![[PPS_J]], ![[TARGET]], ![[L2]]}
-; CHECK-DAG: ![[PPS_I]] = distinct !{![[PPS_I]], ![[TARGET]], ![[LOWER]], ![[D2]], ![[L1]]}
+; CHECK-DAG: ![[PPS_J]] = distinct !{![[PPS_J]], {{.+}}, ![[L2]]}
+; CHECK-DAG: ![[PPS_I]] = distinct !{![[PPS_I]], {{.+}}, ![[L1]], ![[D2]]}
 ;
 ;-------------------------------------------------------------------------------
 ;
@@ -212,19 +209,21 @@ for.i.end:
 ;
 ; Here, the non-parallel for loop in the nest will result in the maximum perfect
 ; depth being 2. The innermost forall is not part of the loop nest since its
-; parent is not a tapir loop. For that same reason, it is also not the root of
-; a different tapir loop nest. Therefore, neither the depth, nor the level
-; annotations will be added since those are only added to perfectly nested tapir
-; loops.
+; parent is not a tapir loop. Since it is nested below a non-tapir loop, but has
+; an ancestor that is a tapir loop, it is not annotated at all. This is actually
+; an error, and in a normal pass pipeline, the verifier will raise an error. In
+; fact, frontends should not even allow this sort of nest to be written, but we
+; keep this test since we want to check that annotator does something reasonable
+; even when presented with unreasonable code.
 ;
-; CHECK-DAG: ![[PSP_K]] = distinct !{![[PSP_K]], ![[TARGET]]}
+; CHECK-DAG: ![[PSP_K]] = distinct !{![[PSP_K]], {{.+}}}
 ; CHECK-DAG: ![[PSP_J]] = distinct !{![[PSP_J]]}
-; CHECK-DAG: ![[PSP_I]] = distinct !{![[PSP_I]], ![[TARGET]], ![[LOWER]], ![[D1]], ![[L1]]}
+; CHECK-DAG: ![[PSP_I]] = distinct !{![[PSP_I]], {{.+}}, ![[L1]], ![[D1]]}
 ;
 ;-------------------------------------------------------------------------------
 
 !0 = distinct !{!0, !1}
-!1 = !{!"tapir.loop.target", i32 4}
+!1 = !{!"tapir.loop.target", i32 1}
 !2 = distinct !{!2, !1}
 !3 = distinct !{!3}
 !4 = distinct !{!4, !1}

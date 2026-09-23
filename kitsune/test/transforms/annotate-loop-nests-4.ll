@@ -2,8 +2,7 @@
 ; function here contains a single loop nest. Each nest will contain exactly
 ; four tapir loops. The loop nest may contain other, non-tapir loops.
 ;
-; RUN: opt -passes="kit-annotate-prelower" -S %s \
-; RUN:     | FileCheck %s
+; RUN: opt -passes="kit-annotate-early" -S %s | FileCheck %s
 
 ; CHECK-LABEL: @pppp
 ; CHECK: llvm.loop ![[PPPP_L:[0-9]+]]
@@ -98,13 +97,11 @@ for.i.end:
 
 ;-------------------------------------------------------------------------------
 ;
-; CHECK-DAG: ![[TARGET:[0-9]+]] = !{!"tapir.loop.target", i32 4}
 ; CHECK-DAG: ![[D4:[0-9]+]] = !{!"tapir.loop.perfect.depth", i32 4}
 ; CHECK-DAG: ![[L1:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 1}
 ; CHECK-DAG: ![[L2:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 2}
 ; CHECK-DAG: ![[L3:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 3}
 ; CHECK-DAG: ![[L4:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 4}
-; CHECK-DAG: ![[LOWER:[0-9]+]] = !{!"tapir.loop.lowering.enabled"}
 ;
 ;-------------------------------------------------------------------------------
 ;
@@ -113,15 +110,15 @@ for.i.end:
 ;     forall (k ...)
 ;       forall (l ...)
 ;
-; CHECK-DAG: ![[PPPP_L]] = distinct !{![[PPPP_L]], ![[TARGET]], ![[L4]]}
-; CHECK-DAG: ![[PPPP_K]] = distinct !{![[PPPP_K]], ![[TARGET]], ![[L3]]}
-; CHECK-DAG: ![[PPPP_J]] = distinct !{![[PPPP_J]], ![[TARGET]], ![[L2]]}
-; CHECK-DAG: ![[PPPP_I]] = distinct !{![[PPPP_I]], ![[TARGET]], ![[LOWER]], ![[D4]], ![[L1]]}
+; CHECK-DAG: ![[PPPP_L]] = distinct !{![[PPPP_L]], {{.+}}, ![[L4]]}
+; CHECK-DAG: ![[PPPP_K]] = distinct !{![[PPPP_K]], {{.+}}, ![[L3]]}
+; CHECK-DAG: ![[PPPP_J]] = distinct !{![[PPPP_J]], {{.+}}, ![[L2]]}
+; CHECK-DAG: ![[PPPP_I]] = distinct !{![[PPPP_I]], {{.+}}, ![[L1]], ![[D4]]}
 ;
 ;-------------------------------------------------------------------------------
 
 !0 = distinct !{!0, !1}
-!1 = !{!"tapir.loop.target", i32 4}
+!1 = !{!"tapir.loop.target", i32 1}
 !2 = distinct !{!2, !1}
 !3 = distinct !{!3, !1}
 !4 = distinct !{!4, !1}
