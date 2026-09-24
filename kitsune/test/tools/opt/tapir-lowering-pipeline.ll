@@ -88,7 +88,9 @@ end:
 
 declare void @ext(i64)
 
-!0 = distinct !{!0, !1, !2, !3}
+!0 = distinct !{!0, !1, !2, !3, !4, !5}
 !1 = !{!"tapir.loop.target", i32 1}
 !2 = !{!"tapir.loop.spawn.strategy", i32 1}
 !3 = !{!"tapir.loop.lowering.enabled"}
+!4 = !{!"tapir.loop.perfect.level", i32 1}
+!5 = !{!"tapir.loop.perfect.depth", i32 1}

@@ -54,6 +54,8 @@ end:
 !12 = !DILocation(line: 22, column: 3, scope: !4)
 !13 = !DILocation(line: 22, column: 32, scope: !4)
 !14 = !DILocation(line: 22, column: 27, scope: !4)
-!15 = distinct !{!15, !12, !16}
+!15 = distinct !{!15, !12, !16, !18, !19}
 !16 = !{!"tapir.loop.target", i32 1}
 !17 = !DILocation(line: 26, column: 1, scope: !4)
+!18 = !{!"tapir.loop.perfect.level", i32 1}
+!19 = !{!"tapir.loop.perfect.depth", i32 1}

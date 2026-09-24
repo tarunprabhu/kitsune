@@ -67,9 +67,12 @@ for.i.end:
 }
 
 !0 = !{!"tapir.loop.target", i32 1024}
-!1 = distinct !{!1, !0, !4}
-!2 = distinct !{!2, !0, !5}
+!1 = distinct !{!1, !0, !4, !7, !9}
+!2 = distinct !{!2, !0, !5, !8}
 !3 = distinct !{!3, !6}
 !4 = !{!"loop.name", !"ppp.loop.i"}
 !5 = !{!"loop.name", !"ppp.loop.j"}
 !6 = !{!"loop.name", !"ppp.loop.k"}
+!7 = !{!"tapir.loop.perfect.level", i32 1}
+!8 = !{!"tapir.loop.perfect.level", i32 2}
+!9 = !{!"tapir.loop.perfect.depth", i32 2}
