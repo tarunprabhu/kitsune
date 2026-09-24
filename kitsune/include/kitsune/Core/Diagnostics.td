@@ -59,6 +59,9 @@ class Note<string Msg> : Diag<SNote, Msg>;
 def ErrAttrAdd
   : Error<"cannot add attribute '{}' without values">;
 
+def ErrAttrMissing
+  : Error<"missing required attribute '{}'">;
+
 def ErrAttrNotCompatible
   : Error<"attribute '{}': not compatible with '{}'">;
 
@@ -251,9 +254,6 @@ def ErrTapirLoopBodyDoesNotReattach
 def ErrTapirLoopTaskEntryMismatch
   : Error<"tapir loop task entry does not match detached block">;
 
-def ErrTapirNestBoundsVariantGPU
-  : Error<"bounds of GPU loop must be invariant in the nest">;
-
 def ErrVarArgCallRequiredType
   : Error<"invalid argument in call '{}' at '{}'. Expected value of type '{}'">;
 
@@ -347,9 +347,6 @@ def ErrNYI
 
 def WarnSerialInParallelLoopNest
   : Warning<"serial loop between parallel loops in loop nest">;
-
-def WarnParallelLoopImperfectlyNested
-  : Warning<"parallel loop not perfectly nested">;
 
 def WarnInstrumentNestedLoop
   : Warning<"cannot instrument tapir loop that is not a top-level loop">;

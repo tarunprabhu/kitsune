@@ -16,10 +16,9 @@
 // tapir targets associated with tapir loops. For instance, an error will be
 // raised in the following case:
 //
-//     parallel_for (...) {      // tapir.loop.target = "cuda"
-//        parallel_for (...) {   // tapir.loop.target = "hip"
-//        }
-//     }
+//     parallel_for (...)      // tapir.loop.target = "cuda"
+//        parallel_for (...)   // tapir.loop.target = "hip"
+//           ...
 //
 // The issue here is not that multiple targets are being used, but that any
 // lowering for this would require an NVIDIA GPU to launch a kernel on an
@@ -168,39 +167,6 @@ private:
     }
   }
 
-  // If the root of a tapir loop nest is a GPU-centric tapir target, any tapir
-  // loops contained within it must be perfectly nested. Otherwise, they are
-  // likely to be serialized.
-  void checkLoopNestStructureForGPU(Loop &root) {
-    std::unique_ptr<TapirLoopNest> nest = TapirLoopNest::create(root, se);
-    assert(nest && "Could not create tapir loop nest object");
-
-    ArrayRef<Loop *> perfectLoops = nest->getPerfectTapirLoops();
-    SmallSetVector<Loop *, 4> perfectSet(perfectLoops.begin(),
-                                         perfectLoops.end());
-    for (Loop *loop : nest->getLoops()) {
-      if (isTapirLoop(*loop)) {
-        if (!perfectSet.contains(loop)) {
-          emitDiag(*loop, DiagID::WarnParallelLoopImperfectlyNested);
-          emitDiag(DiagID::NoteLoopNestRoot, getName(root));
-        }
-      }
-    }
-
-    // The loop bounds of all perfectly nested tapir loops in a tapir loop nest
-    // must be loop-invariant with respect to the outer loop.
-    for (const Loop *loop : perfectLoops) {
-      std::optional<Loop::LoopBounds> maybeLB = loop->getBounds(se);
-      assert(maybeLB && "Could not get bounds for loop");
-
-      Loop::LoopBounds lb = *maybeLB;
-      if (!root.isLoopInvariant(&lb.getFinalIVValue())) {
-        emitDiag(*loop, DiagID::ErrTapirNestBoundsVariantGPU);
-        emitDiag(DiagID::NoteLoopNestRoot, getName(root));
-      }
-    }
-  }
-
   void checkTopLevelTapirLoop(Loop &loop) {
     switch (*getTargetAttr(loop)) {
     case TTID::Nolo:
@@ -212,9 +178,8 @@ private:
       checkConsistentTTsForCPU(loop);
       return;
     case TTID::Cuda:
-    case TTID::Hip:
+    case TTID::Hip: //
       checkConsistentTTsForGPU(loop);
-      checkLoopNestStructureForGPU(loop);
       return;
     case TTID::Custom:
       // FIXME: We should probably require the custom targets to have a hook
@@ -418,7 +383,8 @@ private:
     return true;
   }
 
-  // Check additional properties of tapir loops that are derived from it.
+  // Check additional properties of tapir loops. These are derived from the
+  // loop structure, the induction variable etc.
   //
   //  - The tapir loop has a finite trip count
   //
@@ -428,6 +394,23 @@ private:
     tl.collectIVs(pse, DEBUG_TYPE, &ore);
     if (!tl.getOrCreateTripCount(pse, DEBUG_TYPE, &ore))
       return emitDiag(loop, DiagID::ErrTapirLoopNoFiniteTripCount);
+
+    return true;
+  }
+
+  // Check the tapir loop attributes.
+  //
+  //  - The tapir loop must have a nesting level
+  //   - If the tapir loop is a top-level loop, it must have a depth
+  //
+  bool checkTapirLoopAttrs(Loop &loop) {
+    if (!hasPerfectLevelAttr(loop))
+      return emitDiag(loop, DiagID::ErrAttrMissing,
+                      getAttrName(LoopAttrKind::PerfectLevel));
+
+    if (isTopLevelTapirLoop(loop) && !hasPerfectDepthAttr(loop))
+      return emitDiag(loop, DiagID::ErrAttrMissing,
+                      getAttrName(LoopAttrKind::PerfectDepth));
 
     return true;
   }
@@ -450,7 +433,8 @@ private:
           || !checkTapirLoopPreheader(*loop)
           || !checkTapirLoopHeader(*loop)
           || !checkTapirLoopLatch(*loop)
-          || !checkTapirLoopProperties(*loop, *task))
+          || !checkTapirLoopProperties(*loop, *task)
+          || !checkTapirLoopAttrs(*loop))
         return false;
       // clang-format on
     }

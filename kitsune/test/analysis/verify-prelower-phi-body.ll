@@ -45,6 +45,8 @@ exit:
 
 declare void @ext1(i64)
 
-!0 = distinct !{!0, !1, !2}
+!0 = distinct !{!0, !1, !2, !3, !4}
 !1 = !{!"tapir.loop.target", i32 1024}
 !2 = !{!"loop.name", !"f1.loop.i"}
+!3 = !{!"tapir.loop.perfect.level", i32 1}
+!4 = !{!"tapir.loop.perfect.depth", i32 1}

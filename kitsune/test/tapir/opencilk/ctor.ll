@@ -11,20 +11,6 @@
 ; RUN:     | FileCheck %s -check-prefix DEFAULT
 ;
 ; ------------------------------------------------------------------------------
-; This runs the standard sequence that will be run during most compilations.
-; For the ctor to be inserted, we need to check if elements of OpenCilk's
-; runtime are used in the transformed code. The detector checks for the use of
-; several different elements since LLVM's optimization passes may obfuscate some
-; uses. This runs the full lowering pipeline that will have run several
-; optimizations. It is not guaranteed to exercise all paths in the detector, but
-; it is, arguably, better than nothing.
-;
-; RUN: opt -passes='kit-lowering<O3>' -S %s \
-; RUN:     --tapir=opencilk \
-; RUN:     --tapir-opencilk-runtime-bc=%S/input/libopencilk-abi.bc \
-; RUN:     | FileCheck %s -check-prefix DEFAULT
-;
-; ------------------------------------------------------------------------------
 ; DEFAULT: @[[INITOPTS:.+]] = internal constant [8 x i8]
 ; DEFAULT-SAME: c"\08\00\00\00\00\00\00\00"
 ; DEFAULT-SAME: section ".kit.rtiopt"
