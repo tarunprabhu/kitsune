@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Analysis/TapirLoopNestAnalysis.h"
+#include "kitsune/Core/BasicBlockUtils.h"
 #include "kitsune/Core/InstUtils.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
@@ -172,9 +173,8 @@ bool PerfectNestChecker::hasUniqueSafePathBetween(BasicBlock &from,
 
 bool PerfectNestChecker::checkLoopsStructure(Loop &outerLoop, Loop &innerLoop,
                                              ScalarEvolution &se) {
-  LLVM_DEBUG(dbgs() << "Checking the structure of loops '"
-                    << outerLoop.getName() << "' and '" << innerLoop.getName()
-                    << "'.\n";);
+  LLVM_DEBUG(dbgs() << "Checking the structure of loops '" << getName(outerLoop)
+                    << "' and '" << getName(innerLoop) << "'.\n";);
 
   BasicBlock *outerLoopHeader = outerLoop.getHeader();
   BasicBlock *outerLoopLatch = outerLoop.getLoopLatch();
@@ -185,8 +185,8 @@ bool PerfectNestChecker::checkLoopsStructure(Loop &outerLoop, Loop &innerLoop,
   // We expect rotated loops. The inner loop should have a single exit block.
   if (outerLoop.getExitingBlock() != outerLoopLatch ||
       innerLoop.getExitingBlock() != innerLoopLatch || !innerLoopExit) {
-    LLVM_DEBUG(dbgs() << "Both '" << outerLoop.getName() << "' and '"
-                      << innerLoop.getName()
+    LLVM_DEBUG(dbgs() << "Both '" << getName(outerLoop) << "' and '"
+                      << getName(innerLoop)
                       << "' must be in loop rotate form.\n";);
     return false;
   }
@@ -338,8 +338,8 @@ bool PerfectNestChecker::checkOuterLoopLatch(BasicBlock &latch,
 
 bool PerfectNestChecker::run(Loop &outerLoop, Loop &innerLoop,
                              ScalarEvolution &se) {
-  LLVM_DEBUG(dbgs() << "Checking whether loop '" << outerLoop.getName()
-                    << "' and '" << innerLoop.getName()
+  LLVM_DEBUG(dbgs() << "Checking whether loop '" << getName(outerLoop)
+                    << "' and '" << getName(innerLoop)
                     << "' are perfectly nested.\n");
 
   if (!checkLoopsStructure(outerLoop, innerLoop, se)) {
@@ -357,8 +357,20 @@ bool PerfectNestChecker::run(Loop &outerLoop, Loop &innerLoop,
   BasicBlock *innerPreheader = innerLoop.getLoopPreheader();
   CmpInst *innerGuardCmp = getInnerLoopGuardCmp(innerLoop);
 
-  bool isSafe = checkOuterLoopHeader(*outerHeader, innerGuardCmp) &&
-                checkOuterLoopLatch(*outerLatch, outerLatchCmp, *outerBounds);
+  if (!checkOuterLoopHeader(*outerHeader, innerGuardCmp)) {
+    LLVM_DEBUG(dbgs() << "Not perfectly nested: outer loop '"
+                      << getName(outerLoop) << "' header '"
+                      << getName(*outerHeader) << "' is unsafe");
+    return false;
+  }
+
+  if (!checkOuterLoopLatch(*outerLatch, outerLatchCmp, *outerBounds)) {
+    LLVM_DEBUG(dbgs() << "Not perfectly nested: outer loop '"
+                      << getName(outerLoop) << "' header '"
+                      << getName(*outerLatch) << "' is unsafe");
+    return false;
+  }
+
   if (innerPreheader != outerHeader) {
     // TODO: In this case, we expect that the inner loop exit block is
     // terminated with a sync instruction. If the preheader contains a call to
@@ -366,26 +378,31 @@ bool PerfectNestChecker::run(Loop &outerLoop, Loop &innerLoop,
     // loop. These should be checked here, just to be safe. For now, we are
     // relying on Kitsune's verifier running and bailing out with an error if
     // the tapir loops are not structured exactly as we expect.
+
+    if (!isEmptyOrOnlyCallsSyncRegionStart(*innerPreheader)) {
+      LLVM_DEBUG(dbgs() << "Not perfectly nested: inner loop '"
+                        << getName(innerLoop) << "' preheader '"
+                        << getName(*innerPreheader) << "' is unsafe\n");
+      return false;
+    }
+
     BasicBlock &innerExit = *innerLoop.getExitBlock();
-    isSafe &= isEmptyOrOnlyCallsSyncRegionStart(*innerPreheader) &&
-              isEmptyRecordUnsafe(innerExit);
+    if (!isEmptyRecordUnsafe(innerExit)) {
+      LLVM_DEBUG(dbgs() << "Not perfectly nested: inner loop '"
+                        << getName(innerLoop) << "' exit '"
+                        << getName(innerExit) << " is unsafe\n");
+      return false;
+    }
   }
 
-  if (!isSafe) {
-    LLVM_DEBUG(
-        dbgs() << "Not perfectly nested: code surrounding inner loop is unsafe"
-               << "\n";);
-    return false;
-  }
-
-  LLVM_DEBUG(dbgs() << "Loop '" << outerLoop.getName() << "' and '"
-                    << innerLoop.getName() << "' are perfectly nested.\n");
+  LLVM_DEBUG(dbgs() << "Loop '" << getName(outerLoop) << "' and '"
+                    << getName(innerLoop) << "' are perfectly nested.\n");
   return true;
 }
 
 static bool checkLoopSimplifyForm(const Loop &loop) {
   if (!loop.isLoopSimplifyForm()) {
-    LLVM_DEBUG(dbgs() << "'" << loop.getName() << "', at depth "
+    LLVM_DEBUG(dbgs() << "'" << getName(loop) << "', at depth "
                       << loop.getLoopDepth()
                       << "is not in loop-simplify form.\n";);
     return false;
@@ -404,14 +421,17 @@ bool TapirLoopNest::sanityCheckOuterLoop(const Loop &loop,
   unsigned depth = loop.getLoopDepth();
   LoopVectorTy subLoops = nest.getLoopsAtDepth(depth + 1);
   if (subLoops.size() != 1) {
-    LLVM_DEBUG(dbgs() << "'" << loop.getName() << "' at depth " << depth
-                      << "' has more than one subloop.\n";);
+    LLVM_DEBUG(dbgs() << "'" << getName(loop)
+                      << "' has more than one subloop.\n");
+    for (Loop *subLoop : subLoops)
+      LLVM_DEBUG(dbgs() << "  subloop: " << getName(*subLoop) << " ["
+                        << getName(*subLoop->getHeader()) << "]\n");
     return false;
   }
 
   if (!loop.getBounds(se)) {
-    LLVM_DEBUG(dbgs() << "Cannot compute loop bounds of loop '"
-                      << loop.getName() << "' at depth " << depth << "\n";);
+    LLVM_DEBUG(dbgs() << "Cannot compute loop bounds of loop '" << getName(loop)
+                      << "' at depth " << depth << "\n";);
     return false;
   }
 
@@ -469,6 +489,9 @@ TapirLoopNest::TapirLoopNest(Loop &root, ScalarEvolution &se) : nest(root, se) {
     if (!perfectNestChecker.run(*outerLoop, *innerLoop, se)) {
       LLVM_DEBUG(dbgs() << "Inner loop not perfectly nested: "
                         << getName(*innerLoop) << "\n");
+      for (Instruction *inst : unsafeInsts)
+        LLVM_DEBUG(dbgs() << "  Unsafe instruction: " << getName(*inst)
+                          << "\n");
       break;
     }
 
@@ -479,7 +502,7 @@ TapirLoopNest::TapirLoopNest(Loop &root, ScalarEvolution &se) : nest(root, se) {
 std::unique_ptr<TapirLoopNest> TapirLoopNest::create(Loop &loop,
                                                      ScalarEvolution &se) {
   if (!isTapirLoop(loop)) {
-    LLVM_DEBUG(dbgs() << "Root of loop nest, '" << loop.getName()
+    LLVM_DEBUG(dbgs() << "Root of loop nest, '" << getName(loop)
                       << "', is not a tapir loop.\n");
     return nullptr;
   }
