@@ -9,8 +9,7 @@
 
 ; In this test, the trip count is loop invariant, but it has not been hoisted
 ; outside the loop. Such behavior has been seen when LICM does not hoist the
-; %tc instruction for some reason. This can also happen if the DeLICM pass sinks
-; %tc back into the tapir loop.
+; %tc instruction for some reason.
 define void @p(i64 %n) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()

@@ -13,7 +13,6 @@
 !
 ! O0-NOT:     Running pass:     SecondaryIVEliminationPass
 ! O0-NOT:     Running pass:     PrepareTapirLoopsPass
-! O0-NOT:     Running pass:     DeLICMPass
 ! O0-NOT:     Running pass:     NormalizeLoopControlBlocksPass
 ! O0-NOT:     Running pass:     PreLowerAnnotatePass
 ! O0-NOT:     Running pass:     LoopSpawningPass
@@ -55,7 +54,6 @@
 ! O123S:      Running pass:     SecondaryIVEliminationPass
 ! O123S:      Running pass:     PrepareTapirLoopsPass
 ! O123S-NOT:  Running pass:     InstrumentPass
-! O123S:      Running pass:     DeLICMPass
 ! O123S:      Running pass:     SimplifyCFGPass
 ! O123S:      Running pass:     LoopSimplifyPass
 ! O123S:      Running pass:     PreLowerVerificationPass

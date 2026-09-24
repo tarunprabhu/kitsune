@@ -37,7 +37,6 @@
 !
 ! O23:        Running pass:     NormalizeLoopControlBlocksPass
 ! O23:        Running pass:     SecondaryIVEliminationPass
-! O23:        Running pass:     DeLICMPass
 ! O23:        Running pass:     SimplifyCFGPass
 ! O23:        Running pass:     LoopSimplifyPass
 ! O23:        Running pass:     PreLowerVerificationPass
