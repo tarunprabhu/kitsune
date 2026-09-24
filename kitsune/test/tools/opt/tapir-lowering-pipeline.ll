@@ -47,7 +47,6 @@
 ;
 ; O123S:      Running pass:     NormalizeLoopControlBlocksPass
 ; O123S:      Running pass:     SecondaryIVEliminationPass
-; O123S:      Running pass:     DeLICMPass
 ; O123S:      Running pass:     SimplifyCFGPass
 ; O123S:      Running pass:     LoopSimplifyPass
 ; O123S:      Running pass:     PreLowerVerificationPass

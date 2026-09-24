@@ -235,15 +235,6 @@ ModulePassManager llvm::populateKitPreLoopSpawningPasses(
 
     populateSimplifyPasses(mpm, pto);
 
-    // It is not clear if we really need to run loop-simplify here, but DeLICM
-    // requires it, so we might as well.
-    addFunctionPass<LoopSimplifyPass>(mpm);
-    addFunctionPass<DeLICMPass>(mpm);
-
-    // Run simplifycfg after the DeLICM pass since it may leave empty basic
-    // blocks around. This may require re-simplifying the loop.
-    addFunctionPass<SimplifyCFGPass>(mpm);
-    addFunctionPass<LoopSimplifyPass>(mpm);
     addModulePass<PreLowerVerificationPass>(mpm);
 
     // TODO:? Do we need to run the pre-lower verification pass after the

@@ -37,7 +37,6 @@
 ;
 ; CHECK-NOT:  Running pass:      PreLowerPreparePass
 ; CHECK-NOT:  Running pass:      SecondaryIVEliminationPass
-; CHECK-NOT:  Running pass:      DeLICMPass
 ; CHECK-NOT:  Running pass:      PreLowerVerificationPass
 ; CHECK-NOT:  Running pass:      PreLowerAnnotatePass
 ; CHECK-NOT:  Running pass:      SerializePass
