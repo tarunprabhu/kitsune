@@ -223,9 +223,19 @@ private:
 
     // Debug info instructions are permitted. However, we expect these to be
     // automatically upgraded to DbgRecord's, so we don't check for them.
-    for (Instruction &inst : *header)
-      if (!isa<PHINode>(inst) && !isa<DetachInst>(inst))
-        return emitDiag(loop, DiagID::ErrTapirLoopHeaderInstNotPHI);
+    for (Instruction &inst : *header) {
+      if (!isa<PHINode>(inst) && !isa<DetachInst>(inst)) {
+        // FIXME: This should be an error, but it has been changed to a warning
+        // because it causes too many codes to break. The underlying issue can
+        // probably be fixed by making some LLVM passes - notably the loop
+        // vectorizer - tapir-aware. Until then, we issue a warning instead of
+        // an error; the way Kitsune currently works, the presence of any
+        // non-PHI instructions in the header does not result in incorrect code
+        // generation. But, obviously, this will not always be the case.
+        return emitDiag(loop, DiagID::WarnTapirLoopHeaderInstNotPHI,
+                        getName(inst));
+      }
+    }
 
     if (!isa<DetachInst>(header->getTerminator()))
       return emitDiag(loop, DiagID::ErrTapirLoopBlockTerminator, "header",

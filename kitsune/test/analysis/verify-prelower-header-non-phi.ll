@@ -1,9 +1,16 @@
 ; Non-PHI instructions are not allowed in the tapir loop header.
 ;
-; RUN: not opt -passes=kit-verify-prelower %s -disable-output 2>&1 \
+; FIXME: This should be an error, but it has been changed to a warning because
+; it causes too many codes to break. The underlying issue can probably be fixed
+; by making some LLVM passes - notably the loop vectorizer - tapir-aware. Until
+; then, we issue a warning instead of an error; the way Kitsune currently works,
+; the presence of any non-PHI instructions in the header does not result in
+; incorrect code generation. But, obviously, this will not always be the case.
+;
+; RUN: opt -passes=kit-verify-prelower %s -disable-output 2>&1 \
 ; RUN:     | FileCheck %s
 ;
-; CHECK: tapir loop header must contain only phi nodes
+; CHECK: warning: tapir loop header contains unexpected instruction '{{.+}}'
 
 define void @f(i64 %n) {
 entry:
