@@ -21,13 +21,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Transforms/PreLowerAnnotate.h"
-#include "kitsune/Analysis/TapirLoopNestAnalysis.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
-#include "kitsune/Core/ModuleAttrs.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/Analysis/LoopInfo.h"
-#include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/IR/Module.h"
 
 #define DEBUG_TYPE "kit-annotate-prelower"
@@ -37,7 +34,6 @@ using namespace llvm;
 PreservedAnalyses PreLowerAnnotatePass::run(Function &f,
                                             FunctionAnalysisManager &am) {
   LoopInfo &li = am.getResult<LoopAnalysis>(f);
-  ScalarEvolution &se = am.getResult<ScalarEvolutionAnalysis>(f);
 
   /// Find the subloops that are contained within a tapir loop nest consisting
   /// of loops that are to be run on a GPU. These will be ignored.
