@@ -1,4 +1,4 @@
-; kit-annotate-early is a requirable psas. It should add an annotation
+; kit-annotate-early is a requirable pass. It should add an annotation
 ; indicating that it has been run on a function, even if it did not do add any
 ; annotations to the function.
 ;

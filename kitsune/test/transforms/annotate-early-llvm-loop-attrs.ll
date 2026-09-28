@@ -1,8 +1,7 @@
-; Check that the kit-annotate-early pass adds the llvm.loop.unroll.disable
-; annotation to all tapir loops, but not to non-tapir loops.
+; Check that the kit-annotate-early pass adds the correct llvm loop metadata
+; to tapir loops, but not to non-tapir loops.
 ;
-; RUN: opt -passes="kit-annotate-early" -S %s \
-; RUN:     | FileCheck %s
+; RUN: opt -passes="kit-annotate-early" -S %s | FileCheck %s
 
 ; CHECK-LABEL: @s
 ; CHECK: llvm.loop ![[S_J:[0-9]+]]
@@ -177,6 +176,7 @@ for.i.exit:
 ;
 ; CHECK-DAG: ![[TARGET:[0-9]+]] = !{!"tapir.loop.target", i32 1}
 ; CHECK-DAG: ![[NOUNROLL:[0-9]+]] = !{!"llvm.loop.unroll.disable"}
+; CHECK-DAG: ![[NOVECTORIZE:[0-9]+]] = !{!"llvm.loop.vectorize.enable", i1 false}
 ;
 ;-------------------------------------------------------------------------------
 ;
@@ -191,15 +191,15 @@ for.i.exit:
 ; forall (i ...)
 ;   forall (j ...)
 ;
-; CHECK-DAG: ![[PP_I]] = distinct !{![[PP_I]], ![[TARGET]], ![[NOUNROLL]], {{.+}}}
-; CHECK-DAG: ![[PP_J]] = distinct !{![[PP_J]], ![[TARGET]], ![[NOUNROLL]], {{.+}}}
+; CHECK-DAG: ![[PP_I]] = distinct !{![[PP_I]], ![[TARGET]], ![[NOUNROLL]], ![[NOVECTORIZE]], {{.+}}}
+; CHECK-DAG: ![[PP_J]] = distinct !{![[PP_J]], ![[TARGET]], ![[NOUNROLL]], ![[NOVECTORIZE]], {{.+}}}
 ;
 ;-------------------------------------------------------------------------------
 ;
 ; forall (i ...)
 ;   for (j ...)
 ;
-; CHECK-DAG: ![[PS_I]] = distinct !{![[PS_I]], ![[TARGET]], ![[NOUNROLL]], {{.+}}}
+; CHECK-DAG: ![[PS_I]] = distinct !{![[PS_I]], ![[TARGET]], ![[NOUNROLL]], ![[NOVECTORIZE]], {{.+}}}
 ; CHECK-DAG: ![[PS_J]] = distinct !{![[PS_J]]}
 ;
 ;-------------------------------------------------------------------------------
@@ -208,5 +208,5 @@ for.i.exit:
 ;   forall (j ...)
 ;
 ; CHECK-DAG: ![[SP_I]] = distinct !{![[SP_I]]}
-; CHECK-DAG: ![[SP_J]] = distinct !{![[SP_J]], ![[TARGET]], ![[NOUNROLL]], {{.+}}}
+; CHECK-DAG: ![[SP_J]] = distinct !{![[SP_J]], ![[TARGET]], ![[NOUNROLL]], ![[NOVECTORIZE]], {{.+}}}
 

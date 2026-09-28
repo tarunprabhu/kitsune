@@ -671,14 +671,15 @@ TEST_F(KitLoopUtils, addMandatoryLLVMLoopAttrs) {
 
   // Check for each operand that is expected to be present after the mandatory
   // attributes have been added.
-  EXPECT_EQ(loop->getLoopID()->getNumOperands(), 3U);
+  EXPECT_EQ(loop->getLoopID()->getNumOperands(), 4U);
   EXPECT_TRUE(hasTargetAttr(*loop));
   EXPECT_TRUE(hasLoopAttr(*loop, "llvm.loop.unroll.disable"));
+  EXPECT_TRUE(hasLoopAttr(*loop, "llvm.loop.vectorize.enable"));
 
   // This should not change the number of loop operands since the mandatory
   // attributes have already been added.
   addMandatoryLLVMLoopAttrs(*loop);
-  EXPECT_EQ(loop->getLoopID()->getNumOperands(), 3U);
+  EXPECT_EQ(loop->getLoopID()->getNumOperands(), 4U);
 }
 
 TEST_F(KitLoopUtils, clearMandatoryLLVMLoopAttrs) {
@@ -693,7 +694,7 @@ TEST_F(KitLoopUtils, clearMandatoryLLVMLoopAttrs) {
   // Sanity check that the number of attributes is as expected after they have
   // been added.
   addMandatoryLLVMLoopAttrs(*loop);
-  EXPECT_EQ(loop->getLoopID()->getNumOperands(), 3U);
+  EXPECT_EQ(loop->getLoopID()->getNumOperands(), 4U);
 
   // Now remove them and we should get what we originally had.
   clearMandatoryLLVMLoopAttrs(*loop);
