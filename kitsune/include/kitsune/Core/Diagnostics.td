@@ -345,6 +345,12 @@ def ErrNYI
 // Although not strictly required, the names of all warnings should be prefixed
 // with Warn.
 
+// FIXME: This should be an error, not just a warning. But there are a number of
+// bigger issues that need to be fixed. We can get away with headers containing
+// non-PHI instructions for now, so we just issue a warning.
+def WarnTapirLoopHeaderInstNotPHI
+  : Warning<"tapir loop header contains unexpected instruction '{}'">;
+
 def WarnSerialInParallelLoopNest
   : Warning<"serial loop between parallel loops in loop nest">;
 
