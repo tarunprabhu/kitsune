@@ -55,6 +55,9 @@ public:
 
   // Lower a call to Kitsune's kit.gpu.warp.size intrinsic.
   bool lowerWarpSizeIntr(CallInst *call);
+
+  // Lower a call to Kitsune's kit.gpu.ipt intrinsic.
+  bool lowerItersPerThreadIntr(CallInst *call);
 };
 
 } // namespace detail

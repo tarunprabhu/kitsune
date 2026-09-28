@@ -232,6 +232,7 @@ ModulePassManager llvm::populateKitPreLoopSpawningPasses(
     addLoopPass<LoopRotatePass>(mpm);
     addLoopPass<NormalizeLoopControlBlocksPass>(mpm);
     addLoopPass<SecondaryIVEliminationPass>(mpm);
+    addLoopPass<ComputeGPULoopBlockSizePass>(mpm);
 
     populateSimplifyPasses(mpm, pto);
 

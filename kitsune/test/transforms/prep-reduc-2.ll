@@ -55,7 +55,10 @@ for.i.end:
 }
 
 !0 = !{!"tapir.loop.target", i32 512}
-!1 = distinct !{!1, !0}
-!2 = distinct !{!2, !0, !3, !4}
+!1 = distinct !{!1, !0, !5, !6}
+!2 = distinct !{!2, !0, !3, !4, !7}
 !3 = !{!"tapir.loop.name", !"nested-tapir-loop"}
 !4 = !{!"tapir.loop.reduction"}
+!5 = distinct !{!"tapir.loop.perfect.depth", i32 2}
+!6 = distinct !{!"tapir.loop.perfect.level", i32 1}
+!7 = distinct !{!"tapir.loop.perfect.level", i32 2}

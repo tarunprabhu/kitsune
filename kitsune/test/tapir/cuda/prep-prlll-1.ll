@@ -1,6 +1,4 @@
-; Check that a simple tapir loop of depth 1 is prepared as expected. This should
-; leave the loop unchanged. But the tapir.loop.prepared attribute must be added
-; to the loop.
+; Check that a simple tapir loop of depth 1 is prepared as expected.
 ;
 ; RUN: opt --tapir=cuda --passes=kit-prepare -S %s | FileCheck %s
 ;
@@ -8,32 +6,76 @@
 ; CHECK-SAME: i64 %[[N:[^)]+]]
 ; CHECK-NEXT: [[ENTRY:.+]]:
 ; CHECK-NEXT: %[[SYNCREG:.+]] = tail call token @llvm.syncregion.start()
+; CHECK-NEXT: br label %[[PH_WRAP:.+]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[PH_WRAP]]:
+; CHECK-NEXT: %[[IPT:.+]] = call i64 @llvm.kit.gpu.ipt(i32 2, ptr null)
+; CHECK-NEXT: %[[IPT_MINUS_1:.+]] = sub i64 %[[IPT]], 1
+; CHECK-NEXT: %[[N_PLUS_IPT_MINUS_1:.+]] = add i64 %[[N]], %[[IPT_MINUS_1]]
+; CHECK-NEXT: %[[OTC:.+]] = udiv i64 %[[N_PLUS_IPT_MINUS_1]], %[[IPT]]
+; CHECK-NEXT: br label %[[HEADER_WRAP:.+]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[HEADER_WRAP]]:
+; CHECK-NEXT: %[[IV_WRAP:.+]] = phi i64
+; CHECK-SAME: [ 0, %[[PH_WRAP]] ]
+; CHECK-SAME: [ %[[NEXTV_WRAP:.+]], %[[LATCH_WRAP:.+]] ]
+; CHECK-NEXT: detach within %[[SYNCREG]], label %[[BODY_WRAP:.+]], label %[[LATCH_WRAP]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[BODY_WRAP]]:
+; CHECK-NEXT: %[[THRDS_PLUS_N:.+]] = add i64 %[[N]], %[[OTC]]
+; CHECK-NEXT: %[[THRDS_PLUS_N_1:.+]] = sub i64 %[[THRDS_PLUS_N]], 1
+; CHECK-NEXT: %[[PER_THRD:.+]] = udiv i64 %[[THRDS_PLUS_N_1]], %[[OTC]]
+; CHECK-NEXT: %[[START:.+]] = mul i64 %[[IV_WRAP]], %[[PER_THRD]]
+; CHECK-NEXT: %[[ENDMAX:.+]] = add i64 %[[START]], %[[PER_THRD]]
+; CHECK-NEXT: %[[STOP:.+]] = call i64 @llvm.umin.i64(i64 %[[ENDMAX]], i64 %[[N]])
+; CHECK-NEXT: %[[GUARD:.+]] = icmp uge i64 %[[START]], %[[STOP]]
+; CHECK-NEXT: br i1 %[[GUARD]], label %[[END:.+]], label %[[PH:.+]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[PH]]:
 ; CHECK-NEXT: br label %[[HEADER:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[HEADER]]:
-; CHECK-NEXT: %[[IV:.+]] = phi i64
-; CHECK-SAME: [ 0, %[[ENTRY]] ]
+; CHECK-NEXT: %[[I:.+]] = phi i64
+; CHECK-SAME: [ %[[START]], %[[PH]] ]
 ; CHECK-SAME: [ %[[NEXT:.+]], %[[LATCH:.+]] ]
-; CHECK-NEXT: detach within %[[SYNCREG]], label %[[BODY:.+]], label %[[LATCH]]
+; CHECK-NEXT: br label %[[BODY:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[BODY]]:
-; CHECK-NEXT: reattach within %[[SYNCREG]], label %[[LATCH]]
+; CHECK-NEXT: br label %[[LATCH]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[LATCH]]:
-; CHECK-NEXT: %[[NEXT:.+]] = add i64 %[[IV]], 1
-; CHECK-NEXT: %[[CMP:.+]] = icmp eq i64 %[[NEXT]], %[[N]]
-; CHECK-NEXT: br i1 %[[CMP]], label %[[EXIT:.+]], label %[[HEADER]],
+; CHECK-NEXT: %[[NEXT:.+]] = add i64 %[[I]], 1
+; CHECK-NEXT: %[[CMP:.+]] = icmp eq i64 %[[NEXT]], %[[STOP]]
+; CHECK-NEXT: br i1 %[[CMP]], label %[[EXIT:.+]], label %[[HEADER]]
 ; CHECK-SAME: !llvm.loop ![[LOOP:[0-9]+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[EXIT]]:
-; CHECK-NEXT: sync within %[[SYNCREG]], label %[[END:.+]]
+; CHECK-NEXT: br label %[[END]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[END]]:
+; CHECK-NEXT: br label %[[REATTACH_WRAP:.+]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[REATTACH_WRAP]]:
+; CHECK-NEXT: reattach within %[[SYNCREG]], label %[[LATCH_WRAP]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[LATCH_WRAP]]:
+; CHECK-NEXT: %[[NEXTV_WRAP]] = add i64 %[[IV_WRAP]], 1
+; CHECK-NEXT: %[[CMP_WRAP:.+]] = icmp eq i64 %[[NEXTV_WRAP]], %[[OTC]]
+; CHECK-NEXT: br i1 %[[CMP_WRAP]], label %[[EXIT_WRAP:.+]], label %[[HEADER_WRAP]]
+; CHECK-SAME: !llvm.loop ![[LOOP_WRAP:[0-9]+]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[EXIT_WRAP]]
+; CHECK-NEXT: br label %[[END_WRAP:.+]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[END_WRAP]]:
+; CHECK-NEXT: sync within %[[SYNCREG]], label %[[EXIT:.+]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[EXIT]]:
 ; CHECK-NEXT: ret void
 ;
-; CHECK-DAG: ![[TARGET:.+]] = !{!"tapir.loop.target", i32 2}
 ; CHECK-DAG: ![[PREPARED:.+]] = !{!"tapir.loop.prepared"}
-; CHECK-DAG: ![[LOOP]] = distinct !{![[LOOP]], ![[TARGET]], ![[PREPARED]]}
+; CHECK-DAG: ![[LOOP_WRAP]] = distinct !{![[LOOP_WRAP]], {{.+}}, ![[PREPARED]]}
+; CHECK-DAG: ![[LOOP]] = distinct !{![[LOOP]]}
 
 define void @f(i64 %n) {
 entry:
@@ -50,7 +92,7 @@ for.i.body:
 for.i.latch:
   %inc.i = add i64 %i, 1
   %cmp.i = icmp eq i64 %inc.i, %n
-  br i1 %cmp.i, label %for.i.exit, label %for.i.header, !llvm.loop !1
+  br i1 %cmp.i, label %for.i.exit, label %for.i.header, !llvm.loop !0
 
 for.i.exit:
   sync within %syncreg, label %for.i.end
@@ -59,5 +101,7 @@ for.i.end:
   ret void
 }
 
-!0 = !{!"tapir.loop.target", i32 2}
-!1 = distinct !{!1, !0}
+!0 = distinct !{!0, !1, !2, !3}
+!1 = !{!"tapir.loop.target", i32 2}
+!2 = !{!"tapir.loop.perfect.depth", i32 1}
+!3 = !{!"tapir.loop.perfect.level", i32 1}

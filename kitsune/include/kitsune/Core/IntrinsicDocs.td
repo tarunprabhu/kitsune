@@ -1083,7 +1083,7 @@ Unregister device code that was previously registered with
 }
 
 def KitGPUNumComputeUnitsDoc : KitDocIntrinsic {
-  let Category = KitDocCatCommon;
+  let Category = KitDocCatGPU;
   let ParamDocs = [
       KitDocParam<"tt", "The ID of the tapir target calling the intrinsic">
   ];
@@ -1091,6 +1091,23 @@ def KitGPUNumComputeUnitsDoc : KitDocIntrinsic {
 Get the maximum number of compute units on the default device used by the given
 tapir target. On NVIDIA GPUs, this is the number of SM's (streaming
 multiprocessors). On AMD GPUs, this is the number of multiprocessors.
+}];
+}
+
+def KitGPUIterationsPerThreadDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [
+      KitDocParam<"tt", "The ID of the tapir target calling the intrinsic">,
+      KitDocParam<"spec", "Additional data used to compute the iterations per thread">
+  ];
+  let Descr = [{
+Get the number of iterations of a parallel loop to perform on each GPU thread.
+The `spec` parameter is a pointer to some data that may be used to compute
+the number of iterations per thread.
+
+.. note::
+  This argument is currently unused and must be `null`. The corresponding
+  runtime functions always return 1.
 }];
 }
 

@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Transforms/PrepareTapirLoops.h"
+#include "LoopWrapping.h"
 #include "PrepareParallelLoops.h"
 #include "PrepareReductionLoops.h"
 #include "kitsune/Core/Diagnostics.h"
@@ -30,18 +31,43 @@
 
 using namespace llvm;
 
-static bool check(TapirLoopInfo &tapirLoop, bool isReduction, DominatorTree &dt,
-                  LoopInfo &li) {
-  if (isReduction)
+template <typename... Args>
+static bool complain(const Loop &loop, DiagID diag, Args &&...args) {
+  emitDiagnostic(loop, diag, args...);
+  return false;
+}
+
+static bool checkCommon(TapirLoopInfo &tapirLoop, DominatorTree &dt,
+                        LoopInfo &li) {
+  if (!checkTapirLoopSafeToWrap(tapirLoop, dt, li))
+    return false;
+
+  Loop &loop = *tapirLoop.getLoop();
+
+  if (!hasPerfectLevelAttr(loop))
+    return complain(loop, DiagID::ErrAttrMissing,
+                    getAttrName(LoopAttrKind::PerfectLevel));
+
+  if (isTopLevelTapirLoop(loop) && !hasPerfectDepthAttr(loop))
+    return complain(loop, DiagID::ErrAttrMissing,
+                    getAttrName(LoopAttrKind::PerfectDepth));
+
+  return true;
+}
+
+static bool check(TapirLoopInfo &tapirLoop, DominatorTree &dt, LoopInfo &li) {
+  Loop &loop = *tapirLoop.getLoop();
+  if (!checkCommon(tapirLoop, dt, li))
+    return false;
+  else if (hasReductionAttr(loop))
     return detail::checkReductionLoop(tapirLoop, dt, li);
   else
     return detail::checkParallelLoop(tapirLoop, dt, li);
 }
 
-static bool prepare(TapirLoopInfo &tapirLoop, bool isReduction,
-                    DominatorTree &dt, LoopInfo &li, MemorySSA &mssa,
-                    ScalarEvolution &se, TaskInfo &ti) {
-  if (isReduction)
+static bool prepare(TapirLoopInfo &tapirLoop, DominatorTree &dt, LoopInfo &li,
+                    MemorySSA &mssa, ScalarEvolution &se, TaskInfo &ti) {
+  if (hasReductionAttr(*tapirLoop.getLoop()))
     return detail::prepareReductionLoop(tapirLoop, dt, li, mssa, se, ti);
   else
     return detail::prepareParallelLoop(tapirLoop, dt, li, mssa, se, ti);
@@ -84,11 +110,10 @@ static bool prepare(Loop &loop, DominatorTree &dt, LoopInfo &li,
   // can be performed. Given this objective, it makes more sense to fail if a
   // transformation could not be performed, rather than produce working, albeit
   // slow, code.
-  bool isReduction = hasReductionAttr(loop);
-  if (!check(tapirLoop, isReduction, dt, li))
+  if (!check(tapirLoop, dt, li))
     exitOnError();
 
-  return prepare(tapirLoop, isReduction, dt, li, mssa, se, ti);
+  return prepare(tapirLoop, dt, li, mssa, se, ti);
 }
 
 PreservedAnalyses PrepareTapirLoopsPass::run(Function &f,

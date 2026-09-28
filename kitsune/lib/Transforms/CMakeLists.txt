@@ -1,4 +1,5 @@
 add_llvm_component_library(LLVMKitTransforms
+  ComputeGPULoopBlockSize.cpp
   EarlyAnnotate.cpp
   EmbFinalizeReductions.cpp
   EmbLinkLibDeviceBitcode.cpp

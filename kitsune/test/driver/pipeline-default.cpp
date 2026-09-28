@@ -47,6 +47,12 @@
 // O123S:      Running pass:     EarlyVerificationPass
 // O123S:      Running pass:     EarlyAnnotatePass
 //
+// <KIT-PREPARE>
+// O123S:      Running pass:     NormalizeLoopControlBlocksPass
+// O123S:      Running pass:     SecondaryIVEliminationPass
+// O123S:      Running pass:     PrepareTapirLoopsPass
+// </KIT-PREPARE>
+//
 // <KIT-PRE-TAPIR>
 // There are no standard pre-tapir passes at this time
 // </KIT-PRE-TAPIR>
@@ -54,10 +60,8 @@
 // <KIT-PRE-LOOP-SPAWNING>
 // O123S:      Running pass:     NormalizeLoopControlBlocksPass
 // O123S:      Running pass:     SecondaryIVEliminationPass
-// O123S:      Running pass:     PrepareTapirLoopsPass
+// O123S:      Running pass:     ComputeGPULoopBlockSizePass
 // O123S-NOT:  Running pass:     InstrumentPass
-// O123S:      Running pass:     SimplifyCFGPass
-// O123S:      Running pass:     LoopSimplifyPass
 // O123S:      Running pass:     PreLowerVerificationPass
 // O123S:      Running pass:     PreLowerAnnotatePass
 // O123S:      Running pass:     SerializePass

@@ -63,6 +63,13 @@ prepareReductionLoopCPU(TapirLoopInfo &tapirLoop,
   return changed;
 }
 
+static bool
+prepareReductionLoopGPU(TapirLoopInfo &tapirLoop,
+                        const SmallVectorImpl<ReductionInfo> &redxns) {
+  Loop &loop = *tapirLoop.getLoop();
+  return detail::prepareReductionLoopForGPU(loop, redxns);
+}
+
 bool llvm::detail::prepareReductionLoop(TapirLoopInfo &tapirLoop,
                                         DominatorTree &dt, LoopInfo &li,
                                         MemorySSA &mssa, ScalarEvolution &se,
@@ -96,16 +103,13 @@ bool llvm::detail::prepareReductionLoop(TapirLoopInfo &tapirLoop,
   else if (isCPUTT(tt))
     return prepareReductionLoopCPU(tapirLoop, redxns, dt, li, mssa, se, ti);
   else if (isGPUTT(tt))
-    return detail::prepareReductionLoopForGPU(loop, redxns);
+    return prepareReductionLoopGPU(tapirLoop, redxns);
   else
     llvm_unreachable("prepareReductionLoop: TT is neither CPU nor GPU-centric");
 }
 
 bool llvm::detail::checkReductionLoop(TapirLoopInfo &tapirLoop,
                                       DominatorTree &dt, LoopInfo &li) {
-  if (!checkTapirLoopSafeToWrap(tapirLoop, dt, li))
-    return false;
-
   // If this is not a top-level tapir loop, it is nested within another tapir
   // loop.
   // FIXME: Add support for reductions in nested tapir loops.

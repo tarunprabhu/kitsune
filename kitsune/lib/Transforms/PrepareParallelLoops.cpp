@@ -28,8 +28,6 @@
 //         }
 //     }
 //
-// For GPU's, on the other hand, the loop will remain unchanged.
-//
 // The main reason for this transformation is to enable vectorization in
 // parallel loops. Currently, LLVM's vectorizer is not able to reason about
 // tapir loops since it cannot determine the correctness of vectorization in
@@ -41,6 +39,50 @@
 // implementation of Kitsune's CPU-centric runtimes since they no longer need to
 // determine how many iterations of the parallel loop are to be performed on
 // each thread - every thread will perform exactly one iteration.
+//
+// For GPU's, the loop will be transformed into the following:
+//
+//     // The number of iterations of the parallel loop to be run on each thread
+//     int64_t itersPerThread = kit.gpu.ipt();
+//     int64_t numThreads = (n + itersPerThread - 1) / itersPerThread;
+//     parallel_for (int j = 0; j < numThreads; ++j) {
+//         int start = j * itersPerThread;
+//         int end = std::min(start + itersPerThread, n);
+//         for (int i = start; i < end; ++i) {
+//             ...
+//         }
+//     }
+//
+// Note that, unlike the transformation for the CPU where we have a fixed number
+// of parallel workers, for the GPU, we decide how much work to do per thread,
+// then determine the number of threads to use from that. The kit.gpu.ipt
+// intrinsic may be lowered to a compile-time constant, or a call to a runtime
+// function.
+//
+// The other major difference in GPU-lowering is in the case of nested parallel
+// loops. In the CPU case, each loop in the nest is transformed in exactly the
+// same way. For GPU's, though, only the innermost loop is transformed. Consider
+// the nested parallel loops below.
+//
+//     parallel_for (int i = 0; i < m; ++i) {
+//         parallel_for (int j = 0; j < n; ++j) {
+//             ...
+//         }
+//     }
+//
+// This will be transformed as shown below:
+//
+//     parallel_for (int i = 0; i < m; ++i) {
+//       int64_t itersPerThread = kit.gpu.ipt();
+//       int64_t numThreads = (n + itersPerThread - 1) / itersPerThread;
+//       parallel_for (int j = 0; j < numThreads; ++j) {
+//           int start = j * itersPerThread;
+//           int end = std::min(start + itersPerThread, n);
+//           for (int i = start; i < end; ++i) {
+//               ...
+//           }
+//       }
+//    }
 //
 // ===---------------------------------------------------------------------===//
 
@@ -74,12 +116,9 @@ using namespace llvm;
 
 namespace {
 
-/// Base class to transform tapir loops for parallel execution. The default
-/// implementation is suitable for Kitsune's CPU-centric parallel tapir targets,
-/// such as openmp, pthreads, and qthreads. It may also be used with opencilk.
-/// Other tapir targets may need to specialize this.
+/// Base class to transform tapir loops for parallel execution.
 class PrepareParallelLoopBase {
-private:
+protected:
   DominatorTree &dt;
   LoopInfo &li;
   MemorySSA &mssa;
@@ -90,15 +129,15 @@ private:
   MemorySSAUpdater mssau;
 
 private:
-  void updateOuterLoopIV(Loop &outerLoop, Value *numThreads);
-  void updateInnerLoopIV(Loop &outerLoop, Loop &innerLoop, Value *numThreads);
+  void updateOuterLoopIV(Loop &outerLoop, Value *tcOuter);
+  void updateInnerLoopIV(Loop &outerLoop, Loop &innerLoop, Value *tcOuter);
   void updateInnerLoopGuardCondition(Loop &innerLoop);
   void parallelizeOuterLoop(Loop &outerLoop, Loop &loop);
   void serializeInnerLoop(Loop &loop);
 
 protected:
-  virtual Value *computeNumCPUThreads(BasicBlock &bb,
-                                      const TapirLoopInfo &loop);
+  virtual Value *computeOuterLoopTripCount(BasicBlock &bb,
+                                           const TapirLoopInfo &tapirLoop) = 0;
 
   PrepareParallelLoopBase(DominatorTree &dt, LoopInfo &li, MemorySSA &mssa,
                           ScalarEvolution &se, TaskInfo &ti)
@@ -113,6 +152,11 @@ public:
 /// Class to transform non-reduction tapir loops for parallel execution for
 /// Kitsune's CPU-centric parallel runtimes.
 class PrepareParallelLoopCPU : public PrepareParallelLoopBase {
+protected:
+  virtual Value *
+  computeOuterLoopTripCount(BasicBlock &bb,
+                            const TapirLoopInfo &tapirLoop) override;
+
 public:
   PrepareParallelLoopCPU(DominatorTree &dt, LoopInfo &li, MemorySSA &mssa,
                          ScalarEvolution &se, TaskInfo &ti)
@@ -120,41 +164,22 @@ public:
   virtual ~PrepareParallelLoopCPU() = default;
 };
 
+/// Class to transform non-reduction tapir loops for parallel execution on
+/// GPU's.
+class PrepareParallelLoopGPU : public PrepareParallelLoopBase {
+protected:
+  virtual Value *
+  computeOuterLoopTripCount(BasicBlock &bb,
+                            const TapirLoopInfo &tapirLoop) override;
+
+public:
+  PrepareParallelLoopGPU(DominatorTree &dt, LoopInfo &li, MemorySSA &mssa,
+                         ScalarEvolution &se, TaskInfo &ti)
+      : PrepareParallelLoopBase(dt, li, mssa, se, ti) {}
+  virtual ~PrepareParallelLoopGPU() = default;
+};
+
 } // namespace
-
-// Insert code to calculate the number of CPU threads available for use. This
-// simply inserts a call to Kitsune's kit.cpu.num.threads intrinsic. The
-// intrinsic will be lowered in a later pass.
-//
-//      numThreads = call @llvm.kit.cpu.num.threads()
-//
-Value *
-PrepareParallelLoopBase::computeNumCPUThreads(BasicBlock &bb,
-                                              const TapirLoopInfo &tapirLoop) {
-  auto sanityCheck = [](const TapirLoopInfo &tapirLoop) {
-    assert(hasTargetAttr(*tapirLoop.getLoop()) &&
-           "Outer loop must have tapir target attribute");
-  };
-
-  LLVM_DEBUG(dbgs() << "PrepareParallel: Get the number of parallel workers\n");
-  sanityCheck(tapirLoop);
-
-  LLVMContext &ctx = bb.getContext();
-
-  Loop &loop = *tapirLoop.getLoop();
-  TTID tt = *getTargetAttr(loop);
-  Constant *ctt = toConstant(tt, ctx);
-
-  PHINode *iv = loop.getCanonicalInductionVariable();
-  Type *ivTy = iv->getType();
-
-  IRBuilder<> builder(&*bb.begin());
-  Value *thrds = builder.CreateIntrinsic(Intrinsic::kit_cpu_num_threads, {ctt});
-  Value *numThreads =
-      builder.CreateIntCast(thrds, ivTy, /*isSigned=*/true, "prll.num.threads");
-
-  return numThreads;
-}
 
 // When the outer loop was generated, the induction variable was canonical and
 // in the range [0, n] in steps of 1 where `n` was the trip count of the tapir
@@ -162,7 +187,7 @@ PrepareParallelLoopBase::computeNumCPUThreads(BasicBlock &bb,
 // numThreads] where numThreads is the number of CPU threads available. The step
 // will remain 1.
 void PrepareParallelLoopBase::updateOuterLoopIV(Loop &outerLoop,
-                                                Value *numThreads) {
+                                                Value *outerTC) {
   auto sanityCheck = [](const Loop &outerLoop, ScalarEvolution &se) {
     assert(outerLoop.isLoopSimplifyForm() &&
            "Outer loop must be in loop-simplify form");
@@ -183,7 +208,7 @@ void PrepareParallelLoopBase::updateOuterLoopIV(Loop &outerLoop,
   ICmpInst *cmp = outerLoop.getLatchCmpInst();
   Instruction *inc = &outerLoop.getBounds(se)->getStepInst();
 
-  replaceNonMatchingOperands(*cmp, inc, numThreads);
+  replaceNonMatchingOperands(*cmp, inc, outerTC);
 
   // Update analyses that may have been invalidated. We can't recalculate SE,
   // but we can force it recompute the analyses for certain variables and loops
@@ -216,7 +241,7 @@ void PrepareParallelLoopBase::updateOuterLoopIV(Loop &outerLoop,
 // inner loop.
 void PrepareParallelLoopBase::updateInnerLoopIV(Loop &outerLoop,
                                                 Loop &innerLoop,
-                                                Value *numThreads) {
+                                                Value *outerTC) {
   auto sanityCheck = [](const Loop &outerLoop, const Loop &innerLoop,
                         ScalarEvolution &se) {
     assert(outerLoop.getInductionVariable(se) &&
@@ -246,27 +271,28 @@ void PrepareParallelLoopBase::updateInnerLoopIV(Loop &outerLoop,
 
   Loop::LoopBounds innerBounds = *innerLoop.getBounds(se);
   PHINode *iv = innerLoop.getCanonicalInductionVariable();
-  Value *tc = &innerBounds.getFinalIVValue();
+  Value *innerTC = &innerBounds.getFinalIVValue();
   ICmpInst *cmp = innerLoop.getLatchCmpInst();
   BasicBlock *ph = innerLoop.getLoopPreheader();
   BasicBlock *guard = *pred_begin(ph);
 
   IRBuilder<> builder(&*guard->begin());
   Constant *one = ConstantInt::get(ivTy, 1, /*isSigned=*/false);
-  Value *tcPlusThreads = builder.CreateAdd(tc, numThreads);
-  Value *tcPlusThreadsSub1 = builder.CreateSub(tcPlusThreads, one);
+  Value *iPlusO = builder.CreateAdd(innerTC, outerTC);
+  Value *iPlusOMinus1 = builder.CreateSub(iPlusO, one);
   Value *itersPerThread =
-      builder.CreateUDiv(tcPlusThreadsSub1, numThreads, "prll.per.thrd");
+      builder.CreateUDiv(iPlusOMinus1, outerTC, "prll.per.thrd");
   Value *newStart = builder.CreateMul(outerIV, itersPerThread, "prll.start");
   Value *newMax = builder.CreateAdd(newStart, itersPerThread);
-  Value *newEnd = builder.CreateIntrinsic(Intrinsic::umin, {ivTy}, {newMax, tc},
-                                          /*FMFSource=*/{}, "prll.end");
+  Value *newEnd =
+      builder.CreateIntrinsic(Intrinsic::umin, {ivTy}, {newMax, innerTC},
+                              /*FMFSource=*/{}, "prll.end");
 
   iv->setIncomingValueForBlock(ph, newStart);
-  replaceMatchingOperands(*cmp, tc, newEnd);
+  replaceMatchingOperands(*cmp, innerTC, newEnd);
 
   se.forgetValue(iv);
-  se.forgetValue(tc);
+  se.forgetValue(innerTC);
   se.forgetLoop(&innerLoop);
 
 #ifndef NDEBUG
@@ -438,13 +464,13 @@ bool PrepareParallelLoopBase::run(TapirLoopInfo &tapirLoop) {
   // have been updated.
   Loop *outerLoop = wrapWithTapirLoop(tapirLoop, dt, li, mssa);
   BasicBlock *outerLoopPreheader = outerLoop->getLoopPreheader();
-  Value *numThreads = computeNumCPUThreads(*outerLoopPreheader, tapirLoop);
+  Value *outerTC = computeOuterLoopTripCount(*outerLoopPreheader, tapirLoop);
 
   // Fix up the induction variables of the outer and inner loops. These will
   // only change the initial value, final value and step of the IV, but should
   // not change the IV itself.
-  updateOuterLoopIV(*outerLoop, numThreads);
-  updateInnerLoopIV(*outerLoop, loop, numThreads);
+  updateOuterLoopIV(*outerLoop, outerTC);
+  updateInnerLoopIV(*outerLoop, loop, outerTC);
   updateInnerLoopGuardCondition(loop);
 
   // The outer loop is serial and the inner is parallel. But it needs to be the
@@ -512,6 +538,86 @@ bool PrepareParallelLoopBase::run(TapirLoopInfo &tapirLoop) {
   return true;
 }
 
+//===----------------------------------------------------------------------===//
+
+// Insert code to calculate the number of CPU threads available for use. This
+// simply inserts a call to Kitsune's kit.cpu.num.threads intrinsic. The
+// intrinsic will be lowered in a later pass.
+//
+//      numThreads = call @llvm.kit.cpu.num.threads()
+//
+Value *PrepareParallelLoopCPU::computeOuterLoopTripCount(
+    BasicBlock &bb, const TapirLoopInfo &tapirLoop) {
+  auto sanityCheck = [](const TapirLoopInfo &tapirLoop) {
+    assert(hasTargetAttr(*tapirLoop.getLoop()) &&
+           "Outer loop must have tapir target attribute");
+  };
+
+  LLVM_DEBUG(
+      dbgs() << "PrepareParallel: Compute number of parallel iterations\n");
+  sanityCheck(tapirLoop);
+
+  LLVMContext &ctx = bb.getContext();
+
+  Loop &loop = *tapirLoop.getLoop();
+  TTID tt = *getTargetAttr(loop);
+  Constant *ctt = toConstant(tt, ctx);
+
+  PHINode *iv = loop.getCanonicalInductionVariable();
+  Type *ivTy = iv->getType();
+
+  IRBuilder<> builder(&*bb.begin());
+  Value *thrds = builder.CreateIntrinsic(Intrinsic::kit_cpu_num_threads, {ctt});
+  Value *numThreads =
+      builder.CreateIntCast(thrds, ivTy, /*isSigned=*/true, "prll.num.threads");
+
+  return numThreads;
+}
+
+//===----------------------------------------------------------------------===//
+
+Value *PrepareParallelLoopGPU::computeOuterLoopTripCount(
+    BasicBlock &bb, const TapirLoopInfo &tapirLoop) {
+  auto sanityCheck = [](const TapirLoopInfo &tapirLoop) {
+    assert(hasTargetAttr(*tapirLoop.getLoop()) &&
+           "Outer loop must have tapir target attribute");
+  };
+
+  LLVM_DEBUG(
+      dbgs() << "PrepareParallel: Compute number of parallel iterations\n");
+  sanityCheck(tapirLoop);
+
+  LLVMContext &ctx = bb.getContext();
+  Constant *cnull = ConstantPointerNull::get(PointerType::getUnqual(ctx));
+
+  Loop &loop = *tapirLoop.getLoop();
+
+  Loop::LoopBounds bounds = *loop.getBounds(se);
+  PHINode *iv = loop.getCanonicalInductionVariable();
+  Value *tc = &bounds.getFinalIVValue();
+  Type *ivTy = iv->getType();
+  TTID tt = *getTargetAttr(loop);
+  Constant *ctt = toConstant(tt, ctx);
+  Constant *one = ConstantInt::get(ivTy, 1, /*isSigned=*/false);
+
+  IRBuilder<> builder(&*bb.begin());
+  Value *iptRaw = builder.CreateIntrinsic(Intrinsic::kit_gpu_ipt, {ctt, cnull});
+  Value *ipt = builder.CreateIntCast(iptRaw, ivTy, /*isSigned=*/false, "ipt");
+  Value *iptMinus1 = builder.CreateSub(ipt, one);
+  Value *tcPlusIPTMinus1 = builder.CreateAdd(tc, iptMinus1);
+  Value *numThreads = builder.CreateUDiv(tcPlusIPTMinus1, ipt);
+
+  return numThreads;
+}
+
+//===----------------------------------------------------------------------===//
+
+static unsigned getNestDepth(Loop &loop) {
+  if (std::optional<unsigned> depth = getPerfectDepthAttr(loop))
+    return *depth;
+  return getNestDepth(*loop.getParentLoop());
+}
+
 static bool prepareForCPU(TapirLoopInfo &tapirLoop, DominatorTree &dt,
                           LoopInfo &li, MemorySSA &mssa, ScalarEvolution &se,
                           TaskInfo &ti) {
@@ -521,13 +627,13 @@ static bool prepareForCPU(TapirLoopInfo &tapirLoop, DominatorTree &dt,
 static bool prepareForGPU(TapirLoopInfo &tapirLoop, DominatorTree &dt,
                           LoopInfo &li, MemorySSA &mssa, ScalarEvolution &se,
                           TaskInfo &ti) {
-  // We currently do not perform any transformation for parallel loops to be
-  // executed on the GPU. The main purpose of the CPU-side transformation is to
-  // enable vectorization. It is not clear if this is beneficial, or even
-  // possible, on GPU's. In the future, if there is some transformation is
-  // beneficial, that can be carried out here.
-  addPreparedAttr(*tapirLoop.getLoop());
-  return false;
+  Loop &loop = *tapirLoop.getLoop();
+  if (*getPerfectLevelAttr(loop) == getNestDepth(loop)) {
+    return PrepareParallelLoopGPU(dt, li, mssa, se, ti).run(tapirLoop);
+  } else {
+    addPreparedAttr(loop);
+    return false;
+  }
 }
 
 bool llvm::detail::prepareParallelLoop(TapirLoopInfo &tapirLoop,
@@ -546,5 +652,9 @@ bool llvm::detail::prepareParallelLoop(TapirLoopInfo &tapirLoop,
 
 bool llvm::detail::checkParallelLoop(TapirLoopInfo &tapirLoop,
                                      DominatorTree &dt, LoopInfo &li) {
-  return checkTapirLoopSafeToWrap(tapirLoop, dt, li);
+  // Currently, all checks for parallel loop are performed by the caller, since
+  // they are shared between both standard parallel loops and parallel reduction
+  // loops. If we ever have additional checks that are only relevant for
+  // parallel loops, and not for reduction loops, those should be added here.
+  return true;
 }

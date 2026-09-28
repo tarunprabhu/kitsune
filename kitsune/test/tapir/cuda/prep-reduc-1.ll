@@ -58,10 +58,8 @@
 ; UVM-NEXT: call void @llvm.kit.mobile.free(i32 2, ptr addrspace(67) %[[SHADOWBUF]])
 ; ALL-NEXT: sync within %[[SYNCREG]],
 ;
-; ALL-DAG: ![[TARGET:.+]] = !{!"tapir.loop.target", i32 2}
-; ALL-DAG: ![[REDUCTION:.+]] = !{!"tapir.loop.reduction"}
 ; ALL-DAG: ![[PREPARED:.+]] = !{!"tapir.loop.prepared"}
-; ALL-DAG: ![[LOOP]] = distinct !{![[LOOP]], ![[REDUCTION]], ![[TARGET]], ![[PREPARED]]}
+; ALL-DAG: ![[LOOP]] = distinct !{![[LOOP]], {{.+}}, ![[PREPARED]]}
 
 declare void @sum(ptr %res, i64 %v)
 
@@ -82,7 +80,7 @@ for.i.body:
 for.i.latch:
   %inc.i = add i64 %i, 1
   %cmp.i = icmp eq i64 %inc.i, %n
-  br i1 %cmp.i, label %for.i.exit, label %for.i.header, !llvm.loop !2
+  br i1 %cmp.i, label %for.i.exit, label %for.i.header, !llvm.loop !0
 
 for.i.exit:
   sync within %syncreg, label %for.i.end
@@ -91,6 +89,8 @@ for.i.end:
   ret void
 }
 
-!0 = !{!"tapir.loop.reduction"}
-!1 = !{!"tapir.loop.target", i32 2}
-!2 = distinct !{!2, !0, !1}
+!0 = distinct !{!0, !1, !2, !3, !4}
+!1 = !{!"tapir.loop.reduction"}
+!2 = !{!"tapir.loop.target", i32 2}
+!3 = !{!"tapir.loop.perfect.depth", i32 1}
+!4 = !{!"tapir.loop.perfect.level", i32 1}

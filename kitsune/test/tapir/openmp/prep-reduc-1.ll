@@ -72,11 +72,9 @@
 ; CHECK-NEXT: [[SYNC]]:
 ; CHECK-NEXT: sync within %[[SYNCREG]],
 ;
-; CHECK-DAG: ![[TARGET:.+]] = !{!"tapir.loop.target", i32 512}
-; CHECK-DAG: ![[REDUCTION:.+]] = !{!"tapir.loop.reduction"}
 ; CHECK-DAG: ![[PREPARED:.+]] = !{!"tapir.loop.prepared"}
 ; CHECK-DAG: ![[LOOP_I]] = distinct !{![[LOOP_I]]}
-; CHECK-DAG: ![[LOOP_O]] = distinct !{![[LOOP_O]], ![[REDUCTION]], ![[TARGET]], ![[PREPARED]]}
+; CHECK-DAG: ![[LOOP_O]] = distinct !{![[LOOP_O]], {{.+}}, ![[PREPARED]]}
 
 declare void @sum(ptr %res, i64 %v)
 
@@ -97,7 +95,7 @@ for.i.body:
 for.i.latch:
   %inc.i = add i64 %i, 1
   %cmp.i = icmp eq i64 %inc.i, %n
-  br i1 %cmp.i, label %for.i.exit, label %for.i.header, !llvm.loop !2
+  br i1 %cmp.i, label %for.i.exit, label %for.i.header, !llvm.loop !0
 
 for.i.exit:
   sync within %syncreg, label %for.i.end
@@ -106,6 +104,8 @@ for.i.end:
   ret void
 }
 
-!0 = !{!"tapir.loop.reduction"}
-!1 = !{!"tapir.loop.target", i32 512}
-!2 = distinct !{!2, !0, !1}
+!0 = distinct !{!0, !1, !2, !3, !4}
+!1 = !{!"tapir.loop.reduction"}
+!2 = !{!"tapir.loop.target", i32 512}
+!3 = !{!"tapir.loop.perfect.depth", i32 1}
+!4 = !{!"tapir.loop.perfect.level", i32 1}

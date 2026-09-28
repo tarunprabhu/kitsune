@@ -130,10 +130,9 @@
 ; CHECK-NEXT: [[EXIT]]:
 ; CHECK-NEXT: ret void
 ;
-; CHECK-DAG: ![[TARGET:.+]] = !{!"tapir.loop.target", i32 512}
 ; CHECK-DAG: ![[PREPARED:.+]] = !{!"tapir.loop.prepared"}
-; CHECK-DAG: ![[LOOP_WRAP_I]] = distinct !{![[LOOP_WRAP_I]], ![[TARGET]], ![[PREPARED]]}
-; CHECK-DAG: ![[LOOP_WRAP_J]] = distinct !{![[LOOP_WRAP_J]], ![[TARGET]], ![[PREPARED]]}
+; CHECK-DAG: ![[LOOP_WRAP_I]] = distinct !{![[LOOP_WRAP_I]], {{.+}}, ![[PREPARED]]}
+; CHECK-DAG: ![[LOOP_WRAP_J]] = distinct !{![[LOOP_WRAP_J]], {{.+}}, ![[PREPARED]]}
 ; CHECK-DAG: ![[LOOP_I]] = distinct !{![[LOOP_I]]}
 ; CHECK-DAG: ![[LOOP_J]] = distinct !{![[LOOP_J]]}
 
@@ -160,7 +159,7 @@ for.j.body:
 for.j.latch:
   %inc.j = add i64 %j, 1
   %cmp.j = icmp eq i64 %inc.j, %n
-  br i1 %cmp.j, label %for.j.exit, label %for.j.header, !llvm.loop !2
+  br i1 %cmp.j, label %for.j.exit, label %for.j.header, !llvm.loop !1
 
 for.j.exit:
   sync within %syncreg.j, label %for.j.end
@@ -171,7 +170,7 @@ for.j.end:
 for.i.latch:
   %inc.i = add i64 %i, 1
   %cmp.i = icmp eq i64 %inc.i, %n
-  br i1 %cmp.i, label %for.i.exit, label %for.i.header, !llvm.loop !1
+  br i1 %cmp.i, label %for.i.exit, label %for.i.header, !llvm.loop !0
 
 for.i.exit:
   sync within %syncreg.i, label %for.i.end
@@ -180,6 +179,9 @@ for.i.end:
   ret void
 }
 
-!0 = !{!"tapir.loop.target", i32 512}
-!1 = distinct !{!1, !0}
-!2 = distinct !{!2, !0}
+!0 = distinct !{!0, !2, !3, !5}
+!1 = distinct !{!1, !2, !3, !4}
+!2 = !{!"tapir.loop.target", i32 512}
+!3 = distinct !{!"tapir.loop.perfect.depth", i32 2}
+!4 = distinct !{!"tapir.loop.perfect.level", i32 2}
+!5 = distinct !{!"tapir.loop.perfect.level", i32 1}

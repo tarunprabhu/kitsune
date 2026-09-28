@@ -70,9 +70,8 @@
 ; CHECK-NEXT: [[EXIT]]:
 ; CHECK-NEXT: ret void
 ;
-; CHECK-DAG: ![[TARGET:.+]] = !{!"tapir.loop.target", i32 32}
 ; CHECK-DAG: ![[PREPARED:.+]] = !{!"tapir.loop.prepared"}
-; CHECK-DAG: ![[LOOP_WRAP]] = distinct !{![[LOOP_WRAP]], ![[TARGET]], ![[PREPARED]]}
+; CHECK-DAG: ![[LOOP_WRAP]] = distinct !{![[LOOP_WRAP]], {{.+}}, ![[PREPARED]]}
 ; CHECK-DAG: ![[LOOP]] = distinct !{![[LOOP]]}
 
 define void @f(i64 %n) {
@@ -90,7 +89,7 @@ for.i.body:
 for.i.latch:
   %inc.i = add i64 %i, 1
   %cmp.i = icmp eq i64 %inc.i, %n
-  br i1 %cmp.i, label %for.i.exit, label %for.i.header, !llvm.loop !1
+  br i1 %cmp.i, label %for.i.exit, label %for.i.header, !llvm.loop !0
 
 for.i.exit:
   sync within %syncreg, label %for.i.end
@@ -99,5 +98,7 @@ for.i.end:
   ret void
 }
 
-!0 = !{!"tapir.loop.target", i32 32}
-!1 = distinct !{!1, !0}
+!0 = distinct !{!0, !1, !2, !3}
+!1 = !{!"tapir.loop.target", i32 32}
+!2 = !{!"tapir.loop.perfect.depth", i32 1}
+!3 = !{!"tapir.loop.perfect.level", i32 1}

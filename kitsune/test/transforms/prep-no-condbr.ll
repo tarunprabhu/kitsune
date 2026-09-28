@@ -21,7 +21,7 @@ for.j.latch:
   %inc.j = add i64 %j, 1
   switch i64 %inc.j, label %for.j.header [
     i64 12, label %for.j.exit
-  ], !llvm.loop !1
+  ], !llvm.loop !0
 
 for.j.exit:
   sync within %syncreg, label %for.j.end
@@ -30,5 +30,7 @@ for.j.end:
   ret void
 }
 
-!0 = !{!"tapir.loop.target", i32 1024}
-!1 = distinct !{!1, !0}
+!0 = distinct !{!0, !1, !2, !3}
+!1 = !{!"tapir.loop.target", i32 1024}
+!2 = distinct !{!"tapir.loop.perfect.depth", i32 1}
+!3 = distinct !{!"tapir.loop.perfect.level", i32 1}

@@ -24,6 +24,7 @@
 #include "kitsune/CodeGen/CodeGenFatBinaries.h"
 #include "kitsune/CodeGen/LowerIntrinsics.h"
 #include "kitsune/CodeGen/StripKitAddrSpaces.h"
+#include "kitsune/Transforms/ComputeGPULoopBlockSize.h"
 #include "kitsune/Transforms/EarlyAnnotate.h"
 #include "kitsune/Transforms/EmbFinalizeReductions.h"
 #include "kitsune/Transforms/EmbLinkLibDeviceBitcode.h"

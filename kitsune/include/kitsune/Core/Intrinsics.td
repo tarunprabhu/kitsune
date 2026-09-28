@@ -452,6 +452,15 @@ def int_kit_gpu_num_compute_units
                 RT<Hip, kithip_num_cus>];
 }
 
+// Get the number of iterations to run per GPU thread.
+def int_kit_gpu_ipt
+    : KitIntrinsic<[llvm_i64_ty], [llvm_i32_ty, llvm_ptr_ty],
+                   [ImmArg<ArgIndex<0>>, ReadOnly<ArgIndex<1>>,
+                    NoCapture<ArgIndex<1>>, IntrArgMemOnly]> {
+  let Doc = KitGPUIterationsPerThreadDoc;
+  let LowerMode = LowerCustom;
+}
+
 // Allocate memory on the GPU.
 def int_kit_gpu_malloc
     : KitIntrinsic<[llvm_ptr_ty], [llvm_i32_ty, llvm_i64_ty],

@@ -33,6 +33,7 @@ exit:
   ret void
 }
 
-!0 = distinct !{!0, !1, !2}
+!0 = distinct !{!0, !1, !2, !3}
 !1 = !{!"tapir.loop.target", i32 1}
-!2 = !{!"loop.name", !"f1.loop.i"}
+!2 = distinct !{!"tapir.loop.perfect.depth", i32 1}
+!3 = distinct !{!"tapir.loop.perfect.level", i32 1}
