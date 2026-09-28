@@ -37,7 +37,6 @@
 ; O23S-NOT:   Running pass:      EarlyAnnotatePass
 ; O23S-NOT:   Running pass:      PrepareTapirLoopsPass
 ;
-; O23S:       Running pass:      NormalizeLoopControlBlocksPass
 ; O23S:       Running pass:      SecondaryIVEliminationPass
 ; O23S:       Running pass:      ComputeGPULoopBlockSizePass
 ; O23S:       Running pass:      PreLowerVerificationPass

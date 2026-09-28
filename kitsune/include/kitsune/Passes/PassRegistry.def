@@ -88,7 +88,6 @@ FUNCTION_PASS("kit-serialize", SerializePass())
 
 #ifdef LOOP_PASS
 LOOP_PASS("kit-gpu-loop-block", ComputeGPULoopBlockSizePass())
-LOOP_PASS("kit-loop-ctrl", NormalizeLoopControlBlocksPass())
 LOOP_PASS("kit-ive", SecondaryIVEliminationPass())
 #endif // LOOP_PASS
 

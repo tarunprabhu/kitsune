@@ -35,7 +35,6 @@
 #include "kitsune/Transforms/GenerateCtors.h"
 #include "kitsune/Transforms/HoistAllocas.h"
 #include "kitsune/Transforms/Instrument.h"
-#include "kitsune/Transforms/NormalizeLoopControlBlocks.h"
 #include "kitsune/Transforms/PreLowerAnnotate.h"
 #include "kitsune/Transforms/PrefetchForDevice.h"
 #include "kitsune/Transforms/PrepareTapirLoops.h"

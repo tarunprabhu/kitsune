@@ -7,7 +7,6 @@
 //
 // O0-NOT:     Running pass:     SecondaryIVEliminationPass
 // O0-NOT:     Running pass:     PrepareTapirLoopsPass
-// O0-NOT:     Running pass:     NormalizeLoopControlBlocksPass
 // O0-NOT:     Running pass:     PreLowerAnnotatePass
 // O0-NOT:     Running pass:     LoopSpawningPass
 // O0-NOT:     Running pass:     TapirToTargetPass
@@ -48,7 +47,6 @@
 // O123S:      Running pass:     EarlyAnnotatePass
 //
 // <KIT-PREPARE>
-// O123S:      Running pass:     NormalizeLoopControlBlocksPass
 // O123S:      Running pass:     SecondaryIVEliminationPass
 // O123S:      Running pass:     PrepareTapirLoopsPass
 // </KIT-PREPARE>
@@ -58,7 +56,6 @@
 // </KIT-PRE-TAPIR>
 //
 // <KIT-PRE-LOOP-SPAWNING>
-// O123S:      Running pass:     NormalizeLoopControlBlocksPass
 // O123S:      Running pass:     SecondaryIVEliminationPass
 // O123S:      Running pass:     ComputeGPULoopBlockSizePass
 // O123S-NOT:  Running pass:     InstrumentPass

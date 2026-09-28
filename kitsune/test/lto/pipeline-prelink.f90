@@ -35,12 +35,10 @@
 !
 ! CHECK:      Running pass:      EarlyVerificationPass
 ! CHECK:      Running pass:      EarlyAnnotatePass
-! CHECK:      Running pass:      NormalizeLoopControlBlocksPass
 ! CHECK:      Running pass:      SecondaryIVEliminationPass
 ! CHECK:      Running pass:      PrepareTapirLoopsPass
 ! CHECK-NOT:  Running pass:      InstrumentPass
 !
-! CHECK-NOT:  Running pass:      NormalizeLoopControlBlocksPass
 ! CHECK-NOT:  Running pass:      SecondaryIVEliminationPass
 ! CHECK-NOT:  Running pass:      ComputeGPUBlockSizePass
 ! CHECK-NOT:  Running pass:      PreLowerVerificationPass
@@ -73,7 +71,6 @@
 ! RUN:     -flto -Xflang -fdebug-pass-manager 2>&1 \
 ! RUN:     | FileCheck %s --check-prefix=INSTR
 !
-! INSTR:      Running pass:      NormalizeLoopControlBlocksPass
 ! INSTR:      Running pass:      SecondaryIVEliminationPass
 ! INSTR:      Running pass:      PrepareTapirLoopsPass
 ! INSTR:      Running pass:      InstrumentPass

@@ -197,7 +197,6 @@ llvm::populateKitPreparePasses(PassBuilder &pb, OptimizationLevel optLevel,
     addLoopPass<IndVarSimplifyPass>(mpm, /*WidenIndVars=*/true,
                                     /*TapirLoopsOnly=*/true);
     addFunctionPass<TaskSimplifyPass>(mpm);
-    addLoopPass<NormalizeLoopControlBlocksPass>(mpm);
     addLoopPass<SecondaryIVEliminationPass>(mpm);
 
     populateSimplifyPasses(mpm, pto);
@@ -230,7 +229,6 @@ ModulePassManager llvm::populateKitPreLoopSpawningPasses(
   if (optLevel.getSpeedupLevel() > 0) {
     addFunctionPass<LoopSimplifyPass>(mpm);
     addLoopPass<LoopRotatePass>(mpm);
-    addLoopPass<NormalizeLoopControlBlocksPass>(mpm);
     addLoopPass<SecondaryIVEliminationPass>(mpm);
     addLoopPass<ComputeGPULoopBlockSizePass>(mpm);
 
