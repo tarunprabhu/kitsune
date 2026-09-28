@@ -23,6 +23,8 @@
 using namespace llvm;
 
 static constexpr StringRef attrLoopUnrollDisable = "llvm.loop.unroll.disable";
+static constexpr StringRef attrLoopVectorizeEnable =
+    "llvm.loop.vectorize.enable";
 
 /// Certain LLVM loop attributes are required on all tapir loops. This is that
 /// list.
@@ -35,26 +37,47 @@ static constexpr StringRef mandatoryLLVMLoopAttrs[] = {
     // especially at higher optimization levels, we do not end up with a tapir
     // loop nest that Kitsune's tapir targets are unable to process.
     attrLoopUnrollDisable,
+
+    // Disable vectorization on all tapir loops. Tapir loops are blocked in
+    // most cases. Those inner loops may be vectorized.
+    attrLoopVectorizeEnable,
 };
 
-// Add metadata spelled \p attr to the loop metadata of \p loop.
-static void addLoopAttr(Loop &loop, StringRef attr) {
-  LLVMContext &ctx = loop.getHeader()->getContext();
+static void addLoopAttr(Loop &loop, StringRef attr, MDNode *attrMD) {
+  // Remove the existing attribute before adding it back in. This ensures that
+  // the attribute does not get duplicated.
+  LLVMContext &ctx = getContext(loop);
   MDNode *loopMD = loop.getLoopID();
-  MDNode *attrMD = MDNode::get(ctx, MDString::get(ctx, attr));
-
-  // Remove the existing attribute before adding it back in. I think this
-  // ensures that the attribute does not get duplicated.
   MDNode *newLoopMD =
       makePostTransformationMetadata(ctx, loopMD, {attr}, {attrMD});
 
   loop.setLoopID(newLoopMD);
 }
 
+// Add metadata spelled \p attr to the loop metadata of \p loop.
+static void addLoopAttr(Loop &loop, StringRef attr) {
+  LLVMContext &ctx = getContext(loop);
+  Metadata *attrName = MDString::get(ctx, attr);
+  MDNode *attrMD = MDNode::get(ctx, attrName);
+
+  addLoopAttr(loop, attr, attrMD);
+}
+
+// Add metadata spelled \p attr to the loop metadata of \p loop. \p val is the
+// "value" of this attribute.
+static void addLoopAttr(Loop &loop, StringRef attr, Constant *val) {
+  LLVMContext &ctx = getContext(loop);
+  Metadata *attrName = MDString::get(ctx, attr);
+  Metadata *attrVal = ConstantAsMetadata::get(val);
+  MDNode *attrMD = MDNode::get(ctx, {attrName, attrVal});
+
+  addLoopAttr(loop, attr, attrMD);
+}
+
 // Remove the metadata spelled \p attr from the loop metadata of \p loop. If
 // \p attr does not exist in the loop metadata, this has no effect.
 static void clearLoopAttr(Loop &loop, StringRef attr) {
-  LLVMContext &ctx = loop.getHeader()->getContext();
+  LLVMContext &ctx = getContext(loop);
   MDNode *loopMD = loop.getLoopID();
   MDNode *newLoopMD = makePostTransformationMetadata(ctx, loopMD, {attr}, {});
 
@@ -98,7 +121,7 @@ std::string llvm::getName(const Loop &loop, StringRef defawlt) {
 }
 
 void llvm::clearTapirLoopAttrs(Loop &loop) {
-  LLVMContext &ctx = loop.getHeader()->getContext();
+  LLVMContext &ctx = getContext(loop);
   MDNode *loopMD = loop.getLoopID();
   MDNode *newLoopMD = makePostTransformationMetadata(
       ctx, loopMD, {tapirLoopAttrNamePrefix}, {});
@@ -209,6 +232,7 @@ SmallVector<Loop *, 4> llvm::getTapirLoops(LoopInfo &li) {
 void llvm::addMandatoryLLVMLoopAttrs(Loop &loop) {
   assert(isTapirLoop(loop));
 
+  LLVMContext &ctx = getContext(loop);
   for (StringRef attr : mandatoryLLVMLoopAttrs) {
     // If any attributes require special handling, deal with them here. These
     // will typically be those that have related attributes that must also be
@@ -220,6 +244,8 @@ void llvm::addMandatoryLLVMLoopAttrs(Loop &loop) {
     // If not special handling is required, addLoopAttr() will work just fine.
     if (attr == attrLoopUnrollDisable)
       loop.setLoopAlreadyUnrolled();
+    else if (attr == attrLoopVectorizeEnable)
+      addLoopAttr(loop, attr, ConstantInt::getFalse(ctx));
     else
       addLoopAttr(loop, attr);
   }
