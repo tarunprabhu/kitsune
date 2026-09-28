@@ -14,6 +14,7 @@
 #define KITSUNE_CORE_DIAGNOSTICS_H
 
 #include "kitsune/Core/DiagnosticsInternal.h"
+#include "kitsune/Support/ErrorHandling.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/DebugLoc.h"
 #include "llvm/IR/DiagnosticInfo.h"
@@ -65,7 +66,7 @@ bool isNote(DiagID id);
 
 /// Emit a diagnostic to stderr.
 /// \param id The diagnostic to emit
-void emitDiagnostic(DiagID id);
+void emitDiag(DiagID id);
 
 /// Emit a diagnostic to the given output stream.
 /// \param os The output stream.
@@ -105,10 +106,25 @@ template <typename... Args> void emitDiagnostic(DiagID id, Args &&...args) {
 ///           used in the emitted diagnostic. The element may be an attribute
 ///           kind
 /// \param id The diagnostic to emit
-/// \param args Additional arguments required by \p id.
+/// \param args Additional arguments required by \p id
+/// \return Always returns false
 template <typename IRElement, typename... Args>
-void emitDiagnostic(const IRElement &e, DiagID id, Args &&...args) {
+bool emitDiagnostic(const IRElement &e, DiagID id, Args &&...args) {
   emitDiagnosticTo(errs(), e, id, args...);
+  return false;
+}
+
+/// Emit a diagnostic to stderr and exit immediately.
+/// \param e  The IR element to be associated with the diagnostic. If valid
+///           debug information is associated with the IR element, it may be
+///           used in the emitted diagnostic. The element may be an attribute
+///           kind
+/// \param id The diagnostic to emit
+/// \param args Additional arguments required by \p id
+template <typename IRElement, typename... Args>
+[[noreturn]] bool emitDiagExit(const IRElement &e, DiagID id, Args &&...args) {
+  emitDiagnostic(e, id, args...);
+  exitOnError();
 }
 
 /// Create an LLVM Error for a Kitsune-specific diagnostic.
