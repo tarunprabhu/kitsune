@@ -35,7 +35,6 @@
 ! O23-NOT:    Running pass:     EarlyAnnotatePass
 ! O23-NOT:    Running pass:     PrepareTapirLoopsPass
 !
-! O23:        Running pass:     NormalizeLoopControlBlocksPass
 ! O23:        Running pass:     SecondaryIVEliminationPass
 ! O23:        Running pass:     SimplifyCFGPass
 ! O23:        Running pass:     LoopSimplifyPass
