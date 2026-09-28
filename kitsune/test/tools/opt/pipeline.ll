@@ -20,7 +20,6 @@
 ; RUN: opt -Oz -debug-pass-manager %s -disable-output 2>&1 \
 ; RUN:     | FileCheck -check-prefix DEFAULT %s
 ;
-; DEFAULT-NOT: Running pass:     NormalizeLoopControlBlocksPass
 ; DEFAULT-NOT: Running pass:     SecondaryIVEliminationPass
 ; DEFAULT-NOT: Running pass:     PrepareTapirLoopsPass
 ; DEFAULT-NOT: Running pass:     PreLowerAnnotatePass
@@ -79,17 +78,19 @@
 ; O123S:       Running pass:     EarlyVerificationPass
 ; O123S:       Running pass:     EarlyAnnotatePass
 ;
+; <KIT-PREPARE>
+; O123S:      Running pass:     SecondaryIVEliminationPass
+; O123S:      Running pass:     PrepareTapirLoopsPass
+; </KIT-PREPARE>
+;
 ; <KIT-PRE-TAPIR>
 ; There are no standard pre-tapir passes at this time
 ; </KIT-PRE-TAPIR>
 ;
 ; <KIT-PRE-LOOP-SPAWNING>
-; O123SZ:      Running pass:     NormalizeLoopControlBlocksPass
 ; O123SZ:      Running pass:     SecondaryIVEliminationPass
-; O123SZ:      Running pass:     PrepareTapirLoopsPass
+; O123SZ:      Running pass:     ComputeGPULoopBlockSizePass
 ; O123SZ-NOT:  Running pass:     InstrumentPass
-; O123SZ:      Running pass:     SimplifyCFGPass
-; O123SZ:      Running pass:     LoopSimplifyPass
 ; O123SZ:      Running pass:     PreLowerVerificationPass
 ; O123SZ:      Running pass:     PreLowerAnnotatePass
 ; O123SZ:      Running pass:     SerializePass
