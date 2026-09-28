@@ -59,12 +59,6 @@ public:
 
 } // namespace
 
-template <typename IR, typename... Args>
-static bool complain(const IR &elem, DiagID diagID, Args &&...args) {
-  emitDiagnostic(elem, diagID, args...);
-  return false;
-}
-
 bool VerifyFunction::verifyReductions(Function &f) {
   auto isNestedTapirLoop = [](const Loop &loop) -> bool {
     if (isTapirLoop(loop))
@@ -81,8 +75,8 @@ bool VerifyFunction::verifyReductions(Function &f) {
           if (auto *call = dyn_cast<CallBase>(&inst))
             if (call->getIntrinsicID() == Intrinsic::kit_reduce_0)
               if (isNestedTapirLoop(*li.getLoopFor(bb)))
-                return complain(*call, DiagID::ErrNYI,
-                                "nested parallel reductions");
+                return emitDiagnostic(*call, DiagID::ErrNYI,
+                                      "nested parallel reductions");
   return true;
 }
 

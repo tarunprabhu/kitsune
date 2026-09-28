@@ -31,12 +31,6 @@
 
 using namespace llvm;
 
-template <typename... Args>
-static bool complain(const Loop &loop, DiagID diag, Args &&...args) {
-  emitDiagnostic(loop, diag, args...);
-  return false;
-}
-
 static bool checkCommon(TapirLoopInfo &tapirLoop, DominatorTree &dt,
                         LoopInfo &li) {
   if (!checkTapirLoopSafeToWrap(tapirLoop, dt, li))
@@ -45,12 +39,12 @@ static bool checkCommon(TapirLoopInfo &tapirLoop, DominatorTree &dt,
   Loop &loop = *tapirLoop.getLoop();
 
   if (!hasPerfectLevelAttr(loop))
-    return complain(loop, DiagID::ErrAttrMissing,
-                    getAttrName(LoopAttrKind::PerfectLevel));
+    return emitDiagnostic(loop, DiagID::ErrAttrMissing,
+                          getAttrName(LoopAttrKind::PerfectLevel));
 
   if (isTopLevelTapirLoop(loop) && !hasPerfectDepthAttr(loop))
-    return complain(loop, DiagID::ErrAttrMissing,
-                    getAttrName(LoopAttrKind::PerfectDepth));
+    return emitDiagnostic(loop, DiagID::ErrAttrMissing,
+                          getAttrName(LoopAttrKind::PerfectDepth));
 
   return true;
 }

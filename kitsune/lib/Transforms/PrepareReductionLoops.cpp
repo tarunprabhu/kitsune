@@ -30,12 +30,6 @@
 
 using namespace llvm;
 
-template <typename... Args>
-static bool complain(const Loop &loop, DiagID diag, Args &&...args) {
-  emitDiagnostic(loop, diag, args...);
-  return false;
-}
-
 static bool lowerReduce0Intrs(const SmallVectorImpl<ReductionInfo> &redxns) {
   bool changed = false;
   for (const ReductionInfo &redxn : redxns)
@@ -115,8 +109,8 @@ bool llvm::detail::checkReductionLoop(TapirLoopInfo &tapirLoop,
   // FIXME: Add support for reductions in nested tapir loops.
   Loop &loop = *tapirLoop.getLoop();
   if (!isTopLevelTapirLoop(loop))
-    return complain(loop, DiagID::ErrGeneric,
-                    "tapir reduction loop must be a top-level loop");
+    return emitDiagnostic(loop, DiagID::ErrGeneric,
+                          "tapir reduction loop must be a top-level loop");
 
   SmallVector<ReductionInfo, 1> redxns = collectReductions(loop);
 
@@ -144,23 +138,26 @@ bool llvm::detail::checkReductionLoop(TapirLoopInfo &tapirLoop,
     for (Instruction *inst : uses) {
       auto *call = dyn_cast<CallInst>(inst);
       if (!call || call->getIntrinsicID() != Intrinsic::kit_reduce_0)
-        return complain(loop, DiagID::ErrReduceDestUsedInLoop, getName(*dest));
+        return emitDiagnostic(loop, DiagID::ErrReduceDestUsedInLoop,
+                              getName(*dest));
 
       // At this point, the instruction is a reduce intrinsic.
       const ReductionInfo redxn(call);
       if (redxn.getValue() == dest || redxn.getUnit() == dest ||
           redxn.getReducer() == dest)
-        return complain(loop, DiagID::ErrReduceDestUsedInLoop, getName(*dest));
+        return emitDiagnostic(loop, DiagID::ErrReduceDestUsedInLoop,
+                              getName(*dest));
 
       SmallVector<Value *, 0> extraArgs = redxn.getExtraArgs();
       for (Value *arg : extraArgs)
         if (arg == dest)
-          return complain(loop, DiagID::ErrReduceDestUsedInLoop,
-                          getName(*dest));
+          return emitDiagnostic(loop, DiagID::ErrReduceDestUsedInLoop,
+                                getName(*dest));
 
       ReduceOp op = redxn.reduceOp;
       if (reduceOp.has_value() && *reduceOp != op)
-        return complain(loop, DiagID::ErrReduceDestMultipleOps, getName(*dest));
+        return emitDiagnostic(loop, DiagID::ErrReduceDestMultipleOps,
+                              getName(*dest));
 
       reduceOp = op;
     }
@@ -172,8 +169,8 @@ bool llvm::detail::checkReductionLoop(TapirLoopInfo &tapirLoop,
   // don't allow it anywhere.
   for (const ReductionInfo &redxn : redxns)
     if (redxn.getType()->isPointerTy())
-      return complain(loop, DiagID::ErrNYI,
-                      "Reductions with values passed by pointer");
+      return emitDiagnostic(loop, DiagID::ErrNYI,
+                            "Reductions with values passed by pointer");
 
   return true;
 }

@@ -28,12 +28,6 @@ static cl::opt<unsigned> clGPULoopBlock("kit-gpu-loop-block", cl::init(1),
                                         cl::desc("GPU loop block size"),
                                         cl::cat(cl::catKitClOpts));
 
-template <typename... Args>
-static bool complain(const Loop &loop, DiagID diag, Args &&...args) {
-  emitDiagnostic(loop, diag, args...);
-  return false;
-}
-
 static Value *computeBlockSize(const Loop &root, Type *ty) {
   // FIXME: At this time, we don't yet support choosing an appropriate number of
   // iterations to run per GPU thread. We do allow setting this at compile-time
@@ -74,7 +68,7 @@ static bool runOnLoop(Loop &loop) {
 
 static bool check(const Loop &loop) {
   if (!loop.isLoopSimplifyForm())
-    return complain(loop, DiagID::ErrLoopNotSimplifyForm);
+    return emitDiagnostic(loop, DiagID::ErrLoopNotSimplifyForm);
   return true;
 }
 

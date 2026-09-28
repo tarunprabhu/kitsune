@@ -82,12 +82,6 @@ public:
 
 } // namespace
 
-template <typename T, typename... Args>
-[[noreturn]] static bool complain(T &elem, DiagID diag, Args &&...args) {
-  emitDiagnostic(elem, diag, args...);
-  exitOnError();
-}
-
 static IRBuilder<> getIRBuilder(Loop &loop) {
   BasicBlock *body = getTapirLoopDetachedBlock(loop);
   return IRBuilder<>(&*body->getFirstNonPHIOrDbg());
@@ -585,13 +579,13 @@ bool SecondaryIVElimination::checkIntOrFPInduction(PHINode &iv, Loop &loop) {
   Value *upd = iv.getIncomingValueForBlock(latch);
   BinaryOperator *binOp = dyn_cast<BinaryOperator>(upd);
   if (!binOp)
-    return complain(iv, DiagID::ErrSecIVNotBinOp, *upd);
+    return emitDiagExit(iv, DiagID::ErrSecIVNotBinOp, *upd);
   else if (!hasConstantStep(*binOp, iv))
-    return complain(iv, DiagID::ErrSecIVNonConstStep);
+    return emitDiagExit(iv, DiagID::ErrSecIVNonConstStep);
 
   unsigned opcode = binOp->getOpcode();
   if (!isSupportedBinOp(opcode))
-    return complain(iv, DiagID::ErrSecIVOperator, getBinOpName(opcode));
+    return emitDiagExit(iv, DiagID::ErrSecIVOperator, getBinOpName(opcode));
 
   // The only uses of the secondary IV in the loop latch must be the increment
   // that flows back to the loop header. If that is not the case, we may not
@@ -602,9 +596,9 @@ bool SecondaryIVElimination::checkIntOrFPInduction(PHINode &iv, Loop &loop) {
       usesInLatch.push_back(u.getUser());
 
   if (usesInLatch.size() != 1)
-    return complain(iv, DiagID::ErrTapirLoopIVUsesInLatch);
+    return emitDiagExit(iv, DiagID::ErrTapirLoopIVUsesInLatch);
   else if (iv.getIncomingValueForBlock(latch) != usesInLatch[0])
-    return complain(iv, DiagID::ErrTapirLoopIVNotUpdatedInLatch);
+    return emitDiagExit(iv, DiagID::ErrTapirLoopIVNotUpdatedInLatch);
 
   return true;
 }
@@ -644,7 +638,7 @@ bool SecondaryIVElimination::checkPtrInduction(PHINode &iv, Loop &loop) {
   LoadInst *init = dyn_cast<LoadInst>(iv.getIncomingValueForBlock(ph));
   LoadInst *next = dyn_cast<LoadInst>(iv.getIncomingValueForBlock(latch));
   if (!init || !next || init->getPointerOperand() != next->getPointerOperand())
-    return complain(iv, DiagID::ErrSecIVPtr);
+    return emitDiagExit(iv, DiagID::ErrSecIVPtr);
 
   return true;
 }
@@ -656,7 +650,7 @@ bool SecondaryIVElimination::checkInductionType(PHINode &iv, Loop &loop) {
   else if (ivTy->isPointerTy())
     return checkPtrInduction(iv, loop);
   else
-    return complain(iv, DiagID::ErrSecIVType, *ivTy);
+    return emitDiagExit(iv, DiagID::ErrSecIVType, *ivTy);
 }
 
 bool SecondaryIVElimination::check(Loop &loop) {
@@ -668,26 +662,26 @@ bool SecondaryIVElimination::check(Loop &loop) {
   // in an invalid module.
   BasicBlock *header = loop.getHeader();
   if (!isa<DetachInst>(header->getTerminator()))
-    return complain(loop, DiagID::ErrTapirLoopBlockTerminator, "header",
-                    "detach");
+    return emitDiagExit(loop, DiagID::ErrTapirLoopBlockTerminator, "header",
+                        "detach");
 
   // This is a sanity check in case a pass that ran before this broke the tapir
   // loop in some way. The code in this pass expects the detach instruction to
   // be present.
   for (Instruction &inst : *header)
     if (!isa<PHINode>(inst) && !isa<DetachInst>(inst))
-      return complain(loop, DiagID::ErrTapirLoopHeaderInstNotPHI);
+      return emitDiagExit(loop, DiagID::ErrTapirLoopHeaderInstNotPHI);
 
   // Th computation of the secondary IV as a function of the primary IV assumes
   // that the primary IV is canonical.
   PHINode *primIV = loop.getCanonicalInductionVariable();
   if (!primIV)
-    return complain(loop, DiagID::ErrTapirLoopIVNotCanonical);
+    return emitDiagExit(loop, DiagID::ErrTapirLoopIVNotCanonical);
 
   // Strictly speaking, this pass only requires the loop to have a unique latch,
   // but it is safer to require the loop to be in simplify-form.
   if (!loop.isLoopSimplifyForm())
-    return complain(loop, DiagID::ErrLoopNotSimplifyForm);
+    return emitDiagExit(loop, DiagID::ErrLoopNotSimplifyForm);
 
   for (PHINode &iv : loop.getHeader()->phis()) {
     if (&iv == primIV)
@@ -697,7 +691,7 @@ bool SecondaryIVElimination::check(Loop &loop) {
       return false;
 
     if (isUsedOutsideLoop(iv, loop, li))
-      return complain(iv, DiagID::ErrTapirLoopIVUsedOutsideLoop);
+      return emitDiagExit(iv, DiagID::ErrTapirLoopIVUsedOutsideLoop);
   }
 
   return true;

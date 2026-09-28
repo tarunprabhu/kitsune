@@ -187,7 +187,7 @@ bool llvm::isNote(DiagID id) {
   return detail::getSeverity(id) == DiagnosticSeverity::DS_Note;
 }
 
-void llvm::emitDiagnostic(DiagID id) {
+void llvm::emitDiag(DiagID id) {
   detail::emitDiagnostic(errs(), detail::getSeverity(id), detail::getMsg(id));
 }
 
