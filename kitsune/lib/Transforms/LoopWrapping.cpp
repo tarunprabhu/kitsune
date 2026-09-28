@@ -630,12 +630,6 @@ Loop *LoopWrapImpl::runOn(const TapirLoopInfo &tapirLoop) {
   return outerLoop;
 }
 
-template <typename... Args>
-static bool complain(const Loop &loop, DiagID diag, Args &&...args) {
-  emitDiagnostic(loop, diag, args...);
-  return false;
-}
-
 bool llvm::checkTapirLoopSafeToWrap(TapirLoopInfo &tapirLoop, DominatorTree &dt,
                                     LoopInfo &li) {
   auto anyPredecessorDoesNotReattach = [](const BasicBlock &latch) -> bool {
@@ -657,12 +651,12 @@ bool llvm::checkTapirLoopSafeToWrap(TapirLoopInfo &tapirLoop, DominatorTree &dt,
   Task &task = *tapirLoop.getTask();
 
   if (!loop.isLoopSimplifyForm())
-    return complain(loop, DiagID::ErrLoopNotSimplifyForm);
+    return emitDiagnostic(loop, DiagID::ErrLoopNotSimplifyForm);
 
   // It is not clear if we strictly require this, but we do tend to run the
   // LCSSA pass before tapir loop transformation passes, so we check for it.
   if (!loop.isLCSSAForm(dt))
-    return complain(loop, DiagID::ErrLoopNotLCSSAForm);
+    return emitDiagnostic(loop, DiagID::ErrLoopNotLCSSAForm);
 
   // We don't allow early termination in parallel loops. One would, therefore,
   // expect that tapir loops would have a unique exit block. However, some
@@ -670,58 +664,59 @@ bool llvm::checkTapirLoopSafeToWrap(TapirLoopInfo &tapirLoop, DominatorTree &dt,
   // This is only ok if those exit blocks are dead-ends i.e. blocks where
   // all paths out of the block will lead to an unreachable instruction.
   if (!getUniqueNonDeadEndExitBlock(loop))
-    return complain(loop, DiagID::ErrTapirLoopNoUniqueNonDeadEndExitBlock);
+    return emitDiagnostic(loop,
+                          DiagID::ErrTapirLoopNoUniqueNonDeadEndExitBlock);
 
   if (getNumIndVars(loop) > 1)
-    return complain(loop, DiagID::ErrTapirLoopIVMultiple);
+    return emitDiagnostic(loop, DiagID::ErrTapirLoopIVMultiple);
 
   if (!loop.getCanonicalInductionVariable())
-    return complain(loop, DiagID::ErrTapirLoopIVNotCanonical);
+    return emitDiagnostic(loop, DiagID::ErrTapirLoopIVNotCanonical);
 
   for (auto &[iv, ivDescr] : *tapirLoop.getInductionVars()) {
     for (User *user : iv->users())
       if (!isa<Instruction>(user))
-        return complain(loop, DiagID::ErrTapirLoopIVUseNotInst);
+        return emitDiagnostic(loop, DiagID::ErrTapirLoopIVUseNotInst);
 
     if (isUsedOutsideLoop(*iv, loop, li))
-      return complain(loop, DiagID::ErrTapirLoopIVUsedOutsideLoop);
+      return emitDiagnostic(loop, DiagID::ErrTapirLoopIVUsedOutsideLoop);
   }
 
   // TODO:? It is not clear why this is an issue. It was "inherited" from the
   // implementation of the tapir strip-mining pass.
   if (loop.getHeader()->hasAddressTaken())
-    return complain(loop, DiagID::ErrTapirLoopHeaderAddressTaken);
+    return emitDiagnostic(loop, DiagID::ErrTapirLoopHeaderAddressTaken);
 
   // Since the loop is guaranteed to be in loop-simplify form, a unique latch
   // is guaranteed to exist.
   BasicBlock *latch = loop.getLoopLatch();
   if (!anyPredecessorDoesNotReattach(*latch))
-    return complain(loop, DiagID::ErrTapirLoopBodyDoesNotReattach);
+    return emitDiagnostic(loop, DiagID::ErrTapirLoopBodyDoesNotReattach);
 
   // Most transformation passes except that the terminator of the tapir loop
   // latch is a conditional branch.
   if (!isCondBr(*latch->getTerminator()))
-    return complain(loop, DiagID::ErrTapirLoopBlockTerminator, "latch",
-                    "conditional branch");
+    return emitDiagnostic(loop, DiagID::ErrTapirLoopBlockTerminator, "latch",
+                          "conditional branch");
 
   // We check this late because one reason for the failure to compute a finite
   // trip count is that the terminator of the loop latch is not a conditional
   // branch. By allowing that error to be emitted, we have a better idea of why
   // this check failed.
   if (!tapirLoop.hasTripCount())
-    return complain(loop, DiagID::ErrTapirLoopNoFiniteTripCount);
+    return emitDiagnostic(loop, DiagID::ErrTapirLoopNoFiniteTripCount);
 
   if (!loop.isSafeToClone())
-    return complain(loop, DiagID::ErrTapirLoopNotSafeToClone);
+    return emitDiagnostic(loop, DiagID::ErrTapirLoopNotSafeToClone);
 
   if (Instruction *inst = getConvergentOpIfAny(loop))
-    return complain(loop, DiagID::ErrTapirLoopConvergent, *inst);
+    return emitDiagnostic(loop, DiagID::ErrTapirLoopConvergent, *inst);
 
   const DetachInst *di = getUniqueInstInLoopOnly<DetachInst>(loop);
   if (!di)
-    return complain(loop, DiagID::ErrTapirLoopNoUniqueDetachInst);
+    return emitDiagnostic(loop, DiagID::ErrTapirLoopNoUniqueDetachInst);
   else if (di->getDetached() != task.getEntry())
-    return complain(loop, DiagID::ErrTapirLoopTaskEntryMismatch);
+    return emitDiagnostic(loop, DiagID::ErrTapirLoopTaskEntryMismatch);
 
   SmallVector<Instruction *, 1> reattaches;
   SmallVector<BasicBlock *, 4> ehBlocksToClone;
@@ -736,10 +731,10 @@ bool llvm::checkTapirLoopSafeToWrap(TapirLoopInfo &tapirLoop, DominatorTree &dt,
   if (di->hasUnwindDest() || !ehBlocksToClone.empty() ||
       !ehBlockPreds.empty() || !inlinedLPads.empty() ||
       !detachedRethrows.empty())
-    return complain(loop, DiagID::ErrTapirLoopThrowsException);
+    return emitDiagnostic(loop, DiagID::ErrTapirLoopThrowsException);
 
   if (reattaches.size() != 1)
-    return complain(loop, DiagID::ErrTapirLoopNoUniqueReattachInst);
+    return emitDiagnostic(loop, DiagID::ErrTapirLoopNoUniqueReattachInst);
 
   return true;
 }

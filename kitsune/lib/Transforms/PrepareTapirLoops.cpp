@@ -30,9 +30,29 @@
 
 using namespace llvm;
 
-static bool check(TapirLoopInfo &tapirLoop, bool isReduction, DominatorTree &dt,
-                  LoopInfo &li) {
-  if (isReduction)
+static bool checkCommon(TapirLoopInfo &tapirLoop, DominatorTree &dt,
+                        LoopInfo &li) {
+  if (!checkTapirLoopSafeToWrap(tapirLoop, dt, li))
+    return false;
+
+  Loop &loop = *tapirLoop.getLoop();
+
+  if (!hasPerfectLevelAttr(loop))
+    return emitDiagnostic(loop, DiagID::ErrAttrMissing,
+                          getAttrName(LoopAttrKind::PerfectLevel));
+
+  if (isTopLevelTapirLoop(loop) && !hasPerfectDepthAttr(loop))
+    return emitDiagnostic(loop, DiagID::ErrAttrMissing,
+                          getAttrName(LoopAttrKind::PerfectDepth));
+
+  return true;
+}
+
+static bool check(TapirLoopInfo &tapirLoop, DominatorTree &dt, LoopInfo &li) {
+  Loop &loop = *tapirLoop.getLoop();
+  if (!checkCommon(tapirLoop, dt, li))
+    return false;
+  else if (hasReductionAttr(loop))
     return detail::checkReductionLoop(tapirLoop, dt, li);
   else
     return detail::checkParallelLoop(tapirLoop, dt, li);

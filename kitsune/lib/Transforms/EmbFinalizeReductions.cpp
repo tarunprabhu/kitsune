@@ -103,12 +103,6 @@ static cl::opt<Strategy> clStrategy(
                clEnumValN(Strategy::WarpShuffleWithSharedMemory, "wshfmem",
                           "")));
 
-template <typename T, typename... Args>
-static bool complain(const T &irElem, DiagID diag, Args &&...args) {
-  emitDiagnostic(irElem, diag, args...);
-  exitOnError();
-}
-
 // Perform some analysis on the loop given the reductions that are performed in
 // it and determine which reduction strategy to use.
 static Strategy chooseStrategy(const Loop &loop,
@@ -236,11 +230,11 @@ static bool check(Function &f, LoopInfo &li) {
   // expected to have a single loop. The exit block of the loop must contain a
   // single return instruction.
   if (li.getTopLevelLoops().size() != 1)
-    return complain(f, DiagID::ErrKernelNoMainLoop);
+    return emitDiagExit(f, DiagID::ErrKernelNoMainLoop);
 
   Loop &loop = *li.getTopLevelLoops()[0];
   if (!getUniqueNonDeadEndExitBlock(loop))
-    return complain(loop, DiagID::ErrKernelMainLoopNoExitBlock);
+    return emitDiagExit(loop, DiagID::ErrKernelMainLoopNoExitBlock);
 
   return true;
 }
