@@ -1103,11 +1103,8 @@ def KitGPUIterationsPerThreadDoc : KitDocIntrinsic {
   let Descr = [{
 Get the number of iterations of a parallel loop to perform on each GPU thread.
 The `spec` parameter is a pointer to some data that may be used to compute
-the number of iterations per thread.
-
-.. note::
-  This argument is currently unused and must be `null`. The corresponding
-  runtime functions always return 1.
+the number of iterations per thread. If it is a pointer to a constant integer,
+that constant will be used as the number of iterations per thread.
 }];
 }
 

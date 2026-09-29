@@ -49,6 +49,7 @@
 // <KIT-PREPARE>
 // O123S:      Running pass:     SecondaryIVEliminationPass
 // O123S:      Running pass:     PrepareTapirLoopsPass
+// O123S:      Running pass:     ComputeGPULoopBlockSizePass
 // </KIT-PREPARE>
 //
 // <KIT-PRE-TAPIR>
@@ -57,7 +58,6 @@
 //
 // <KIT-PRE-LOOP-SPAWNING>
 // O123S:      Running pass:     SecondaryIVEliminationPass
-// O123S:      Running pass:     ComputeGPULoopBlockSizePass
 // O123S-NOT:  Running pass:     InstrumentPass
 // O123S:      Running pass:     PreLowerVerificationPass
 // O123S:      Running pass:     PreLowerAnnotatePass

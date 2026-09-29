@@ -204,6 +204,7 @@ llvm::populateKitPreparePasses(PassBuilder &pb, OptimizationLevel optLevel,
     addFunctionPass<LoopSimplifyPass>(mpm);
     addFunctionPass<LCSSAPass>(mpm);
     addFunctionPass<PrepareTapirLoopsPass>(mpm);
+    addLoopPass<ComputeGPULoopBlockSizePass>(mpm);
 
     // We must run the module inliner because the reducer function should be
     // inlined after the loop has been prepared. The IR may also need to be
@@ -230,7 +231,6 @@ ModulePassManager llvm::populateKitPreLoopSpawningPasses(
     addFunctionPass<LoopSimplifyPass>(mpm);
     addLoopPass<LoopRotatePass>(mpm);
     addLoopPass<SecondaryIVEliminationPass>(mpm);
-    addLoopPass<ComputeGPULoopBlockSizePass>(mpm);
 
     populateSimplifyPasses(mpm, pto);
 

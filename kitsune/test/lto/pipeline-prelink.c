@@ -32,10 +32,10 @@
 // CHECK:      Running pass:      EarlyAnnotatePass
 // CHECK:      Running pass:      SecondaryIVEliminationPass
 // CHECK:      Running pass:      PrepareTapirLoopsPass
+// CHECK:      Running pass:      ComputeGPULoopBlockSizePass
 // CHECK-NOT:  Running pass:      InstrumentPass
 //
 // CHECK-NOT:  Running pass:      SecondaryIVEliminationPass
-// CHECK-NOT:  Running pass:      ComputeGPULoopBlockSizePass
 // CHECK-NOT:  Running pass:      PreLowerVerificationPass
 // CHECK-NOT:  Running pass:      PreLowerAnnotatePass
 // CHECK-NOT:  Running pass:      SerializePass

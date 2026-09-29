@@ -47,6 +47,7 @@
 ! <KIT-PREPARE>
 ! O123S:      Running pass:     SecondaryIVEliminationPass
 ! O123S:      Running pass:     PrepareTapirLoopsPass
+! O123S:      Running pass:     ComputeGPULoopBlockSizePass
 ! </KIT-PREPARE>
 !
 ! <KIT-PRE-TAPIR>
