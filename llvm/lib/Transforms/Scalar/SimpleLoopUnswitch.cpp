@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Scalar/SimpleLoopUnswitch.h"
+#include "kitsune/Core/LoopUtils.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Sequence.h"
@@ -3635,6 +3636,12 @@ static bool unswitchLoop(Loop &L, DominatorTree &DT, LoopInfo &LI,
 
   // Must be in loop simplified form: we need a preheader and dedicated exits.
   if (!L.isLoopSimplifyForm())
+    return false;
+
+  // If any ancestor of this tapir loop is itself a tapir loop, we don't perform
+  // unswitching. Currently tapir loops must be perfectly nested, and
+  // unswitching will break this constraint.
+  if (isTapirLoop(L) && !isTopLevelTapirLoop(L))
     return false;
 
   // Try trivial unswitch first before loop over other basic blocks in the loop.
