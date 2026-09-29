@@ -58,6 +58,7 @@
 //
 // <KIT-PRE-LOOP-SPAWNING>
 // O123S:      Running pass:     SecondaryIVEliminationPass
+// O123S:      Running pass:     LowerIntrinsicsEarlyPass
 // O123S-NOT:  Running pass:     InstrumentPass
 // O123S:      Running pass:     PreLowerVerificationPass
 // O123S:      Running pass:     PreLowerAnnotatePass

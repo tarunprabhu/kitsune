@@ -36,6 +36,7 @@
 ; CHECK-NOT:  Running pass:      InstrumentPass
 ;
 ; CHECK-NOT:  Running pass:      SecondaryIVEliminationPass
+; CHECK-NOT:  Running pass:      LowerIntrinsicsEarlyPass
 ; CHECK-NOT:  Running pass:      PreLowerVerificationPass
 ; CHECK-NOT:  Running pass:      PreLowerAnnotatePass
 ; CHECK-NOT:  Running pass:      SerializePass

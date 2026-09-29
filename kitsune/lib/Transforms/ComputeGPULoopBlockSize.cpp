@@ -19,7 +19,6 @@
 #include "kitsune/Transforms/ComputeGPULoopBlockSize.h"
 #include "kitsune/Core/Diagnostics.h"
 #include "kitsune/Core/LoopUtils.h"
-#include "kitsune/Passes/PassUtils.h"
 #include "kitsune/Support/CommandLineOptions.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/IR/Constants.h"
@@ -86,8 +85,7 @@ ComputeGPULoopBlockSizePass::run(Loop &loop, LoopAnalysisManager &am,
   if (check(loop))
     runOnLoop(loop);
 
-  // This pass will replace calls to an intrinsic with either a compile-time
-  // constant, or a call to a runtime function. In either case, only the
-  // callgraph will be affected.
-  return getPreservedAnalysesCallGraph();
+  // This pass will, at most, only replace the arguments to some intrinsic
+  // functions with a global variable. This will not invalidate any analyses.
+  return PreservedAnalyses::all();
 }

@@ -39,6 +39,7 @@
 // O23S-NOT:  Running pass:     ComputeGPULoopBlockSizePass
 //
 // O23S:      Running pass:     SecondaryIVEliminationPass
+// O23S:      Running pass:     LowerIntrinsicsEarlyPass
 // O23S:      Running pass:     PreLowerVerificationPass
 // O23S:      Running pass:     PreLowerAnnotatePass
 // O23S:      Running pass:     SerializePass

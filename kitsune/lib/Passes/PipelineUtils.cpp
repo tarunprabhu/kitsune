@@ -231,15 +231,16 @@ ModulePassManager llvm::populateKitPreLoopSpawningPasses(
     addFunctionPass<LoopSimplifyPass>(mpm);
     addLoopPass<LoopRotatePass>(mpm);
     addLoopPass<SecondaryIVEliminationPass>(mpm);
+    addFunctionPass<LowerIntrinsicsEarlyPass>(mpm);
 
     populateSimplifyPasses(mpm, pto);
 
     addModulePass<PreLowerVerificationPass>(mpm);
+    addFunctionPass<PreLowerAnnotatePass>(mpm);
+    addFunctionPass<SerializePass>(mpm);
 
     // TODO:? Do we need to run the pre-lower verification pass after the
     // serialize pass?
-    addFunctionPass<PreLowerAnnotatePass>(mpm);
-    addFunctionPass<SerializePass>(mpm);
   }
 
   return mpm;
