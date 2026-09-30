@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Support/ToString.h"
+#include "llvm/Analysis/ScalarEvolutionExpressions.h"
 #include "llvm/MC/MCTargetOptions.h"
 #include "llvm/Support/CodeGen.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -86,7 +87,7 @@ template <> std::string llvm::toString(const CodeGenOptLevel &cgOpt) {
   case CodeGenOptLevel::Default: return "default (O2)";
   case CodeGenOptLevel::Aggressive: return "aggressive (O3)";
   }
-  llvm_unreachable("operator<<: CodeGenOptLevel not handled");
+  llvm_unreachable("toString: CodeGenOptLevel not handled");
 }
 
 template <> std::string llvm::toString(const CodeModel::Model &cm) {
@@ -97,7 +98,7 @@ template <> std::string llvm::toString(const CodeModel::Model &cm) {
   case CodeModel::Medium: return "medium";
   case CodeModel::Large: return "large";
   }
-  llvm_unreachable("operator<<: CodeModel not handled");
+  llvm_unreachable("toString: CodeModel not handled");
 }
 
 template <> std::string llvm::toString(const Reloc::Model &rm) {
@@ -109,7 +110,7 @@ template <> std::string llvm::toString(const Reloc::Model &rm) {
   case Reloc::RWPI: return "rwpi";
   case Reloc::ROPI_RWPI: return "ropi-rwpi";
   }
-  llvm_unreachable("operator<<: RelocModel not handled");
+  llvm_unreachable("toString: RelocModel not handled");
 }
 
 template <> std::string llvm::toString(const BasicBlockSection &sect) {
@@ -119,7 +120,7 @@ template <> std::string llvm::toString(const BasicBlockSection &sect) {
   case BasicBlockSection::Preset: return "preset";
   case BasicBlockSection::None: return "none";
   }
-  llvm_unreachable("operator<<: BasicBlockSection not handled");
+  llvm_unreachable("toString: BasicBlockSection not handled");
 }
 
 template <> std::string llvm::toString(const DebuggerKind &dbgKind) {
@@ -130,7 +131,7 @@ template <> std::string llvm::toString(const DebuggerKind &dbgKind) {
   case DebuggerKind::SCE: return "sce";
   case DebuggerKind::DBX: return "dbx";
   }
-  llvm_unreachable("operator<<: DebuggerKind not handled");
+  llvm_unreachable("toString: DebuggerKind not handled");
 }
 
 template <> std::string llvm::toString(const EABI &eabi) {
@@ -141,7 +142,7 @@ template <> std::string llvm::toString(const EABI &eabi) {
   case EABI::EABI5: return "eabi5";
   case EABI::GNU: return "gnu";
   }
-  llvm_unreachable("operator<<: EABI not handled");
+  llvm_unreachable("toString: EABI not handled");
 }
 
 template <> std::string llvm::toString(const FloatABI::ABIType &abi) {
@@ -150,7 +151,7 @@ template <> std::string llvm::toString(const FloatABI::ABIType &abi) {
   case FloatABI::Soft: return "soft";
   case FloatABI::Hard: return "hard";
   }
-  llvm_unreachable("operator<<: FloatABI::ABIType not handled");
+  llvm_unreachable("toString: FloatABI::ABIType not handled");
 }
 
 template <> std::string llvm::toString(const FPOpFusion::FPOpFusionMode &mode) {
@@ -159,7 +160,7 @@ template <> std::string llvm::toString(const FPOpFusion::FPOpFusionMode &mode) {
   case FPOpFusion::Standard: return "standard";
   case FPOpFusion::Strict: return "strict";
   }
-  llvm_unreachable("operator<<: FPOpFusionMode not handled");
+  llvm_unreachable("toString: FPOpFusionMode not handled");
 }
 
 template <> std::string llvm::toString(const GlobalISelAbortMode &m) {
@@ -168,7 +169,7 @@ template <> std::string llvm::toString(const GlobalISelAbortMode &m) {
   case GlobalISelAbortMode::Enable: return "enable";
   case GlobalISelAbortMode::DisableWithDiag: return "disable-with-diag";
   }
-  llvm_unreachable("operator<<: GlobalISelAbortMode not handled");
+  llvm_unreachable("toString: GlobalISelAbortMode not handled");
 }
 
 template <> std::string llvm::toString(const SwiftAsyncFramePointerMode &mode) {
@@ -177,7 +178,7 @@ template <> std::string llvm::toString(const SwiftAsyncFramePointerMode &mode) {
   case SwiftAsyncFramePointerMode::Always: return "always";
   case SwiftAsyncFramePointerMode::Never: return "never";
   }
-  llvm_unreachable("operator<<: SwiftAsyncFramePointerMode not handled");
+  llvm_unreachable("toString: SwiftAsyncFramePointerMode not handled");
 }
 
 template <> std::string llvm::toString(const ThreadModel::Model &model) {
@@ -185,7 +186,7 @@ template <> std::string llvm::toString(const ThreadModel::Model &model) {
   case ThreadModel::POSIX: return "posix";
   case ThreadModel::Single: return "single";
   }
-  llvm_unreachable("operator<<: ThreadModel::Model not handled");
+  llvm_unreachable("toString: ThreadModel::Model not handled");
 }
 
 template <>
@@ -195,7 +196,7 @@ std::string llvm::toString(const MCTargetOptions::DwarfDirectory &dd) {
   case MCTargetOptions::EnableDwarfDirectory: return "enable";
   case MCTargetOptions::DefaultDwarfDirectory: return "default";
   }
-  llvm_unreachable("operator<<: DwarfDirectory not handled");
+  llvm_unreachable("toString: DwarfDirectory not handled");
 }
 
 template <> std::string llvm::toString(const DebugCompressionType &dc) {
@@ -204,7 +205,7 @@ template <> std::string llvm::toString(const DebugCompressionType &dc) {
   case DebugCompressionType::Zlib: return "zlib";
   case DebugCompressionType::Zstd: return "zstd";
   }
-  llvm_unreachable("operator<<: DebugCompressionType not handled");
+  llvm_unreachable("toString: DebugCompressionType not handled");
 }
 
 template <> std::string llvm::toString(const EmitDwarfUnwindType &du) {
@@ -213,5 +214,29 @@ template <> std::string llvm::toString(const EmitDwarfUnwindType &du) {
   case EmitDwarfUnwindType::NoCompactUnwind: return "no-compact-unwind";
   case EmitDwarfUnwindType::Default: return "default";
   }
-  llvm_unreachable("operator<<: EmitDwarfUnwindType not handled");
+  llvm_unreachable("toString: EmitDwarfUnwindType not handled");
+}
+
+template <> std::string llvm::toString(const SCEVTypes &scevType) {
+  switch (scevType) {
+  case SCEVTypes::scConstant: return "scConstant";
+  case SCEVTypes::scVScale: return "scVScale";
+  case SCEVTypes::scTruncate: return "scTruncate";
+  case SCEVTypes::scZeroExtend: return "scZeroExtend";
+  case SCEVTypes::scSignExtend: return "scSignExtend";
+  case SCEVTypes::scAddExpr: return "scAddExpr";
+  case SCEVTypes::scMulExpr: return "scMulExpr";
+  case SCEVTypes::scUDivExpr: return "scUDivExpr";
+  case SCEVTypes::scAddRecExpr: return "scAddRecExpr";
+  case SCEVTypes::scUMaxExpr: return "scUMaxExpr";
+  case SCEVTypes::scSMaxExpr: return "scSMaxExpr";
+  case SCEVTypes::scUMinExpr: return "scUMinExpr";
+  case SCEVTypes::scSMinExpr: return "scSMinExpr";
+  case SCEVTypes::scSequentialUMinExpr: return "scSequentialUMinExpr";
+  case SCEVTypes::scPtrToInt: return "scPtrToInt";
+  case SCEVTypes::scUnknown: return "scUnknown";
+  case SCEVTypes::scCouldNotCompute: return "scCouldNotCompute";
+  default: break;
+  }
+  llvm_unreachable("toString: SCEVTypes not handled");
 }
