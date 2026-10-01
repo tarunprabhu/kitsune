@@ -75,7 +75,8 @@ public:
   /// Return a loop outline processor to process the given tapir loop. The
   /// returned object will be owned by the caller.
   LoopOutlineProcessor *
-  getLoopOutlineProcessor(const TapirLoopInfo *tl) override final;
+  getLoopOutlineProcessor(const TapirLoopInfo *tl,
+                          const FunctionAnalyses &analyses) override final;
 };
 
 } // namespace llvm

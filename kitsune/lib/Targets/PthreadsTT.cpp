@@ -22,8 +22,10 @@ namespace {
 /// \ingroup kitsune
 class PthreadsLoopProcessor : public CPUTTLoopProcessor {
 public:
-  PthreadsLoopProcessor(Module &m, const TTOptions &tto)
-      : CPUTTLoopProcessor(TTID::Pthreads, tto, /*asyncLaunch=*/true, m) {}
+  PthreadsLoopProcessor(Module &m, const FunctionAnalyses &analyses,
+                        const TTOptions &tto)
+      : CPUTTLoopProcessor(TTID::Pthreads, analyses, tto, /*asyncLaunch=*/true,
+                           m) {}
   virtual ~PthreadsLoopProcessor() = default;
 };
 
@@ -32,6 +34,7 @@ public:
 PthreadsTT::PthreadsTT(Module &m, const TTOptions &tto) : CPUTTBase(m, tto) {}
 
 LoopOutlineProcessor *
-PthreadsTT::getLoopOutlineProcessor(const TapirLoopInfo *tl) {
-  return new PthreadsLoopProcessor(M, this->getOptions());
+PthreadsTT::getLoopOutlineProcessor(const TapirLoopInfo *tl,
+                                    const FunctionAnalyses &analyses) {
+  return new PthreadsLoopProcessor(M, analyses, this->getOptions());
 }
