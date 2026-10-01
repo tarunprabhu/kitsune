@@ -934,4 +934,196 @@ TEST_F(KitLoopUtils, getExitBlockFromLatch) {
   EXPECT_EQ(exit->getName(), StringRef("exit"));
 }
 
+static constexpr StringRef normalizedNotTapir = R"(
+define void @f(i64 %n) {
+entry:
+  br label %loop
+
+loop:
+  %i = phi i64 [ 0, %entry ], [ %inc, %loop ]
+  %inc = add i64 %i, 1
+  %cmp = icmp eq i64 %inc, %n
+  br i1 %cmp, label %exit, label %loop, !llvm.loop !0
+
+exit:
+  ret void
+}
+
+!0 = distinct !{!0}
+)";
+
+static constexpr StringRef normalizedNotSimplified = R"(
+define void @f(i64 %n) {
+entry:
+  %sr = call token @llvm.syncregion.start()
+  %skip = icmp sge i64 %n, 0
+  br i1 %skip, label %header, label %sync
+
+header:
+  %i = phi i64 [ 0, %entry ], [ %inc, %latch ]
+  detach within %sr, label %body, label %latch
+
+body:
+  reattach within %sr, label %latch
+
+latch:
+  %inc = add i64 %i, 1
+  %cmp = icmp eq i64 %inc, %n
+  br i1 %cmp, label %sync, label %header, !llvm.loop !0
+
+sync:
+  sync within %sr, label %exit
+
+exit:
+  ret void
+}
+
+!0 = distinct !{!0, !1}
+!1 = !{!"tapir.loop.target", i32 1}
+)";
+
+static constexpr StringRef normalizedNotLCSSA = R"(
+define i64 @f(i64 %n) {
+entry:
+  %syncreg = tail call token @llvm.syncregion.start()
+  br label %for.j.header
+
+for.j.header:
+  %j = phi i64 [ 0, %entry ], [ %inc.j, %for.j.latch ]
+  detach within %syncreg, label %for.j.body, label %for.j.latch
+
+for.j.body:
+  reattach within %syncreg, label %for.j.latch
+
+for.j.latch:
+  %s = sub i64 %j, 11
+  %inc.j = add i64 %j, 1
+  %cmp.j = icmp eq i64 %inc.j, %n
+  br i1 %cmp.j, label %for.j.exit, label %for.j.header, !llvm.loop !0
+
+for.j.exit:
+  sync within %syncreg, label %for.j.end
+
+for.j.end:
+  ret i64 %s
+}
+
+!0 = distinct !{!0, !1}
+!1 = !{!"tapir.loop.target", i32 1}
+)";
+
+static constexpr StringRef normalizedNoCanon = R"(
+define void @f(i64 %n) {
+entry:
+  %sr = call token @llvm.syncregion.start()
+  br label %header
+
+header:
+  %i = phi i64 [ 1, %entry ], [ %inc, %latch ]
+  detach within %sr, label %body, label %latch
+
+body:
+  reattach within %sr, label %latch
+
+latch:
+  %inc = add i64 %i, 1
+  %cmp = icmp eq i64 %i, %n
+  br i1 %cmp, label %sync, label %header, !llvm.loop !0
+
+sync:
+  sync within %sr, label %exit
+
+exit:
+  ret void
+}
+
+!0 = distinct !{!0, !1}
+!1 = !{!"tapir.loop.target", i32 1}
+)";
+
+static constexpr StringRef normalizedBadCmp = R"(
+define void @f(i64 %n) {
+entry:
+  %sr = call token @llvm.syncregion.start()
+  br label %header
+
+header:
+  %i = phi i64 [ 0, %entry ], [ %inc, %latch ]
+  detach within %sr, label %body, label %latch
+
+body:
+  reattach within %sr, label %latch
+
+latch:
+  %inc = add i64 %i, 1
+  %cmp = icmp eq i64 %i, %n
+  br i1 %cmp, label %sync, label %header, !llvm.loop !0
+
+sync:
+  sync within %sr, label %exit
+
+exit:
+  ret void
+}
+
+!0 = distinct !{!0, !1}
+!1 = !{!"tapir.loop.target", i32 1}
+)";
+
+static constexpr StringRef normalizedNormalized = R"(
+define void @f(i64 %n) {
+entry:
+  %sr = call token @llvm.syncregion.start()
+  br label %header
+
+header:
+  %i = phi i64 [ 0, %entry ], [ %inc, %latch ]
+  detach within %sr, label %body, label %latch
+
+body:
+  reattach within %sr, label %latch
+
+latch:
+  %inc = add i64 %i, 1
+  %cmp = icmp eq i64 %inc, %n
+  br i1 %cmp, label %sync, label %header, !llvm.loop !0
+
+sync:
+  sync within %sr, label %exit
+
+exit:
+  ret void
+}
+
+!0 = distinct !{!0, !1}
+!1 = !{!"tapir.loop.target", i32 1}
+)";
+
+TEST_F(KitLoopUtils, isTapirLoopNormalized) {
+  {
+    setup(normalizedNotTapir, "f");
+    EXPECT_FALSE(isTapirLoopNormalized(**li->begin(), *dt));
+  }
+  {
+    setup(normalizedNotSimplified, "f");
+    EXPECT_FALSE(isTapirLoopNormalized(**li->begin(), *dt));
+  }
+  {
+    setup(normalizedNotLCSSA, "f");
+    EXPECT_FALSE(isTapirLoopNormalized(**li->begin(), *dt));
+  }
+  {
+    setup(normalizedNoCanon, "f");
+    EXPECT_FALSE(isTapirLoopNormalized(**li->begin(), *dt));
+  }
+  {
+    setup(normalizedBadCmp, "f");
+    EXPECT_FALSE(isTapirLoopNormalized(**li->begin(), *dt));
+  }
+  {
+    setup(normalizedNormalized, "f");
+    EXPECT_TRUE(isTapirLoopNormalized(**li->begin(), *dt));
+  }
+}
+
 } // namespace
