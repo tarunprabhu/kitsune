@@ -578,14 +578,17 @@ Value *PrepareParallelLoopCPU::computeOuterLoopTripCount(
 
 Value *PrepareParallelLoopGPU::computeOuterLoopTripCount(
     BasicBlock &bb, const TapirLoopInfo &tapirLoop) {
-  auto sanityCheck = [](const TapirLoopInfo &tapirLoop) {
-    assert(hasTargetAttr(*tapirLoop.getLoop()) &&
+  auto sanityCheck = [](const Loop &loop, ScalarEvolution &se) {
+    assert(hasTargetAttr(loop) &&
            "Outer loop must have tapir target attribute");
+    assert(loop.getBounds(se) && "Outer loop must have known bounds");
+    assert(loop.getCanonicalInductionVariable() &&
+           "Outer loop must have canonical induction variable");
   };
 
   LLVM_DEBUG(
       dbgs() << "PrepareParallel: Compute number of parallel iterations\n");
-  sanityCheck(tapirLoop);
+  sanityCheck(*tapirLoop.getLoop(), se);
 
   LLVMContext &ctx = bb.getContext();
   Constant *cnull = ConstantPointerNull::get(PointerType::getUnqual(ctx));
