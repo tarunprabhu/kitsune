@@ -20,9 +20,12 @@
 
 using namespace llvm;
 
-CPUTTLoopProcessor::CPUTTLoopProcessor(TTID tt, const TTOptions &opts,
-                                       bool asyncLaunch, Module &m)
-    : LoopOutlineProcessor(m, m, opts, CloneFunctionChangeType::GlobalChanges),
+CPUTTLoopProcessor::CPUTTLoopProcessor(TTID tt,
+                                       const FunctionAnalyses &analyses,
+                                       const TTOptions &opts, bool asyncLaunch,
+                                       Module &m)
+    : LoopOutlineProcessor(m, m, analyses, opts,
+                           CloneFunctionChangeType::GlobalChanges),
       tt(tt), asyncLaunch(asyncLaunch) {}
 
 void CPUTTLoopProcessor::setupLoopControlArgs(

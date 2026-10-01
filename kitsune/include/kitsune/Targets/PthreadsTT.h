@@ -29,7 +29,8 @@ public:
 
   /// Create a custom loop outline processor for this tapir target.
   LoopOutlineProcessor *
-  getLoopOutlineProcessor(const TapirLoopInfo *tl) override final;
+  getLoopOutlineProcessor(const TapirLoopInfo *tl,
+                          const FunctionAnalyses &analyses) override final;
 };
 
 } // namespace llvm

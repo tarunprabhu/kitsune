@@ -120,8 +120,8 @@ protected:
   virtual void setModuleAttrsForKernelFunc(Function &f) override;
 
 public:
-  CudaLoop(Module &hostM, Module &devM, const TTOptions &tto,
-           const TapirLoopInfo &tl, StringRef kernelName);
+  CudaLoop(Module &hostM, Module &devM, const FunctionAnalyses &analyses,
+           const TTOptions &tto, const TapirLoopInfo &tl, StringRef kernelName);
   virtual ~CudaLoop() = default;
 
   /// Process the tapir loop \p tl jut before it is outlined. The \p vmap can
@@ -129,9 +129,10 @@ public:
   void preProcessTapirLoop(TapirLoopInfo &tl, ValueToValueMapTy &vmap) override;
 };
 
-CudaLoop::CudaLoop(Module &hostM, Module &devM, const TTOptions &tto,
+CudaLoop::CudaLoop(Module &hostM, Module &devM,
+                   const FunctionAnalyses &analyses, const TTOptions &tto,
                    const TapirLoopInfo &tl, StringRef kernelName)
-    : GPUTTLoopBase(hostM, devM, tto, tl, TTID::Cuda, kernelName) {
+    : GPUTTLoopBase(hostM, devM, analyses, tto, tl, TTID::Cuda, kernelName) {
   LLVM_DEBUG(dbgs() << "debug[cuabi]: creating a cuda loop outliner.\n"
                     << "  - target kernel name: " << kernelName << "\n");
 }
@@ -203,12 +204,13 @@ CudaABI::CudaABI(Module &hostM, const TTOptions &tto)
 }
 
 LoopOutlineProcessor *
-CudaABI::getLoopOutlineProcessor(const TapirLoopInfo *tl) {
+CudaABI::getLoopOutlineProcessor(const TapirLoopInfo *tl,
+                                 const FunctionAnalyses &analyses) {
   LLVM_DEBUG(dbgs() << "cuabi: create loop outline processor.\n");
   LLVM_DEBUG(saveModuleToFile(&hostM, hostM.getName().str() + ".input"));
 
   const TTOptions &tto = getOptions();
   std::string kernelName = getNameForTapirLoop(*tl);
 
-  return new CudaLoop(hostM, devM, tto, *tl, kernelName);
+  return new CudaLoop(hostM, devM, analyses, tto, *tl, kernelName);
 }

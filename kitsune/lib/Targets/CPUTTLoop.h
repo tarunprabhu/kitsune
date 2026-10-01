@@ -34,8 +34,8 @@ protected:
   bool asyncLaunch;
 
 protected:
-  CPUTTLoopProcessor(TTID tt, const TTOptions &opts, bool asynLaunch,
-                     Module &m);
+  CPUTTLoopProcessor(TTID tt, const FunctionAnalyses &analyses,
+                     const TTOptions &opts, bool asynLaunch, Module &m);
 
   /// Generate a wrapper for the function \p outlined. This wrapper is what will
   /// actually be launched by the CPU-centric runtime on each thread.

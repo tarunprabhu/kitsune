@@ -248,12 +248,15 @@ protected:
   /// \param tt The ID of the tapir target that created this outline processor
   /// \param hostM The module containing the tapir loop that is to be outlined
   /// \param devM The module into which the loop will be outlined
-  /// \param tl The tapir loop being lowered
+  /// \param analyses Wrapper around function analysis objects
   /// \param tto The tapir target options
+  /// \param tl The top-level tapir loop being lowered
+  /// \param tt The TTID creating this loop outline processor
   /// \param name The name of the function in the device module into which the
   ///             loop will be outlined
-  GPUTTLoopBase(Module &hostM, Module &devM, const TTOptions &tto,
-                const TapirLoopInfo &tl, TTID tt, StringRef name);
+  GPUTTLoopBase(Module &hostM, Module &devM, const FunctionAnalyses &analyses,
+                const TTOptions &tto, const TapirLoopInfo &tl, TTID tt,
+                StringRef name);
 
 public:
   virtual ~GPUTTLoopBase() = default;
