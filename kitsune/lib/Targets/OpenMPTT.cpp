@@ -22,8 +22,10 @@ namespace {
 /// \ingroup kitsune
 class OpenMPLoopProcessor : public CPUTTLoopProcessor {
 public:
-  OpenMPLoopProcessor(Module &m, const TTOptions &tto)
-      : CPUTTLoopProcessor(TTID::OpenMP, tto, /*asyncLaunch=*/false, m) {}
+  OpenMPLoopProcessor(Module &m, const FunctionAnalyses &analyses,
+                      const TTOptions &tto)
+      : CPUTTLoopProcessor(TTID::OpenMP, analyses, tto, /*asyncLaunch=*/false,
+                           m) {}
   virtual ~OpenMPLoopProcessor() = default;
 };
 
@@ -32,6 +34,7 @@ public:
 OpenMPTT::OpenMPTT(Module &m, const TTOptions &tto) : CPUTTBase(m, tto) {}
 
 LoopOutlineProcessor *
-OpenMPTT::getLoopOutlineProcessor(const TapirLoopInfo *tl) {
-  return new OpenMPLoopProcessor(M, this->getOptions());
+OpenMPTT::getLoopOutlineProcessor(const TapirLoopInfo *tl,
+                                  const FunctionAnalyses &analyses) {
+  return new OpenMPLoopProcessor(M, analyses, this->getOptions());
 }

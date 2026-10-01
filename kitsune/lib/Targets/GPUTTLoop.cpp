@@ -21,6 +21,7 @@
 #include "kitsune/Core/LoopUtils.h"
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/ValueUtils.h"
+#include "kitsune/Transforms/LoweringUtils.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/InstIterator.h"
@@ -31,9 +32,11 @@ using namespace llvm;
 
 static const StringRef suffixes[3] = {".x", ".y", ".z"};
 
-GPUTTLoopBase::GPUTTLoopBase(Module &hostM, Module &devM, const TTOptions &tto,
-                             const TapirLoopInfo &tl, TTID tt, StringRef name)
-    : LoopOutlineProcessor(hostM, devM, tto,
+GPUTTLoopBase::GPUTTLoopBase(Module &hostM, Module &devM,
+                             const FunctionAnalyses &analyses,
+                             const TTOptions &tto, const TapirLoopInfo &tl,
+                             TTID tt, StringRef name)
+    : LoopOutlineProcessor(hostM, devM, analyses, tto,
                            CloneFunctionChangeType::DifferentModule),
       devM(devM), hostM(hostM), loops({tl.getLoop()}), tt(tt),
       kernelName(name) {
@@ -512,13 +515,17 @@ void GPUTTLoopBase::emitIndexCalculation(IRBuilder<> &builder, PHINode *iv,
   Value *bdxbi = builder.CreateMul(bsz, bid);
   Value *bdxbipti = builder.CreateAdd(bdxbi, tid, n(".ivb"));
 
-  // This is the computed initial value of the induction variable for the
-  // GPU thread on which this being run.
+  // This is the computed initial value of the induction variable for the GPU
+  // thread on which this being run.
   Type *ivType = iv->getType();
   Value *ivBeg =
       builder.CreateIntCast(bdxbipti, ivType, /*isSigned=*/false, n("ivb"));
 
-  // The final value of the induction variable will be just be the `ivBeg + 1`.
+  // The final value of the induction variable will just be `ivBeg + 1`. We
+  // execute a single iteration of the parallel loop per GPU thread. This may
+  // not necessarily correspond to one iteration of the parallel loop in the
+  // source code since an earlier pass may have blocked the loop. In this case,
+  // multiple iterations of the original loop being executed on each GPU thread.
   Value *one = ConstantInt::get(ivType, 1, /*isSigned=*/false);
   Value *ivEnd = builder.CreateAdd(ivBeg, one, n("ive"));
 

@@ -21,8 +21,8 @@ using namespace llvm;
 
 class BookendLOP : public LoopOutlineProcessor {
 public:
-  BookendLOP(Module &m, const TTOptions &tto)
-      : LoopOutlineProcessor(m, m, tto,
+  BookendLOP(Module &m, const FunctionAnalyses &analyses, const TTOptions &tto)
+      : LoopOutlineProcessor(m, m, analyses, tto,
                              CloneFunctionChangeType::GlobalChanges) {}
   ~BookendLOP() {};
 
@@ -73,8 +73,9 @@ public:
   };
 
   LoopOutlineProcessor *
-  getLoopOutlineProcessor(const TapirLoopInfo *tl) override final {
-    return new BookendLOP(M, this->getOptions());
+  getLoopOutlineProcessor(const TapirLoopInfo *tl,
+                          const FunctionAnalyses &analyses) override final {
+    return new BookendLOP(M, analyses, this->getOptions());
   }
 };
 
@@ -92,9 +93,7 @@ extern "C" ::llvm::TTPluginInfo LLVM_ATTRIBUTE_WEAK llvmGetTTPluginInfo() {
           [](Module &hostM, const TTOptions &tto) -> TapirTarget * {
             return new BookendTT(hostM, tto);
           },
-          []() -> TTPlugin::ExtraArgsList {
-            return {"-O"};
-          },
+          []() -> TTPlugin::ExtraArgsList { return {"-O"}; },
           []() -> TTPlugin::ExtraArgsList {
             return {"-L/path/to/something/that/does/not/exist"};
           }};
