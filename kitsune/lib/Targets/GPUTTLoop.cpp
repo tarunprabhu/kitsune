@@ -367,36 +367,15 @@ void GPUTTLoopBase::setKernelFuncLinkage(Function &f) {
 void GPUTTLoopBase::setupLoopControlArgs(TapirLoopInfo *tl,
                                          SmallVectorImpl<Value *> &lcArgs,
                                          SmallVectorImpl<Value *> &lcInputs) {
-  auto isIncr = [](Value *v, PHINode *iv) -> bool {
-    Type *ty = v->getType();
-    if (auto *inst = dyn_cast<Instruction>(v))
-      if (inst->getOpcode() == Instruction::Add)
-        if ((isIntOne(inst->getOperand(0), ty) && inst->getOperand(1) == iv) ||
-            (isIntOne(inst->getOperand(1), ty) && inst->getOperand(0) == iv))
-          return true;
-    return false;
-  };
-
-  // This tries to get the trip count from the compare instruction in the
-  // latch. One of the operands of the instruction must be an increment - the
-  // other, the trip count. This only works because we require the tapir loops
-  // that are being lowered to have unique, canonical induction variables.
-  //
-  // FIXME: It would be good if we could use some of the methods available in
-  // in the loop class to find these. But those require analysis results that
-  // are not available to this object. Making them available may also be tricky
-  // since they may have been invalidated by the transformations of other loops
-  // in the function.
-  //
-  // One possible way to do this may be to pre-compute the loop bounds for the
-  // loops and have those be accessible somewhere.
-  //
-  auto getTripCount = [&isIncr](ICmpInst *cmp, PHINode *iv) -> Value * {
+  // The kit-loop-normalize pass will have ensured that one operand of the
+  // compare instruction in the loop latch is the increment of the loop
+  // induction variable, and the other is the trip count.
+  auto getTripCount = [](ICmpInst *cmp, PHINode *iv) -> Value * {
     Value *op0 = cmp->getOperand(0);
     Value *op1 = cmp->getOperand(1);
-    if (isIncr(op0, iv))
+    if (isCanonicalIVIncr(*op0, *iv))
       return op1;
-    else if (isIncr(op1, iv))
+    else if (isCanonicalIVIncr(*op1, *iv))
       return op0;
     llvm_unreachable("getTripCount: Didn't find induction variable");
   };
