@@ -512,6 +512,89 @@ bool PrepareParallelLoopBase::run(TapirLoopInfo &tapirLoop) {
   return true;
 }
 
+//===----------------------------------------------------------------------===//
+
+// Insert code to calculate the number of CPU threads available for use. This
+// simply inserts a call to Kitsune's kit.cpu.num.threads intrinsic. The
+// intrinsic will be lowered in a later pass.
+//
+//      numThreads = call @llvm.kit.cpu.num.threads()
+//
+Value *PrepareParallelLoopCPU::computeOuterLoopTripCount(
+    BasicBlock &bb, const TapirLoopInfo &tapirLoop) {
+  auto sanityCheck = [](const TapirLoopInfo &tapirLoop) {
+    assert(hasTargetAttr(*tapirLoop.getLoop()) &&
+           "Outer loop must have tapir target attribute");
+  };
+
+  LLVM_DEBUG(
+      dbgs() << "PrepareParallel: Compute number of parallel iterations\n");
+  sanityCheck(tapirLoop);
+
+  LLVMContext &ctx = bb.getContext();
+
+  Loop &loop = *tapirLoop.getLoop();
+  TTID tt = *getTargetAttr(loop);
+  Constant *ctt = toConstant(tt, ctx);
+
+  PHINode *iv = loop.getCanonicalInductionVariable();
+  Type *ivTy = iv->getType();
+
+  IRBuilder<> builder(&*bb.begin());
+  Value *thrds = builder.CreateIntrinsic(Intrinsic::kit_cpu_num_threads, {ctt});
+  Value *numThreads =
+      builder.CreateIntCast(thrds, ivTy, /*isSigned=*/true, "prll.num.threads");
+
+  return numThreads;
+}
+
+//===----------------------------------------------------------------------===//
+
+Value *PrepareParallelLoopGPU::computeOuterLoopTripCount(
+    BasicBlock &bb, const TapirLoopInfo &tapirLoop) {
+  auto sanityCheck = [](const Loop &loop, ScalarEvolution &se) {
+    assert(hasTargetAttr(loop) &&
+           "Outer loop must have tapir target attribute");
+    assert(loop.getBounds(se) && "Outer loop must have known bounds");
+    assert(loop.getCanonicalInductionVariable() &&
+           "Outer loop must have canonical induction variable");
+  };
+
+  LLVM_DEBUG(
+      dbgs() << "PrepareParallel: Compute number of parallel iterations\n");
+  sanityCheck(*tapirLoop.getLoop(), se);
+
+  LLVMContext &ctx = bb.getContext();
+  Constant *cnull = ConstantPointerNull::get(PointerType::getUnqual(ctx));
+
+  Loop &loop = *tapirLoop.getLoop();
+
+  Loop::LoopBounds bounds = *loop.getBounds(se);
+  PHINode *iv = loop.getCanonicalInductionVariable();
+  Value *tc = &bounds.getFinalIVValue();
+  Type *ivTy = iv->getType();
+  TTID tt = *getTargetAttr(loop);
+  Constant *ctt = toConstant(tt, ctx);
+  Constant *one = ConstantInt::get(ivTy, 1, /*isSigned=*/false);
+
+  IRBuilder<> builder(&*bb.begin());
+  Value *iptRaw = builder.CreateIntrinsic(Intrinsic::kit_gpu_ipt, {ctt, cnull});
+  Value *ipt = builder.CreateIntCast(iptRaw, ivTy, /*isSigned=*/false, "ipt");
+  Value *iptMinus1 = builder.CreateSub(ipt, one);
+  Value *tcPlusIPTMinus1 = builder.CreateAdd(tc, iptMinus1);
+  Value *numThreads = builder.CreateUDiv(tcPlusIPTMinus1, ipt);
+
+  return numThreads;
+}
+
+//===----------------------------------------------------------------------===//
+
+static unsigned getNestDepth(Loop &loop) {
+  if (std::optional<unsigned> depth = getPerfectDepthAttr(loop))
+    return *depth;
+  return getNestDepth(*loop.getParentLoop());
+}
+
 static bool prepareForCPU(TapirLoopInfo &tapirLoop, DominatorTree &dt,
                           LoopInfo &li, MemorySSA &mssa, ScalarEvolution &se,
                           TaskInfo &ti) {
