@@ -83,7 +83,8 @@ public:
 
   /// Create a custom loop outline processor for this tapir target.
   virtual LoopOutlineProcessor *
-  getLoopOutlineProcessor(const TapirLoopInfo *tl) override = 0;
+  getLoopOutlineProcessor(const TapirLoopInfo *tl,
+                          const FunctionAnalyses &analyses) override = 0;
 };
 
 /// \@}

@@ -17,6 +17,7 @@
 #include "kitsune/Core/ModuleAttrs.h"
 #include "kitsune/Core/SpawnStrategy.h"
 #include "kitsune/Core/TTID.h"
+#include "kitsune/Transforms/LoweringUtils.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
@@ -25,6 +26,7 @@
 #include "llvm/Analysis/OptimizationRemarkEmitter.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
+#include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/CFG.h"
@@ -78,8 +80,9 @@ static const char TimerGroupDescription[] = "Loop spawning";
 /// The default loop-outline processor leaves the outlined Tapir loop as is.
 class DefaultLoopOutlineProcessor : public LoopOutlineProcessor {
 public:
-  DefaultLoopOutlineProcessor(Module &M, const TTOptions &TTOpts)
-      : LoopOutlineProcessor(M, TTOpts) {}
+  DefaultLoopOutlineProcessor(Module &M, const FunctionAnalyses &Analyses,
+                              const TTOptions &TTOpts)
+      : LoopOutlineProcessor(M, Analyses, TTOpts) {}
   void postProcessOutline(TapirLoopInfo &TL, TaskOutlineInfo &Out,
                           ValueToValueMapTy &VMap) override final {
     LoopOutlineProcessor::postProcessOutline(TL, Out, VMap);
@@ -91,8 +94,9 @@ public:
 /// evaluate the iterations using parallel recursive divide-and-conquer.
 class DACSpawning : public LoopOutlineProcessor {
 public:
-  DACSpawning(Module &M, const TTOptions &TTOpts)
-      : LoopOutlineProcessor(M, TTOpts) {}
+  DACSpawning(Module &M, const FunctionAnalyses &Analyses,
+              const TTOptions &TTOpts)
+      : LoopOutlineProcessor(M, Analyses, TTOpts) {}
   void postProcessOutline(TapirLoopInfo &TL, TaskOutlineInfo &Out,
                           ValueToValueMapTy &VMap) override final {
     LoopOutlineProcessor::postProcessOutline(TL, Out, VMap);
@@ -559,10 +563,12 @@ class LoopSpawningImpl {
 public:
   LoopSpawningImpl(Function &F, DominatorTree &DT, LoopInfo &LI, TaskInfo &TI,
                    ScalarEvolution &SE, AssumptionCache &AC,
-                   TargetTransformInfo &TTI, OptimizationRemarkEmitter &ORE,
-                   const TTObjects &TTObjs, const TTOptions &TTOpts)
-      : F(F), DT(DT), LI(LI), TI(TI), SE(SE), AC(AC), TTI(TTI), ORE(ORE),
-        TTObjs(TTObjs), TTOpts(TTOpts) {}
+                   TargetLibraryInfo &TLI, TargetTransformInfo &TTI,
+                   OptimizationRemarkEmitter &ORE, const TTObjects &TTObjs,
+                   const TTOptions &TTOpts)
+      : F(F), DT(DT), LI(LI), TI(TI), SE(SE), AC(AC), TLI(TLI), TTI(TTI),
+        ORE(ORE), TTObjs(TTObjs), TTOpts(TTOpts),
+        ReqdAnalyses(AC, DT, LI, ORE, SE, TLI, TTI, TI) {}
 
   ~LoopSpawningImpl() {
     for (TapirLoopInfo *TL : TapirLoops)
@@ -676,10 +682,12 @@ private:
   TaskInfo &TI;
   ScalarEvolution &SE;
   AssumptionCache &AC;
+  TargetLibraryInfo &TLI;
   TargetTransformInfo &TTI;
   OptimizationRemarkEmitter &ORE;
   const TTObjects &TTObjs;
   const TTOptions &TTOpts;
+  FunctionAnalyses ReqdAnalyses;
 
   std::vector<TapirLoopInfo *> TapirLoops;
   DenseMap<Task *, TapirLoopInfo *> TaskToTapirLoop;
@@ -1083,16 +1091,17 @@ LoopOutlineProcessor *LoopSpawningImpl::getOutlineProcessor(TapirLoopInfo *TL) {
          "match the primary tapir target");
 
   // Allow the Tapir target to define a custom loop-outline processor.
-  if (LoopOutlineProcessor *LOP = TTObjs.getTT(TT)->getLoopOutlineProcessor(TL))
+  if (LoopOutlineProcessor *LOP =
+          TTObjs.getTT(TT)->getLoopOutlineProcessor(TL, ReqdAnalyses))
     return LOP;
 
   switch (*getSpawnStrategyAttr(*L)) {
   case TapirSpawnStrategy::DivideAndConquer:
-    return new DACSpawning(M, TTOpts);
+    return new DACSpawning(M, ReqdAnalyses, TTOpts);
   case TapirSpawnStrategy::Sequential:
   case TapirSpawnStrategy::GPU:
   case TapirSpawnStrategy::Basic:
-    return new DefaultLoopOutlineProcessor(M, TTOpts);
+    return new DefaultLoopOutlineProcessor(M, ReqdAnalyses, TTOpts);
   }
   llvm_unreachable("getOutlineProcessor: TapirSpawnStrategy not handled");
 }
@@ -1847,6 +1856,9 @@ PreservedAnalyses LoopSpawningPass::run(Module &M, ModuleAnalysisManager &AM) {
   auto GetAC = [&FAM](Function &F) -> AssumptionCache & {
     return FAM.getResult<AssumptionAnalysis>(F);
   };
+  auto GetTLI = [&FAM](Function &F) -> TargetLibraryInfo & {
+    return FAM.getResult<TargetLibraryAnalysis>(F);
+  };
   auto GetTTI = [&FAM](Function &F) -> TargetTransformInfo & {
     return FAM.getResult<TargetIRAnalysis>(F);
   };
@@ -1882,10 +1894,10 @@ PreservedAnalyses LoopSpawningPass::run(Module &M, ModuleAnalysisManager &AM) {
 
   // Now process each loop.
   for (Function *F : WorkList) {
-    Changed |=
-        LoopSpawningImpl(*F, GetDT(*F), GetLI(*F), GetTI(*F), GetSE(*F),
-                         GetAC(*F), GetTTI(*F), GetORE(*F), TTObjs, TTOpts)
-            .run();
+    Changed |= LoopSpawningImpl(*F, GetDT(*F), GetLI(*F), GetTI(*F), GetSE(*F),
+                                GetAC(*F), GetTLI(*F), GetTTI(*F), GetORE(*F),
+                                TTObjs, TTOpts)
+                   .run();
   }
 
   // FIXME: This code is a remnant from an initial attempt at multi-target

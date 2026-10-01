@@ -29,6 +29,7 @@ class AssumptionCache;
 class BasicBlock;
 class DominatorTree;
 class Function;
+class FunctionAnalyses;
 class Loop;
 class LoopOutlineProcessor;
 class Spindle;
@@ -374,7 +375,8 @@ public:
 
   /// Get the LoopOutlineProcessor associated with this Tapir target.
   virtual LoopOutlineProcessor *
-  getLoopOutlineProcessor(const TapirLoopInfo *TL) {
+  getLoopOutlineProcessor(const TapirLoopInfo *TL,
+                          const FunctionAnalyses &Analyses) {
     return nullptr;
   }
 };
@@ -429,6 +431,9 @@ protected:
   /// The Module into which the outlined Helper functions will be placed.
   Module &DestM;
 
+  /// The analysis objects for the function containing the loop.
+  const FunctionAnalyses &Analyses;
+
   /// The tapir target options.
   const TTOptions &TTOpts;
 
@@ -443,15 +448,17 @@ protected:
   SmallVector<Argument*, 8> LoopCtlArgs;
 
   LoopOutlineProcessor(Module &M, Module &DestM,
-                       const TTOptions &TTOpts,
-                       CloneFunctionChangeType Changes)
-      : M(M), DestM(DestM), TTOpts(TTOpts), Changes(Changes) {}
+                       const FunctionAnalyses &Analyses,
+                       const TTOptions &TTOpts, CloneFunctionChangeType Changes)
+      : M(M), DestM(DestM), Analyses(Analyses), TTOpts(TTOpts),
+        Changes(Changes) {}
 
 public:
   using ArgStructMode = TapirTarget::ArgStructMode;
 
-  LoopOutlineProcessor(Module &M, const TTOptions &TTOpts)
-      : M(M), DestM(M), TTOpts(TTOpts),
+  LoopOutlineProcessor(Module &M, const FunctionAnalyses &Analyses,
+                       const TTOptions &TTOpts)
+      : M(M), DestM(M), Analyses(Analyses), TTOpts(TTOpts),
         Changes(CloneFunctionChangeType::LocalChangesOnly) {}
 
   virtual ~LoopOutlineProcessor() {

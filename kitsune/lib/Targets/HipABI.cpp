@@ -121,8 +121,8 @@ protected:
   virtual void setKernelFuncVisibility(Function &f) override;
 
 public:
-  HipLoop(Module &hostM, Module &devM, const TTOptions &tto,
-          const TapirLoopInfo &tl, StringRef kernelName);
+  HipLoop(Module &hostM, Module &devM, const FunctionAnalyses &analyses,
+          const TTOptions &tto, const TapirLoopInfo &tl, StringRef kernelName);
   virtual ~HipLoop() = default;
 
   /// Process the tapir loop \p tl jut before it is outlined. The \p vmap can
@@ -130,9 +130,10 @@ public:
   void preProcessTapirLoop(TapirLoopInfo &tl, ValueToValueMapTy &vmap) override;
 };
 
-HipLoop::HipLoop(Module &hostM, Module &devM, const TTOptions &tto,
-                 const TapirLoopInfo &tl, StringRef kernelName)
-    : GPUTTLoopBase(hostM, devM, tto, tl, TTID::Hip, kernelName) {
+HipLoop::HipLoop(Module &hostM, Module &devM, const FunctionAnalyses &analyses,
+                 const TTOptions &tto, const TapirLoopInfo &tl,
+                 StringRef kernelName)
+    : GPUTTLoopBase(hostM, devM, analyses, tto, tl, TTID::Hip, kernelName) {
   LLVM_DEBUG(
       dbgs() << "hipabi: hip loop outliner creation:\n"
              << "\ttransforming loop to kernel: " << kernelName << "(...)\n"
@@ -290,9 +291,9 @@ protected:
   }
 
 public:
-  HipLoop1Y(Module &hostM, Module &devM, const TTOptions &tto,
-            const TapirLoopInfo &tl, StringRef kernelName)
-      : HipLoop(hostM, devM, tto, tl, kernelName) {}
+  HipLoop1Y(Module &hostM, Module &devM, const FunctionAnalyses &analyses,
+            const TTOptions &tto, const TapirLoopInfo &tl, StringRef kernelName)
+      : HipLoop(hostM, devM, analyses, tto, tl, kernelName) {}
 
   virtual ~HipLoop1Y() = default;
 };
@@ -306,7 +307,9 @@ HipABI::HipABI(Module &hostM, const TTOptions &tto)
   LLVM_DEBUG(dbgs() << "hipabi: HipABI::HipABI()\n");
 }
 
-LoopOutlineProcessor *HipABI::getLoopOutlineProcessor(const TapirLoopInfo *tl) {
+LoopOutlineProcessor *
+HipABI::getLoopOutlineProcessor(const TapirLoopInfo *tl,
+                                const FunctionAnalyses &analyses) {
   LLVM_DEBUG(dbgs() << "hipabi: create loop outline processor.\n");
   LLVM_DEBUG(saveModuleToFile(&hostM, hostM.getName().str() + ".input"));
 
@@ -319,6 +322,6 @@ LoopOutlineProcessor *HipABI::getLoopOutlineProcessor(const TapirLoopInfo *tl) {
         "Y-axis launches are only allowed with loop nests of depth 1");
 
   if (clUseYLaunch)
-    return new HipLoop1Y(hostM, devM, tto, *tl, kernelName);
-  return new HipLoop(hostM, devM, tto, *tl, kernelName);
+    return new HipLoop1Y(hostM, devM, analyses, tto, *tl, kernelName);
+  return new HipLoop(hostM, devM, analyses, tto, *tl, kernelName);
 }
