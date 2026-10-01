@@ -40,5 +40,6 @@
 #include "kitsune/Transforms/RecomputeKernelProperties.h"
 #include "kitsune/Transforms/SecondaryIVElimination.h"
 #include "kitsune/Transforms/Serialize.h"
+#include "kitsune/Transforms/TapirLoopNormalize.h"
 
 #endif // KITSUNE_PASSES_PASSES_H

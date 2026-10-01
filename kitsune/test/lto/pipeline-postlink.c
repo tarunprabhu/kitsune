@@ -43,6 +43,7 @@
 // O23S:      Running pass:     PreLowerVerificationPass
 // O23S:      Running pass:     PreLowerAnnotatePass
 // O23S:      Running pass:     SerializePass
+// O23S:      Running pass:     TapirLoopNormalizePass
 // O23S:      Running pass:     LoopSpawningPass
 // O23S:      Running pass:     HoistAllocasPass
 // O23S:      Running pass:     EmbHoistAllocasPass
