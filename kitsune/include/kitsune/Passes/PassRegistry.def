@@ -76,6 +76,7 @@ FUNCTION_PASS("kit-lower-intrinsics", LowerIntrinsicsPass())
 FUNCTION_PASS("kit-lower-intrinsics-early", LowerIntrinsicsEarlyPass())
 FUNCTION_PASS("kit-prepare", PrepareTapirLoopsPass())
 FUNCTION_PASS("kit-serialize", SerializePass())
+FUNCTION_PASS("kit-loop-normalize", TapirLoopNormalizePass())
 #endif // FUNCTION_PASS
 
 #ifdef FUNCTION_PASS_WITH_PARAMS

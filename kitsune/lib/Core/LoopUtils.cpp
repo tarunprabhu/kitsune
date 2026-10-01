@@ -438,3 +438,30 @@ BasicBlock *llvm::getTapirLoopDetachedBlock(Loop &loop) {
     return detach->getDetached();
   llvm_unreachable("Cannot get tapir loop detached block");
 }
+
+bool llvm::isTapirLoopNormalized(const Loop &loop, DominatorTree &dt) {
+  if (!isTapirLoop(loop))
+    return false;
+
+  if (!loop.isLoopSimplifyForm())
+    return false;
+
+  if (!loop.isLCSSAForm(dt))
+    return false;
+
+  PHINode *iv = loop.getCanonicalInductionVariable();
+  if (!iv)
+    return false;
+
+  // The loop is in simplify form, so a canonical induction variable and a
+  // unique latch are both guaranteed. One of the arguments to the compare
+  // instruction in the latch terminator must be the next value of the canonical
+  // induction variable.
+  ICmpInst *cmp = loop.getLatchCmpInst();
+  Value *lhs = cmp->getOperand(0);
+  Value *rhs = cmp->getOperand(1);
+  if (!isCanonicalIVIncr(*lhs, *iv) && !isCanonicalIVIncr(*rhs, *iv))
+    return false;
+
+  return true;
+}

@@ -61,6 +61,7 @@
 ; O123S:      Running pass:     PreLowerVerificationPass
 ; O123S:      Running pass:     PreLowerAnnotatePass
 ; O123S:      Running pass:     SerializePass
+; O123S:      Running pass:     TapirLoopNormalizePass
 ; </KIT-PRE-LOOP-SPAWNING>
 ;
 ; O123S:      Running pass:     LoopSpawningPass

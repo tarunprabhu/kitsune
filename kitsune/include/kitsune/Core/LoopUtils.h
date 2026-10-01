@@ -245,6 +245,23 @@ BasicBlock *getUniqueNonDeadEndExitBlock(const Loop &loop);
 /// return nullptr.
 BasicBlock *getExitBlockFromLatch(const Loop &loop);
 
+/// Check if the tapir loop is normalized. A tapir loop is said to be normalized
+/// if all of the following hold:
+///
+///   - The loop is in simplify form
+///   - The loop is in LCSSA form
+///   - The loop has a canonical induction variable
+///   - The termination condition occurs in the loop latch and is of the form:
+///
+///         %cmp = icmp eq %inc, %tc
+///         br i1 %cmp, label %exit, label %header
+///
+///     Here, %inc is the incremented value of the canonical induction variable,
+///     %tc is the loop trip count, %exit is the unique loop exit block, and
+///     %header is the loop header.
+///
+  bool isTapirLoopNormalized(const Loop &loop, DominatorTree &dt);
+
 /// Get a unique instruction of type \tparam InstType in a loop, or nullptr if
 /// one does not exist. This will *not* look for such an instruction in any
 /// subloops.

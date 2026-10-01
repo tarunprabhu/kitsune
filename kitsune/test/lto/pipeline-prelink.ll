@@ -40,6 +40,7 @@
 ; CHECK-NOT:  Running pass:      PreLowerVerificationPass
 ; CHECK-NOT:  Running pass:      PreLowerAnnotatePass
 ; CHECK-NOT:  Running pass:      SerializePass
+; CHECK-NOT:  Running pass:      TapirLoopNormalizePass
 ; CHECK-NOT:  Running pass:      LoopSpawningPass
 ; CHECK-NOT:  Running pass:      HoistAllocasPass
 ; CHECK-NOT:  Running pass:      EmbHoistAllocasPass

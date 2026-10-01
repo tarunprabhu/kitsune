@@ -238,9 +238,9 @@ ModulePassManager llvm::populateKitPreLoopSpawningPasses(
     addModulePass<PreLowerVerificationPass>(mpm);
     addFunctionPass<PreLowerAnnotatePass>(mpm);
     addFunctionPass<SerializePass>(mpm);
+    addFunctionPass<TapirLoopNormalizePass>(mpm);
 
-    // TODO:? Do we need to run the pre-lower verification pass after the
-    // serialize pass?
+    // TODO: Do we need to run the pre-lower verification pass here?
   }
 
   return mpm;

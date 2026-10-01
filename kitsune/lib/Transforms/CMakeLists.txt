@@ -30,6 +30,7 @@ add_llvm_component_library(LLVMKitTransforms
   RecomputeKernelProperties.cpp
   SecondaryIVElimination.cpp
   Serialize.cpp
+  TapirLoopNormalize.cpp
 
   DEPENDS
   intrinsics_gen
