@@ -68,10 +68,10 @@ static cl::opt<ReductionStrategy> clStrategy(
     cl::values(clEnumValN(ReductionStrategy::Direct, "direct", ""),
                clEnumValN(ReductionStrategy::Naive, "naive", ""),
                clEnumValN(ReductionStrategy::ThreadLocal, "local", ""),
-               clEnumValN(ReductionStrategy::GPUSharedMemory, "mem", ""),
-               clEnumValN(ReductionStrategy::GPUWarpShuffle, "wshf", ""),
+               clEnumValN(ReductionStrategy::GPUSharedMemory, "shmem", ""),
+               clEnumValN(ReductionStrategy::GPUWarpShuffle, "wshfl", ""),
                clEnumValN(ReductionStrategy::GPUWarpShuffleWithSharedMemory,
-                          "wshfmem", "")));
+                          "wshflshmem", "")));
 
 // Perform some analysis on the loop given the reductions that are performed in
 // it and determine which reduction strategy to use.

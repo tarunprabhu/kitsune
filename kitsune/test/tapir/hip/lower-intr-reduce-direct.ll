@@ -1,4 +1,5 @@
-; Check that the gpu.reduce.direct intrinsic is lowered correctly.
+; Check that the kit.gpu.reduce intrinsic with the `Direct` stategy is lowered
+; correctly.
 ;
 ; RUN: %kit-enc --tapir=hip %s \
 ; RUN:     | opt -passes=emb-lower-intrinsics \
@@ -12,6 +13,6 @@
 declare void @min(ptr, i32)
 
 define void @f(ptr %result, i64 %v) {
-  call void(i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.gpu.reduce.direct(i32 4, i32 26, ptr %result, i64 %v, i32 2, i32 8, i64 0, ptr @min)
+  call void(i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.gpu.reduce(i32 4, i32 26, ptr %result, i64 %v, i32 2, i32 8, i64 0, ptr @min)
   ret void
 }
