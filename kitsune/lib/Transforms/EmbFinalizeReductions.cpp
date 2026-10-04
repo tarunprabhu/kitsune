@@ -191,7 +191,7 @@ static void reduceIntoFinal(Loop &loop, ReductionStrategy strategy,
                                   cStrategy, size, unit, reducer};
   args.append(redxn.getExtraArgs());
 
-  builder.CreateIntrinsic(Intrinsic::kit_gpu_reduce, overloadTys, args);
+  builder.CreateIntrinsic(Intrinsic::kit_reduce, overloadTys, args);
 }
 
 static bool check(Function &f, LoopInfo &li) {

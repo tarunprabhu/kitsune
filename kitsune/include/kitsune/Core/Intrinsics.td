@@ -679,24 +679,3 @@ def int_kit_reduce
   let Doc = KitReduceDoc;
   let LowerMode = LowerCustom;
 }
-
-// Reduce a single value on the GPU. This should only be used once the tapir
-// loop has been outlined into a kernel.
-def int_kit_gpu_reduce
-    : KitIntrinsic<[],
-                   [llvm_i32_ty,     // TTID
-                    llvm_i32_ty,     // The reduction operator kind
-                    llvm_ptr_ty,     // Pointer to result
-                    llvm_any_ty,     // The value to pass to the reducer
-                    llvm_i32_ty,     // The reduction algorithm to use
-                    llvm_i32_ty,     // Size, in bytes, of the reduced result
-                    llvm_any_ty,     // The unit value for the reducer
-                    llvm_ptr_ty,     // The reducer function
-                    llvm_vararg_ty], // Additional reducer arguments
-                   [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>,
-                    NonNull<ArgIndex<2>>, ImmArg<ArgIndex<4>>,
-                    ImmArg<ArgIndex<5>>, NonNull<ArgIndex<7>>,
-                    ReadOnly<ArgIndex<7>>, IntrConvergent]> {
-  let Doc = KitGPUReduceDoc;
-  let LowerMode = LowerCustom;
-}

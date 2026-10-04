@@ -1,5 +1,5 @@
-; Check that the kit.gpu.reduce intrinsic with the
-; `GPUWarpShuffleWithSharedMemory` strategy is lowered correctly.
+; Check that the kit.reduce intrinsic with the `GPUWarpShuffleWithSharedMemory`
+; strategy is lowered correctly.
 ;
 ; RUN: %kit-enc --tapir=cuda %s \
 ; RUN:     | not --crash opt -passes=emb-lower-intrinsics 2>&1 \
@@ -7,9 +7,9 @@
 ;
 ; CHECK: NOT YET IMPLEMENTED: ReduceWarpShuffleWithSharedMemory
 
-declare void @sum(ptr, i32)
+declare void @sum(ptr, i64)
 
 define void @f(ptr %result, i64 %v) {
-  call void(i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.gpu.reduce(i32 2, i32 1, ptr %result, i64 %v, i32 6, i32 8, i64 0, ptr @sum)
+  call void(i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.reduce(i32 2, i32 1, ptr %result, i64 %v, i32 6, i32 8, i64 0, ptr @sum)
   ret void
 }

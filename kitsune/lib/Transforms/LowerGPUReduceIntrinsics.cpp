@@ -126,7 +126,7 @@ protected:
 //     void __kit.reduce.warp.shuffle.final.TT.OP.V(V *dest, V v) {
 //       unsigned lane = __kit_gpu_warp_lane();
 //       if (lane == 0)
-//         __kit_gpu_reduce_direct(dest, OP, v);
+//         __kit_reduce(dest, OP, v);
 //     }
 //
 // Note that only the first lane in each warp writes the final result. The

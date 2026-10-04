@@ -1,4 +1,4 @@
-; Check that the kit.gpu.reduce intrinsic with the `Direct` stategy is lowered
+; Check that the kit.reduce intrinsic with the `Direct` stategy is lowered
 ; correctly.
 ;
 ; RUN: %kit-enc --tapir=hip %s \
@@ -10,9 +10,9 @@
 ; CHECK-NEXT: atomicrmw umax ptr %result, i64 %v monotonic
 ; CHECK-NEXT: ret void
 
-declare void @min(ptr, i32)
+declare void @min(ptr, i64)
 
 define void @f(ptr %result, i64 %v) {
-  call void(i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.gpu.reduce(i32 4, i32 26, ptr %result, i64 %v, i32 2, i32 8, i64 0, ptr @min)
+  call void(i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.reduce(i32 4, i32 26, ptr %result, i64 %v, i32 2, i32 8, i64 0, ptr @min)
   ret void
 }

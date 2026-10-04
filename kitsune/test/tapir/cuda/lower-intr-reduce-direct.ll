@@ -13,6 +13,6 @@
 declare void @sum(ptr, i32)
 
 define void @f(ptr %result, i32 %v) {
-  call void(i32, i32, ptr, i32, i32, i32, i32, ptr, ...) @llvm.kit.gpu.reduce(i32 2, i32 5, ptr %result, i32 %v, i32 2, i32 4, i32 0, ptr @sum)
+  call void(i32, i32, ptr, i32, i32, i32, i32, ptr, ...) @llvm.kit.reduce(i32 2, i32 5, ptr %result, i32 %v, i32 2, i32 4, i32 0, ptr @sum)
   ret void
 }

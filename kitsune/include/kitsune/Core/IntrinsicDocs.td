@@ -1115,29 +1115,6 @@ intrinsic call are used to transform the loop for parallel execution. See the
 documentation for the `kit-prepare` pass for details.
 
 This intrinsic may be used in tapir loops with both CPU and GPU-centric tapir
-targets. However, once the tapir loop is outlined into an embedded bitcode
-module, calls to this intrinsic in the embedded module must be replaced with
-calls to :ref:`llvm.kit.gpu.reduce` intrinsic.
-}];
-}
-
-def KitGPUReduceDoc : KitDocIntrinsic {
-  let Category = KitDocCatGPU;
-  let ParamDocs = [
-      KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
-      KitDocParam<"op", "The reduction operator enum value">,
-      KitDocParam<"result", "Pointer to the result of the reduction">,
-      KitDocParam<"value", "The value to reduce into `result`">,
-      KitDocParam<"strategy", "The reduction strategy to use">,
-      KitDocParam<"size", "The size (in bytes) of the reduced result">,
-      KitDocParam<"unit", "The unit value for the reducer">,
-      KitDocParam<"reducer", "The reducer function">,
-      KitDocParam<"extra...", "Additional parameters to pass to `reducer`">
-  ];
-  let Descr = [{
-This intrinsic is identical to :ref:`llvm.kit.reduce` except that must only be
-used in embedded bitcode modules obtained by outlining a tapir loop. See the
-documentation for :ref:`llvm.kit.reduce` for details about this intrinsic's
-arguments.
+targets.
 }];
 }
