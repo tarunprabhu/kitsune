@@ -82,7 +82,7 @@ TEST(KitIntrinsicUtils, isKitIntrinsicCPU) {
   EXPECT_FALSE(isKitIntrinsicCPU(Intrinsic::kit_async_gpu_kernel_launch));
   EXPECT_FALSE(isKitIntrinsicCPU(Intrinsic::kit_gpu_thread_id_x));
   EXPECT_FALSE(isKitIntrinsicCPU(Intrinsic::kit_mobile_alloc));
-  EXPECT_FALSE(isKitIntrinsicCPU(Intrinsic::kit_reduce_0));
+  EXPECT_FALSE(isKitIntrinsicCPU(Intrinsic::kit_reduce));
   EXPECT_FALSE(isKitIntrinsicCPU(Intrinsic::kit_mobile_init));
 }
 
@@ -95,7 +95,7 @@ TEST(KitIntrinsicUtils, isKitIntrinsicGPU) {
   EXPECT_FALSE(isKitIntrinsicGPU(Intrinsic::kit_async_cpu_threads_launch));
   EXPECT_FALSE(isKitIntrinsicGPU(Intrinsic::kit_cpu_threads_launch));
   EXPECT_FALSE(isKitIntrinsicGPU(Intrinsic::kit_mobile_alloc));
-  EXPECT_FALSE(isKitIntrinsicGPU(Intrinsic::kit_reduce_0));
+  EXPECT_FALSE(isKitIntrinsicGPU(Intrinsic::kit_reduce));
   EXPECT_FALSE(isKitIntrinsicGPU(Intrinsic::kit_mobile_init));
 }
 

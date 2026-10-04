@@ -16,8 +16,8 @@
 //     int64_t r_sum = 0;
 //     int32_t r_and = 0;
 //     parallel_for (int i = 0; i < n; ++i) {
-//         kit.reduce.0(&r_sum, sizeof(r_sum), i, 0, &f_sum);
-//         kit.reduce.0(&r_and, sizeof(r_and), i, 1, &f_and);
+//         kit.reduce(&r_sum, sizeof(r_sum), i, 0, &f_sum);
+//         kit.reduce(&r_and, sizeof(r_and), i, 1, &f_and);
 //     }
 //
 // This pass will transform this into the following for parallel execution on a
@@ -26,8 +26,8 @@
 //     int32_t *g_sum = allocateShadowMemory<int32_t>(0);
 //     int64_t *g_and = allocateShadowMemory<int64_t>(0);
 //     parallel_for (int i = 0; j < n; ++i) {
-//         kit.reduce.0(&g_sum, sizeof(int32_t), i, 0, &f_sum);
-//         kit.reduce.0(&g_and, sizeof(int64_t), i, 1, &f_and);
+//         kit.reduce(&g_sum, sizeof(int32_t), i, 0, &f_sum);
+//         kit.reduce(&g_and, sizeof(int64_t), i, 1, &f_and);
 //     }
 //     copyToFinalResult(&r_sum, g_sum, sizeof(int32_t));
 //     copyToFinalResult(&r_and, g_and, sizeof(int64_t));

@@ -43,7 +43,7 @@ using namespace llvm;
 // otherwise.
 static bool lowerIntr(CallInst *call, detail::LowerGPUIntrImpl &lowerGPU) {
   switch (call->getIntrinsicID()) {
-  case Intrinsic::kit_reduce_0:
+  case Intrinsic::kit_reduce:
   case Intrinsic::kit_gpu_reduce: //
     return detail::lowerReduceIntr(call, lowerGPU);
   case Intrinsic::kit_gpu_warp_shfl_down_sync:
