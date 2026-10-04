@@ -174,7 +174,7 @@ LowerWarpShuffle::getOrInsertFinalReduceImpl(Module &m, unsigned dims,
   builder.CreateCondBr(is0, bbReduce, bbExit);
 
   builder.SetInsertPoint(bbReduce);
-  Constant *strategy = toConstant(uint32_t(ReductionStrategy::Direct), ctx);
+  Constant *strategy = toConstant(ReductionStrategy::Direct, ctx);
   SmallVector<Type *, 2> overloadTys = redxn.getOverloadTypes();
   SmallVector<Value *, 8> args = {tt,       op,       dest, val,
                                   strategy, elemSize, unit, reducer};
@@ -260,7 +260,7 @@ Function *LowerWarpShuffle::getOrInsertShuffleImpl(Module &m, unsigned dims,
       builder.CreateIntrinsic(Intrinsic::kit_gpu_warp_shfl_down_sync, {ty, ty},
                               {tt, val, off}, /*FMFSource=*/{}, "v");
 
-  Value *naive = toConstant(uint32_t(ReductionStrategy::Naive), ctx);
+  Value *naive = toConstant(ReductionStrategy::Naive, ctx);
   Value *res0 = builder.CreateAddrSpaceCast(res, ptr);
   SmallVector<Type *, 2> overloadTys = redxn.getOverloadTypes();
   SmallVector<Value *, 8> args = {tt,    op,   res0, newVal,
