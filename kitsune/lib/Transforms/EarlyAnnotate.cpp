@@ -35,7 +35,7 @@ static void annotateReductionLoops(LoopInfo &li) {
     for (const BasicBlock *bb : loop.getBlocks())
       for (const Instruction &inst : *bb)
         if (const auto *call = dyn_cast<CallBase>(&inst))
-          if (call->getIntrinsicID() == Intrinsic::kit_reduce_0)
+          if (call->getIntrinsicID() == Intrinsic::kit_reduce)
             return true;
     return false;
   };

@@ -35,7 +35,7 @@
 ; ALL-EMPTY:
 ; ALL-NEXT: [[BODY]]:
 ; ALL-NEXT: %[[TRUNC:.+]] = trunc i64 %[[IV]] to i32
-; ALL-NEXT: call {{.+}} @llvm.kit.reduce.0
+; ALL-NEXT: call {{.+}} @llvm.kit.reduce
 ; ALL-SAME: i32 4
 ; ALL-SAME: i32 5
 ; ALL-SAME: ptr %[[SHADOW]]
@@ -77,7 +77,7 @@ for.i.header:
 
 for.i.body:
   %trunc = trunc i64 %i to i32
-  call void(i32, i32, ptr, i32, i32, i32, i32, ptr, ...) @llvm.kit.reduce.0(i32 4, i32 5, ptr %result, i32 %trunc, i32 0, i32 4, i32 0, ptr @sum)
+  call void(i32, i32, ptr, i32, i32, i32, i32, ptr, ...) @llvm.kit.reduce(i32 4, i32 5, ptr %result, i32 %trunc, i32 0, i32 4, i32 0, ptr @sum)
   reattach within %syncreg, label %for.i.latch
 
 for.i.latch:

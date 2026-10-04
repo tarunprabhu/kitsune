@@ -30,7 +30,7 @@
 ; CHECK-NEXT: br i1 %[[ISODD]], label %[[REDUCE:.+]], label %[[REATTACH:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[REDUCE]]:
-; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0
+; CHECK-NEXT: call {{.+}} @llvm.kit.reduce
 ; CHECK-SAME: i32 2
 ; CHECK-SAME: i32 5
 ; CHECK-SAME: ptr %[[SHADOW1]]
@@ -42,7 +42,7 @@
 ; CHECK-NEXT: br label %[[REATTACH]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[REATTACH]]:
-; CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0
+; CHECK-NEXT: call {{.+}} @llvm.kit.reduce
 ; CHECK-SAME: i32 2
 ; CHECK-SAME: i32 26
 ; CHECK-SAME: ptr %[[SHADOW2]]
@@ -89,11 +89,11 @@ for.i.body:
   br i1 %cmp.odd, label %reduce, label %reattach
 
 reduce:
-  call void(i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.reduce.0(i32 2, i32 5, ptr %sum, i64 %i, i32 0, i32 8, i64 0, ptr @sum)
+  call void(i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.reduce(i32 2, i32 5, ptr %sum, i64 %i, i32 0, i32 8, i64 0, ptr @sum)
   br label %reattach
 
 reattach:
-  call void(i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.reduce.0(i32 2, i32 26, ptr %umax, i64 %i, i32 0, i32 8, i64 0, ptr @umax)
+  call void(i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.reduce(i32 2, i32 26, ptr %umax, i64 %i, i32 0, i32 8, i64 0, ptr @umax)
   reattach within %syncreg, label %for.i.latch
 
 for.i.latch:

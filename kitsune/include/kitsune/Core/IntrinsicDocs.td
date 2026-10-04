@@ -1030,7 +1030,7 @@ that constant will be used as the number of iterations per thread.
 }];
 }
 
-def KitReduce0Doc : KitDocIntrinsic {
+def KitReduceDoc : KitDocIntrinsic {
   let Category = KitDocCatCommon;
   let ParamDocs = [
       KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
@@ -1066,7 +1066,7 @@ The code below shows how this intrinsic might be declared in C++ (here, the
 .. code :: c++
 
   template <typename T, typename ExtraArgs...>
-  void kit_reduce_0(int32_t tt,
+  void kit_reduce(int32_t tt,
                     ReduceOp op,
                     RedxnStrategy strategy,
                     T *result,
@@ -1082,7 +1082,7 @@ this intrinsic may be used with a sum reduction.
 
 .. code :: kitll
 
-  call void (i32, i32, ptr, double, i32, i32, double, ptr, ...) @llvm.kit.reduce.0(i32 512, i32 11, ptr %res, double %v, i32 0, i32 8, double 0.0, ptr null)
+  call void (i32, i32, ptr, double, i32, i32, double, ptr, ...) @llvm.kit.reduce(i32 512, i32 11, ptr %res, double %v, i32 0, i32 8, double 0.0, ptr null)
 
 Here, the addition is being performed over doubles. The example below shows how
 the same can be done with a custom reducer.
@@ -1098,7 +1098,7 @@ the same can be done with a custom reducer.
 
   define void @f(double %v) {
     %res = alloca double
-    call void(i32, i32, ptr, double, i32, i32, double, ptr, ...) @llvm.kit.reduce.0(i32 2, i32 23, ptr %res, double %v, i32 0, i32 8, double 0.0, ptr @f)
+    call void(i32, i32, ptr, double, i32, i32, double, ptr, ...) @llvm.kit.reduce(i32 2, i32 23, ptr %res, double %v, i32 0, i32 8, double 0.0, ptr @f)
     ret void
   }
 
@@ -1122,7 +1122,7 @@ calls to :ref:`llvm.kit.gpu.reduce` intrinsic.
 }
 
 def KitGPUReduceDoc : KitDocIntrinsic {
-  let Category = KitDocCatCommon;
+  let Category = KitDocCatGPU;
   let ParamDocs = [
       KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
       KitDocParam<"op", "The reduction operator enum value">,
@@ -1135,7 +1135,7 @@ def KitGPUReduceDoc : KitDocIntrinsic {
       KitDocParam<"extra...", "Additional parameters to pass to `reducer`">
   ];
   let Descr = [{
-This intrinsic is identical to :ref:`llvm.kit.reduce.0` except that must only be
+This intrinsic is identical to :ref:`llvm.kit.reduce` except that must only be
 used in embedded bitcode modules obtained by outlining a tapir loop. See the
 documentation for :ref:`llvm.kit.reduce` for details about this intrinsic's
 arguments.

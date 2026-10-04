@@ -159,7 +159,7 @@ static RValue emitKitReduceCall(const CallExpr &theCall, CodeGenFunction &cgf,
 
   CGBuilderTy &builder = cgf.Builder;
   Value *call = builder.CreateIntrinsic(
-      Intrinsic::kit_reduce_0, {valueTy, valueTy},
+      Intrinsic::kit_reduce, {valueTy, valueTy},
       {tt, reduceOpV, dest, value, strategy, valueSz, unit, reducer});
 
   return RValue::get(call);

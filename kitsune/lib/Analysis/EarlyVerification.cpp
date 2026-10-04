@@ -73,7 +73,7 @@ bool VerifyFunction::verifyReductions(Function &f) {
       for (BasicBlock *bb : loop->getBlocks())
         for (Instruction &inst : *bb)
           if (auto *call = dyn_cast<CallBase>(&inst))
-            if (call->getIntrinsicID() == Intrinsic::kit_reduce_0)
+            if (call->getIntrinsicID() == Intrinsic::kit_reduce)
               if (isNestedTapirLoop(*li.getLoopFor(bb)))
                 return emitDiagnostic(*call, DiagID::ErrNYI,
                                       "nested parallel reductions");

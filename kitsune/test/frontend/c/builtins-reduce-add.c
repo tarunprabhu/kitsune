@@ -7,7 +7,7 @@
 // CHECK-LABEL: @reduce_i8
 // CHECK: %[[R:.+]] = alloca i8
 // CHECK-NEXT: %[[V:.+]] = load i8, ptr %[[R]]
-// CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
+// CHECK-NEXT: call {{.+}} @llvm.kit.reduce{{[^(]+}}
 // CHECK-SAME: (i32 0, i32 5, ptr %[[R]], i8 %[[V]], i32 0, i32 1, i8 0,
 // CHECK-SAME: ptr @__kitsune_reduce.add.i8)
 //
@@ -26,7 +26,7 @@ void reduce_i8() {
 // CHECK-LABEL: @reduce_u8
 // CHECK: %[[R:.+]] = alloca i8
 // CHECK-NEXT: %[[V:.+]] = load i8, ptr %[[R]]
-// CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
+// CHECK-NEXT: call {{.+}} @llvm.kit.reduce{{[^(]+}}
 // CHECK-SAME: (i32 0, i32 5, ptr %[[R]], i8 %[[V]], i32 0, i32 1, i8 0,
 // CHECK-SAME: ptr @__kitsune_reduce.add.i8)
 //
@@ -39,7 +39,7 @@ void reduce_u8() {
 // CHECK-LABEL: @reduce_i16
 // CHECK: %[[R:.+]] = alloca i16
 // CHECK-NEXT: %[[V:.+]] = load i16, ptr %[[R]]
-// CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
+// CHECK-NEXT: call {{.+}} @llvm.kit.reduce{{[^(]+}}
 // CHECK-SAME: (i32 0, i32 5, ptr %[[R]], i16 %[[V]], i32 0, i32 2, i16 0,
 // CHECK-SAME: ptr @__kitsune_reduce.add.i16)
 //
@@ -58,7 +58,7 @@ void reduce_i16() {
 // CHECK-LABEL: @reduce_u16
 // CHECK: %[[R:.+]] = alloca i16
 // CHECK-NEXT: %[[V:.+]] = load i16, ptr %[[R]]
-// CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
+// CHECK-NEXT: call {{.+}} @llvm.kit.reduce{{[^(]+}}
 // CHECK-SAME: (i32 0, i32 5, ptr %[[R]], i16 %[[V]], i32 0, i32 2, i16 0,
 // CHECK-SAME: ptr @__kitsune_reduce.add.i16)
 //
@@ -71,7 +71,7 @@ void reduce_u16() {
 // CHECK-LABEL: @reduce_i32
 // CHECK: %[[R:.+]] = alloca i32
 // CHECK-NEXT: %[[V:.+]] = load i32, ptr %[[R]]
-// CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
+// CHECK-NEXT: call {{.+}} @llvm.kit.reduce{{[^(]+}}
 // CHECK-SAME: (i32 0, i32 5, ptr %[[R]], i32 %[[V]], i32 0, i32 4, i32 0,
 // CHECK-SAME: ptr @__kitsune_reduce.add.i32)
 //
@@ -90,7 +90,7 @@ void reduce_i32() {
 // CHECK-LABEL: @reduce_u32
 // CHECK: %[[R:.+]] = alloca i32
 // CHECK-NEXT: %[[V:.+]] = load i32, ptr %[[R]]
-// CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
+// CHECK-NEXT: call {{.+}} @llvm.kit.reduce{{[^(]+}}
 // CHECK-SAME: (i32 0, i32 5, ptr %[[R]], i32 %[[V]], i32 0, i32 4, i32 0,
 // CHECK-SAME: ptr @__kitsune_reduce.add.i32)
 //
@@ -103,7 +103,7 @@ void reduce_u32() {
 // CHECK-LABEL: @reduce_i64
 // CHECK: %[[R:.+]] = alloca i64
 // CHECK-NEXT: %[[V:.+]] = load i64, ptr %[[R]]
-// CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
+// CHECK-NEXT: call {{.+}} @llvm.kit.reduce{{[^(]+}}
 // CHECK-SAME: (i32 0, i32 5, ptr %[[R]], i64 %[[V]], i32 0, i32 8, i64 0,
 // CHECK-SAME: ptr @__kitsune_reduce.add.i64)
 //
@@ -124,7 +124,7 @@ void reduce_i64() {
 // CHECK-LABEL: @reduce_u64
 // CHECK: %[[R:.+]] = alloca i64
 // CHECK-NEXT: %[[V:.+]] = load i64, ptr %[[R]]
-// CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
+// CHECK-NEXT: call {{.+}} @llvm.kit.reduce{{[^(]+}}
 // CHECK-SAME: (i32 0, i32 5, ptr %[[R]], i64 %[[V]], i32 0, i32 8, i64 0,
 // CHECK-SAME: ptr @__kitsune_reduce.add.i64)
 void reduce_u64() {
@@ -135,7 +135,7 @@ void reduce_u64() {
 // CHECK-LABEL: @reduce_f32
 // CHECK: %[[R:.+]] = alloca float
 // CHECK-NEXT: %[[V:.+]] = load float, ptr %[[R]]
-// CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
+// CHECK-NEXT: call {{.+}} @llvm.kit.reduce{{[^(]+}}
 // CHECK-SAME: (i32 0, i32 6, ptr %[[R]], float %[[V]], i32 0, i32 4,
 // CHECK-SAME: float 0.000000e+00,
 // CHECK-SAME: ptr @__kitsune_reduce.add.f32)
@@ -155,7 +155,7 @@ void reduce_f32() {
 // CHECK-LABEL: @reduce_f64
 // CHECK: %[[R:.+]] = alloca double
 // CHECK-NEXT: %[[V:.+]] = load double, ptr %[[R]]
-// CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
+// CHECK-NEXT: call {{.+}} @llvm.kit.reduce{{[^(]+}}
 // CHECK-SAME: (i32 0, i32 6, ptr %[[R]], double %[[V]], i32 0, i32 8,
 // CHECK-SAME: double 0.000000e+00,
 // CHECK-SAME: ptr @__kitsune_reduce.add.f64)

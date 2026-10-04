@@ -661,7 +661,7 @@ def int_kit_mobile_init
 
 // Reduce a single value. This is a "generic" intrinsic that may be used in
 // tapir loops with both a CPU, and GPU, tapir target.
-def int_kit_reduce_0
+def int_kit_reduce
     : KitIntrinsic<[],
                    [llvm_i32_ty,     // TTID
                     llvm_i32_ty,     // The reduction operator kind
@@ -676,7 +676,7 @@ def int_kit_reduce_0
                     NonNull<ArgIndex<2>>, ImmArg<ArgIndex<4>>,
                     ImmArg<ArgIndex<5>>, NonNull<ArgIndex<7>>,
                     ReadOnly<ArgIndex<7>>]> {
-  let Doc = KitReduce0Doc;
+  let Doc = KitReduceDoc;
   let LowerMode = LowerCustom;
 }
 

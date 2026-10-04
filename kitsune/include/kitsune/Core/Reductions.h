@@ -92,7 +92,7 @@ enum ReductionStrategy {
   /// such as when the destination of a reduction in a loop is not loop
   /// invariant, this is the only strategy that will yield correct results. This
   /// is different from the \ref ThreadLocal strategy since it does not compute
-  /// a partial result within a thread - all calls to the kit.reduce.0 intrinsic
+  /// a partial result within a thread - all calls to the kit.reduce intrinsic
   /// are essentially replaced with an atomic operation. This matters in cases
   /// where, for instance, a call to a reduce intrinsic is in a serial loop
   /// that is a child of a tapir loop. In such cases, reducing into a

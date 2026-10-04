@@ -40,7 +40,7 @@ for.i.header:
 
 for.j:
   %j = phi i64 [ 0, %for.i.header ], [ %inc.j, %for.j ]
-  call void (i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.reduce.0(i32 1, i32 1, ptr %result, i64 %j, i32 0, i32 8, i64 0, ptr null)
+  call void (i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.reduce(i32 1, i32 1, ptr %result, i64 %j, i32 0, i32 8, i64 0, ptr null)
   %inc.j = add i64 %j, 1
   %cmp.j = icmp eq i64 %inc.j, %n
   br i1 %cmp.j, label %for.i.latch, label %for.j, !llvm.loop !4

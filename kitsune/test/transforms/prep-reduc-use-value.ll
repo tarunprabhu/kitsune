@@ -18,7 +18,7 @@ for.i.header:
   detach within %syncreg, label %for.i.body, label %for.i.latch
 
 for.i.body:
-  call void(i32, i32, ptr, ptr, i32, i32, ptr, ptr, ...) @llvm.kit.reduce.0(i32 1, i32 5, ptr %res, ptr %res, i32 0, i32 8, ptr null, ptr @custom)
+  call void(i32, i32, ptr, ptr, i32, i32, ptr, ptr, ...) @llvm.kit.reduce(i32 1, i32 5, ptr %res, ptr %res, i32 0, i32 8, ptr null, ptr @custom)
   reattach within %syncreg, label %for.i.latch
 
 for.i.latch:

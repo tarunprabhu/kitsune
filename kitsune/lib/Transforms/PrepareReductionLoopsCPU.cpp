@@ -12,8 +12,8 @@
 //     int32_t r_sum = 0;
 //     int64_t r_and = 0;
 //     parallel_for (int i = 0; i < n; ++i) {
-//         kit.reduce.0(&r_sum, sizeof(r_sum), i, 0, &sum);
-//         kit.reduce.0(&r_and, sizeof(r_and), i, 1, &and);
+//         kit.reduce(&r_sum, sizeof(r_sum), i, 0, &sum);
+//         kit.reduce(&r_and, sizeof(r_and), i, 1, &and);
 //     }
 //
 // This pass will transform this into the following for parallel execution on a
@@ -27,8 +27,8 @@
 //         int start = j * sizePartial;
 //         int end = (j + 1) * sizePartial;
 //         for (int i = start; i < end; ++i) {
-//             kit.reduce.0(KIT_ADD, &l_sum, sizeof(r_sum), i, 0, &sum);
-//             kit.reduce.0(KIT_AND, &l_and, sizeof(r_and), i, 1, &and);
+//             kit.reduce(KIT_ADD, &l_sum, sizeof(r_sum), i, 0, &sum);
+//             kit.reduce(KIT_AND, &l_and, sizeof(r_and), i, 1, &and);
 //         }
 //         atomicReduce(&r_sum, l_sum, KIT_ADD);
 //         atomicReduce(&r_and, l_and, KIT_AND);

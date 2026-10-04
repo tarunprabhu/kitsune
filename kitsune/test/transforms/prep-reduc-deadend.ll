@@ -104,7 +104,7 @@ for.i.header:
   detach within %syncreg, label %for.i.body, label %for.i.latch
 
 for.i.body:
-  call void(i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.reduce.0(i32 512, i32 26, ptr %result, i64 %i, i32 0, i32 8, i64 0, ptr @max)
+  call void(i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.reduce(i32 512, i32 26, ptr %result, i64 %i, i32 0, i32 8, i64 0, ptr @max)
   %chk = icmp eq i64 %i, %b
   br i1 %chk, label %deadend, label %for.i.reattach
 

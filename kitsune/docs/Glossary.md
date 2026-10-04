@@ -605,7 +605,7 @@ are also included.
 (glossary-tapir-reduction-loop)=
 **tapir reduction loop**
 : A [tapir loop](glossary-tapir-loop) that contains at least one call to
-  [llvm.kit.reduce.0](llvm.kit.reduce.0).
+  [llvm.kit.reduce](llvm.kit.reduce).
 
 (glossary-tapir-target)=
 **tapir target**

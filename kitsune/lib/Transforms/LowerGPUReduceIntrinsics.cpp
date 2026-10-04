@@ -179,7 +179,7 @@ LowerWarpShuffle::getOrInsertFinalReduceImpl(Module &m, unsigned dims,
   SmallVector<Value *, 8> args = {tt,       op,       dest, val,
                                   strategy, elemSize, unit, reducer};
   args.append(redxn.getExtraArgs());
-  builder.CreateIntrinsic(Intrinsic::kit_reduce_0, overloadTys, args);
+  builder.CreateIntrinsic(Intrinsic::kit_reduce, overloadTys, args);
   builder.CreateBr(bbExit);
 
   builder.SetInsertPoint(bbExit);
@@ -266,7 +266,7 @@ Function *LowerWarpShuffle::getOrInsertShuffleImpl(Module &m, unsigned dims,
   SmallVector<Value *, 8> args = {tt,    op,   res0, newVal,
                                   naive, size, unit, reducer};
   args.append(redxn.getExtraArgs());
-  builder.CreateIntrinsic(Intrinsic::kit_reduce_0, overloadTys, args);
+  builder.CreateIntrinsic(Intrinsic::kit_reduce, overloadTys, args);
 
   Value *newOff = builder.CreateUDiv(off, two, "offset.next");
   Value *is0 = builder.CreateICmpEQ(newOff, zero, "offset.cmp");

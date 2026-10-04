@@ -31,7 +31,7 @@
 
 using namespace llvm;
 
-static bool lowerReduce0Intrs(const SmallVectorImpl<ReductionInfo> &redxns) {
+static bool lowerReduceIntrs(const SmallVectorImpl<ReductionInfo> &redxns) {
   bool changed = false;
   for (const ReductionInfo &redxn : redxns)
     changed |= detail::lowerReduceIntrNaive(redxn.call);
@@ -45,7 +45,7 @@ prepareReductionLoopSerial(Loop &loop,
 
   for (const ReductionInfo &redxn : redxns)
     changed |= detail::setStrategy(redxn.call, ReductionStrategy::Naive);
-  changed |= lowerReduce0Intrs(redxns);
+  changed |= lowerReduceIntrs(redxns);
   addPreparedAttr(loop);
 
   return changed;
@@ -59,7 +59,7 @@ prepareReductionLoopCPU(TapirLoopInfo &tapirLoop,
   bool changed = false;
   changed |= detail::prepareReductionLoopForCPU(tapirLoop, redxns, dt, li, mssa,
                                                 se, ti);
-  changed |= lowerReduce0Intrs(redxns);
+  changed |= lowerReduceIntrs(redxns);
   return changed;
 }
 
@@ -71,7 +71,7 @@ prepareReductionLoopGPU(TapirLoopInfo &tapirLoop,
 }
 
 bool llvm::detail::setStrategy(CallInst *call, ReductionStrategy strategy) {
-  assert(call->getIntrinsicID() == Intrinsic::kit_reduce_0 &&
+  assert(call->getIntrinsicID() == Intrinsic::kit_reduce &&
          "Expected call to Kitsune's reduce intrinsic");
 
   LLVMContext &ctx = call->getContext();
@@ -161,7 +161,7 @@ bool llvm::detail::checkReductionLoop(TapirLoopInfo &tapirLoop,
     std::optional<ReduceOp> reduceOp;
     for (Instruction *inst : uses) {
       auto *call = dyn_cast<CallInst>(inst);
-      if (!call || call->getIntrinsicID() != Intrinsic::kit_reduce_0)
+      if (!call || call->getIntrinsicID() != Intrinsic::kit_reduce)
         return emitDiagnostic(loop, DiagID::ErrReduceDestUsedInLoop,
                               getName(*dest));
 
