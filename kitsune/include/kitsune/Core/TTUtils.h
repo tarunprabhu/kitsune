@@ -21,11 +21,11 @@
 
 namespace llvm {
 
-/// \addtogroup kitsune
-/// @{
-
 class LLVMContext;
 class TTOptions;
+
+/// \addtogroup kitsune
+/// @{
 
 using OwnedModule = std::unique_ptr<Module>;
 

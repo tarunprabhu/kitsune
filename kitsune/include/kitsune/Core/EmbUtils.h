@@ -25,10 +25,10 @@
 
 namespace llvm {
 
+class GlobalVariable;
+
 /// \addtogroup kitsune
 /// @{
-
-class GlobalVariable;
 
 using EmbModulesMapTy = std::map<TTID, std::unique_ptr<Module>>;
 

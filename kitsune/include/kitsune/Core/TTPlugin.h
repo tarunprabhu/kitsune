@@ -20,12 +20,12 @@
 
 namespace llvm {
 
-/// \addtogroup kitsune
-/// @{
-
 class Module;
 class TapirTarget;
 class TTOptions;
+
+/// \addtogroup kitsune
+/// @{
 
 /// Identifies the API version understood by a tapir target plugin.
 ///

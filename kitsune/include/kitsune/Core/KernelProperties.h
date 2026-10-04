@@ -20,15 +20,15 @@
 
 namespace llvm {
 
-/// \addtogroup kitsune
-/// @{
-
 class ConstantStruct;
 class Function;
 class GlobalVariable;
 class LLVMContext;
 class Module;
 class StructType;
+
+/// \addtogroup kitsune
+/// @{
 
 /// Get the LLVM type for the instruction mix data.
 StructType *getKernelPropertiesType(LLVMContext &ctx);

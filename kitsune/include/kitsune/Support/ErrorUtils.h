@@ -15,10 +15,10 @@
 
 namespace llvm {
 
+class Error;
+
 /// \addtogroup kitsune
 /// @{
-
-class Error;
 
 /// Ignore all the errors in the given error. This simply ensures that the
 /// errors are handled. This should only be used in cases where an error could

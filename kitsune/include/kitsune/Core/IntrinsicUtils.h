@@ -19,11 +19,11 @@
 
 namespace llvm {
 
-/// \addtogroup kitsune
-/// @{
-
 class CallBase;
 class Value;
+
+/// \addtogroup kitsune
+/// @{
 
 /// How a Kitsune-specific intrinsic is to be lowered. These are used by the
 /// intrinsic lowering passes.

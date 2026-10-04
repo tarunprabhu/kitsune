@@ -23,13 +23,13 @@
 
 namespace llvm {
 
-/// \addtogroup kitsune
-/// @{
-
 class ConstantInt;
 class GlobalVariable;
 class LLVMContext;
 class Module;
+
+/// \addtogroup kitsune
+/// @{
 
 /// Strip all casts from \p c and return the innermost constant. If there are no
 /// casts, return the \p c as is.
