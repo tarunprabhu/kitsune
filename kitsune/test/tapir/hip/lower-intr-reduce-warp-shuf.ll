@@ -56,7 +56,7 @@
 declare void @umax(ptr, i64)
 
 define void @f(ptr %result, i64 %v) !kit.func !0 {
-  call void(i32, i32, ptr, i32, i64, i64, ptr, ...) @llvm.kit.gpu.reduce.warp.shuffle(i32 4, i32 26, ptr %result, i32 8, i64 %v, i64 0, ptr @umax)
+  call void(i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.gpu.reduce.warp.shuffle(i32 4, i32 26, ptr %result, i64 %v, i32 5, i32 8, i64 0, ptr @umax)
   ret void
 }
 

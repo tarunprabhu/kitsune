@@ -151,15 +151,16 @@ static RValue emitKitReduceCall(const CallExpr &theCall, CodeGenFunction &cgf,
       getUnqualifiedDesugaredType(valueExpr)->isUnsignedIntegerType();
 
   ReduceOp reduceOp = getReduceOp(op, isFloat, isUnsigned);
+  Value *reduceOpV = toConstant((uint32_t)reduceOp, ctx);
+  Value *strategy = toConstant((uint32_t)ReductionStrategy::Auto, ctx);
   Value *valueSz = toConstant((uint32_t)layout.getTypeStoreSize(valueTy), ctx);
   Value *unit = getUnitValue(reduceOp, valueTy);
   Value *reducer = getReducer(reduceOp, valueTy, m);
-  Value *reduceOpV = toConstant((uint32_t)reduceOp, ctx);
 
   CGBuilderTy &builder = cgf.Builder;
   Value *call = builder.CreateIntrinsic(
       Intrinsic::kit_reduce_0, {valueTy, valueTy},
-      {tt, reduceOpV, dest, valueSz, value, unit, reducer});
+      {tt, reduceOpV, dest, value, strategy, valueSz, unit, reducer});
 
   return RValue::get(call);
 }

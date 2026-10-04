@@ -32,17 +32,17 @@ public:
   bool lowerIndexIntr(CallInst *call);
 
   // Lower a call to Kitsune's kit.gpu.reduce.direct intrinsic.
-  bool lowerReduceDirectIntr(CallInst *call);
+  bool lowerReduceIntrDirect(CallInst *call);
 
   // Lower a call to Kitsnue's kit.gpu.reduce.shared.memory intrinsic.
-  bool lowerReduceShmemIntr(CallInst *call);
+  bool lowerReduceIntrShmem(CallInst *call);
 
   // Lower a call to Kitsune's kit.gpu.reduce.warp.shuffle intrinsic.
-  bool lowerReduceWarpShflIntr(CallInst *call);
+  bool lowerReduceIntrWarpShfl(CallInst *call);
 
   // Lower a call to Kitsune's kit.gpu.reduce.warp.shuffle.shared.memory
   // intrinsic.
-  bool lowerReduceWarpShflShmemIntr(CallInst *call);
+  bool lowerReduceIntrWarpShflShmem(CallInst *call);
 
   // Lower a call to Kitsune's kit.gpu.warp.shfl.down.sync intrinsic.
   bool lowerWarpShflDownSyncIntr(CallInst *call);

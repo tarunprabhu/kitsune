@@ -20,6 +20,7 @@
 
 namespace llvm {
 
+class CallInst;
 class DominatorTree;
 class Loop;
 class LoopInfo;
@@ -29,6 +30,10 @@ class TapirLoopInfo;
 class TaskInfo;
 
 namespace detail {
+
+/// Set the reduction strategy on the call to Kitsune's reduce intrinsic. Always
+/// returns true.
+bool setStrategy(CallInst *call, ReductionStrategy strategy);
 
 /// Check that the given tapir reduction loop can be transformed to a form that
 /// is suitable for parallel execution.
