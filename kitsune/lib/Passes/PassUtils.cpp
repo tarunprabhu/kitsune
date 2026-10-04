@@ -12,6 +12,7 @@
 
 #include "kitsune/Passes/PassUtils.h"
 #include "llvm/Analysis/CallGraph.h"
+#include "llvm/Analysis/LoopAnalysisManager.h"
 
 using namespace llvm;
 
@@ -29,6 +30,10 @@ PreservedAnalyses llvm::getPreservedAnalysesCFG() {
   PreservedAnalyses pa;
   pa.preserveSet<CFGAnalyses>();
   return pa;
+}
+
+PreservedAnalyses llvm::getPreservedAnalysesLoop() {
+  return getLoopPassPreservedAnalyses();
 }
 
 PreservedAnalyses llvm::getPreservedAnalysesNone() {
