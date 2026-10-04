@@ -22,11 +22,11 @@ namespace llvm {
 
 class TTOptions;
 
-/// \addtogroup kitsune
-/// @{
-
 class PassBuilder;
 class PipelineTuningOptions;
+
+/// \addtogroup kitsune
+/// @{
 
 /// Is the pass name a Tapir/Kitsune lowering pipeline alias.
 bool isKitsuneOrTapirPipelineAlias(StringRef name);

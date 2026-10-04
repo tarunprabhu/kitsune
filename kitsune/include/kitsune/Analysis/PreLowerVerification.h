@@ -21,9 +21,6 @@ class LoopInfo;
 class ScalarEvolutions;
 class TaskInfo;
 
-/// \addtogroup kitsune
-/// @{
-
 /// Kitsune-specific verification pass that runs just before tapir lowering.
 /// Since this is a pass, it has access to the standard LLVM analyses (and
 /// Kitsune-specific ones as well) that the standard verifier in
@@ -35,6 +32,7 @@ class TaskInfo;
 /// `-print-before` and `print-after` for passes whose name ends with
 /// "VerifierPass" (among other "special" suffixes).
 ///
+/// \ingroup kitsune
 class PreLowerVerificationPass
     : public PassInfoMixin<PreLowerVerificationPass> {
 private:
@@ -46,8 +44,6 @@ public:
 
   PreservedAnalyses run(Module &m, ModuleAnalysisManager &mam);
 };
-
-/// @}
 
 } // namespace llvm
 
