@@ -38,8 +38,9 @@
 ; ALL-SAME: i32 2
 ; ALL-SAME: i32 5
 ; ALL-SAME: ptr %[[SHADOW]]
-; ALL-SAME: i32 8
 ; ALL-SAME: i64 %[[IV]]
+; ALL-SAME: i32 0
+; ALL-SAME: i32 8
 ; ALL-SAME: i64 0
 ; ALL-SAME: ptr @sum
 ; ALL-NEXT: reattach within %[[SYNCREG]], label %[[LATCH]]
@@ -74,7 +75,7 @@ for.i.header:
   detach within %syncreg, label %for.i.body, label %for.i.latch
 
 for.i.body:
-  call void(i32, i32, ptr, i32, i64, i64, ptr, ...) @llvm.kit.reduce.0(i32 2, i32 5, ptr %result, i32 8, i64 %i, i64 0, ptr @sum)
+  call void(i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.reduce.0(i32 2, i32 5, ptr %result, i64 %i, i32 0, i32 8, i64 0, ptr @sum)
   reattach within %syncreg, label %for.i.latch
 
 for.i.latch:

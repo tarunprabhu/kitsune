@@ -365,85 +365,6 @@ def int_kit_gpu_warp_shfl_down_sync
   let LowerMode = LowerCustom;
 }
 
-// Perform a simple reduction on a GPU where threads accumulate their
-// contribution to the final result independently of all other threads.
-def int_kit_gpu_reduce_direct
-    : KitIntrinsic<[],
-                   [llvm_i32_ty,     // TTID
-                    llvm_i32_ty,     // The reduction operator enum value
-                    llvm_ptr_ty,     // Pointer to the reduced result
-                    llvm_i32_ty,     // Size, in bytes, of the reduced result
-                    llvm_any_ty,     // The value to pass to the reducer
-                    llvm_any_ty,     // The unit value for the reducer
-                    llvm_ptr_ty,     // The reducer function
-                    llvm_vararg_ty], // Additional reducer arguments
-                   [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>,
-                    NonNull<ArgIndex<2>>, ImmArg<ArgIndex<3>>,
-                    NonNull<ArgIndex<6>>, ReadOnly<ArgIndex<6>>,
-                    IntrConvergent, IntrNoFree, IntrWillReturn]> {
-  let Doc = KitGPUReduceDirectDoc;
-  let LowerMode = LowerCustom;
-}
-
-// Perform a reduction on a GPU using shared memory.
-def int_kit_gpu_reduce_shared_memory
-    : KitIntrinsic<[],
-                   [llvm_i32_ty,     // TTID
-                    llvm_i32_ty,     // The reduction operator enum value
-                    llvm_ptr_ty,     // Pointer to the reduced result
-                    llvm_i32_ty,     // Size, in bytes, of the reduced result
-                    llvm_any_ty,     // The value to pass to the reducer
-                    llvm_any_ty,     // The unit value for the reducer
-                    llvm_ptr_ty,     // The reducer function
-                    llvm_vararg_ty], // Additional reducer arguments
-                   [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>,
-                    NonNull<ArgIndex<2>>, ImmArg<ArgIndex<3>>,
-                    NonNull<ArgIndex<6>>, ReadOnly<ArgIndex<6>>,
-                    IntrConvergent, IntrNoFree, IntrWillReturn]> {
-  let Doc = KitGPUReduceSharedMemoryDoc;
-  let LowerMode = LowerCustom;
-}
-
-// Perform a reduction on a GPU using the warp shuffle technique without any
-// shared memory.
-def int_kit_gpu_reduce_warp_shuffle
-    : KitIntrinsic<[],
-                   [llvm_i32_ty,     // TTID
-                    llvm_i32_ty,     // The reduction operator enum value
-                    llvm_ptr_ty,     // Pointer to the reduced result
-                    llvm_i32_ty,     // Size, in bytes, of the reduced result
-                    llvm_any_ty,     // The value to pass to the reducer
-                    llvm_any_ty,     // The unit value for the reducer
-                    llvm_ptr_ty,     // The reducer function
-                    llvm_vararg_ty], // Additional reducer arguments
-                   [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>,
-                    NonNull<ArgIndex<2>>, ImmArg<ArgIndex<3>>,
-                    NonNull<ArgIndex<6>>, ReadOnly<ArgIndex<6>>,
-                    IntrConvergent, IntrNoFree, IntrWillReturn]> {
-  let Doc = KitGPUReduceWarpShuffleDoc;
-  let LowerMode = LowerCustom;
-}
-
-// Perform a reduction on a GPU using the warp shuffle technique together with
-// shared memory
-def int_kit_gpu_reduce_warp_shuffle_shared_memory
-    : KitIntrinsic<[],
-                   [llvm_i32_ty,     // TTID
-                    llvm_i32_ty,     // The reduction operator enum value
-                    llvm_ptr_ty,     // Pointer to the reduced result
-                    llvm_i32_ty,     // Size, in bytes, of the reduced result
-                    llvm_any_ty,     // The value to pass to the reducer
-                    llvm_any_ty,     // The unit value for the reducer
-                    llvm_ptr_ty,     // The reducer function
-                    llvm_vararg_ty], // Additional reducer arguments
-                   [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>,
-                    NonNull<ArgIndex<2>>, ImmArg<ArgIndex<3>>,
-                    NonNull<ArgIndex<6>>, ReadOnly<ArgIndex<6>>,
-                    IntrConvergent, IntrNoFree, IntrWillReturn]> {
-  let Doc = KitGPUReduceWarpShuffleSharedMemoryDoc;
-  let LowerMode = LowerCustom;
-}
-
 // Get the number of compute units available to a GPU tapir target.
 def int_kit_gpu_num_compute_units
     : KitIntrinsic<[llvm_i64_ty], [llvm_i32_ty], [ImmArg<ArgIndex<0>>]> {
@@ -738,20 +659,44 @@ def int_kit_mobile_init
 //------------------------------------------------------------------------------
 // Intrinsics to support parallel reductions
 
-// Reduce a single value using a given reduction function.
+// Reduce a single value. This is a "generic" intrinsic that may be used in
+// tapir loops with both a CPU, and GPU, tapir target.
 def int_kit_reduce_0
     : KitIntrinsic<[],
                    [llvm_i32_ty,     // TTID
-                    llvm_i32_ty,     // The reduction operator enum value
+                    llvm_i32_ty,     // The reduction operator kind
                     llvm_ptr_ty,     // Pointer to result
-                    llvm_i32_ty,     // Size, in bytes, of the reduced result
                     llvm_any_ty,     // The value to pass to the reducer
+                    llvm_i32_ty,     // The reduction algorithm to use
+                    llvm_i32_ty,     // Size, in bytes, of the reduced result
                     llvm_any_ty,     // The unit value for the reducer
                     llvm_ptr_ty,     // The reducer function
                     llvm_vararg_ty], // Additional reducer arguments
                    [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>,
-                    NonNull<ArgIndex<2>>, ImmArg<ArgIndex<3>>,
-                    NonNull<ArgIndex<6>>, ReadOnly<ArgIndex<6>>]> {
+                    NonNull<ArgIndex<2>>, ImmArg<ArgIndex<4>>,
+                    ImmArg<ArgIndex<5>>, NonNull<ArgIndex<7>>,
+                    ReadOnly<ArgIndex<7>>]> {
   let Doc = KitReduce0Doc;
+  let LowerMode = LowerCustom;
+}
+
+// Reduce a single value on the GPU. This should only be used once the tapir
+// loop has been outlined into a kernel.
+def int_kit_gpu_reduce
+    : KitIntrinsic<[],
+                   [llvm_i32_ty,     // TTID
+                    llvm_i32_ty,     // The reduction operator kind
+                    llvm_ptr_ty,     // Pointer to result
+                    llvm_any_ty,     // The value to pass to the reducer
+                    llvm_i32_ty,     // The reduction algorithm to use
+                    llvm_i32_ty,     // Size, in bytes, of the reduced result
+                    llvm_any_ty,     // The unit value for the reducer
+                    llvm_ptr_ty,     // The reducer function
+                    llvm_vararg_ty], // Additional reducer arguments
+                   [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>,
+                    NonNull<ArgIndex<2>>, ImmArg<ArgIndex<4>>,
+                    ImmArg<ArgIndex<5>>, NonNull<ArgIndex<7>>,
+                    ReadOnly<ArgIndex<7>>, IntrConvergent]> {
+  let Doc = KitGPUReduceDoc;
   let LowerMode = LowerCustom;
 }

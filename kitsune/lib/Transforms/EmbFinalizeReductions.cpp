@@ -20,8 +20,8 @@
 //     }
 //
 // Here, globalResult is memory allocated with directly in GPU global memory, or
-// in UVM into which the reduction is performed. This pass will transforms this
-// to the following:
+// in UVM into which the reduction is performed. This pass transforms this as
+// shown here:
 //
 //     void f(long beg, long end, ..., void *globalResult, long n) {
 //       long localResult = unit;
@@ -37,12 +37,13 @@
 // value is then reduced into the globalResult using `cooperativeReduce`. This
 // is a function that indicates that the threads on the GPU will cooperate to
 // carry out a reduction. The most naive implementation of this would be where
-// every thread performs an atomic reduction into globalResult. Most
+// every thread performs an atomic reduction into globalResult. More
 // sophisticated techniques such as warp shuffles may also be employed.
 //
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Transforms/EmbFinalizeReductions.h"
+#include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/Diagnostics.h"
 #include "kitsune/Core/FuncAttrs.h"
 #include "kitsune/Core/LoopAttrs.h"
@@ -56,57 +57,26 @@
 
 using namespace llvm;
 
-namespace {
-
-// The various reduction strategies that are available. This is the strategy
-// used to perform the final reduction into the result.
-enum Strategy {
-  // Each thread accumulates its contribution directly into the result variable
-  // using an atomic operation. This is the most naive approach possible, and is
-  // unlikely to ever be useful. It may be useful when comparing approaches, so
-  // it is retained.
-  Direct = 1,
-
-  // Each thread in a block writes its contribution to the result into a
-  // dedicated location in shared memory. These are then reduced into a single
-  // value for the block. This is accumulated into the result variable using an
-  // atomic operation.
-  SharedMemory,
-
-  // Each thread in a warp computes its contribution to the result, which are
-  // the reduced to a single value for the warp using warp shuffles. A single
-  // thread in the warp will accumulate this directly into the result variable
-  // using an atomic operation.
-  WarpShuffle,
-
-  // Each thread in a warp computes its contribution to the result, which are
-  // the reduced to a single value for the warp using warp shuffles. A single
-  // thread in the warp writes this to a dedicated location in shared memory.
-  // These are then reduced to a single value for the block. This value is
-  // accumulated into the result variable using an atomic operation.
-  WarpShuffleWithSharedMemory,
-};
-
-} // namespace
-
 // The default strategy to use when reducing into the final result.
-static Strategy defaultStrategy = Strategy::WarpShuffle;
+static ReductionStrategy defaultStrategy = ReductionStrategy::GPUWarpShuffle;
 
-static cl::opt<Strategy> clStrategy(
+static cl::opt<ReductionStrategy> clStrategy(
     "tapir-gpu-reduce-mode",
-    cl::desc("The strategy to use for tapir reduction loops on GPUs"),
+    cl::desc("The strategy to use for tapir reduction loops"),
     cl::init(defaultStrategy), cl::value_desc("strategy"),
     cl::cat(cl::catKitClOpts),
-    cl::values(clEnumValN(Strategy::Direct, "direct", ""),
-               clEnumValN(Strategy::SharedMemory, "mem", ""),
-               clEnumValN(Strategy::WarpShuffle, "wshf", ""),
-               clEnumValN(Strategy::WarpShuffleWithSharedMemory, "wshfmem",
-                          "")));
+    cl::values(clEnumValN(ReductionStrategy::Direct, "direct", ""),
+               clEnumValN(ReductionStrategy::Naive, "naive", ""),
+               clEnumValN(ReductionStrategy::ThreadLocal, "local", ""),
+               clEnumValN(ReductionStrategy::GPUSharedMemory, "mem", ""),
+               clEnumValN(ReductionStrategy::GPUWarpShuffle, "wshf", ""),
+               clEnumValN(ReductionStrategy::GPUWarpShuffleWithSharedMemory,
+                          "wshfmem", "")));
 
 // Perform some analysis on the loop given the reductions that are performed in
 // it and determine which reduction strategy to use.
-static Strategy chooseStrategy(const Loop &loop,
-                               const SmallVectorImpl<ReductionInfo> &redxns) {
+static ReductionStrategy
+chooseStrategy(const Loop &loop, const SmallVectorImpl<ReductionInfo> &redxns) {
   if (clStrategy.getNumOccurrences())
     return clStrategy;
 
@@ -181,14 +151,20 @@ static void reduceIntoLocal(Value *local, const ReductionInfo &redxn) {
     InsertPosition insertPt = redxn.call->getIterator();
     cst = CastInst::CreatePointerCast(local, ptr, "", insertPt);
   }
-  redxn.call->setArgOperand(2, cst);
+  redxn.call->setArgOperand(ReductionInfo::argNumDest, cst);
+}
+
+static void updateStrategy(CallInst *call) {
+  LLVMContext &ctx = call->getContext();
+  Value *v = toConstant(ReductionStrategy::Naive, ctx);
+  call->setArgOperand(ReductionInfo::argNumStrategy, v);
 }
 
 // Perform the reduction into the final result. \p local is the value being
 // reduced and is the contribution of the thread to the final reduction.
-// \p strategy is the strategy to use to perform the reduction.
-static void reduceIntoFinal(Loop &loop, Strategy strategy, Value *local,
-                            Value *dest, const ReductionInfo &redxn) {
+static void reduceIntoFinal(Loop &loop, ReductionStrategy strategy,
+                            Value *local, Value *dest,
+                            const ReductionInfo &redxn) {
   auto sanityCheck = [](const Loop &loop) {
     assert(getUniqueNonDeadEndExitBlock(loop) &&
            "Main kernel loop must have a unique non-deadend exit block");
@@ -197,6 +173,7 @@ static void reduceIntoFinal(Loop &loop, Strategy strategy, Value *local,
   LLVM_DEBUG(dbgs() << "FinalizeGPUReduction: Reduce into final result\n");
   sanityCheck(loop);
 
+  LLVMContext &ctx = getContext(loop);
   Value *tt = redxn.getTTV();
   Value *op = redxn.getReduceOpV();
   Type *type = redxn.getType();
@@ -208,21 +185,13 @@ static void reduceIntoFinal(Loop &loop, Strategy strategy, Value *local,
   IRBuilder<> builder(&*exit->begin());
   Value *value = builder.CreateLoad(type, local);
 
+  Constant *cStrategy = toConstant(strategy, ctx);
   SmallVector<Type *, 2> overloadTys = redxn.getOverloadTypes();
-  SmallVector<Value *, 8> args = {tt, op, dest, size, value, unit, reducer};
+  SmallVector<Value *, 8> args = {tt,        op,   dest, value,
+                                  cStrategy, size, unit, reducer};
   args.append(redxn.getExtraArgs());
 
-  auto getIntrinsic = [](Strategy strategy) -> Intrinsic::ID {
-    switch (strategy) {
-    case Strategy::Direct: return Intrinsic::kit_gpu_reduce_direct;
-    case Strategy::SharedMemory: return Intrinsic::kit_gpu_reduce_shared_memory;
-    case Strategy::WarpShuffle: return Intrinsic::kit_gpu_reduce_warp_shuffle;
-    case Strategy::WarpShuffleWithSharedMemory:
-      return Intrinsic::kit_gpu_reduce_warp_shuffle_shared_memory;
-    }
-    llvm_unreachable("reduceIntoShadowMem: Strategy not handled");
-  };
-  builder.CreateIntrinsic(getIntrinsic(strategy), overloadTys, args);
+  builder.CreateIntrinsic(Intrinsic::kit_gpu_reduce, overloadTys, args);
 }
 
 static bool check(Function &f, LoopInfo &li) {
@@ -248,13 +217,14 @@ static bool run(Function &f, LoopInfo &li) {
     return false;
 
   SmallVector<ReductionInfo, 1> redxns = collectReductions(loop);
-  Strategy strategy = chooseStrategy(loop, redxns);
+  ReductionStrategy strategy = chooseStrategy(loop, redxns);
   for (const ReductionInfo &redxn : redxns) {
     // We have to save the destination because the destination in the reduce
     // call will change during the course of this transformation.
     Value *dest = redxn.getDest();
     Value *local = allocLocalResult(f, redxn);
     reduceIntoLocal(local, redxn);
+    updateStrategy(redxn.call);
     reduceIntoFinal(loop, strategy, local, dest, redxn);
   }
 

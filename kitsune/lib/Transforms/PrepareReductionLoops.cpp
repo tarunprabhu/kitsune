@@ -16,6 +16,7 @@
 #include "PrepareReductionLoops.h"
 #include "LoopWrapping.h"
 #include "LowerReduceIntrinsics.h"
+#include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/Diagnostics.h"
 #include "kitsune/Core/IRBuilderUtils.h"
 #include "kitsune/Core/LoopAttrs.h"
@@ -33,15 +34,20 @@ using namespace llvm;
 static bool lowerReduce0Intrs(const SmallVectorImpl<ReductionInfo> &redxns) {
   bool changed = false;
   for (const ReductionInfo &redxn : redxns)
-    changed |= detail::lowerReduce0Intr(redxn.call);
+    changed |= detail::lowerReduceIntrNaive(redxn.call);
   return changed;
 }
 
 static bool
 prepareReductionLoopSerial(Loop &loop,
                            const SmallVectorImpl<ReductionInfo> &redxns) {
-  bool changed = lowerReduce0Intrs(redxns);
+  bool changed = false;
+
+  for (const ReductionInfo &redxn : redxns)
+    changed |= detail::setStrategy(redxn.call, ReductionStrategy::Naive);
+  changed |= lowerReduce0Intrs(redxns);
   addPreparedAttr(loop);
+
   return changed;
 }
 
@@ -62,6 +68,17 @@ prepareReductionLoopGPU(TapirLoopInfo &tapirLoop,
                         const SmallVectorImpl<ReductionInfo> &redxns) {
   Loop &loop = *tapirLoop.getLoop();
   return detail::prepareReductionLoopForGPU(loop, redxns);
+}
+
+bool llvm::detail::setStrategy(CallInst *call, ReductionStrategy strategy) {
+  assert(call->getIntrinsicID() == Intrinsic::kit_reduce_0 &&
+         "Expected call to Kitsune's reduce intrinsic");
+
+  LLVMContext &ctx = call->getContext();
+  Value *v = toConstant(uint32_t(strategy), ctx);
+  call->setArgOperand(ReductionInfo::argNumStrategy, v);
+
+  return true;
 }
 
 bool llvm::detail::prepareReductionLoop(TapirLoopInfo &tapirLoop,
@@ -113,6 +130,13 @@ bool llvm::detail::checkReductionLoop(TapirLoopInfo &tapirLoop,
                           "tapir reduction loop must be a top-level loop");
 
   SmallVector<ReductionInfo, 1> redxns = collectReductions(loop);
+
+  // The destination of a reduction loop must be loop invariant. We currently
+  // do not support loop-variant destinations.
+  for (const ReductionInfo &redxn : redxns)
+    if (!loop.isLoopInvariant(redxn.getDest()))
+      return emitDiagnostic(loop, DiagID::ErrGeneric,
+                            "Destination of reduction is not loop invariant");
 
   // The transformations for parallel reductions, especially on the GPU, might
   // result in incorrect code if the destination of the reduction is used

@@ -91,7 +91,7 @@ for.i.header:
 
 for.i.body:
   %f32 = sitofp i64 %i to float
-  call void(i32, i32, ptr, i32, float, float, ptr, ...) @llvm.kit.reduce.0(i32 8, i32 6, ptr %result, i32 4, float %f32, float 0.0, ptr @sum)
+  call void(i32, i32, ptr, float, i32, i32, float, ptr, ...) @llvm.kit.reduce.0(i32 8, i32 6, ptr %result, float %f32, i32 0, i32 4, float 0.0, ptr @sum)
   reattach within %syncreg, label %for.i.latch
 
 for.i.latch:

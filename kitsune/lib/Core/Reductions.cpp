@@ -20,10 +20,16 @@
 
 using namespace llvm;
 
+template <typename T>
+static std::optional<T> fromConstantOp(CallInst *call, unsigned argNo) {
+  return fromConstant<T>(*cast<Constant>(call->getArgOperand(argNo)));
+}
+
 ReductionInfo::ReductionInfo(CallInst *call) : call(call) {
-  tt = *fromConstant<TTID>(*cast<Constant>(call->getArgOperand(0)));
-  reduceOp = *fromConstant<ReduceOp>(*cast<Constant>(call->getArgOperand(1)));
-  elemSize = *fromConstant<unsigned>(*cast<Constant>(call->getArgOperand(3)));
+  tt = *fromConstantOp<TTID>(call, argNumTTID);
+  reduceOp = *fromConstantOp<ReduceOp>(call, argNumReduceOp);
+  strategy = *fromConstantOp<ReductionStrategy>(call, argNumStrategy);
+  elemSize = *fromConstantOp<unsigned>(call, argNumElemSize);
 }
 
 SmallVector<Type *, 2> ReductionInfo::getOverloadTypes() const {
@@ -36,7 +42,7 @@ SmallVector<Type *, 2> ReductionInfo::getOverloadTypes() const {
 
 SmallVector<Value *, 0> ReductionInfo::getExtraArgs() const {
   SmallVector<Value *, 0> extra;
-  for (unsigned i = 7; i < call->arg_size(); ++i)
+  for (unsigned i = argNumExtra; i < call->arg_size(); ++i)
     extra.push_back(call->getArgOperand(i));
   return extra;
 }
@@ -67,8 +73,20 @@ Type *ReductionInfo::getResultBufferType() const {
   return ArrayType::get(i8, elemSize);
 };
 
-
 // -----------------------------------------------------------------------------
+
+template <> std::optional<ReductionStrategy> llvm::fromInt(int64_t i) {
+  switch (i) {
+  case 0: return ReductionStrategy::Auto;
+  case 1: return ReductionStrategy::Naive;
+  case 2: return ReductionStrategy::Direct;
+  case 3: return ReductionStrategy::ThreadLocal;
+  case 4: return ReductionStrategy::GPUSharedMemory;
+  case 5: return ReductionStrategy::GPUWarpShuffle;
+  case 6: return ReductionStrategy::GPUWarpShuffleWithSharedMemory;
+  default: return std::nullopt;
+  }
+}
 
 template <> std::optional<ReduceOp> llvm::fromInt(int64_t i) {
   switch (i) {

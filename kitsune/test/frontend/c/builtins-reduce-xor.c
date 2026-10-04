@@ -6,7 +6,7 @@
 // CHECK: %[[R:.+]] = alloca i8
 // CHECK-NEXT: %[[V:.+]] = load i8, ptr %[[R]]
 // CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
-// CHECK-SAME: (i32 0, i32 3, ptr %[[R]], i32 1, i8 %[[V]], i8 0,
+// CHECK-SAME: (i32 0, i32 3, ptr %[[R]], i8 %[[V]], i32 0, i32 1, i8 0,
 // CHECK-SAME: ptr @__kitsune_reduce.xor.u8)
 //
 // CHECK-LABEL: define linkonce_odr void @__kitsune_reduce.xor.u8
@@ -25,7 +25,7 @@ void reduce_i8() {
 // CHECK: %[[R:.+]] = alloca i8
 // CHECK-NEXT: %[[V:.+]] = load i8, ptr %[[R]]
 // CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
-// CHECK-SAME: (i32 0, i32 3, ptr %[[R]], i32 1, i8 %[[V]], i8 0,
+// CHECK-SAME: (i32 0, i32 3, ptr %[[R]], i8 %[[V]], i32 0, i32 1, i8 0,
 // CHECK-SAME: ptr @__kitsune_reduce.xor.u8)
 // CHECK-NEXT: ret void
 void reduce_u8() {
@@ -37,7 +37,7 @@ void reduce_u8() {
 // CHECK: %[[R:.+]] = alloca i16
 // CHECK-NEXT: %[[V:.+]] = load i16, ptr %[[R]]
 // CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
-// CHECK-SAME: (i32 0, i32 3, ptr %[[R]], i32 2, i16 %[[V]], i16 0,
+// CHECK-SAME: (i32 0, i32 3, ptr %[[R]], i16 %[[V]], i32 0, i32 2, i16 0,
 // CHECK-SAME: ptr @__kitsune_reduce.xor.u16)
 //
 // CHECK-LABEL: define linkonce_odr void @__kitsune_reduce.xor.u16
@@ -56,7 +56,7 @@ void reduce_i16() {
 // CHECK: %[[R:.+]] = alloca i16
 // CHECK-NEXT: %[[V:.+]] = load i16, ptr %[[R]]
 // CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
-// CHECK-SAME: (i32 0, i32 3, ptr %[[R]], i32 2, i16 %[[V]], i16 0,
+// CHECK-SAME: (i32 0, i32 3, ptr %[[R]], i16 %[[V]], i32 0, i32 2, i16 0,
 // CHECK-SAME: ptr @__kitsune_reduce.xor.u16)
 // CHECK-NEXT: ret void
 void reduce_u16() {
@@ -68,7 +68,7 @@ void reduce_u16() {
 // CHECK: %[[R:.+]] = alloca i32
 // CHECK-NEXT: %[[V:.+]] = load i32, ptr %[[R]]
 // CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
-// CHECK-SAME: (i32 0, i32 3, ptr %[[R]], i32 4, i32 %[[V]], i32 0,
+// CHECK-SAME: (i32 0, i32 3, ptr %[[R]], i32 %[[V]], i32 0, i32 4, i32 0,
 // CHECK-SAME: ptr @__kitsune_reduce.xor.u32)
 //
 // CHECK-LABEL: define linkonce_odr void @__kitsune_reduce.xor.u32
@@ -87,7 +87,7 @@ void reduce_i32() {
 // CHECK: %[[R:.+]] = alloca i32
 // CHECK-NEXT: %[[V:.+]] = load i32, ptr %[[R]]
 // CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
-// CHECK-SAME: (i32 0, i32 3, ptr %[[R]], i32 4, i32 %[[V]], i32 0,
+// CHECK-SAME: (i32 0, i32 3, ptr %[[R]], i32 %[[V]], i32 0, i32 4, i32 0,
 // CHECK-SAME: ptr @__kitsune_reduce.xor.u32)
 // CHECK-NEXT: ret void
 void reduce_u32() {
@@ -99,7 +99,7 @@ void reduce_u32() {
 // CHECK: %[[R:.+]] = alloca i64
 // CHECK-NEXT: %[[V:.+]] = load i64, ptr %[[R]]
 // CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
-// CHECK-SAME: (i32 0, i32 3, ptr %[[R]], i32 8, i64 %[[V]], i64 0,
+// CHECK-SAME: (i32 0, i32 3, ptr %[[R]], i64 %[[V]], i32 0, i32 8, i64 0,
 // CHECK-SAME: ptr @__kitsune_reduce.xor.u64)
 //
 // CHECK-LABEL: define linkonce_odr void @__kitsune_reduce.xor.u64
@@ -118,7 +118,7 @@ void reduce_i64() {
 // CHECK: %[[R:.+]] = alloca i64
 // CHECK-NEXT: %[[V:.+]] = load i64, ptr %[[R]]
 // CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
-// CHECK-SAME: (i32 0, i32 3, ptr %[[R]], i32 8, i64 %[[V]], i64 0,
+// CHECK-SAME: (i32 0, i32 3, ptr %[[R]], i64 %[[V]], i32 0, i32 8, i64 0,
 // CHECK-SAME: ptr @__kitsune_reduce.xor.u64)
 // CHECK-NEXT: ret void
 void reduce_u64() {

@@ -51,8 +51,9 @@
 ; ALL-SAME: i32 2
 ; ALL-SAME: i32 5
 ; ALL-SAME: ptr %[[LOCAL]]
-; ALL-SAME: i32 8
 ; ALL-SAME: i64 %[[IV]]
+; ALL-SAME: i32 1
+; ALL-SAME: i32 8
 ; ALL-SAME: i64 0
 ; ALL-SAME: ptr @sum
 ; ALL-NEXT: br label %[[LATCH]]
@@ -65,15 +66,16 @@
 ; ALL-EMPTY:
 ; ALL-NEXT: [[EXIT]]:
 ; ALL-NEXT: %[[VALUE:.+]] = load i64, ptr %[[LOCAL]]
-; DIRECT-NEXT: call {{.+}} @llvm.kit.gpu.reduce.direct
-; MEM-NEXT: call {{.+}} @llvm.kit.gpu.reduce.shared.memory
-; WSHF-NEXT: call {{.+}} @llvm.kit.gpu.reduce.warp.shuffle
-; WSHFMEM-NEXT: call {{.+}} @llvm.kit.gpu.reduce.warp.shuffle.shared.memory
+; ALL-NEXT: call {{.+}} @llvm.kit.gpu.reduce
 ; ALL-SAME: i32 2
 ; ALL-SAME: i32 5
 ; ALL-SAME: ptr %[[RESULT]]
-; ALL-SAME: i32 8
 ; ALL-SAME: i64 %[[VALUE]]
+; DIRECT-SAME: i32 2
+; MEM-SAME: i32 4
+; WSHF-SAME: i32 5
+; WSHFMEM-SAME: i32 6
+; ALL-SAME: i32 8
 ; ALL-SAME: i64 0
 ; ALL-SAME: ptr @sum
 ; ALL-NEXT: ret void
@@ -90,7 +92,7 @@ header:
   detach within %syncreg, label %body, label %latch
 
 body:
-  call void(i32, i32, ptr, i32, i64, i64, ptr, ...) @llvm.kit.reduce.0(i32 2, i32 5, ptr %result, i32 8, i64 %i, i64 0, ptr @sum)
+  call void(i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.reduce.0(i32 2, i32 5, ptr %result, i64 %i, i32 0, i32 8, i64 0, ptr @sum)
   reattach within %syncreg, label %latch
 
 latch:

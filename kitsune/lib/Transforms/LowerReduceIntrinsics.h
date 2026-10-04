@@ -19,8 +19,15 @@ class CallInst;
 
 namespace detail {
 
-// Lower a call to Kitsune's kit.reduce.0 intrinsic. Always returns true.
-bool lowerReduce0Intr(CallInst *call);
+class LowerGPUIntrImpl;
+
+/// Lower a call to Kitsune's kit.reduce intrinsic with the 'naive' reduction
+/// strategy. Always returns true.
+bool lowerReduceIntrNaive(CallInst *call);
+
+/// Lower a call to Kitsune's kit.reduce.0, or kit.gpu.reduce intrinsic. Always
+/// returns true.
+bool lowerReduceIntr(CallInst *call, LowerGPUIntrImpl &lowerGPU);
 
 } // namespace detail
 

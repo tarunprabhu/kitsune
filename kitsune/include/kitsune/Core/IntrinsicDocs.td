@@ -857,84 +857,6 @@ garbage results.
 }];
 }
 
-def KitGPUReduceDirectDoc : KitDocIntrinsic {
-  let Category = KitDocCatGPU;
-  let ParamDocs = [
-      KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
-      KitDocParam<"op", "The reduction operator enum value">,
-      KitDocParam<"size", "The size (in bytes) of the reduced result">,
-      KitDocParam<"value", "The thread-local value to reduce">,
-      KitDocParam<"unit", "The unit value for the reducer">,
-      KitDocParam<"reducer", "The reducer function">,
-      KitDocParam<"extra...", "Additional parameters to pass to `reducer`">
-  ];
-  let Descr = [{
-Simple technique where every GPU thread accumulates its contribution into the
-final result directly using an atomic operation. There is no other direct
-coordination with any other thread.
-}];
-}
-
-def KitGPUReduceSharedMemoryDoc : KitDocIntrinsic {
-  let Category = KitDocCatGPU;
-  let ParamDocs = [
-      KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
-      KitDocParam<"op", "The reduction operator enum value">,
-      KitDocParam<"size", "The size (in bytes) of the reduced result">,
-      KitDocParam<"value", "The thread-local value to reduce">,
-      KitDocParam<"unit", "The unit value for the reducer">,
-      KitDocParam<"reducer", "The reducer function">,
-      KitDocParam<"extra...", "Additional parameters to pass to `reducer`">
-  ];
-  let Descr = [{
-Reduce the values in a warp using shared memory. Each thread in a thread block
-writes its contribution to the final result into a dedicated location in
-shared memory. All threads in the block then coordinate to reduce these values
-to a single value. A single thread in the block will accumulate this value into
-the final result using an atomic operation.
-}];
-}
-
-def KitGPUReduceWarpShuffleDoc : KitDocIntrinsic {
-  let Category = KitDocCatGPU;
-  let ParamDocs = [
-      KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
-      KitDocParam<"op", "The reduction operator enum value">,
-      KitDocParam<"size", "The size (in bytes) of the reduced result">,
-      KitDocParam<"value", "The thread-local value to reduce">,
-      KitDocParam<"unit", "The unit value for the reducer">,
-      KitDocParam<"reducer", "The reducer function">,
-      KitDocParam<"extra...", "Additional parameters to pass to `reducer`">
-  ];
-  let Descr = [{
-Reduce the values in a warp using the warp shuffle technique. This intrinsic is
-run on all threads in warp on the GPU. However, only the value returned by the
-thread in lane 0 (the first lane) of the warp will be the value reduced across
-all threads in the warp.
-}];
-}
-
-def KitGPUReduceWarpShuffleSharedMemoryDoc : KitDocIntrinsic {
-  let Category = KitDocCatGPU;
-  let ParamDocs = [
-      KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
-      KitDocParam<"op", "The reduction operator enum value">,
-      KitDocParam<"size", "The size (in bytes) of the reduced result">,
-      KitDocParam<"value", "The thread-local value to reduce">,
-      KitDocParam<"unit", "The unit value for the reducer">,
-      KitDocParam<"reducer", "The reducer function">,
-      KitDocParam<"extra...", "Additional parameters to pass to `reducer`">
-  ];
-  let Descr = [{
-Reduce the values in a warp using a combination of warp shuffles and shared
-memory. The threads in a warp reduce their contributions to the final result
-to a single per-warp value. This is written to a dedicated location in shared
-memory. Following this, all threads in the block coordinate to reduce these
-values from shared memory to a single value for the block. This is accumulated
-into the final result using an atomic operation.
-}];
-}
-
 def KitAsyncGPULaunchKernelDoc : KitDocIntrinsic {
   let Category = KitDocCatGPU;
   let ParamDocs = [
@@ -1114,8 +1036,9 @@ def KitReduce0Doc : KitDocIntrinsic {
       KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
       KitDocParam<"op", "The reduction operator enum value">,
       KitDocParam<"result", "Pointer to the result of the reduction">,
-      KitDocParam<"size", "The size (in bytes) of the reduced result">,
       KitDocParam<"value", "The value to reduce into `result`">,
+      KitDocParam<"strategy", "The reduction strategy to use">,
+      KitDocParam<"size", "The size (in bytes) of the reduced result">,
       KitDocParam<"unit", "The unit value for the reducer">,
       KitDocParam<"reducer", "The reducer function">,
       KitDocParam<"extra...", "Additional parameters to pass to `reducer`">
@@ -1129,7 +1052,12 @@ This is an overloaded intrinsic that can be specialized for any type of `value`.
 If a `unit` is provided, its type must be the same as that of `value`. If
 `value` is a scalar type, the provided `size` and the storage size of `value`
 must be equal. If `value` is a pointer, `size` must equal the size of the
-pointee.
+pointee. `strategy` is the strategy to employ when reducing values with this
+intrinsic. A value of 0 indicates that the compiler can choose an appropriate
+strategy. This will generally only be the case when the intrinsic is first
+generated by the frontend. The frontend may also pass a non-zero value here
+which will be the integer representation of a member of the
+`ReductionStrategy` enum.
 
 The code below shows how this intrinsic might be declared in C++ (here, the
 `.`'s that would appear in the name of the intrinsic have been replaced with
@@ -1140,6 +1068,7 @@ The code below shows how this intrinsic might be declared in C++ (here, the
   template <typename T, typename ExtraArgs...>
   void kit_reduce_0(int32_t tt,
                     ReduceOp op,
+                    RedxnStrategy strategy,
                     T *result,
                     int32_t size,
                     T value,
@@ -1153,7 +1082,7 @@ this intrinsic may be used with a sum reduction.
 
 .. code :: kitll
 
-  call void (i32, i32, ptr, i32, double, double, ptr, ...) @llvm.kit.reduce.0(i32 512, i32 11, ptr %res, i32 8, double %v, double 0.0, ptr null)
+  call void (i32, i32, ptr, double, i32, i32, double, ptr, ...) @llvm.kit.reduce.0(i32 512, i32 11, ptr %res, double %v, i32 0, i32 8, double 0.0, ptr null)
 
 Here, the addition is being performed over doubles. The example below shows how
 the same can be done with a custom reducer.
@@ -1169,7 +1098,7 @@ the same can be done with a custom reducer.
 
   define void @f(double %v) {
     %res = alloca double
-    call void(i32, i32, ptr, i32, double, double, ptr, ...) @llvm.kit.reduce.0(i32 2, i32 23, ptr %res, i32 8, double %v, double 0.0, ptr @f)
+    call void(i32, i32, ptr, double, i32, i32, double, ptr, ...) @llvm.kit.reduce.0(i32 2, i32 23, ptr %res, double %v, i32 0, i32 8, double 0.0, ptr @f)
     ret void
   }
 
@@ -1184,18 +1113,31 @@ Only the pointer to the result and the value to be reduced are used here. The
 intrinsic is used in a tapir loop. In this case, the tapir loop and the
 intrinsic call are used to transform the loop for parallel execution. See the
 documentation for the `kit-prepare` pass for details.
+
+This intrinsic may be used in tapir loops with both CPU and GPU-centric tapir
+targets. However, once the tapir loop is outlined into an embedded bitcode
+module, calls to this intrinsic in the embedded module must be replaced with
+calls to :ref:`llvm.kit.gpu.reduce` intrinsic.
 }];
 }
 
-def KitReduceNumPartialsDoc : KitDocIntrinsic {
+def KitGPUReduceDoc : KitDocIntrinsic {
   let Category = KitDocCatCommon;
   let ParamDocs = [
       KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">,
-      KitDocParam<"n", "The trip count of the tapir reduction loop">
+      KitDocParam<"op", "The reduction operator enum value">,
+      KitDocParam<"result", "Pointer to the result of the reduction">,
+      KitDocParam<"value", "The value to reduce into `result`">,
+      KitDocParam<"strategy", "The reduction strategy to use">,
+      KitDocParam<"size", "The size (in bytes) of the reduced result">,
+      KitDocParam<"unit", "The unit value for the reducer">,
+      KitDocParam<"reducer", "The reducer function">,
+      KitDocParam<"extra...", "Additional parameters to pass to `reducer`">
   ];
   let Descr = [{
-Get the number of partial reductions to perform when transforming a
-:ref:`tapir reduction loop <glossary-tapir-reduction-loop>` for parallel
-execution.
+This intrinsic is identical to :ref:`llvm.kit.reduce.0` except that must only be
+used in embedded bitcode modules obtained by outlining a tapir loop. See the
+documentation for :ref:`llvm.kit.reduce` for details about this intrinsic's
+arguments.
 }];
 }

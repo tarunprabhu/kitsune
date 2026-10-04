@@ -91,6 +91,7 @@ private:
   void updateOuterLoopIV(Loop &outerLoop, Value *numPartials);
   void updateInnerLoopIV(Loop &outerLoop, Loop &innerLoop, Value *numPartials);
   void updateInnerLoopGuardCondition(Loop &innerLoop, Value *numPartials);
+  void updateReductionStrategy(CallInst *call);
   void parallelizeOuterLoop(Loop &outerLoop, Loop &loop);
   void serializeInnerLoop(Loop &loop);
 
@@ -107,8 +108,7 @@ public:
 } // namespace
 
 // Insert code to calculate the number of partial reductions to use. On CPU's,
-// this inserts a call to Kitsune's kit.cpu.num.threads intrinsic. On GPU's,
-// this inserts a call to Kitsune's kit.gpu.num.compute.units.
+// this inserts a call to Kitsune's kit.cpu.num.threads intrinsic.
 Value *
 PrepareReductionLoopCPU::computeNumPartialReductions(Loop &outerLoop,
                                                      const Loop &innerLoop) {
@@ -157,7 +157,6 @@ Value *PrepareReductionLoopCPU::allocPartial(Loop &innerLoop,
   BasicBlock &bb = *innerLoop.getLoopPreheader();
   IRBuilder<> builder(bb.getTerminator());
 
-
   // The alloca is added to the body of the outer loop because we need it to be
   // "local" to the parallel loop. Once the loop-spawning pass has outlined the
   // body into separate function, the kit-host-allocas pass will be run which
@@ -182,7 +181,7 @@ void PrepareReductionLoopCPU::reduceIntoPartial(Loop &innerLoop, Value *partial,
 
   IRBuilder<> builder(redxn.call);
   Value *cst = builder.CreateAddrSpaceCast(partial, redxn.getDest()->getType());
-  redxn.call->setArgOperand(2, cst);
+  redxn.call->setArgOperand(ReductionInfo::argNumDest, cst);
 }
 
 // Once the partial reduction has been computed, reduce this into the final
@@ -455,6 +454,11 @@ void PrepareReductionLoopCPU::serializeInnerLoop(Loop &loop) {
 #endif // NDEBUG
 }
 
+// Update the strategy to use to perform this reduction.
+void PrepareReductionLoopCPU::updateReductionStrategy(CallInst *call) {
+  detail::setStrategy(call, ReductionStrategy::Naive);
+}
+
 // Transform a tapir reduction loop. Add the tapir.loop.prepared attribute to
 // the loop and return true if anything other than this attribute was changed.
 // For example, if the loop does not perform any actual reductions, the
@@ -492,6 +496,7 @@ bool PrepareReductionLoopCPU::run(
     Value *partial = allocPartial(loop, redxn);
     reduceIntoPartial(loop, partial, redxn);
     reducePartialIntoFinal(loop, partial, dest, redxn);
+    updateReductionStrategy(redxn.call);
   }
 
   // Now that everything else has been changed, we can fix up the induction

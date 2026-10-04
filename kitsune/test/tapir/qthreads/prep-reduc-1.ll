@@ -91,7 +91,7 @@ for.i.header:
 
 for.i.body:
   %trunc = trunc i64 %i to i32
-  call void(i32, i32, ptr, i32, i32, i32, ptr, ...) @llvm.kit.reduce.0(i32 32, i32 25, ptr %result, i32 4, i32 %trunc, i32 4294967295, ptr @min)
+  call void(i32, i32, ptr, i32, i32, i32, i32, ptr, ...) @llvm.kit.reduce.0(i32 32, i32 25, ptr %result, i32 %trunc, i32 0, i32 4, i32 4294967295, ptr @min)
   reattach within %syncreg, label %for.i.latch
 
 for.i.latch:

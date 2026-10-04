@@ -18,7 +18,18 @@ using namespace llvm;
 
 namespace {
 
-TEST(KitReductions, fromInt) {
+TEST(KitReductions, fromIntReductionStrategy) {
+  EXPECT_EQ(fromInt<ReductionStrategy>(0), ReductionStrategy::Auto);
+  EXPECT_EQ(fromInt<ReductionStrategy>(1), ReductionStrategy::Naive);
+  EXPECT_EQ(fromInt<ReductionStrategy>(2), ReductionStrategy::Direct);
+  EXPECT_EQ(fromInt<ReductionStrategy>(3), ReductionStrategy::ThreadLocal);
+  EXPECT_EQ(fromInt<ReductionStrategy>(4), ReductionStrategy::GPUSharedMemory);
+  EXPECT_EQ(fromInt<ReductionStrategy>(5), ReductionStrategy::GPUWarpShuffle);
+  EXPECT_EQ(fromInt<ReductionStrategy>(6),
+            ReductionStrategy::GPUWarpShuffleWithSharedMemory);
+}
+
+TEST(KitReductions, fromIntReduceOp) {
   EXPECT_EQ(fromInt<ReduceOp>(0), ReduceOp::Custom);
   EXPECT_EQ(fromInt<ReduceOp>(1), ReduceOp::And);
   EXPECT_EQ(fromInt<ReduceOp>(2), ReduceOp::Or);
@@ -296,7 +307,7 @@ TEST(KitReductions, getReducerType) {
 
   CallInst *cf =
       builder.CreateIntrinsic(Intrinsic::kit_reduce_0, {i32, i32},
-                              {one, five, cnull, four, ten, zero, cnull});
+                              {one, five, cnull, ten, zero, four, zero, cnull});
   ReductionInfo redf(cf);
   FunctionType *tyf = redf.getReducerType();
 
@@ -308,7 +319,7 @@ TEST(KitReductions, getReducerType) {
 
   CallInst *cv = builder.CreateIntrinsic(
       Intrinsic::kit_reduce_0, {i32, i32, ptr},
-      {one, five, cnull, four, ten, zero, cnull, cnull});
+      {one, five, cnull, ten, zero, four, zero, cnull, cnull});
   ReductionInfo redv(cv);
   FunctionType *tyv = redv.getReducerType();
 
