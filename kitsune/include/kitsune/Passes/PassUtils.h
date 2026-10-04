@@ -30,6 +30,9 @@ PreservedAnalyses getPreservedAnalysesCallGraph();
 /// on the CFG are preserved.
 PreservedAnalyses getPreservedAnalysesCFG();
 
+/// Get a PreservedAnalyses object that is suitable to return from a loop pass.
+PreservedAnalyses getPreservedAnalysesLoop();
+
 /// Get a PreservedAnalyses object that indicates that all analyses have been
 /// invalidated.
 PreservedAnalyses getPreservedAnalysesNone();
