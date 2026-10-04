@@ -75,7 +75,7 @@ bool llvm::detail::setStrategy(CallInst *call, ReductionStrategy strategy) {
          "Expected call to Kitsune's reduce intrinsic");
 
   LLVMContext &ctx = call->getContext();
-  Value *v = toConstant(uint32_t(strategy), ctx);
+  Value *v = toConstant(strategy, ctx);
   call->setArgOperand(ReductionInfo::argNumStrategy, v);
 
   return true;
