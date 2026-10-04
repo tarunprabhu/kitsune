@@ -1,13 +1,18 @@
 ; Check that a simple reduction loop of depth 1 is finalized as expected.
 ;
-; By default, the WarpShuffleOnly strategy is used for GPU reductions.
+; By default, the `GPUWarpShuffle` strategy is used for GPU reductions.
 ;
 ; RUN: opt --tapir=cuda --passes=loop-spawning,emb-finalize-reductions %s \
-; RUN:     --tapir-gpu-reduce-mode=wshf \
 ; RUN:     | %kit-mbc -S -o - \
-; RUN:     | FileCheck %s --check-prefixes=ALL,WSHF
+; RUN:     | FileCheck %s --check-prefixes=ALL,WSHFL
 ;
-; Otherwise, a reduce mode can be specified explicitly.
+; ------------------------------------------------------------------------------
+; Otherwise, a reduction strategy can be specified explicitly.
+;
+; RUN: opt --tapir=cuda -passes=loop-spawning,emb-finalize-reductions %s \
+; RUN:     --tapir-gpu-reduce-mode=naive \
+; RUN:     | %kit-mbc -S -o - \
+; RUN:     | FileCheck %s --check-prefixes=ALL,NAIVE
 ;
 ; RUN: opt --tapir=cuda -passes=loop-spawning,emb-finalize-reductions %s \
 ; RUN:     --tapir-gpu-reduce-mode=direct \
@@ -15,19 +20,33 @@
 ; RUN:     | FileCheck %s --check-prefixes=ALL,DIRECT
 ;
 ; RUN: opt --tapir=cuda -passes=loop-spawning,emb-finalize-reductions %s \
-; RUN:     --tapir-gpu-reduce-mode=mem \
+; RUN:     --tapir-gpu-reduce-mode=local \
 ; RUN:     | %kit-mbc -S -o - \
-; RUN:     | FileCheck %s --check-prefixes=ALL,MEM
+; RUN:     | FileCheck %s --check-prefixes=ALL,LOCAL
+;
+; RUN: opt --tapir=cuda -passes=loop-spawning,emb-finalize-reductions %s \
+; RUN:     --tapir-gpu-reduce-mode=shmem \
+; RUN:     | %kit-mbc -S -o - \
+; RUN:     | FileCheck %s --check-prefixes=ALL,SHMEM
 ;
 ; RUN: opt --tapir=cuda --passes=loop-spawning,emb-finalize-reductions %s\
-; RUN:     --tapir-gpu-reduce-mode=wshf \
+; RUN:     --tapir-gpu-reduce-mode=wshfl \
 ; RUN:     | %kit-mbc -S -o - \
-; RUN:     | FileCheck %s --check-prefixes=ALL,WSHF
+; RUN:     | FileCheck %s --check-prefixes=ALL,WSHFL
 ;
 ; RUN: opt --tapir=cuda --passes=loop-spawning,emb-finalize-reductions %s \
-; RUN:     --tapir-gpu-reduce-mode=wshfmem \
+; RUN:     --tapir-gpu-reduce-mode=wshflshmem \
 ; RUN:     | %kit-mbc -S -o - \
-; RUN:     | FileCheck %s --check-prefixes=ALL,WSHFMEM
+; RUN:     | FileCheck %s --check-prefixes=ALL,WSHFLSHMEM
+;
+; ------------------------------------------------------------------------------
+; The reduction strategy cannot be `auto`.
+;
+; RUN: not opt --tapir=cuda -passes=loop-spawning,emb-finalize-reductions %s \
+; RUN:         --tapir-gpu-reduce-mode=auto 2>&1 \
+; RUN:     | FileCheck %s --check-prefix=ERR
+;
+; ERR: Cannot find option named 'auto'
 ;
 ; ------------------------------------------------------------------------------
 
@@ -71,10 +90,12 @@
 ; ALL-SAME: i32 5
 ; ALL-SAME: ptr %[[RESULT]]
 ; ALL-SAME: i64 %[[VALUE]]
+; NAIVE-SAME: i32 1
 ; DIRECT-SAME: i32 2
-; MEM-SAME: i32 4
-; WSHF-SAME: i32 5
-; WSHFMEM-SAME: i32 6
+; LOCAL-SAME: i32 3
+; SHMEM-SAME: i32 4
+; WSHFL-SAME: i32 5
+; WSHFLSHMEM-SAME: i32 6
 ; ALL-SAME: i32 8
 ; ALL-SAME: i64 0
 ; ALL-SAME: ptr @sum
