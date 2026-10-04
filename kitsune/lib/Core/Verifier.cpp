@@ -169,7 +169,7 @@ KitVerifier &KitVerifier::verifyIntrReduce(const CallBase &call, Value *unitVal,
   return *this;
 }
 
-KitVerifier &KitVerifier::verifyIntrReduce0(const CallBase &call) {
+KitVerifier &KitVerifier::verifyIntrReduce(const CallBase &call) {
   Value *val = call.getArgOperand(ReductionInfo::argNumValue);
   Value *unit = call.getArgOperand(ReductionInfo::argNumUnit);
   Value *reducer = call.getArgOperand(ReductionInfo::argNumReducer);
@@ -211,7 +211,7 @@ KitVerifier &KitVerifier::verify(const CallBase &call) {
   case Intrinsic::kit_gpu_warp_id:
   case Intrinsic::kit_gpu_warp_lane: return verifyIntrWarpIdOrLane(call);
   case Intrinsic::kit_mobile_init: return verifyIntrMobileInit(call);
-  case Intrinsic::kit_reduce_0: return verifyIntrReduce0(call);
+  case Intrinsic::kit_reduce: return verifyIntrReduce(call);
   default: return *this;
   }
 }
