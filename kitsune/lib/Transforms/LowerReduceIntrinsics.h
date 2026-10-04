@@ -25,7 +25,7 @@ class LowerGPUIntrImpl;
 /// strategy. Always returns true.
 bool lowerReduceIntrNaive(CallInst *call);
 
-/// Lower a call to Kitsune's kit.reduce.0, or kit.gpu.reduce intrinsic. Always
+/// Lower a call to Kitsune's kit.reduce, or kit.gpu.reduce intrinsic. Always
 /// returns true.
 bool lowerReduceIntr(CallInst *call, LowerGPUIntrImpl &lowerGPU);
 

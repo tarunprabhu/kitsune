@@ -419,7 +419,7 @@ SmallVector<ReductionInfo, 1> llvm::collectReductions(Loop &loop) {
   for (BasicBlock *bb : loop.getBlocks())
     for (Instruction &inst : *bb)
       if (auto *call = dyn_cast<CallInst>(&inst))
-        if (call->getIntrinsicID() == Intrinsic::kit_reduce_0)
+        if (call->getIntrinsicID() == Intrinsic::kit_reduce)
           reductions.emplace_back(call);
   return reductions;
 }

@@ -5,7 +5,7 @@
 // CHECK-LABEL: @reduce_f32
 // CHECK: %[[R:.+]] = alloca float
 // CHECK-NEXT: %[[V:.+]] = load float, ptr %[[R]]
-// CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
+// CHECK-NEXT: call {{.+}} @llvm.kit.reduce{{[^(]+}}
 // CHECK-SAME: (i32 0, i32 17, ptr %[[R]], float %[[V]], i32 0, i32 4,
 // CHECK-SAME: float 0x3810000000000000,
 // CHECK-SAME: ptr @__kitsune_reduce.maximum.f32)
@@ -25,7 +25,7 @@ extern "C" void reduce_f32() {
 // CHECK-LABEL: @reduce_f64
 // CHECK: %[[R:.+]] = alloca double
 // CHECK-NEXT: %[[V:.+]] = load double, ptr %[[R]]
-// CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
+// CHECK-NEXT: call {{.+}} @llvm.kit.reduce{{[^(]+}}
 // CHECK-SAME: (i32 0, i32 17, ptr %[[R]], double %[[V]], i32 0, i32 8,
 // CHECK-SAME: double 0x10000000000000,
 // CHECK-SAME: ptr @__kitsune_reduce.maximum.f64)

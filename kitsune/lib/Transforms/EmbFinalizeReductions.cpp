@@ -15,7 +15,7 @@
 //       for (long i = beg; i < end; ++i) {
 //          ...
 //          v = ...;
-//          @llvm.kit.reduce.0(globalResult, REDUCE_OP, .., v, unit, ...);
+//          @llvm.kit.reduce(globalResult, REDUCE_OP, .., v, unit, ...);
 //       }
 //     }
 //
@@ -28,7 +28,7 @@
 //       for (long i = beg; i < end; ++i) {
 //          ...
 //          v = ...;
-//          @llvm.kit.reduce.0(localResult, REDUCE_OP, v);
+//          @llvm.kit.reduce(localResult, REDUCE_OP, v);
 //       }
 //       cooperativeReduce(globalResult, REDUCE_OP, localResult);
 //     }

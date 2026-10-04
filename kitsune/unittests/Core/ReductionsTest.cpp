@@ -306,7 +306,7 @@ TEST(KitReductions, getReducerType) {
   IRBuilder<> builder(bb);
 
   CallInst *cf =
-      builder.CreateIntrinsic(Intrinsic::kit_reduce_0, {i32, i32},
+      builder.CreateIntrinsic(Intrinsic::kit_reduce, {i32, i32},
                               {one, five, cnull, ten, zero, four, zero, cnull});
   ReductionInfo redf(cf);
   FunctionType *tyf = redf.getReducerType();
@@ -318,7 +318,7 @@ TEST(KitReductions, getReducerType) {
   EXPECT_EQ(redf.getReducerArgs(), (SmallVector<Value *, 2>{cnull, ten}));
 
   CallInst *cv = builder.CreateIntrinsic(
-      Intrinsic::kit_reduce_0, {i32, i32, ptr},
+      Intrinsic::kit_reduce, {i32, i32, ptr},
       {one, five, cnull, ten, zero, four, zero, cnull, cnull});
   ReductionInfo redv(cv);
   FunctionType *tyv = redv.getReducerType();
