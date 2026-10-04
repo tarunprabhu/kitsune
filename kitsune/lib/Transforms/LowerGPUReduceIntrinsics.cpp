@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "LowerGPUIntrinsicsImpl.h"
+#include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/Diagnostics.h"
 #include "kitsune/Core/FuncAttrs.h"
 #include "kitsune/Core/ModuleUtils.h"
@@ -173,10 +174,12 @@ LowerWarpShuffle::getOrInsertFinalReduceImpl(Module &m, unsigned dims,
   builder.CreateCondBr(is0, bbReduce, bbExit);
 
   builder.SetInsertPoint(bbReduce);
+  Constant *strategy = toConstant(uint32_t(ReductionStrategy::Direct), ctx);
   SmallVector<Type *, 2> overloadTys = redxn.getOverloadTypes();
-  SmallVector<Value *, 8> args = {tt, op, dest, elemSize, val, unit, reducer};
+  SmallVector<Value *, 8> args = {tt,       op,       dest, val,
+                                  strategy, elemSize, unit, reducer};
   args.append(redxn.getExtraArgs());
-  builder.CreateIntrinsic(Intrinsic::kit_gpu_reduce_direct, overloadTys, args);
+  builder.CreateIntrinsic(Intrinsic::kit_reduce_0, overloadTys, args);
   builder.CreateBr(bbExit);
 
   builder.SetInsertPoint(bbExit);
@@ -257,9 +260,11 @@ Function *LowerWarpShuffle::getOrInsertShuffleImpl(Module &m, unsigned dims,
       builder.CreateIntrinsic(Intrinsic::kit_gpu_warp_shfl_down_sync, {ty, ty},
                               {tt, val, off}, /*FMFSource=*/{}, "v");
 
+  Value *naive = toConstant(uint32_t(ReductionStrategy::Naive), ctx);
   Value *res0 = builder.CreateAddrSpaceCast(res, ptr);
   SmallVector<Type *, 2> overloadTys = redxn.getOverloadTypes();
-  SmallVector<Value *, 8> args = {tt, op, res0, size, newVal, unit, reducer};
+  SmallVector<Value *, 8> args = {tt,    op,   res0, newVal,
+                                  naive, size, unit, reducer};
   args.append(redxn.getExtraArgs());
   builder.CreateIntrinsic(Intrinsic::kit_reduce_0, overloadTys, args);
 
@@ -335,18 +340,18 @@ void LowerDirect::lower(CallInst *call) {
 
 // -----------------------------------------------------------------------------
 
-bool detail::LowerGPUIntrImpl::lowerReduceDirectIntr(CallInst *call) {
+bool detail::LowerGPUIntrImpl::lowerReduceIntrDirect(CallInst *call) {
   return LowerDirect().run(call);
 }
 
-bool detail::LowerGPUIntrImpl::lowerReduceShmemIntr(CallInst *call) {
+bool detail::LowerGPUIntrImpl::lowerReduceIntrShmem(CallInst *call) {
   return LowerSharedMemory().run(call);
 }
 
-bool detail::LowerGPUIntrImpl::lowerReduceWarpShflIntr(CallInst *call) {
+bool detail::LowerGPUIntrImpl::lowerReduceIntrWarpShfl(CallInst *call) {
   return LowerWarpShuffle().run(call);
 }
 
-bool detail::LowerGPUIntrImpl::lowerReduceWarpShflShmemIntr(CallInst *call) {
+bool detail::LowerGPUIntrImpl::lowerReduceIntrWarpShflShmem(CallInst *call) {
   return LowerWarpShuffleWithSharedMemory().run(call);
 }

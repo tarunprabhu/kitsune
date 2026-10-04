@@ -21,6 +21,7 @@
 #include "VerifierImpl.h"
 #include "kitsune/Core/Attrs.h"
 #include "kitsune/Core/IntrinsicUtils.h"
+#include "kitsune/Core/Reductions.h"
 #include "kitsune/Core/TTUtils.h"
 #include "kitsune/Core/ValueUtils.h"
 #include "llvm/ADT/DenseMap.h"
@@ -169,16 +170,16 @@ KitVerifier &KitVerifier::verifyIntrReduce(const CallBase &call, Value *unitVal,
 }
 
 KitVerifier &KitVerifier::verifyIntrReduce0(const CallBase &call) {
-  Value *val = call.getArgOperand(4);
-  Value *unit = call.getArgOperand(5);
-  Value *reducer = call.getArgOperand(6);
+  Value *val = call.getArgOperand(ReductionInfo::argNumValue);
+  Value *unit = call.getArgOperand(ReductionInfo::argNumUnit);
+  Value *reducer = call.getArgOperand(ReductionInfo::argNumReducer);
 
   Type *valTy = val->getType();
   Type *unitTy = unit->getType();
 
   check(valTy == unitTy, DiagID::ErrReduceUnitValMismatch);
 
-  return verifyIntrReduce(call, unit, reducer, 7);
+  return verifyIntrReduce(call, unit, reducer, ReductionInfo::argNumExtra);
 }
 
 KitVerifier &KitVerifier::verifyIntrWarpIdOrLane(const CallBase &call) {

@@ -153,7 +153,7 @@ void PrepareReductionLoopGPU::reduceIntoShadowMem(Loop &loop, Value *shadow,
   // in the reduce intrinsic. This is why we can simply change the destination
   // in the intrinsic call to ensure that we reduce into shadow memory. If this
   // ever changes, we may have to do something more sophisticated here.
-  redxn.call->setArgOperand(2, shadow);
+  redxn.call->setArgOperand(ReductionInfo::argNumDest, shadow);
 }
 
 void PrepareReductionLoopGPU::copyShadowMemToDest(Loop &loop,

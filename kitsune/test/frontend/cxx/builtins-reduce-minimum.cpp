@@ -6,7 +6,7 @@
 // CHECK: %[[R:.+]] = alloca float
 // CHECK-NEXT: %[[V:.+]] = load float, ptr %[[R]]
 // CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
-// CHECK-SAME: (i32 0, i32 21, ptr %[[R]], i32 4, float %[[V]],
+// CHECK-SAME: (i32 0, i32 21, ptr %[[R]], float %[[V]], i32 0, i32 4,
 // CHECK-SAME: float 0x47EFFFFFE0000000,
 // CHECK-SAME: ptr @__kitsune_reduce.minimum.f32)
 //
@@ -26,7 +26,7 @@ extern "C" void reduce_f32() {
 // CHECK: %[[R:.+]] = alloca double
 // CHECK-NEXT: %[[V:.+]] = load double, ptr %[[R]]
 // CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
-// CHECK-SAME: (i32 0, i32 21, ptr %[[R]], i32 8, double %[[V]],
+// CHECK-SAME: (i32 0, i32 21, ptr %[[R]], double %[[V]], i32 0, i32 8,
 // CHECK-SAME: double 0x7FEFFFFFFFFFFFFF,
 // CHECK-SAME: ptr @__kitsune_reduce.minimum.f64)
 //

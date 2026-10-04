@@ -55,7 +55,7 @@
 declare void @sum(ptr, i32)
 
 define void @f(ptr %result, i32 %v) !kit.func !0 {
-  call void(i32, i32, ptr, i32, i32, i32, ptr, ...) @llvm.kit.gpu.reduce.warp.shuffle(i32 2, i32 5, ptr %result, i32 4, i32 %v, i32 0, ptr @sum)
+  call void(i32, i32, ptr, i32, i32, i32, i32, ptr, ...) @llvm.kit.gpu.reduce(i32 2, i32 5, ptr %result, i32 %v, i32 5, i32 4, i32 0, ptr @sum)
   ret void
 }
 
