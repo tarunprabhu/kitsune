@@ -85,7 +85,7 @@
 ; ALL-EMPTY:
 ; ALL-NEXT: [[EXIT]]:
 ; ALL-NEXT: %[[VALUE:.+]] = load i64, ptr %[[LOCAL]]
-; ALL-NEXT: call {{.+}} @llvm.kit.gpu.reduce
+; ALL-NEXT: call {{.+}} @llvm.kit.reduce
 ; ALL-SAME: i32 2
 ; ALL-SAME: i32 5
 ; ALL-SAME: ptr %[[RESULT]]
