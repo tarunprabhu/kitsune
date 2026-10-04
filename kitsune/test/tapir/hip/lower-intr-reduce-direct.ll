@@ -12,6 +12,6 @@
 declare void @min(ptr, i32)
 
 define void @f(ptr %result, i64 %v) {
-  call void(i32, i32, ptr, i32, i64, i64, ptr, ...) @llvm.kit.gpu.reduce.direct(i32 4, i32 26, ptr %result, i32 8, i64 %v, i64 0, ptr @min)
+  call void(i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.gpu.reduce.direct(i32 4, i32 26, ptr %result, i64 %v, i32 2, i32 8, i64 0, ptr @min)
   ret void
 }

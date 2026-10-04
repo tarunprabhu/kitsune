@@ -31,6 +31,7 @@
 #include "LowerReduceIntrinsics.h"
 #include "kitsune/Core/IntrinsicUtils.h"
 #include "kitsune/Core/ModuleUtils.h"
+#include "kitsune/Core/Reductions.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/Instructions.h"
 
@@ -42,15 +43,9 @@ using namespace llvm;
 // otherwise.
 static bool lowerIntr(CallInst *call, detail::LowerGPUIntrImpl &lowerGPU) {
   switch (call->getIntrinsicID()) {
-  case Intrinsic::kit_reduce_0: return detail::lowerReduce0Intr(call);
-  case Intrinsic::kit_gpu_reduce_warp_shuffle_shared_memory:
-    return lowerGPU.lowerReduceWarpShflShmemIntr(call);
-  case Intrinsic::kit_gpu_reduce_shared_memory:
-    return lowerGPU.lowerReduceWarpShflShmemIntr(call);
-  case Intrinsic::kit_gpu_reduce_warp_shuffle:
-    return lowerGPU.lowerReduceWarpShflIntr(call);
-  case Intrinsic::kit_gpu_reduce_direct:
-    return lowerGPU.lowerReduceDirectIntr(call);
+  case Intrinsic::kit_reduce_0:
+  case Intrinsic::kit_gpu_reduce: //
+    return detail::lowerReduceIntr(call, lowerGPU);
   case Intrinsic::kit_gpu_warp_shfl_down_sync:
     return lowerGPU.lowerWarpShflDownSyncIntr(call);
   case Intrinsic::kit_gpu_warp_id: return lowerGPU.lowerWarpIdIntr(call);
@@ -67,7 +62,8 @@ static bool lowerIntr(CallInst *call, detail::LowerGPUIntrImpl &lowerGPU) {
   case Intrinsic::kit_gpu_block_size_z:
   case Intrinsic::kit_gpu_grid_size_x:
   case Intrinsic::kit_gpu_grid_size_y:
-  case Intrinsic::kit_gpu_grid_size_z: return lowerGPU.lowerIndexIntr(call);
+  case Intrinsic::kit_gpu_grid_size_z: //
+    return lowerGPU.lowerIndexIntr(call);
   default: break;
   }
   return false;

@@ -8,7 +8,7 @@
 // CHECK: %[[R:.+]] = alloca i8
 // CHECK-NEXT: %[[V:.+]] = load i8, ptr %[[R]]
 // CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
-// CHECK-SAME: (i32 0, i32 7, ptr %[[R]], i32 1, i8 %[[V]], i8 1,
+// CHECK-SAME: (i32 0, i32 7, ptr %[[R]], i8 %[[V]], i32 0, i32 1, i8 1,
 // CHECK-SAME: ptr @__kitsune_reduce.mul.i8)
 //
 // CHECK-LABEL: define linkonce_odr void @__kitsune_reduce.mul.i8
@@ -27,7 +27,7 @@ void reduce_i8() {
 // CHECK: %[[R:.+]] = alloca i8
 // CHECK-NEXT: %[[V:.+]] = load i8, ptr %[[R]]
 // CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
-// CHECK-SAME: (i32 0, i32 7, ptr %[[R]], i32 1, i8 %[[V]], i8 1,
+// CHECK-SAME: (i32 0, i32 7, ptr %[[R]], i8 %[[V]], i32 0, i32 1, i8 1,
 // CHECK-SAME: ptr @__kitsune_reduce.mul.i8)
 // CHECK-NEXT: ret void
 void reduce_u8() {
@@ -39,7 +39,7 @@ void reduce_u8() {
 // CHECK: %[[R:.+]] = alloca i16
 // CHECK-NEXT: %[[V:.+]] = load i16, ptr %[[R]]
 // CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
-// CHECK-SAME: (i32 0, i32 7, ptr %[[R]], i32 2, i16 %[[V]], i16 1,
+// CHECK-SAME: (i32 0, i32 7, ptr %[[R]], i16 %[[V]], i32 0, i32 2, i16 1,
 // CHECK-SAME: ptr @__kitsune_reduce.mul.i16)
 //
 // CHECK-LABEL: define linkonce_odr void @__kitsune_reduce.mul.i16
@@ -58,7 +58,7 @@ void reduce_i16() {
 // CHECK: %[[R:.+]] = alloca i16
 // CHECK-NEXT: %[[V:.+]] = load i16, ptr %[[R]]
 // CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
-// CHECK-SAME: (i32 0, i32 7, ptr %[[R]], i32 2, i16 %[[V]], i16 1,
+// CHECK-SAME: (i32 0, i32 7, ptr %[[R]], i16 %[[V]], i32 0, i32 2, i16 1,
 // CHECK-SAME: ptr @__kitsune_reduce.mul.i16)
 // CHECK-NEXT: ret void
 void reduce_u16() {
@@ -70,7 +70,7 @@ void reduce_u16() {
 // CHECK: %[[R:.+]] = alloca i32
 // CHECK-NEXT: %[[V:.+]] = load i32, ptr %[[R]]
 // CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
-// CHECK-SAME: (i32 0, i32 7, ptr %[[R]], i32 4, i32 %[[V]], i32 1,
+// CHECK-SAME: (i32 0, i32 7, ptr %[[R]], i32 %[[V]], i32 0, i32 4, i32 1,
 // CHECK-SAME: ptr @__kitsune_reduce.mul.i32)
 //
 // CHECK-LABEL: define linkonce_odr void @__kitsune_reduce.mul.i32
@@ -89,7 +89,7 @@ void reduce_i32() {
 // CHECK: %[[R:.+]] = alloca i32
 // CHECK-NEXT: %[[V:.+]] = load i32, ptr %[[R]]
 // CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
-// CHECK-SAME: (i32 0, i32 7, ptr %[[R]], i32 4, i32 %[[V]], i32 1,
+// CHECK-SAME: (i32 0, i32 7, ptr %[[R]], i32 %[[V]], i32 0, i32 4, i32 1,
 // CHECK-SAME: ptr @__kitsune_reduce.mul.i32)
 // CHECK-NEXT: ret void
 void reduce_u32() {
@@ -101,7 +101,7 @@ void reduce_u32() {
 // CHECK: %[[R:.+]] = alloca i64
 // CHECK-NEXT: %[[V:.+]] = load i64, ptr %[[R]]
 // CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
-// CHECK-SAME: (i32 0, i32 7, ptr %[[R]], i32 8, i64 %[[V]], i64 1,
+// CHECK-SAME: (i32 0, i32 7, ptr %[[R]], i64 %[[V]], i32 0, i32 8, i64 1,
 // CHECK-SAME: ptr @__kitsune_reduce.mul.i64)
 //
 // CHECK-LABEL: define linkonce_odr void @__kitsune_reduce.mul.i64
@@ -120,7 +120,7 @@ void reduce_i64() {
 // CHECK: %[[R:.+]] = alloca i64
 // CHECK-NEXT: %[[V:.+]] = load i64, ptr %[[R]]
 // CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
-// CHECK-SAME: (i32 0, i32 7, ptr %[[R]], i32 8, i64 %[[V]], i64 1,
+// CHECK-SAME: (i32 0, i32 7, ptr %[[R]], i64 %[[V]], i32 0, i32 8, i64 1,
 // CHECK-SAME: ptr @__kitsune_reduce.mul.i64)
 // CHECK-NEXT: ret void
 void reduce_u64() {
@@ -132,7 +132,7 @@ void reduce_u64() {
 // CHECK: %[[R:.+]] = alloca float
 // CHECK-NEXT: %[[V:.+]] = load float, ptr %[[R]]
 // CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
-// CHECK-SAME: (i32 0, i32 8, ptr %[[R]], i32 4, float %[[V]],
+// CHECK-SAME: (i32 0, i32 8, ptr %[[R]], float %[[V]], i32 0, i32 4,
 // CHECK-SAME: float 1.000000e+00,
 // CHECK-SAME: ptr @__kitsune_reduce.mul.f32)
 //
@@ -152,7 +152,7 @@ void reduce_f32() {
 // CHECK: %[[R:.+]] = alloca double
 // CHECK-NEXT: %[[V:.+]] = load double, ptr %[[R]]
 // CHECK-NEXT: call {{.+}} @llvm.kit.reduce.0{{[^(]+}}
-// CHECK-SAME: (i32 0, i32 8, ptr %[[R]], i32 8, double %[[V]],
+// CHECK-SAME: (i32 0, i32 8, ptr %[[R]], double %[[V]], i32 0, i32 8,
 // CHECK-SAME: double 1.000000e+00,
 // CHECK-SAME: ptr @__kitsune_reduce.mul.f64)
 //
