@@ -17,9 +17,6 @@
 
 namespace llvm {
 
-/// \addtogroup kitsune
-/// @{
-
 // NOTE: Most options that control Kitsune's behavior are defined in
 // TTOptions.cpp. They are private to the file and we intend to keep it that
 // way. These options are in the "Kitsune" option category.
@@ -31,6 +28,9 @@ namespace llvm {
 // functions to override the visibility and description of these options. Since
 // we don't expect the spelling of these options to change, we require the
 // string representing the option to be passed to these utilities.
+
+/// \addtogroup kitsune
+/// @{
 
 /// Make the option with the given spelling visible.
 void clSetOptionVisible(StringRef spelling);
