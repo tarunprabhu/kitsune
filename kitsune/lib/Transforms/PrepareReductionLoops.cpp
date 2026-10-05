@@ -18,13 +18,10 @@
 #include "LowerReduceIntrinsics.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/Diagnostics.h"
-#include "kitsune/Core/IRBuilderUtils.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
-#include "kitsune/Core/ModuleUtils.h"
 #include "kitsune/Core/TTUtils.h"
 #include "kitsune/Core/ValueUtils.h"
-#include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
 
 #define DEBUG_TYPE "kit-prepare"
@@ -35,19 +32,6 @@ static bool lowerReduceIntrs(const SmallVectorImpl<ReductionInfo> &redxns) {
   bool changed = false;
   for (const ReductionInfo &redxn : redxns)
     changed |= detail::lowerReduceIntrNaive(redxn.call);
-  return changed;
-}
-
-static bool
-prepareReductionLoopSerial(Loop &loop,
-                           const SmallVectorImpl<ReductionInfo> &redxns) {
-  bool changed = false;
-
-  for (const ReductionInfo &redxn : redxns)
-    changed |= detail::setStrategy(redxn.call, ReductionStrategy::Naive);
-  changed |= lowerReduceIntrs(redxns);
-  addPreparedAttr(loop);
-
   return changed;
 }
 
@@ -111,9 +95,7 @@ bool llvm::detail::prepareReductionLoop(TapirLoopInfo &tapirLoop,
   }
 
   TTID tt = *getTargetAttr(loop);
-  if (tt == TTID::Serial)
-    return prepareReductionLoopSerial(loop, redxns);
-  else if (isCPUTT(tt))
+  if (isCPUTT(tt))
     return prepareReductionLoopCPU(tapirLoop, redxns, dt, li, mssa, se, ti);
   else if (isGPUTT(tt))
     return prepareReductionLoopGPU(tapirLoop, redxns, dt, li, mssa, se, ti);
