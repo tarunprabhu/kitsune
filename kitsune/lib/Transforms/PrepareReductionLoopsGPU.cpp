@@ -23,11 +23,17 @@
 // This pass will transform this into the following for parallel execution on a
 // GPU.
 //
+//     int64_t numThreads = kit.num.cpu.threads();
+//     int64_t itersPerThread = (n + numThreads - 1) / numThreads;
 //     int32_t *g_sum = allocateShadowMemory<int32_t>(0);
 //     int64_t *g_and = allocateShadowMemory<int64_t>(0);
-//     parallel_for (int i = 0; j < n; ++i) {
-//         kit.reduce(&g_sum, sizeof(int32_t), i, 0, &f_sum);
-//         kit.reduce(&g_and, sizeof(int64_t), i, 1, &f_and);
+//     parallel_for (int j = 0; j < numThreads; ++j) {
+//         int start = j * itersPerThread;
+//         int end = std::min(start + itersPerThread, n);
+//         for (int i = start; i < end; ++i) {
+//             kit.reduce(&g_sum, sizeof(int32_t), i, 0, &f_sum);
+//             kit.reduce(&g_and, sizeof(int64_t), i, 1, &f_and);
+//         }
 //     }
 //     copyToFinalResult(&r_sum, g_sum, sizeof(int32_t));
 //     copyToFinalResult(&r_and, g_and, sizeof(int64_t));
@@ -38,6 +44,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "PrepareReductionLoops.h"
+#include "PrepareTapirLoopsImpl.h"
 #include "kitsune/Core/AddrSpace.h"
 #include "kitsune/Core/Diagnostics.h"
 #include "kitsune/Core/GPUMemUtils.h"
@@ -47,6 +54,7 @@
 #include "kitsune/Core/Reductions.h"
 #include "kitsune/Support/CommandLineOptions.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/Transforms/Tapir/TapirLoopInfo.h"
 
 #define DEBUG_TYPE "kit-prepare"
 
@@ -55,7 +63,7 @@ using namespace llvm;
 namespace {
 
 // Transform tapir reduction loops for parallel executions on GPU's.
-class PrepareReductionLoopGPU {
+class PrepareReductionLoopGPU : public detail::PrepareTapirLoopGPU {
 private:
   Value *allocShadowMem(Loop &loop, GPUDynMemAllocKind dmem,
                         const ReductionInfo &redxn);
@@ -67,7 +75,12 @@ private:
                      const ReductionInfo &redxn);
 
 public:
-  bool run(Loop &loop, const SmallVectorImpl<ReductionInfo> &reductions);
+  PrepareReductionLoopGPU(DominatorTree &dt, LoopInfo &li, MemorySSA &mssa,
+                          ScalarEvolution &se, TaskInfo &ti)
+      : detail::PrepareTapirLoopGPU(dt, li, mssa, se, ti) {}
+
+  bool run(TapirLoopInfo &tapirLoop,
+           const SmallVectorImpl<ReductionInfo> &reductions);
 };
 
 } // namespace
@@ -206,38 +219,39 @@ void PrepareReductionLoopGPU::freeShadowMem(Loop &loop, GPUDynMemAllocKind dmem,
 }
 
 bool PrepareReductionLoopGPU::run(
-    Loop &loop, const SmallVectorImpl<ReductionInfo> &reductions) {
-  auto sanityCheck = [](const Loop &loop) {
-    assert(loop.getLoopPreheader() && "Loop must have a preheader");
-    assert(getExitBlockFromLatch(loop) && "Loop must have a unique exit block");
-    assert(hasTargetAttr(loop) &&
-           "Loop must have the tapir.loop.target attribute");
-  };
-
-  sanityCheck(loop);
+    TapirLoopInfo &tapirLoop,
+    const SmallVectorImpl<ReductionInfo> &reductions) {
+  Loop &loop = *tapirLoop.getLoop();
   LLVM_DEBUG(dbgs() << "PrepareReductionGPU: BEGIN '" << getName(loop)
                     << "'\n");
+
+  // Calling the base class implementation will block the loop, so we will have
+  // an outer parallel loop and inner serial loop.
+  detail::PrepareTapirLoopGPU::run(tapirLoop);
 
   GPUDynMemAllocKind dmem = getShadowMemoryKind();
   for (const ReductionInfo &redxn : reductions) {
     // We have to save this because this will change during the course of the
-    // transformations.
+    // transformations. Since the original tapir loop will have been blocked,
+    // the loop variable will now be the inner, serial loop. Its parent will be
+    // the outer, parallel loop.
+    Loop &outerLoop = *loop.getParentLoop();
     Value *dest = redxn.getDest();
-    Value *shadow = allocShadowMem(loop, dmem, redxn);
-    reduceIntoShadowMem(loop, shadow, redxn);
-    copyShadowMemToDest(loop, dmem, shadow, dest, redxn);
-    freeShadowMem(loop, dmem, shadow, redxn);
+    Value *shadow = allocShadowMem(outerLoop, dmem, redxn);
+    reduceIntoShadowMem(outerLoop, shadow, redxn);
+    copyShadowMemToDest(outerLoop, dmem, shadow, dest, redxn);
+    freeShadowMem(outerLoop, dmem, shadow, redxn);
   }
 
   LLVM_DEBUG(dbgs() << "PrepareReductionGPU: END '" << getName(loop) << "'\n");
 
-  // Mark the loop as having been prepared to ensure that we don't accidentally
-  // attempt to process it more than once.
-  addPreparedAttr(loop);
   return true;
 }
 
 bool llvm::detail::prepareReductionLoopForGPU(
-    Loop &loop, const SmallVectorImpl<ReductionInfo> &reductions) {
-  return PrepareReductionLoopGPU().run(loop, reductions);
+    TapirLoopInfo &tapirLoop, const SmallVectorImpl<ReductionInfo> &reductions,
+    DominatorTree &dt, LoopInfo &li, MemorySSA &mssa, ScalarEvolution &se,
+    TaskInfo &ti) {
+  return PrepareReductionLoopGPU(dt, li, mssa, se, ti)
+      .run(tapirLoop, reductions);
 }
