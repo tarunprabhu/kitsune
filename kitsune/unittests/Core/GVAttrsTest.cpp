@@ -21,17 +21,19 @@ using namespace llvm;
 
 namespace {
 
-// Override get<>() and verifyAttr<> if needed. See documentation in the base
-// class for details.
 class KitGVAttrs : public TestAttrsBase<KitGVAttrs, GVAttrKind> {
 public:
   static constexpr bool verifyAttr(GVAttrKind attr) {
     switch (attr) {
     case GVAttrKind::BitCode:
     case GVAttrKind::DeviceCode:
+      // These attributes are mutually exclusive. However, the way these tests
+      // are designed, both will be added to the same global variable, which
+      // will result in a verification error. Therefore, do not verify them.
+      // lit tests will have been added that ensure that the verifier works as
+      // expected.
       return false;
-    default:
-      return true;
+    default: return true;
     }
   }
 };
