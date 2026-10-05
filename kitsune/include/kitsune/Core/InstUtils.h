@@ -13,6 +13,7 @@
 #ifndef KITSUNE_CORE_INST_UTILS_H
 #define KITSUNE_CORE_INST_UTILS_H
 
+#include "kitsune/Core/Reductions.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 
@@ -91,6 +92,10 @@ Value *getNonMatchingOperand(BinaryOperator &binOp, Value *match);
 /// block. If the instruction does not have exactly two successors, returns
 /// nullptr.
 BasicBlock *getNonMatchingSuccessor(Instruction &inst, BasicBlock *bb);
+
+/// Replace the strategy in a call to Kitsune's reduce intrinsic. Always return
+/// true.
+bool replaceStrategy(Instruction &inst, ReductionStrategy newStrategy);
 
 /// Is the given instruction a conditional branch.
 bool isCondBr(const Instruction &inst);

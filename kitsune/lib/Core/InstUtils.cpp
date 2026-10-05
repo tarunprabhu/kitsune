@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/InstUtils.h"
+#include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/ValueUtils.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/IR/Instructions.h"
@@ -164,6 +165,19 @@ BasicBlock *llvm::getNonMatchingSuccessor(Instruction &inst, BasicBlock *bb) {
     return inst.getSuccessor(1);
   else
     return inst.getSuccessor(0);
+}
+
+bool llvm::replaceStrategy(Instruction &inst, ReductionStrategy newStrategy) {
+  assert(isa<CallInst>(inst) && "Instruction is a call instruction");
+  assert(cast<CallInst>(inst).getIntrinsicID() == Intrinsic::kit_reduce &&
+         "Instruction is a call to Kitsune's reduce intrinsic");
+
+  LLVMContext &ctx = inst.getContext();
+  CallInst &call = cast<CallInst>(inst);
+  Value *strategy = toConstant(newStrategy, ctx);
+  call.setArgOperand(ReductionInfo::argNumStrategy, strategy);
+
+  return true;
 }
 
 bool llvm::isCondBr(const Instruction &inst) {
