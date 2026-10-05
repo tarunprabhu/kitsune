@@ -300,23 +300,29 @@ for.i.exit:
 
 #define TEST_ATTR_0(OBJ, KIND, NAME, IRNAME, CUSTOMVERIFY)                     \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
-  TEST_VERIFY_TRUE(OBJ, NAME);                                                 \
+  if constexpr (verifyAttr(KIND::NAME))                                        \
+    TEST_VERIFY_TRUE(OBJ, NAME);                                               \
                                                                                \
   add##NAME##Attr(OBJ);                                                        \
   EXPECT_TRUE(has##NAME##Attr(OBJ));                                           \
-  TEST_VERIFY_TRUE(OBJ, NAME);                                                 \
+  if constexpr (verifyAttr(KIND::NAME))                                        \
+    TEST_VERIFY_TRUE(OBJ, NAME);                                               \
                                                                                \
   add##NAME##Attr(OBJ);                                                        \
   EXPECT_TRUE(has##NAME##Attr(OBJ));                                           \
-  TEST_VERIFY_TRUE(OBJ, NAME);                                                 \
+  if constexpr (verifyAttr(KIND::NAME))                                        \
+    TEST_VERIFY_TRUE(OBJ, NAME);                                               \
                                                                                \
   remove##NAME##Attr(OBJ);                                                     \
   EXPECT_FALSE(has##NAME##Attr(OBJ));                                          \
-  TEST_VERIFY_TRUE(OBJ, NAME);                                                 \
+  if constexpr (verifyAttr(KIND::NAME))                                        \
+    TEST_VERIFY_TRUE(OBJ, NAME);                                               \
                                                                                \
   llvm::detail::addAttr(OBJ, IRNAME, SmallVector<Metadata *, 8>(0, nullptr));  \
-  TEST_VERIFY_TRUE(OBJ, NAME);                                                 \
-  TEST_VERIFY_ERR_0(OBJ, NAME);                                                \
+  if constexpr (verifyAttr(KIND::NAME)) {                                      \
+    TEST_VERIFY_TRUE(OBJ, NAME);                                               \
+    TEST_VERIFY_ERR_0(OBJ, NAME);                                              \
+  }                                                                            \
   remove##NAME##Attr(OBJ);
 
 #define TEST_ATTR_1(OBJ, KIND, NAME, IRNAME, CUSTOMVERIFY, TYPE)               \

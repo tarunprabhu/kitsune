@@ -21,11 +21,12 @@ using namespace llvm;
 
 namespace {
 
-// Override get<>() and verifyAttr<> if needed. See documentation in the base
-// class for details.
 class KitLoopAttrs : public TestAttrsBase<KitLoopAttrs, LoopAttrKind> {
 public:
   template <typename T, LoopAttrKind Attr> T get(unsigned idx) {
+    // The value of the ThreadsPerBlock attribute must be in a specific range,
+    // so we override the get function to ensure that the verifier does not
+    // complain about the value.
     if constexpr (Attr == LoopAttrKind::ThreadsPerBlock) {
       static constexpr T pool[] = {0, 4, 16, 64, 128, 256, 512, 1024};
       return pool[idx % (sizeof(pool) / sizeof(T))];
