@@ -65,9 +65,11 @@ prepareReductionLoopCPU(TapirLoopInfo &tapirLoop,
 
 static bool
 prepareReductionLoopGPU(TapirLoopInfo &tapirLoop,
-                        const SmallVectorImpl<ReductionInfo> &redxns) {
-  Loop &loop = *tapirLoop.getLoop();
-  return detail::prepareReductionLoopForGPU(loop, redxns);
+                        const SmallVectorImpl<ReductionInfo> &redxns,
+                        DominatorTree &dt, LoopInfo &li, MemorySSA &mssa,
+                        ScalarEvolution &se, TaskInfo &ti) {
+  return detail::prepareReductionLoopForGPU(tapirLoop, redxns, dt, li, mssa, se,
+                                            ti);
 }
 
 bool llvm::detail::setStrategy(CallInst *call, ReductionStrategy strategy) {
@@ -114,7 +116,7 @@ bool llvm::detail::prepareReductionLoop(TapirLoopInfo &tapirLoop,
   else if (isCPUTT(tt))
     return prepareReductionLoopCPU(tapirLoop, redxns, dt, li, mssa, se, ti);
   else if (isGPUTT(tt))
-    return prepareReductionLoopGPU(tapirLoop, redxns);
+    return prepareReductionLoopGPU(tapirLoop, redxns, dt, li, mssa, se, ti);
   else
     llvm_unreachable("prepareReductionLoop: TT is neither CPU nor GPU-centric");
 }
