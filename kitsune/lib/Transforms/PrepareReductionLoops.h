@@ -52,7 +52,9 @@ bool prepareReductionLoopForCPU(
     TaskInfo &ti);
 
 bool prepareReductionLoopForGPU(
-    Loop &loop, const SmallVectorImpl<ReductionInfo> &reductions);
+    TapirLoopInfo &tapirLoop, const SmallVectorImpl<ReductionInfo> &reductions,
+    DominatorTree &dt, LoopInfo &li, MemorySSA &mssa, ScalarEvolution &se,
+    TaskInfo &ti);
 
 } // namespace detail
 
