@@ -417,6 +417,3 @@ def NoteAncestorLoopTarget
 
 def NoteDescendantLoopTarget
   : Note<"target on descendant loop is '{}'">;
-
-def NoteSerializedLoop
-  : Note<"serialized loop: {}">;
