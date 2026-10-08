@@ -312,6 +312,7 @@ for.i.end:
 ; CHECK-DAG: ![[L1:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 1}
 ; CHECK-DAG: ![[L2:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 2}
 ; CHECK-DAG: ![[L3:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 3}
+; CHECK-DAG: ![[TARGET:[0-9]+]] = !{!"tapir.loop.target", i32 2}
 ;
 ; ------------------------------------------------------------------------------
 ;
@@ -321,8 +322,8 @@ for.i.end:
 ;     ;
 ; }
 ;
-; CHECK-DAG: ![[PEP_J]] = distinct !{![[PEP_J]], {{.+}}, ![[L2]]}
-; CHECK-DAG: ![[PEP_I]] = distinct !{![[PEP_I]], {{.+}}, ![[L1]], ![[D2]]}
+; CHECK-DAG: ![[PEP_J]] = distinct !{![[PEP_J]], ![[TARGET]], ![[L2]], {{.+}}}
+; CHECK-DAG: ![[PEP_I]] = distinct !{![[PEP_I]], ![[TARGET]], ![[L1]], ![[D2]], {{.+}}}
 ;
 ;-------------------------------------------------------------------------------
 ;
@@ -334,9 +335,9 @@ for.i.end:
 ;   }
 ; }
 ;
-; CHECK-DAG: ![[PEPP_K]] = distinct !{![[PEPP_K]], {{.+}}, ![[L3]]}
-; CHECK-DAG: ![[PEPP_J]] = distinct !{![[PEPP_J]], {{.+}}, ![[L2]]}
-; CHECK-DAG: ![[PEPP_I]] = distinct !{![[PEPP_I]], {{.+}}, ![[L1]], ![[D3]]}
+; CHECK-DAG: ![[PEPP_K]] = distinct !{![[PEPP_K]], ![[TARGET]], ![[L3]], {{.+}}}
+; CHECK-DAG: ![[PEPP_J]] = distinct !{![[PEPP_J]], ![[TARGET]], ![[L2]], {{.+}}}
+; CHECK-DAG: ![[PEPP_I]] = distinct !{![[PEPP_I]], ![[TARGET]], ![[L1]], ![[D3]], {{.+}}}
 ;
 ;-------------------------------------------------------------------------------
 ;
@@ -349,9 +350,9 @@ for.i.end:
 ;   }
 ; }
 ;
-; CHECK-DAG: ![[PPEP_K]] = distinct !{![[PPEP_K]], {{.+}}, ![[L3]]}
-; CHECK-DAG: ![[PPEP_J]] = distinct !{![[PPEP_J]], {{.+}}, ![[L2]]}
-; CHECK-DAG: ![[PPEP_I]] = distinct !{![[PPEP_I]], {{.+}}, ![[L1]], ![[D3]]}
+; CHECK-DAG: ![[PPEP_K]] = distinct !{![[PPEP_K]], ![[TARGET]], ![[L3]], {{.+}}}
+; CHECK-DAG: ![[PPEP_J]] = distinct !{![[PPEP_J]], ![[TARGET]], ![[L2]], {{.+}}}
+; CHECK-DAG: ![[PPEP_I]] = distinct !{![[PPEP_I]], ![[TARGET]], ![[L1]], ![[D3]], {{.+}}}
 ;
 ;-------------------------------------------------------------------------------
 ;
@@ -364,7 +365,7 @@ for.i.end:
 ;
 ; CHECK-DAG: ![[PSIB_J1]] = distinct !{![[PSIB_J1]], !{{.+}}}
 ; CHECK-DAG: ![[PSIB_J2]] = distinct !{![[PSIB_J2]], {{.+}}}
-; CHECK-DAG: ![[PSIB_I]] = distinct !{![[PSIB_I]], {{.+}}, ![[L1]], ![[D1]]}
+; CHECK-DAG: ![[PSIB_I]] = distinct !{![[PSIB_I]], ![[TARGET]], ![[L1]], ![[D1]], {{.+}}}
 ;
 ;-------------------------------------------------------------------------------
 
