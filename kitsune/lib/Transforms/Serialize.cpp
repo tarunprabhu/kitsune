@@ -142,11 +142,8 @@ SetVector<Loop *> getLoopsToSerialize(LoopInfo &li) {
 
   SetVector<Loop *> loopsToSerialize;
   for (Loop *loop : li.getLoopsInPreorder())
-    if (isTopLevelTapirLoop(*loop))
-      for (Loop *subLoop : getAllSubLoops(*loop))
-        if (shouldSerialize(*subLoop))
-          loopsToSerialize.insert(subLoop);
-
+    if (shouldSerialize(*loop))
+      loopsToSerialize.insert(loop);
   return loopsToSerialize;
 }
 

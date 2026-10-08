@@ -33,6 +33,7 @@
 !
 ! O23-NOT:    Running pass:     EarlyVerificationPass
 ! O23-NOT:    Running pass:     EarlyAnnotatePass
+! O23-NOT:    Running pass:     SerializePass
 ! O23-NOT:    Running pass:     PrepareTapirLoopsPass
 !
 ! O23:        Running pass:     SecondaryIVEliminationPass
@@ -40,7 +41,6 @@
 ! O23:        Running pass:     LoopSimplifyPass
 ! O23:        Running pass:     PreLowerVerificationPass
 ! O23:        Running pass:     PreLowerAnnotatePass
-! O23:        Running pass:     SerializePass
 ! O23:        Running pass:     TapirLoopNormalizePass
 ! O23:        Running pass:     LoopSpawningPass
 ! O23:        Running pass:     HoistAllocasPass
