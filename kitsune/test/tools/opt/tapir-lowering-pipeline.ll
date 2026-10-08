@@ -45,10 +45,14 @@
 ;
 ; ERROR: unsupported optimization level '-Oz'
 ;
+; O123S-NOT:  Running pass:     SerializePass
+; O123S-NOT:  Running pass:     SecondaryIVEliminationPass
+; O123S-NOT:  Running pass:     PrepareTapirLoops
+; O123S-NOT:  Running pass:     ComputeGPULoopBlockPass
+;
 ; O123S:      Running pass:     SecondaryIVEliminationPass
 ; O123S:      Running pass:     PreLowerVerificationPass
 ; O123S:      Running pass:     PreLowerAnnotatePass
-; O123S:      Running pass:     SerializePass
 ; O123S:      Running pass:     TapirLoopNormalizePass
 ; O123S:      Running pass:     LoopSpawningPass
 ; O123S:      Running pass:     HoistAllocasPass
