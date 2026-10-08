@@ -153,7 +153,7 @@ end:
 
 declare void @ext(i64)
 
-!0 = distinct !{!"tapir.loop.target", i32 1}
+!0 = !{!"tapir.loop.target", i32 1}
 !1 = distinct !{!1, !0}
 !2 = distinct !{!2, !0}
 !3 = distinct !{!3}
@@ -168,6 +168,7 @@ declare void @ext(i64)
 ; CHECK-DAG: ![[D2:[0-9]+]] = !{!"tapir.loop.perfect.depth", i32 2}
 ; CHECK-DAG: ![[L1:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 1}
 ; CHECK-DAG: ![[L2:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 2}
+; CHECK-DAG: ![[TARGET:[0-9]+]] = !{!"tapir.loop.target", i32 1}
 ;
 ;-------------------------------------------------------------------------------
 ;
@@ -178,8 +179,8 @@ declare void @ext(i64)
 ;
 ; CHECK-DAG: ![[SSPP_I]] = distinct !{![[SSPP_I]]}
 ; CHECK-DAG: ![[SSPP_J]] = distinct !{![[SSPP_J]]}
-; CHECK-DAG: ![[SSPP_K]] = distinct !{![[SSPP_K]], {{.+}}, ![[L1]], ![[D2]]}
-; CHECK-DAG: ![[SSPP_L]] = distinct !{![[SSPP_L]], {{.+}}, ![[L2]]}
+; CHECK-DAG: ![[SSPP_K]] = distinct !{![[SSPP_K]], ![[TARGET]], ![[L1]], ![[D2]], {{.+}}}
+; CHECK-DAG: ![[SSPP_L]] = distinct !{![[SSPP_L]], ![[TARGET]], ![[L2]], {{.+}}}
 ;
 ;-------------------------------------------------------------------------------
 ;
@@ -192,7 +193,7 @@ declare void @ext(i64)
 ;
 ; CHECK-DAG: ![[SSPEP_I]] = distinct !{![[SSPEP_I]]}
 ; CHECK-DAG: ![[SSPEP_J]] = distinct !{![[SSPEP_J]]}
-; CHECK-DAG: ![[SSPEP_K]] = distinct !{![[SSPEP_K]], {{.+}}, ![[L1]], ![[D2]]}
-; CHECK-DAG: ![[SSPEP_L]] = distinct !{![[SSPEP_L]], {{.+}}, ![[L2]]}
+; CHECK-DAG: ![[SSPEP_K]] = distinct !{![[SSPEP_K]], ![[TARGET]], ![[L1]], ![[D2]], {{.+}}}
+; CHECK-DAG: ![[SSPEP_L]] = distinct !{![[SSPEP_L]], ![[TARGET]], ![[L2]], {{.+}}}
 ;
 ;-------------------------------------------------------------------------------

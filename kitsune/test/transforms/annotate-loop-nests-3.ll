@@ -5,336 +5,253 @@
 ; RUN: opt -passes="kit-annotate-early" -S %s | FileCheck %s
 
 ; CHECK-LABEL: @ppp
-; CHECK: llvm.loop ![[PPP_K:[0-9]+]]
-; CHECK: llvm.loop ![[PPP_J:[0-9]+]]
-; CHECK: llvm.loop ![[PPP_I:[0-9]+]]
+; CHECK: llvm.loop ![[PPP3:[0-9]+]]
+; CHECK: llvm.loop ![[PPP2:[0-9]+]]
+; CHECK: llvm.loop ![[PPP1:[0-9]+]]
 ;
 ; forall (i ...)
 ;   forall (j ...)
 ;     forall (k ...)
 ;
-define void @ppp(i64 %m, i64 %n, i64 %p) {
+define void @ppp(i64 %n) {
 entry:
-  %syncreg.i = tail call token @llvm.syncregion.start()
-  br label %for.i.header
+  %result = alloca i64
+  %sr1 = call token @llvm.syncregion.start()
+  br label %header1
 
-for.i.header:
-  %i = phi i64 [ 0, %entry ], [ %inc.i, %for.i.latch ]
-  detach within %syncreg.i, label %for.i.body, label %for.i.latch
+header1:
+  %i1 = phi i64 [ 0, %entry ], [ %inc1, %latch1 ]
+  detach within %sr1, label %body1, label %latch1
 
-for.i.body:
-  %syncreg.j = tail call token @llvm.syncregion.start()
-  br label %for.j.header
+body1:
+  %sr2 = call token @llvm.syncregion.start()
+  br label %header2
 
-for.j.header:
-  %j = phi i64 [ 0, %for.i.body ], [ %inc.j, %for.j.latch ]
-  detach within %syncreg.j, label %for.j.body, label %for.j.latch
+header2:
+  %i2 = phi i64 [ 0, %body1 ], [ %inc2, %latch2 ]
+  detach within %sr2, label %body2, label %latch2
 
-for.j.body:
-  %syncreg.k = tail call token @llvm.syncregion.start()
-  br label %for.k.header
+body2:
+  %sr3 = call token @llvm.syncregion.start()
+  br label %header3
 
-for.k.header:
-  %k = phi i64 [0, %for.j.body ], [ %inc.k, %for.k.latch ]
-  detach within %syncreg.k, label %for.k.body, label %for.k.latch
+header3:
+  %i3 = phi i64 [ 0, %body2 ], [ %inc3, %latch3 ]
+  detach within %sr3, label %body3, label %latch3
 
-for.k.body:
-  reattach within %syncreg.k, label %for.k.latch
+body3:
+  reattach within %sr3, label %latch3
 
-for.k.latch:
-  %inc.k = add i64 %k, 1
-  %cmp.k = icmp eq i64 %inc.k, %p
-  br i1 %cmp.k, label %for.k.exit, label %for.k.header, !llvm.loop !0
+latch3:
+  %inc3 = add i64 %i3, 1
+  %cmp3 = icmp eq i64 %inc3, %n
+  br i1 %cmp3, label %sync3, label %header3, !llvm.loop !1
 
-for.k.exit:
-  sync within %syncreg.k, label %for.k.end
+sync3:
+  sync within %sr3, label %reattach2
 
-for.k.end:
-  reattach within %syncreg.j, label %for.j.latch
+reattach2:
+  reattach within %sr2, label %latch2
 
-for.j.latch:
-  %inc.j = add i64 %j, 1
-  %cmp.j = icmp eq i64 %inc.j, %n
-  br i1 %cmp.j, label %for.j.exit, label %for.j.header, !llvm.loop !2
+latch2:
+  %inc2 = add i64 %i2, 1
+  %cmp2 = icmp eq i64 %inc2, %n
+  br i1 %cmp2, label %sync2, label %header2, !llvm.loop !2
 
-for.j.exit:
-  sync within %syncreg.j, label %for.j.end
+sync2:
+  sync within %sr2, label %reattach1
 
-for.j.end:
-  reattach within %syncreg.i, label %for.i.latch
+reattach1:
+  reattach within %sr1, label %latch1
 
-for.i.latch:
-  %inc.i = add i64 %i, 1
-  %cmp.i = icmp eq i64 %inc.i, %m
-  br i1 %cmp.i, label %for.i.exit, label %for.i.header, !llvm.loop !3
+latch1:
+  %inc1 = add i64 %i1, 1
+  %cmp1 = icmp eq i64 %inc1, %n
+  br i1 %cmp1, label %sync1, label %header1, !llvm.loop !3
 
-for.i.exit:
-  sync within %syncreg.i, label %for.i.end
+sync1:
+  sync within %sr1, label %exit
 
-for.i.end:
+exit:
   ret void
 }
 
 ; CHECK-LABEL: @ppps
-; CHECK: llvm.loop ![[PPPS_L:[0-9]+]]
-; CHECK: llvm.loop ![[PPPS_K:[0-9]+]]
-; CHECK: llvm.loop ![[PPPS_J:[0-9]+]]
-; CHECK: llvm.loop ![[PPPS_I:[0-9]+]]
+; CHECK: llvm.loop ![[PPPS0:[0-9]+]]
+; CHECK: llvm.loop ![[PPPS3:[0-9]+]]
+; CHECK: llvm.loop ![[PPPS2:[0-9]+]]
+; CHECK: llvm.loop ![[PPPS1:[0-9]+]]
 ;
 ; forall (i ...)
 ;   forall (j ...)
 ;     forall (k ...)
 ;       for (l ...)
 ;
-define void @ppps(i64 %m, i64 %n, i64 %p, i64 %q) {
+define void @ppps(i64 %n) {
 entry:
-  %syncreg.i = tail call token @llvm.syncregion.start()
-  br label %for.i.header
+  %result = alloca i64
+  %sr1 = call token @llvm.syncregion.start()
+  br label %header1
 
-for.i.header:
-  %i = phi i64 [ 0, %entry ], [ %inc.i, %for.i.latch ]
-  detach within %syncreg.i, label %for.i.body, label %for.i.latch
+header1:
+  %i1 = phi i64 [ 0, %entry ], [ %inc1, %latch1 ]
+  detach within %sr1, label %body1, label %latch1
 
-for.i.body:
-  %syncreg.j = tail call token @llvm.syncregion.start()
-  br label %for.j.header
+body1:
+  %sr2 = call token @llvm.syncregion.start()
+  br label %header2
 
-for.j.header:
-  %j = phi i64 [ 0, %for.i.body ], [ %inc.j, %for.j.latch ]
-  detach within %syncreg.j, label %for.j.body, label %for.j.latch
+header2:
+  %i2 = phi i64 [ 0, %body1 ], [ %inc2, %latch2 ]
+  detach within %sr2, label %body2, label %latch2
 
-for.j.body:
-  %syncreg.k = tail call token @llvm.syncregion.start()
-  br label %for.k.header
+body2:
+  %sr3 = call token @llvm.syncregion.start()
+  br label %header3
 
-for.k.header:
-  %k = phi i64 [ 0, %for.j.body ], [ %inc.k, %for.k.latch ]
-  detach within %syncreg.k, label %for.k.body, label %for.k.latch
+header3:
+  %i3 = phi i64 [ 0, %body2 ], [ %inc3, %latch3 ]
+  detach within %sr3, label %body3, label %latch3
 
-for.k.body:
-  br label %for.l.header
+body3:
+  br label %header0
 
-for.l.header:
-  %l = phi i64 [ 0, %for.k.body], [ %inc.l, %for.l.header ]
-  %inc.l = add i64 %l, 1
-  %cmp.l = icmp eq i64 %inc.l, %q
-  br i1 %cmp.l, label %for.l.exit, label %for.l.header, !llvm.loop !4
+header0:
+  %i0 = phi i64 [ 0, %body3 ], [ %inc0, %header0 ]
+  %inc0 = add i64 %i0, 1
+  %cmp0 = icmp eq i64 %inc0, %n
+  br i1 %cmp0, label %reattach3, label %header0, !llvm.loop !4
 
-for.l.exit:
-  reattach within %syncreg.k, label %for.k.latch
+reattach3:
+  reattach within %sr3, label %latch3
 
-for.k.latch:
-  %inc.k = add i64 %k, 1
-  %cmp.k = icmp eq i64 %inc.k, %p
-  br i1 %cmp.k, label %for.k.exit, label %for.k.header, !llvm.loop !5
+latch3:
+  %inc3 = add i64 %i3, 1
+  %cmp3 = icmp eq i64 %inc3, %n
+  br i1 %cmp3, label %sync3, label %header3, !llvm.loop !5
 
-for.k.exit:
-  sync within %syncreg.k, label %for.k.end
+sync3:
+  sync within %sr3, label %reattach2
 
-for.k.end:
-  reattach within %syncreg.j, label %for.j.latch
+reattach2:
+  reattach within %sr2, label %latch2
 
-for.j.latch:
-  %inc.j = add i64 %j, 1
-  %cmp.j = icmp eq i64 %inc.j, %n
-  br i1 %cmp.j, label %for.j.exit, label %for.j.header, !llvm.loop !6
+latch2:
+  %inc2 = add i64 %i2, 1
+  %cmp2 = icmp eq i64 %inc2, %n
+  br i1 %cmp2, label %sync2, label %header2, !llvm.loop !6
 
-for.j.exit:
-  sync within %syncreg.j, label %for.j.end
+sync2:
+  sync within %sr2, label %reattach1
 
-for.j.end:
-  reattach within %syncreg.i, label %for.i.latch
+reattach1:
+  reattach within %sr1, label %latch1
 
-for.i.latch:
-  %inc.i = add i64 %i, 1
-  %cmp.i = icmp eq i64 %inc.i, %m
-  br i1 %cmp.i, label %for.i.exit, label %for.i.header, !llvm.loop !7
+latch1:
+  %inc1 = add i64 %i1, 1
+  %cmp1 = icmp eq i64 %inc1, %n
+  br i1 %cmp1, label %sync1, label %header1, !llvm.loop !7
 
-for.i.exit:
-  sync within %syncreg.i, label %for.i.end
+sync1:
+  sync within %sr1, label %exit
 
-for.i.end:
+exit:
   ret void
 }
 
-; CHECK-LABEL: @ppsp
-; CHECK: llvm.loop ![[PPSP_L:[0-9]+]]
-; CHECK: llvm.loop ![[PPSP_K:[0-9]+]]
-; CHECK: llvm.loop ![[PPSP_J:[0-9]+]]
-; CHECK: llvm.loop ![[PPSP_I:[0-9]+]]
+; CHECK-LABEL: @sppp
+; CHECK: llvm.loop ![[SPPP3:[0-9]+]]
+; CHECK: llvm.loop ![[SPPP2:[0-9]+]]
+; CHECK: llvm.loop ![[SPPP1:[0-9]+]]
+; CHECK: llvm.loop ![[SPPP0:[0-9]+]]
 ;
-; forall (i ...)
+; for (i ...)
 ;   forall (j ...)
-;     for (k ...)
-;       forall (l ...)
-;
-define void @ppsp(i64 %m, i64 %n, i64 %p, i64 %q) {
-entry:
-  %syncreg.i = tail call token @llvm.syncregion.start()
-  br label %for.i.header
-
-for.i.header:
-  %i = phi i64 [ 0, %entry ], [ %inc.i, %for.i.latch ]
-  detach within %syncreg.i, label %for.i.body, label %for.i.latch
-
-for.i.body:
-  %syncreg.j = tail call token @llvm.syncregion.start()
-  br label %for.j.header
-
-for.j.header:
-  %j = phi i64 [ 0, %for.i.body ], [ %inc.j, %for.j.latch ]
-  detach within %syncreg.j, label %for.j.body, label %for.j.latch
-
-for.j.body:
-  br label %for.k.header
-
-for.k.header:
-  %k = phi i64 [ 0, %for.j.body ], [ %inc.k, %for.k.latch ]
-  br label %for.k.body
-
-for.k.body:
-  %syncreg.l = tail call token @llvm.syncregion.start()
-  br label %for.l.header
-
-for.l.header:
-  %l = phi i64 [ 0, %for.k.body ], [ %inc.l, %for.l.latch ]
-  detach within %syncreg.l, label %for.l.body, label %for.l.latch
-
-for.l.body:
-  reattach within %syncreg.l, label %for.l.latch
-
-for.l.latch:
-  %inc.l = add i64 %l, 1
-  %cmp.l = icmp eq i64 %inc.l, %q
-  br i1 %cmp.l, label %for.l.exit, label %for.l.header, !llvm.loop !8
-
-for.l.exit:
-  sync within %syncreg.l, label %for.k.latch
-
-for.k.latch:
-  %inc.k = add i64 %k, 1
-  %cmp.k = icmp eq i64 %inc.k, %p
-  br i1 %cmp.k, label %for.k.exit, label %for.k.header, !llvm.loop !9
-
-for.k.exit:
-  reattach within %syncreg.j, label %for.j.latch
-
-for.j.latch:
-  %inc.j = add i64 %j, 1
-  %cmp.j = icmp eq i64 %inc.j, %n
-  br i1 %cmp.j, label %for.j.exit, label %for.j.header, !llvm.loop !10
-
-for.j.exit:
-  sync within %syncreg.j, label %for.j.end
-
-for.j.end:
-  reattach within %syncreg.i, label %for.i.latch
-
-for.i.latch:
-  %inc.i = add i64 %i, 1
-  %cmp.i = icmp eq i64 %inc.i, %m
-  br i1 %cmp.i, label %for.i.exit, label %for.i.header, !llvm.loop !11
-
-for.i.exit:
-  sync within %syncreg.i, label %for.i.end
-
-for.i.end:
-  ret void
-}
-
-; CHECK-LABEL: @pspp
-; CHECK: llvm.loop ![[PSPP_L:[0-9]+]]
-; CHECK: llvm.loop ![[PSPP_K:[0-9]+]]
-; CHECK: llvm.loop ![[PSPP_J:[0-9]+]]
-; CHECK: llvm.loop ![[PSPP_I:[0-9]+]]
-;
-; forall (i ...)
-;   for (j ...)
 ;     forall (k ...)
 ;       forall (l ...)
 ;
-define void @pspp(i64 %m, i64 %n, i64 %p, i64 %q) {
+define void @sppp(i64 %n) {
 entry:
-  %syncreg.i = tail call token @llvm.syncregion.start()
-  br label %for.i.header
+  %result = alloca i64
+  br label %header0
 
-for.i.header:
-  %i = phi i64 [ 0, %entry ], [ %inc.i, %for.i.latch ]
-  detach within %syncreg.i, label %for.i.body, label %for.i.latch
+header0:
+  %i0 = phi i64 [ 0, %entry ], [ %inc0, %latch0 ]
+  br label %body0
 
-for.i.body:
-  br label %for.j.header
+body0:
+  %sr1 = call token @llvm.syncregion.start()
+  br label %header1
 
-for.j.header:
-  %j = phi i64 [ 0, %for.i.body ], [ %inc.j, %for.j.latch ]
-  br label %for.j.body
+header1:
+  %i1 = phi i64 [ 0, %body0 ], [ %inc1, %latch1 ]
+  detach within %sr1, label %body1, label %latch1
 
-for.j.body:
-  %syncreg.k = tail call token @llvm.syncregion.start()
-  br label %for.k.header
+body1:
+  %sr2 = call token @llvm.syncregion.start()
+  br label %header2
 
-for.k.header:
-  %k = phi i64 [ 0, %for.j.body ], [ %inc.k, %for.k.latch ]
-  detach within %syncreg.k, label %for.k.body, label %for.k.latch
+header2:
+  %i2 = phi i64 [ 0, %body1 ], [ %inc2, %latch2 ]
+  detach within %sr2, label %body2, label %latch2
 
-for.k.body:
-  %syncreg.l = tail call token @llvm.syncregion.start()
-  br label %for.l.header
+body2:
+  %sr3 = call token @llvm.syncregion.start()
+  br label %header3
 
-for.l.header:
-  %l = phi i64 [ 0, %for.k.body ], [ %inc.l, %for.l.latch ]
-  detach within %syncreg.l, label %for.l.body, label %for.l.latch
+header3:
+  %i3 = phi i64 [ 0, %body2 ], [ %inc3, %latch3 ]
+  detach within %sr3, label %body3, label %latch3
 
-for.l.body:
-  reattach within %syncreg.l, label %for.l.latch
+body3:
+  reattach within %sr3, label %latch3
 
-for.l.latch:
-  %inc.l = add i64 %l, 1
-  %cmp.l = icmp eq i64 %inc.l, %q
-  br i1 %cmp.l, label %for.l.exit, label %for.l.header, !llvm.loop !12
+latch3:
+  %inc3 = add i64 %i3, 1
+  %cmp3 = icmp eq i64 %inc3, %n
+  br i1 %cmp3, label %sync3, label %header3, !llvm.loop !8
 
-for.l.exit:
-  sync within %syncreg.l, label %for.l.end
+sync3:
+  sync within %sr3, label %reattach2
 
-for.l.end:
-  reattach within %syncreg.k, label %for.k.latch
+reattach2:
+  reattach within %sr2, label %latch2
 
-for.k.latch:
-  %inc.k = add i64 %k, 1
-  %cmp.k = icmp eq i64 %inc.k, %p
-  br i1 %cmp.k, label %for.k.exit, label %for.k.header, !llvm.loop !13
+latch2:
+  %inc2 = add i64 %i2, 1
+  %cmp2 = icmp eq i64 %inc2, %n
+  br i1 %cmp2, label %sync2, label %header2, !llvm.loop !9
 
-for.k.exit:
-  sync within %syncreg.k, label %for.j.latch
+sync2:
+  sync within %sr2, label %reattach1
 
-for.j.latch:
-  %inc.j = add i64 %j, 1
-  %cmp.j = icmp eq i64 %inc.j, %n
-  br i1 %cmp.j, label %for.j.exit, label %for.j.header, !llvm.loop !14
+reattach1:
+  reattach within %sr1, label %latch1
 
-for.j.exit:
-  reattach within %syncreg.i, label %for.i.latch
+latch1:
+  %inc1 = add i64 %i1, 1
+  %cmp1 = icmp eq i64 %inc1, %n
+  br i1 %cmp1, label %sync1, label %header1, !llvm.loop !10
 
-for.i.latch:
-  %inc.i = add i64 %i, 1
-  %cmp.i = icmp eq i64 %inc.i, %m
-  br i1 %cmp.i, label %for.i.exit, label %for.i.header, !llvm.loop !15
+sync1:
+  sync within %sr1, label %latch0
 
-for.i.exit:
-  sync within %syncreg.i, label %for.i.end
+latch0:
+  %inc0 = add i64 %i0, 1
+  %cmp0 = icmp eq i64 %inc0, %n
+  br i1 %cmp0, label %exit, label %header0, !llvm.loop !11
 
-for.i.end:
+exit:
   ret void
 }
 
 ;-------------------------------------------------------------------------------
 ;
-; CHECK-DAG: ![[D1:[0-9]+]] = !{!"tapir.loop.perfect.depth", i32 1}
-; CHECK-DAG: ![[D2:[0-9]+]] = !{!"tapir.loop.perfect.depth", i32 2}
 ; CHECK-DAG: ![[D3:[0-9]+]] = !{!"tapir.loop.perfect.depth", i32 3}
 ; CHECK-DAG: ![[L1:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 1}
 ; CHECK-DAG: ![[L2:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 2}
 ; CHECK-DAG: ![[L3:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 3}
+; CHECK-DAG: ![[TARGET:[0-9]+]] = !{!"tapir.loop.target", i32 1}
 ;
 ;-------------------------------------------------------------------------------
 ;
@@ -342,9 +259,9 @@ for.i.end:
 ;   forall (j ...)
 ;     forall (k ...)
 ;
-; CHECK-DAG: ![[PPP_K]] = distinct !{![[PPP_K]], {{.+}}, ![[L3]]}
-; CHECK-DAG: ![[PPP_J]] = distinct !{![[PPP_J]], {{.+}}, ![[L2]]}
-; CHECK-DAG: ![[PPP_I]] = distinct !{![[PPP_I]], {{.+}}, ![[L1]], ![[D3]]}
+; CHECK-DAG: ![[PPP3]] = distinct !{![[PPP3]], ![[TARGET]], ![[L3]], {{.+}}}
+; CHECK-DAG: ![[PPP2]] = distinct !{![[PPP2]], ![[TARGET]], ![[L2]], {{.+}}}
+; CHECK-DAG: ![[PPP1]] = distinct !{![[PPP1]], ![[TARGET]], ![[L1]], ![[D3]], {{.+}}}
 ;
 ;-------------------------------------------------------------------------------
 ;
@@ -353,64 +270,34 @@ for.i.end:
 ;     forall (k ...)
 ;       for (l ...)
 ;
-; CHECK-DAG: ![[PPPS_L]] = distinct !{![[PPPS_L]]}
-; CHECK-DAG: ![[PPPS_K]] = distinct !{![[PPPS_K]], {{.+}}, ![[L3]]}
-; CHECK-DAG: ![[PPPS_J]] = distinct !{![[PPPS_J]], {{.+}}, ![[L2]]}
-; CHECK-DAG: ![[PPPS_I]] = distinct !{![[PPPS_I]], {{.+}}, ![[L1]], ![[D3]]}
+; CHECK-DAG: ![[PPPS0]] = distinct !{![[PPPS0]]}
+; CHECK-DAG: ![[PPPS3]] = distinct !{![[PPPS3]], ![[TARGET]], ![[L3]], {{.+}}}
+; CHECK-DAG: ![[PPPS2]] = distinct !{![[PPPS2]], ![[TARGET]], ![[L2]], {{.+}}}
+; CHECK-DAG: ![[PPPS1]] = distinct !{![[PPPS1]], ![[TARGET]], ![[L1]], ![[D3]], {{.+}}}
 ;
 ;-------------------------------------------------------------------------------
 ;
-; forall (i ...)
+; for (i ...)
 ;   forall (j ...)
-;     for (k ...)
-;       forall (l ...)
-;
-; Here, the non-parallel for loop in the nest will result in the maximum perfect
-; depth being 2. The innermost forall is not part of the loop nest since its
-; parent is not a tapir loop. For that same reason, it is also not the root of
-; a different tapir loop nest. Therefore, neither the depth, nor the level
-; annotations will be added since those are only added to perfectly nested tapir
-; loops.
-;
-; CHECK-DAG: ![[PPSP_L]] = distinct !{![[PPSP_L]], {{.+}}}
-; CHECK-DAG: ![[PPSP_K]] = distinct !{![[PPSP_K]]}
-; CHECK-DAG: ![[PPSP_J]] = distinct !{![[PPSP_J]], {{.+}}, ![[L2]]}
-; CHECK-DAG: ![[PPSP_I]] = distinct !{![[PPSP_I]], {{.+}}, ![[L1]], ![[D2]]}
-;
-;-------------------------------------------------------------------------------
-;
-; forall (i ...)
-;   for (j ...)
 ;     forall (k ...)
 ;       forall (l ...)
 ;
-; Here, the non-parallel for loop in the nest will result in the maximum perfect
-; depth being 1. The two innermost forall loops are not part of the loop nest
-; since the parent of the forall loop at depth 3 is not a tapir loop. For that
-; same reason, it is also not the root of a different tapir loop nest.
-; Therefore, neither the depth, nor the level annotations will be added since
-; those are only added to perfectly nested tapir loops.
-;
-; CHECK-DAG: ![[PSPP_L]] = distinct !{![[PSPP_L]], {{.+}}}
-; CHECK-DAG: ![[PSPP_K]] = distinct !{![[PSPP_K]], {{.+}}}
-; CHECK-DAG: ![[PSPP_J]] = distinct !{![[PSPP_J]]}
-; CHECK-DAG: ![[PSPP_I]] = distinct !{![[PSPP_I]], {{.+}}, ![[L1]], ![[D1]]}
+; CHECK-DAG: ![[SPPP3]] = distinct !{![[SPPP3]], ![[TARGET]], ![[L3]], {{.+}}}
+; CHECK-DAG: ![[SPPP2]] = distinct !{![[SPPP2]], ![[TARGET]], ![[L2]], {{.+}}}
+; CHECK-DAG: ![[SPPP1]] = distinct !{![[SPPP1]], ![[TARGET]], ![[L1]], ![[D3]], {{.+}}}
+; CHECK-DAG: ![[SPPP0]] = distinct !{![[SPPP0]]}
 ;
 ;-------------------------------------------------------------------------------
 
-!0 = distinct !{!0, !1}
-!1 = !{!"tapir.loop.target", i32 1}
-!2 = distinct !{!2, !1}
-!3 = distinct !{!3, !1}
+!0 = !{!"tapir.loop.target", i32 1}
+!1 = distinct !{!1, !0}
+!2 = distinct !{!2, !0}
+!3 = distinct !{!3, !0}
 !4 = distinct !{!4}
-!5 = distinct !{!5, !1}
-!6 = distinct !{!6, !1}
-!7 = distinct !{!7, !1}
-!8 = distinct !{!8, !1}
-!9 = distinct !{!9}
-!10 = distinct !{!10, !1}
-!11 = distinct !{!11, !1}
-!12 = distinct !{!12, !1}
-!13 = distinct !{!13, !1}
-!14 = distinct !{!14}
-!15 = distinct !{!15, !1}
+!5 = distinct !{!5, !0}
+!6 = distinct !{!6, !0}
+!7 = distinct !{!7, !0}
+!8 = distinct !{!8, !0}
+!9 = distinct !{!9, !0}
+!10 = distinct !{!10, !0}
+!11 = distinct !{!11}

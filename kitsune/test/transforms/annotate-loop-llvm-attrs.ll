@@ -191,15 +191,15 @@ for.i.exit:
 ; forall (i ...)
 ;   forall (j ...)
 ;
-; CHECK-DAG: ![[PP_I]] = distinct !{![[PP_I]], ![[TARGET]], ![[NOUNROLL]], ![[NOVECTORIZE]], {{.+}}}
-; CHECK-DAG: ![[PP_J]] = distinct !{![[PP_J]], ![[TARGET]], ![[NOUNROLL]], ![[NOVECTORIZE]], {{.+}}}
+; CHECK-DAG: ![[PP_I]] = distinct !{![[PP_I]], ![[TARGET]], {{.+}}, ![[NOUNROLL]], ![[NOVECTORIZE]]}
+; CHECK-DAG: ![[PP_J]] = distinct !{![[PP_J]], ![[TARGET]], {{.+}}, ![[NOUNROLL]], ![[NOVECTORIZE]]}
 ;
 ;-------------------------------------------------------------------------------
 ;
 ; forall (i ...)
 ;   for (j ...)
 ;
-; CHECK-DAG: ![[PS_I]] = distinct !{![[PS_I]], ![[TARGET]], ![[NOUNROLL]], ![[NOVECTORIZE]], {{.+}}}
+; CHECK-DAG: ![[PS_I]] = distinct !{![[PS_I]], ![[TARGET]], {{.+}}, ![[NOUNROLL]], ![[NOVECTORIZE]]}
 ; CHECK-DAG: ![[PS_J]] = distinct !{![[PS_J]]}
 ;
 ;-------------------------------------------------------------------------------
@@ -208,5 +208,5 @@ for.i.exit:
 ;   forall (j ...)
 ;
 ; CHECK-DAG: ![[SP_I]] = distinct !{![[SP_I]]}
-; CHECK-DAG: ![[SP_J]] = distinct !{![[SP_J]], ![[TARGET]], ![[NOUNROLL]], ![[NOVECTORIZE]], {{.+}}}
+; CHECK-DAG: ![[SP_J]] = distinct !{![[SP_J]], ![[TARGET]], {{.+}}, ![[NOUNROLL]], ![[NOVECTORIZE]]}
 

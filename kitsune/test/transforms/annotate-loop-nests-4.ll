@@ -95,6 +95,112 @@ for.i.end:
   ret void
 }
 
+; CHECK-LABEL: @spppp
+; CHECK: llvm.loop ![[SPPPP_L:[0-9]+]]
+; CHECK: llvm.loop ![[SPPPP_K:[0-9]+]]
+; CHECK: llvm.loop ![[SPPPP_J:[0-9]+]]
+; CHECK: llvm.loop ![[SPPPP_I:[0-9]+]]
+; CHECK: llvm.loop ![[SPPPP_S:[0-9]+]]
+;
+; for (s ...)
+;   forall (i ...)
+;     forall (j ...)
+;       forall (k ...)
+;         forall (l ...)
+;
+define void @spppp(i64 %n0, i64 %n1, i64 %n2, i64 %n3, i64 %n4) {
+entry:
+  br label %header0
+
+header0:
+  %i0 = phi i64 [ 0, %entry ], [ %inc0, %latch0 ]
+  br label %body0
+
+body0:
+  %sr1 = call token @llvm.syncregion.start()
+  br label %header1
+
+header1:
+  %i1 = phi i64 [ 0, %body0 ], [ %inc1, %latch1 ]
+  detach within %sr1, label %body1, label %latch1
+
+body1:
+  %sr2 = call token @llvm.syncregion.start()
+  br label %header2
+
+header2:
+  %i2 = phi i64 [ 0, %body1 ], [ %inc2, %latch2 ]
+  detach within %sr2, label %body2, label %latch2
+
+body2:
+  %sr3 = call token @llvm.syncregion.start()
+  br label %header3
+
+header3:
+  %i3 = phi i64 [ 0, %body2 ], [ %inc3, %latch3 ]
+  detach within %sr3, label %body3, label %latch3
+
+body3:
+  %sr4 = call token @llvm.syncregion.start()
+  br label %header4
+
+header4:
+  %i4 = phi i64 [ 0, %body3 ], [ %inc4, %latch4 ]
+  detach within %sr4, label %body4, label %latch4
+
+body4:
+  reattach within %sr4, label %latch4
+
+latch4:
+  %inc4 = add i64 %i4, 1
+  %cmp4 = icmp eq i64 %inc4, %n4
+  br i1 %cmp4, label %sync4, label %header4, !llvm.loop !5
+
+sync4:
+  sync within %sr4, label %reattach3
+
+reattach3:
+  reattach within %sr3, label %latch3
+
+latch3:
+  %inc3 = add i64 %i3, 1
+  %cmp3 = icmp eq i64 %inc3, %n3
+  br i1 %cmp3, label %sync3, label %header3, !llvm.loop !6
+
+sync3:
+  sync within %sr3, label %reattach2
+
+reattach2:
+  reattach within %sr2, label %latch2
+
+latch2:
+  %inc2 = add i64 %i2, 1
+  %cmp2 = icmp eq i64 %inc2, %n2
+  br i1 %cmp2, label %sync2, label %header2, !llvm.loop !7
+
+sync2:
+  sync within %sr2, label %reattach1
+
+reattach1:
+  reattach within %sr1, label %latch1
+
+latch1:
+  %inc1 = add i64 %i1, 1
+  %cmp1 = icmp eq i64 %inc1, %n1
+  br i1 %cmp1, label %sync1, label %header1, !llvm.loop !8
+
+sync1:
+  sync within %sr1, label %latch0
+
+latch0:
+  %inc0 = add i64 %i0, 1
+  %cmp0 = icmp eq i64 %inc0, %n0
+  br i1 %cmp0, label %exit, label %header0, !llvm.loop !9
+
+exit:
+  ret void
+}
+
 ;-------------------------------------------------------------------------------
 ;
 ; CHECK-DAG: ![[D4:[0-9]+]] = !{!"tapir.loop.perfect.depth", i32 4}
@@ -102,6 +208,7 @@ for.i.end:
 ; CHECK-DAG: ![[L2:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 2}
 ; CHECK-DAG: ![[L3:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 3}
 ; CHECK-DAG: ![[L4:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 4}
+; CHECK-DAG: ![[TARGET:[0-9]+]] = !{!"tapir.loop.target", i32 1}
 ;
 ;-------------------------------------------------------------------------------
 ;
@@ -110,10 +217,24 @@ for.i.end:
 ;     forall (k ...)
 ;       forall (l ...)
 ;
-; CHECK-DAG: ![[PPPP_L]] = distinct !{![[PPPP_L]], {{.+}}, ![[L4]]}
-; CHECK-DAG: ![[PPPP_K]] = distinct !{![[PPPP_K]], {{.+}}, ![[L3]]}
-; CHECK-DAG: ![[PPPP_J]] = distinct !{![[PPPP_J]], {{.+}}, ![[L2]]}
-; CHECK-DAG: ![[PPPP_I]] = distinct !{![[PPPP_I]], {{.+}}, ![[L1]], ![[D4]]}
+; CHECK-DAG: ![[PPPP_L]] = distinct !{![[PPPP_L]], ![[TARGET]], ![[L4]], {{.+}}}
+; CHECK-DAG: ![[PPPP_K]] = distinct !{![[PPPP_K]], ![[TARGET]], ![[L3]], {{.+}}}
+; CHECK-DAG: ![[PPPP_J]] = distinct !{![[PPPP_J]], ![[TARGET]], ![[L2]], {{.+}}}
+; CHECK-DAG: ![[PPPP_I]] = distinct !{![[PPPP_I]], ![[TARGET]], ![[L1]], ![[D4]], {{.+}}}
+;
+;-------------------------------------------------------------------------------
+;
+; for (s ...)
+;   forall (i ...)
+;     forall (j ...)
+;       forall (k ...)
+;         forall (l ...)
+;
+; CHECK-DAG: ![[SPPPP_L]] = distinct !{![[SPPPP_L]], ![[TARGET]], ![[L4]], {{.+}}}
+; CHECK-DAG: ![[SPPPP_K]] = distinct !{![[SPPPP_K]], ![[TARGET]], ![[L3]], {{.+}}}
+; CHECK-DAG: ![[SPPPP_J]] = distinct !{![[SPPPP_J]], ![[TARGET]], ![[L2]], {{.+}}}
+; CHECK-DAG: ![[SPPPP_I]] = distinct !{![[SPPPP_I]], ![[TARGET]], ![[L1]], ![[D4]], {{.+}}}
+; CHECK-DAG: ![[SPPPP_S]] = distinct !{![[SPPPP_S]]}
 ;
 ;-------------------------------------------------------------------------------
 
@@ -122,3 +243,8 @@ for.i.end:
 !2 = distinct !{!2, !1}
 !3 = distinct !{!3, !1}
 !4 = distinct !{!4, !1}
+!5 = distinct !{!5, !1}
+!6 = distinct !{!6, !1}
+!7 = distinct !{!7, !1}
+!8 = distinct !{!8, !1}
+!9 = distinct !{!9}
