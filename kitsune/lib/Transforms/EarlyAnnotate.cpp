@@ -30,6 +30,9 @@ static void addMandatoryLoopAttrs(LoopInfo &li) {
       addMandatoryLLVMLoopAttrs(*loop);
 }
 
+// This only annotates the top-level loop of a loop nest with the reduction
+// attribute. This is because loop nests are treated as a unit by kit-prepare,
+// loop-spawning and other passes.
 static void annotateReductionLoops(LoopInfo &li) {
   auto isReductionLoop = [](const Loop &loop) -> bool {
     for (const BasicBlock *bb : loop.getBlocks())
@@ -41,7 +44,7 @@ static void annotateReductionLoops(LoopInfo &li) {
   };
 
   for (Loop *loop : li.getLoopsInPreorder())
-    if (isTapirLoop(*loop) && isReductionLoop(*loop))
+    if (isTopLevelTapirLoop(*loop) && isReductionLoop(*loop))
       addReductionAttr(*loop);
 }
 
@@ -106,9 +109,11 @@ PreservedAnalyses EarlyAnnotatePass::run(Function &f,
   LoopInfo &li = am.getResult<LoopAnalysis>(f);
   ScalarEvolution &se = am.getResult<ScalarEvolutionAnalysis>(f);
 
-  addMandatoryLoopAttrs(li);
+  // This is done in this order only to make testing a little easier. If this
+  // order is changed, tests will break.
   annotateReductionLoops(li);
   annotateLoopNests(li, se);
+  addMandatoryLoopAttrs(li);
 
   // At this time, the added annotations do not invalidate other analyses.
   // However, if we ever add any that do such as !tbaa (which affects alias
