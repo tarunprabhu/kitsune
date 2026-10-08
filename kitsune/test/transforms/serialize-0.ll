@@ -16,7 +16,7 @@
 ;
 ; CHECK: ![[LOOP]] = distinct !{![[LOOP]]}
 
-define void @f(i64 %n) !kit.func !0 {
+define void @f(i64 %n) {
 entry:
   br label %loop
 
@@ -24,12 +24,10 @@ loop:
   %i = phi i64 [ 0, %entry ], [ %inc, %loop ]
   %inc = add i64 %i, 1
   %cmp = icmp eq i64 %inc, %n
-  br i1 %cmp, label %exit, label %loop, !llvm.loop !2
+  br i1 %cmp, label %exit, label %loop, !llvm.loop !0
 
 exit:
   ret void
 }
 
-!0 = distinct !{!0, !1}
-!1 = !{!"kit.func.pre.lower.annotate.pass"}
-!2 = distinct !{!2}
+!0 = distinct !{!0}

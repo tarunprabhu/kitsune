@@ -9,7 +9,7 @@
 ; CHECK: detach within %[[SYNCREG]]
 ; CHECK: reattach within %[[SYNCREG]]
 
-define void @f(i64 %n) !kit.func !0 {
+define void @f(i64 %n) {
 entry:
   %sr = call token @llvm.syncregion.start()
   br label %header
@@ -24,7 +24,7 @@ body:
 latch:
   %inc = add i64 %i, 1
   %cmp = icmp eq i64 %inc, %n
-  br i1 %cmp, label %sync, label %header, !llvm.loop !2
+  br i1 %cmp, label %sync, label %header, !llvm.loop !0
 
 sync:
   sync within %sr, label %exit
@@ -33,9 +33,7 @@ exit:
   ret void
 }
 
-!0 = distinct !{!0, !1}
-!1 = !{!"kit.func.pre.lower.annotate.pass"}
-!2 = distinct !{!2, !3, !4, !5}
-!3 = !{!"tapir.loop.target", i32 1}
-!4 = !{!"tapir.loop.perfect.depth", i32 1}
-!5 = !{!"tapir.loop.perfect.level", i32 1}
+!0 = distinct !{!0, !1, !2, !3}
+!1 = !{!"tapir.loop.target", i32 1}
+!2 = !{!"tapir.loop.perfect.depth", i32 1}
+!3 = !{!"tapir.loop.perfect.level", i32 1}

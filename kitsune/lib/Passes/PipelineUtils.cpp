@@ -197,6 +197,7 @@ llvm::populateKitPreparePasses(PassBuilder &pb, OptimizationLevel optLevel,
     addLoopPass<IndVarSimplifyPass>(mpm, /*WidenIndVars=*/true,
                                     /*TapirLoopsOnly=*/true);
     addFunctionPass<TaskSimplifyPass>(mpm);
+    addFunctionPass<SerializePass>(mpm);
     addLoopPass<SecondaryIVEliminationPass>(mpm);
 
     populateSimplifyPasses(mpm, pto);
@@ -237,7 +238,6 @@ ModulePassManager llvm::populateKitPreLoopSpawningPasses(
 
     addModulePass<PreLowerVerificationPass>(mpm);
     addFunctionPass<PreLowerAnnotatePass>(mpm);
-    addFunctionPass<SerializePass>(mpm);
     addFunctionPass<TapirLoopNormalizePass>(mpm);
 
     // TODO: Do we need to run the pre-lower verification pass here?
