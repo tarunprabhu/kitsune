@@ -30,6 +30,7 @@
 ;
 ; CHECK:      Running pass:      EarlyVerificationPass
 ; CHECK:      Running pass:      EarlyAnnotatePass
+; CHECK:      Running pass:      SerializePass
 ; CHECK:      Running pass:      SecondaryIVEliminationPass
 ; CHECK:      Running pass:      PrepareTapirLoopsPass
 ; CHECK-NOT:  Running pass:      InstrumentPass
@@ -37,7 +38,6 @@
 ; CHECK-NOT:  Running pass:      SecondaryIVEliminationPass
 ; CHECK-NOT:  Running pass:      PreLowerVerificationPass
 ; CHECK-NOT:  Running pass:      PreLowerAnnotatePass
-; CHECK-NOT:  Running pass:      SerializePass
 ; CHECK-NOT:  Running pass:      TapirLoopNormalizePass
 ; CHECK-NOT:  Running pass:      LoopSpawningPass
 ; CHECK-NOT:  Running pass:      HoistAllocasPass

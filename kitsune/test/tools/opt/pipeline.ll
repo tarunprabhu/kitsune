@@ -79,8 +79,9 @@
 ; O123S:       Running pass:     EarlyAnnotatePass
 ;
 ; <KIT-PREPARE>
-; O123S:      Running pass:     SecondaryIVEliminationPass
-; O123S:      Running pass:     PrepareTapirLoopsPass
+; O123S:       Running pass:     SerializePass
+; O123S:       Running pass:     SecondaryIVEliminationPass
+; O123S:       Running pass:     PrepareTapirLoopsPass
 ; </KIT-PREPARE>
 ;
 ; <KIT-PRE-TAPIR>
@@ -93,7 +94,6 @@
 ; O123SZ-NOT:  Running pass:     InstrumentPass
 ; O123SZ:      Running pass:     PreLowerVerificationPass
 ; O123SZ:      Running pass:     PreLowerAnnotatePass
-; O123SZ:      Running pass:     SerializePass
 ; </KIT-PRE-LOOP-SPAWNING>
 ;
 ; O123SZ:      Running pass:     LoopSpawningPass
