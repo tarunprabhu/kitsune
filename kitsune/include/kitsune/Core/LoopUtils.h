@@ -139,6 +139,12 @@ SmallVector<Loop *, 4> getTopLevelTapirLoops(LoopInfo &li);
 /// Get all the tapir loops in a function.
 SmallVector<Loop *, 4> getTapirLoops(LoopInfo &li);
 
+/// Get the tapir loops in a nest rooted at \p loop. This requires a single
+/// tapir loop at each level of the nest. The loops are returned in ascending
+/// order of levels. The first element in the result will be \p loop. All tapir
+/// loops in the nest must have the perfect.level attribute.
+SmallVector<Loop *, 4> getTapirLoopsInNest(Loop &root);
+
 /// Tapir loops may require mandatory LLVM loop attributes. Those can be added
 /// using this function.
 void addMandatoryLLVMLoopAttrs(Loop &loop);
@@ -260,7 +266,7 @@ BasicBlock *getExitBlockFromLatch(const Loop &loop);
 ///     %tc is the loop trip count, %exit is the unique loop exit block, and
 ///     %header is the loop header.
 ///
-  bool isTapirLoopNormalized(const Loop &loop, DominatorTree &dt);
+bool isTapirLoopNormalized(const Loop &loop, DominatorTree &dt);
 
 /// Get a unique instruction of type \tparam InstType in a loop, or nullptr if
 /// one does not exist. This will *not* look for such an instruction in any

@@ -1126,4 +1126,291 @@ TEST_F(KitLoopUtils, isTapirLoopNormalized) {
   }
 }
 
+static constexpr StringRef nest1 = R"(
+define void @f(i64 %n) {
+entry:
+  %sr1 = call token @llvm.syncregion.start();
+  br label %header1
+
+header1:
+  %i1 = phi i64 [ 0, %entry ], [ %inc1, %latch1 ]
+  detach within %sr1, label %body1, label %latch1
+
+body1:
+  reattach within %sr1, label %latch1
+
+latch1:
+  %inc1 = add i64 %i1, 1
+  %cmp1 = icmp eq i64 %inc1, %n
+  br i1 %cmp1, label %sync1, label %header1, !llvm.loop !3
+
+sync1:
+  sync within %sr1, label %exit
+
+exit:
+  ret void
+}
+
+!0 = !{!"tapir.loop.target", i32 1}
+!1 = !{!"tapir.loop.perfect.depth", i32 1}
+!2 = !{!"tapir.loop.perfect.level", i32 1}
+!3 = distinct !{!3, !0, !1, !2}
+)";
+
+static constexpr StringRef nest2 = R"(
+define void @f(i64 %n) {
+entry:
+  %sr1 = call token @llvm.syncregion.start()
+  br label %header1
+
+header1:
+  %i1 = phi i64 [ 0, %entry ], [ %inc1, %latch1 ]
+  detach within %sr1, label %body1, label %latch1
+
+body1:
+  %sr2 = call token @llvm.syncregion.start()
+  br label %header2
+
+header2:
+  %i2 = phi i64 [ 0, %body1 ], [ %inc2, %latch2 ]
+  detach within %sr2, label %body2, label %latch2
+
+body2:
+  reattach within %sr2, label %latch2
+
+latch2:
+  %inc2 = add i64 %i2, 1
+  %cmp2 = icmp eq i64 %inc2, %n
+  br i1 %cmp2, label %sync2, label %header2, !llvm.loop !4
+
+sync2:
+  sync within %sr2, label %reattach1
+
+reattach1:
+  reattach within %sr1, label %latch1
+
+latch1:
+  %inc1 = add i64 %i1, 1
+  %cmp1 = icmp eq i64 %inc1, %n
+  br i1 %cmp1, label %sync1, label %header1, !llvm.loop !5
+
+sync1:
+  sync within %sr1, label %exit
+
+exit:
+  ret void
+}
+
+!0 = !{!"tapir.loop.target", i32 1}
+!1 = !{!"tapir.loop.perfect.depth", i32 2}
+!2 = !{!"tapir.loop.perfect.level", i32 2}
+!3 = !{!"tapir.loop.perfect.level", i32 1}
+!4 = distinct !{!4, !0, !2}
+!5 = distinct !{!5, !0, !1, !3}
+)";
+
+static constexpr StringRef nest3 = R"(
+define void @f(i64 %n) {
+entry:
+  %sr1 = call token @llvm.syncregion.start()
+  br label %header1
+
+header1:
+  %i1 = phi i64 [ 0, %entry ], [ %inc1, %latch1 ]
+  detach within %sr1, label %body1, label %latch1
+
+body1:
+  %sr2 = call token @llvm.syncregion.start()
+  br label %header2
+
+header2:
+  %i2 = phi i64 [ 0, %body1 ], [ %inc2, %latch2 ]
+  detach within %sr2, label %body2, label %latch2
+
+body2:
+  %sr3 = call token @llvm.syncregion.start()
+  br label %header3
+
+header3:
+  %i3 = phi i64 [ 0, %body2 ], [ %inc3, %latch3 ]
+  detach within %sr3, label %body3, label %latch3
+
+body3:
+  reattach within %sr3, label %latch3
+
+latch3:
+  %inc3 = add i64 %i3, 1
+  %cmp3 = icmp eq i64 %inc3, %n
+  br i1 %cmp3, label %sync3, label %header3, !llvm.loop !5
+
+sync3:
+  sync within %sr3, label %reattach2
+
+reattach2:
+  reattach within %sr2, label %latch2
+
+latch2:
+  %inc2 = add i64 %i2, 1
+  %cmp2 = icmp eq i64 %inc2, %n
+  br i1 %cmp2, label %sync2, label %header2, !llvm.loop !6
+
+sync2:
+  sync within %sr2, label %reattach1
+
+reattach1:
+  reattach within %sr1, label %latch1
+
+latch1:
+  %inc1 = add i64 %i1, 1
+  %cmp1 = icmp eq i64 %inc1, %n
+  br i1 %cmp1, label %sync1, label %header1, !llvm.loop !7
+
+sync1:
+  sync within %sr1, label %exit
+
+exit:
+  ret void
+}
+
+!0 = !{!"tapir.loop.target", i32 1}
+!1 = !{!"tapir.loop.perfect.depth", i32 3}
+!2 = !{!"tapir.loop.perfect.level", i32 3}
+!3 = !{!"tapir.loop.perfect.level", i32 2}
+!4 = !{!"tapir.loop.perfect.level", i32 1}
+!5 = distinct !{!5, !0, !2}
+!6 = distinct !{!6, !0, !3}
+!7 = distinct !{!7, !0, !1, !4}
+)";
+
+static constexpr StringRef nest4 = R"(
+define void @f(i64 %n) {
+entry:
+  %sr1 = call token @llvm.syncregion.start()
+  br label %header1
+
+header1:
+  %i1 = phi i64 [ 0, %entry ], [ %inc1, %latch1 ]
+  detach within %sr1, label %body1, label %latch1
+
+body1:
+  %sr2 = call token @llvm.syncregion.start()
+  br label %header2
+
+header2:
+  %i2 = phi i64 [ 0, %body1 ], [ %inc2, %latch2 ]
+  detach within %sr2, label %body2, label %latch2
+
+body2:
+  %sr3 = call token @llvm.syncregion.start()
+  br label %header3
+
+header3:
+  %i3 = phi i64 [ 0, %body2 ], [ %inc3, %latch3 ]
+  detach within %sr3, label %body3, label %latch3
+
+body3:
+  %sr4 = call token @llvm.syncregion.start()
+  br label %header4
+
+header4:
+  %i4 = phi i64 [ 0, %body3 ], [ %inc4, %latch4 ]
+  detach within %sr4, label %body4, label %latch4
+
+body4:
+  reattach within %sr4, label %latch4
+
+latch4:
+  %inc4 = add i64 %i4, 1
+  %cmp4 = icmp eq i64 %inc4, %n
+  br i1 %cmp4, label %sync4, label %header4, !llvm.loop !6
+
+sync4:
+  sync within %sr4, label %reattach3
+
+reattach3:
+  reattach within %sr3, label %latch3
+
+latch3:
+  %inc3 = add i64 %i3, 1
+  %cmp3 = icmp eq i64 %inc3, %n
+  br i1 %cmp3, label %sync3, label %header3, !llvm.loop !7
+
+sync3:
+  sync within %sr3, label %reattach2
+
+reattach2:
+  reattach within %sr2, label %latch2
+
+latch2:
+  %inc2 = add i64 %i2, 1
+  %cmp2 = icmp eq i64 %inc2, %n
+  br i1 %cmp2, label %sync2, label %header2, !llvm.loop !8
+
+sync2:
+  sync within %sr2, label %reattach1
+
+reattach1:
+  reattach within %sr1, label %latch1
+
+latch1:
+  %inc1 = add i64 %i1, 1
+  %cmp1 = icmp eq i64 %inc1, %n
+  br i1 %cmp1, label %sync1, label %header1, !llvm.loop !9
+
+sync1:
+  sync within %sr1, label %exit
+
+exit:
+  ret void
+}
+
+!0 = !{!"tapir.loop.target", i32 1}
+!1 = !{!"tapir.loop.perfect.depth", i32 4}
+!2 = !{!"tapir.loop.perfect.level", i32 4}
+!3 = !{!"tapir.loop.perfect.level", i32 3}
+!4 = !{!"tapir.loop.perfect.level", i32 2}
+!5 = !{!"tapir.loop.perfect.level", i32 1}
+!6 = distinct !{!6, !0, !2}
+!7 = distinct !{!7, !0, !3}
+!8 = distinct !{!8, !0, !4}
+!9 = distinct !{!9, !0, !1, !5}
+)";
+
+TEST_F(KitLoopUtils, getTapirLoopsInNest) {
+  {
+    setup(nest1, "f");
+    Loop &root = **li->begin();
+    SmallVector<Loop *, 4> loops = getTapirLoopsInNest(root);
+    EXPECT_EQ(loops.size(), 1U);
+    EXPECT_EQ(getName(*loops[0]), "header1");
+  }
+  {
+    setup(nest2, "f");
+    Loop &root = **li->begin();
+    SmallVector<Loop *, 4> loops = getTapirLoopsInNest(root);
+    EXPECT_EQ(loops.size(), 2U);
+    EXPECT_EQ(getName(*loops[0]), "header1");
+    EXPECT_EQ(getName(*loops[1]), "header2");
+  }
+  {
+    setup(nest3, "f");
+    Loop &root = **li->begin();
+    SmallVector<Loop *, 4> loops = getTapirLoopsInNest(root);
+    EXPECT_EQ(loops.size(), 3U);
+    EXPECT_EQ(getName(*loops[0]), "header1");
+    EXPECT_EQ(getName(*loops[1]), "header2");
+    EXPECT_EQ(getName(*loops[2]), "header3");
+  }
+  {
+    setup(nest4, "f");
+    Loop &root = **li->begin();
+    SmallVector<Loop *, 4> loops = getTapirLoopsInNest(root);
+    EXPECT_EQ(loops.size(), 4U);
+    EXPECT_EQ(getName(*loops[0]), "header1");
+    EXPECT_EQ(getName(*loops[1]), "header2");
+    EXPECT_EQ(getName(*loops[2]), "header3");
+    EXPECT_EQ(getName(*loops[3]), "header4");
+  }
+}
+
 } // namespace
