@@ -49,7 +49,7 @@ TEST(KitTypeUtils, isPrimitiveTy) {
   EXPECT_FALSE(isPrimitiveTy(vec));
 }
 
-TEST(KitTypeUtils, isMobilePointerTy) {
+TEST(KitTypeUtils, isMobileTy) {
   LLVMContext ctx;
   Type *voidTy = Type::getVoidTy(ctx);
   Type *i32 = Type::getInt32Ty(ctx);
@@ -57,12 +57,19 @@ TEST(KitTypeUtils, isMobilePointerTy) {
   Type *mobile = PointerType::get(ctx, KitAS::Mobile);
   Type *ptrAS = PointerType::get(ctx, 1);
 
-  EXPECT_FALSE(isMobilePointerTy(voidTy));
-  EXPECT_FALSE(isMobilePointerTy(i32));
-  EXPECT_FALSE(isMobilePointerTy(ptr));
-  EXPECT_FALSE(isMobilePointerTy(ptrAS));
+  EXPECT_FALSE(isMobileTy(voidTy));
+  EXPECT_FALSE(isMobileTy(i32));
+  EXPECT_FALSE(isMobileTy(ptr));
+  EXPECT_FALSE(isMobileTy(ptrAS));
 
-  EXPECT_TRUE(isMobilePointerTy(mobile));
+  EXPECT_TRUE(isMobileTy(mobile));
+}
+
+TEST(KitTypeUtils, getMobileTy) {
+  LLVMContext ctx;
+  Type *mobile = getMobileTy(ctx);
+
+  EXPECT_TRUE(isMobileTy(mobile));
 }
 
 TEST(KitTypeUtils, getLLVMTypeFor) {
