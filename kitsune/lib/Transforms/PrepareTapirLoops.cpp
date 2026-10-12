@@ -642,5 +642,5 @@ PreservedAnalyses PrepareTapirLoopsPass::run(Function &f,
 
   if (!changed)
     return PreservedAnalyses::all();
-  return getPreservedAnalysesLoop();
+  return getPreservedAnalysesLoop(/*preservedMSSA=*/true);
 }

@@ -13,6 +13,7 @@
 #include "kitsune/Passes/PassUtils.h"
 #include "llvm/Analysis/CallGraph.h"
 #include "llvm/Analysis/LoopAnalysisManager.h"
+#include "llvm/Analysis/MemorySSA.h"
 
 using namespace llvm;
 
@@ -32,8 +33,11 @@ PreservedAnalyses llvm::getPreservedAnalysesCFG() {
   return pa;
 }
 
-PreservedAnalyses llvm::getPreservedAnalysesLoop() {
-  return getLoopPassPreservedAnalyses();
+PreservedAnalyses llvm::getPreservedAnalysesLoop(bool preservedMSSA) {
+  PreservedAnalyses pa = getLoopPassPreservedAnalyses();
+  if (preservedMSSA)
+    pa.preserve<MemorySSAAnalysis>();
+  return pa;
 }
 
 PreservedAnalyses llvm::getPreservedAnalysesNone() {
