@@ -31,7 +31,7 @@ PreservedAnalyses getPreservedAnalysesCallGraph();
 PreservedAnalyses getPreservedAnalysesCFG();
 
 /// Get a PreservedAnalyses object that is suitable to return from a loop pass.
-PreservedAnalyses getPreservedAnalysesLoop();
+PreservedAnalyses getPreservedAnalysesLoop(bool preservedMSSA);
 
 /// Get a PreservedAnalyses object that indicates that all analyses have been
 /// invalidated.
