@@ -28,11 +28,15 @@ bool llvm::isByteArrayTy(Type *Ty) {
   return false;
 }
 
-bool llvm::isMobilePointerTy(Type *ty) {
+bool llvm::isMobileTy(Type *ty) {
   if (auto *ptrTy = dyn_cast<PointerType>(ty))
     if (ptrTy->getAddressSpace() == KitAS::Mobile)
       return true;
   return false;
+}
+
+PointerType *llvm::getMobileTy(LLVMContext &ctx) {
+  return PointerType::get(ctx, KitAS::Mobile);
 }
 
 std::string llvm::getShortName(Type *ty) {
