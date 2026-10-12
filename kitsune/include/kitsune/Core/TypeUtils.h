@@ -30,7 +30,10 @@ bool isPrimitiveTy(Type *ty);
 bool isByteArrayTy(Type *ty);
 
 /// Is the type a mobile pointer.
-bool isMobilePointerTy(Type *ty);
+bool isMobileTy(Type *ty);
+
+/// Get mobile pointer type.
+PointerType *getMobileTy(LLVMContext &ctx);
 
 /// Get the LLVM type for a given C++ type. This only works for primitive and
 /// pointer types. This cannot be used for struct/class types. However, pointers
