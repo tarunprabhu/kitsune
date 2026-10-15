@@ -15,6 +15,8 @@
 
 #include "kitsune/Core/TTID.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/Twine.h"
+#include "llvm/IR/Instruction.h"
 #include "llvm/IR/Intrinsics.h"
 
 namespace llvm {
@@ -86,6 +88,15 @@ Value *getStreamFromLaunch(const CallBase &call);
 ///     whose value is not a valid integer representation of a TTID.
 ///
 std::optional<TTID> getTTIDFromKitIntrCall(const CallBase &call);
+
+/// Create a call to an intrinsic at the insertion point \pt.
+Value *createCall(InsertPosition pt, Intrinsic::ID id, ArrayRef<Value *> args,
+                  const Twine &name = "");
+
+/// Create a call to an intrinsic at the insertion point \pt.
+Value *createCall(InsertPosition pt, Intrinsic::ID id,
+                  ArrayRef<Type *> overloadTypes, ArrayRef<Value *> args,
+                  const Twine &name = "");
 
 /// @}
 
