@@ -826,6 +826,45 @@ TEST_F(KitLoopUtils, isInLoop) {
   EXPECT_FALSE(isInLoop(*ret, *innerLoop, *li, /*strict=*/true));
 }
 
+TEST_F(KitLoopUtils, isInLoopBB) {
+  setup(loops, "f");
+
+  Loop *outerLoop, *innerLoop;
+  for (BasicBlock &bb : *f)
+    if (bb.getName() == "header.o")
+      outerLoop = li->getLoopFor(&bb);
+    else if (bb.getName() == "loop.i")
+      innerLoop = li->getLoopFor(&bb);
+
+  // latchI is the latch of the inner loop and must be in both loops, unless
+  // strict is true in which case, it will only be in the inner loop.
+  BasicBlock *latchI = innerLoop->getLoopLatch();
+
+  // By default, strict should be `false`.
+  EXPECT_TRUE(isInLoop(*latchI, *outerLoop, *li));
+  EXPECT_TRUE(isInLoop(*latchI, *innerLoop, *li));
+
+  EXPECT_TRUE(isInLoop(*latchI, *outerLoop, *li, /*strict=*/false));
+  EXPECT_FALSE(isInLoop(*latchI, *outerLoop, *li, /*strict=*/true));
+  EXPECT_TRUE(isInLoop(*latchI, *innerLoop, *li, /*strict=*/false));
+  EXPECT_TRUE(isInLoop(*latchI, *innerLoop, *li, /*strict=*/true));
+
+  // latchO is the latch of the outer loop and must be in the outer loop, but
+  // not the inner.
+  BasicBlock *latchO = outerLoop->getLoopLatch();
+  EXPECT_TRUE(isInLoop(*latchO, *outerLoop, *li));
+  EXPECT_TRUE(isInLoop(*latchO, *outerLoop, *li, /*strict=*/true));
+  EXPECT_FALSE(isInLoop(*latchO, *innerLoop, *li));
+  EXPECT_FALSE(isInLoop(*latchO, *innerLoop, *li, /*strict=*/true));
+
+  // The entry block of the function is not in any loop.
+  BasicBlock &entry = f->getEntryBlock();
+  EXPECT_FALSE(isInLoop(entry, *outerLoop, *li, /*strict=*/false));
+  EXPECT_FALSE(isInLoop(entry, *outerLoop, *li, /*strict=*/true));
+  EXPECT_FALSE(isInLoop(entry, *innerLoop, *li, /*strict=*/false));
+  EXPECT_FALSE(isInLoop(entry, *innerLoop, *li, /*strict=*/true));
+}
+
 static constexpr StringRef usedOutside = R"(
 define i64 @f(i64 %n) {
 entry:

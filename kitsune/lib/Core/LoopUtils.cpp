@@ -319,16 +319,26 @@ unsigned llvm::getNumIndVars(const Loop &loop) {
 
 bool llvm::isInLoop(const Instruction &inst, const Loop &loop, LoopInfo &li,
                     bool strict) {
-  if (const BasicBlock *bb = inst.getParent()) {
-    Loop *l = li.getLoopFor(bb);
-    if (!l)
-      return false;
-    else if (strict)
-      return l == &loop;
-    else
-      return loop.contains(l);
-  }
+  if (const BasicBlock *bb = inst.getParent())
+    return isInLoop(*bb, loop, li, strict);
   return false;
+}
+
+bool llvm::isInLoop(const BasicBlock &bb, const Loop &loop, LoopInfo &li,
+                    bool strict) {
+  Loop *l = li.getLoopFor(&bb);
+  if (!l)
+    return false;
+  else if (strict)
+    return l == &loop;
+  else
+    return loop.contains(l);
+}
+
+Loop *llvm::getLoopFor(const Instruction &inst, LoopInfo &li) {
+  if (const BasicBlock *bb = inst.getParent())
+    return li.getLoopFor(bb);
+  return nullptr;
 }
 
 bool llvm::isUsedOutsideLoop(const PHINode &iv, const Loop &loop,

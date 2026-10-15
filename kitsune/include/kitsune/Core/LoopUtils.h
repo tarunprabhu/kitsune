@@ -179,6 +179,17 @@ unsigned getNumIndVars(const Loop &loop);
 bool isInLoop(const Instruction &inst, const Loop &loop, LoopInfo &li,
               bool strict = false);
 
+/// Check if the basic block \p bb is in the loop \p loop. If \p strict is true,
+/// this will only return true if \p bb is strictly contained in \p loop, and
+/// not in any subloops of \p loop. Otherwise, this will return true if \p bb is
+/// containing either in \p loop directly, or in any subloops of \p loop.
+bool isInLoop(const BasicBlock &bb, const Loop &loop, LoopInfo &li,
+              bool strict = false);
+
+/// Get the nearest loop that contains this instruction. Return false if it is
+/// not part of a basic block, or if that basic block is not part of a loop.
+Loop *getLoopFor(const Instruction &inst, LoopInfo &li);
+
 /// If the given induction variable has at least one use that is not in \p loop,
 /// return true. \p iv is expected to be an induction variable associated with
 /// \p loop.
