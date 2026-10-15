@@ -57,3 +57,10 @@ bool llvm::isDeadEnd(const BasicBlock &bb) {
   }
   return false;
 }
+
+PHINode *llvm::getUniquePHI(BasicBlock &bb) {
+  iterator_range<BasicBlock::phi_iterator> phis = bb.phis();
+  if (std::distance(phis.begin(), phis.end()) == 1)
+    return &*phis.begin();
+  return nullptr;
+}
