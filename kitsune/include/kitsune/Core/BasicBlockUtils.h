@@ -19,6 +19,7 @@ namespace llvm {
 
 class BasicBlock;
 class Module;
+class PHINode;
 
 /// \@addtogroup kitsune
 /// @{
@@ -55,6 +56,10 @@ bool isOrphaned(const BasicBlock &bb);
 ///     successor of \p bb is a dead-end.
 ///
 bool isDeadEnd(const BasicBlock &bb);
+
+/// If the basic block has a since PHI node, return it, otherwise return
+/// nullptr.
+PHINode *getUniquePHI(BasicBlock &bb);
 
 /// @}
 

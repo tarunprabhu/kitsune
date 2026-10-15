@@ -149,4 +149,23 @@ TEST(KitBasicBlockUtils, isDeadEnd) {
   EXPECT_FALSE(isDeadEnd(*bb4));
 }
 
+TEST(KitBasicBlockUtils, getUniquePHI) {
+  LLVMContext ctx;
+  Type *i32 = Type::getInt32Ty(ctx);
+
+  BasicBlock *bb = BasicBlock::Create(ctx, "");
+  ReturnInst *ret = ReturnInst::Create(ctx, bb);
+
+  EXPECT_FALSE(getUniquePHI(*bb));
+
+  PHINode *phi =
+      PHINode::Create(i32, /*NumReservedValues=*/2, "", ret->getIterator());
+  EXPECT_EQ(bb->size(), 2U);
+  EXPECT_EQ(getUniquePHI(*bb), phi);
+
+  (void)PHINode::Create(i32, /*NumReservedValues=*/2, "", ret->getIterator());
+  EXPECT_EQ(bb->size(), 3U);
+  EXPECT_FALSE(getUniquePHI(*bb));
+}
+
 } // namespace
