@@ -32,6 +32,7 @@ add_kitsune_unittest(KitCore
   ModuleUtilsTest.cpp
   PrintfDebuggingTest.cpp
   ReductionsTest.cpp
+  SCEVUtilsTest.cpp
   SpawnStrategyTest.cpp
   TestUtils.cpp
   TypeUtilsTest.cpp
