@@ -160,4 +160,47 @@ TEST(KitIntrinsicUtils, getTTIDFromKitIntrCall) {
   callFree->deleteValue();
 }
 
+TEST(KitIntrinsicUtils, createCall) {
+  LLVMContext ctx;
+
+  Type *voidTy = Type::getVoidTy(ctx);
+  Type *i32 = Type::getInt32Ty(ctx);
+  Type *i64 = Type::getInt64Ty(ctx);
+  FunctionType *fty = FunctionType::get(voidTy, {}, /*IsVarArg=*/false);
+
+  Constant *c1 = ConstantInt::get(i32, 1, /*isSigned=*/false);
+  Constant *c512 = ConstantInt::get(i32, 512, /*isSigned=*/false);
+
+  Constant *c8 = ConstantInt::get(i64, 8, /*isSigned=*/false);
+
+  Module m("", ctx);
+  Function *f = cast<Function>(m.getOrInsertFunction("f", fty).getCallee());
+  BasicBlock *bb = BasicBlock::Create(ctx, "", f);
+  CallInst *call0 =
+      dyn_cast<CallInst>(createCall(bb, Intrinsic::kit_cpu_malloc, {c1, c8}));
+
+  EXPECT_EQ(bb->size(), 1U);
+  EXPECT_EQ(&bb->front(), call0);
+
+  EXPECT_TRUE(call0);
+  EXPECT_EQ(call0->getIntrinsicID(), Intrinsic::kit_cpu_malloc);
+  EXPECT_EQ(call0->arg_size(), 2U);
+  EXPECT_EQ(call0->getArgOperand(0), c1);
+  EXPECT_EQ(call0->getArgOperand(1), c8);
+
+  CallInst *call1 = cast<CallInst>(createCall(
+      call0->getIterator(), Intrinsic::kit_cpu_malloc, {c512, c8}, "second"));
+
+  EXPECT_EQ(bb->size(), 2U);
+  EXPECT_EQ(&bb->front(), call1);
+  EXPECT_EQ(&bb->back(), call0);
+
+  EXPECT_TRUE(call1);
+  EXPECT_EQ(call1->getIntrinsicID(), Intrinsic::kit_cpu_malloc);
+  EXPECT_EQ(call1->arg_size(), 2U);
+  EXPECT_EQ(call1->getArgOperand(0), c512);
+  EXPECT_EQ(call1->getArgOperand(1), c8);
+  EXPECT_EQ(call1->getName(), "second");
+}
+
 } // namespace

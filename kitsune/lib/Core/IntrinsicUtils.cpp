@@ -13,6 +13,7 @@
 #include "kitsune/Core/IntrinsicUtils.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Instructions.h"
 
 using namespace llvm;
@@ -73,4 +74,20 @@ std::optional<TTID> llvm::getTTIDFromKitIntrCall(const CallBase &call) {
     if (isKitIntrinsic(id))
       return fromConstant<TTID>(*cast<Constant>(call.getArgOperand(0)));
   return std::nullopt;
+}
+
+Value *llvm::createCall(InsertPosition pt, Intrinsic::ID id,
+                        ArrayRef<Value *> args, const Twine &name) {
+  BasicBlock *bb = pt.getBasicBlock();
+  IRBuilder<> builder(bb, pt);
+  return builder.CreateIntrinsic(id, args, /*FMFSource=*/{}, name);
+}
+
+Value *llvm::createCall(InsertPosition pt, Intrinsic::ID id,
+                        ArrayRef<Type *> overloadTypes, ArrayRef<Value *> args,
+                        const Twine &name) {
+  BasicBlock *bb = pt.getBasicBlock();
+  IRBuilder<> builder(bb, pt);
+  return builder.CreateIntrinsic(id, overloadTypes, args, /*FMFSource=*/{},
+                                 name);
 }
