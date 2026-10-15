@@ -389,7 +389,7 @@ BasicBlock *llvm::getExitBlockFromLatch(const Loop &loop) {
   return nullptr;
 }
 
-DetachInst *llvm::getTapirLoopDetachInst(Loop &loop) {
+DetachInst *llvm::getTapirLoopDetachInst(const Loop &loop) {
   assert(isTapirLoop(loop) && "Cannot get detached block of a regular loop");
 
   BasicBlock *header = loop.getHeader();
@@ -402,26 +402,36 @@ DetachInst *llvm::getTapirLoopDetachInst(Loop &loop) {
   return detach;
 }
 
-ReattachInst *llvm::getTapirLoopReattachInst(Loop &loop) {
+ReattachInst *llvm::getTapirLoopReattachInst(const Loop &loop) {
   assert(isTapirLoop(loop) && "Loop is a tapir loop");
 
   BasicBlock *latch = loop.getLoopLatch();
   assert(latch && "Loop must have a unique latch");
-  assert(pred_size(latch) && "Loop latch must have exactly two predecessors");
+  assert(pred_size(latch) == 2 && "Loop latch has exactly two predecessors");
 
   // A tapir loop latch is expected to have exactly two predecessors - the
   // tapir loop header whose terminator is expected to be a detach instruction
-  // and the block whose terminator is the reattach instruction.
-  for (BasicBlock *pred : predecessors(latch)) {
-    if (pred != loop.getHeader()) {
-      ReattachInst *reattach = dyn_cast<ReattachInst>(pred->getTerminator());
-      assert(reattach && "Terminator of non-header predecessor of the loop "
-                         "latch must be a reattach instruction");
+  // and the block whose terminator is the reattach instruction. We assume that
+  // this is the case and simply return the first reattach instruction that we
+  // find when iterating over the predecessors of the latch. If the tapir loop
+  // got mangled somehow and this is not actually the case, something
+  // catastrophic will happen eventually, so this is just delaying the
+  // inevitable.
+  for (BasicBlock *pred : predecessors(latch))
+    if (ReattachInst *reattach = dyn_cast<ReattachInst>(pred->getTerminator()))
       return reattach;
-    }
-  }
 
+  assert(0 && "Tapir loop contains a reattach instruction");
   return nullptr;
+}
+
+BasicBlock *llvm::getTapirLoopReattachBlock(const Loop &loop) {
+  assert(isTapirLoop(loop) && "Loop is a tapir loop");
+
+  ReattachInst *reattach = getTapirLoopReattachInst(loop);
+  assert(reattach && "Tapir loop contains a reattach instruction");
+
+  return reattach->getParent();
 }
 
 static SyncInst *getSyncInstUnconditionallyReachableFrom(BasicBlock *bb) {
@@ -432,7 +442,7 @@ static SyncInst *getSyncInstUnconditionallyReachableFrom(BasicBlock *bb) {
   return nullptr;
 }
 
-SyncInst *llvm::getTapirLoopUniqueSyncInst(Loop &loop) {
+SyncInst *llvm::getTapirLoopUniqueSyncInst(const Loop &loop) {
   assert(isTapirLoop(loop) && "Loop is a tapir loop");
   assert(loop.isLoopSimplifyForm() && "Loop must be in simplify form");
 
@@ -454,13 +464,13 @@ SyncInst *llvm::getTapirLoopUniqueSyncInst(Loop &loop) {
     return *syncInsts.begin();
 }
 
-Value *llvm::getTapirLoopSyncRegion(Loop &loop) {
+Value *llvm::getTapirLoopSyncRegion(const Loop &loop) {
   if (DetachInst *detach = getTapirLoopDetachInst(loop))
     return detach->getSyncRegion();
   llvm_unreachable("Cannot get tapir loop sync region");
 }
 
-BasicBlock *llvm::getTapirLoopDetachedBlock(Loop &loop) {
+BasicBlock *llvm::getTapirLoopDetachedBlock(const Loop &loop) {
   if (DetachInst *detach = getTapirLoopDetachInst(loop))
     return detach->getDetached();
   llvm_unreachable("Cannot get tapir loop detached block");

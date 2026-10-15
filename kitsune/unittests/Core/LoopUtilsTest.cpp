@@ -632,25 +632,25 @@ TEST_F(KitLoopUtils, getTapirLoops) {
 static constexpr StringRef simpleTapirLoop = R"(
 define void @f(i64 %n) {
 entry:
-  %syncreg = tail call token @llvm.syncregion.start()
-  br label %for.i.header
+  %sr = call token @llvm.syncregion.start()
+  br label %header
 
-for.i.header:
-  %i = phi i64 [ 0, %entry ], [ %inc.i, %for.i.latch ]
-  detach within %syncreg, label %for.i.body, label %for.i.latch
+header:
+  %i = phi i64 [ 0, %entry ], [ %inc, %latch ]
+  detach within %sr, label %body, label %latch
 
-for.i.body:
-  reattach within %syncreg, label %for.i.latch
+body:
+  reattach within %sr, label %latch
 
-for.i.latch:
-  %inc.i = add i64 %i, 1
-  %cmp.i = icmp eq i64 %inc.i, %n
-  br i1 %cmp.i, label %for.i.exit, label %for.i.header, !llvm.loop !0
+latch:
+  %inc = add i64 %i, 1
+  %cmp = icmp eq i64 %inc, %n
+  br i1 %cmp, label %exit, label %header, !llvm.loop !0
 
-for.i.exit:
-  sync within %syncreg, label %for.i.end
+exit:
+  sync within %sr, label %end
 
-for.i.end:
+end:
   ret void
 }
 
@@ -860,18 +860,44 @@ TEST_F(KitLoopUtils, isUsedOutsideLoop) {
   }
 }
 
+TEST_F(KitLoopUtils, getTapirLoopDetachInst) {
+  setup(simpleTapirLoop, "f");
+  const Loop &loop = **li->begin();
+  DetachInst *detach = getTapirLoopDetachInst(loop);
+
+  EXPECT_TRUE(detach);
+  EXPECT_EQ(detach->getParent()->getName(), "header");
+}
+
+TEST_F(KitLoopUtils, getTapirLoopReattachInst) {
+  setup(simpleTapirLoop, "f");
+  const Loop &loop = **li->begin();
+  ReattachInst *reattach = getTapirLoopReattachInst(loop);
+
+  EXPECT_TRUE(reattach);
+  EXPECT_EQ(reattach->getParent()->getName(), "body");
+}
+
+TEST_F(KitLoopUtils, getTapirLoopReattachBlock) {
+  setup(simpleTapirLoop, "f");
+  const Loop &loop = **li->begin();
+  BasicBlock *bb = getTapirLoopReattachBlock(loop);
+
+  EXPECT_EQ(bb->getName(), "body");
+}
+
 TEST_F(KitLoopUtils, getTapirLoopDetachedBlock) {
   setup(simpleTapirLoop, "f");
   Loop *loop = *li->begin();
 
-  EXPECT_EQ(getTapirLoopDetachedBlock(*loop)->getName(), "for.i.body");
+  EXPECT_EQ(getTapirLoopDetachedBlock(*loop)->getName(), "body");
 }
 
 TEST_F(KitLoopUtils, getTapirLoopSyncRegion) {
   setup(simpleTapirLoop, "f");
   Loop *loop = *li->begin();
 
-  EXPECT_EQ(getTapirLoopSyncRegion(*loop)->getName(), "syncreg");
+  EXPECT_EQ(getTapirLoopSyncRegion(*loop)->getName(), "sr");
 }
 
 static constexpr StringRef deadends = R"(

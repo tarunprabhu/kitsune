@@ -188,17 +188,20 @@ bool isUsedOutsideLoop(const PHINode &iv, const Loop &loop, LoopInfo &li);
 /// of the tapir loop header, which is expected to be a detach instruction and
 /// returns the syncregion associated with that instruction. It is an error if
 /// the terminator of the loop header is not a detach instruction.
-Value *getTapirLoopSyncRegion(Loop &loop);
+Value *getTapirLoopSyncRegion(const Loop &loop);
 
 /// Get the detach instruction for a tapir loop. This simply looks at the
 /// terminator of the tapir loop header, which is expected to be a detach
 /// instruction and returns that.
-DetachInst *getTapirLoopDetachInst(Loop &loop);
+DetachInst *getTapirLoopDetachInst(const Loop &loop);
 
 /// Get the reattach instruction for a tapir loop. This simply looks at the
 /// sole predecessor of the unique loop latch, whose terminator is expected to
 /// be a reattach instruction.
-ReattachInst *getTapirLoopReattachInst(Loop &loop);
+ReattachInst *getTapirLoopReattachInst(const Loop &loop);
+
+/// Get the block containing the reattach instruction in a tapir loop.
+BasicBlock *getTapirLoopReattachBlock(const Loop &loop);
 
 /// Get the unique sync instruction for a tapir loop. This is the sole sync
 /// instruction that is unconditionally reachable from the loop exit blocks. An
@@ -206,7 +209,7 @@ ReattachInst *getTapirLoopReattachInst(Loop &loop);
 /// a unique path from the first instruction of the exit block to the sync
 /// instruction. If more than one sync instruction is reachable from the loop's
 /// exit blocks, returns nullptr.
-SyncInst *getTapirLoopUniqueSyncInst(Loop &loop);
+SyncInst *getTapirLoopUniqueSyncInst(const Loop &loop);
 
 /// Get the "entry block" of the tapir loop body. This is the block that is
 /// detached from the tapir loop header. For instance, for the tapir loop
@@ -219,7 +222,7 @@ SyncInst *getTapirLoopUniqueSyncInst(Loop &loop);
 ///   body:
 ///     \<instructions\>
 ///
-BasicBlock *getTapirLoopDetachedBlock(Loop &loop);
+BasicBlock *getTapirLoopDetachedBlock(const Loop &loop);
 
 /// Get all blocks inside the loop that have successors outside the loop.
 SmallVector<BasicBlock *, 2> getExitingBlocks(const Loop &loop);
