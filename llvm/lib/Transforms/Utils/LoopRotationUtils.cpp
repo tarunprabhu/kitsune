@@ -11,6 +11,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Utils/LoopRotationUtils.h"
+#include "kitsune/Core/IntrinsicUtils.h"
+#include "kitsune/Core/LoopUtils.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/CodeMetrics.h"
@@ -420,6 +422,7 @@ bool LoopRotate::rotateLoop(Loop *L, bool SimplifiedLatch) {
   if (L->getBlocks().size() == 1)
     return false;
 
+  bool IsTapirLoop = isTapirLoop(*L);
   bool Rotated = false;
   do {
     BasicBlock *OrigHeader = L->getHeader();
@@ -831,7 +834,9 @@ bool LoopRotate::rotateLoop(Loop *L, bool SimplifiedLatch) {
 
     updateBranchWeights(*PHBI, *BI, HasConditionalPreHeader, BISuccsSwapped);
 
-    if (HasConditionalPreHeader) {
+    // If the loop is a tapir loop, we want the loop to always have a guard, so
+    // don't simplify the loop, even if the guard is a constant.
+    if (HasConditionalPreHeader || IsTapirLoop) {
       // The conditional branch can't be folded, handle the general case.
       // Split edges as necessary to preserve LoopSimplify form.
 
@@ -1061,6 +1066,34 @@ bool LoopRotate::processLoop(Loop *L) {
   // NB! We presume LoopRotation DOESN'T ADD its own metadata.
   if ((MadeChange || SimplifiedLatch) && LoopMD)
     L->setLoopID(LoopMD);
+
+  // We do this right at the end because, as the comment a few lines above this
+  // states, the rest of the implementation does not add its own loop metadata.
+  if ((MadeChange) && isTapirLoop(*L)) {
+    // We cannot just use L->getLoopGuardBranch() here because that requires
+    // the loop to be in loop-simplify form. This will likely not be the case
+    // when this code runs for the first time on a loop.
+    BasicBlock *PH = L->getLoopPreheader();
+    assert(PH && "Rotated loop has a preheader");
+
+    BasicBlock *BBGuard = PH->getUniquePredecessor();
+    assert(BBGuard && "Rotated loop preheader has a single predecessor");
+
+    BranchInst *Branch = dyn_cast<BranchInst>(BBGuard->getTerminator());
+    assert(Branch && "Loop is not guarded after rotation");
+    assert(Branch->isConditional() && "Loop guard is a conditional branch");
+
+    // Always wrap the guard of a tapir loop in a call to kit.identity. Even if
+    // it is not a constant here, the optimization passes that run later in the
+    // pipeline may prove that it is, which may result in the guard being
+    // removed. Wrapping it in an intrinsic call should prevent the guard from
+    // being removed, but it will still allow any constants to be propagated.
+    Value *Cond = Branch->getCondition();
+    Type *Ty = Cond->getType();
+    Value *WrappedCond = createCall(Branch->getIterator(),
+                                    Intrinsic::kit_identity, {Ty}, {Cond});
+    Branch->setCondition(WrappedCond);
+  }
 
   if ((MadeChange || SimplifiedLatch) && TaskI && DT)
     // Recompute task info.
