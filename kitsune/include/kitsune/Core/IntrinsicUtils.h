@@ -77,6 +77,10 @@ bool isKitIntrinsicCPU(Intrinsic::ID id);
 /// well as those that are primarily related to the runtime.
 bool isKitIntrinsicGPU(Intrinsic::ID id);
 
+/// Check if the given Kitsune intrinsic is universal, i.e. it is independent of
+/// a tapir target.
+bool isKitIntrinsicUniversal(Intrinsic::ID id);
+
 /// Get the stream from the given call to Kitsune's kernel launch intrinsic.
 Value *getStreamFromLaunch(const CallBase &call);
 

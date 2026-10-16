@@ -1118,3 +1118,19 @@ This intrinsic may be used in tapir loops with both CPU and GPU-centric tapir
 targets.
 }];
 }
+
+def KitIdentityDoc : KitDocIntrinsic {
+  let Category = KitDocCatCommon;
+  let ParamDocs = [
+      KitDocParam<"v", "The value">
+  ];
+  let Descr = [{
+This a straightforward identity function that simply returns its argument.
+
+The main purpose of this is to inhibit constant propagation. For instance, we
+currently require all tapir loops to be guarded. However, for loops where the
+trip counts are known at compile-time, the conditional guard may be replaced
+with an unconditional branch. By wrapping the condition in this intrinsic, we
+can prevent the branch from being simplified until we lower the intrinsic.
+}];
+}

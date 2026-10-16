@@ -43,9 +43,16 @@ static bool lowerItersPerThreadIntr(CallInst &call) {
   }
 }
 
+static bool lowerIdentityIntr(CallInst &call) {
+  call.replaceAllUsesWith(call.getArgOperand(0));
+  call.eraseFromParent();
+  return true;
+}
+
 static bool maybeLowerIntrinsic(CallInst &call) {
   switch (call.getIntrinsicID()) {
   case Intrinsic::kit_gpu_ipt: return lowerItersPerThreadIntr(call);
+  case Intrinsic::kit_identity: return lowerIdentityIntr(call);
   default: break;
   }
   return false;

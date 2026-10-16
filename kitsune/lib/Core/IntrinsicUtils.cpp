@@ -56,6 +56,13 @@ bool llvm::isKitIntrinsicGPU(Intrinsic::ID id) {
          baseName.starts_with("llvm.kit.gpu");
 }
 
+bool llvm::isKitIntrinsicUniversal(Intrinsic::ID id) {
+  switch (id) {
+  case Intrinsic::kit_identity: return true;
+  default: return false;
+  }
+}
+
 Value *llvm::getStreamFromLaunch(const CallBase &call) {
   assert(call.getIntrinsicID() == Intrinsic::kit_async_gpu_kernel_launch &&
          "Instruction must call async_launch_kernel intrinsic");

@@ -193,7 +193,7 @@ KitVerifier &KitVerifier::verifyIntrWarpIdOrLane(const CallBase &call) {
 
 KitVerifier &KitVerifier::verify(const CallBase &call) {
   Intrinsic::ID id = call.getIntrinsicID();
-  if (isKitIntrinsic(id)) {
+  if (isKitIntrinsic(id) && !isKitIntrinsicUniversal(id)) {
     std::optional<TTID> tt = getTTIDFromKitIntrCall(call);
     if (!tt.has_value())
       check(false, DiagID::ErrKitIntrNoTTID);

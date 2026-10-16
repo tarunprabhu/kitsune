@@ -32,6 +32,7 @@ TEST(KitIntrinsicUtils, isKitIntrinsic) {
   EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_gpu_memcpy_dtoh));
   EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_gpu_memcpy_htod));
   EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_gpu_stream_sync));
+  EXPECT_TRUE(isKitIntrinsic(Intrinsic::kit_identity));
 
   EXPECT_FALSE(isKitIntrinsic(Intrinsic::prefetch));
   EXPECT_FALSE(isKitIntrinsic(Intrinsic::memcpy));
@@ -97,6 +98,13 @@ TEST(KitIntrinsicUtils, isKitIntrinsicGPU) {
   EXPECT_FALSE(isKitIntrinsicGPU(Intrinsic::kit_mobile_alloc));
   EXPECT_FALSE(isKitIntrinsicGPU(Intrinsic::kit_reduce));
   EXPECT_FALSE(isKitIntrinsicGPU(Intrinsic::kit_mobile_init));
+}
+
+TEST(KitIntrinsicUtils, isKitIntrinsicUniversal) {
+  // This is not a comprehensive list, though it would be nice if it were.
+  EXPECT_TRUE(isKitIntrinsicUniversal(Intrinsic::kit_identity));
+
+  EXPECT_FALSE(isKitIntrinsicUniversal(Intrinsic::kit_mobile_free));
 }
 
 TEST(KitIntrinsicUtils, getStreamFromLaunch) {

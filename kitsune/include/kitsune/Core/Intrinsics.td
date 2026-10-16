@@ -679,3 +679,13 @@ def int_kit_reduce
   let Doc = KitReduceDoc;
   let LowerMode = LowerCustom;
 }
+
+//------------------------------------------------------------------------------
+// Miscellaneous intrinsics - for those that don't warrant their own category.
+
+// A straightforward identity intrinsic that just returns its input.
+def int_kit_identity
+    : KitIntrinsic<[llvm_any_ty], [LLVMMatchType<0>], [IntrNoMem]> {
+  let Doc = KitIdentityDoc;
+  let LowerMode = LowerCustom;
+}
