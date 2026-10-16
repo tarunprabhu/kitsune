@@ -245,7 +245,7 @@ SmallVector<Loop *, 4> llvm::getTapirLoopsInNest(Loop &loop) {
       std::optional<unsigned> level = getPerfectLevelAttr(*l);
       assert(level.has_value() && "Subloop has perfect.level attribute");
       assert(!nest[*level - 1] && "More than one tapir loop at level");
-      assert(*level <= depth && "Subloop level is less than the nest depth");
+      assert(*level <= depth && "Subloop level is valid");
       nest[*level - 1] = l;
     }
   }
@@ -303,7 +303,7 @@ bool llvm::serializeTapirLoop(Loop &loop, Task &task, bool addAttr,
 
   // Clear the tapir loop attributes *AFTER* calling clearMandatoryLLVMLoopAttrs
   // since that function requires the tapir loop attributes to be present. This
-  // is called after Serializedetach in case that function examines the tapir
+  // is called after SerializeDetach in case that function examines the tapir
   // loop attributes.
   clearTapirLoopAttrs(loop);
 
