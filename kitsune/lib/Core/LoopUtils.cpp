@@ -17,6 +17,7 @@
 #include "kitsune/Core/LoopAttrs.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/Analysis/LoopInfo.h"
+#include "llvm/Analysis/LoopNestAnalysis.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
 
@@ -396,6 +397,63 @@ BasicBlock *llvm::getExitBlockFromLatch(const Loop &loop) {
   assert(loop.getHeader());
   if (BasicBlock *latch = loop.getLoopLatch())
     return getNonMatchingSuccessor(*latch->getTerminator(), loop.getHeader());
+  return nullptr;
+}
+
+BranchInst *llvm::getLoopGuardBranch(const Loop &loop, bool allowDeadEndExits) {
+  if (!allowDeadEndExits)
+    return loop.getLoopGuardBranch();
+
+  if (!loop.isLoopSimplifyForm() || !loop.isRotatedForm())
+    return nullptr;
+
+  BasicBlock *bbExit = getUniqueNonDeadEndExitBlock(loop);
+  if (!bbExit)
+    return nullptr;
+
+  // The guard block is expected to have two successors - the loop preheader and
+  // the "bypass" block. The preheader, in turn, must have exactly one
+  // predecessor - the guard block. If either one of these is not true, the
+  // loop is deemed to be unguarded. Since we know that the loop is in simplify
+  // form at this point, the preheader is guaranteed to be present.
+  BasicBlock *ph = loop.getLoopPreheader();
+  BasicBlock *bbGuard = ph->getUniquePredecessor();
+  if (!bbGuard)
+    return nullptr;
+
+  // The terminator of the guard block is expected to be a BranchInst. In
+  // principle, it could be an equivalent switch instruction. But adding that
+  // instruction there would require a truly perverse frontend/optimization
+  // pass.
+  BranchInst *br = dyn_cast<BranchInst>(bbGuard->getTerminator());
+  if (!br)
+    return nullptr;
+
+  // Check if bbExit (or any BasicBlock which is an empty unique successor of
+  // bbExit) is equal to bbBypass. If skipEmptyBlockUntil returns bbBypass, then
+  // the guard branch for the loop is `br`.
+  BasicBlock *bbBypass = getNonMatchingSuccessor(*br, ph);
+  if (&LoopNest::skipEmptyBlockUntil(bbExit, bbBypass,
+                                     /*CheckUniquePred=*/true) != bbBypass)
+    return nullptr;
+
+  return br;
+}
+
+BasicBlock *llvm::getLoopGuardBlock(const Loop &loop, bool allowDeadEndExits) {
+  if (BranchInst *br = getLoopGuardBranch(loop, allowDeadEndExits))
+    return br->getParent();
+  return nullptr;
+}
+
+bool llvm::isGuarded(const Loop &loop, bool allowDeadEndExits) {
+  return getLoopGuardBranch(loop, allowDeadEndExits);
+}
+
+BasicBlock *llvm::getLoopBypassBlock(const Loop &loop, bool allowDeadEndExits) {
+  if (BasicBlock *ph = loop.getLoopPreheader())
+    if (BranchInst *br = getLoopGuardBranch(loop, allowDeadEndExits))
+      return getNonMatchingSuccessor(*br, ph);
   return nullptr;
 }
 
