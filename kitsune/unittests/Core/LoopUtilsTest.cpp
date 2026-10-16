@@ -1478,4 +1478,184 @@ TEST_F(KitLoopUtils, getTapirLoopsInNest) {
   }
 }
 
+static constexpr StringRef guarded = R"(
+define void @f(i64 %n) {
+entry:
+  %cmp.n = icmp ult i64 0, %n
+  br i1 %cmp.n, label %ph, label %skip
+
+ph:
+  br label %header
+
+header:
+  %i = phi i64 [ 0, %ph ], [ %inc, %header ]
+  %inc = add i64 %i, 1
+  %cmp = icmp eq i64 %inc, %n
+  br i1 %cmp, label %loopexit, label %header, !llvm.loop !0
+
+loopexit:
+  br label %skip
+
+skip:
+  br label %exit
+
+exit:
+  ret void
+}
+
+!0 = distinct !{!0}
+)";
+
+static constexpr StringRef guardedDeadEnd = R"(
+define void @f(i64 %n, i64 %b) {
+entry:
+  %cmp.n = icmp ult i64 0, %n
+  br i1 %cmp.n, label %ph, label %skip
+
+ph:
+  br label %header
+
+header:
+  %i = phi i64 [ 0, %ph ], [ %inc, %header ]
+  %chk = icmp eq i64 %i, %b
+  br i1 %chk, label %unrch, label %latch
+
+unrch:
+  unreachable
+
+latch:
+  %inc = add i64 %i, 1
+  %cmp = icmp eq i64 %inc, %n
+  br i1 %cmp, label %loopexit, label %header, !llvm.loop !0
+
+loopexit:
+  br label %skip
+
+skip:
+  br label %exit
+
+exit:
+  ret void
+}
+
+!0 = distinct !{!0}
+)";
+
+TEST_F(KitLoopUtils, getLoopGuardBranch) {
+  {
+    setup(guarded, "f");
+    const Loop &loop = **li->begin();
+
+    BranchInst *brt = getLoopGuardBranch(loop, /*allowDeadEndExits=*/true);
+    EXPECT_EQ(brt->getSuccessor(0)->getName(), "ph");
+    EXPECT_EQ(brt->getSuccessor(1)->getName(), "skip");
+
+    BranchInst *brf = getLoopGuardBranch(loop, /*allowDeadEndExits=*/false);
+    EXPECT_EQ(brf->getSuccessor(0)->getName(), "ph");
+    EXPECT_EQ(brf->getSuccessor(1)->getName(), "skip");
+
+    EXPECT_EQ(brt, brf);
+  }
+  {
+    setup(guardedDeadEnd, "f");
+    const Loop &loop = **li->begin();
+
+    BranchInst *br = getLoopGuardBranch(loop, /*allowDeadEndExits=*/true);
+    EXPECT_EQ(br->getSuccessor(0)->getName(), "ph");
+    EXPECT_EQ(br->getSuccessor(1)->getName(), "skip");
+
+    EXPECT_FALSE(getLoopGuardBranch(loop, /*allowDeadEndExits=*/false));
+  }
+  {
+    setup(nest1, "f");
+    const Loop &loop = **li->begin();
+    EXPECT_FALSE(getLoopGuardBranch(loop, /*allowDeadEndExits=*/false));
+    EXPECT_FALSE(getLoopGuardBranch(loop, /*allowDeadEndExits=*/true));
+  }
+}
+
+TEST_F(KitLoopUtils, getLoopGuardBlock) {
+  {
+    setup(guarded, "f");
+    const Loop &loop = **li->begin();
+
+    BranchInst *brt = getLoopGuardBranch(loop, /*allowDeadEndExits=*/true);
+    BasicBlock *bbt = brt->getParent();
+    EXPECT_EQ(bbt->getName(), "entry");
+
+    BranchInst *brf = getLoopGuardBranch(loop, /*allowDeadEndExits=*/false);
+    BasicBlock *bbf = brf->getParent();
+    EXPECT_EQ(bbf->getName(), "entry");
+
+    EXPECT_EQ(bbt, bbf);
+  }
+  {
+    setup(guardedDeadEnd, "f");
+    const Loop &loop = **li->begin();
+
+    BranchInst *br = getLoopGuardBranch(loop, /*allowDeadEndExits=*/true);
+    BasicBlock *bb = br->getParent();
+    EXPECT_EQ(bb->getName(), "entry");
+
+    EXPECT_FALSE(getLoopGuardBranch(loop, /*allowDeadEndExits=*/false));
+  }
+  {
+    setup(nest1, "f");
+    const Loop &loop = **li->begin();
+    EXPECT_FALSE(getLoopGuardBranch(loop, /*allowDeadEndExits=*/false));
+    EXPECT_FALSE(getLoopGuardBranch(loop, /*allowDeadEndExits=*/true));
+  }
+}
+
+TEST_F(KitLoopUtils, isGuarded) {
+  {
+    setup(guarded, "f");
+    const Loop &loop = **li->begin();
+    EXPECT_TRUE(isGuarded(loop, /*allowDeadEndExits=*/true));
+    EXPECT_TRUE(isGuarded(loop, /*allowDeadEndExits=*/false));
+  }
+  {
+    setup(guardedDeadEnd, "f");
+    const Loop &loop = **li->begin();
+    EXPECT_TRUE(isGuarded(loop, /*allowDeadEndExits=*/true));
+    EXPECT_FALSE(isGuarded(loop, /*allowDeadEndExits=*/false));
+  }
+  {
+    setup(nest1, "f");
+    const Loop &loop = **li->begin();
+    EXPECT_FALSE(isGuarded(loop, /*allowDeadEndExits=*/true));
+    EXPECT_FALSE(isGuarded(loop, /*allowDeadEndExits=*/false));
+  }
+}
+
+TEST_F(KitLoopUtils, getLoopBypassBlock) {
+  {
+    setup(nest1, "f");
+    const Loop &loop = **li->begin();
+    EXPECT_FALSE(getLoopBypassBlock(loop, /*allowDeadEndExits=*/false));
+    EXPECT_FALSE(getLoopBypassBlock(loop, /*allowDeadEndExits=*/true));
+  }
+  {
+    setup(normalizedNotSimplified, "f");
+    const Loop &loop = **li->begin();
+    EXPECT_FALSE(getLoopBypassBlock(loop, /*allowDeadEndExits=*/false));
+    EXPECT_FALSE(getLoopBypassBlock(loop, /*allowDeadEndExits=*/true));
+  }
+  {
+    setup(guarded, "f");
+    const Loop &loop = **li->begin();
+    EXPECT_EQ(getLoopBypassBlock(loop, /*allowDeadEndExits=*/false)->getName(),
+              "skip");
+    EXPECT_EQ(getLoopBypassBlock(loop, /*allowDeadEndExits=*/true)->getName(),
+              "skip");
+  }
+  {
+    setup(guardedDeadEnd, "f");
+    const Loop &loop = **li->begin();
+    EXPECT_FALSE(getLoopBypassBlock(loop, /*allowDeadEndExits=*/false));
+    EXPECT_EQ(getLoopBypassBlock(loop, /*allowDeadEndExits=*/true)->getName(),
+              "skip");
+  }
+}
+
 } // namespace

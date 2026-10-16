@@ -265,6 +265,31 @@ BasicBlock *getUniqueNonDeadEndExitBlock(const Loop &loop);
 /// return nullptr.
 BasicBlock *getExitBlockFromLatch(const Loop &loop);
 
+/// Get the guard branch in \p loop. If \p allowDeadEndExits is false, this is
+/// the same as Loop::getLoopGuardBranch. While that function requires a unique
+/// exit block, this relaxes that condition and requires a unique non-dead-end
+/// exit block.
+BranchInst *getLoopGuardBranch(const Loop &loop, bool allowDeadEndExits);
+
+/// Get the block containing the loop guard instruction. See the documentation
+/// of \ref getLoopGuardBranch for more information. Returns nullptr if \p loop
+/// is not guarded.
+BasicBlock *getLoopGuardBlock(const Loop &loop, bool allowDeadEndExits);
+
+/// Check if \p loop is guarded. The loop is guarded if \ref getLoopGuardBranch
+/// does not return nullptr. For more information, see the documentation for
+/// that function.
+bool isGuarded(const Loop &loop, bool allowDeadEndExits);
+
+/// If \p loop is guarded, return the block that is not the loop preheader. If
+/// the loop is not guarded, returns nullptr.
+///
+/// This generally requires the loop to be in simplify form. While calling this
+/// with a loop that is not simplified will not result in an error, it will
+/// likely result in nullptr being returned even if the loop is guarded and has
+/// a bypass block.
+BasicBlock *getLoopBypassBlock(const Loop &loop, bool allowDeadEndExits);
+
 /// Check if the tapir loop is normalized. A tapir loop is said to be normalized
 /// if all of the following hold:
 ///
