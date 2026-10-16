@@ -84,6 +84,10 @@ static bool resetMaxPerfectDepth(Loop &loop, unsigned newDepth) {
 }
 
 // Serialize the loop depending on the loop level. Always returns true.
+//
+// TODO: This currently serializes tapir loops whose depth is greater than 3.
+// For deep loop nests like this, we should consider serializing one or more
+// outer loops instead of the inner ones.
 static bool serializeLoop(Loop &loop, Task &task) {
   unsigned perfectLevel = *getPerfectLevelAttr(loop);
   Value *syncRegion = task.getDetach()->getSyncRegion();
