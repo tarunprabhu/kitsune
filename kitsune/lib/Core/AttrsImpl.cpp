@@ -128,14 +128,6 @@ bool llvm::detail::verifyRawAttrValueAt(KitVerifier &v, const MDNode &attr,
                  toString<T>(), i);
 }
 
-template <>
-bool llvm::detail::verifyRawAttrValueAt(KitVerifier &v, const MDNode &attr,
-                                        unsigned i, const MaybeMDNode &val) {
-  StringRef attrName = cast<MDString>(attr.getOperand(0))->getString();
-  return v.check(val.has_value(), DiagID::ErrAttrNoValueAt, attrName,
-                 "llvm::MDNode*", i);
-}
-
 MDNode *llvm::detail::makeRawAttr(LLVMContext &ctx, StringRef attrName,
                                   ArrayRef<Metadata *> attrVals) {
   SmallVector<Metadata *, 8> ops;
@@ -319,6 +311,8 @@ template bool llvm::detail::verifyRawAttrValueAt(KitVerifier &, const MDNode &,
 template bool llvm::detail::verifyRawAttrValueAt(KitVerifier &, const MDNode &,
                                                  unsigned, const MaybeStr &);
 
+template bool llvm::detail::verifyRawAttrValueAt(KitVerifier &, const MDNode &,
+                                                 unsigned, const MaybeMDNode &);
 template bool llvm::detail::verifyRawAttrValueAt(KitVerifier &, const MDNode &,
                                                  unsigned, const MaybeTTID &);
 template bool llvm::detail::verifyRawAttrValueAt(KitVerifier &, const MDNode &,
