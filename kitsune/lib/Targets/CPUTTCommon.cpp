@@ -11,7 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "CPUTTCommon.h"
+#include "kitsune/Targets/CPUTTCommon.h"
 #include "llvm/Support/ErrorHandling.h"
 
 using namespace llvm;
