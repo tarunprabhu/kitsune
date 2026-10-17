@@ -30,6 +30,17 @@ template <> StringRef llvm::toString<uint64_t>() { return "uint64_t"; }
 template <> StringRef llvm::toString<float>() { return "float"; }
 template <> StringRef llvm::toString<double>() { return "double"; }
 
+// Some of these specializations are in support of Kitsune's attributes, and the
+// types that their values may take.
+template <> StringRef llvm::toString<Argument *>() { return "llvm::Argument*"; }
+template <> StringRef llvm::toString<BasicBlock *>() {
+  return "llvm::BasicBlock*";
+}
+template <> StringRef llvm::toString<Instruction *>() {
+  return "llvm::Instruction*";
+}
+template <> StringRef llvm::toString<MDNode *>() { return "llvm::MDNode*"; }
+
 template <> std::string llvm::toString(const bool &v) {
   return std::to_string(v);
 }
