@@ -31,6 +31,14 @@ const Module *llvm::getModule(const BasicBlock &bb) {
   return nullptr;
 }
 
+Function *llvm::getFunction(BasicBlock &bb) {
+  return bb.getParent();
+}
+
+const Function *llvm::getFunction(const BasicBlock &bb) {
+  return bb.getParent();
+}
+
 std::string llvm::getName(const BasicBlock &bb) {
   if (bb.hasName())
     return bb.getName().str();
@@ -40,6 +48,13 @@ std::string llvm::getName(const BasicBlock &bb) {
 
   bb.printAsOperand(os, /*PrintType=*/false, getModule(bb));
   return buf;
+}
+
+bool llvm::isEntryBlock(const BasicBlock &bb) {
+  if (const Function *f = getFunction(bb))
+    if (&f->getEntryBlock() == &bb)
+      return true;
+  return false;
 }
 
 bool llvm::isDisconnected(const BasicBlock &bb) {
