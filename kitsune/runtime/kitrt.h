@@ -92,6 +92,69 @@ void *__kitrt_default_mem_alloc(uint64_t bytes);
 /// Free a pointer previously allocated by \ref __kitrt_default_mem_free.
 void __kitrt_default_mem_free(void *ptr);
 
+/// Given the total number of available threads, \p totalThreads, and a loop at
+/// level \p level in a nest of depth \p depth, find the number of threads to be
+/// used at the given level. For example, consider the loop nest below:
+///
+///     forall (int i = 0; i < 6; ++i)
+///         forall (int j = 0; j < 5; ++j)
+///             ...
+///
+/// A representation of the iteration space for this loop nest is shown below:
+///
+///                        i
+///
+///        0,0   0,1   0,2   0,3   0,4   0,5
+///        1,1   1,1   1,2   1,3   1,4   1,5
+///     j  2,0   2,1   2,2   2,3   2,4   2,5
+///        3,0   3,1   3,2   3,3   3,4   3,5
+///        4,0   4,1   4,2   4,3   4,4   4,5
+///
+/// When executing this loop nest with a CPU-centric tapir target, we need to
+/// distribute these iterations across a fixed number of CPU threads. Assuming
+/// there are 6 CPU threads available, this iteration space can be distributed
+/// across threads as shown below:
+///
+///                        |
+///        0,0   0,1   0,2 | 0,3   0,4   0,5
+///        1,1   1,1   1,2 | 1,3   1,4   1,5
+///     -------------------+-------------------
+///        2,0   2,1   2,2 | 2,3   2,4   2,5
+///        3,0   3,1   3,2 | 3,3   3,4   3,5
+///     -------------------+-------------------
+///        4,0   4,1   4,2 | 4,3   4,4   4,5
+///                        |
+///
+/// Essentially, this means that the iterations in the outer i loop are
+/// distributed across 3 threads, and the iterations of the inner j loop are
+/// distributed across 2 threads. The compiler must transform the original
+/// loop nest into the following.
+///
+///     unsigned b1 = __kitrt_num_threads_for_nest_level(numThreads, 2, 1);
+///     unsigned b2 = __kitrt_num_threads_for_next_level(numThreads, 2, 2);
+///     forall (int t = 0; t < numThreads; ++t) {
+///         unsigned s1 = b1 * t;
+///         unsigned e1 = min(b1 * (t + 1), 6);
+///         for (int i = s1; i < e1; ++i) {
+///             unsigned s2 = b2 * t;
+///             unsigned e2 = min(b2 * (t + 1), 5);
+///             for (int j = s2; j < e2; ++j) {
+///                 ...
+///             }
+///         }
+///     }
+///
+/// This function works by factorizing \p totalThreads into \p depth integer
+/// factors. For the example above, this factorizes `totalThreads == 6` as
+/// 3 x 2. This attempts to ensure that none of the factors is 1. In some cases,
+/// particularly if \p totalThreads is prime, it is not possible to do so. In
+/// this case, this will attempt to factorize a value that is less than
+/// \p totalThreads. For instance, `totalThreads == 17`, will be factorized as
+/// 4 x 4. Obviously, this means that fewer threads than requested are used.
+///
+uint64_t __kitrt_threads_for_nest_level(uint64_t totalThreads, uint32_t depth,
+                                        uint32_t level);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif // __cplusplus

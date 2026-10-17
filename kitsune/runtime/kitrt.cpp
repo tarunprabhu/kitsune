@@ -315,3 +315,9 @@ extern "C" void __kitrt_finalize(const InitOptions *initOpts) {
   assert(initOpts && "Initialization options provided");
   finalize(*initOpts);
 }
+
+extern "C" uint64_t __kitrt_threads_for_nest_level(uint64_t numThreads,
+                                                   uint32_t depth,
+                                                   uint32_t level) {
+  return kitrt::getNumThreadsForNestLevel(numThreads, depth, level);
+}

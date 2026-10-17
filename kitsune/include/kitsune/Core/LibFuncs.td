@@ -74,6 +74,11 @@ def kitrt_initialize :
 def kitrt_finalize :
     KitFunc<"__kitrt_finalize", Void, [Ptr]>;
 
+// unsigned __kitrt_threads_for_nest_level(unsigned numThreads, unsigned depth,
+//                                         unsigned level)
+def kitrt_threads_for_nest_level :
+    KitFunc<"__kitrt_threads_for_nest_level", U64, [U64, U32, U32]>;
+
 // void *__kitrt_default_mem_alloc(uint64_t bytes)
 def kitrt_mem_alloc :
     KitFunc<"__kitrt_default_mem_alloc", Ptr, [U64]>;

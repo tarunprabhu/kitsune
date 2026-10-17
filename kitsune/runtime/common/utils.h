@@ -93,6 +93,11 @@ uint32_t nearestMultipleLT(uint32_t m, uint32_t n);
 /// Write a stack trace to stderr.
 void printStackTrace(void);
 
+/// Get the number of threads assigned to level \p level of a loop nest of depth
+/// \p depth given that \p totalThreads threads are available.
+uint64_t getNumThreadsForNestLevel(uint64_t numThreads, uint32_t depth,
+                                   uint32_t level);
+
 } // namespace kitrt
 
 #endif // KITRT_COMMON_UTILS_H
