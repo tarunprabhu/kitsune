@@ -13,7 +13,7 @@
 #ifndef KITSUNE_TARGETS_OPENMP_TT_H
 #define KITSUNE_TARGETS_OPENMP_TT_H
 
-#include "CPUTTCommon.h"
+#include "kitsune/Targets/CPUTTCommon.h"
 
 namespace llvm {
 
