@@ -18,6 +18,7 @@
 namespace llvm {
 
 class BasicBlock;
+class Function;
 class Module;
 class PHINode;
 
@@ -30,10 +31,22 @@ class PHINode;
 Module *getModule(BasicBlock &bb);
 const Module *getModule(const BasicBlock &bb);
 
+/// Get the function containing the basic block, or nullptr if the basic block
+/// is not in a function. Although there is a BasicBlock::getParent() method,
+/// this is sometimes useful in templates and macro expansions.
+Function *getFunction(BasicBlock &bb);
+const Function *getFunction(const BasicBlock &bb);
+
 /// Get the name of a basic block. If the basic block is unnamed, a string of
 /// the form `%<N>` will be returned. This is how the basic block might appear
 /// in human-readable LLVM-IR.
 std::string getName(const BasicBlock &bb);
+
+/// Return true if BOTH the following conditions hold:
+///
+///    - \p bb is in a function
+///    - \p bb is the entry block of that function
+bool isEntryBlock(const BasicBlock &bb);
 
 /// Return true if BOTH the following conditions hold:
 ///
