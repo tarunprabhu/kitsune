@@ -48,6 +48,27 @@ TEST(KitBasicBlockUtils, getModule) {
   EXPECT_EQ(getModule(*bbFM), &m);
 }
 
+TEST(KitBasicBlockUtils, getFunction) {
+  LLVMContext ctx;
+  Type *voidTy = Type::getVoidTy(ctx);
+  FunctionType *funcTy = FunctionType::get(voidTy, {}, /*IsVarArg=*/false);
+  GlobalValue::LinkageTypes linkage = GlobalValue::ExternalLinkage;
+
+  Module m("", ctx);
+  Function *f = Function::Create(funcTy, linkage, "fO");
+
+  BasicBlock *bb0 = BasicBlock::Create(ctx);
+  BasicBlock *bbF = BasicBlock::Create(ctx, "", f);
+  const BasicBlock *bb0C = bb0;
+  const BasicBlock *bbFC = bbF;
+
+  EXPECT_FALSE(getFunction(*bb0));
+  EXPECT_FALSE(getFunction(*bb0C));
+
+  EXPECT_EQ(getFunction(*bbF), f);
+  EXPECT_EQ(getFunction(*bbFC), f);
+}
+
 TEST(KitBasicBlockUtils, getName) {
   LLVMContext ctx;
   std::unique_ptr<Module> m = parseIR(ctx, ll);
@@ -60,6 +81,23 @@ TEST(KitBasicBlockUtils, getName) {
   unsigned i = 0;
   EXPECT_EQ(names[i++], "%1");  // The entry basic block is unnamed
   EXPECT_EQ(names[i++], "end"); // The basic block is named
+}
+
+TEST(KitBasicBlockUtils, isEntryBlock) {
+  LLVMContext ctx;
+  Type *voidTy = Type::getVoidTy(ctx);
+  FunctionType *fty = FunctionType::get(voidTy, {}, /*isVarArg=*/false);
+
+  Module m("", ctx);
+  Function *f = cast<Function>(m.getOrInsertFunction("f", fty).getCallee());
+
+  BasicBlock *bb0 = BasicBlock::Create(ctx);
+  BasicBlock *bbOther = BasicBlock::Create(ctx, "", f);
+  BasicBlock *bbEntry = BasicBlock::Create(ctx, "", f, bbOther);
+
+  EXPECT_FALSE(isEntryBlock(*bb0));
+  EXPECT_FALSE(isEntryBlock(*bbOther));
+  EXPECT_TRUE(isEntryBlock(*bbEntry));
 }
 
 TEST(KitBasicBlockUtils, isDisconnected) {
