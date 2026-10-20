@@ -1,4 +1,4 @@
-; Loop unswitching should work as expected on top-level tapir loops.
+; Loop unswitching ignores top-level tapir loops of depth 1.
 ;
 ; RUN: opt -passes='function(loop(simple-loop-unswitch),simplifycfg)' -S %s \
 ; RUN:     -enable-nontrivial-unswitch \
@@ -9,38 +9,33 @@
 ; CHECK-SAME: %[[OP:[^)]+]]
 ; CHECK-NEXT: [[ENTRY:.+]]:
 ; CHECK-NEXT: %[[SR:.+]] = call token @llvm.syncregion.start()
-; CHECK-NEXT: %[[CMP:.+]] = icmp eq i32 %[[OP]], 1
-; CHECK-NEXT: br i1 %[[CMP]], label %[[HEADER_A:.+]], label %[[HEADER_B:.+]]
+; CHECK-NEXT: %[[CMPOP:.+]] = icmp eq i32 %[[OP]], 1
+; CHECK-NEXT: br label %[[HEADER:.+]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[HEADER_A]]:
-; CHECK-NEXT: %[[IA:.+]] = phi i64
-; CHECK-SAME: [ %[[INC_A:[^,]+]], %[[LATCH_A:[^ ]+]] ]
+; CHECK-NEXT: [[HEADER]]:
+; CHECK-NEXT: %[[I:.+]] = phi i64
 ; CHECK-SAME: [ 0, %[[ENTRY]] ]
-; CHECK-NEXT: detach within %[[SR]], label %[[BODY_A:.+]], label %[[LATCH_A]]
+; CHECK-SAME: [ %[[INC:.+]], %[[LATCH:.+]] ]
+; CHECK-NEXT: detach within %[[SR]], label %[[BODY:.+]], label %[[LATCH]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[BODY_A]]:
-; CHECK-NEXT: call void @add(i64 %[[IA]])
-; CHECK-NEXT: reattach within %[[SR]], label %[[LATCH_A]]
+; CHECK-NEXT: [[BODY]]:
+; CHECK-NEXT: br i1 %[[CMPOP]], label %[[ADD:.+]], label %[[SUB:.+]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[LATCH_A]]:
-; CHECK-NEXT: %[[INC_A:.+]] = add i64 %[[IA]], 1
-; CHECK-NEXT: %[[CMP_A:.+]] = icmp eq i64 %[[INC_A]], %[[N]]
-; CHECK-NEXT: br i1 %[[CMP_A]], label %[[SYNC:.+]], label %[[HEADER_A]]
+; CHECK-NEXT: [[ADD]]:
+; CHECK-NEXT: call void @add(i64 %[[I]])
+; CHECK-NEXT: br label %[[REATTACH:.+]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[HEADER_B]]:
-; CHECK-NEXT: %[[IB:.+]] = phi i64
-; CHECK-SAME: [ %[[INC_B:[^,]+]], %[[LATCH_B:[^ ]+]] ]
-; CHECK-SAME: [ 0, %[[ENTRY]] ]
-; CHECK-NEXT: detach within %[[SR]], label %[[BODY_B:.+]], label %[[LATCH_B]]
+; CHECK-NEXT: [[SUB]]:
+; CHECK-NEXT: call void @sub(i64 %[[I]])
+; CHECK-NEXT: br label %[[REATTACH]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[BODY_B]]:
-; CHECK-NEXT: call void @sub(i64 %[[IB]])
-; CHECK-NEXT: reattach within %[[SR]], label %[[LATCH_B]]
+; CHECK-NEXT: [[REATTACH]]:
+; CHECK-NEXT: reattach within %[[SR]], label %[[LATCH]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[LATCH_B]]:
-; CHECK-NEXT: %[[INC_B:.+]] = add i64 %[[IB]], 1
-; CHECK-NEXT: %[[CMP_B:.+]] = icmp eq i64 %[[INC_B]], %[[N]]
-; CHECK-NEXT: br i1 %[[CMP_B]], label %[[SYNC]], label %[[HEADER_B]]
+; CHECK-NEXT: [[LATCH]]:
+; CHECK-NEXT: %[[INC:.+]] = add i64 %[[I]], 1
+; CHECK-NEXT: %[[CMP:.+]] = icmp eq i64 %[[INC]], %[[N]]
+; CHECK-NEXT: br i1 %[[CMP]], label %[[SYNC:.+]], label %[[HEADER]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[SYNC]]:
 ; CHECK-NEXT: sync within %[[SR]], label %[[EXIT:.+]]
