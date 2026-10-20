@@ -263,8 +263,9 @@ public:
 
   /// Setup the loop-control arguments \p lcArgs and loop-control inputs
   /// \p lcInputs for the Tapir loop \p tl.
-  void setupLoopControlArgs(TapirLoopInfo *tl, SmallVectorImpl<Value *> &lcArgs,
-                            SmallVectorImpl<Value *> &lcInputs) override;
+  virtual void
+  setupLoopControlArgs(TapirLoopInfo *tl, SmallVectorImpl<Value *> &lcArgs,
+                       SmallVectorImpl<Value *> &lcInputs) override;
 
   /// Process the tapir loop \p tl jut before it is outlined. The \p vmap can
   /// be modified here for more control over how the outlining is performed.
