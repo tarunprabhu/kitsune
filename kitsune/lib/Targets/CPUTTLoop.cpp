@@ -22,9 +22,9 @@ using namespace llvm;
 
 CPUTTLoopProcessor::CPUTTLoopProcessor(TTID tt,
                                        const FunctionAnalyses &analyses,
-                                       const TTOptions &opts, bool asyncLaunch,
+                                       const TTOptions &tto, bool asyncLaunch,
                                        Module &m)
-    : LoopOutlineProcessor(m, m, analyses, opts,
+    : LoopOutlineProcessor(m, m, analyses, tto,
                            CloneFunctionChangeType::GlobalChanges),
       tt(tt), asyncLaunch(asyncLaunch) {}
 
