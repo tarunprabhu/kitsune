@@ -3638,10 +3638,10 @@ static bool unswitchLoop(Loop &L, DominatorTree &DT, LoopInfo &LI,
   if (!L.isLoopSimplifyForm())
     return false;
 
-  // If any ancestor of this tapir loop is itself a tapir loop, we don't perform
-  // unswitching. Currently tapir loops must be perfectly nested, and
-  // unswitching will break this constraint.
-  if (isTapirLoop(L) && !isTopLevelTapirLoop(L))
+  // Disable unswitching for all tapir loops. There are cases where this might
+  // be profitable for top-level tapir loops, so we should probably change this
+  // pass to allow top-level tapir loops to be processed in certain cases.
+  if (isTapirLoop(L))
     return false;
 
   // Try trivial unswitch first before loop over other basic blocks in the loop.
