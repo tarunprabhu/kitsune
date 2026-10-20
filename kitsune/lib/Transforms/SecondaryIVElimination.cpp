@@ -53,22 +53,22 @@ private:
 
   bool eliminate(PHINode &iv, Value *repl, Loop &loop);
 
-  bool tryToEliminateFPAdd(PHINode &secIV, Constant *step, Loop &loop);
-  bool tryToEliminateFPSub(PHINode &secIV, Constant *step, Loop &loop);
-  bool tryToEliminateFPMul(PHINode &secIV, Constant *step, Loop &loop);
-  bool tryToEliminateFPDiv(PHINode &secIV, Constant *step, Loop &loop);
-  bool tryToEliminateFPRem(PHINode &secIV, Constant *step, Loop &loop);
+  bool tryToEliminateFPAdd(PHINode &secIV, Value *step, Loop &loop);
+  bool tryToEliminateFPSub(PHINode &secIV, Value *step, Loop &loop);
+  bool tryToEliminateFPMul(PHINode &secIV, Value *step, Loop &loop);
+  bool tryToEliminateFPDiv(PHINode &secIV, Value *step, Loop &loop);
+  bool tryToEliminateFPRem(PHINode &secIV, Value *step, Loop &loop);
 
-  bool tryToEliminateIntAdd(PHINode &secIV, Constant *step, Loop &loop);
-  bool tryToEliminateIntSub(PHINode &secIV, Constant *step, Loop &loop);
-  bool tryToEliminateIntMul(PHINode &secIV, Constant *step, Loop &loop);
-  bool tryToEliminateIntDiv(PHINode &secIV, Constant *step, bool isSigned,
+  bool tryToEliminateIntAdd(PHINode &secIV, Value *step, Loop &loop);
+  bool tryToEliminateIntSub(PHINode &secIV, Value *step, Loop &loop);
+  bool tryToEliminateIntMul(PHINode &secIV, Value *step, Loop &loop);
+  bool tryToEliminateIntDiv(PHINode &secIV, Value *step, bool isSigned,
                             Loop &loop);
-  bool tryToEliminateIntRem(PHINode &secIV, Constant *step, bool isSigned,
+  bool tryToEliminateIntRem(PHINode &secIV, Value *step, bool isSigned,
                             Loop &loop);
-  bool tryToEliminateIntLShl(PHINode &secIV, Constant *step, Loop &loop);
-  bool tryToEliminateIntLShr(PHINode &secIV, Constant *step, Loop &loop);
-  bool tryToEliminateIntAShr(PHINode &secIV, Constant *step, Loop &loop);
+  bool tryToEliminateIntLShl(PHINode &secIV, Value *step, Loop &loop);
+  bool tryToEliminateIntLShr(PHINode &secIV, Value *step, Loop &loop);
+  bool tryToEliminateIntAShr(PHINode &secIV, Value *step, Loop &loop);
 
   bool tryToEliminateIntOrFPIV(PHINode &secIV, Loop &loop);
   bool tryToEliminatePtrIV(PHINode &secIV, Loop &loop);
@@ -124,7 +124,7 @@ bool SecondaryIVElimination::eliminate(PHINode &secIV, Value *repl,
 //
 //     siv = init + (type)civ * step
 //
-bool SecondaryIVElimination::tryToEliminateFPAdd(PHINode &secIV, Constant *step,
+bool SecondaryIVElimination::tryToEliminateFPAdd(PHINode &secIV, Value *step,
                                                  Loop &loop) {
   LLVM_DEBUG(dbgs() << "SecIVE:   Floating point addition induction with step '"
                     << *step << "'\n");
@@ -153,7 +153,7 @@ bool SecondaryIVElimination::tryToEliminateFPAdd(PHINode &secIV, Constant *step,
 //
 //     siv = init - (type)civ * step
 //
-bool SecondaryIVElimination::tryToEliminateFPSub(PHINode &secIV, Constant *step,
+bool SecondaryIVElimination::tryToEliminateFPSub(PHINode &secIV, Value *step,
                                                  Loop &loop) {
   LLVM_DEBUG(
       dbgs() << "SecIVE:   Floating point subtraction induction with step '"
@@ -185,7 +185,7 @@ bool SecondaryIVElimination::tryToEliminateFPSub(PHINode &secIV, Constant *step,
 //
 // where `^` is the exponentiation operator.
 //
-bool SecondaryIVElimination::tryToEliminateFPMul(PHINode &secIV, Constant *step,
+bool SecondaryIVElimination::tryToEliminateFPMul(PHINode &secIV, Value *step,
                                                  Loop &loop) {
   LLVM_DEBUG(
       dbgs() << "SecIVE:   Floating point multiplication induction with step '"
@@ -218,7 +218,7 @@ bool SecondaryIVElimination::tryToEliminateFPMul(PHINode &secIV, Constant *step,
 //
 // where `^` is the exponentiation operator.
 //
-bool SecondaryIVElimination::tryToEliminateFPDiv(PHINode &secIV, Constant *step,
+bool SecondaryIVElimination::tryToEliminateFPDiv(PHINode &secIV, Value *step,
                                                  Loop &loop) {
   LLVM_DEBUG(
       dbgs() << "SecIVE:   Floating point remainder induction with step '"
@@ -250,7 +250,7 @@ bool SecondaryIVElimination::tryToEliminateFPDiv(PHINode &secIV, Constant *step,
 //     siv = init + step*civ
 //
 bool SecondaryIVElimination::tryToEliminateIntAdd(PHINode &secIV,
-                                                  Constant *step, Loop &loop) {
+                                                  Value *step, Loop &loop) {
   LLVM_DEBUG(dbgs() << "SecIVE:   Integer addition induction with step '"
                     << *step << "'\n");
 
@@ -279,7 +279,7 @@ bool SecondaryIVElimination::tryToEliminateIntAdd(PHINode &secIV,
 //     siv = init - step*civ
 //
 bool SecondaryIVElimination::tryToEliminateIntSub(PHINode &secIV,
-                                                  Constant *step, Loop &loop) {
+                                                  Value *step, Loop &loop) {
   LLVM_DEBUG(dbgs() << "SecIVE:   Integer subtraction induction with step '"
                     << *step << "'\n");
 
@@ -310,7 +310,7 @@ bool SecondaryIVElimination::tryToEliminateIntSub(PHINode &secIV,
 // where `^` is the exponentiation operator.
 //
 bool SecondaryIVElimination::tryToEliminateIntMul(PHINode &secIV,
-                                                  Constant *step, Loop &loop) {
+                                                  Value *step, Loop &loop) {
   LLVM_DEBUG(dbgs() << "SecIVE:   Integer multiplication induction with step '"
                     << *step << "'\n");
 
@@ -342,7 +342,7 @@ bool SecondaryIVElimination::tryToEliminateIntMul(PHINode &secIV,
 // where `^` is the exponentiation operator.
 //
 bool SecondaryIVElimination::tryToEliminateIntDiv(PHINode &secIV,
-                                                  Constant *step, bool isSigned,
+                                                  Value *step, bool isSigned,
                                                   Loop &loop) {
   LLVM_DEBUG(dbgs() << "SecIVE:   Integer division induction with step '"
                     << *step << "'\n");
@@ -367,7 +367,7 @@ bool SecondaryIVElimination::tryToEliminateIntDiv(PHINode &secIV,
 //     siv = init << step*civ
 //
 bool SecondaryIVElimination::tryToEliminateIntLShl(PHINode &secIV,
-                                                   Constant *step, Loop &loop) {
+                                                   Value *step, Loop &loop) {
   LLVM_DEBUG(dbgs() << "SecIVE:   Logical shift left induction with step '"
                     << *step << "'\n");
 
@@ -396,7 +396,7 @@ bool SecondaryIVElimination::tryToEliminateIntLShl(PHINode &secIV,
 //     siv = init >> step*civ
 //
 bool SecondaryIVElimination::tryToEliminateIntLShr(PHINode &secIV,
-                                                   Constant *step, Loop &loop) {
+                                                   Value *step, Loop &loop) {
   LLVM_DEBUG(dbgs() << "SecIVE:   Logical shift right induction with step '"
                     << *step << "'\n");
 
@@ -425,7 +425,7 @@ bool SecondaryIVElimination::tryToEliminateIntLShr(PHINode &secIV,
 //     siv = init >>> step*civ
 //
 bool SecondaryIVElimination::tryToEliminateIntAShr(PHINode &secIV,
-                                                   Constant *step, Loop &loop) {
+                                                   Value *step, Loop &loop) {
   LLVM_DEBUG(dbgs() << "SecIVE:   Arithmetic shift right induction with step '"
                     << *step << "'\n");
 
@@ -449,7 +449,7 @@ bool SecondaryIVElimination::tryToEliminateIntOrFPIV(PHINode &secIV,
   // are guaranteed to exist.
   Value *upd = secIV.getIncomingValueForBlock(loop.getLoopLatch());
   BinaryOperator *binOp = cast<BinaryOperator>(upd);
-  Constant *step = cast<Constant>(getNonMatchingOperand(*binOp, &secIV));
+  Value *step = getNonMatchingOperand(*binOp, &secIV);
   switch (binOp->getOpcode()) {
   case BinaryOperator::Add: return tryToEliminateIntAdd(secIV, step, loop);
   case BinaryOperator::Sub: return tryToEliminateIntSub(secIV, step, loop);
@@ -557,9 +557,10 @@ bool SecondaryIVElimination::checkIntOrFPInduction(PHINode &iv, Loop &loop) {
 
   // Check if one argument of the binary operator is the given induction
   // variable and the other is a constant.
-  auto hasConstantStep = [](BinaryOperator &binOp, PHINode &iv) -> bool {
+  auto hasConstantStep = [](BinaryOperator &binOp, PHINode &iv,
+                            Loop &loop) -> bool {
     if (Value *step = getNonMatchingOperand(binOp, &iv))
-      return isa<Constant>(step);
+      return loop.isLoopInvariant(step);
     return false;
   };
 
@@ -568,20 +569,16 @@ bool SecondaryIVElimination::checkIntOrFPInduction(PHINode &iv, Loop &loop) {
   // We currently only support eliminating secondary arithmetic inductions of
   // the form
   //
-  //     x = x OP c
+  //     x = x OP s
   //
-  // where OP must be a supported binary operator and c must be a compile-time
-  // constant. In principle, c only needs to be a pure function, but there is
-  // no way to reliably determine that at this time. But we probably ought to
-  // support arithmetic expressions as the right-hand side of OP. It is not
-  // clear, though, if that is actually relevant for us.
+  // where OP must be a supported binary operator and s must be loop-invariant.
   //
   Value *upd = iv.getIncomingValueForBlock(latch);
   BinaryOperator *binOp = dyn_cast<BinaryOperator>(upd);
   if (!binOp)
     return emitDiagExit(iv, DiagID::ErrSecIVNotBinOp, *upd);
-  else if (!hasConstantStep(*binOp, iv))
-    return emitDiagExit(iv, DiagID::ErrSecIVNonConstStep);
+  else if (!hasConstantStep(*binOp, iv, loop))
+    return emitDiagExit(iv, DiagID::ErrSecIVLoopVariantStep);
 
   unsigned opcode = binOp->getOpcode();
   if (!isSupportedBinOp(opcode))
