@@ -323,8 +323,8 @@ def ErrSecIVNotBinOp
 def ErrSecIVOperator
   : Error<"secondary induction variable has unsupported operator '{}'">;
 
-def ErrSecIVNonConstStep
-  : Error<"secondary induction variable has non-constant step">;
+def ErrSecIVLoopVariantStep
+  : Error<"secondary induction variable has loop-variant step">;
 
 def ErrGPUDimensionsNotInRange
   : Error<"Dimensions in GPU intrinsic call must be in range [1,3]. Got '{}'">;
