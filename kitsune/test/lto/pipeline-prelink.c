@@ -2,13 +2,6 @@
 // phase of LTO, but the non-lowering passes should be run.
 //
 // -----------------------------------------------------------------------------
-// Only the nolo tapir target is allowed at -O0.
-//
-// RUN: %kitcc -O2 --tapir=nolo -c -emit-llvm -o /dev/null %s \
-// RUN:     -flto -Xclang -fdebug-pass-manager 2>&1 \
-// RUN:     | FileCheck %s
-//
-// -----------------------------------------------------------------------------
 //
 // RUN: %kitcc -O2 --tapir=serial -c -emit-llvm -o /dev/null %s \
 // RUN:     -flto -Xclang -fdebug-pass-manager 2>&1 \
@@ -31,9 +24,10 @@
 // CHECK:      Running pass:      EarlyVerificationPass
 // CHECK:      Running pass:      EarlyAnnotatePass
 // CHECK:      Running pass:      SerializePass
-// CHECK:      Running pass:      SecondaryIVEliminationPass
 // CHECK:      Running pass:      PrepareTapirLoopsPass
 // CHECK:      Running pass:      ComputeGPULoopBlockSizePass
+// CHECK:      Running pass:      SecondaryIVEliminationPass
+// CHECK:      Running pass:      SecondaryIVEliminationPass
 // CHECK-NOT:  Running pass:      InstrumentPass
 //
 // CHECK-NOT:  Running pass:      SecondaryIVEliminationPass
@@ -75,7 +69,6 @@
 // RUN:     -flto -Xclang -fdebug-pass-manager 2>&1 \
 // RUN:     | FileCheck %s --check-prefix=INSTR
 //
-// INSTR:      Running pass:      SecondaryIVEliminationPass
 // INSTR:      Running pass:      PrepareTapirLoopsPass
 // INSTR:      Running pass:      InstrumentPass
 //

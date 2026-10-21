@@ -57,6 +57,7 @@ private:
   BasicBlock *genInnerLoopEndBlock(Loop &loop, BasicBlock &outerReattach,
                                    BasicBlock &innerGuard);
   void genOuterLoopInsts(BasicBlock &outerLatch, BasicBlock &outerHeader,
+                         BasicBlock &outerPreheader,
                          const TapirLoopInfo &tapirLoop);
   void genOuterLoopMD(BasicBlock &outerLatch, Loop &loop);
   Loop *genOuterLoopObject(Loop &loop, BasicBlock &outerPreheader,
@@ -355,6 +356,7 @@ BasicBlock *LoopWrapImpl::genInnerLoopEndBlock(Loop &loop,
 // the tapir loop corresponding to the loop being transformed.
 void LoopWrapImpl::genOuterLoopInsts(BasicBlock &outerLatch,
                                      BasicBlock &outerHeader,
+                                     BasicBlock &outerPreheader,
                                      const TapirLoopInfo &tapirLoop) {
   auto sanityCheck = [](BasicBlock &outerLatch, BasicBlock &outerHeader) {
     BranchInst *outerBr = dyn_cast<BranchInst>(outerLatch.getTerminator());
@@ -371,10 +373,14 @@ void LoopWrapImpl::genOuterLoopInsts(BasicBlock &outerLatch,
   LLVM_DEBUG(dbgs() << "LoopWrap:   Add latch instructions\n");
   sanityCheck(outerLatch, outerHeader);
 
+  Instruction *outerPhTerm = outerPreheader.getTerminator();
+  IRBuilder<> builderPh(outerPhTerm);
+
   BranchInst *outerBr = cast<BranchInst>(outerLatch.getTerminator());
   IRBuilder<> builder(outerBr);
 
   PHINode *outerIV = cast<PHINode>(outerHeader.begin());
+  Type *ivTy = outerIV->getType();
   Constant *one = ConstantInt::getSigned(outerIV->getType(), 1);
   Value *outerInc = builder.CreateAdd(outerIV, one, "wrap.iv.inc");
 
@@ -384,7 +390,8 @@ void LoopWrapImpl::genOuterLoopInsts(BasicBlock &outerLatch,
   outerIV->addIncoming(outerInc, &outerLatch);
 
   Value *tc = tapirLoop.getTripCount();
-  Value *outerCmp = builder.CreateICmpEQ(outerInc, tc, "wrap.iv.cmp");
+  Value *outerTc = builder.CreateIntCast(tc, ivTy, /*isSigned=*/false);
+  Value *outerCmp = builder.CreateICmpEQ(outerInc, outerTc, "wrap.iv.cmp");
   outerBr->setCondition(outerCmp);
 }
 
@@ -611,7 +618,7 @@ Loop *LoopWrapImpl::runOn(const TapirLoopInfo &tapirLoop) {
   // Yes, this is obviously "wrong" since the behavior of the resulting loop
   // nest will be different from the original. But we have left it up to the
   // caller to fix the trip counts appropriately.
-  genOuterLoopInsts(*outerLatch, *outerHeader, tapirLoop);
+  genOuterLoopInsts(*outerLatch, *outerHeader, *outerPreheader, tapirLoop);
 
   // Generate appropriate loop metadata for the outer loop. This will just be a
   // clone of the metadata of the original loop.
@@ -666,9 +673,6 @@ bool llvm::checkTapirLoopSafeToWrap(TapirLoopInfo &tapirLoop, DominatorTree &dt,
   if (!getUniqueNonDeadEndExitBlock(loop))
     return emitDiagnostic(loop,
                           DiagID::ErrTapirLoopNoUniqueNonDeadEndExitBlock);
-
-  if (getNumIndVars(loop) > 1)
-    return emitDiagnostic(loop, DiagID::ErrTapirLoopIVMultiple);
 
   if (!loop.getCanonicalInductionVariable())
     return emitDiagnostic(loop, DiagID::ErrTapirLoopIVNotCanonical);

@@ -1290,41 +1290,32 @@ void LoopSpawningImpl::getAllTapirLoopInputs(
   }
 }
 
-// This resets the spawn strategy in the cloned loop to be the default.
+// Remove tapir loop attributes from the cloned loop. We don't actually have the
+// cloned loop object. Instead, we look for the loop ID (which is really a list
+// of attributes) in the terminator of the latch of the cloned loop since we
+// know that that is where it will be. We remove attributes from this list by
+// directly using the implementation functions.
 //
-// FIXME:
-//
-// This is an incredibly messy function because it breaks encapsulation in
-// all manner of ugly ways!
-//
-// We don't actually have the cloned loop object. Instead, we look for the
-// loop ID (which is really a list of attributes) in the terminator of the latch
-// of the cloned loop since we know that that is where it will be. Since the
-// spawn strategy attribute will be in this metadata node, we override the
-// value. Even this is done "by hand" by constructing the raw attribute and
-// calling the attribute implementation functions directly. These are not really
-// intended to be used this way.
-//
-// We deliberately declare the private implementation function as an indicator
-// that we should find another way of doing this.
+// FIXME: We deliberately declare the private implementation function as an
+// indicator that we should find another way of doing this.
 namespace llvm {
 namespace detail {
-MDNode *getAttrListWith(StringRef attrName, const ArrayRef<Metadata *> attrVals,
-                        MDNode *attrList, LLVMContext &ctx);
+MDNode *getAttrListWithout(StringRef attrName, MDNode *attrList);
 } // namespace detail
 } // namespace llvm
-static void resetSpawnStrategyInClonedLoop(const Loop *L,
+static void removeAttrsFromClonedLoop(const Loop *L,
                                            ValueToValueMapTy &VMap) {
   auto *clonedLatch = cast_or_null<BasicBlock>(VMap[L->getLoopLatch()]);
   assert(clonedLatch && "Cloned Tapir loop does not have a single latch.");
 
   Instruction *term = clonedLatch->getTerminator();
   if (MDNode *loopMD = term->getMetadata(LLVMContext::MD_loop)) {
-    LLVMContext &ctx = L->getHeader()->getContext();
-    StringRef attrName = getAttrName(LoopAttrKind::SpawnStrategy);
-    Metadata *attrVal = toMetadata(defaultTapirSpawnStrategy, ctx);
+    LoopAttrKind attrsToRemove[] = {LoopAttrKind::SpawnStrategy,
+                                    LoopAttrKind::Target};
+    for (LoopAttrKind attr : attrsToRemove)
+      loopMD = detail::getAttrListWithout(getAttrName(attr), loopMD);
 
-    detail::getAttrListWith(attrName, attrVal, loopMD, ctx);
+    term->setMetadata(LLVMContext::MD_loop, loopMD);
   }
 }
 
@@ -1738,7 +1729,7 @@ TaskOutlineMapTy LoopSpawningImpl::outlineAllTapirLoops() {
       NamedRegionTimer NRT("clearMetadata", "Cleanup Tapir-loop metadata",
                            TimerGroupName, TimerGroupDescription,
                            TimePassesIsEnabled);
-      resetSpawnStrategyInClonedLoop(L, VMap);
+      removeAttrsFromClonedLoop(L, VMap);
       removeSpawnStrategyAttr(*L);
     }
 

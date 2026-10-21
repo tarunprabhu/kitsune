@@ -117,6 +117,29 @@ static void addLoopPassMSSA(ModulePassManager &mpm, Args &&...args) {
   mpm.addPass(createModuleToFunctionPassAdaptor(std::move(fpm)));
 }
 
+template <typename Pass, typename... Args>
+static void addFunctionPass(FunctionPassManager &fpm, Args &&...args) {
+  fpm.addPass(Pass(args...));
+}
+
+template <typename Pass, typename... Args>
+static void addLoopPass(FunctionPassManager &fpm, Args &&...args) {
+  LoopPassManager lpm;
+
+  lpm.addPass(Pass(args...));
+  fpm.addPass(
+      createFunctionToLoopPassAdaptor(std::move(lpm), /*UseMemorySSA=*/false));
+}
+
+template <typename Pass, typename... Args>
+static void addLoopPassMSSA(FunctionPassManager &fpm, Args &&...args) {
+  LoopPassManager lpm;
+
+  lpm.addPass(Pass(args...));
+  fpm.addPass(
+      createFunctionToLoopPassAdaptor(std::move(lpm), /*useMemorySSA=*/true));
+}
+
 ModulePassManager
 llvm::populateKitPreTapirPasses(PassBuilder &pb, OptimizationLevel optLevel,
                                 ThinOrFullLTOPhase ltoPhase,
@@ -133,7 +156,7 @@ llvm::populateKitPreTapirPasses(PassBuilder &pb, OptimizationLevel optLevel,
   return mpm;
 }
 
-static void populateSimplifyPasses(ModulePassManager &mpm,
+static void populateSimplifyPasses(FunctionPassManager &fpm,
                                    const PipelineTuningOptions &pto) {
   // The kit-prepare pass may not leave the IR in as clean a state as we would
   // like.
@@ -143,16 +166,16 @@ static void populateSimplifyPasses(ModulePassManager &mpm,
   // suggested that these would be useful. We have since used a totally new
   // approach, so it is not clear how many of these are actually needed.
   //
-  addFunctionPass<EarlyCSEPass>(mpm, /*UseMemorySSA=*/true);
-  addLoopPass<LoopSimplifyCFGPass>(mpm);
-  addFunctionPass<SimplifyCFGPass>(mpm);
-  addFunctionPass<InstCombinePass>(mpm);
-  addFunctionPass<SCCPPass>(mpm);
-  addFunctionPass<BDCEPass>(mpm);
-  addFunctionPass<InstCombinePass>(mpm);
-  addFunctionPass<DSEPass>(mpm);
-  addFunctionPass<ADCEPass>(mpm);
-  addLoopPassMSSA<LICMPass>(mpm, pto.LicmMssaOptCap,
+  addFunctionPass<EarlyCSEPass>(fpm, /*UseMemorySSA=*/true);
+  addLoopPass<LoopSimplifyCFGPass>(fpm);
+  addFunctionPass<SimplifyCFGPass>(fpm);
+  addFunctionPass<InstCombinePass>(fpm);
+  addFunctionPass<SCCPPass>(fpm);
+  addFunctionPass<BDCEPass>(fpm);
+  addFunctionPass<InstCombinePass>(fpm);
+  addFunctionPass<DSEPass>(fpm);
+  addFunctionPass<ADCEPass>(fpm);
+  addLoopPassMSSA<LICMPass>(fpm, pto.LicmMssaOptCap,
                             pto.LicmMssaNoAccForPromotionCap,
                             /*AllowSpeculation=*/true);
 }
@@ -185,10 +208,46 @@ ModulePassManager llvm::populateKitEarlyVerificationPasses(
   return mpm;
 }
 
-ModulePassManager
+FunctionPassManager
 llvm::populateKitPreparePasses(PassBuilder &pb, OptimizationLevel optLevel,
                                ThinOrFullLTOPhase ltoPhase,
                                const PipelineTuningOptions &pto) {
+  FunctionPassManager fpm;
+
+  if (optLevel.getSpeedupLevel() > 0) {
+    addFunctionPass<SerializePass>(fpm);
+
+    // These passes are run soon after loop-rotate is run for the first time,
+    // at which point, not too many passes will have run. We need the predicate
+    // in the latch compare instruction to be equality so the trip count can be
+    // computed. instcombine needs to be run at least once to ensure that this
+    // is the case.
+    addFunctionPass<InstCombinePass>(fpm);
+
+    // Tapir loops must have at least one canonical induction variable. This
+    // requires indvars to be run after instcombine.
+    addLoopPass<IndVarSimplifyPass>(fpm, /*WidenIndVars=*/true,
+                                    /*TapirLoopsOnly=*/true);
+    addFunctionPass<PrepareTapirLoopsPass>(fpm);
+    addLoopPassMSSA<ComputeGPULoopBlockSizePass>(fpm);
+    addFunctionPass<SimplifyCFGPass>(fpm);
+
+    if (pto.KitInstrOpts.enabled()) {
+      // FIXME: The instrument pass should be fixed so it doesn't depend on the
+      // loop being in simplify form.
+      addFunctionPass<LoopSimplifyPass>(fpm);
+      addFunctionPass<InstrumentPass>(fpm, pto.KitInstrOpts);
+      addFunctionPass<SimplifyCFGPass>(fpm);
+    }
+  }
+
+  return fpm;
+}
+
+ModulePassManager
+llvm::populateKitPreVectorizePasses(PassBuilder &pb, OptimizationLevel optLevel,
+                                    ThinOrFullLTOPhase ltoPhase,
+                                    const PipelineTuningOptions &pto) {
   ModulePassManager mpm;
 
   if (optLevel.getSpeedupLevel() > 0) {
@@ -197,25 +256,11 @@ llvm::populateKitPreparePasses(PassBuilder &pb, OptimizationLevel optLevel,
     addLoopPass<IndVarSimplifyPass>(mpm, /*WidenIndVars=*/true,
                                     /*TapirLoopsOnly=*/true);
     addFunctionPass<TaskSimplifyPass>(mpm);
-    addFunctionPass<SerializePass>(mpm);
     addLoopPass<SecondaryIVEliminationPass>(mpm);
 
-    populateSimplifyPasses(mpm, pto);
-
-    addFunctionPass<LoopSimplifyPass>(mpm);
-    addFunctionPass<LCSSAPass>(mpm);
-    addFunctionPass<PrepareTapirLoopsPass>(mpm);
-    addLoopPass<ComputeGPULoopBlockSizePass>(mpm);
-
-    // We must run the module inliner because the reducer function should be
-    // inlined after the loop has been prepared. The IR may also need to be
-    // cleaned up.
-    addModulePass<ModuleInlinerPass>(mpm);
-    populateSimplifyPasses(mpm, pto);
-
-    if (pto.KitInstrOpts.enabled())
-      addModulePass<InstrumentPass>(mpm, pto.KitInstrOpts);
-    addFunctionPass<SimplifyCFGPass>(mpm);
+    FunctionPassManager fpm;
+    populateSimplifyPasses(fpm, pto);
+    mpm.addPass(createModuleToFunctionPassAdaptor(std::move(fpm)));
   }
 
   return mpm;
@@ -234,7 +279,9 @@ ModulePassManager llvm::populateKitPreLoopSpawningPasses(
     addLoopPass<SecondaryIVEliminationPass>(mpm);
     addFunctionPass<LowerIntrinsicsEarlyPass>(mpm);
 
-    populateSimplifyPasses(mpm, pto);
+    FunctionPassManager fpm;
+    populateSimplifyPasses(fpm, pto);
+    mpm.addPass(createModuleToFunctionPassAdaptor(std::move(fpm)));
 
     addModulePass<PreLowerVerificationPass>(mpm);
     addFunctionPass<PreLowerAnnotatePass>(mpm);
