@@ -28,7 +28,7 @@ public:
   explicit InstrumentPass(const KitInstrOptions &instrOpts)
       : instrOpts(instrOpts) {}
 
-  PreservedAnalyses run(Module &m, ModuleAnalysisManager &am);
+  PreservedAnalyses run(Function &f, FunctionAnalysisManager &am);
 };
 
 } // namespace llvm

@@ -45,9 +45,13 @@
 !
 ! <KIT-PREPARE>
 ! O123S:      Running pass:     SerializePass
-! O123S:      Running pass:     SecondaryIVEliminationPass
 ! O123S:      Running pass:     PrepareTapirLoopsPass
+! O123S-NOT:  Running pass:     InstrumentPass
 ! </KIT-PREPARE>
+!
+! <KIT-PRE-VECTORIZE>
+! O123S:      Running pass:     SecondaryIVEliminationPass
+! </KIT-PRE-VECTORIZE>
 !
 ! <KIT-PRE-TAPIR>
 ! There are no standard pre-tapir passes at this time
@@ -55,10 +59,6 @@
 !
 ! <KIT-PRE-LOOP-SPAWNING>
 ! O123S:      Running pass:     SecondaryIVEliminationPass
-! O123S:      Running pass:     PrepareTapirLoopsPass
-! O123S-NOT:  Running pass:     InstrumentPass
-! O123S:      Running pass:     SimplifyCFGPass
-! O123S:      Running pass:     LoopSimplifyPass
 ! O123S:      Running pass:     PreLowerVerificationPass
 ! O123S:      Running pass:     PreLowerAnnotatePass
 ! O123S:      Running pass:     TapirLoopNormalizePass

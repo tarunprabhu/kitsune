@@ -1,11 +1,10 @@
-; Check that the correct diagnostic is emitted when a tapir reduction loop has
-; more than one induction variable.
+; A diagnostic must not be emitted when preparing a tapir loop with more than
+; one induction variable.
 ;
-; RUN: not opt --tapir=serial -passes='kit-prepare' %s 2>&1 \
-; RUN:     -disable-output \
-; RUN:     | FileCheck %s
+; RUN: opt --tapir=serial -passes='kit-prepare' %s -disable-output 2>&1 \
+; RUN:     | FileCheck %s --allow-empty
 ;
-; CHECK: tapir loop must have at most one induction variable
+; CHECK-NOT: {{^.+$}}
 
 define void @f1(ptr %r, i64 %n) {
 entry:
