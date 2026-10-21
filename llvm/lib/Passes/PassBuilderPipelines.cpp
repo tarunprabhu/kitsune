@@ -649,6 +649,9 @@ PassBuilder::buildO1FunctionSimplificationPipeline(OptimizationLevel Level,
   FPM.addPass(createFunctionToLoopPassAdaptor(std::move(LPM2),
                                               /*UseMemorySSA=*/false));
 
+  if (runKitPreparePasses(Phase, PTO))
+    FPM.addPass(populateKitPreparePasses(*this, Level, Phase, PTO));
+
   // Delete small array after loop unroll.
   FPM.addPass(SROAPass(SROAOptions::ModifyCFG));
 
@@ -829,6 +832,10 @@ PassBuilder::buildFunctionSimplificationPipeline(OptimizationLevel Level,
 
   FPM.addPass(createFunctionToLoopPassAdaptor(std::move(LPM1),
                                               /*UseMemorySSA=*/true));
+
+  if (runKitPreparePasses(Phase, PTO))
+    FPM.addPass(populateKitPreparePasses(*this, Level, Phase, PTO));
+
   FPM.addPass(
       SimplifyCFGPass(SimplifyCFGOptions().convertSwitchRangeToICmp(true)));
   FPM.addPass(TaskSimplifyPass());
@@ -1687,11 +1694,9 @@ PassBuilder::buildModuleOptimizationPipeline(OptimizationLevel Level,
   // FIXME: We need to run some loop optimizations to re-rotate loops after
   // simplifycfg and others undo their rotation.
 
-  // Run the passes to prepare tapir loops before the vectorizer is run. Some
-  // of the transformations performed on the tapir loops are specifically to
-  // enable vectorization.
+  // Run the passes to clean up tapir loops before the vectorizer is run.
   if (runKitPreparePasses(LTOPhase, PTO))
-    MPM.addPass(populateKitPreparePasses(*this, Level, LTOPhase, PTO));
+    MPM.addPass(populateKitPreVectorizePasses(*this, Level, LTOPhase, PTO));
 
   // Optimize the loop execution. These passes operate on entire loop nests
   // rather than on each loop in an inside-out manner, and so they are actually

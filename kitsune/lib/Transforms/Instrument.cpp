@@ -353,26 +353,18 @@ bool InstrumentImpl::run(Function &f) {
   return changed;
 }
 
-PreservedAnalyses InstrumentPass::run(Module &m, ModuleAnalysisManager &mam) {
+PreservedAnalyses InstrumentPass::run(Function &f,
+                                      FunctionAnalysisManager &am) {
   if (clKitInstrDumpOpts) {
     instrOpts.print(outs());
     return PreservedAnalyses::all();
   }
 
-  FunctionAnalysisManager &fam =
-      mam.getResult<FunctionAnalysisManagerModuleProxy>(m).getManager();
+  DominatorTree &dt = am.getResult<DominatorTreeAnalysis>(f);
+  LoopInfo &li = am.getResult<LoopAnalysis>(f);
+  MemorySSA &mssa = am.getResult<MemorySSAAnalysis>(f).getMSSA();
 
-  bool changed = false;
-  for (Function &f : m) {
-    if (f.size()) {
-      DominatorTree &dt = fam.getResult<DominatorTreeAnalysis>(f);
-      LoopInfo &li = fam.getResult<LoopAnalysis>(f);
-      MemorySSA &mssa = fam.getResult<MemorySSAAnalysis>(f).getMSSA();
-
-      changed |= InstrumentImpl(instrOpts, dt, li, mssa).run(f);
-    }
-  }
-
+  bool changed = InstrumentImpl(instrOpts, dt, li, mssa).run(f);
   if (changed)
     return PreservedAnalyses::none();
   return PreservedAnalyses::all();
