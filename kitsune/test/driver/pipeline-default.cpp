@@ -46,25 +46,22 @@
 // O123S:      Running pass:     EarlyVerificationPass
 // O123S:      Running pass:     EarlyAnnotatePass
 //
-<<<<<<< HEAD
-=======
 // <KIT-PREPARE>
 // O123S:      Running pass:     SerializePass
-// O123S:      Running pass:     SecondaryIVEliminationPass
 // O123S:      Running pass:     PrepareTapirLoopsPass
+// O123S-NOT:  Running pass:     InstrumentPass
 // </KIT-PREPARE>
 //
->>>>>>> 995cf27 ([kitsune] Delete the NormalizeLoopControlBlocks pass)
+// <KIT-PRE-VECTORIZE>
+// O123S:      Running pass:     SecondaryIVEliminationPass
+// </KIT-PRE-VECTORIZE>
+//
 // <KIT-PRE-TAPIR>
 // There are no standard pre-tapir passes at this time
 // </KIT-PRE-TAPIR>
 //
 // <KIT-PRE-LOOP-SPAWNING>
 // O123S:      Running pass:     SecondaryIVEliminationPass
-// O123S:      Running pass:     PrepareTapirLoopsPass
-// O123S-NOT:  Running pass:     InstrumentPass
-// O123S:      Running pass:     SimplifyCFGPass
-// O123S:      Running pass:     LoopSimplifyPass
 // O123S:      Running pass:     PreLowerVerificationPass
 // O123S:      Running pass:     PreLowerAnnotatePass
 // O123S:      Running pass:     TapirLoopNormalizePass
