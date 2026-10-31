@@ -317,11 +317,11 @@ MDNode *cloneLoopMetadata(const Loop &loop);
 /// one does not exist. This will *not* look for such an instruction in any
 /// subloops.
 template <typename InstType>
-static const InstType *getUniqueInstInLoopOnly(const Loop &loop) {
-  const InstType *uniq = nullptr;
-  for (const BasicBlock *bb : getBlocksNotInSubLoops(loop))
-    for (const Instruction &inst : *bb)
-      if (const auto *asType = dyn_cast<InstType>(&inst)) {
+static InstType *getUniqueInstInLoopOnly(const Loop &loop) {
+  InstType *uniq = nullptr;
+  for (BasicBlock *bb : getBlocksNotInSubLoops(loop))
+    for (Instruction &inst : *bb)
+      if (auto *asType = dyn_cast<InstType>(&inst)) {
         // If an instruction of the given type has already been seen, a unique
         // instruction of the given type does not exist.
         if (uniq)
