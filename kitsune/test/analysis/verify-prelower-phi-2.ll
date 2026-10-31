@@ -4,34 +4,33 @@
 ; RUN: not opt -passes='kit-verify-prelower' %s -disable-output 2>&1 \
 ; RUN:     | FileCheck %s
 ;
-; CHECK: tapir loop must have at most one induction variable
+; CHECK: tapir loop must have exactly one induction variable
 
 define void @f1(i64 %n) {
 entry:
-  %syncreg = tail call token @llvm.syncregion.start()
-  br label %for.i.header
+  %sr = tail call token @llvm.syncregion.start()
+  br label %header
 
-for.i.header:
-  %i = phi i64 [ 0, %entry ], [ %inc.i, %for.i.latch ]
-  %i.2 = phi i64 [ 99, %entry ], [ %inc.i.2, %for.i.latch ]
-  detach within %syncreg, label %for.i.body, label %for.i.latch
+header:
+  %i1 = phi i64 [ 0, %entry ], [ %inc1, %latch ]
+  %i2 = phi i64 [ 99, %entry ], [ %inc2, %latch ]
+  detach within %sr, label %body, label %latch
 
-for.i.body:
-  reattach within %syncreg, label %for.i.latch
+body:
+  reattach within %sr, label %latch
 
-for.i.latch:
-  %inc.i = add i64 %i, 1
-  %inc.i.2 = add i64 %i.2, 1
-  %cmp.i = icmp eq i64 %inc.i, %n
-  br i1 %cmp.i, label %for.i.exit, label %for.i.header, !llvm.loop !0
+latch:
+  %inc1 = add i64 %i1, 1
+  %inc2 = add i64 %i2, 1
+  %cmp = icmp eq i64 %inc1, %n
+  br i1 %cmp, label %sync, label %header, !llvm.loop !0
 
-for.i.exit:
-  sync within %syncreg, label %exit
+sync:
+  sync within %sr, label %exit
 
 exit:
   ret void
 }
 
-!0 = distinct !{!0, !1, !2}
+!0 = distinct !{!0, !1}
 !1 = !{!"tapir.loop.target", i32 1024}
-!2 = !{!"loop.name", !"f1.loop.i"}

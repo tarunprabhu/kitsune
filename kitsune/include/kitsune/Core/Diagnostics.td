@@ -194,8 +194,8 @@ def ErrTapirLoopSyncRegionUses
 def ErrTapirLoopSyncMustPostDominate
   : Error<"tapir loop not post-dominated by sync instruction">;
 
-def ErrTapirLoopIVMultiple
-  : Error<"tapir loop must have at most one induction variable">;
+def ErrTapirLoopIVCount
+  : Error<"tapir loop must have exactly one induction variable">;
 
 def ErrTapirLoopIVNotCanonical
   : Error<"tapir loop does not have a canonical induction variable">;

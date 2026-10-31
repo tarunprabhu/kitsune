@@ -385,7 +385,7 @@ private:
   // is canonical.
   bool checkTapirLoopIV(Loop &loop) {
     if (getNumIndVars(loop) > 1)
-      return emitDiag(loop, DiagID::ErrTapirLoopIVMultiple);
+      return emitDiag(loop, DiagID::ErrTapirLoopIVCount);
 
     if (!loop.getCanonicalInductionVariable())
       return emitDiag(loop, DiagID::ErrTapirLoopIVNotCanonical);
