@@ -122,6 +122,15 @@ std::string llvm::getName(const Loop &loop, StringRef defawlt) {
     return defawlt.str();
 }
 
+MDNode *llvm::cloneLoopMetadata(const Loop &loop) {
+  MDNode *loopMD = loop.getLoopID();
+  TempMDNode tempMD = loopMD->clone();
+  MDNode *newMD = MDNode::replaceWithDistinct(std::move(tempMD));
+  newMD->replaceOperandWith(0, newMD);
+
+  return newMD;
+}
+
 void llvm::clearTapirLoopAttrs(Loop &loop) {
   LLVMContext &ctx = getContext(loop);
   MDNode *loopMD = loop.getLoopID();
