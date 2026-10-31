@@ -19,6 +19,7 @@
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/LoopNestAnalysis.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
 
 using namespace llvm;
@@ -288,23 +289,67 @@ void llvm::clearMandatoryLLVMLoopAttrs(Loop &loop) {
     clearLoopAttr(loop, attr);
 }
 
-bool llvm::serializeTapirLoop(Loop &loop, Task &task, bool addAttr,
-                              DominatorTree *dt, TaskInfo *ti) {
-  assert(isTapirLoop(loop));
+bool llvm::serializeTapirLoop(Loop &loop, bool addAttr, DominatorTree *dt,
+                              TaskInfo *ti) {
+  assert(isTapirLoop(loop) && "Loop is a tapir loop");
 
-  // This must be called early in case `SerializeDetach` removes something that
-  // identifies `loop` as being a tapir loop. `SerializeDetach` should not need
-  // any non-tapir loop attributes.
+  DetachInst *detach = getUniqueInstInLoopOnly<DetachInst>(loop);
+  assert(detach && "Tapir loop contains a single detach instruction");
+
+  ReattachInst *reattach = getUniqueInstInLoopOnly<ReattachInst>(loop);
+  assert(reattach && "Tapir loop contains a single reattach instruction");
+
+  BasicBlock *latch = loop.getLoopLatch();
+  assert(latch && "Loop to be serialized has a unique latch");
+
+  assert(detach->getSyncRegion() == reattach->getSyncRegion() &&
+         "Consistent sync regions in tapir loop being serialized");
+  assert(detach->getContinue() == latch &&
+         reattach->getDetachContinue() == latch &&
+         "Consistent continue blocks in detach and reattach branch to latch");
+
+  // Since we have asserted that the detach and reattach blocks have an edge to
+  // the latch, ensure that these are the only blocks that branch to the latch.
+  assert(pred_size(latch) == 2 && "Latch has exactly two predecessors");
+
+  Function *f = getFunction(loop);
+  assert(f && "Tapir loop to be serialized must be in a function");
+
+  BasicBlock *body = detach->getDetached();
+  BasicBlock *bbDetach = detach->getParent();
+  BasicBlock *bbReattach = reattach->getParent();
+
+  // Tapir provides a SerializeDetach function that can do this for us. However,
+  // it does much more than we will ever need it to do - such as replace the
+  // detach-reattach pair with a pair of task frames,, and does a few things
+  // that we don't want, like moving static allocas into the task entry block.
+  // Since we impose many restriction on tapir loops, just do the simple thing
+  // here, which is replace the detach and reattach instructions with
+  // unconditional branches.
+  ReplaceInstWithInst(detach, BranchInst::Create(body));
+  ReplaceInstWithInst(reattach, BranchInst::Create(latch));
+
+  if (dt) {
+    dt->deleteEdge(bbDetach, latch);
+    dt->changeImmediateDominator(latch, bbReattach);
+#ifndef NDEBUG
+    dt->verify();
+#endif // NDEBUG
+  }
+
+  // FIXME: This is wasteful, but it is not clear if there is a better way of
+  // doing this at this time.
+  if (ti && dt) {
+    ti->recalculate(*f, *dt);
+#ifndef NDEBUG
+    ti->verify(*dt);
+#endif // NDEBUG
+  }
+
+  // Clear the tapir loop attributes *AFTER* calling
+  // clearMandatoryLLVMLoopAttrs since that function requires the tapir loop
+  // attributes to be present.
   clearMandatoryLLVMLoopAttrs(loop);
-
-  // This performs the actual serialization of the loop.
-  SerializeDetach(task.getDetach(), &task, /*ReplaceWithTaskFrame=*/false, dt,
-                  ti);
-
-  // Clear the tapir loop attributes *AFTER* calling clearMandatoryLLVMLoopAttrs
-  // since that function requires the tapir loop attributes to be present. This
-  // is called after SerializeDetach in case that function examines the tapir
-  // loop attributes.
   clearTapirLoopAttrs(loop);
 
   if (addAttr)

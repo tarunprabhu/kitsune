@@ -1,7 +1,4 @@
 ; By default, tapir loops at depth greater than 3 should always be serialized.
-; We set the tapir target to 'serial' because tapir loops with this tapir target
-; are not treated any differently from loops with a parallel tapir target (CPU,
-; or GPU-centric).
 ;
 ; RUN: opt -passes=kit-serialize -serialize-verbose=0 -S %s | FileCheck %s
 
@@ -11,6 +8,8 @@
 ; CHECK: [[HEADER1]]:
 ; CHECK: detach within %[[SR1]]
 ; CHECK: %[[SR2:.+]] = call token @llvm.syncregion.start
+; CHECK: br label %[[HEADER2:.+]]
+; CHECK: [[HEADER2]]:
 ; CHECK: detach within %[[SR2]]
 ; CHECK: %[[SR3:.+]] = call token @llvm.syncregion.start
 ; CHECK: br label %[[HEADER3:.+]]
@@ -25,18 +24,28 @@
 ; CHECK: [[BODY4]]:
 ; CHECK-NOT: reattach within
 ; CHECK: br label %[[LATCH4:.+]]
-; CHECK: br i1 {{.+}}, label {{.+}}, label %[[HEADER4]]
+; CHECK: br i1 {{.+}}, label %[[HEADER4]]
 ; CHECK-SAME: !llvm.loop ![[LOOP4:[0-9]+]]
 ; CHECK: reattach within %[[SR3]]
+; CHECK: br i1 {{.+}}, label %[[HEADER3]]
+; CHECK-SAME: !llvm.loop ![[LOOP3:[0-9]+]]
 ; CHECK: reattach within %[[SR2]]
+; CHECK: br i1 {{.+}}, label %[[HEADER2]]
+; CHECK-SAME: !llvm.loop ![[LOOP2:[0-9]+]]
 ; CHECK: reattach within %[[SR1]]
 ; CHECK: br i1 {{.+}}, label %[[HEADER1]]
 ; CHECK-SAME: !llvm.loop ![[LOOP1:[0-9]+]]
 ;
-; CHECK-DAG: ![[SERIALIZED:[0-9]+]] = !{!"tapir.loop.serialized"}
-; CHECK-DAG: ![[LOOP4]] = distinct !{![[LOOP4]], ![[SERIALIZED]]}
 ; CHECK-DAG: ![[DEPTH:[0-9]+]] = !{!"tapir.loop.perfect.depth", i32 3}
-; CHECK-DAG: ![[LOOP1]] = distinct !{![[LOOP1]], {{.+}}, ![[DEPTH]], {{.+}}}
+; CHECK-DAG: ![[LEVEL1:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 1}
+; CHECK-DAG: ![[LEVEL2:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 2}
+; CHECK-DAG: ![[LEVEL3:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 3}
+; CHECK-DAG: ![[SERIALIZED:[0-9]+]] = !{!"tapir.loop.serialized"}
+;
+; CHECK-DAG: ![[LOOP4]] = distinct !{![[LOOP4]], ![[SERIALIZED]]}
+; CHECK-DAG: ![[LOOP3]] = distinct !{![[LOOP3]], {{.+}}, ![[LEVEL3]]}
+; CHECK-DAG: ![[LOOP2]] = distinct !{![[LOOP2]], {{.+}}, ![[LEVEL2]]}
+; CHECK-DAG: ![[LOOP1]] = distinct !{![[LOOP1]], {{.+}}, ![[LEVEL1]], ![[DEPTH]]}
 
 define void @f(i64 %n) {
 entry:
@@ -128,4 +137,4 @@ exit:
 !6 = distinct !{!6, !0, !5}
 !7 = distinct !{!7, !0, !4}
 !8 = distinct !{!8, !0, !3}
-!9 = distinct !{!9, !0, !1, !2}
+!9 = distinct !{!9, !0, !2, !1}
