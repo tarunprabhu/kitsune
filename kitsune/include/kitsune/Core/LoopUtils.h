@@ -310,6 +310,9 @@ BasicBlock *getLoopBypassBlock(const Loop &loop, bool allowDeadEndExits);
 ///
 bool isTapirLoopNormalized(const Loop &loop, DominatorTree &dt);
 
+/// Clone loop metadata.
+MDNode *cloneLoopMetadata(const Loop &loop);
+
 /// Get a unique instruction of type \tparam InstType in a loop, or nullptr if
 /// one does not exist. This will *not* look for such an instruction in any
 /// subloops.
