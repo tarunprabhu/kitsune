@@ -299,6 +299,12 @@ def ErrReducerTypeMismatch
 def ErrReducerNumParams
   : Error<"incorrect number of params in reducer '{}'. Expected {}. Got {}">;
 
+def ErrInconsistentReductionStrategies
+  : Error<"inconsistent reduction strategies">;
+
+def ErrInvalidReductionStrategyForTT
+  : Error<"invalid reduction strategy '{}' for tapir target '{}'">;
+
 def ErrKitIntrNoTTID
   : Error<"first argument to call is not a valid TTID">;
 
