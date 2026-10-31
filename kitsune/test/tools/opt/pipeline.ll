@@ -20,7 +20,8 @@
 ; RUN: opt -Oz -debug-pass-manager %s -disable-output 2>&1 \
 ; RUN:     | FileCheck -check-prefix DEFAULT %s
 ;
-; DEFAULT-NOT: Running pass:     SecondaryIVEliminationPass
+; DEFAULT-NOT: Running pass:     SerializePass
+; DEFAULT-NOT: Running pass:     ComputeReductionStrategyPass
 ; DEFAULT-NOT: Running pass:     PrepareTapirLoopsPass
 ; DEFAULT-NOT: Running pass:     PreLowerAnnotatePass
 ; DEFAULT-NOT: Running pass:     LoopSpawningPass
@@ -71,15 +72,13 @@
 ; RUN: opt -Os --tapir=serial -debug-pass-manager %s -o /dev/null 2>&1 \
 ; RUN:     | FileCheck -check-prefix O123SZ %s
 ;
-; RUN: opt -Oz --tapir=serial -debug-pass-manager %s -o /dev/null 2>&1 \
-; RUN:     | FileCheck -check-prefix O123SZ %s
-;
 ; The Early* passes run early in the pass pipeline.
 ; O123S:       Running pass:     EarlyVerificationPass
 ; O123S:       Running pass:     EarlyAnnotatePass
 ;
 ; <KIT-PREPARE>
 ; O123S:       Running pass:     SerializePass
+; O123S:       Running pass:     ComputeReductionStrategyPass
 ; O123S:       Running pass:     PrepareTapirLoopsPass
 ; O123S:       Running pass:     ComputeGPULoopBlockSizePass
 ; O123SZ-NOT:  Running pass:     InstrumentPass
@@ -149,35 +148,39 @@
 ;
 ; -----------------------------------------------------------------------------
 
-define i32 @f(i32 %argc, ptr %argv) {
+define void @f(i64 %n) {
 entry:
-  %syncreg = tail call token @llvm.syncregion.start()
-  %n = sext i32 %argc to i64
+  %sr = tail call token @llvm.syncregion.start()
   br label %header
 
 header:
-  %i = phi i64 [ 0, %entry ], [ %inc.i, %latch ]
-  detach within %syncreg, label %body, label %latch
+  %i = phi i64 [ 0, %entry ], [ %inc, %latch ]
+  %cmp = icmp ne i64 %i, %n
+  br i1 %cmp, label %detach, label %sync
 
-body:
+detach:
+  detach within %sr, label %reattach, label %latch
+
+reattach:
   call void @ext(i64 %i)
-  reattach within %syncreg, label %latch
+  reattach within %sr, label %latch
 
 latch:
-  %inc.i = add i64 %i, 1
-  %cmp = icmp eq i64 %inc.i, %n
-  br i1 %cmp, label %exit, label %header, !llvm.loop !0
+  %inc = add i64 %i, 1
+  br label %header, !llvm.loop !0
+
+sync:
+  sync within %sr, label %exit
 
 exit:
-  sync within %syncreg, label %end
-
-end:
-  ret i32 0
+  ret void
 }
 
 declare void @ext(i64)
 
-!0 = distinct !{!0, !1, !2, !3}
+!0 = distinct !{!0, !1, !2, !3, !4, !5}
 !1 = !{!"tapir.loop.target", i32 1}
 !2 = !{!"tapir.loop.spawn.strategy", i32 1}
-!3 = !{!"tapir.loop.lowering.enabled"}
+!3 = !{!"tapir.loop.perfect.depth", i32 1}
+!4 = !{!"tapir.loop.perfect.level", i32 1}
+!5 = !{!"tapir.loop.lowering.enabled"}

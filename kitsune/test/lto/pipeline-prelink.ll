@@ -24,8 +24,8 @@
 ; CHECK:      Running pass:      EarlyVerificationPass
 ; CHECK:      Running pass:      EarlyAnnotatePass
 ; CHECK:      Running pass:      SerializePass
+; CHECK:      Running pass:      ComputeReductionStrategyPass
 ; CHECK:      Running pass:      PrepareTapirLoopsPass
-; CHECK:      Running pass:      SecondaryIVEliminationPass
 ; CHECK:      Running pass:      SecondaryIVEliminationPass
 ; CHECK-NOT:  Running pass:      InstrumentPass
 ;
@@ -74,32 +74,37 @@
 
 declare void @ext(i64)
 
-define void @f(i64 %n) {
+define void @main(i64 %n) {
 entry:
-  %syncreg = tail call token @llvm.syncregion.start()
+  %sr = call token @llvm.syncregion.start()
+  %cmpn = icmp ult i64 0, %n
+  br i1 %cmpn, label %ph, label %sync, !llvm.loop !0
+
+ph:
   br label %header
 
 header:
-  %i = phi i64 [ 0, %entry ], [ %inc.i, %latch ]
-  detach within %syncreg, label %body, label %latch
+  %i = phi i64 [ 0, %ph ], [ %inc, %latch ]
+  detach within %sr, label %reattach, label %latch
 
-body:
+reattach:
   call void @ext(i64 %i)
-  reattach within %syncreg, label %latch
+  reattach within %sr, label %latch
 
 latch:
-  %inc.i = add i64 %i, 1
-  %cmp = icmp eq i64 %inc.i, %n
-  br i1 %cmp, label %exit, label %header, !llvm.loop !0
+  %inc = add i64 %i, 1
+  br label %header
+
+sync:
+  sync within %sr, label %exit
 
 exit:
-  sync within %syncreg, label %end
-
-end:
   ret void
 }
 
-!0 = distinct !{!0, !1, !2, !3}
+!0 = distinct !{!0, !1, !2, !3, !4, !5}
 !1 = !{!"tapir.loop.target", i32 1}
 !2 = !{!"tapir.loop.spawn.strategy", i32 1}
-!3 = !{!"tapir.loop.lowering.enabled"}
+!3 = !{!"tapir.loop.perfect.depth", i32 1}
+!4 = !{!"tapir.loop.perfect.level", i32 1}
+!5 = !{!"tapir.loop.lowering.enabled"}

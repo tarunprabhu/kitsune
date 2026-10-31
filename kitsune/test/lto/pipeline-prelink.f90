@@ -29,6 +29,7 @@
 ! CHECK:      Running pass:      EarlyVerificationPass
 ! CHECK:      Running pass:      EarlyAnnotatePass
 ! CHECK:      Running pass:      SerializePass
+! CHECK:      Running pass:      ComputeReductionStrategyPass
 ! CHECK:      Running pass:      PrepareTapirLoopsPass
 ! CHECK:      Running pass:      SecondaryIVEliminationPass
 ! CHECK-NOT:  Running pass:      InstrumentPass
