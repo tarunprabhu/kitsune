@@ -52,9 +52,12 @@
 #include "common/env.h"
 #include "common/logging.h"
 #include "common/unreachable.h"
+#include "common/utils.h"
 #include "context.h"
-#include "kitsune/Shared/RTInitOptions.h"
 #include "runtimes.h"
+
+#include "kitsune/Shared/RTInitOptions.h"
+#include "kitsune/Shared/RTNestUtils.h"
 
 #ifdef KITSUNE_COLORS_ENABLED
 #include <curses.h>
@@ -314,4 +317,49 @@ extern "C" void __kitrt_initialize(const InitOptions *initOpts) {
 extern "C" void __kitrt_finalize(const InitOptions *initOpts) {
   assert(initOpts && "Initialization options provided");
   finalize(*initOpts);
+}
+
+extern "C" KitNestContext *__kitrt_nest_begin(uint64_t totalThreads,
+                                              uint32_t depth) {
+  // totalThreads is only a 64-bit integer because it saves us having to insert
+  // cast instructions in the LLVM IR passes. But we never expect the value to
+  // be greater than 2^32.
+  assert(totalThreads <= 0xFFFFFFFFUL && "Total threads < 2^32");
+  assert(depth >= 1 && depth <= NEST_MAX_DEPTH && "Valid loop nest depth");
+
+  LoopNestContext *ctx = kitrt::nestBegin(totalThreads, depth);
+  LOG("For loop at depth %d, use threads {%d, %d, %d}", ctx->depth, (*ctx)[0],
+      (*ctx)[1], (*ctx)[2]);
+
+  return reinterpret_cast<KitNestContext *>(ctx);
+}
+
+extern "C" void __kitrt_nest_end(KitNestContext *pctx) {
+  assert(pctx && "Non-null loop nest context");
+
+  LoopNestContext *ctx = reinterpret_cast<LoopNestContext *>(pctx);
+  kitrt::nestEnd(ctx);
+}
+
+extern "C" uint64_t __kitrt_nest_threads(const KitNestContext *pctx) {
+  assert(pctx && "Non-null loop nest context");
+
+  const LoopNestContext *ctx = reinterpret_cast<const LoopNestContext *>(pctx);
+  return kitrt::nestThreads(*ctx);
+}
+
+extern "C" void __kitrt_nest_bounds(const KitNestContext *pctx, uint64_t tid,
+                                    uint64_t beg, uint64_t end, uint32_t level,
+                                    uint64_t *lb, uint64_t *ub) {
+  assert(pctx && "Non-null loop nest context");
+  assert(beg == 0 && "Original loop lower bound is zero");
+  assert(lb && "Non-null lower bound out pointer");
+  assert(ub && "Non-null upper bound out pointer");
+
+  const LoopNestContext *ctx = reinterpret_cast<const LoopNestContext *>(pctx);
+  auto [b, e] = kitrt::nestBounds(*ctx, tid, beg, end, level);
+  LOG("bounds(%ld, %d of %d): [%ld, %ld)", tid, level, ctx->depth, b, e);
+
+  *lb = b;
+  *ub = e;
 }
