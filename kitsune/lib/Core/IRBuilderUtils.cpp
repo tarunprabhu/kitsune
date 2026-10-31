@@ -30,12 +30,31 @@ Module *llvm::getModule(IRBuilder<> &builder) {
 }
 
 Value *llvm::createCall(IRBuilder<> &builder, KitFunc libFunc,
-                        ArrayRef<Value *> args, StringRef name) {
+                        ArrayRef<Value *> args, StringRef name,
+                        bool allowCasts) {
   Module *m = getModule(builder);
   assert(m && "Builder must be set to a basic block in a module");
 
   FunctionCallee f = getOrInsertLibFunc(*m, libFunc);
-  return builder.CreateCall(f, args, name);
+  if (!allowCasts || !isa<Function>(f.getCallee()))
+    return builder.CreateCall(f, args, name);
+
+  // Since casts are allowed, if the types of any arguments don't match what the
+  // callee expects, cast this.
+  Function *callee = cast<Function>(f.getCallee());
+  FunctionType *calleeTy = callee->getFunctionType();
+  SmallVector<Value *, 4> cstArgs;
+  for (unsigned i = 0; i < args.size(); ++i) {
+    Value *arg = args[i];
+    Type *ty = calleeTy->getParamType(i);
+    if (ty->isIntegerTy())
+      cstArgs.push_back(builder.CreateIntCast(arg, ty, /*isSigned=*/true));
+    else if (ty->isPointerTy())
+      cstArgs.push_back(builder.CreatePointerBitCastOrAddrSpaceCast(arg, ty));
+    else
+      cstArgs.push_back(arg);
+  }
+  return builder.CreateCall(f, cstArgs, name);
 }
 
 static CallInst *createKitMalloc(IRBuilder<> &builder, Intrinsic::ID intr,
