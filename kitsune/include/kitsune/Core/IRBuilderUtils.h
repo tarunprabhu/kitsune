@@ -37,9 +37,11 @@ Module *getModule(IRBuilder<> &builder);
 
 /// Insert a call to the library function \p func with arguments \p args using
 /// the builder \p builder. The insert point of \p builder must be set to a
-/// basic block contained in a module.
+/// basic block contained in a module. If \p allowArgCasts is true, arguments
+/// whose type does not match that of the corresponding parameter are cast to
+/// the appropriate type.
 Value *createCall(IRBuilder<> &builder, KitFunc f, ArrayRef<Value *> args = {},
-                  StringRef name = "");
+                  StringRef name = "", bool allowArgCasts = false);
 
 /// Insert a call to Kitsune's CPU malloc intrinsic for the tapir target \p tt
 /// that allocates \p bytes using the builder \p builder. The insert point of \p
