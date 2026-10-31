@@ -60,8 +60,43 @@
 #define KITRT_COMMON_UTILS_H
 
 #include <stdint.h>
+#include <utility>
+
+#include "kitsune/Shared/RTNestUtils.h"
 
 namespace kitrt {
+
+/// A loop nest context object. This is created just before beginning execution
+/// of a tapir loop nest. Currently, this is only used when executing a nest on
+/// a CPU, but it may also be used for a GPU. Given the number of threads
+/// available on the system for parallel execution, this divides the number of
+/// threads among the loops in the nest. This object is then used by each thread
+/// to compute the actual bounds of each loop in the nest.
+///
+/// This object is intended to be opaque to any callers of the runtime.
+struct LoopNestContext {
+public:
+  /// The depth of the nest.
+  const uint32_t depth;
+
+  /// The number of threads for each loop in the nest. We currently only support
+  /// tapir loop nests of depth <= 3. Only the array elements at index < `depth`
+  /// are valid. The values of the remaining elements are undefined, though they
+  /// are likely to be set to 1.
+  const uint32_t threads[NEST_MAX_DEPTH];
+
+  /// The number of threads that are used to execute the loop nest described by
+  /// this context.
+  const uint64_t usedThreads;
+
+public:
+  LoopNestContext(uint32_t depth, uint32_t t0, uint32_t t1 = 1, uint32_t t2 = 1)
+      : depth(depth), threads{t0, t1, t2}, usedThreads(t0 * t1 * t2) {}
+
+  uint32_t operator[](uint32_t i) const { return threads[i]; }
+};
+
+using LoopBounds = std::pair<uint64_t, uint64_t>;
 
 /// Get the number of parallel execution threads to use. This is determined as
 /// follows:
@@ -92,6 +127,25 @@ uint32_t nearestMultipleLT(uint32_t m, uint32_t n);
 
 /// Write a stack trace to stderr.
 void printStackTrace(void);
+
+/// Create a loop nest context object for a nest of depth \p depth.
+/// \p totalThreads is the number of threads available to execute the nest.
+LoopNestContext *nestBegin(uint64_t totalThreads, uint32_t depth);
+
+/// Delete a loop nest context object previously created by \ref nestBegin.
+void nestEnd(LoopNestContext *ctx);
+
+/// Get the number of threads that will be used for parallel execution of a loop
+/// nest described by the given context. The number of threads used may be
+/// smaller than the number available on the system.
+uint64_t nestThreads(const LoopNestContext &ctx);
+
+/// Get the bounds of the loop at level \p level in a nest described by the
+/// context \p ctx that will be executed by the thread with index \p tid. \p tid
+/// must be in `[0, nestThreads(ctx))`. \p beg and \p end are the original
+/// bounds of the loop.
+LoopBounds nestBounds(const LoopNestContext &ctx, uint64_t tid, uint64_t beg,
+                      uint64_t end, uint32_t level);
 
 } // namespace kitrt
 
