@@ -1,4 +1,4 @@
-//===- SpawnStrategy.h - The spawn strategsy enum --------------*- C++ -*--===//
+//===- SpawnStrategy.h - The spawn strategy enum ---------------*- C++ -*--===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Define the core spawn strategy enum.
+// The spawn strategy enum.
 //
 //===----------------------------------------------------------------------===//
 
@@ -83,7 +83,7 @@ enum class TapirSpawnStrategy : uint32_t {
 static constexpr TapirSpawnStrategy defaultTapirSpawnStrategy =
     TapirSpawnStrategy::Sequential;
 
-/// Stream a TTID using LLVM's streams.
+/// Stream a SpawnStrategy using LLVM's streams.
 raw_ostream &operator<<(raw_ostream &os, const TapirSpawnStrategy &v);
 
 /// @}
