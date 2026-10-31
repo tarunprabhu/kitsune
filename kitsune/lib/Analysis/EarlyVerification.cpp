@@ -20,7 +20,10 @@
 
 #include "kitsune/Analysis/EarlyVerification.h"
 #include "kitsune/Core/Diagnostics.h"
+#include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
+#include "kitsune/Core/Reductions.h"
+#include "kitsune/Core/TTUtils.h"
 #include "kitsune/Support/ErrorHandling.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/IR/Module.h"
@@ -68,15 +71,56 @@ bool VerifyFunction::verifyReductions(Function &f) {
     llvm_unreachable("Loop must have ancestor tapir loop");
   };
 
-  for (Loop *loop : li.getLoopsInPreorder())
-    if (isTapirLoop(*loop))
-      for (BasicBlock *bb : loop->getBlocks())
-        for (Instruction &inst : *bb)
-          if (auto *call = dyn_cast<CallBase>(&inst))
-            if (call->getIntrinsicID() == Intrinsic::kit_reduce)
-              if (isNestedTapirLoop(*li.getLoopFor(bb)))
-                return emitDiagnostic(*call, DiagID::ErrNYI,
-                                      "nested parallel reductions");
+  auto consistentStrategies =
+      [](const SmallVectorImpl<ReductionInfo> &redxns) -> bool {
+    auto mismatch = std::adjacent_find(
+        redxns.begin(), redxns.end(),
+        [](const ReductionInfo &r1, const ReductionInfo &r2) -> bool {
+          return r1.strategy != r2.strategy;
+        });
+    return mismatch == redxns.end();
+  };
+
+  SmallVector<Loop *, 4> loops = li.getLoopsInPreorder();
+  SmallVector<Loop *, 4> tapirLoops;
+  std::copy_if(loops.begin(), loops.end(), std::back_inserter(tapirLoops),
+               [](Loop *loop) { return isTapirLoop(*loop); });
+
+  for (Loop *loop : tapirLoops)
+    for (BasicBlock *bb : loop->getBlocks())
+      for (Instruction &inst : *bb)
+        if (auto *call = dyn_cast<CallBase>(&inst))
+          if (call->getIntrinsicID() == Intrinsic::kit_reduce)
+            if (isNestedTapirLoop(*li.getLoopFor(bb)))
+              return emitDiagnostic(*call, DiagID::ErrNYI,
+                                    "nested parallel reductions");
+
+  // All reductions in a tapir loop nest must have consistent strategies, i.e.
+  // all strategies must be identical.
+  for (Loop *loop : tapirLoops) {
+    SmallVector<ReductionInfo, 1> redxns = collectReductions(*loop);
+    if (redxns.empty())
+      continue;
+
+    if (!consistentStrategies(redxns))
+      return emitDiagnostic(*loop, DiagID::ErrInconsistentReductionStrategies);
+
+    // The reduction strategies are consistent. Picking any reduction at random
+    // is sufficient. Now check if the strategy is consistent with the tapir
+    // target on the loop.
+    ReductionStrategy strategy = redxns[0].strategy;
+    TTID tt = *getTargetAttr(*loop);
+    if (isCPUTT(tt)) {
+      if (!isCPUStrategy(strategy))
+        return emitDiagnostic(*loop, DiagID::ErrInvalidReductionStrategyForTT,
+                              strategy, tt);
+    } else if (isGPUTT(tt)) {
+      if (!isGPUStrategy(strategy))
+        return emitDiagnostic(*loop, DiagID::ErrInvalidReductionStrategyForTT,
+                              strategy, tt);
+    }
+  }
+
   return true;
 }
 
