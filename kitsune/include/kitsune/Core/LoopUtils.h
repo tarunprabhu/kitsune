@@ -159,14 +159,17 @@ void clearMandatoryLLVMLoopAttrs(Loop &loop);
 /// `llvm.loop.unroll.disable` is added to all tapir loops. This will be
 /// removed.
 ///
+/// If this loop is part of a tapir loop nest of depth > 1, the depth annotation
+/// on the root of the nest will have to be updated. This function will *NOT* do
+/// that. It is the caller's responsibility to do so.
+///
 /// \param loop The tapir loop to be serialized
-/// \param task The tapir task for \p loop
-/// \param dt An optional dominator tree that will be updated if provided
-/// \param ti An optional TaskInfo object that will be updated if provided
 /// \param addSerializedAttr If true, the "tapir.loop.serialized" attribute will
 ///                          be added to the loop.
+/// \param dt An optional dominator tree that will be updated if provided
+/// \param ti An optional TaskInfo object that will be updated if provided
 /// \return Always returns true
-bool serializeTapirLoop(Loop &loop, Task &task, bool addSerializedAttr = true,
+bool serializeTapirLoop(Loop &loop, bool addSerializedAttr = true,
                         DominatorTree *dt = nullptr, TaskInfo *ti = nullptr);
 
 /// Get the number of induction variables in the loop. This is the just the

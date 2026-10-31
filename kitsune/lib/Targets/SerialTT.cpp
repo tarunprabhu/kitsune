@@ -38,14 +38,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Targets/SerialTT.h"
-#include "kitsune/Core/IntrinsicUtils.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
 #include "llvm/Analysis/LoopInfo.h"
-#include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/IR/Dominators.h"
-#include "llvm/Transforms/Utils/BasicBlockUtils.h"
-#include "llvm/Transforms/Utils/TapirUtils.h"
 
 using namespace llvm;
 
@@ -79,43 +75,21 @@ void SerialTT::lowerSync(SyncInst &si) {
 }
 
 void SerialTT::postProcessFunction(Function &f, bool processingTapirLoops) {
+  // With the current implementation, loops with the serial tapir target are
+  // serialized in the kit-prepare pass very early in the pipeline. There is a
+  // long comment in the implementation of that pass that describes why we do
+  // that (in particular, why we ought to be doing something different instead).
+  //
+  // So, this code will do nothing in the normal case, but we keep it around
+  // because it is how it should be implemented. Plus, it is useful for testing.
+
   // FIXME: It would be good to pass these analyses into this callback - or use
   // some other mechanism to retrieve these analyses from the loop spawning
   // pass that drives the tapir targets - rather than computing them here.
-  TaskInfo ti;
   DominatorTree dt(f);
   LoopInfo li(dt);
 
-  // Lower calls to llvm.kit.cpu.num.threads intrinsic. We want this tapir
-  // target to produce code that, to the extent possible, looks as if it was the
-  // result of compiling a standard serial loop. Since some simplification
-  // passes are run after the loop-spawning pass, lowering this intrinsic here
-  // will ensure that that is the case.
-  if (Function *numThreadsFn = Intrinsic::getDeclarationIfExists(
-          &M, Intrinsic::kit_cpu_num_threads)) {
-    std::vector<CallInst *> calls;
-    // Only replace calls in this function. Although unlikely, the intrinsic
-    // could be passed as an argument to another function, so check that it is
-    // actually called where it is used.
-    for (Use &u : numThreadsFn->uses())
-      if (auto *call = dyn_cast<CallInst>(u.getUser()))
-        if (call->getFunction() == &f &&
-            call->getIntrinsicID() == Intrinsic::kit_cpu_num_threads &&
-            *getTTIDFromKitIntrCall(*call) == TTID::Serial)
-          calls.push_back(call);
-
-    Type *type = numThreadsFn->getReturnType();
-    Value *one = ConstantInt::get(type, 1, /*isSigned=*/false);
-    for (CallInst *call : calls) {
-      call->replaceAllUsesWith(one);
-      call->eraseFromParent();
-    }
-  }
-
-  ti.recalculate(f, dt);
-
   for (Loop *loop : li.getLoopsInPreorder())
     if (getTargetAttr(*loop) == TTID::Serial)
-      if (Task *task = getTaskIfTapirLoop(loop, &ti))
-        serializeTapirLoop(*loop, *task);
+      serializeTapirLoop(*loop);
 }
