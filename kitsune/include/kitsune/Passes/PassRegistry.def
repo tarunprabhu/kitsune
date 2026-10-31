@@ -89,6 +89,7 @@ FUNCTION_PASS("kit-serialize", SerializePass())
 
 #ifdef LOOP_PASS
 LOOP_PASS("kit-ive", SecondaryIVEliminationPass())
+LOOP_PASS("kit-reduce-strategy", ComputeReductionStrategyPass())
 #endif // LOOP_PASS
 
 #ifdef LOOP_PASS_WITH_PARAMS

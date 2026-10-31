@@ -36,6 +36,7 @@
 ; O23S-NOT:   Running pass:      EarlyVerificationPass
 ; O23S-NOT:   Running pass:      EarlyAnnotatePass
 ; O23S-NOT:   Running pass:      SerializePass
+; O23S-NOT:   Running pass:      ComputeReductionStrategyPass
 ; O23S-NOT:   Running pass:      PrepareTapirLoopsPass
 ;
 ; O23S:       Running pass:      SecondaryIVEliminationPass
@@ -62,35 +63,41 @@
 ;
 ; ERROR: unsupported optimization level '-Oz'
 
-define i32 @main(i32 %argc, ptr %argv) {
+declare void @ext(i64)
+
+; This function must be named @main, otherwise it will be removed since there
+; are no uses of this function in the module.
+define void @main(i64 %n) {
 entry:
-  %syncreg = tail call token @llvm.syncregion.start()
-  %n = sext i32 %argc to i64
+  %sr = call token @llvm.syncregion.start()
   br label %header
 
 header:
-  %i = phi i64 [ 0, %entry ], [ %inc.i, %latch ]
-  detach within %syncreg, label %body, label %latch
+  %i = phi i64 [ 0, %entry ], [ %inc, %latch ]
+  detach within %sr, label %body, label %latch
 
 body:
   call void @ext(i64 %i)
-  reattach within %syncreg, label %latch
+  reattach within %sr, label %latch
 
 latch:
-  %inc.i = add i64 %i, 1
-  %cmp = icmp eq i64 %inc.i, %n
-  br i1 %cmp, label %exit, label %header, !llvm.loop !0
+  %inc = add i64 %i, 1
+  %cmp = icmp eq i64 %inc, %n
+  br i1 %cmp, label %sync, label %header, !llvm.loop !2
+
+sync:
+  sync within %sr, label %exit
 
 exit:
-  sync within %syncreg, label %end
-
-end:
-  ret i32 0
+  ret void
 }
 
-declare void @ext(i64)
-
-!0 = distinct !{!0, !1, !2, !3}
-!1 = !{!"tapir.loop.target", i32 1}
-!2 = !{!"tapir.loop.spawn.strategy", i32 1}
-!3 = !{!"tapir.loop.lowering.enabled"}
+!0 = !{i32 1, !"ThinLTO", i32 0}
+!1 = !{i32 1, !"EnableSplitLTOUnit", i32 1}
+!2 = distinct !{!2, !3, !4, !5, !6, !7, !8}
+!3 = !{!"tapir.loop.target", i32 1}
+!4 = !{!"tapir.loop.spawn.strategy", i32 1}
+!5 = !{!"tapir.loop.perfect.depth", i32 1}
+!6 = !{!"tapir.loop.perfect.level", i32 1}
+!7 = !{!"tapir.loop.lowering.enabled"}
+!8 = !{!"tapir.loop.prepared"}

@@ -57,33 +57,6 @@
 
 using namespace llvm;
 
-// The default strategy to use when reducing into the final result.
-static ReductionStrategy defaultStrategy = ReductionStrategy::GPUWarpShuffle;
-
-static cl::opt<ReductionStrategy> clStrategy(
-    "tapir-gpu-reduce-mode",
-    cl::desc("The strategy to use for tapir reduction loops"),
-    cl::init(defaultStrategy), cl::value_desc("strategy"),
-    cl::cat(cl::catKitClOpts),
-    cl::values(clEnumValN(ReductionStrategy::Direct, "direct", ""),
-               clEnumValN(ReductionStrategy::Naive, "naive", ""),
-               clEnumValN(ReductionStrategy::ThreadLocal, "local", ""),
-               clEnumValN(ReductionStrategy::GPUSharedMemory, "shmem", ""),
-               clEnumValN(ReductionStrategy::GPUWarpShuffle, "wshfl", ""),
-               clEnumValN(ReductionStrategy::GPUWarpShuffleWithSharedMemory,
-                          "wshflshmem", "")));
-
-// Perform some analysis on the loop given the reductions that are performed in
-// it and determine which reduction strategy to use.
-static ReductionStrategy
-chooseStrategy(const Loop &loop, const SmallVectorImpl<ReductionInfo> &redxns) {
-  if (clStrategy.getNumOccurrences())
-    return clStrategy;
-
-  // TODO: Actually perform an analysis instead of just returning a default.
-  return defaultStrategy;
-}
-
 // Allocate a stack variable into which the per-thread reduction will be
 // stored. The reductions may not be as simple as `res += i`, or even
 // `res &= a[i]`. A single thread may contain a loop that reduces multiple times
@@ -162,8 +135,7 @@ static void updateStrategy(CallInst *call) {
 
 // Perform the reduction into the final result. \p local is the value being
 // reduced and is the contribution of the thread to the final reduction.
-static void reduceIntoFinal(Loop &loop, ReductionStrategy strategy,
-                            Value *local, Value *dest,
+static void reduceIntoFinal(Loop &loop, Value *local, Value *dest,
                             const ReductionInfo &redxn) {
   auto sanityCheck = [](const Loop &loop) {
     assert(getUniqueNonDeadEndExitBlock(loop) &&
@@ -180,15 +152,15 @@ static void reduceIntoFinal(Loop &loop, ReductionStrategy strategy,
   Value *size = redxn.getElemSizeV();
   Value *unit = redxn.getUnit();
   Value *reducer = redxn.getReducer();
+  Constant *strategy = toConstant(redxn.strategy, ctx);
 
   BasicBlock *exit = getUniqueNonDeadEndExitBlock(loop);
   IRBuilder<> builder(&*exit->begin());
   Value *value = builder.CreateLoad(type, local);
 
-  Constant *cStrategy = toConstant(strategy, ctx);
   SmallVector<Type *, 2> overloadTys = redxn.getOverloadTypes();
-  SmallVector<Value *, 8> args = {tt,        op,   dest, value,
-                                  cStrategy, size, unit, reducer};
+  SmallVector<Value *, 8> args = {tt,       op,   dest, value,
+                                  strategy, size, unit, reducer};
   args.append(redxn.getExtraArgs());
 
   builder.CreateIntrinsic(Intrinsic::kit_reduce, overloadTys, args);
@@ -217,7 +189,6 @@ static bool run(Function &f, LoopInfo &li) {
     return false;
 
   SmallVector<ReductionInfo, 1> redxns = collectReductions(loop);
-  ReductionStrategy strategy = chooseStrategy(loop, redxns);
   for (const ReductionInfo &redxn : redxns) {
     // We have to save the destination because the destination in the reduce
     // call will change during the course of this transformation.
@@ -225,7 +196,7 @@ static bool run(Function &f, LoopInfo &li) {
     Value *local = allocLocalResult(f, redxn);
     reduceIntoLocal(local, redxn);
     updateStrategy(redxn.call);
-    reduceIntoFinal(loop, strategy, local, dest, redxn);
+    reduceIntoFinal(loop, local, dest, redxn);
   }
 
   return redxns.size();
