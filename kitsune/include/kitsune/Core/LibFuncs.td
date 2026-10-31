@@ -42,22 +42,6 @@ class KitFunc<string NameParam, CType RetType, list<CType> ParamTypes> {
 // -----------------------------------------------------------------------------
 // Runtime library functions common to several, or all, tapir targets.
 
-// void *__kit_instr_start(const char *name, uint64_t thrd)
-def kit_instr_start :
-    KitFunc<"__kit_instr_start", Ptr, [Ptr, U64]>;
-
-// void __kit_instr_stop(void *epoch)
-def kit_instr_stop :
-    KitFunc<"__kit_instr_stop", Void, [Ptr]>;
-
-// void *__kitpapi_start(const char *name, uint64_t thrd, uint32_t n, ...)
-def kitpapi_start :
-    KitFunc<"__kitpapi_start", Ptr, [Ptr, U64, U32, VarArgs]>;
-
-// void __kitpapi_stop(void* epoch)
-def kitpapi_stop :
-    KitFunc<"__kitpapi_stop", Void, [Ptr]>;
-
 // void *__kitrt_malloc(uint64_t bytes)
 def kitrt_malloc :
     KitFunc<"__kitrt_malloc", Ptr, [U64]>;
@@ -81,6 +65,20 @@ def kitrt_mem_alloc :
 // void __kitrt_default_mem_free(void *ptr)
 def kitrt_mem_free:
     KitFunc<"__kitrt_default_mem_free", Void, [Ptr]>;
+
+// -----------------------------------------------------------------------------
+// Runtime library functions for Kitsune's generic instrumentation utilities.
+
+// void *__kit_instr_start(const char *name, uint64_t thrd)
+def kit_instr_start :
+    KitFunc<"__kit_instr_start", Ptr, [Ptr, U64]>;
+
+// void __kit_instr_stop(void *epoch)
+def kit_instr_stop :
+    KitFunc<"__kit_instr_stop", Void, [Ptr]>;
+
+// -----------------------------------------------------------------------------
+// Runtime library functions for mobile pointers.
 
 // void __kitrt_mobile_init_bool(void *buf, uint64_t n, bool init)
 def kitrt_mobile_init_bool :
@@ -115,6 +113,40 @@ def kitrt_mobile_init_double :
 def kitrt_mobile_init_from :
     KitFunc<"__kitrt_mobile_init_from", Void, [Ptr, U64, Ptr, U32]>;
 
+// -----------------------------------------------------------------------------
+// Runtime library functions for loop nests.
+
+// void* __kitrt_nest_begin(uint64_t numThreads, uint32_t depth)
+def kitrt_nest_begin :
+    KitFunc<"__kitrt_nest_begin", Ptr, [U64, U32]>;
+
+// void __kitrt_nest_end(void *ctx)
+def kitrt_nest_end :
+    KitFunc<"__kitrt_nest_end", Void, [Ptr]>;
+
+// void __kitrt_nest_threads(void *ctx)
+def kitrt_nest_threads :
+    KitFunc<"__kitrt_nest_threads", U64, [Ptr]>;
+
+// void __itrt_nest_bounds(void *ctx, uint64_t tid, uint64_t beg, uint64_t end,
+//                         uint32_t level, uint64_t *lb, uint64_t *ub);
+def kitrt_nest_bounds :
+    KitFunc<"__kitrt_nest_bounds", Void, [Ptr, U64, U64, U64, U32, Ptr, Ptr]>;
+
+// -----------------------------------------------------------------------------
+// Runtime library functions for Kitsune's PAPI support.
+
+// void *__kitpapi_start(const char *name, uint64_t thrd, uint32_t n, ...)
+def kitpapi_start :
+    KitFunc<"__kitpapi_start", Ptr, [Ptr, U64, U32, VarArgs]>;
+
+// void __kitpapi_stop(void* epoch)
+def kitpapi_stop :
+    KitFunc<"__kitpapi_stop", Void, [Ptr]>;
+
+// -----------------------------------------------------------------------------
+// Runtime library functions for Kitsune's timers.
+
 // void* __kittimer_start(const char *name, uint64_t thrd)
 def kittimer_start :
     KitFunc<"__kittimer_start", Ptr, [Ptr, U64]>;
@@ -124,7 +156,7 @@ def kittimer_stop :
     KitFunc<"__kittimer_stop", U64, [Ptr]>;
 
 // -----------------------------------------------------------------------------
-// Runtime library functions for the cuda tapir taret.
+// Runtime library functions for the cuda tapir target.
 
 // void *__kitcuda_malloc(uint64_t bytes)
 def kitcuda_malloc :
@@ -256,7 +288,7 @@ def kitcuda_symbol_address :
     KitFunc<"__kitcuda_get_global_symbol", Ptr, [Ptr, Ptr]>;
 
 // -----------------------------------------------------------------------------
-// Runtime library functions for the hip tapir taret.
+// Runtime library functions for the hip tapir target.
 
 def kithip_enable_xnack :
     KitFunc<"__kithip_enable_xnack", Void, []>;
@@ -390,7 +422,7 @@ def kithip_symbol_address :
     KitFunc<"__kithip_get_global_symbol", Ptr, [Ptr, Ptr]>;
 
 // -----------------------------------------------------------------------------
-// Runtime library functions for the opencilk tapir taret.
+// Runtime library functions for the opencilk tapir target.
 
 def kitocilk_num_workers :
     KitFunc<"__kitocilk_num_workers", U64, []>;
@@ -399,7 +431,7 @@ def kitocilk_worker_id :
     KitFunc<"__kitocilk_worker_id", U64, []>;
 
 // -----------------------------------------------------------------------------
-// Runtime library functions for the openmp tapir taret.
+// Runtime library functions for the openmp tapir target.
 
 def kitomp_num_threads :
     KitFunc<"__kitomp_num_threads", U64, []>;
@@ -414,7 +446,7 @@ def kitomp_thread_id :
     KitFunc<"__kitomp_thread_id", U64, []>;
 
 // -----------------------------------------------------------------------------
-// Runtime library functions for the pthreads tapir taret.
+// Runtime library functions for the pthreads tapir target.
 
 // void* __kitpthr_async_launch(void(*thread_f)(uint64_t, uint64_t, void*),
 //                              uint64_t beg, uint64_t end, void* args,
@@ -433,7 +465,7 @@ def kitpthr_thread_id :
     KitFunc<"__kitpthr_thread_id", U64, []>;
 
 // -----------------------------------------------------------------------------
-// Runtime library functions for the qthreads tapir taret.
+// Runtime library functions for the qthreads tapir target.
 
 def kitqthr_num_workers :
     KitFunc<"__kitqthr_num_workers", U64, []>;

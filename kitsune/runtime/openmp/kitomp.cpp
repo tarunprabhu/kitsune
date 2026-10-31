@@ -164,7 +164,7 @@ static void staticLoopWrapper(int32_t *globalTID, int32_t *localTID,
 
 void OpenMPContext::launch(OMPThrdFunc *f, uint64_t start, uint64_t end,
                            void *args, [[maybe_unused]] uint32_t argSize) {
-  assert(start == 0 && end == getNumThreads() &&
+  assert(start == 0 && end <= getNumThreads() &&
          "__kitomp_launch expects loop iterations in range [0,NUM_THREADS)");
   LOG("Launching multithreaded loop: [%ld,%ld)", start, end);
 
