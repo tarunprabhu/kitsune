@@ -13,6 +13,7 @@
 #ifndef KITSUNE_CORE_REDUCTIONS_H
 #define KITSUNE_CORE_REDUCTIONS_H
 
+#include "kitsune/Core/ReductionStrategy.h"
 #include "kitsune/Core/TTID.h"
 #include "kitsune/Support/FromInt.h"
 #include "kitsune/Support/ToString.h"
@@ -68,69 +69,6 @@ enum class ReduceOp : uint32_t {
   SMin = 25,        ///< Minimum of two signed integers
   UMax = 26,        ///< Maximum of two unsigned integers
   UMin = 27,        ///< Minimum of two unsigned integers
-};
-
-/// The various reduction strategies that are available. This is the strategy
-/// used to perform the final reduction into the result.
-enum ReductionStrategy {
-  /// Let the compiler pick a suitable strategy. This should only be used by the
-  /// frontend when first generating an intrinsic. By the time the intrinsic is
-  /// to be lowered, any uses of this should have been replaced with a specific
-  /// strategy.
-  Auto = 0,
-
-  /// This is the equivalent of a serial reduction. It is performed directly
-  /// into the destination without an atomic. This should only be used when a
-  /// serial reduction is to be performed. In practice, with Kitsune, this will
-  /// usually be seen in the "base" cases for more sophisticated approaches, for
-  /// instance, when using warp shuffles on a GPU.
-  Naive = 1,
-
-  /// Each thread accumulates its contribution directly into the result variable
-  /// using an atomic operation. This is the most naive approach possible, and
-  /// is likely to have poor performance on both CPU and GPU. In certain cases,
-  /// such as when the destination of a reduction in a loop is not loop
-  /// invariant, this is the only strategy that will yield correct results. This
-  /// is different from the \ref ThreadLocal strategy since it does not compute
-  /// a partial result within a thread - all calls to the kit.reduce intrinsic
-  /// are essentially replaced with an atomic operation. This matters in cases
-  /// where, for instance, a call to a reduce intrinsic is in a serial loop
-  /// that is a child of a tapir loop. In such cases, reducing into a
-  /// thread-local temporary may be beneficial, but, with this strategy, that
-  /// will not be done.
-  Direct = 2,
-
-  /// Each thread computes its contribution to the reduction into a location in
-  /// thread-local memory. This is then accumulated into the result variable
-  /// using an atomic operation just before the thread finishes executing. This
-  /// is the default strategy used for reductions by the CPU-centric tapir
-  /// targets. It may also be used on the GPU, though it is not clear if there
-  /// is any advantage to doing so. However, this can be more efficient than the
-  /// \ref Direct strategy in cases where the call to the reduction intrinsic is
-  /// in a serial loop within a tapir loop. If the destination of the reduction
-  /// is loop-invariant relative to the parallel loop, accumulating the result
-  /// into a thread-local variable first will usually require fewer atomic
-  /// operations than the \ref Direct strategy.
-  ThreadLocal = 3,
-
-  /// Each thread in a block writes its contribution to the result into a
-  /// dedicated location in GPU shared memory. These are then reduced into a
-  /// single value for the block. This is accumulated into the result variable
-  /// using an atomic operation.
-  GPUSharedMemory = 4,
-
-  /// Each thread in a warp computes its contribution to the result, which are
-  /// the reduced to a single value for the warp using warp shuffles. A single
-  /// thread in the warp will accumulate this directly into the result variable
-  /// using an atomic operation.
-  GPUWarpShuffle = 5,
-
-  /// Each thread in a warp computes its contribution to the result, which are
-  /// the reduced to a single value for the warp using warp shuffles. A single
-  /// thread in the warp writes this to a dedicated location in shared memory.
-  /// These are then reduced to a single value for the block. This value is
-  /// accumulated into the result variable using an atomic operation.
-  GPUWarpShuffleWithSharedMemory = 6,
 };
 
 /// Information about a reduction obtained by parsing a call to Kitsune's reduce

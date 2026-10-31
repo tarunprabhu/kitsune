@@ -75,19 +75,6 @@ Type *ReductionInfo::getResultBufferType() const {
 
 // -----------------------------------------------------------------------------
 
-template <> std::optional<ReductionStrategy> llvm::fromInt(int64_t i) {
-  switch (i) {
-  case 0: return ReductionStrategy::Auto;
-  case 1: return ReductionStrategy::Naive;
-  case 2: return ReductionStrategy::Direct;
-  case 3: return ReductionStrategy::ThreadLocal;
-  case 4: return ReductionStrategy::GPUSharedMemory;
-  case 5: return ReductionStrategy::GPUWarpShuffle;
-  case 6: return ReductionStrategy::GPUWarpShuffleWithSharedMemory;
-  default: return std::nullopt;
-  }
-}
-
 template <> std::optional<ReduceOp> llvm::fromInt(int64_t i) {
   switch (i) {
   case 0: return ReduceOp::Custom;

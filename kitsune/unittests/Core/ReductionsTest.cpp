@@ -18,17 +18,6 @@ using namespace llvm;
 
 namespace {
 
-TEST(KitReductions, fromIntReductionStrategy) {
-  EXPECT_EQ(fromInt<ReductionStrategy>(0), ReductionStrategy::Auto);
-  EXPECT_EQ(fromInt<ReductionStrategy>(1), ReductionStrategy::Naive);
-  EXPECT_EQ(fromInt<ReductionStrategy>(2), ReductionStrategy::Direct);
-  EXPECT_EQ(fromInt<ReductionStrategy>(3), ReductionStrategy::ThreadLocal);
-  EXPECT_EQ(fromInt<ReductionStrategy>(4), ReductionStrategy::GPUSharedMemory);
-  EXPECT_EQ(fromInt<ReductionStrategy>(5), ReductionStrategy::GPUWarpShuffle);
-  EXPECT_EQ(fromInt<ReductionStrategy>(6),
-            ReductionStrategy::GPUWarpShuffleWithSharedMemory);
-}
-
 TEST(KitReductions, fromIntReduceOp) {
   EXPECT_EQ(fromInt<ReduceOp>(0), ReduceOp::Custom);
   EXPECT_EQ(fromInt<ReduceOp>(1), ReduceOp::And);
