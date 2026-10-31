@@ -1,4 +1,4 @@
-//===- SpawnStrategy.cpp - The spawn strategsy enum -----------------------===//
+//===- SpawnStrategy.cpp - The spawn strategy enum ------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,7 +6,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Define the core spawn strategy enum.
+// The spawn strategy enum.
 //
 //===----------------------------------------------------------------------===//
 
@@ -27,7 +27,7 @@ template <> std::string llvm::toString(const TapirSpawnStrategy &strategy) {
   case TapirSpawnStrategy::GPU: return "GPU";
   case TapirSpawnStrategy::Basic: return "Basic";
   }
-  llvm_unreachable("operator<<: TapirSpawnStrategy not handled");
+  llvm_unreachable("toString: TapirSpawnStrategy not handled");
 }
 
 raw_ostream &llvm::operator<<(raw_ostream &os,
