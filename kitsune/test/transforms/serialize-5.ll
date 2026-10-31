@@ -1,0 +1,172 @@
+; By default, tapir loops at depth greater than 3 should always be serialized.
+;
+; RUN: opt -passes=kit-serialize -serialize-verbose=0 -S %s | FileCheck %s
+
+; CHECK-LABEL: @f
+; CHECK: %[[SR1:.+]] = call token @llvm.syncregion.start
+; CHECK: br label %[[HEADER1:.+]]
+; CHECK: [[HEADER1]]:
+; CHECK: detach within %[[SR1]]
+; CHECK: %[[SR2:.+]] = call token @llvm.syncregion.start
+; CHECK: br label %[[HEADER2:.+]]
+; CHECK: [[HEADER2]]:
+; CHECK: detach within %[[SR2]]
+; CHECK: %[[SR3:.+]] = call token @llvm.syncregion.start
+; CHECK: br label %[[HEADER3:.+]]
+; CHECK: [[HEADER3]]:
+; CHECK: detach within %[[SR3]], label %[[BODY3:.+]],
+; CHECK: [[BODY3]]:
+; CHECK-NOT: call token @llvm.syncregion.start
+; CHECK: br label %[[HEADER4:.+]]
+; CHECK: [[HEADER4]]:
+; CHECK-NOT: detach within
+; CHECK: br label %[[BODY4:.+]]
+; CHECK: [[BODY4]]:
+; CHECK-NOT: call token @llvm.syncregion.start
+; CHECK: br label %[[HEADER5:.+]]
+; CHECK: [[HEADER5]]:
+; CHECK-NOT: detach within
+; CHECK: br label %[[BODY5:.+]]
+; CHECK: [[BODY5]]:
+; CHECK-NOT: reattach within
+; CHECK: br label %[[LATCH5:.+]]
+; CHECK: br i1 {{.+}}, label %[[HEADER5]]
+; CHECK-SAME: !llvm.loop ![[LOOP5:[0-9]+]]
+; CHECK-NOT: reattach within
+; CHECK: br label %[[LATCH4:.+]]
+; CHECK: br i1 {{.+}}, label %[[HEADER4]]
+; CHECK-SAME: !llvm.loop ![[LOOP4:[0-9]+]]
+; CHECK: reattach within %[[SR3]]
+; CHECK: br i1 {{.+}}, label %[[HEADER3]]
+; CHECK-SAME: !llvm.loop ![[LOOP3:[0-9]+]]
+; CHECK: reattach within %[[SR2]]
+; CHECK: br i1 {{.+}}, label %[[HEADER2]]
+; CHECK-SAME: !llvm.loop ![[LOOP2:[0-9]+]]
+; CHECK: reattach within %[[SR1]]
+; CHECK: br i1 {{.+}}, label %[[HEADER1]]
+; CHECK-SAME: !llvm.loop ![[LOOP1:[0-9]+]]
+;
+; CHECK-DAG: ![[DEPTH:[0-9]+]] = !{!"tapir.loop.perfect.depth", i32 3}
+; CHECK-DAG: ![[LEVEL1:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 1}
+; CHECK-DAG: ![[LEVEL2:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 2}
+; CHECK-DAG: ![[LEVEL3:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 3}
+; CHECK-DAG: ![[SERIALIZED:[0-9]+]] = !{!"tapir.loop.serialized"}
+;
+; CHECK-DAG: ![[LOOP5]] = distinct !{![[LOOP5]], ![[SERIALIZED]]}
+; CHECK-DAG: ![[LOOP4]] = distinct !{![[LOOP4]], ![[SERIALIZED]]}
+; CHECK-DAG: ![[LOOP3]] = distinct !{![[LOOP3]], {{.+}}, ![[LEVEL3]]}
+; CHECK-DAG: ![[LOOP2]] = distinct !{![[LOOP2]], {{.+}}, ![[LEVEL2]]}
+; CHECK-DAG: ![[LOOP1]] = distinct !{![[LOOP1]], {{.+}}, ![[LEVEL1]], ![[DEPTH]]}
+
+define void @f(i64 %n) {
+entry:
+  %sr1 = call token @llvm.syncregion.start()
+  br label %header1
+
+header1:
+  %i = phi i64 [ 0, %entry ], [ %inc1, %latch1 ]
+  detach within %sr1, label %body1, label %latch1
+
+body1:
+  %sr2 = call token @llvm.syncregion.start()
+  br label %header2
+
+header2:
+  %j = phi i64 [ 0, %body1 ], [ %inc2, %latch2 ]
+  detach within %sr2, label %body2, label %latch2
+
+body2:
+  %sr3 = call token @llvm.syncregion.start()
+  br label %header3
+
+header3:
+  %k = phi i64 [ 0, %body2 ], [ %inc3, %latch3 ]
+  detach within %sr3, label %body3, label %latch3
+
+body3:
+  %sr4 = call token @llvm.syncregion.start()
+  br label %header4
+
+header4:
+  %l4 = phi i64 [ 0, %body3 ], [ %inc4, %latch4 ]
+  detach within %sr4, label %body4, label %latch4
+
+body4:
+  %sr5 = call token @llvm.syncregion.start()
+  br label %header5
+
+header5:
+  %l5 = phi i64 [ 0, %body4 ], [ %inc5, %latch5 ]
+  detach within %sr5, label %body5, label %latch5
+
+body5:
+  reattach within %sr5, label %latch5
+
+latch5:
+  %inc5 = add i64 %l5, 1
+  %cmp5 = icmp eq i64 %inc5, %n
+  br i1 %cmp5, label %sync5, label %header5, !llvm.loop !7
+
+sync5:
+  sync within %sr5, label %reattach4
+
+reattach4:
+  reattach within %sr4, label %latch4
+
+latch4:
+  %inc4 = add i64 %l4, 1
+  %cmp4 = icmp eq i64 %inc4, %n
+  br i1 %cmp4, label %sync4, label %header4, !llvm.loop !8
+
+sync4:
+  sync within %sr4, label %reattach3
+
+reattach3:
+  reattach within %sr3, label %latch3
+
+latch3:
+  %inc3 = add i64 %k, 1
+  %cmp3 = icmp eq i64 %inc3, %n
+  br i1 %cmp3, label %sync3, label %header3, !llvm.loop !9
+
+sync3:
+  sync within %sr3, label %reattach2
+
+reattach2:
+  reattach within %sr2, label %latch2
+
+latch2:
+  %inc2 = add i64 %j, 1
+  %cmp2 = icmp eq i64 %inc2, %n
+  br i1 %cmp2, label %sync2, label %header2, !llvm.loop !10
+
+sync2:
+  sync within %sr2, label %reattach1
+
+reattach1:
+  reattach within %sr1, label %latch1
+
+latch1:
+  %inc1 = add i64 %i, 1
+  %cmp1 = icmp eq i64 %inc1, %n
+  br i1 %cmp1, label %sync1, label %header1, !llvm.loop !11
+
+sync1:
+  sync within %sr1, label %exit
+
+exit:
+  ret void
+}
+
+!0 = !{!"tapir.loop.target", i32 1}
+!1 = !{!"tapir.loop.perfect.depth", i32 5}
+!2 = !{!"tapir.loop.perfect.level", i32 1}
+!3 = !{!"tapir.loop.perfect.level", i32 2}
+!4 = !{!"tapir.loop.perfect.level", i32 3}
+!5 = !{!"tapir.loop.perfect.level", i32 4}
+!6 = !{!"tapir.loop.perfect.level", i32 5}
+!7 = distinct !{!7, !0, !6}
+!8 = distinct !{!8, !0, !5}
+!9 = distinct !{!9, !0, !4}
+!10 = distinct !{!10, !0, !3}
+!11 = distinct !{!11, !0, !2, !1}

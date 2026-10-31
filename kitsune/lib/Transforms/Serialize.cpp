@@ -25,8 +25,9 @@
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
 #include "kitsune/Core/ModuleAttrs.h"
+#include "kitsune/Shared/RTNestUtils.h"
 #include "kitsune/Support/CommandLineOptions.h"
-#include "llvm/ADT/SetVector.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/IR/Module.h"
@@ -70,17 +71,14 @@ static void removeSyncRegionAndSync(Value *syncRegion) {
   }
 }
 
-// Reset the "perfect.depth" annotation on the root of the tapir loop nest
-// to which the given loop belongs. Always returns true.
-static bool resetMaxPerfectDepth(Loop &loop, unsigned newDepth) {
-  Loop *curr = &loop;
-  while (*getPerfectLevelAttr(*curr) > 1) {
-    curr = curr->getParentLoop();
-    assert(curr && "Perfectly nested tapir loop at level greater than one "
-                   "must have a parent");
-  }
-  addPerfectDepthAttr(*curr, newDepth);
-  return true;
+// Get the root of the tapir loop nest of which loop is a constituent.
+static Loop *getRoot(Loop *loop) {
+  if (!loop)
+    return nullptr;
+  else if (*getPerfectLevelAttr(*loop) == 1)
+    return loop;
+  else
+    return getRoot(loop->getParentLoop());
 }
 
 // Serialize the loop depending on the loop level. Always returns true.
@@ -88,24 +86,26 @@ static bool resetMaxPerfectDepth(Loop &loop, unsigned newDepth) {
 // TODO: This currently serializes tapir loops whose depth is greater than 3.
 // For deep loop nests like this, we should consider serializing one or more
 // outer loops instead of the inner ones.
-static bool serializeLoop(Loop &loop, Task &task) {
-  unsigned perfectLevel = *getPerfectLevelAttr(loop);
-  Value *syncRegion = task.getDetach()->getSyncRegion();
+static bool serializeLoop(Loop &loop) {
+  Value *syncRegion = getTapirLoopSyncRegion(loop);
+  unsigned level = *getPerfectLevelAttr(loop);
 
   if (clVerbose)
     emitDiagnostic(loop, DiagID::RemarkSerializedLoop);
 
   // TODO: Once there is better multi-target support, we may be able to just set
   // the tapir loop target to `serial` and let loop-spawning deal with it.
-  serializeTapirLoop(loop, task);
+  serializeTapirLoop(loop);
   removeSyncRegionAndSync(syncRegion);
 
-  if (perfectLevel > 3)
-    // In this case, we must adjust the depth annotation at the root of the
-    // loop nest. We start looking at the parent because loop itself will no
-    // longer contain any tapir loop annotations. These are required by
-    // resetMaxPerfectDepth().
-    resetMaxPerfectDepth(*loop.getParentLoop(), 3);
+  // Adjust the depth annotation at the root of the loop nest. We start looking
+  // at the parent because the loop itself will no longer contain any tapir loop
+  // annotations. We know that the innermost loops in a nest will be serialized
+  // before a loop at a higher level in the same nest. Therefore, we can use the
+  // level of the loop that was just serialized to determine the new depth of
+  // the nest.
+  if (Loop *root = getRoot(loop.getParentLoop()))
+    addPerfectDepthAttr(*root, level - 1);
 
   return true;
 }
@@ -132,29 +132,38 @@ static bool serializeLoop(Loop &loop, Task &task) {
 // This function will return those tapir loops whose nesting level is greater
 // than 3, regardless of their tapir target. The nesting level attribute is
 // required to be present on all tapir loops at this point.
-SetVector<Loop *> getLoopsToSerialize(LoopInfo &li) {
+static SmallVector<Loop *> getLoopsToSerialize(LoopInfo &li) {
   auto shouldSerialize = [](const Loop &loop) -> bool {
     if (!isTapirLoop(loop))
       return false;
 
     assert(hasPerfectLevelAttr(loop) && "Loop has perfect.level attribute");
-    if (*getPerfectLevelAttr(loop) <= 3)
+    if (*getPerfectLevelAttr(loop) <= NEST_MAX_DEPTH)
       return false;
 
     return true;
   };
 
-  SetVector<Loop *> loopsToSerialize;
+  SmallVector<Loop *, 0> loopsToSerialize;
   for (Loop *loop : li.getLoopsInPreorder())
     if (shouldSerialize(*loop))
-      loopsToSerialize.insert(loop);
+      loopsToSerialize.push_back(loop);
+
+  // Sort the loops to be serialized in descending order of their level. This
+  // makes it easier to update the depth attribute on the root of the tapir
+  // loop nest of which they are a part.
+  std::sort(loopsToSerialize.begin(), loopsToSerialize.end(),
+            [](Loop *l, Loop *r) -> bool {
+              return *getPerfectLevelAttr(*l) > *getPerfectLevelAttr(*r);
+            });
+
   return loopsToSerialize;
 }
 
 static bool serializeImpl(Function &f, LoopInfo &li, TaskInfo &ti) {
   bool changed = false;
   for (Loop *loop : getLoopsToSerialize(li))
-    changed |= serializeLoop(*loop, *getTaskIfTapirLoop(loop, &ti));
+    changed |= serializeLoop(*loop);
   return changed;
 }
 
