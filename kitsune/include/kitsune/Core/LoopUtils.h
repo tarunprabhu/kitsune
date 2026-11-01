@@ -144,6 +144,7 @@ SmallVector<Loop *, 4> getTapirLoops(LoopInfo &li);
 /// order of levels. The first element in the result will be \p loop. All tapir
 /// loops in the nest must have the perfect.level attribute.
 SmallVector<Loop *, 4> getTapirLoopsInNest(Loop &root);
+SmallVector<const Loop *, 4> getTapirLoopsInNest(const Loop &root);
 
 /// Tapir loops may require mandatory LLVM loop attributes. Those can be added
 /// using this function.
