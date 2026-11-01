@@ -63,14 +63,6 @@ public:
 } // namespace
 
 bool VerifyFunction::verifyReductions(Function &f) {
-  auto isNestedTapirLoop = [](const Loop &loop) -> bool {
-    if (isTapirLoop(loop))
-      return isAnyAncestorTapirLoop(loop);
-    else if (const Loop *ancestorLoop = getNearestAncestorTapirLoop(loop))
-      return isAnyAncestorTapirLoop(*ancestorLoop);
-    llvm_unreachable("Loop must have ancestor tapir loop");
-  };
-
   auto consistentStrategies =
       [](const SmallVectorImpl<ReductionInfo> &redxns) -> bool {
     auto mismatch = std::adjacent_find(
@@ -85,15 +77,6 @@ bool VerifyFunction::verifyReductions(Function &f) {
   SmallVector<Loop *, 4> tapirLoops;
   std::copy_if(loops.begin(), loops.end(), std::back_inserter(tapirLoops),
                [](Loop *loop) { return isTapirLoop(*loop); });
-
-  for (Loop *loop : tapirLoops)
-    for (BasicBlock *bb : loop->getBlocks())
-      for (Instruction &inst : *bb)
-        if (auto *call = dyn_cast<CallBase>(&inst))
-          if (call->getIntrinsicID() == Intrinsic::kit_reduce)
-            if (isNestedTapirLoop(*li.getLoopFor(bb)))
-              return emitDiagnostic(*call, DiagID::ErrNYI,
-                                    "nested parallel reductions");
 
   // All reductions in a tapir loop nest must have consistent strategies, i.e.
   // all strategies must be identical.
@@ -118,6 +101,10 @@ bool VerifyFunction::verifyReductions(Function &f) {
       if (!isGPUStrategy(strategy))
         return emitDiagnostic(*loop, DiagID::ErrInvalidReductionStrategyForTT,
                               strategy, tt);
+    } else if (tt != TTID::Custom) {
+      // We ignore the custom tapir target because it is not clear what we ought
+      // to do in that case.
+      llvm_unreachable("Unknown tapir target category");
     }
   }
 
