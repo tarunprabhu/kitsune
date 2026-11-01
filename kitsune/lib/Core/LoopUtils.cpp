@@ -240,17 +240,18 @@ SmallVector<Loop *, 4> llvm::getTapirLoops(LoopInfo &li) {
   return loops;
 }
 
-SmallVector<Loop *, 4> llvm::getTapirLoopsInNest(Loop &loop) {
+template <typename L>
+static SmallVector<L *, 4> getTapirLoopsInNestImpl(L &loop) {
   assert(isTapirLoop(loop) && "Loop is a tapir loop");
   assert(hasPerfectDepthAttr(loop) && "Loop has perfect.depth attribute");
   assert(hasPerfectLevelAttr(loop) && "Loop has perfect.level attribute");
   assert((*getPerfectLevelAttr(loop) == 1) && "Level of loop must be 1");
 
   unsigned depth = *getPerfectDepthAttr(loop);
-  SmallVector<Loop *, 4> nest;
+  SmallVector<L *, 4> nest;
   nest.resize(depth);
   nest[0] = &loop;
-  for (Loop *l : getAllSubLoops(loop)) {
+  for (L *l : getAllSubLoops(loop)) {
     if (isTapirLoop(*l)) {
       std::optional<unsigned> level = getPerfectLevelAttr(*l);
       assert(level.has_value() && "Subloop has perfect.level attribute");
@@ -265,6 +266,14 @@ SmallVector<Loop *, 4> llvm::getTapirLoopsInNest(Loop &loop) {
               return *getPerfectLevelAttr(*l1) < *getPerfectLevelAttr(*l2);
             });
   return nest;
+}
+
+SmallVector<Loop *, 4> llvm::getTapirLoopsInNest(Loop &root) {
+  return getTapirLoopsInNestImpl(root);
+}
+
+SmallVector<const Loop *, 4> llvm::getTapirLoopsInNest(const Loop &root) {
+  return getTapirLoopsInNestImpl(root);
 }
 
 void llvm::addMandatoryLLVMLoopAttrs(Loop &loop) {
