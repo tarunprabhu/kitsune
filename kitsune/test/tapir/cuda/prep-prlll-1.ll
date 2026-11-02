@@ -1,63 +1,79 @@
-; Check that a simple tapir loop of depth 1 is prepared as expected. This should
-; leave the loop unchanged. But the tapir.loop.prepared attribute must be added
-; to the loop.
+; Check that a simple tapir loop of depth 1 with the cuda tapir target is
+; prepared as expected.
 ;
-; RUN: opt --tapir=cuda --passes=kit-prepare -S %s | FileCheck %s
-;
+; RUN: opt -passes=kit-prepare -S %s | FileCheck %s
+
 ; CHECK-LABEL: @f
-; CHECK-SAME: i64 %[[N:[^)]+]]
+; CHECK-SAME: i64 %[[N1:[^)]+]]
 ; CHECK-NEXT: [[ENTRY:.+]]:
-; CHECK-NEXT: %[[SYNCREG:.+]] = tail call token @llvm.syncregion.start()
-; CHECK-NEXT: br label %[[HEADER:.+]]
+; CHECK-NEXT: %[[SR1:.+]] = call token @llvm.syncregion.start()
+; CHECK-NEXT: %[[CMPN1:.+]] = icmp ult i64 0, %[[N1]]
+; CHECK-NEXT: br i1 %[[CMPN1]], label %[[PH1:.+]], label %[[SYNC1:.+]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[HEADER]]:
-; CHECK-NEXT: %[[IV:.+]] = phi i64
-; CHECK-SAME: [ 0, %[[ENTRY]] ]
-; CHECK-SAME: [ %[[NEXT:.+]], %[[LATCH:.+]] ]
-; CHECK-NEXT: detach within %[[SYNCREG]], label %[[BODY:.+]], label %[[LATCH]]
+; CHECK-NEXT: [[PH1]]:
+; CHECK-NEXT: br label %[[HEADER1:.+]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[BODY]]:
-; CHECK-NEXT: reattach within %[[SYNCREG]], label %[[LATCH]]
+; CHECK-NEXT: [[HEADER1]]:
+; CHECK-NEXT: %[[I1:.+]] = phi i64
+; CHECK-SAME: [ 0, %[[PH1]] ]
+; CHECK-SAME: [ %[[INC1:.+]], %[[LATCH1:.+]] ]
+; CHECK-NEXT: detach within %[[SR1]], label %[[BODY1:.+]], label %[[LATCH1]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[LATCH]]:
-; CHECK-NEXT: %[[NEXT:.+]] = add i64 %[[IV]], 1
-; CHECK-NEXT: %[[CMP:.+]] = icmp eq i64 %[[NEXT]], %[[N]]
-; CHECK-NEXT: br i1 %[[CMP]], label %[[EXIT:.+]], label %[[HEADER]],
-; CHECK-SAME: !llvm.loop ![[LOOP:[0-9]+]]
+; CHECK-NEXT: [[BODY1]]:
+; CHECK-NEXT: reattach within %[[SR1]], label %[[LATCH1]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[LATCH1]]:
+; CHECK-NEXT: %[[INC1:.+]] = add i64 %[[I1]], 1
+; CHECK-NEXT: %[[CMP1:.+]] = icmp eq i64 %[[INC1]], %[[N1]]
+; CHECK-NEXT: br i1 %[[CMP1]], label %[[LOOPEXIT1:.+]], label %[[HEADER1]]
+; CHECK-SAME: !llvm.loop ![[LOOP1:[0-9]+]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[LOOPEXIT1]]:
+; CHECK-NEXT: br label %[[SYNC1]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[SYNC1]]
+; CHECK-NEXT: sync within %[[SR1]], label %[[EXIT:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[EXIT]]:
-; CHECK-NEXT: sync within %[[SYNCREG]], label %[[END:.+]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[END]]:
 ; CHECK-NEXT: ret void
 ;
-; CHECK-DAG: ![[TARGET:.+]] = !{!"tapir.loop.target", i32 2}
 ; CHECK-DAG: ![[PREPARED:.+]] = !{!"tapir.loop.prepared"}
-; CHECK-DAG: ![[LOOP]] = distinct !{![[LOOP]], ![[TARGET]], ![[PREPARED]]}
+; CHECK-DAG: ![[TARGET:.+]] = !{!"tapir.loop.target", i32 2}
+;
+; CHECK-DAG: ![[LOOP1]] = distinct !{![[LOOP1]], ![[TARGET]], {{.+}}, ![[PREPARED]]}
 
-define void @f(i64 %n) {
-entry:
-  %syncreg = tail call token @llvm.syncregion.start()
-  br label %for.i.header
+define void @f(i64 %n1) {
+entry1:
+  %sr1 = call token @llvm.syncregion.start()
+  %cmpn1 = icmp ult i64 0, %n1
+  br i1 %cmpn1, label %ph1, label %sync1
 
-for.i.header:
-  %i = phi i64 [ 0, %entry ], [ %inc.i, %for.i.latch ]
-  detach within %syncreg, label %for.i.body, label %for.i.latch
+ph1:
+  br label %header1
 
-for.i.body:
-  reattach within %syncreg, label %for.i.latch
+header1:
+  %i1 = phi i64 [ 0, %ph1 ], [ %inc1, %latch1 ]
+  detach within %sr1, label %body1, label %latch1
 
-for.i.latch:
-  %inc.i = add i64 %i, 1
-  %cmp.i = icmp eq i64 %inc.i, %n
-  br i1 %cmp.i, label %for.i.exit, label %for.i.header, !llvm.loop !1
+body1:
+  reattach within %sr1, label %latch1
 
-for.i.exit:
-  sync within %syncreg, label %for.i.end
+latch1:
+  %inc1 = add i64 %i1, 1
+  %cmp1 = icmp eq i64 %inc1, %n1
+  br i1 %cmp1, label %loopexit1, label %header1, !llvm.loop !0
 
-for.i.end:
+loopexit1:
+  br label %sync1
+
+sync1:
+  sync within %sr1, label %exit
+
+exit:
   ret void
 }
 
-!0 = !{!"tapir.loop.target", i32 2}
-!1 = distinct !{!1, !0}
+!0 = distinct !{!0, !1, !2, !3}
+!1 = !{!"tapir.loop.target", i32 2}
+!2 = !{!"tapir.loop.perfect.depth", i32 1}
+!3 = !{!"tapir.loop.perfect.level", i32 1}

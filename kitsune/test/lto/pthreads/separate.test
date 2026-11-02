@@ -36,19 +36,20 @@
 # CHECK-SAME: ptr {{[^%]*}}%[[A:[^,]+]],
 # CHECK-SAME: ptr {{[^%]*}}%[[B:[^,]+]],
 # CHECK-SAME: i64 {{[^%]*}}%[[N:[^,]+]])
-# CHECK: %[[NUM_THREADS:.+]] = tail call i64 @llvm.kit.cpu.num.threads(i32 1024)
-# CHECK: %[[PER_THREAD:.+]] = udiv i64 {{.+}}, %[[NUM_THREADS]]
-# CHECK: %[[CTX:.+]] = call ptr (i32, ptr, i64, i64, ...) @llvm.kit.async.cpu.threads.launch(
+# CHECK: %[[SYSTHRDS:.+]] = tail call i64 @llvm.kit.cpu.num.threads(i32 1024)
+# CHECK: %[[CTX:.+]] = tail call ptr @__kitrt_nest_begin(i64 %[[SYSTHRDS]], i32 1)
+# CHECK: %[[THREADS:.+]] = tail call i64 @__kitrt_nest_threads(ptr %[[CTX]])
+# CHECK: %[[LAUNCHCTX:.+]] = call {{.+}} @llvm.kit.async.cpu.threads.launch(
 # CHECK-SAME: i32 1024,
 # CHECK-SAME: ptr @[[WRAPPER:[^,]+]],
 # CHECK-SAME: i64 0,
-# CHECK-SAME: i64 %[[NUM_THREADS]],
-# CHECK-SAME: i64 %[[PER_THREAD]],
+# CHECK-SAME: i64 %[[THREADS]],
+# CHECK-SAME: ptr %[[CTX]],
 # CHECK-SAME: i64 %[[N]],
 # CHECK-SAME: ptr %[[A]],
 # CHECK-SAME: ptr %[[B]],
 # CHECK-SAME: ptr %[[C]],
-# CHECK-NEXT: call void @llvm.kit.cpu.threads.sync(i32 1024, ptr %[[CTX]])
+# CHECK-NEXT: call void @llvm.kit.cpu.threads.sync(i32 1024, ptr %[[LAUNCHCTX]])
 # CHECK: ret void
 #
 # CHECK: define internal fastcc void @[[WRAPPER]](

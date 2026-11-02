@@ -21,11 +21,9 @@ add_llvm_component_library(LLVMKitTransforms
   LowerReduceIntrinsics.cpp
   PreLowerAnnotate.cpp
   PrefetchForDevice.cpp
-  PrepareParallelLoops.cpp
-  PrepareReductionLoops.cpp
-  PrepareReductionLoopsCPU.cpp
-  PrepareReductionLoopsGPU.cpp
   PrepareTapirLoops.cpp
+  PrepareTapirLoopsCPU.cpp
+  PrepareTapirLoopsGPU.cpp
   RecomputeKernelProperties.cpp
   SecondaryIVElimination.cpp
   Serialize.cpp

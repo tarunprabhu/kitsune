@@ -1,113 +1,89 @@
-; Check that a simple reduction loop of depth 1 is prepared as expected. In
-; this case, nothing is changed in the loop body. Only the tapir.loop.prepared
-; attribute is added to the tapir reduction loop.
+; Check that a simple reduction loop nest of depth 1 is prepared as expected. In
+; this case, all tapir loops in the nest are serialized.
 ;
 ; RUN: opt --tapir=serial -passes='kit-prepare' -S %s | FileCheck %s
 ;
 ; CHECK-LABEL: @f
-; CHECK-SAME: i64 %[[N:[^)]+]]
-; CHECK: %[[RESULT:.+]] = alloca i64
-; CHECK: %[[SYNCREG:.+]] = tail call token @llvm.syncregion.start()
-; CHECK-NEXT: br label %[[PH_O:.+]]
+; CHECK-SAME: ptr %[[RESULT:[^,]+]]
+; CHECK-SAME: i64 %[[N1:[^)]+]]
+; CHECK-NEXT: [[ENTRY:.+]]:
+; CHECK-NEXT: %[[CMPN1:.+]] = icmp ult i64 0, %[[N1]]
+; CHECK-NEXT: br i1 %[[CMPN1]], label %[[PH1:.+]], label %[[BYPASS1:.+]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[PH_O]]:
-; CHECK-NEXT: %[[NREDS:.+]] = call i64 @llvm.kit.cpu.num.threads(i32 1)
-; CHECK-NEXT: br label %[[HEADER_O:.+]]
+; CHECK-NEXT: [[PH1]]:
+; CHECK-NEXT: br label %[[HEADER1:.+]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[HEADER_O]]:
-; CHECK-NEXT: %[[IV_O:.+]] = phi i64
-; CHECK-SAME: [ 0, %[[PH_O]] ],
-; CHECK-SAME: [ %[[INC_O:.+]], %[[LATCH_O:.+]] ]
-; CHECK-NEXT: detach within %[[SYNCREG]], label %[[GUARD_I:.+]], label %[[LATCH_O:.+]]
+; CHECK-NEXT: [[HEADER1]]:
+; CHECK-NEXT: %[[I1:.+]] = phi i64
+; CHECK-SAME: [ 0, %[[PH1]] ]
+; CHECK-SAME: [ %[[INC1:.+]], %[[LATCH1:.+]] ]
+; CHECK-NEXT: br label %[[BODY1:.+]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[GUARD_I]]:
-; CHECK-NEXT: %[[NPP:.+]] = add {{.+}} %[[N]], %[[NREDS]]
-; CHECK-NEXT: %[[NPP_1:.+]] = sub {{.+}} %[[NPP]], 1
-; CHECK-NEXT: %[[SZREDS:.+]] = udiv {{.+}} %[[NPP_1]], %[[NREDS]]
-; CHECK-NEXT: %[[START:.+]] = mul {{.+}} %[[IV_O]], %[[SZREDS]]
-; CHECK-NEXT: %[[PLUS:.+]] = add {{.+}} %[[START]], %[[SZREDS]]
-; CHECK-NEXT: %[[END:.+]] = call i64 @llvm.umin.i64(i64 %[[PLUS]], i64 %[[N]])
-; CHECK-NEXT: %[[CMP_GUARD:.+]] = icmp uge {{.+}} %[[START]], %[[END]]
-; CHECK-NEXT: br i1 %[[CMP_GUARD]], label %[[END_I:.+]], label %[[PH_I:.+]]
+; CHECK-NEXT: [[BODY1]]:
+; CHECK-NEXT: call {{.+}} @llvm.kit.reduce
+; CHECK-SAME: i32 1
+; CHECK-SAME: i32 5
+; CHECK-SAME: ptr %[[RESULT]]
+; CHECK-SAME: i64 %[[I1]]
+; CHECK-SAME: i32 0
+; CHECK-SAME: i32 8
+; CHECK-SAME: i64 0
+; CHECK-SAME: ptr @sum
+; CHECK-NEXT: br label %[[LATCH1:.+]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[PH_I]]:
-; CHECK-NEXT: %[[LOCAL:.+]] = alloca i64
-; CHECK-NEXT: store i64 0, ptr %[[LOCAL]]
-; CHECK-NEXT: br label %[[HEADER_I:.+]]
+; CHECK-NEXT: [[LATCH1]]:
+; CHECK-NEXT: %[[INC1:.+]] = add i64 %[[I1]], 1
+; CHECK-NEXT: %[[CMP1:.+]] = icmp eq i64 %[[INC1]], %[[N1]]
+; CHECK-NEXT: br i1 %[[CMP1]], label %[[LOOPEXIT1:.+]], label %[[HEADER1]]
+; CHECK-SAME: !llvm.loop ![[LOOP1:[0-9]+]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[HEADER_I]]:
-; CHECK-NEXT: %[[IV_I:.+]] = phi i64
-; CHECK-SAME: [ %[[START]], %[[PH_I]] ]
-; CHECK-SAME: [ %[[INC_I:.+]], %[[LATCH_I:.+]] ]
-; CHECK-NEXT: br label %[[BODY_I:.+]]
+; CHECK-NEXT: [[LOOPEXIT1]]:
+; CHECK-NEXT: br label %[[BYPASS1]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[BODY_I]]:
-; CHECK-NEXT: call void @sum(ptr %[[LOCAL]], i64 %[[IV_I]])
-; CHECK-NEXT: br label %[[LATCH_I]]
+; CHECK-NEXT: [[BYPASS1]]:
+; CHECK-NEXT: br label %[[EXIT:.+]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[LATCH_I]]:
-; CHECK-NEXT: %[[INC_I:.+]] = add i64 %[[IV_I]], 1
-; CHECK-NEXT: %[[CMP_I:.+]] = icmp eq i64 %[[INC_I]], %[[END]]
-; CHECK-NEXT: br i1 %[[CMP_I]], label %[[EXIT_I:.+]], label %[[HEADER_I]],
-; CHECK-SAME: !llvm.loop ![[LOOP_I:[0-9]+]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[EXIT_I]]:
-; CHECK-NEXT: %[[PARTIAL:.+]] = load i64, ptr %[[LOCAL]]
-; CHECK-NEXT: atomicrmw add ptr %[[RESULT]], i64 %[[PARTIAL]] monotonic
-; CHECK-NEXT: br label %[[END_I]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[END_I]]:
-; CHECK-NEXT: br label %[[REATTACH:.+]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[REATTACH]]:
-; CHECK-NEXT: reattach within %[[SYNCREG]], label %[[LATCH_O]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[LATCH_O]]:
-; CHECK-NEXT: %[[INC_O:.+]] = add i64 %[[IV_O]], 1
-; CHECK-NEXT: %[[CMP_O:.+]] = icmp eq i64 %[[INC_O]], %[[NREDS]]
-; CHECK-NEXT: br i1 %[[CMP_O]], label %[[EXIT_O:.+]], label %[[HEADER_O]],
-; CHECK-SAME: !llvm.loop ![[LOOP_O:[0-9]+]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[EXIT_O]]:
-; CHECK-NEXT: br label %[[SYNC:.+]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[SYNC]]:
-; CHECK-NEXT: sync within %[[SYNCREG]],
+; CHECK-NEXT: [[EXIT]]:
+; CHECK-NEXT: ret void
 ;
-; CHECK-DAG: ![[TARGET:.+]] = !{!"tapir.loop.target", i32 1}
-; CHECK-DAG: ![[REDUCTION:.+]] = !{!"tapir.loop.reduction"}
-; CHECK-DAG: ![[PREPARED:.+]] = !{!"tapir.loop.prepared"}
-; CHECK-DAG: ![[LOOP_I]] = distinct !{![[LOOP_I]]}
-; CHECK-DAG: ![[LOOP_O]] = distinct !{![[LOOP_O]], {{.+}}, ![[PREPARED]]}
+; CHECK-DAG: ![[LOOP1]] = distinct !{![[LOOP1]]}
 
 declare void @sum(ptr %res, i64 %v)
 
-define void @f(i64 %n) {
+define void @f(ptr %result, i64 %n) {
 entry:
-  %result = alloca i64
-  %syncreg = tail call token @llvm.syncregion.start()
-  br label %for.j.header
+  %sr = call token @llvm.syncregion.start()
+  %cmpn = icmp ult i64 0, %n
+  br i1 %cmpn, label %ph, label %bypass
 
-for.j.header:
-  %j = phi i64 [ 0, %entry ], [ %inc.j, %for.j.latch ]
-  detach within %syncreg, label %for.j.body, label %for.j.latch
+ph:
+  br label %header
 
-for.j.body:
+header:
+  %j = phi i64 [ 0, %ph ], [ %inc, %latch ]
+  detach within %sr, label %body, label %latch
+
+body:
   call void(i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.reduce(i32 1, i32 5, ptr %result, i64 %j, i32 0, i32 8, i64 0, ptr @sum)
-  reattach within %syncreg, label %for.j.latch
+  reattach within %sr, label %latch
 
-for.j.latch:
-  %inc.j = add i64 %j, 1
-  %cmp.j = icmp eq i64 %inc.j, %n
-  br i1 %cmp.j, label %for.j.exit, label %for.j.header, !llvm.loop !2
+latch:
+  %inc = add i64 %j, 1
+  %cmp = icmp eq i64 %inc, %n
+  br i1 %cmp, label %loopexit, label %header, !llvm.loop !0
 
-for.j.exit:
-  sync within %syncreg, label %for.j.end
+loopexit:
+  br label %bypass
 
-for.j.end:
+bypass:
+  sync within %sr, label %exit
+
+exit:
   ret void
 }
 
-!0 = !{!"tapir.loop.reduction"}
+!0 = distinct !{!0, !1, !2, !3, !4}
 !1 = !{!"tapir.loop.target", i32 1}
-!2 = distinct !{!2, !0, !1}
+!2 = !{!"tapir.loop.reduction"}
+!3 = !{!"tapir.loop.perfect.depth", i32 1}
+!4 = !{!"tapir.loop.perfect.level", i32 1}

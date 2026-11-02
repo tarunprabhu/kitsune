@@ -6,572 +6,229 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Transform tapir loops to a form suitable for parallel execution.
+// Transform tapir loop nests to a form suitable for parallel execution. Note
+// that this pass intentionally operates on a nests rooted at a top-level tapir
+// loop. A top-level tapir loop for which one of the following hold:
 //
-// Consider the loop shown below
+//   - The loop does not have any loops as ancestors
+//   - None of the ancestors of the loop are tapir loops
 //
-//     parallel_for (int i = 0; i < n; ++i) {
-//         ...
-//     }
+// This will only transform loop nests of tapir-depth <= 3. Here we have used
+// "tapir-depth" to mean the number of nested tapir loops. The nest itself can
+// have a depth greater than 3, but no more than three of those loops can be
+// tapir loops. The usual constraints on the parents of tapir loops hold. For
+// instance, the following are permitted:
 //
-// This pass will transform this into the following for parallel execution on a
-// CPU.
+//     for (...)           forall (...)        forall (...)
+//       forall (...)        forall (...)        forall (...)
+//         forall (...)        forall (...)        forall (...)
+//           ...                 ...                 for (...)
+//                                                     ...
 //
-//     int64_t numThreads = kit.cpu.num.threads();
-//     int64_t itersPerThread = (n + numThreads - 1) / numThreads;
-//     parallel_for (int j = 0; j < numThreads; ++j) {
-//         int start = j * itersPerThread;
-//         int end = std::min(start + itersPerThread, n);
-//         for (int i = start; i < end; ++i) {
+// However, the following are not:
+//
+//     forall (...)        forall (...)
+//       forall (...)        for (...)
+//         forall (...)        forall (...)
+//           forall (...)        ...
 //             ...
-//         }
-//     }
 //
-// The main reason for this transformation is to enable vectorization in
-// parallel loops. Currently, LLVM's vectorizer is not able to reason about
-// tapir loops since it cannot determine the correctness of vectorization in
-// the presence of tapir instructions. With this, and subsequent transformations
-// that will convert the inner loop to have a canonical induction variable, the
-// inner loop can be vectorized.
-//
-// The other advantage of this transformation is that it simplifies the
-// implementation of Kitsune's CPU-centric runtimes since they no longer need to
-// determine how many iterations of the parallel loop are to be performed on
-// each thread - every thread will perform exactly one iteration.
-//
-// For GPU's, the loop will be transformed into the following:
-//
-//     // The number of iterations of the parallel loop to be run on each thread
-//     int64_t itersPerThread = kit.gpu.ipt();
-//     int64_t numThreads = (n + itersPerThread - 1) / itersPerThread;
-//     parallel_for (int j = 0; j < numThreads; ++j) {
-//         int start = j * itersPerThread;
-//         int end = std::min(start + itersPerThread, n);
-//         for (int i = start; i < end; ++i) {
-//             ...
-//         }
-//     }
-//
-// Note that, unlike the transformation for the CPU where we have a fixed number
-// of parallel workers, for the GPU, we decide how much work to do per thread,
-// then determine the number of threads to use from that. The kit.gpu.ipt
-// intrinsic may be lowered to a compile-time constant, or a call to a runtime
-// function.
-//
-// The other major difference in GPU-lowering is in the case of nested parallel
-// loops. In the CPU case, each loop in the nest is transformed in exactly the
-// same way. For GPU's, though, only the innermost loop is transformed. Consider
-// the nested parallel loops below.
-//
-//     parallel_for (int i = 0; i < m; ++i) {
-//         parallel_for (int j = 0; j < n; ++j) {
-//             ...
-//         }
-//     }
-//
-// This will be transformed as shown below:
-//
-//     parallel_for (int i = 0; i < m; ++i) {
-//       int64_t itersPerThread = kit.gpu.ipt();
-//       int64_t numThreads = (n + itersPerThread - 1) / itersPerThread;
-//       parallel_for (int j = 0; j < numThreads; ++j) {
-//           int start = j * itersPerThread;
-//           int end = std::min(start + itersPerThread, n);
-//           for (int i = start; i < end; ++i) {
-//               ...
-//           }
-//       }
-//    }
+// The specific transformations that are performed are described in the files
+// where the transformation is implemented.
 //
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Transforms/PrepareTapirLoops.h"
-#include "PrepareParallelLoops.h"
-#include "PrepareReductionLoops.h"
+#include "LoopWrapping.h"
 #include "PrepareTapirLoopsImpl.h"
-#include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/Diagnostics.h"
-#include "kitsune/Core/InstUtils.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
+#include "kitsune/Core/Reductions.h"
+#include "kitsune/Core/TTUtils.h"
 #include "kitsune/Core/ValueUtils.h"
 #include "kitsune/Passes/PassUtils.h"
-#include "kitsune/Support/ErrorHandling.h"
+#include "kitsune/Shared/RTNestUtils.h"
+#include "llvm/Analysis/LoopInfo.h"
+#include "llvm/Analysis/MemorySSA.h"
 #include "llvm/Analysis/OptimizationRemarkEmitter.h"
+#include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
+#include "llvm/IR/Dominators.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
-#include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
 
 #define DEBUG_TYPE "kit-prepare"
 
 using namespace llvm;
 
-// When the outer loop was generated, the induction variable was canonical and
-// in the range [0, n] in steps of 1 where `n` was the trip count of the tapir
-// loop being transformed. This must be changed so the range of the IV is [0,
-// numThreads] where numThreads is the number of CPU threads available. The step
-// will remain 1.
-void detail::PrepareTapirLoopBase::updateOuterLoopIV(Loop &outerLoop,
-                                                     Value *outerTC) {
-  auto sanityCheck = [](const Loop &outerLoop, ScalarEvolution &se) {
-    assert(outerLoop.isLoopSimplifyForm() &&
-           "Outer loop must be in loop-simplify form");
-    assert(outerLoop.getCanonicalInductionVariable() &&
-           "Outer loop must have a canonical induction variable");
-    assert(outerLoop.getBounds(se).has_value() &&
-           "Outer loop must have computable loop bounds");
-  };
+// Perform sanity checks on \p tapirLoop that are to be performed on both
+// reduction, and non-reduction, tapir loops.
+static bool checkCommon(TapirLoopInfo &tapirLoop, DominatorTree &dt,
+                        LoopInfo &li, ScalarEvolution &se) {
+  const Loop &root = *tapirLoop.getLoop();
 
-  LLVM_DEBUG(dbgs() << "PrepareTapir: Update outer loop induction variable\n");
-  sanityCheck(outerLoop, se);
+  if (!root.isLoopSimplifyForm())
+    return emitDiagnostic(root, DiagID::ErrLoopNotSimplifyForm);
 
-  // The arguments to the comparison instruction will be the step instruction,
-  // which increments the induction variable, and the final value. We just
-  // change the operand that is not the step to be the new final value.
-  PHINode *iv = outerLoop.getCanonicalInductionVariable();
-  ICmpInst *cmp = outerLoop.getLatchCmpInst();
-  Instruction *inc = &outerLoop.getBounds(se)->getStepInst();
+  std::optional<unsigned> depth = getPerfectDepthAttr(root);
+  if (!depth.has_value())
+    return emitDiagnostic(root, DiagID::ErrAttrMissing,
+                          getAttrName(LoopAttrKind::PerfectDepth));
+  else if (*depth < 1 || *depth > NEST_MAX_DEPTH)
+    return emitDiagnostic(root, DiagID::ErrTapirLoopNestTooDeep);
 
-  replaceNonMatchingOperands(*cmp, inc, outerTC);
+  SmallVector<const Loop *, 4> loops = getTapirLoopsInNest(root);
+  for (const Loop *loop : loops) {
+    if (!loop->getCanonicalInductionVariable())
+      return emitDiagnostic(*loop, DiagID::ErrTapirLoopIVNotCanonical);
 
-  // Update analyses that may have been invalidated. We can't recalculate SE,
-  // but we can force it recompute the analyses for certain variables and loops
-  // when they are next requested.
-  se.forgetValue(iv);
-  se.forgetValue(cmp);
-  se.forgetLoop(&outerLoop);
+    std::optional<Loop::LoopBounds> bounds = loop->getBounds(se);
+    if (!bounds.has_value())
+      return emitDiagnostic(*loop, DiagID::ErrTapirLoopUncomputableBounds);
+    else if (!loop->isLoopInvariant(&bounds->getFinalIVValue()))
+      return emitDiagnostic(*loop, DiagID::ErrTapirLoopNoFiniteTripCount);
 
-#ifndef NDEBUG
-  se.verify();
-#endif // NDEBUG
-}
+    if (!hasPerfectLevelAttr(*loop))
+      return emitDiagnostic(*loop, DiagID::ErrAttrMissing,
+                            getAttrName(LoopAttrKind::PerfectLevel));
 
-// For CPU's, a loop of the form:
-//
-//     parallel_for (int i = 0; i < n; ++i)
-//         ...
-//
-// is transformed into
-//
-//     parallel_for (int j = 0; j < numThreads; ++j) {
-//         itersPerThread = (n + numThreads - 1) / numThreads
-//         start = j * itersPerThread;
-//         end = min(start + itersPerThread, n)
-//         for (int i = start; i < end; ++i)
-//             ...
-//     }
-//
-// This function only changes the lower bound, upper bound and step of the inner
-// loop.
-void detail::PrepareTapirLoopBase::updateInnerLoopIV(Loop &outerLoop,
-                                                     Loop &innerLoop,
-                                                     Value *outerTC) {
-  auto sanityCheck = [](const Loop &outerLoop, const Loop &innerLoop,
-                        ScalarEvolution &se) {
-    assert(outerLoop.getInductionVariable(se) &&
-           "Outer loop must have an induction variable");
-    assert(innerLoop.isLoopSimplifyForm() &&
-           "Inner loop must be in loop-simplify form");
-    assert(innerLoop.getCanonicalInductionVariable() &&
-           "Inner loop must have a canonical induction variable");
-    assert(innerLoop.getBounds(se).has_value() &&
-           "Inner loop must have computable loop bounds");
-    assert(innerLoop.getLoopPreheader() && "Inner loop must have a preheader");
-    assert(getExitBlockFromLatch(innerLoop) &&
-           "Inner loop must have a unique non-dead-end exit block");
+    if (!getLoopGuardBlock(*loop, /*allowDeadEndExits=*/true))
+      return emitDiagnostic(*loop, DiagID::ErrTapirLoopNoGuardBlock);
 
-    assert(pred_size(innerLoop.getLoopPreheader()) == 1 &&
-           "Inner loop preheader must have a single predecessor");
-    assert(succ_size(getExitBlockFromLatch(innerLoop)) == 1 &&
-           "Inner loop exit block must have a single successor");
-  };
-
-  LLVM_DEBUG(dbgs() << "PrepareTapir: Update inner loop induction variable\n");
-  sanityCheck(outerLoop, innerLoop, se);
-
-  PHINode *outerIV = outerLoop.getInductionVariable(se);
-  Type *ivTy = outerIV->getType();
-
-  Loop::LoopBounds innerBounds = *innerLoop.getBounds(se);
-  PHINode *iv = innerLoop.getCanonicalInductionVariable();
-  Value *innerTC = &innerBounds.getFinalIVValue();
-  ICmpInst *cmp = innerLoop.getLatchCmpInst();
-  BasicBlock *ph = innerLoop.getLoopPreheader();
-  BasicBlock *guard = *pred_begin(ph);
-
-  IRBuilder<> builder(&*guard->begin());
-  Constant *one = ConstantInt::get(ivTy, 1, /*isSigned=*/false);
-  Value *iPlusO = builder.CreateAdd(innerTC, outerTC);
-  Value *iPlusOMinus1 = builder.CreateSub(iPlusO, one);
-  Value *itersPerThread =
-      builder.CreateUDiv(iPlusOMinus1, outerTC, "prll.per.thrd");
-  Value *newStart = builder.CreateMul(outerIV, itersPerThread, "prll.start");
-  Value *newMax = builder.CreateAdd(newStart, itersPerThread);
-  Value *newEnd =
-      builder.CreateIntrinsic(Intrinsic::umin, {ivTy}, {newMax, innerTC},
-                              /*FMFSource=*/{}, "prll.end");
-
-  iv->setIncomingValueForBlock(ph, newStart);
-  replaceMatchingOperands(*cmp, innerTC, newEnd);
-
-  se.forgetValue(iv);
-  se.forgetValue(innerTC);
-  se.forgetLoop(&innerLoop);
-
-#ifndef NDEBUG
-  dt.verify();
-  se.verify();
-#endif // NDEBUG
-}
-
-void detail::PrepareTapirLoopBase::updateInnerLoopGuardCondition(Loop &loop) {
-  auto sanityCheck = [](Loop &loop, BranchInst *br, ScalarEvolution &se) {
-    assert(br && "Inner loop must have a guard block");
-    assert(isFalse(br->getCondition()) &&
-           "Placeholder condition of inner loop guard branch must be `false`");
-
-    assert(loop.getBounds(se).has_value() &&
-           "Inner loop must have finite bounds");
-  };
-
-  LLVM_DEBUG(dbgs() << "PrepareTapir: Update inner loop guard condition\n");
-  sanityCheck(loop, getWrappedLoopGuardBranch(loop), se);
-
-  Loop::LoopBounds bounds = *loop.getBounds(se);
-  Value *start = &bounds.getInitialIVValue();
-  Value *end = &bounds.getFinalIVValue();
-
-  BranchInst *br = getWrappedLoopGuardBranch(loop);
-  Value *cmp = new ICmpInst(br->getIterator(), ICmpInst::ICMP_UGE, start, end);
-  br->setCondition(cmp);
-
-  se.forgetValue(br);
-
-#ifndef NDEBUG
-  se.verify();
-#endif // NDEBUG
-}
-
-void detail::PrepareTapirLoopBase::parallelizeOuterLoop(Loop &outerLoop,
-                                                        Loop &loop) {
-  auto sanityCheck = [](const Loop &outerLoop, const Loop &loop, TaskInfo &ti) {
-    BasicBlock *innerPh = loop.getLoopPreheader();
-    BasicBlock *innerExit = getExitBlockFromLatch(loop);
-    BasicBlock *outerHeader = outerLoop.getHeader();
-    BasicBlock *outerLatch = outerLoop.getLoopLatch();
-
-    assert(innerPh && "Inner loop must have a preheader");
-    assert(innerExit && "Inner loop must have a unique exit block");
-    assert(outerLatch && "Outer loop must have a unique latch");
-
-    assert(pred_size(innerPh) == 1 &&
-           "Inner loop preheader must have a single predecessor");
-    BasicBlock *innerGuard = *pred_begin(innerPh);
-
-    assert(succ_size(outerHeader) == 1 &&
-           "Outer loop header must have a single successor");
-    assert(*succ_begin(outerHeader) == innerGuard &&
-           "Successor of outer loop header must be inner loop guard");
-
-    assert(succ_size(innerExit) == 1 &&
-           "Inner loop exit block must have a single successor");
-    BasicBlock *innerEnd = *succ_begin(innerExit);
-
-    assert(succ_size(innerEnd) == 1 &&
-           "Inner loop end block must have a single successor");
-    assert(pred_size(outerLatch) == 1 &&
-           "Outer loop latch must have a single predecessor");
-    assert(*pred_begin(outerLatch) == *succ_begin(innerEnd) &&
-           "Predecessor of outer loop latch must be the successor of the inner "
-           "loop end block");
-
-    // The outer loop should be parallelized before the inner loop, so the
-    // inner loop should be still recognized as a tapir loop here.
-    assert(getTaskIfTapirLoop(&loop, &ti) &&
-           "Inner loop not recognized as a tapir loop");
-  };
-
-  LLVM_DEBUG(dbgs() << "PrepareTapir: Parallelize outer loop\n");
-  sanityCheck(outerLoop, loop, ti);
-
-  Value *syncRegion = getTapirLoopSyncRegion(loop);
-
-  BasicBlock *latch = outerLoop.getLoopLatch();
-  BasicBlock *reattach = *pred_begin(latch);
-  ReattachInst *reattachInst = ReattachInst::Create(latch, syncRegion);
-  ReplaceInstWithInst(reattach->getTerminator(), reattachInst);
-
-  BasicBlock *header = outerLoop.getHeader();
-  BasicBlock *innerPh = loop.getLoopPreheader();
-  BasicBlock *innerGuard = *pred_begin(innerPh);
-  DetachInst *detachInst = DetachInst::Create(innerGuard, latch, syncRegion);
-  ReplaceInstWithInst(header->getTerminator(), detachInst);
-
-  // Update analyses that may have been invalidated by this transformation.
-  dt.insertEdge(header, latch);
-
-#ifndef NDEBUG
-  dt.verify();
-#endif // NDEBUG
-
-  // FIXME: Recalculating everything in TaskInfo is wasteful, but it is not
-  // clear that there is a better way to do it currently.
-  Function *f = getFunction(loop);
-  ti.recalculate(*f, dt);
-
-#ifndef NDEBUG
-  ti.verify(dt);
-
-  // Since the outer loop should be parallelized before the inner loop, both
-  // should be recognized as parallel here.
-  assert(getTaskIfTapirLoop(&outerLoop, &ti) &&
-         "Outer loop recognized as tapir loop after parallelization");
-  assert(
-      getTaskIfTapirLoop(&loop, &ti) &&
-      "Inner loop recognized as tapir loop after outer loop was parallelized");
-#endif // NDEBUG
-}
-
-void detail::PrepareTapirLoopBase::serializeInnerLoop(Loop &loop) {
-  auto sanityCheck = [](Loop &loop, TaskInfo &ti) {
-    assert(getTaskIfTapirLoop(&loop, &ti) && "Getting task from tapir loop");
-  };
-
-  LLVM_DEBUG(dbgs() << "PrepareTapir: Serialize inner loop\n");
-  sanityCheck(loop, ti);
-
-  Task *task = getTaskIfTapirLoop(&loop, &ti);
-  serializeTapirLoop(loop, *task, /*addSerializedAttr=*/false, &dt, &ti);
-
-  // serializeTapirLoop will already have updated the analyses that were
-  // invalidated by this transformation
-
-  // FIXME: Recalculating everything in TaskInfo is wasteful, but it is not
-  // clear that there is a better way to do it currently.
-  Function *f = getFunction(loop);
-  ti.recalculate(*f, dt);
-
-#ifndef DEBUG
-  ti.verify(dt);
-  assert(!getTaskIfTapirLoop(&loop, &ti) &&
-         "Inner loop not recognized as tapir loop after serialization");
-#endif // NDEBUG
-}
-
-// Transform a tapir loop. Add the tapir.loop.prepared attribute to the loop and
-// return true if anything other than this attribute was changed.
-bool detail::PrepareTapirLoopBase::run(TapirLoopInfo &tapirLoop) {
-  auto sanityCheck = [](const TapirLoopInfo &tapirLoop) {
-    const Loop &loop = *tapirLoop.getLoop();
-
-    // These checks are mostly to ensure that the loop objects known to the
-    // driver don't get corrupted when processing a function with many tapir
-    // loops.
-    assert(isTapirLoop(loop) && "Loop is a tapir loop");
-    assert(!hasPreparedAttr(loop) && "Tapir loop has not been prepared");
-  };
-
-  LLVM_DEBUG(dbgs() << "PrepareTapir: BEGIN '" << getName(*tapirLoop.getLoop())
-                    << "'\n");
-  sanityCheck(tapirLoop);
-
-  Loop &loop = *tapirLoop.getLoop();
-
-#ifndef NDEBUG
-  // Make sure that the parent loop, if any, is not affected by this
-  // transformation.
-  Loop *parentLoop = loop.getParentLoop();
-#endif // NDEBUG
-
-  // Generate the outer loop including all blocks. The analysis objects will
-  // have been updated.
-  Loop *outerLoop = wrapWithTapirLoop(tapirLoop, dt, li, mssa);
-  BasicBlock *outerLoopPreheader = outerLoop->getLoopPreheader();
-  Value *outerTC = computeOuterLoopTripCount(*outerLoopPreheader, tapirLoop);
-
-  // Fix up the induction variables of the outer and inner loops. These will
-  // only change the initial value, final value and step of the IV, but should
-  // not change the IV itself.
-  updateOuterLoopIV(*outerLoop, outerTC);
-  updateInnerLoopIV(*outerLoop, loop, outerTC);
-  updateInnerLoopGuardCondition(loop);
-
-  // The outer loop is serial and the inner is parallel. But it needs to be the
-  // other way around. Once serializeInnerLoop is run, the syncregion associated
-  // with it will be lost. This is required to parallelize the outer loop.
-  // Therefore, the outer loop must be parallelized before the inner loop is
-  // serialized.
-  //
-  // WARNING: Once we have run parallelizeOuterLoop and serializeInnerLoop, the
-  // references to the tapir task objects will not be safe to use. This is why
-  // this is done as late as possible - when we should no longer need any
-  // objects from TaskInfo.
-  parallelizeOuterLoop(*outerLoop, loop);
-  serializeInnerLoop(loop);
-
-#ifndef NDEBUG
-  dt.verify();
-  li.verify(dt);
-  ti.verify(dt);
-
-  loop.verifyLoop();
-  outerLoop->verifyLoop();
-  if (parentLoop) {
-    parentLoop->verifyLoop();
-    assert(outerLoop->getParentLoop() == parentLoop &&
-           "Original parent of inner loop must now be parent of outer loop");
+    if (!getLoopBypassBlock(*loop, /*allowDeadEndExits=*/true))
+      return emitDiagnostic(*loop, DiagID::ErrTapirLoopNoBypassBlock);
   }
 
-  // We try to maintain the loops in simplify form. A later pass may well try to
-  // simplify it, but we want to ensure that we preserve this. In case this pass
-  // needs to be modified in the future, this may help ensure that it the
-  // modifications are "consistent".
-  assert(outerLoop->isLoopSimplifyForm() &&
-         "Outer loop must be in loop-simplify form");
-  assert(loop.isLoopSimplifyForm() &&
-         "Inner loop must be in loop-simplify form");
-
-  // The inner loop may not have had a guard. But one will have been added as
-  // part of this transformation. Make sure that it was added correctly.
-  BranchInst *br = getWrappedLoopGuardBranch(loop);
-  assert(br && "Inner loop must have a guard");
-  assert(br->getNumSuccessors() == 2 &&
-         "Inner loop guard must have two successors");
-  assert(br->getSuccessor(0) == *succ_begin(getExitBlockFromLatch(loop)) &&
-         "First successor of inner loop guard must be inner loop end");
-  assert(br->getSuccessor(1) == loop.getLoopPreheader() &&
-         "Second successor of inner loop guard must be inner loop preheader");
-
-  // The outer loop will have been parallelized. Make sure that this is done
-  // correctly.
-  assert(getTaskIfTapirLoop(outerLoop, &ti) &&
-         "Outer loop recognized as tapir loop");
-
-  // The inner loop will have been serialized. Make sure this is reflected in
-  // the task analysis object.
-  assert(!getTaskIfTapirLoop(&loop, &ti) &&
-         "Inner loop not recognized as tapir loop");
-#endif // NDEBUG
-
-  LLVM_DEBUG(dbgs() << "PrepareTapir: END '" << getName(loop) << "'\n");
-
-  // Mark the loop as having been prepared to ensure that we don't accidentally
-  // attempt to process it more than once.
-  addPreparedAttr(*outerLoop);
   return true;
 }
 
-//===----------------------------------------------------------------------===//
-
-// Insert code to calculate the number of CPU threads available for use. This
-// simply inserts a call to Kitsune's kit.cpu.num.threads intrinsic. The
-// intrinsic will be lowered in a later pass.
-//
-//      numThreads = call @llvm.kit.cpu.num.threads()
-//
-Value *detail::PrepareTapirLoopCPU::computeOuterLoopTripCount(
-    BasicBlock &bb, const TapirLoopInfo &tapirLoop) {
-  auto sanityCheck = [](const TapirLoopInfo &tapirLoop) {
-    assert(hasTargetAttr(*tapirLoop.getLoop()) &&
-           "Outer loop must have tapir target attribute");
-  };
-
-  LLVM_DEBUG(dbgs() << "PrepareTapir: Compute number of parallel iterations\n");
-  sanityCheck(tapirLoop);
-
-  LLVMContext &ctx = bb.getContext();
-
-  Loop &loop = *tapirLoop.getLoop();
-  TTID tt = *getTargetAttr(loop);
-  Constant *ctt = toConstant(tt, ctx);
-
-  PHINode *iv = loop.getCanonicalInductionVariable();
-  Type *ivTy = iv->getType();
-
-  IRBuilder<> builder(&*bb.begin());
-  Value *thrds = builder.CreateIntrinsic(Intrinsic::kit_cpu_num_threads, {ctt});
-  Value *numThreads =
-      builder.CreateIntCast(thrds, ivTy, /*isSigned=*/true, "prll.num.threads");
-
-  return numThreads;
-}
-
-//===----------------------------------------------------------------------===//
-
-Value *detail::PrepareTapirLoopGPU::computeOuterLoopTripCount(
-    BasicBlock &bb, const TapirLoopInfo &tapirLoop) {
-  auto sanityCheck = [](const Loop &loop, ScalarEvolution &se) {
-    assert(hasTargetAttr(loop) &&
-           "Outer loop must have tapir target attribute");
-    assert(loop.getBounds(se) && "Outer loop must have known bounds");
-    assert(loop.getCanonicalInductionVariable() &&
-           "Outer loop must have canonical induction variable");
-  };
-
-  LLVM_DEBUG(dbgs() << "PrepareTapir: Compute number of parallel iterations\n");
-  sanityCheck(*tapirLoop.getLoop(), se);
-
-  LLVMContext &ctx = bb.getContext();
-  Constant *cnull = ConstantPointerNull::get(PointerType::getUnqual(ctx));
-
-  Loop &loop = *tapirLoop.getLoop();
-
-  Loop::LoopBounds bounds = *loop.getBounds(se);
-  PHINode *iv = loop.getCanonicalInductionVariable();
-  Value *tc = &bounds.getFinalIVValue();
-  Type *ivTy = iv->getType();
-  TTID tt = *getTargetAttr(loop);
-  Constant *ctt = toConstant(tt, ctx);
-  Constant *one = ConstantInt::get(ivTy, 1, /*isSigned=*/false);
-
-  IRBuilder<> builder(&*bb.begin());
-  Value *iptRaw = builder.CreateIntrinsic(Intrinsic::kit_gpu_ipt, {ctt, cnull});
-  Value *ipt = builder.CreateIntCast(iptRaw, ivTy, /*isSigned=*/false, "ipt");
-  Value *iptMinus1 = builder.CreateSub(ipt, one);
-  Value *tcPlusIPTMinus1 = builder.CreateAdd(tc, iptMinus1);
-  Value *numThreads = builder.CreateUDiv(tcPlusIPTMinus1, ipt);
-
-  return numThreads;
-}
-
-//===----------------------------------------------------------------------===//
-
-static bool checkCommon(TapirLoopInfo &tapirLoop, DominatorTree &dt,
-                        LoopInfo &li) {
-  if (!checkTapirLoopSafeToWrap(tapirLoop, dt, li))
+// Check a non-reduction tapir loop.
+static bool checkParallelLoop(TapirLoopInfo &tapirLoop, DominatorTree &dt,
+                              LoopInfo &li, ScalarEvolution &se) {
+  if (!checkCommon(tapirLoop, dt, li, se))
     return false;
 
-  Loop &loop = *tapirLoop.getLoop();
-
-  if (!hasPerfectLevelAttr(loop))
-    return emitDiagnostic(loop, DiagID::ErrAttrMissing,
-                          getAttrName(LoopAttrKind::PerfectLevel));
-
-  if (isTopLevelTapirLoop(loop) && !hasPerfectDepthAttr(loop))
-    return emitDiagnostic(loop, DiagID::ErrAttrMissing,
-                          getAttrName(LoopAttrKind::PerfectDepth));
+  if (!checkTapirLoopSafeToWrap(tapirLoop, dt, li, se))
+    return false;
 
   return true;
 }
 
-static bool check(TapirLoopInfo &tapirLoop, DominatorTree &dt, LoopInfo &li) {
-  Loop &loop = *tapirLoop.getLoop();
-  if (!checkCommon(tapirLoop, dt, li))
+static bool checkReductionLoop(TapirLoopInfo &tapirLoop, DominatorTree &dt,
+                               LoopInfo &li, ScalarEvolution &se) {
+  if (!checkCommon(tapirLoop, dt, li, se))
     return false;
-  else if (hasReductionAttr(loop))
-    return detail::checkReductionLoop(tapirLoop, dt, li);
-  else
-    return detail::checkParallelLoop(tapirLoop, dt, li);
+
+  Loop &root = *tapirLoop.getLoop();
+  SmallVector<ReductionInfo, 1> redxns = collectReductions(root);
+
+  // The destination of a reduction loop must be loop invariant. We currently
+  // do not support loop-variant destinations.
+  for (const ReductionInfo &redxn : redxns) {
+    Value *dest = redxn.getDest();
+    if (!root.isLoopInvariant(dest))
+      return emitDiagnostic(root, DiagID::ErrReduceDestLoopVariant, dest);
+  }
+
+  // The transformations for parallel reductions, especially on the GPU, might
+  // result in incorrect code if the destination of the reduction is used
+  // anywhere except in a reduction intrinsic. This is certainly the case for
+  // side-effecting uses such as passing it to printf. But it is less clear if
+  // this is true in other cases. To be safe, we require the only uses of the
+  // destination of a reduction to be in an equivalent reduction intrinsic. We
+  // cannot require exactly one use because the reduction intrinsic could be in
+  // an unrolled sequential loop within this tapir loop, which would appear as
+  // multiple uses, though that case is not actually an error.
+  SmallDenseMap<Value *, SmallVector<Instruction *, 1>> usesOfDest;
+  for (const ReductionInfo &redxn : redxns)
+    for (const Use &use : redxn.getDest()->uses())
+      if (auto *inst = dyn_cast<Instruction>(use.getUser()))
+        if (isInLoop(*inst, root, li))
+          usesOfDest[redxn.getDest()].push_back(inst);
+
+  for (const auto &[dest, uses] : usesOfDest) {
+    if (uses.size() == 1)
+      continue;
+
+    for (Instruction *inst : uses) {
+      auto *call = dyn_cast<CallInst>(inst);
+      if (!call || call->getIntrinsicID() != Intrinsic::kit_reduce)
+        return emitDiagnostic(root, DiagID::ErrReduceDestUsedInLoop,
+                              getName(*dest));
+
+      // At this point, the instruction is a reduce intrinsic.
+      const ReductionInfo redxn(call);
+      if (redxn.getValue() == dest || redxn.getUnit() == dest ||
+          redxn.getReducer() == dest)
+        return emitDiagnostic(root, DiagID::ErrReduceDestUsedInLoop,
+                              getName(*dest));
+
+      SmallVector<Value *, 0> extraArgs = redxn.getExtraArgs();
+      for (Value *arg : extraArgs)
+        if (arg == dest)
+          return emitDiagnostic(root, DiagID::ErrReduceDestUsedInLoop,
+                                getName(*dest));
+    }
+
+    // If the destination of a reduction is used in two different reductions in
+    // the loop, the two reductions must have the same operator.
+    SmallSet<ReduceOp, 1> reduceOpsForDest;
+    for (Instruction *use : uses)
+      if (auto *call = dyn_cast<CallInst>(use))
+        if (call->getIntrinsicID() == Intrinsic::kit_reduce)
+          reduceOpsForDest.insert(ReductionInfo(call).reduceOp);
+    if (reduceOpsForDest.size() > 1)
+      return emitDiagnostic(root, DiagID::ErrReduceDestMultipleOps,
+                            getName(*dest));
+  }
+
+  if (isGPUTT(*getTargetAttr(root))) {
+    // We only need the top-level loop in the nest to have a non-dead-end exit
+    // block because the lowering will involve allocating temporary GPU memory
+    // which must be freed in the loop exit block (it is allocated in the
+    // preheader, but that is guaranteed to exist because we require the loop to
+    // be in simplify form).
+    if (!getUniqueNonDeadEndExitBlock(root))
+      return emitDiagnostic(root,
+                            DiagID::ErrTapirLoopNoUniqueNonDeadEndExitBlock);
+  }
+
+  // We don't currently support reductions where the value being reduced is
+  // passed by pointer. This will most likely happen with custom reductions. On
+  // CPU, this may be ok, but getting this right on GPUs is trickier, so we just
+  // don't allow it anywhere.
+  for (const ReductionInfo &redxn : redxns)
+    if (redxn.getType()->isPointerTy())
+      return emitDiagnostic(root, DiagID::ErrNYI,
+                            "Reductions with values passed by pointer");
+
+  return true;
 }
 
-static bool prepare(TapirLoopInfo &tapirLoop, bool isReduction,
-                    DominatorTree &dt, LoopInfo &li, MemorySSA &mssa,
-                    ScalarEvolution &se, TaskInfo &ti) {
-  if (isReduction)
-    return detail::prepareReductionLoop(tapirLoop, dt, li, mssa, se, ti);
+static bool check(TapirLoopInfo &tapirLoop, DominatorTree &dt, LoopInfo &li,
+                  ScalarEvolution &se) {
+  Loop &loop = *tapirLoop.getLoop();
+  if (hasReductionAttr(loop))
+    return checkReductionLoop(tapirLoop, dt, li, se);
   else
-    return detail::prepareParallelLoop(tapirLoop, dt, li, mssa, se, ti);
+    return checkParallelLoop(tapirLoop, dt, li, se);
+}
+
+static bool prepare(TapirLoopInfo &tapirLoop, DominatorTree &dt, LoopInfo &li,
+                    MemorySSA &mssa, ScalarEvolution &se, TaskInfo &ti) {
+  Loop &root = *tapirLoop.getLoop();
+  TTID tt = *getTargetAttr(root);
+
+  bool changed = false;
+  if (isCPUTT(tt))
+    changed |= detail::prepareTapirNestCPU(tapirLoop, dt, li, mssa, se, ti);
+  else if (isGPUTT(tt))
+    changed |= detail::prepareTapirNestGPU(root);
+  else if (tt != TTID::Custom)
+    llvm_unreachable("Unknown tapir target category");
+
+  return changed;
 }
 
 static bool prepare(Loop &loop, DominatorTree &dt, LoopInfo &li,
@@ -611,11 +268,10 @@ static bool prepare(Loop &loop, DominatorTree &dt, LoopInfo &li,
   // can be performed. Given this objective, it makes more sense to fail if a
   // transformation could not be performed, rather than produce working, albeit
   // slow, code.
-  bool isReduction = hasReductionAttr(loop);
-  if (!check(tapirLoop, isReduction, dt, li))
+  if (!check(tapirLoop, dt, li, se))
     exitOnError();
 
-  return prepare(tapirLoop, isReduction, dt, li, mssa, se, ti);
+  return prepare(tapirLoop, dt, li, mssa, se, ti);
 }
 
 PreservedAnalyses PrepareTapirLoopsPass::run(Function &f,
@@ -629,18 +285,11 @@ PreservedAnalyses PrepareTapirLoopsPass::run(Function &f,
   TaskInfo &ti = am.getResult<TaskAnalysis>(f);
 
   bool changed = false;
-  SmallVector<Loop *, 4> wl = li.getLoopsInPreorder();
-  while (!wl.empty()) {
-    // `wl` contains loops in preorder with siblings in forward program order.
-    // By popping from the back, we will visit the siblings in reverse program
-    // order. This is roughly what we want because it *might* reduce the chances
-    // of making a mess of the analysis objects.
-    Loop &loop = *wl.pop_back_val();
-    if (isTapirLoop(loop) && !hasPreparedAttr(loop))
-      changed |= prepare(loop, dt, li, mssa, ore, se, ti);
-  }
+  for (Loop *loop : getTapirLoops(li))
+    if (isTopLevelTapirLoop(*loop) && !hasPreparedAttr(*loop))
+      changed |= prepare(*loop, dt, li, mssa, ore, se, ti);
 
   if (!changed)
-    return PreservedAnalyses::all();
+    return getPreservedAnalysesAll();
   return getPreservedAnalysesLoop(/*preservedMSSA=*/true);
 }
