@@ -194,6 +194,15 @@ def ErrTapirLoopSyncRegionUses
 def ErrTapirLoopSyncMustPostDominate
   : Error<"tapir loop not post-dominated by sync instruction">;
 
+def ErrTapirLoopNoGuardBlock
+  : Error<"tapir loop must have a guard block">;
+
+def ErrTapirLoopNoBypassBlock
+  : Error<"tapir loop must have a bypass block">;
+
+def ErrTapirLoopNestTooDeep
+  : Error<"depth of tapir loop nest must be in range [1,3]">;
+
 def ErrTapirLoopIVCount
   : Error<"tapir loop must have exactly one induction variable">;
 
@@ -214,6 +223,9 @@ def ErrTapirLoopIVNotUpdatedInLatch
 
 def ErrTapirLoopNoFiniteTripCount
   : Error<"tapir loop trip count is not finite">;
+
+def ErrTapirLoopUncomputableBounds
+  : Error<"tapir loop bounds could not be computed">;
 
 def ErrLoopNotSimplifyForm
   : Error<"loop is not in loop-simplify form">;
@@ -277,6 +289,9 @@ def ErrMobileInitExpectExtra
 
 def ErrMobileInitUnsupportedType
   : Error<"unsupported initializer type '{}' in call '{}'">;
+
+def ErrReduceDestLoopVariant
+  : Error<"destination of reduction, '{}' is not loop-invariant">;
 
 def ErrReduceDestUsedInLoop
   : Error<"value '{}' must only be used as destination of reduction in loop">;

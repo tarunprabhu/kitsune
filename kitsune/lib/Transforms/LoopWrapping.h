@@ -26,7 +26,9 @@ class DominatorTree;
 class Loop;
 class LoopInfo;
 class MemorySSA;
+class ScalarEvolution;
 class TapirLoopInfo;
+class TaskInfo;
 
 /// Check that the given tapir loop can be wrapped in another loop. The checks
 /// here are fairly strict. There are two main reasons for this:
@@ -38,64 +40,81 @@ class TapirLoopInfo;
 /// This will emit an error message and return false if at least one error was
 /// found, true otherwise.
 bool checkTapirLoopSafeToWrap(TapirLoopInfo &tapirLoop, DominatorTree &dt,
-                              LoopInfo &li);
+                              LoopInfo &li, ScalarEvolution &se);
 
-/// Wrap the tapir loop \p loop with a serial loop.
+/// Wrap the tapir loop \p tapirLoop with a serial loop.
 ///
-/// The CFG of \p loop structure is expected to be as shown below. LoopPreheader
-/// and LoopExit blocks are not part of the loop, so they are indented at a
-/// different level.
+/// The CFG of \p tapirLoop is expected to be as shown below. If this is not the
+/// case, the code will fail - either gracefully with an error message, but
+/// potentially catastrophically. Since this is really intended to be used for
+/// mandatory transformations of tapir loops, we prefer to fail early.
 ///
+///     LoopGuard
 ///     LoopPreheader
 ///         LoopHeader
 ///         <LoopBlocks>
 ///         LoopLatch
 ///     LoopExit
+///     LoopBypass
+///
+/// We impose additional constraints on the blocks themselves. The LoopBypass
+/// block is expected to contain a single sync instruction, and nothing else.
+/// Similarly, the LoopExit block is expected to be empty, with an unconditional
+/// branch to LoopBypass.
 ///
 /// The CFG after the loop is wrapped will be transformed as shown below.
 ///
-///     LoopPreheader
+///     LoopGuard1
+///     OuterGuard
 ///     OuterPreheader
 ///         OuterHeader
-///         LoopGuardNew
-///         LoopPreheaderNew
+///         LoopGuard2
+///         LoopPreheader
 ///             LoopHeader
 ///             <LoopBlocks>
 ///             LoopLatch
-///         LoopExitNew
-///         LoopEndNew
+///         LoopExit
+///         LoopBypass
 ///         OuterReattach
 ///         OuterLatch
 ///     OuterExit
-///     LoopExit
+///     OuterBypass
 ///
-/// Here, the OuterReattach block is created to allow the caller a reasonable
-/// place to insert a single reattach instruction if they intend to parallelize
-/// the outer loop. Otherwise, the simplifycfg pass can be used to eliminate
-/// the block.
+/// Here, the original loop guard branch is split into two. In the most extreme,
+/// case everything except the terminator will become part of LoopGuard1.
+/// LoopGuard2, then, will only contain the terminator of the original LoopGuard
+/// block (this is expected to be a conditional branch instruction that will
+/// branch to either LoopPreheader or LoopBypass). However, we try to keep the
+/// branch and its condition in LoopGuard2 if possible. By contrast, the
+/// LoopBypass block remains exactly as it was before the transformation, except
+/// that the sync instruction that terminated it now branches to OuterReattach.
 ///
-/// NOTE: This will *NOT* change the bounds of either the original, nor the
-/// newly created loops. It is the responsibility of the caller to ensure that
-/// the transformation does not change the final behavior of the code.
+/// The OuterReattach block is an artifact of the implementation - which is
+/// shared by this function and \ref wrapWithTapirLoop. In this case, it will
+/// be an empty block terminating in an unconditional branch to OuterLatch.
+/// However, when using \ref wrapWithTapirLoop, this block will terminate in a
+/// ReattachInst.
 ///
-/// The provided analysis objects, the dominator tree \p dt, the loop info
-/// \p li, and the memory SSA \p mssa, will be updated and will remain valid
+/// IMPORTANT: The initial value of the wrapper loop induction variable is 0.
+/// The step is 1 and the final value is 0. It is up to the caller to change the
+/// bounds.
+///
+/// The provided analysis objects, loop info \p li, memory SSA \p mssa, task
+/// info \ti, and the dominator tree \p dt will be updated and will remain valid
 /// after this function returns.
 ///
 /// Returns the newly created outer loop.
 ///
-Loop *wrapWithTapirLoop(TapirLoopInfo &tapirLoop, DominatorTree &dt,
-                        LoopInfo &li, MemorySSA &mssa);
+Loop *wrapWithSerialLoop(TapirLoopInfo &tapirLoop, DominatorTree &dt,
+                         LoopInfo &li, MemorySSA &mssa, ScalarEvolution &se,
+                         TaskInfo &ti);
 
-/// After being wrapped with an outer loop, \p loop will have a guard block.
-/// However, we cannot use `Loop::getLoopGuardBranch` to get the terminator of
-/// that guard because the \p loop may not have a unique exit block - a
-/// property that is required by Loop::getLoopGuardBranch. This helper will
-/// return that guard branch.
+/// Wrap the tapir loop \p tapirLoop with a tapir loop.
 ///
-/// WARNING: This must *ONLY* be used to get the guard branch of a loop that was
-/// wrapped using \ref wrapWithTapirLoop.
-BranchInst *getWrappedLoopGuardBranch(Loop &loop);
+/// See the documentation of \ref wrapWithSerialLoop for more information.
+Loop *wrapWithTapirLoop(TapirLoopInfo &tapirLoop, DominatorTree &dt,
+                        LoopInfo &li, MemorySSA &mssa, ScalarEvolution &se,
+                        TaskInfo &ti);
 
 } // namespace llvm
 
