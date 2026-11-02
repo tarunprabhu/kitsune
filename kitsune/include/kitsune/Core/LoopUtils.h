@@ -133,11 +133,11 @@ bool isTopLevelTapirLoopForGPU(const Loop &loop);
 /// \p loop. Return nullptr if no such loop was found.
 const Loop *getNearestAncestorTapirLoop(const Loop &loop);
 
-/// Get the roots of all tapir loop nests in a function.
-SmallVector<Loop *, 4> getTopLevelTapirLoops(LoopInfo &li);
-
 /// Get all the tapir loops in a function.
-SmallVector<Loop *, 4> getTapirLoops(LoopInfo &li);
+SmallVector<Loop *, 0> getTapirLoops(LoopInfo &li);
+
+/// Get the roots of all tapir loop nests in a function.
+SmallVector<Loop *, 0> getTopLevelTapirLoops(LoopInfo &li);
 
 /// Get the tapir loops in a nest rooted at \p loop. This requires a single
 /// tapir loop at each level of the nest. The loops are returned in ascending
