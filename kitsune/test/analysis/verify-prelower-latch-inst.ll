@@ -22,7 +22,7 @@ latch:
   call void @ext()
   %inc.i = add i64 %i, 1
   %cmp.i = icmp eq i64 %inc.i, %n
-  br i1 %cmp.i, label %exit, label %header, !llvm.loop !1
+  br i1 %cmp.i, label %exit, label %header, !llvm.loop !3
 
 exit:
   sync within %syncreg, label %end
@@ -34,4 +34,6 @@ end:
 declare void @ext()
 
 !0 = !{!"tapir.loop.target", i32 1}
-!1 = distinct !{!1, !0}
+!1 = !{!"tapir.loop.perfect.level", i32 1}
+!2 = !{!"tapir.loop.perfect.depth", i32 1}
+!3 = !{!3, !0, !1, !2}

@@ -5,7 +5,6 @@
 ; RUN:     | FileCheck %s
 ;
 ; CHECK: tapir instructions outside tapir loops are not yet supported
-; CHECK: tapir instructions outside tapir loops are not yet supported
 
 define void @f() {
 entry:
