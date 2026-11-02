@@ -222,30 +222,32 @@ bool InstrumentImpl::instrumentLoop(Loop &loop) {
 }
 
 bool InstrumentImpl::instrumentLoops(Function &f) {
+  auto shouldInstrument = [&](const Loop &loop) -> bool {
+    std::string name = getName(loop);
+    TTID tt = *getTargetAttr(loop);
+    if (!instrOpts.shouldInstrument(name)) {
+      // The user has explicitly asked for this loop not to be instrumented.
+      // Issuing a warning in this case would just increase noise.
+      return false;
+    }
+
+    if (isGPUTT(tt) && instrOpts.enabled(InstrumentKind::PAPI)) {
+      // There may be other kinds of instrumentation that have been enabled
+      // alongside PAPI, so we should try to instrument it. However, PAPI
+      // instrumentation will not be added.
+      emitDiagnostic(loop, DiagID::WarnInstrumentLoopPAPI, tt);
+    }
+
+    if (!getTapirLoopUniqueSyncInst(loop))
+      return emitDiagnostic(loop, DiagID::WarnInstrumentNoSync);
+
+    return true;
+  };
+
   bool changed = false;
-  for (Loop *loop : li.getLoopsInPreorder()) {
-    std::string name = getName(*loop);
-    if (!isTapirLoop(*loop) || !instrOpts.shouldInstrument(name)) {
-      continue;
-    } else if (!isTopLevelTapirLoop(*loop)) {
-      emitDiagnostic(*loop, DiagID::WarnInstrumentNestedLoop);
-      continue;
-    } else if (isTopLevelTapirLoopForGPU(*loop) &&
-               instrOpts.enabled(InstrumentKind::PAPI)) {
-      emitDiagnostic(*loop, DiagID::WarnInstrumentLoopPAPI,
-                     *getTargetAttr(*loop));
-      // There may be other kinds of instrumentation that have been enabled. So
-      // we will try to instrument the loop, just not with PAPI.
-    }
-
-    SyncInst *syncInst = getTapirLoopUniqueSyncInst(*loop);
-    if (!syncInst) {
-      emitDiagnostic(*loop, DiagID::WarnInstrumentNoSync);
-      continue;
-    }
-
-    changed |= instrumentLoop(*loop);
-  }
+  for (Loop *loop : getTopLevelTapirLoops(li))
+    if (shouldInstrument(*loop))
+      changed |= instrumentLoop(*loop);
   return changed;
 }
 
@@ -320,21 +322,25 @@ bool InstrumentImpl::instrumentThreads(Loop &loop) {
 }
 
 bool InstrumentImpl::instrumentThreads(Function &f) {
+  auto shouldInstrument = [&](const Loop &loop) -> bool {
+    std::string name = getName(loop);
+    TTID tt = *getTargetAttr(loop);
+
+    // The user has explicitly asked for this loop not to be instrumented.
+    // Issuing a warning in this case would just increase noise.
+    if (!instrOpts.shouldInstrument(name))
+      return false;
+
+    if (isGPUTT(tt) || tt == TTID::Serial)
+      return emitDiagnostic(loop, DiagID::WarnInstrumentThreads, tt);
+
+    return true;
+  };
+
   bool changed = false;
-  for (Loop *loop : li.getLoopsInPreorder()) {
-    std::string name = getName(*loop);
-    TTID tt = *getTargetAttr(*loop);
-    if (!isTapirLoop(*loop) || !instrOpts.shouldInstrument(name)) {
-      continue;
-    } else if (!isTopLevelTapirLoop(*loop)) {
-      emitDiagnostic(*loop, DiagID::WarnInstrumentNestedLoop);
-      continue;
-    } else if (isTopLevelTapirLoopForGPU(*loop) || tt == TTID::Serial) {
-      emitDiagnostic(*loop, DiagID::WarnInstrumentThreads, tt);
-      continue;
-    }
-    changed |= instrumentThreads(*loop);
-  }
+  for (Loop *loop : getTopLevelTapirLoops(li))
+    if (shouldInstrument(*loop))
+      changed |= instrumentThreads(*loop);
   return changed;
 }
 

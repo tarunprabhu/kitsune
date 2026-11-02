@@ -5,18 +5,29 @@
 ; RUN:     --kit-instr=timer 2>&1 \
 ; RUN:     | FileCheck %s
 ;
-; CHECK: cannot instrument tapir loop that is not a top-level loop
-; CHECK-NEXT: from loop 'inner'
+; CHECK-DAG: @[[PARALLEL:.+]] = private{{.*}} constant [9 x i8] c"parallel\00"
+; CHECK-DAG: @[[OUTER:.+]] = private{{.*}} constant [6 x i8] c"outer\00"
 ;
-; CHECK: @[[PARALLEL:.+]] = private{{.*}} constant [9 x i8] c"parallel\00"
-;
-; CHECK-LABEL: @sp
+; CHECK-LABEL: @pp
+; CHECK: %[[EPOCHPP:.+]] = call ptr @__kittimer_start(ptr @[[OUTER]], i64 0)
 ; CHECK: phi
-; CHECK: %[[EPOCH:.+]] = call ptr @__kittimer_start(ptr @[[PARALLEL]], i64 0)
+; CHECK: detach
+; CHECK: phi
 ; CHECK: detach
 ; CHECK: reattach
 ; CHECK: sync
-; CHECK: call i64 @__kittimer_stop(ptr %[[EPOCH]])
+; CHECK: reattach
+; CHECK: sync
+; CHECK: call i64 @__kittimer_stop(ptr %[[EPOCHPP]])
+; CHECK: ret void
+;
+; CHECK-LABEL: @sp
+; CHECK: phi
+; CHECK: %[[EPOCHSP:.+]] = call ptr @__kittimer_start(ptr @[[PARALLEL]], i64 0)
+; CHECK: detach
+; CHECK: reattach
+; CHECK: sync
+; CHECK: call i64 @__kittimer_stop(ptr %[[EPOCHSP]])
 ; CHECK: ret void
 
 ; forall (...)

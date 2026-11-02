@@ -31,14 +31,11 @@
 
 using namespace llvm;
 
-PreservedAnalyses PreLowerAnnotatePass::run(Function &f,
-                                            FunctionAnalysisManager &am) {
-  LoopInfo &li = am.getResult<LoopAnalysis>(f);
-
-  /// Find the subloops that are contained within a tapir loop nest consisting
-  /// of loops that are to be run on a GPU. These will be ignored.
+static void addLoweringEnabledAttrs(LoopInfo &li) {
+  // Find the subloops that are contained within a tapir loop nest consisting
+  // of loops that are to be run on a GPU. These will be ignored.
   SmallSet<Loop *, 8> ignore;
-  for (Loop *loop : li.getLoopsInPreorder())
+  for (Loop *loop : getTapirLoops(li))
     if (isTopLevelTapirLoopForGPU(*loop))
       for (Loop *subLoop : getAllSubLoops(*loop))
         ignore.insert(subLoop);
@@ -46,11 +43,18 @@ PreservedAnalyses PreLowerAnnotatePass::run(Function &f,
   // Any tapir loop that is not ignored should be annotated with the
   // tapir.loop.lowering.enabled attribute that indicates to loop-spawning that
   // the loop must be lowered.
-  for (Loop *loop : li.getLoopsInPreorder())
-    if (isTapirLoop(*loop) && !ignore.contains(loop))
+  for (Loop *loop : getTapirLoops(li))
+    if (!ignore.contains(loop))
       addLoweringEnabledAttr(*loop);
+}
 
-  // At best, this pass will only change the metadata on existing loops and the
-  // module. It will not add or remove any loops, or change any other code.
+PreservedAnalyses PreLowerAnnotatePass::run(Function &f,
+                                            FunctionAnalysisManager &am) {
+  LoopInfo &li = am.getResult<LoopAnalysis>(f);
+
+  addLoweringEnabledAttrs(li);
+
+  // At most, this pass will change the metadata on existing loops and the
+  // module. This will not affect any analyses.
   return PreservedAnalyses::all();
 }

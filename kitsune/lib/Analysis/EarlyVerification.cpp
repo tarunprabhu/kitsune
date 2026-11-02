@@ -63,7 +63,7 @@ public:
 } // namespace
 
 bool VerifyFunction::verifyReductions(Function &f) {
-  auto consistentStrategies =
+  auto identicalStrategies =
       [](const SmallVectorImpl<ReductionInfo> &redxns) -> bool {
     auto mismatch = std::adjacent_find(
         redxns.begin(), redxns.end(),
@@ -73,24 +73,19 @@ bool VerifyFunction::verifyReductions(Function &f) {
     return mismatch == redxns.end();
   };
 
-  SmallVector<Loop *, 4> loops = li.getLoopsInPreorder();
-  SmallVector<Loop *, 4> tapirLoops;
-  std::copy_if(loops.begin(), loops.end(), std::back_inserter(tapirLoops),
-               [](Loop *loop) { return isTapirLoop(*loop); });
-
-  // All reductions in a tapir loop nest must have consistent strategies, i.e.
-  // all strategies must be identical.
-  for (Loop *loop : tapirLoops) {
+  for (Loop *loop : getTapirLoops(li)) {
     SmallVector<ReductionInfo, 1> redxns = collectReductions(*loop);
     if (redxns.empty())
       continue;
 
-    if (!consistentStrategies(redxns))
+    // All reductions in a tapir loop nest must have consistent strategies, i.e.
+    // all strategies must be identical.
+    if (!identicalStrategies(redxns))
       return emitDiagnostic(*loop, DiagID::ErrInconsistentReductionStrategies);
 
-    // The reduction strategies are consistent. Picking any reduction at random
-    // is sufficient. Now check if the strategy is consistent with the tapir
-    // target on the loop.
+    // The reduction strategies are identical. Now check if the strategy is
+    // consistent with the tapir target on the loop. Picking any reduction at
+    // random is sufficient since we know that all the strategies are identical.
     ReductionStrategy strategy = redxns[0].strategy;
     TTID tt = *getTargetAttr(*loop);
     if (isCPUTT(tt)) {

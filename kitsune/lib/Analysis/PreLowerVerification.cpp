@@ -426,10 +426,7 @@ private:
   }
 
   bool checkAllTapirLoops(Function &f) {
-    for (Loop *loop : li.getLoopsInPreorder()) {
-      if (!isTapirLoop(*loop))
-        continue;
-
+    for (Loop *loop : getTapirLoops(li)) {
       Task *task = getTaskIfTapirLoop(loop, &ti);
       if (!task)
         return emitDiag(*loop, DiagID::ErrTapirLoopNoTask);
