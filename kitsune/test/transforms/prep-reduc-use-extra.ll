@@ -7,33 +7,41 @@
 
 declare void @custom(ptr, ptr, ptr)
 
-define void @f2(i64 %n) {
+define void @f2(ptr %res, i64 %n) {
 entry:
-  %res = alloca i64
-  %syncreg = tail call token @llvm.syncregion.start()
-  br label %for.i.header
+  %sr = tail call token @llvm.syncregion.start()
+  %cmpn = icmp ult i64 0, %n
+  br i1 %cmpn, label %ph, label %sync
 
-for.i.header:
-  %i = phi i64 [ 0, %entry ], [ %inc.i, %for.i.latch ]
-  detach within %syncreg, label %for.i.body, label %for.i.latch
+ph:
+  br label %header
 
-for.i.body:
+header:
+  %i = phi i64 [ 0, %ph ], [ %inc, %latch ]
+  detach within %sr, label %body, label %latch
+
+body:
   %iptr = inttoptr i64 %i to ptr
   call void(i32, i32, ptr, ptr, i32, i32, ptr, ptr, ...) @llvm.kit.reduce(i32 1, i32 5, ptr %res, ptr %iptr, i32 0, i32 8, ptr null, ptr @custom, ptr %res)
-  reattach within %syncreg, label %for.i.latch
+  reattach within %sr, label %latch
 
-for.i.latch:
-  %inc.i = add i64 %i, 1
-  %cmp.i = icmp eq i64 %inc.i, %n
-  br i1 %cmp.i, label %for.i.exit, label %for.i.header, !llvm.loop !2
+latch:
+  %inc = add i64 %i, 1
+  %cmp = icmp eq i64 %inc, %n
+  br i1 %cmp, label %loopexit, label %header, !llvm.loop !0
 
-for.i.exit:
-  sync within %syncreg, label %for.i.end
+loopexit:
+  br label %sync
 
-for.i.end:
+sync:
+  sync within %sr, label %exit
+
+exit:
   ret void
 }
 
-!0 = !{!"tapir.loop.reduction"}
+!0 = distinct !{!0, !1, !2, !3, !4}
 !1 = !{!"tapir.loop.target", i32 1}
-!2 = distinct !{!2, !0, !1}
+!2 = !{!"tapir.loop.reduction"}
+!3 = !{!"tapir.loop.perfect.depth", i32 1}
+!4 = !{!"tapir.loop.perfect.level", i32 1}

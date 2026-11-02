@@ -20,12 +20,15 @@
 #include "kitsune/Core/BasicBlockUtils.h"
 #include "kitsune/Core/Diagnostics.h"
 #include "kitsune/Core/InstUtils.h"
+#include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
 #include "kitsune/Core/TapirLoopUtils.h"
 #include "llvm/Analysis/DomTreeUpdater.h"
 #include "llvm/Analysis/LoopAnalysisManager.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/MemorySSAUpdater.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/Intrinsics.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/LoopUtils.h"
@@ -37,467 +40,408 @@ using namespace llvm;
 
 namespace {
 
-/// Implementation class that wraps a tapir loop with another tapir loop.
-class LoopWrapImpl {
-private:
-  DominatorTree &dt;
-  LoopInfo &li;
-
-  DomTreeUpdater dtu;
-  MemorySSAUpdater mssau;
-
-private:
-  BasicBlock *genOuterPreheaderBlock(Loop &loop);
-  BasicBlock *genOuterHeaderBlock(Loop &loop, BasicBlock &outerPh);
-  BasicBlock *genOuterReattachBlock(Loop &loop);
-  BasicBlock *genOuterLatchBlock(Loop &loop, BasicBlock &outerReattach);
-  BasicBlock *genOuterExitBlock(Loop &loop, BasicBlock &outerLatch,
-                                BasicBlock &outerHeader);
-  BasicBlock *genInnerLoopGuardBlock(Loop &loop, BasicBlock &outerHeader);
-  BasicBlock *genInnerLoopEndBlock(Loop &loop, BasicBlock &outerReattach,
-                                   BasicBlock &innerGuard);
-  void genOuterLoopInsts(BasicBlock &outerLatch, BasicBlock &outerHeader,
-                         BasicBlock &outerPreheader,
-                         const TapirLoopInfo &tapirLoop);
-  void genOuterLoopMD(BasicBlock &outerLatch, Loop &loop);
-  Loop *genOuterLoopObject(Loop &loop, BasicBlock &outerPreheader,
-                           BasicBlock &outerHeader, BasicBlock &outerReattach,
-                           BasicBlock &outerLatch, BasicBlock &outerExit,
-                           BasicBlock &innerGuard, BasicBlock &innerEnd);
+// The blocks in a loop. This is simply for convenience.
+class LoopBlocks {
+public:
+  BasicBlock *guard = nullptr;
+  BasicBlock *ph = nullptr;
+  BasicBlock *header = nullptr;
+  BasicBlock *reattach = nullptr;
+  BasicBlock *latch = nullptr;
+  BasicBlock *exit = nullptr;
+  BasicBlock *bypass = nullptr;
 
 public:
-  LoopWrapImpl(DominatorTree &dt, LoopInfo &li, MemorySSA &mssa)
-      : dt(dt), li(li), dtu(dt, DomTreeUpdater::UpdateStrategy::Eager),
-        mssau(&mssa) {}
+  LoopBlocks() = default;
+  LoopBlocks(const LoopBlocks &) = delete;
+  LoopBlocks(LoopBlocks &&) = delete;
 
-  Loop *runOn(const TapirLoopInfo &tapirLoop);
+  LoopBlocks(const Loop &loop) {
+    guard = getLoopGuardBlock(loop, /*allowDeadEndExits=*/true);
+    ph = loop.getLoopPreheader();
+    header = loop.getHeader();
+    reattach = getTapirLoopReattachBlock(loop);
+    latch = loop.getLoopLatch();
+    exit = getUniqueNonDeadEndExitBlock(loop);
+    bypass = getLoopBypassBlock(loop, /*allowDeadEndExits=*/true);
+  }
 };
 
-} // namespace
-
-// Generate a block for the preheader of the outer loop. This will be inserted
-// after the preheader of \p loop. The figure below is an approximation of the
-// CFG after this function returns.
+// Implementation class that wraps a tapir loop with a serial loop.
 //
+// The CFG of \p tapirLoop is expected to be as shown below.
+//
+//     LoopGuard
 //     LoopPreheader
-//     OuterPreheader
-//     LoopPreheaderNew
 //         LoopHeader
 //         <LoopBlocks>
 //         LoopLatch
 //     LoopExit
+//     LoopBypass
 //
-// When we add the outer loop header and parallelize it, that header will
-// terminate in a detach instruction, which has two successors. The original
-// loop would then no longer be in loop-simplify form since it would not have a
-// preheader. To ensure that the original loop remains in loop-simplify form,
-// add an empty preheader for the original loop.
+// The CFG after the loop is wrapped will be transformed as shown below.
 //
-// By adding the outer loop preheader *after* the original loop preheader, we
-// ensure that any code, particularly any syncregions and allocs created in that
-// preheader will be created before the outer loop. Otherwise, these will end
-// up inside what will eventually become a parallel loop - leading to avoidable
-// complications.
-BasicBlock *LoopWrapImpl::genOuterPreheaderBlock(Loop &loop) {
-  LLVM_DEBUG(dbgs() << "LoopWrap:   Create preheader block\n");
-
-  BasicBlock *ph = loop.getLoopPreheader();
-  BasicBlock *bb = SplitBlock(ph, ph->getTerminator(), &dtu, &li, &mssau,
-                              "wrap.ph", /*Before=*/false);
-
-  // At this point, we have created the outer loop preheader *after* the
-  // original loop preheader. Split this to get a new preheader for the inner
-  // loop.
-  (void)SplitBlock(bb, bb->getTerminator(), &dtu, &li, &mssau,
-                   "wrap.inner.ph.new", /*Before=*/false);
-
-  return bb;
-}
-
-// Generate a block for the header of the outer loop. This will be inserted
-// before the preheader of \p loop. The figure below is an approximation of the
-// CFG after this function returns.
-//
-//     LoopPreheader
+//     LoopGuard1
+//     OuterGuard
 //     OuterPreheader
 //         OuterHeader
-//         LoopPreheaderNew
+//         LoopGuard2
+//         LoopPreheader
 //             LoopHeader
 //             <LoopBlocks>
 //             LoopLatch
 //         LoopExit
-//
-// NOTE: In the figure above, we have indented the blocks from \p loop for
-// clarity. However, the LoopInfo object will *NOT* be modified here, so it will
-// not know about the outer loop.
-//
-// This function will generate a PHINode in the generated header block that will
-// (eventually) be the primary induction variable of the loop. That node will
-// only have a single incoming value of 0 from the outer loop preheader,
-// \p outerPh.
-BasicBlock *LoopWrapImpl::genOuterHeaderBlock(Loop &loop, BasicBlock &outerPh) {
-  LLVM_DEBUG(dbgs() << "LoopWrap:   Create header block\n");
-
-  BasicBlock *bb = SplitBlock(&outerPh, outerPh.getTerminator(), &dtu, &li,
-                              &mssau, "wrap.header", /*Before=*/false);
-
-  // Add a phi node to this header. This will be the primary induction variable
-  // of the outer loop.
-  Type *ivTy = loop.getCanonicalInductionVariable()->getType();
-  PHINode *iv =
-      PHINode::Create(ivTy, /*NumReserved=*/2, "wrap.iv", bb->begin());
-  Constant *zero = ConstantInt::getSigned(ivTy, 0);
-  iv->addIncoming(zero, &outerPh);
-
-  return bb;
-}
-
-// Generate a basic block that will be the eventually contain a single reattach
-// instruction for the outer loop body. This will be inserted after the sole
-// exit block of \p loop. The figure below is an approximation of the CFG after
-// this function returns.
-//
-//     LoopPreheader
-//     OuterPreheader
-//         OuterHeader
-//         LoopPreheaderNew
-//             LoopHeader
-//             <LoopBlocks>
-//             LoopLatch
-//         LoopExitNew
-//         OuterReattach
-//     LoopExit
-//
-// In the figure above, the original LoopExit block has been split. The
-// instructions that were originally in the exit block of \p loop will be
-// in LoopExit. The LoopExit block will often contain a sync instruction. Moving
-// the instructions this way ensures that the sync will appear *after* the outer
-// loop. LoopExitNew will be empty.
-BasicBlock *LoopWrapImpl::genOuterReattachBlock(Loop &loop) {
-  LLVM_DEBUG(dbgs() << "LoopWrap:   Create reattach block\n");
-
-  // Split the loop exit block. This results in two blocks. The first, which is
-  // returned from SplitBlock(), will be an empty block corresponding to
-  // LoopExitNew in the figure above. LoopExit will remain essentially
-  // unchanged.
-  BasicBlock *loopExit = getExitBlockFromLatch(loop);
-  (void)SplitBlock(loopExit, loopExit->begin(), &dtu, &li, &mssau,
-                   "wrap.inner.exit.new", /*Before=*/true);
-
-  // Split the loop exit block again. SplitBlock() will once again return an
-  // empty block while LoopExit will remain effectively unchanged.
-  BasicBlock *bb = SplitBlock(loopExit, loopExit->begin(), &dtu, &li, &mssau,
-                              "wrap.reattach", /*Before=*/true);
-
-  return bb;
-}
-
-// Generate a basic block that will be the outer loop latch. This will be
-// inserted after the sole exit block of \p loop. The figure below is an
-// approximation of the CFG after this function returns.
-//
-//     LoopPreheader
-//     OuterPreheader
-//         OuterHeader
-//         LoopPreheaderNew
-//             LoopHeader
-//             <LoopBlocks>
-//             LoopLatch
-//         LoopExitNew
-//         OuterReattach
-//         OuterLatch
-//     LoopExit
-//
-BasicBlock *LoopWrapImpl::genOuterLatchBlock(Loop &loop,
-                                             BasicBlock &outerReattach) {
-  LLVM_DEBUG(dbgs() << "LoopWrap:   Create latch block\n");
-
-  BasicBlock *bb =
-      SplitBlock(&outerReattach, outerReattach.getTerminator(), &dtu, &li,
-                 &mssau, "wrap.latch", /*Before=*/false);
-
-  // At this point, the latch branches unconditionally to LoopExit. It will be
-  // replaced with an appropriate conditional branch and backedge when the outer
-  // outer loop exit block is created.
-  return bb;
-}
-
-// Generate a basic block that will be the sole outer loop exit block. This will
-// be inserted after \p outerLatch. The figure below shows what the CFG is
-// expected to be after this function returns.
-//
-//     LoopPreheader
-//     OuterPreheader
-//         OuterHeader
-//         LoopPreheaderNew
-//             LoopHeader
-//             <LoopBlocks>
-//             LoopLatch
-//         LoopExitNew
+//         LoopBypass
 //         OuterReattach
 //         OuterLatch
 //     OuterExit
-//     LoopExit
+//     OuterBypass
 //
-// The terminator of \p outerLatch will be updated to be a conditional branch
-// that goes to either \p outerHeader, or the generated exit block. However,
-// the condition of the branch will not be valid.
-BasicBlock *LoopWrapImpl::genOuterExitBlock(Loop &loop, BasicBlock &outerLatch,
-                                            BasicBlock &outerHeader) {
-  LLVM_DEBUG(dbgs() << "LoopWrap:   Create exit block\n");
+// For more information, see the API documentation for wrapWithSerialLoop.
+class WrapLoopBase {
+protected:
+  DominatorTree &dt;
+  LoopInfo &li;
+  ScalarEvolution &se;
+  TaskInfo &ti;
 
-  BasicBlock *bb = SplitBlock(&outerLatch, outerLatch.getTerminator(), &dtu,
-                              &li, &mssau, "wrap.exit", /*Before=*/false);
+  DomTreeUpdater dtu;
+  MemorySSAUpdater mssau;
 
-  // Update the terminator of the outer loop latch. We don't update the
-  // induction variable of the outer loop since we don't yet have an appropriate
-  // value that will be sent along the backedge. However, we don't yet have a
-  // proper condition to check for in the branch, so just use a placeholder.
-  LLVMContext &ctx = getContext(loop);
-  Constant *cond = ConstantInt::getTrue(ctx);
-  BranchInst *br = BranchInst::Create(bb, &outerHeader, cond);
-  ReplaceInstWithInst(outerLatch.getTerminator(), br);
+protected:
+  LoopBlocks populateLoopBlocks(Loop &loop);
 
-  return bb;
-}
+  void genGuardBlock(Loop &loop, LoopBlocks &bbs, LoopBlocks &bbsGen);
+  void genPreheaderBlock(Loop &loop, const LoopBlocks &bbs, LoopBlocks &bbsGen);
+  void genHeaderBlock(Loop &loop, const LoopBlocks &bbs, LoopBlocks &bbsGen);
+  void genReattachBlock(Loop &loop, const LoopBlocks &bbs, LoopBlocks &bbsGen);
+  void genLatchBlock(Loop &loop, const LoopBlocks &bbs, LoopBlocks &bbsGen);
+  void genExitBlock(Loop &loop, const LoopBlocks &bbs, LoopBlocks &bbsGen);
+  void genBypassBlock(Loop &loop, const LoopBlocks &bbs, LoopBlocks &bbsGen);
 
-// Generate a basic block that will be the guard for the inner loop. The
-// original inner loop guard will be a predecessor of the loop preheader.
-// However, once the loop is transformed, the inner loop bounds will change, so,
-// a guard may well be necessary. The figure below shows what the CFG is
-// expected to be after this function returns.
-//
-//     LoopPreheader
-//     OuterPreheader
-//         OuterHeader
-//         LoopGuardNew
-//         LoopPreheaderNew
-//             LoopHeader
-//             <LoopBlocks>
-//             LoopLatch
-//         LoopExitNew
-//         OuterReattach
-//         OuterLatch
-//     OuterExit
-//     LoopExit
-//
-// The terminator of the new guard will be unconditional and will branch to the
-// preheader of the inner loop.
-BasicBlock *LoopWrapImpl::genInnerLoopGuardBlock(Loop &loop,
-                                                 BasicBlock &outerHeader) {
-  LLVM_DEBUG(dbgs() << "LoopWrap:   Create loop guard block\n");
+  virtual void genGuardInsts(const Loop &loop, const LoopBlocks &bbs,
+                             const LoopBlocks &bbsGen);
+  virtual void genHeaderInsts(const Loop &loop, const LoopBlocks &bbs,
+                              const LoopBlocks &bbsGen);
+  virtual void genLatchInsts(const Loop &loop, const LoopBlocks &bbs,
+                             const LoopBlocks &bbsGen);
 
-  Instruction *term = outerHeader.getTerminator();
-  BasicBlock *bb = SplitBlock(&outerHeader, term, &dtu, &li, &mssau,
-                              "wrap.inner.guard.new", /*Before=*/false);
+  virtual void genReattachInsts(const Loop &loop, const LoopBlocks &bbs,
+                                const LoopBlocks &bbsGen) = 0;
+  virtual void genBypassInsts(const Loop &loop, const LoopBlocks &bbs,
+                              const LoopBlocks &bbsGen) = 0;
+  virtual void genWrapperLoopMD(const Loop &loop, const LoopBlocks &bbsGen) = 0;
 
-  return bb;
-}
+  Loop *genWrapperLoopObject(Loop &loop, const LoopBlocks &bbs,
+                             const LoopBlocks &bbsGen);
 
-// Generate a basic block that will be the end block for the inner loop. This
-// will be the destination for the inner loop guard if that loop is to be
-// bypassed. The figure below shows what the CFG is expected to be after this
-// function returns.
-//
-//     LoopPreheader
-//     OuterPreheader
-//         OuterHeader
-//         LoopGuardNew
-//         LoopPreheaderNew
-//             LoopHeader
-//             <LoopBlocks>
-//             LoopLatch
-//         LoopExitNew
-//         LoopEndNew
-//         OuterReattach
-//         OuterLatch
-//     OuterExit
-//     LoopExit
-//
-// A conditional branch will be inserted between the \p innerGuard and the new
-// inner loop end block. The conditional of that branch will not be valid and
-// will be updated later in this transformation.
-BasicBlock *LoopWrapImpl::genInnerLoopEndBlock(Loop &loop,
-                                               BasicBlock &outerReattach,
-                                               BasicBlock &innerGuard) {
-  auto sanityCheck = [](Loop &loop) {
-    assert(loop.getLoopPreheader() && "Inner loop must have a preheader");
+protected:
+  WrapLoopBase(DominatorTree &dt, LoopInfo &li, MemorySSA &mssa,
+               ScalarEvolution &se, TaskInfo &ti)
+      : dt(dt), li(li), se(se), ti(ti),
+        dtu(dt, DomTreeUpdater::UpdateStrategy::Eager), mssau(&mssa) {}
+
+public:
+  Loop *runOn(const TapirLoopInfo &tapirLoop);
+};
+
+// Implementation class to wrap a tapir loop with a serial loop
+class WrapWithSerialLoop : public WrapLoopBase {
+protected:
+  virtual void genReattachInsts(const Loop &loop, const LoopBlocks &bbs,
+                                const LoopBlocks &bbsGen) override final;
+  virtual void genBypassInsts(const Loop &loop, const LoopBlocks &bbs,
+                              const LoopBlocks &bbsGen) override final;
+  virtual void genWrapperLoopMD(const Loop &loop,
+                                const LoopBlocks &bbsGen) override final;
+
+public:
+  WrapWithSerialLoop(DominatorTree &dt, LoopInfo &li, MemorySSA &mssa,
+                     ScalarEvolution &se, TaskInfo &ti)
+      : WrapLoopBase(dt, li, mssa, se, ti) {}
+};
+
+// Implementation class to wrap a tapir loop with another tapir loop
+class WrapWithTapirLoop : public WrapLoopBase {
+private:
+  Value *getWrapperSyncRegion(BasicBlock &guard);
+
+protected:
+  virtual void genGuardInsts(const Loop &loop, const LoopBlocks &bbs,
+                             const LoopBlocks &bbsGen) override final;
+  virtual void genHeaderInsts(const Loop &loop, const LoopBlocks &bbs,
+                              const LoopBlocks &bbsGen) override final;
+  virtual void genReattachInsts(const Loop &loop, const LoopBlocks &bbs,
+                                const LoopBlocks &bbsGen) override final;
+  virtual void genBypassInsts(const Loop &loop, const LoopBlocks &bbs,
+                              const LoopBlocks &bbsGen) override final;
+
+  virtual void genWrapperLoopMD(const Loop &loop,
+                                const LoopBlocks &bbsGen) override final;
+
+public:
+  WrapWithTapirLoop(DominatorTree &dt, LoopInfo &li, MemorySSA &mssa,
+                    ScalarEvolution &se, TaskInfo &ti)
+      : WrapLoopBase(dt, li, mssa, se, ti) {}
+};
+
+} // namespace
+
+void WrapLoopBase::genGuardBlock(Loop &loop, LoopBlocks &bbs,
+                                 LoopBlocks &bbsGen) {
+  // Get the point at which to split the original loop guard block to construct
+  // the LoopGuard1 and LoopGuard2 blocks in the CFG diagram above. In general,
+  // this will try to keep the original terminator and the instructions that
+  // comprise the guard condition in LoopGuard2, and everything else in
+  // LoopGuard1. At the very least, this will return the terminator of the guard
+  // block \p bb.
+  auto getGuardSplitPoint = [](BasicBlock &guard) -> Instruction * {
+    BranchInst *br = cast<BranchInst>(guard.getTerminator());
+    Value *cond = br->getCondition();
+    if (!isa<Instruction>(cond))
+      return br;
+
+    // We generally want all the instructions in LoopGuard2 to be directly
+    // related to the condition of the branch. If the condition is an
+    // instruction, but not the immediate predecessor of the branch, just split
+    // at the branch. The whole point of finding a different split point is to
+    // keep the IR organized in a way that is marginally easier to read if
+    // needed.
+    CmpInst *cmp = dyn_cast<CmpInst>(cond);
+    if (!cmp || br->getPrevNode() != cmp)
+      return br;
+
+    return cmp;
   };
 
-  LLVM_DEBUG(dbgs() << "LoopWrap:   Create loop end block\n");
-  sanityCheck(loop);
+  LLVM_DEBUG(dbgs() << "WrapLoop:   Create guard block\n");
 
-  LLVMContext &ctx = getContext(loop);
-  Instruction *term = outerReattach.getTerminator();
-  BasicBlock *innerEnd = SplitBlock(&outerReattach, term, &dtu, &li, &mssau,
-                                    "wrap.inner.end.new", /*Before=*/true);
+  assert(bbs.guard && "Loop has guard block");
+  assert(isa<BranchInst>(bbs.guard->getTerminator()) &&
+         "Terminator of guard block is a branch instruction");
+  assert(cast<BranchInst>(bbs.guard->getTerminator()) &&
+         "Terminator of guard block is a conditional branch instruction");
 
-  // Now that we have the end block, replace the terminator of the inner loop
-  // guard with a conditional branch.
-  BasicBlock *ph = loop.getLoopPreheader();
-  Constant *cond = ConstantInt::getFalse(ctx);
-  BranchInst *br = BranchInst::Create(innerEnd, ph, cond);
+  BasicBlock *origGuard = bbs.guard;
 
-  ReplaceInstWithInst(innerGuard.getTerminator(), br);
+  // We try to group a "reasonable" set of instructions into what will become
+  // the guard of the loop being wrapped.
+  Instruction *splitPt = getGuardSplitPoint(*origGuard);
 
-  // Update analyses
-  dt.insertEdge(&innerGuard, innerEnd);
+  // Split the original loop guard block. Since we have passed `Before=false` to
+  // SplitBlock, the instructions before the split point will remain in the
+  // block, while the split point and any instructions after it will be moved
+  // to a new block. This new block is returned by SplitBlock. The new block
+  // will be the guard block of the original loop. The remaining instructions
+  // will be in the predecessor of the wrapper loop guard that will eventually
+  // be added, i.e. they will be present in LoopGuard1 in the CFG diagram in the
+  // documentation for this class. Since the guard of the original loop has
+  // effectively now changed, we must update the recorded guard.
+  bbs.guard = SplitBlock(origGuard, splitPt, &dtu, &li, &mssau, "guard",
+                         /*Before=*/false);
 
+  // Splitting the guard block at the beginning will generate an empty block
+  // between LoopGuard1 that was created above and, what is now LoopGuard2. This
+  // will be the guard block for the wrapper loop.
+  BasicBlock *guard = bbs.guard;
+  bbsGen.guard =
+      SplitBlock(guard, guard->begin(), &dtu, &li, &mssau, "wrap.guard",
+                 /*Before=*/true);
+}
+
+void WrapLoopBase::genPreheaderBlock(Loop &loop, const LoopBlocks &bbs,
+                                     LoopBlocks &bbsGen) {
+  LLVM_DEBUG(dbgs() << "WrapLoop:   Create preheader block\n");
+
+  assert(bbsGen.guard && "Generated wrapped loop guard block");
+
+  BasicBlock *guard = bbsGen.guard;
+  Instruction *term = guard->getTerminator();
+  bbsGen.ph =
+      SplitBlock(guard, term, &dtu, &li, &mssau, "wrap.ph", /*Before=*/false);
+}
+
+void WrapLoopBase::genHeaderBlock(Loop &loop, const LoopBlocks &bbs,
+                                  LoopBlocks &bbsGen) {
+  LLVM_DEBUG(dbgs() << "WrapLoop:   Create header block\n");
+
+  assert(bbsGen.ph && "Generated wrapped loop preheader block");
+
+  BasicBlock *ph = bbsGen.ph;
+  Instruction *term = ph->getTerminator();
+  bbsGen.header =
+      SplitBlock(ph, term, &dtu, &li, &mssau, "wrap.header", /*Before=*/false);
+}
+
+void WrapLoopBase::genReattachBlock(Loop &loop, const LoopBlocks &bbs,
+                                    LoopBlocks &bbsGen) {
+  LLVM_DEBUG(dbgs() << "WrapLoop:   Create reattach block\n");
+
+  assert(bbs.bypass && "Loop has bypass block");
+  assert(isa<SyncInst>(bbs.bypass->getTerminator()) &&
+         "Terminator of loop bypass block is a sync instruction");
+
+  BasicBlock *bypass = bbs.bypass;
+  SyncInst *sync = cast<SyncInst>(bypass->getTerminator());
+  BasicBlock *cont = sync->getSuccessor(0);
+
+  bbsGen.reattach =
+      SplitBlock(cont, cont->begin(), &dtu, &li, &mssau, "wrap.reattach",
+                 /*Before=*/true);
+}
+
+void WrapLoopBase::genLatchBlock(Loop &loop, const LoopBlocks &bbs,
+                                 LoopBlocks &bbsGen) {
+  LLVM_DEBUG(dbgs() << "WrapLoop:   Create latch block\n");
+
+  assert(bbsGen.reattach && "Generated wrapped loop reattach block");
+
+  BasicBlock *reattach = bbsGen.reattach;
+  Instruction *term = reattach->getTerminator();
+  bbsGen.latch = SplitBlock(reattach, term, &dtu, &li, &mssau, "wrap.latch",
+                            /*Before=*/false);
+}
+
+void WrapLoopBase::genExitBlock(Loop &loop, const LoopBlocks &bbs,
+                                LoopBlocks &bbsGen) {
+  LLVM_DEBUG(dbgs() << "WrapLoop:   Create exit block\n");
+
+  assert(bbsGen.latch && "Generated wrapped loop latch block");
+
+  BasicBlock *latch = bbsGen.latch;
+  Instruction *term = latch->getTerminator();
+  bbsGen.exit = SplitBlock(latch, term, &dtu, &li, &mssau, "wrap.loopexit",
+                           /*Before=*/false);
+}
+
+void WrapLoopBase::genBypassBlock(Loop &loop, const LoopBlocks &bbs,
+                                  LoopBlocks &bbsGen) {
+  LLVM_DEBUG(dbgs() << "WrapLoop:   Create bypass block\n");
+
+  assert(bbsGen.exit && "Generated wrapped loop exit block");
+
+  BasicBlock *exit = bbsGen.exit;
+  Instruction *term = exit->getTerminator();
+  bbsGen.bypass = SplitBlock(exit, term, &dtu, &li, &mssau, "wrap.bypass",
+                             /*Before=*/false);
+}
+
+void WrapLoopBase::genGuardInsts(const Loop &loop, const LoopBlocks &bbs,
+                                 const LoopBlocks &bbsGen) {
+  LLVM_DEBUG(dbgs() << "WrapLoop:   Populate guard block\n");
+
+  assert(bbsGen.guard && "Generated wrapper loop guard block");
+  assert(bbsGen.ph && "Generated wrapper loop preheader block");
+  assert(bbsGen.bypass && "Generated wrappre loop bypass block");
+  assert(succ_size(bbsGen.guard) == 1 &&
+         "Wrapper guard branches unconditionally");
+  assert(*succ_begin(bbsGen.guard) == bbsGen.ph &&
+         "Wrapper guard branches to the wrapper preheader");
+
+  BasicBlock *guard = bbsGen.guard;
+  BasicBlock *ph = bbsGen.ph;
+  BasicBlock *bypass = bbsGen.bypass;
+
+  LLVMContext &ctx = guard->getContext();
+  Type *i1 = Type::getInt1Ty(ctx);
+
+  Instruction *term = guard->getTerminator();
+  Value *cond = ConstantInt::getTrue(i1);
+  BranchInst *condBr = BranchInst::Create(ph, bypass, cond);
+
+  ReplaceInstWithInst(term, condBr);
+
+  dt.insertEdge(guard, bypass);
 #ifndef NDEBUG
   dt.verify();
 #endif // NDEBUG
-
-  return innerEnd;
 }
 
-// Generate the correct instructions in \outerLatch such that it will iterate
-// correctly. This will update the terminator of the loop latch, as well as the
-// loop induction variable in the outer loop header, \p outerHeader. \p loop is
-// the tapir loop corresponding to the loop being transformed.
-void LoopWrapImpl::genOuterLoopInsts(BasicBlock &outerLatch,
-                                     BasicBlock &outerHeader,
-                                     BasicBlock &outerPreheader,
-                                     const TapirLoopInfo &tapirLoop) {
-  auto sanityCheck = [](BasicBlock &outerLatch, BasicBlock &outerHeader) {
-    BranchInst *outerBr = dyn_cast<BranchInst>(outerLatch.getTerminator());
-    assert(outerBr &&
-           "Terminator of outer loop latch must be a branch instruction");
-    assert(outerBr->getNumSuccessors() == 2 &&
-           "Terminator of outer loop latch must be a conditional branch");
+void WrapLoopBase::genHeaderInsts(const Loop &loop, const LoopBlocks &bbs,
+                                  const LoopBlocks &bbsGen) {
+  LLVM_DEBUG(dbgs() << "WrapLoop:   Populate header block\n");
 
-    PHINode *outerIV = dyn_cast<PHINode>(outerHeader.begin());
-    assert(outerIV &&
-           "First instruction of outer loop header must be a phi node");
-  };
+  assert(bbsGen.ph && "Generated wrapper loop preheader block");
+  assert(bbsGen.header && "Generated wrapper loop header block");
+  assert(succ_size(bbsGen.ph) == 1 &&
+         "Wrapper preheader branches unconditionally");
+  assert(*succ_begin(bbsGen.ph) == bbsGen.header &&
+         "Wrapper preheader branches to the wrapper header");
 
-  LLVM_DEBUG(dbgs() << "LoopWrap:   Add latch instructions\n");
-  sanityCheck(outerLatch, outerHeader);
+  LLVMContext &ctx = getContext(loop);
+  Type *i64 = Type::getInt64Ty(ctx);
 
-  Instruction *outerPhTerm = outerPreheader.getTerminator();
-  IRBuilder<> builderPh(outerPhTerm);
+  BasicBlock *ph = bbsGen.ph;
+  BasicBlock *header = bbsGen.header;
+  Instruction *term = header->getTerminator();
 
-  BranchInst *outerBr = cast<BranchInst>(outerLatch.getTerminator());
-  IRBuilder<> builder(outerBr);
-
-  PHINode *outerIV = cast<PHINode>(outerHeader.begin());
-  Type *ivTy = outerIV->getType();
-  Constant *one = ConstantInt::getSigned(outerIV->getType(), 1);
-  Value *outerInc = builder.CreateAdd(outerIV, one, "wrap.iv.inc");
-
-  Instruction *innerInc = getPrimaryIVInc(tapirLoop);
-  cast<Instruction>(outerInc)->copyIRFlags(innerInc);
-
-  outerIV->addIncoming(outerInc, &outerLatch);
-
-  Value *tc = tapirLoop.getTripCount();
-  Value *outerTc = builder.CreateIntCast(tc, ivTy, /*isSigned=*/false);
-  Value *outerCmp = builder.CreateICmpEQ(outerInc, outerTc, "wrap.iv.cmp");
-  outerBr->setCondition(outerCmp);
+  PHINode *iv = PHINode::Create(i64, /*NumReservedValues=*/2, "wrap.iv",
+                                term->getIterator());
+  Value *zero = ConstantInt::get(i64, 0, /*isSigned=*/false);
+  iv->addIncoming(zero, ph);
 }
 
-// Generate loop metadata for the outer loop. This will be a clone of the
-// metadata of the loop, \p loop being transformed.
-void LoopWrapImpl::genOuterLoopMD(BasicBlock &outerLatch, Loop &loop) {
-  LLVM_DEBUG(dbgs() << "LoopWrap:   Create loop metadata\n");
+void WrapLoopBase::genLatchInsts(const Loop &loop, const LoopBlocks &bbs,
+                                 const LoopBlocks &bbsGen) {
+  LLVM_DEBUG(dbgs() << "WrapLoop:   Populate latch block\n");
 
-  MDNode *loopMD = loop.getLoopID();
-  assert(loopMD && "Loop being transformed does not have metadata");
+  assert(bbsGen.header && "Generated wrapper loop header block");
+  assert(bbsGen.latch && "Generated wrapper loop latch block");
+  assert(bbsGen.exit && "Generated wrapper loop exit block");
+  assert(succ_size(bbsGen.latch) == 1 &&
+         "Wrapper latch branches unconditionally");
+  assert(*succ_begin(bbsGen.latch) == bbsGen.exit &&
+         "Wrapper latches branches to the exit block");
+  assert(bbsGen.header->size() == 2 &&
+         "Wrapper header has exactly two instructions");
 
-  TempMDNode tempMD = loopMD->clone();
-  MDNode *md = MDNode::replaceWithDistinct(std::move(tempMD));
-  md->replaceOperandWith(0, md);
+  assert(getUniquePHI(*bbsGen.header) &&
+         "Wrapper header has a single PHI node");
+  assert(getUniquePHI(*bbsGen.header)->getType()->isIntegerTy(64) &&
+         "Wrapper induction variable is of type i64");
 
-  outerLatch.getTerminator()->setMetadata(LLVMContext::MD_loop, md);
+  BasicBlock *header = bbsGen.header;
+  BasicBlock *latch = bbsGen.latch;
+  BasicBlock *exit = bbsGen.exit;
+
+  PHINode *iv = getUniquePHI(*header);
+  Type *ivTy = iv->getType();
+  Constant *zero = ConstantInt::get(ivTy, 0, /*isSigned=*/false);
+  Constant *one = ConstantInt::get(ivTy, 1, /*isSigned=*/false);
+
+  IRBuilder<> builder(latch->getTerminator());
+  Value *inc = builder.CreateNUWAdd(iv, one, "wrap.iv.inc");
+  Value *cmp = builder.CreateICmpEQ(inc, zero, "wrap.iv.cmp");
+  BranchInst *br = BranchInst::Create(exit, header, cmp);
+
+  iv->addIncoming(inc, latch);
+  ReplaceInstWithInst(latch->getTerminator(), br);
+
+  dt.insertEdge(latch, header);
+#ifndef NDEBUG
+  dt.verify();
+#endif // NDEBUG
 }
 
-// Generate a loop object for the outer loop with the given blocks. The
-// structure of the loop will be as follows:
-//
-//     LoopPreheader
-//     OuterPreheader
-//         OuterHeader
-//         LoopGuardNew
-//         LoopPreheaderNew
-//             LoopHeader
-//             <LoopBlocks>
-//             LoopLatch
-//         LoopExitNew
-//         LoopEndNew
-//         OuterReattach
-//         OuterLatch
-//     OuterExit
-//     LoopExit
-//
-// LoopPreheader, LoopHeader, <LoopBlocks>, LoopLatch, and LoopExit in the
-// figure above are from \p loop that will now become the sole child of the
-// outer loop object that will be created here. If the original depth of \p loop
-// was `d`, it will be `d+1` after this function is returned while the newly
-// created outer loop object will be at depth `d`. LoopPreheaderNew and
-// LoopExitNew are empty blocks that were created when the outer loop blocks
-// were created.
-//
-// This will update the analysis objects in this class, so they should be safe
-// to use after this returns.
-Loop *LoopWrapImpl::genOuterLoopObject(
-    Loop &loop, BasicBlock &outerPh, BasicBlock &outerHeader,
-    BasicBlock &outerReattach, BasicBlock &outerLatch, BasicBlock &outerExit,
-    BasicBlock &innerGuard, BasicBlock &innerEnd) {
-  auto sanityCheck = [](Loop &loop, BasicBlock &outerHeader,
-                        BasicBlock &outerReattach, BasicBlock &outerLatch,
-                        BasicBlock &outerExit, BasicBlock &innerGuard,
-                        BasicBlock &innerEnd) {
-    BasicBlock *ph = loop.getLoopPreheader();
-    BasicBlock *exit = getExitBlockFromLatch(loop);
+// Generate a loop object for the outer loop with the given blocks. This will
+// update the analysis objects in this class, so they should be safe to use
+// after this returns.
+Loop *WrapLoopBase::genWrapperLoopObject(Loop &loop, const LoopBlocks &bbs,
+                                         const LoopBlocks &bbsGen) {
+  auto sanityCheck = [](const Loop &loop, const LoopBlocks &bbs,
+                        const LoopBlocks &bbsGen) {
+    assert(bbs.guard && "Wrapped loop has guard block");
+    assert(bbs.ph && "Wrapped loop has preheader block");
+    assert(bbs.exit && "Wrapped loop has exit block");
+    assert(bbs.bypass && "Wrapped loop has bypass block");
 
-    assert(ph && "Inner loop must have a preheader");
-    assert(exit && "Inner loop must have a unique exit block");
-
-    assert(succ_size(&outerHeader) == 1 &&
-           "Outer loop header must have a single successor");
-    assert(*succ_begin(&outerHeader) == &innerGuard &&
-           "Successor of outer loop header must be the inner loop guard");
-
-    BranchInst *br = dyn_cast<BranchInst>(innerGuard.getTerminator());
-    assert(br && "Terminator of inner loop guard must be a branch instruction");
-    assert(br->getNumSuccessors() == 2 &&
-           "Inner loop guard must have exactly two successors");
-    assert(br->getSuccessor(0) == &innerEnd &&
-           "First successor of inner loop guard must be loop end block");
-    assert(br->getSuccessor(1) == ph &&
-           "Second successor of inner loop guard must be the loop preheader");
-
-    assert(pred_size(&innerEnd) == 2 &&
-           "Inner loop end block must have exactly two predecessors");
-
-    assert(succ_size(exit) == 1 &&
-           "Inner loop exit block must have exactly one successor");
-    assert(*succ_begin(exit) == &innerEnd &&
-           "Successor of inner loop exit block must be the loop end block");
-
-    assert(succ_size(&innerEnd) == 1 &&
-           "Inner loop end block must have exactly one successor");
-    assert(*succ_begin(&innerEnd) == &outerReattach &&
-           "Successor of inner loop end block must be the outer loop reattach "
-           "block");
-
-    assert(pred_size(&outerReattach) == 1 &&
-           "Outer loop reattach block must have a single predecessor");
-    assert(*pred_begin(&outerReattach) == &innerEnd &&
-           "Predecessor of outer loop reattach block must be inner loop exit");
-    assert(succ_size(&outerReattach) == 1 &&
-           "Outer loop reattach block must have a single successor");
-    assert(*succ_begin(&outerReattach) == &outerLatch &&
-           "Successor of outer loop reattach block must be outer loop latch");
-
-    assert(pred_size(&outerLatch) == 1 &&
-           "Outer loop latch must have a single predecessor");
-    assert(*pred_begin(&outerLatch) == &outerReattach &&
-           "Predecessor of outer loop latch must be outer loop reattach block");
-
-    assert(pred_size(&outerExit) == 1 &&
-           "Outer loop exit must have a single predecessor");
-    assert(*pred_begin(&outerExit) == &outerLatch &&
-           "Predecessor of outer loop exit must be outer loop latch");
+    assert(bbsGen.guard && "Generated wrapper loop guard block");
+    assert(bbsGen.ph && "Generated wrapper loop preheader block");
+    assert(bbsGen.header && "Generated wrapper loop header block");
+    assert(bbsGen.reattach && "Generated wrapper loop reattach block");
+    assert(bbsGen.latch && "Generated wrapper loop latch block");
+    assert(bbsGen.exit && "Generated wrapper loop exit block");
+    assert(bbsGen.bypass && "Generated wrapper loop bypass block");
   };
 
   auto addBlockToLoop = [](Loop &loop, BasicBlock &bb, LoopInfo &li) {
@@ -509,78 +453,80 @@ Loop *LoopWrapImpl::genOuterLoopObject(
     }
   };
 
-  LLVM_DEBUG(dbgs() << "LoopWrap:   Create loop object\n");
-  sanityCheck(loop, outerHeader, outerReattach, outerLatch, outerExit,
-              innerGuard, innerEnd);
+  LLVM_DEBUG(dbgs() << "WrapLoop:   Create loop object\n");
+  sanityCheck(loop, bbs, bbsGen);
 
-  Loop *outerLoop = li.AllocateLoop();
+#ifndef NDEBUG
+  Loop *parentLoop = loop.getParentLoop();
+#endif // NDEBUG
+
+  Loop *wrapperLoop = li.AllocateLoop();
   if (Loop *parentLoop = loop.getParentLoop())
-    parentLoop->replaceChildLoopWith(&loop, outerLoop);
+    parentLoop->replaceChildLoopWith(&loop, wrapperLoop);
   else
-    li.changeTopLevelLoop(&loop, outerLoop);
-  outerLoop->addChildLoop(&loop);
+    li.changeTopLevelLoop(&loop, wrapperLoop);
+  wrapperLoop->addChildLoop(&loop);
 
   // Add blocks to the outer loop. We add them in roughly the same order as the
   // figure above just to keep things somewhat organized. The blocks in the
   // inner loop must also be added to the new outer loop. These don't have to be
   // added to the parents of the outer loop (if any) since they should already
   // be present there, so we just use addBlockEntry().
-  addBlockToLoop(*outerLoop, outerHeader, li);
-  addBlockToLoop(*outerLoop, innerGuard, li);
-  addBlockToLoop(*outerLoop, *loop.getLoopPreheader(), li);
+  addBlockToLoop(*wrapperLoop, *bbsGen.header, li);
+  addBlockToLoop(*wrapperLoop, *bbs.guard, li);
+  addBlockToLoop(*wrapperLoop, *bbs.ph, li);
   for (BasicBlock *bb : loop.getBlocks())
-    outerLoop->addBlockEntry(bb);
-  addBlockToLoop(*outerLoop, *getExitBlockFromLatch(loop), li);
-  addBlockToLoop(*outerLoop, innerEnd, li);
-  addBlockToLoop(*outerLoop, outerReattach, li);
-  addBlockToLoop(*outerLoop, outerLatch, li);
+    wrapperLoop->addBlockEntry(bb);
+  addBlockToLoop(*wrapperLoop, *bbs.exit, li);
+  addBlockToLoop(*wrapperLoop, *bbs.bypass, li);
+  addBlockToLoop(*wrapperLoop, *bbsGen.reattach, li);
+  addBlockToLoop(*wrapperLoop, *bbsGen.latch, li);
 
+  // Optionally run some sanity checks before updating task analysis since it
+  // might help catch issues earlier.
+#ifndef NDEBUG
   assert(loop.isLoopSimplifyForm() &&
          "Inner loop must be maintained in loop-simplify form");
-  assert(outerLoop->isLoopSimplifyForm() &&
+  assert(wrapperLoop->isLoopSimplifyForm() &&
          "Outer loop must be generated in loop-simplify form");
 
-#ifndef NDEBUG
   dt.verify();
   li.verify(dt);
   loop.verifyLoop();
-  outerLoop->verifyLoop();
+  wrapperLoop->verifyLoop();
+  if (parentLoop) {
+    parentLoop->verifyLoop();
+    assert(wrapperLoop->getParentLoop() == parentLoop &&
+           "Original parent of loop nest is parent of prepared outer loop");
+  }
+
+  const std::vector<Loop *> &subLoops = wrapperLoop->getSubLoops();
+  assert(subLoops.size() == 1 && "Wrapped loop has a single subloop");
+  assert(subLoops[0] == &loop && "Wrapper loop subloop is the original loop");
 #endif // NDEBUG
 
-  return outerLoop;
+  // FIXME: Recomputing task analysis for the entire function is wasteful,
+  // but there is currently no more efficient way to do this.
+  //
+  // TaskInfo will have to be recalculated even when wrapping a serial loop
+  // around a tapir loop nest.
+  Function *f = getFunction(loop);
+  ti.recalculate(*f, dt);
+
+#ifndef NDEBUG
+  ti.verify(dt);
+#endif // NDEBUG
+
+  return wrapperLoop;
 }
 
-// The current loop structure is as shown below. The LoopPreheader and
-// LoopExit blocks are not part of the loop, so they are indented at a
-// different level.
-//
-//     LoopPreheader
-//         LoopHeader
-//         <LoopBlocks>
-//         LoopLatch
-//     LoopExit
-//
-// This has to be transformed to the following:
-//
-//     LoopPreheader
-//     OuterPreheader
-//         OuterHeader
-//         LoopGuardNew
-//         LoopPreheaderNew
-//             LoopHeader
-//             <LoopBlocks>
-//             LoopLatch
-//         LoopExitNew
-//         LoopEndNew
-//         OuterReattach
-//         OuterLatch
-//     OuterExit
-//     LoopExit
-//
-Loop *LoopWrapImpl::runOn(const TapirLoopInfo &tapirLoop) {
-  LLVM_DEBUG(dbgs() << "LoopWrap: Generate outer loop\n");
+Loop *WrapLoopBase::runOn(const TapirLoopInfo &tapirLoop) {
+  LLVM_DEBUG(dbgs() << "WrapLoop: Generate outer loop\n");
 
   Loop &loop = *tapirLoop.getLoop();
+
+  // The blocks in the original loop being wrapped.
+  LoopBlocks bbs(loop);
 
   // We first create the core blocks required by the outer loop. At no stage
   // during the creation of these can the CFG be assumed to be "correct" i.e.
@@ -588,134 +534,228 @@ Loop *LoopWrapImpl::runOn(const TapirLoopInfo &tapirLoop) {
   // incoming values and blocks, conditional branch instructions may have
   // invalid conditions etc. The CFG will be kept "somewhat sane", but that's
   // about it.
-  BasicBlock *outerPreheader = genOuterPreheaderBlock(loop);
-  BasicBlock *outerHeader = genOuterHeaderBlock(loop, *outerPreheader);
-  BasicBlock *outerReattach = genOuterReattachBlock(loop);
-  BasicBlock *outerLatch = genOuterLatchBlock(loop, *outerReattach);
-  BasicBlock *outerExit = genOuterExitBlock(loop, *outerLatch, *outerHeader);
+  LoopBlocks bbsGen;
+  genGuardBlock(loop, bbs, bbsGen);
+  genPreheaderBlock(loop, bbs, bbsGen);
+  genHeaderBlock(loop, bbs, bbsGen);
+  genReattachBlock(loop, bbs, bbsGen);
+  genLatchBlock(loop, bbs, bbsGen);
+  genExitBlock(loop, bbs, bbsGen);
+  genBypassBlock(loop, bbs, bbsGen);
 
-  // Add additional basic blocks to guard the inner loop.
-  BasicBlock *innerGuard = genInnerLoopGuardBlock(loop, *outerHeader);
-  BasicBlock *innerEnd =
-      genInnerLoopEndBlock(loop, *outerReattach, *innerGuard);
-
-  // We have now created the "core" basic blocks for the outer loop and the CFG
-  // is technically correct i.e. the outer loop contains a preheader with an
-  // unconditional branch to the header, the loop latch contains a backedge to
-  // the header and the unique loop exit block and the header dominates that
-  // loop exit block.
+  // We have now created the "core" basic blocks for the outer loop. However,
+  // all terminators of the newly created blocks are unconditional branches.
+  // There are no backedges from the latch, no phi nodes in the header, and no
+  // conditional branch in the guard block.
   //
-  // However, the induction variable does not contain the correct number of
-  // incoming values and blocks, it is not even updated, and the conditional
-  // expression in the terminator of the loop latch is wrong.
+  // These are fixed, though with yet more placeholders. For instance,
   //
-  // These are fixed, though with yet more placeholders - specifically, we
-  // use the trip count of the inner loop as the trip count of the outer loop
-  // and 1 as the step. The trip counts and steps for both the outer and inner
-  // loops have to be changed eventually, so we might as well keep things
-  // "consistent" here.
+  //   - The bounds of the wrapped loop are set to be [0, 0) with a step of 1.
   //
-  // Yes, this is obviously "wrong" since the behavior of the resulting loop
-  // nest will be different from the original. But we have left it up to the
-  // caller to fix the trip counts appropriately.
-  genOuterLoopInsts(*outerLatch, *outerHeader, *outerPreheader, tapirLoop);
+  //   - The condition of the wrapper guard is set to a boolean so the wrapped
+  //     loop is never bypassed.
+  //
+  // These are expected to be fixed by the caller.
+  genGuardInsts(loop, bbs, bbsGen);
+  genHeaderInsts(loop, bbs, bbsGen);
+  genReattachInsts(loop, bbs, bbsGen);
+  genLatchInsts(loop, bbs, bbsGen);
+  genBypassInsts(loop, bbs, bbsGen);
 
   // Generate appropriate loop metadata for the outer loop. This will just be a
   // clone of the metadata of the original loop.
-  genOuterLoopMD(*outerLatch, loop);
+  genWrapperLoopMD(loop, bbsGen);
 
   // Generate a loop object for the outer loop with the given blocks. This will
   // also update the LoopInfo object, so it should be safe to use it after
   // this.
-  Loop *outerLoop =
-      genOuterLoopObject(loop, *outerPreheader, *outerHeader, *outerReattach,
-                         *outerLatch, *outerExit, *innerGuard, *innerEnd);
+  Loop *wrapperLoop = genWrapperLoopObject(loop, bbs, bbsGen);
 
-  LLVM_DEBUG(dbgs() << "LoopWrap: Done generating outer loop\n");
-  LLVM_DEBUG(dbgs() << "LoopWrap:\n" << *outerLoop);
+  LLVM_DEBUG(dbgs() << "WrapLoop: Done generating outer loop\n");
+  LLVM_DEBUG(dbgs() << "WrapLoop:\n" << *wrapperLoop);
 
-  return outerLoop;
+  return wrapperLoop;
 }
 
+//==---------------------------- WrapLoopSerial ----------------------------==//
+
+void WrapWithSerialLoop::genReattachInsts(const Loop &loop,
+                                          const LoopBlocks &bbs,
+                                          const LoopBlocks &bbsGen) {
+  // Nothing to be done when wrapping with a serial loop
+}
+
+void WrapWithSerialLoop::genBypassInsts(const Loop &loop, const LoopBlocks &bbs,
+                                        const LoopBlocks &bbsGen) {
+  // Nothing to be done when wrapping with a serial loop
+}
+
+// Generate loop metadata for the outer loop. This will clone the metadata of
+// \p loop, but any tapir-specific loop attributes will be removed.
+void WrapWithSerialLoop::genWrapperLoopMD(const Loop &loop,
+                                          const LoopBlocks &bbsGen) {
+  LLVM_DEBUG(dbgs() << "WrapLoop:   Create loop metadata\n");
+
+  assert(loop.getLoopID() && "Loop has ID metadata");
+  assert(bbsGen.latch && "Generated wrapper loop latch");
+
+  LLVMContext &ctx = getContext(loop);
+  MDNode *newMD = makePostTransformationMetadata(ctx, cloneLoopMetadata(loop),
+                                                 {tapirLoopAttrNamePrefix}, {});
+
+  BasicBlock *latch = bbsGen.latch;
+  Instruction *term = latch->getTerminator();
+  term->setMetadata(LLVMContext::MD_loop, newMD);
+}
+
+//==--------------------------- WrapLoopParallel ---------------------------==//
+
+Value *WrapWithTapirLoop::getWrapperSyncRegion(BasicBlock &bb) {
+  for (Instruction &inst : bb)
+    if (auto *call = dyn_cast<CallInst>(&inst))
+      if (call->getIntrinsicID() == Intrinsic::syncregion_start)
+        return call;
+
+  assert(false && "Wrapped loop guard block defines a sync region");
+  return nullptr;
+}
+
+void WrapWithTapirLoop::genGuardInsts(const Loop &loop, const LoopBlocks &bbs,
+                                      const LoopBlocks &bbsGen) {
+  // When wrapping with a parallel loop, most of the basic implementation can
+  // still be used, but we need to create a syncregion.
+  WrapLoopBase::genGuardInsts(loop, bbs, bbsGen);
+
+  BasicBlock *guard = bbsGen.guard;
+
+  IRBuilder<> builder(&guard->front());
+  (void)builder.CreateIntrinsic(Intrinsic::syncregion_start, {},
+                                /*FMFSource=*/{}, "wrap.syncreg");
+}
+
+void WrapWithTapirLoop::genHeaderInsts(const Loop &loop, const LoopBlocks &bbs,
+                                       const LoopBlocks &bbsGen) {
+  // In addition to the standard instructions, we need to replace the header
+  // terminator with a detach instruction.
+  WrapLoopBase::genHeaderInsts(loop, bbs, bbsGen);
+
+  assert(bbsGen.guard && "Generated wrapper latch guard");
+  assert(bbsGen.latch && "Generated wrapper latch block");
+  assert(succ_size(bbsGen.header) == 1 &&
+         "Wrapper header has a single successor");
+  assert(*succ_begin(bbsGen.header) == bbs.guard &&
+         "Successor of wrapper loop header is wrapped loop guard");
+
+  BasicBlock *header = bbsGen.header;
+  BasicBlock *guard = bbsGen.guard;
+  BasicBlock *latch = bbsGen.latch;
+  BasicBlock *body = bbs.guard;
+
+  Value *syncreg = getWrapperSyncRegion(*guard);
+  DetachInst *detach = DetachInst::Create(body, latch, syncreg);
+
+  ReplaceInstWithInst(header->getTerminator(), detach);
+
+  dt.insertEdge(header, latch);
+#ifndef NDEBUG
+  dt.verify();
+#endif // NDEBUG
+}
+
+void WrapWithTapirLoop::genReattachInsts(const Loop &loop,
+                                         const LoopBlocks &bbs,
+                                         const LoopBlocks &bbsGen) {
+  LLVM_DEBUG(dbgs() << "WrapLoop:   Populate reattach block\n");
+
+  assert(bbsGen.guard && "Generated guard block");
+  assert(bbsGen.reattach && "Generated reattach block");
+  assert(bbsGen.latch && "Generated latch block");
+  assert(succ_size(bbsGen.reattach) == 1 &&
+         "Generated reattach block has a single successor");
+  assert(*succ_begin(bbsGen.reattach) == bbsGen.latch &&
+         "Successor of reattach is latch");
+
+  BasicBlock *guard = bbsGen.guard;
+  BasicBlock *reattach = bbsGen.reattach;
+  BasicBlock *latch = bbsGen.latch;
+
+  Value *syncreg = getWrapperSyncRegion(*guard);
+  ReattachInst *reattachInst = ReattachInst::Create(latch, syncreg);
+
+  ReplaceInstWithInst(reattach->getTerminator(), reattachInst);
+}
+
+void WrapWithTapirLoop::genBypassInsts(const Loop &loop, const LoopBlocks &bbs,
+                                       const LoopBlocks &bbsGen) {
+  LLVM_DEBUG(dbgs() << "WrapLoop:   Populate byass block\n");
+
+  assert(bbsGen.guard && "Generated guard block");
+  assert(bbsGen.bypass && "Generated bypass block");
+  assert(succ_size(bbsGen.bypass) &&
+         "Generated bypass block has a single successor");
+
+  BasicBlock *guard = bbsGen.guard;
+  BasicBlock *bypass = bbsGen.bypass;
+  BasicBlock *cont = *succ_begin(bypass);
+
+  Value *syncreg = getWrapperSyncRegion(*guard);
+  SyncInst *sync = SyncInst::Create(cont, syncreg);
+
+  ReplaceInstWithInst(bypass->getTerminator(), sync);
+}
+
+// Generate loop metadata for the outer loop. This will be a clone of the
+// metadata of the loop, \p loop being transformed.
+void WrapWithTapirLoop::genWrapperLoopMD(const Loop &loop,
+                                         const LoopBlocks &bbsGen) {
+  LLVM_DEBUG(dbgs() << "WrapLoop:   Create loop metadata\n");
+
+  assert(loop.getLoopID() && "Loop has ID metadata");
+  assert(bbsGen.latch && "Generated wrapper loop latch");
+
+  MDNode *newMD = cloneLoopMetadata(loop);
+  BasicBlock *latch = bbsGen.latch;
+  Instruction *term = latch->getTerminator();
+  term->setMetadata(LLVMContext::MD_loop, newMD);
+}
+
+//==------------------------------------------------------------------------==//
+
 bool llvm::checkTapirLoopSafeToWrap(TapirLoopInfo &tapirLoop, DominatorTree &dt,
-                                    LoopInfo &li) {
-  auto anyPredecessorDoesNotReattach = [](const BasicBlock &latch) -> bool {
-    return llvm::any_of(predecessors(&latch), [](const BasicBlock *bb) {
-      return isa<ReattachInst>(bb->getTerminator());
-    });
-  };
-
-  auto getConvergentOpIfAny = [](const Loop &loop) -> Instruction * {
-    for (BasicBlock *bb : loop.getBlocks())
-      for (Instruction &inst : *bb)
-        if (auto *call = dyn_cast<CallBase>(&inst))
-          if (call->isConvergent())
-            return &inst;
-    return nullptr;
-  };
-
+                                    LoopInfo &li, ScalarEvolution &se) {
   const Loop &loop = *tapirLoop.getLoop();
   Task &task = *tapirLoop.getTask();
 
   if (!loop.isLoopSimplifyForm())
     return emitDiagnostic(loop, DiagID::ErrLoopNotSimplifyForm);
 
-  // It is not clear if we strictly require this, but we do tend to run the
-  // LCSSA pass before tapir loop transformation passes, so we check for it.
-  if (!loop.isLCSSAForm(dt))
-    return emitDiagnostic(loop, DiagID::ErrLoopNotLCSSAForm);
+  if (!getLoopGuardBlock(loop, /*allowDeadEndExits=*/true))
+    return emitDiagnostic(loop, DiagID::ErrTapirLoopNoGuardBlock);
 
-  // We don't allow early termination in parallel loops. One would, therefore,
-  // expect that tapir loops would have a unique exit block. However, some
-  // transformation passes may result in the code having non-unique exit blocks.
-  // This is only ok if those exit blocks are dead-ends i.e. blocks where
-  // all paths out of the block will lead to an unreachable instruction.
-  if (!getUniqueNonDeadEndExitBlock(loop))
-    return emitDiagnostic(loop,
-                          DiagID::ErrTapirLoopNoUniqueNonDeadEndExitBlock);
+  BasicBlock *bbBypass = getLoopBypassBlock(loop, /*allowDeadEndExits=*/true);
+  if (!bbBypass)
+    return emitDiagnostic(loop, DiagID::ErrTapirLoopNoBypassBlock);
+  else if (bbBypass->size() != 1)
+    return emitDiagnostic(loop, DiagID::ErrGeneric,
+                          "tapir loop bypass block is not empty");
+  else if (!isa<SyncInst>(bbBypass->getTerminator()))
+    return emitDiagnostic(
+        loop, DiagID::ErrGeneric,
+        "tapir loop bypass block terminator is not a sync instruction");
 
-  if (!loop.getCanonicalInductionVariable())
-    return emitDiagnostic(loop, DiagID::ErrTapirLoopIVNotCanonical);
-
-  for (auto &[iv, ivDescr] : *tapirLoop.getInductionVars()) {
-    for (User *user : iv->users())
-      if (!isa<Instruction>(user))
-        return emitDiagnostic(loop, DiagID::ErrTapirLoopIVUseNotInst);
-
+  // If the tapir loop induction variable is used outside the loop, we may have
+  // problems. Wrapping the loop may result in the definition of the IV not
+  // being present on all paths leading to the loop. It is not clear if this can
+  // ever happen in practice.
+  for (auto &[iv, ivDescr] : *tapirLoop.getInductionVars())
     if (isUsedOutsideLoop(*iv, loop, li))
       return emitDiagnostic(loop, DiagID::ErrTapirLoopIVUsedOutsideLoop);
-  }
 
-  // TODO:? It is not clear why this is an issue. It was "inherited" from the
-  // implementation of the tapir strip-mining pass.
-  if (loop.getHeader()->hasAddressTaken())
-    return emitDiagnostic(loop, DiagID::ErrTapirLoopHeaderAddressTaken);
-
-  // Since the loop is guaranteed to be in loop-simplify form, a unique latch
-  // is guaranteed to exist.
-  BasicBlock *latch = loop.getLoopLatch();
-  if (!anyPredecessorDoesNotReattach(*latch))
-    return emitDiagnostic(loop, DiagID::ErrTapirLoopBodyDoesNotReattach);
-
-  // Most transformation passes except that the terminator of the tapir loop
-  // latch is a conditional branch.
-  if (!isCondBr(*latch->getTerminator()))
-    return emitDiagnostic(loop, DiagID::ErrTapirLoopBlockTerminator, "latch",
-                          "conditional branch");
-
-  // We check this late because one reason for the failure to compute a finite
-  // trip count is that the terminator of the loop latch is not a conditional
-  // branch. By allowing that error to be emitted, we have a better idea of why
-  // this check failed.
-  if (!tapirLoop.hasTripCount())
-    return emitDiagnostic(loop, DiagID::ErrTapirLoopNoFiniteTripCount);
-
-  if (!loop.isSafeToClone())
-    return emitDiagnostic(loop, DiagID::ErrTapirLoopNotSafeToClone);
-
-  if (Instruction *inst = getConvergentOpIfAny(loop))
-    return emitDiagnostic(loop, DiagID::ErrTapirLoopConvergent, *inst);
-
+  // One way to have more than one detach instruction in a tapir loop is if the
+  // loop attempts to spawn additional tapir tasks. It is unlikely that we will
+  // ever support this, neither here, nor in the frontend. We don't do exactly
+  // the same analysis for reattaches because AnalyzeTaskForSerialization will
+  // compute the number of reattaches, so we rely on that instead.
   const DetachInst *di = getUniqueInstInLoopOnly<DetachInst>(loop);
   if (!di)
     return emitDiagnostic(loop, DiagID::ErrTapirLoopNoUniqueDetachInst);
@@ -737,23 +777,52 @@ bool llvm::checkTapirLoopSafeToWrap(TapirLoopInfo &tapirLoop, DominatorTree &dt,
       !detachedRethrows.empty())
     return emitDiagnostic(loop, DiagID::ErrTapirLoopThrowsException);
 
+  // Since we allow only a single detach instruction in the tapir loop, we can
+  // only have a single reattach.
   if (reattaches.size() != 1)
     return emitDiagnostic(loop, DiagID::ErrTapirLoopNoUniqueReattachInst);
 
   return true;
 }
 
-Loop *llvm::wrapWithTapirLoop(TapirLoopInfo &tapirLoop, DominatorTree &dt,
-                              LoopInfo &li, MemorySSA &mssa) {
-  return LoopWrapImpl(dt, li, mssa).runOn(tapirLoop);
+Loop *llvm::wrapWithSerialLoop(TapirLoopInfo &tapirLoop, DominatorTree &dt,
+                               LoopInfo &li, MemorySSA &mssa,
+                               ScalarEvolution &se, TaskInfo &ti) {
+  Loop *wrapperLoop = WrapWithSerialLoop(dt, li, mssa, se, ti).runOn(tapirLoop);
+
+#ifndef NDEBUG
+  assert(!isTapirLoop(*wrapperLoop) && "Wrapper loop is not a tapir loop");
+  assert(!getTaskIfTapirLoop(wrapperLoop, &ti) &&
+         "Wrapper loop not recognized as tapir loop");
+#endif // NDEBUG
+
+  return wrapperLoop;
 }
 
-BranchInst *llvm::getWrappedLoopGuardBranch(Loop &loop) {
-  BasicBlock *ph = loop.getLoopPreheader();
-  assert(ph && "Wrapped loop must have a preheader");
+Loop *llvm::wrapWithTapirLoop(TapirLoopInfo &tapirLoop, DominatorTree &dt,
+                              LoopInfo &li, MemorySSA &mssa,
+                              ScalarEvolution &se, TaskInfo &ti) {
+  // getTapirLoopsInNest() performs some sanity checks when collecting the tapir
+  // loops. If we collect them after the loop has been wrapped, those checks
+  // will fail.
+  Loop &root = *tapirLoop.getLoop();
+  SmallVector<Loop *, 4> loops = getTapirLoopsInNest(root);
 
-  BasicBlock *guard = ph->getUniquePredecessor();
-  assert(guard && "Wrapped loop preheader must have a unique predecessor");
+  Loop *wrapperLoop = WrapWithTapirLoop(dt, li, mssa, se, ti).runOn(tapirLoop);
 
-  return dyn_cast<BranchInst>(guard->getTerminator());
+  // The nest depth and the levels of the loops in the nest must be updated.
+  // The loops array contain the loops in the original nest. Since this has been
+  // wrapped with a tapir loop, the existing level must be incremented by one.
+  for (Loop *loop : loops)
+    addPerfectLevelAttr(*loop, *getPerfectLevelAttr(*loop) + 1);
+  removePerfectDepthAttr(root);
+  addPerfectDepthAttr(*wrapperLoop, loops.size() + 1);
+
+#ifndef NDEBUG
+  assert(isTapirLoop(*wrapperLoop) && "Wrapper loop is a tapir loop");
+  assert(getTaskIfTapirLoop(wrapperLoop, &ti) &&
+         "Wrapper loop recognized as tapir loop");
+#endif // NDEBUG
+
+  return wrapperLoop;
 }

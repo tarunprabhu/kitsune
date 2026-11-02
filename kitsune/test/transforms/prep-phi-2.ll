@@ -6,32 +6,41 @@
 ;
 ; CHECK-NOT: {{^.+$}}
 
-define void @f1(ptr %r, i64 %n) {
+define void @f(i64 %n) {
 entry:
-  %syncreg = tail call token @llvm.syncregion.start()
-  br label %for.i.header
+  %sr = tail call token @llvm.syncregion.start()
+  %cmpn = icmp ugt i64 %n, 0
+  br i1 %cmpn, label %ph, label %sync
 
-for.i.header:
-  %i = phi i64 [ 0, %entry ], [ %inc.i, %for.i.latch ]
-  %i.2 = phi i32 [ 99, %entry ], [ %inc.i.2, %for.i.latch ]
-  detach within %syncreg, label %for.i.body, label %for.i.latch
+ph:
+  br label %header
 
-for.i.body:
-  reattach within %syncreg, label %for.i.latch
+header:
+  %i1 = phi i64 [ 0, %ph ], [ %inc1, %latch ]
+  %i2 = phi i32 [ 99, %ph ], [ %inc2, %latch ]
+  detach within %sr, label %body, label %latch
 
-for.i.latch:
-  %inc.i = add i64 %i, 1
-  %inc.i.2 = add i32 %i.2, 1
-  %cmp.i = icmp eq i64 %inc.i, %n
-  br i1 %cmp.i, label %for.i.exit, label %for.i.header, !llvm.loop !0
+body:
+  reattach within %sr, label %latch
 
-for.i.exit:
-  sync within %syncreg, label %exit
+latch:
+  %inc1 = add i64 %i1, 1
+  %inc2 = add i32 %i2, 1
+  %cmp1 = icmp eq i64 %inc1, %n
+  br i1 %cmp1, label %loopexit, label %header, !llvm.loop !0
+
+loopexit:
+  br label %sync
+
+sync:
+  sync within %sr, label %exit
 
 exit:
   ret void
 }
 
-!0 = distinct !{!0, !1, !2}
+!0 = distinct !{!0, !1, !2, !3, !4}
 !1 = !{!"tapir.loop.target", i32 1}
 !2 = !{!"loop.name", !"f1.loop.i"}
+!3 = !{!"tapir.loop.perfect.depth", i32 1}
+!4 = !{!"tapir.loop.perfect.level", i32 1}

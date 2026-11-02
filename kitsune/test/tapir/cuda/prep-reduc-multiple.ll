@@ -5,159 +5,133 @@
 ; ------------------------------------------------------------------------------
 
 ; CHECK-LABEL: @f
-; CHECK-SAME: i64 %[[N:[^,]+]]
 ; CHECK-SAME: ptr %[[SUM:[^,]+]]
-; CHECK-SAME: ptr %[[UMAX:[^)]+]]
+; CHECK-SAME: ptr %[[UMAX:[^,]+]]
+; CHECK-SAME: i64 %[[N1:[^)]+]]
 ; CHECK-NEXT: [[ENTRY:.+]]:
-; CHECK-NEXT: %[[SYNCREG:.+]] = tail call token @llvm.syncregion.start()
-; CHECK-NEXT: br label %[[PH_WRAP:.+]]
+; CHECK-NEXT: %[[SR1:.+]] = tail call token @llvm.syncregion.start()
+; CHECK-NEXT: %[[CMPN1:.+]] = icmp ult i64 0, %[[N1]]
+; CHECK-NEXT: br i1 %[[CMPN1]], label %[[PH1:.+]], label %[[SYNC1:.+]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[PH_WRAP]]:
-; CHECK-NEXT: %[[IPT:.+]] = call i64 @llvm.kit.gpu.ipt(i32 2, ptr null)
-; CHECK-NEXT: %[[IPT_MINUS_1:.+]] = sub i64 %[[IPT]], 1
-; CHECK-NEXT: %[[N_PLUS_IPT_MINUS_1:.+]] = add i64 %[[N]], %[[IPT_MINUS_1]]
-; CHECK-NEXT: %[[OTC:.+]] = udiv i64 %[[N_PLUS_IPT_MINUS_1]], %[[IPT]]
-; CHECK-NEXT: %[[BUF1:.+]] = call ptr addrspace(67) @llvm.kit.mobile.alloc(i32 2, i64 8)
-; CHECK-NEXT: %[[SHADOW1:.+]] = addrspacecast ptr addrspace(67) %[[BUF1]] to ptr
+; CHECK-NEXT: [[PH1]]:
+; CHECK-NEXT: %[[SHADOWBUF1:.+]] = call ptr addrspace(67) @llvm.kit.mobile.alloc(i32 2, i64 8)
+; CHECK-NEXT: %[[SHADOW1:.+]] = addrspacecast ptr addrspace(67) %[[SHADOWBUF1]] to ptr
 ; CHECK-NEXT: call void @llvm.memcpy.inline{{.+}}(ptr %[[SHADOW1]], ptr %[[SUM]], i64 8, i1 false)
-; CHECK-NEXT: %[[BUF2:.+]] = call ptr addrspace(67) @llvm.kit.mobile.alloc(i32 2, i64 8)
-; CHECK-NEXT: %[[SHADOW2:.+]] = addrspacecast ptr addrspace(67) %[[BUF2]] to ptr
+; CHECK-NEXT: %[[SHADOWBUF2:.+]] = call ptr addrspace(67) @llvm.kit.mobile.alloc(i32 2, i64 8)
+; CHECK-NEXT: %[[SHADOW2:.+]] = addrspacecast ptr addrspace(67) %[[SHADOWBUF2]] to ptr
 ; CHECK-NEXT: call void @llvm.memcpy.inline{{.+}}(ptr %[[SHADOW2]], ptr %[[UMAX]], i64 8, i1 false)
-; CHECK-NEXT: br label %[[HEADER_WRAP:.+]]
+; CHECK-NEXT: br label %[[HEADER1:.+]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[HEADER_WRAP]]:
-; CHECK-NEXT: %[[IV_WRAP:.+]] = phi i64
-; CHECK-SAME: [ 0, %[[PH_WRAP]] ]
-; CHECK-SAME: [ %[[NEXTV_WRAP:.+]], %[[LATCH_WRAP:.+]] ]
-; CHECK-NEXT: detach within %[[SYNCREG]], label %[[BODY_WRAP:.+]], label %[[LATCH_WRAP]]
+; CHECK-NEXT: [[HEADER1]]:
+; CHECK-NEXT: %[[I1:.+]] = phi i64
+; CHECK-SAME: [ 0, %[[PH1]] ]
+; CHECK-SAME: [ %[[INC1:.+]], %[[LATCH1:.+]] ]
+; CHECK-NEXT: detach within %[[SR1]], label %[[BODY1:.+]], label %[[LATCH1]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[BODY_WRAP]]:
-; CHECK-NEXT: %[[THRDS_PLUS_N:.+]] = add i64 %[[N]], %[[OTC]]
-; CHECK-NEXT: %[[THRDS_PLUS_N_1:.+]] = sub i64 %[[THRDS_PLUS_N]], 1
-; CHECK-NEXT: %[[PER_THRD:.+]] = udiv i64 %[[THRDS_PLUS_N_1]], %[[OTC]]
-; CHECK-NEXT: %[[START:.+]] = mul i64 %[[IV_WRAP]], %[[PER_THRD]]
-; CHECK-NEXT: %[[ENDMAX:.+]] = add i64 %[[START]], %[[PER_THRD]]
-; CHECK-NEXT: %[[STOP:.+]] = call i64 @llvm.umin.i64(i64 %[[ENDMAX]], i64 %[[N]])
-; CHECK-NEXT: %[[GUARD:.+]] = icmp uge i64 %[[START]], %[[STOP]]
-; CHECK-NEXT: br i1 %[[GUARD]], label %[[END:.+]], label %[[PH:.+]]
+; CHECK-NEXT: [[BODY1]]:
+; CHECK-NEXT: %[[ODD:.+]] = and i64 %[[I1]], 1
+; CHECK-NEXT: %[[CMPO:.+]] = icmp eq i64 %[[ODD]], 1
+; CHECK-NEXT: br i1 %[[CMPO]], label %[[BODY1O:.+]], label %[[REATTACH1:.+]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[PH]]:
-; CHECK-NEXT: br label %[[HEADER:.+]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[HEADER]]:
-; CHECK-NEXT: %[[I:.+]] = phi i64
-; CHECK-SAME: [ %[[START]], %[[PH]] ]
-; CHECK-SAME: [ %[[NEXT:.+]], %[[LATCH:.+]] ]
-; CHECK-NEXT: br label %[[BODY:.+]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[BODY]]:
-; CHECK-NEXT: %[[ODD:.+]] = and i64 %i, 1
-; CHECK-NEXT: %[[ISODD:.+]] = icmp eq i64 %[[ODD]], 1
-; CHECK-NEXT: br i1 %[[ISODD]], label %[[REDUCE:.+]], label %[[REATTACH:.+]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[REDUCE]]:
+; CHECK-NEXT: [[BODY1O]]:
 ; CHECK-NEXT: call {{.+}} @llvm.kit.reduce
 ; CHECK-SAME: i32 2
 ; CHECK-SAME: i32 5
 ; CHECK-SAME: ptr %[[SHADOW1]]
-; CHECK-SAME: i64 %[[I]]
+; CHECK-SAME: i64 %[[I1]]
 ; CHECK-SAME: i32 0
 ; CHECK-SAME: i32 8
 ; CHECK-SAME: i64 0
 ; CHECK-SAME: ptr @sum
-; CHECK-NEXT: br label %[[REATTACH]]
+; CHECK-NEXT: br label %[[REATTACH1]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[REATTACH]]:
+; CHECK-NEXT: [[REATTACH1]]:
 ; CHECK-NEXT: call {{.+}} @llvm.kit.reduce
 ; CHECK-SAME: i32 2
 ; CHECK-SAME: i32 26
 ; CHECK-SAME: ptr %[[SHADOW2]]
-; CHECK-SAME: i64 %[[I]]
+; CHECK-SAME: i64 %[[I1]]
 ; CHECK-SAME: i32 0
 ; CHECK-SAME: i32 8
 ; CHECK-SAME: i64 0
 ; CHECK-SAME: ptr @umax
-; CHECK-NEXT: br label %[[LATCH]]
+; CHECK-NEXT: reattach within %[[SR1]], label %[[LATCH1]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[LATCH]]:
-; CHECK-NEXT: %[[NEXT:.+]] = add i64 %[[I]], 1
-; CHECK-NEXT: %[[CMP:.+]] = icmp eq i64 %[[NEXT]], %[[STOP]]
-; CHECK-NEXT: br i1 %[[CMP]], label %[[EXIT:.+]], label %[[HEADER]]
-; CHECK-SAME: !llvm.loop ![[LOOP:[0-9]+]]
+; CHECK-NEXT: [[LATCH1]]:
+; CHECK-NEXT: %[[INC1:.+]] = add i64 %[[I1]], 1
+; CHECK-NEXT: %[[CMP1:.+]] = icmp eq i64 %[[INC1]], %[[N1]]
+; CHECK-NEXT: br i1 %[[CMP1]], label %[[LOOPEXIT1:.+]], label %[[HEADER1]]
+; CHECK-SAME: !llvm.loop ![[LOOP1:[0-9]+]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[EXIT]]:
-; CHECK-NEXT: br label %[[END]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[END]]:
-; CHECK-NEXT: br label %[[REATTACH_WRAP:.+]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[REATTACH_WRAP]]:
-; CHECK-NEXT: reattach within %[[SYNCREG]], label %[[LATCH_WRAP]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[LATCH_WRAP]]:
-; CHECK-NEXT: %[[NEXTV_WRAP]] = add i64 %[[IV_WRAP]], 1
-; CHECK-NEXT: %[[CMP_WRAP:.+]] = icmp eq i64 %[[NEXTV_WRAP]], %[[OTC]]
-; CHECK-NEXT: br i1 %[[CMP_WRAP]], label %[[EXIT_WRAP:.+]], label %[[HEADER_WRAP]]
-; CHECK-SAME: !llvm.loop ![[LOOP_WRAP:[0-9]+]]
-; CHECK-EMPTY:
-; CHECK-NEXT: [[EXIT_WRAP]]
+; CHECK-NEXT: [[LOOPEXIT1]]:
 ; CHECK-NEXT: call void @llvm.memcpy.inline{{.+}}(ptr %[[SUM]], ptr %[[SHADOW1]], i64 8, i1 false)
-; CHECK-NEXT: %[[BUF1:.+]] = addrspacecast ptr %[[SHADOW1]] to ptr addrspace(67)
-; CHECK-NEXT: call void @llvm.kit.mobile.free(i32 2, ptr addrspace(67) %[[BUF1]])
+; CHECK-NEXT: %[[SHADOWBUF1:.+]] = addrspacecast ptr %[[SHADOW1]] to ptr addrspace(67)
+; CHECK-NEXT: call void @llvm.kit.mobile.free(i32 2, ptr addrspace(67) %[[SHADOWBUF1]])
 ; CHECK-NEXT: call void @llvm.memcpy.inline{{.+}}(ptr %[[UMAX]], ptr %[[SHADOW2]], i64 8, i1 false)
-; CHECK-NEXT: %[[BUF2:.+]] = addrspacecast ptr %[[SHADOW2]] to ptr addrspace(67)
-; CHECK-NEXT: call void @llvm.kit.mobile.free(i32 2, ptr addrspace(67) %[[BUF2]])
-; CHECK-NEXT: br label %[[END_WRAP:.+]]
+; CHECK-NEXT: %[[SHADOWBUF2:.+]] = addrspacecast ptr %[[SHADOW2]] to ptr addrspace(67)
+; CHECK-NEXT: call void @llvm.kit.mobile.free(i32 2, ptr addrspace(67) %[[SHADOWBUF2]])
+; CHECK-NEXT: br label %[[SYNC1]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[END_WRAP]]:
-; CHECK-NEXT: sync within %[[SYNCREG]], label %[[EXIT:.+]]
+; CHECK-NEXT: [[SYNC1]]
+; CHECK-NEXT: sync within %[[SR1]], label %[[EXIT:.+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[EXIT]]:
 ; CHECK-NEXT: ret void
 ;
-; CHECK-DAG: ![[TARGET:.+]] = !{!"tapir.loop.target", i32 2}
-; CHECK-DAG: ![[REDUCTION:.+]] = !{!"tapir.loop.reduction"}
+; CHECK-DAG: ![[DEPTH:.+]] = !{!"tapir.loop.perfect.depth", i32 1}
+; CHECK-DAG: ![[L1:.+]] = !{!"tapir.loop.perfect.level", i32 1}
 ; CHECK-DAG: ![[PREPARED:.+]] = !{!"tapir.loop.prepared"}
-; CHECK-DAG: ![[LOOP_WRAP]] = distinct !{![[LOOP_WRAP]], {{.+}}, ![[PREPARED]]}
-; CHECK-DAG: ![[LOOP]] = distinct !{![[LOOP]]}
+; CHECK-DAG: ![[REDUCTION:.+]] = !{!"tapir.loop.reduction"}
+; CHECK-DAG: ![[TARGET:.+]] = !{!"tapir.loop.target", i32 2}
+
+; CHECK-DAG: ![[LOOP1]] = distinct !{![[LOOP1]], ![[REDUCTION]], ![[TARGET]], ![[DEPTH]], ![[L1]], ![[PREPARED]]}
 
 declare void @sum(ptr %res, i64 %v)
 declare void @umax(ptr %res, i64 %v)
 
-define void @f(i64 %n, ptr %sum, ptr %umax) {
+define void @f(ptr %sum, ptr %umax, i64 %n1) {
 entry:
-  %syncreg = tail call token @llvm.syncregion.start()
-  br label %for.i.header
+  %sr1 = tail call token @llvm.syncregion.start()
+  %cmpn1 = icmp ult i64 0, %n1
+  br i1 %cmpn1, label %ph1, label %sync1
 
-for.i.header:
-  %i = phi i64 [ 0, %entry ], [ %inc.i, %for.i.latch ]
-  detach within %syncreg, label %for.i.body, label %for.i.latch
+ph1:
+  br label %header1
 
-for.i.body:
-  %odd = and i64 %i, 1
+header1:
+  %i1 = phi i64 [ 0, %ph1 ], [ %inc1, %latch1 ]
+  detach within %sr1, label %body1, label %latch1
+
+body1:
+  %odd = and i64 %i1, 1
   %cmp.odd = icmp eq i64 %odd, 1
-  br i1 %cmp.odd, label %reduce, label %reattach
+  br i1 %cmp.odd, label %body1o, label %reattach1
 
-reduce:
-  call void(i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.reduce(i32 2, i32 5, ptr %sum, i64 %i, i32 0, i32 8, i64 0, ptr @sum)
-  br label %reattach
+body1o:
+  call void(i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.reduce(i32 2, i32 5, ptr %sum, i64 %i1, i32 0, i32 8, i64 0, ptr @sum)
+  br label %reattach1
 
-reattach:
-  call void(i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.reduce(i32 2, i32 26, ptr %umax, i64 %i, i32 0, i32 8, i64 0, ptr @umax)
-  reattach within %syncreg, label %for.i.latch
+reattach1:
+  call void(i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.reduce(i32 2, i32 26, ptr %umax, i64 %i1, i32 0, i32 8, i64 0, ptr @umax)
+  reattach within %sr1, label %latch1
 
-for.i.latch:
-  %inc.i = add i64 %i, 1
-  %cmp.i = icmp eq i64 %inc.i, %n
-  br i1 %cmp.i, label %for.i.exit, label %for.i.header, !llvm.loop !2
+latch1:
+  %inc1 = add i64 %i1, 1
+  %cmp1 = icmp eq i64 %inc1, %n1
+  br i1 %cmp1, label %loopexit1, label %header1, !llvm.loop !0
 
-for.i.exit:
-  sync within %syncreg, label %for.i.end
+loopexit1:
+  br label %sync1
 
-for.i.end:
+sync1:
+  sync within %sr1, label %exit
+
+exit:
   ret void
 }
 
-!0 = !{!"tapir.loop.reduction"}
-!1 = !{!"tapir.loop.target", i32 2}
-!2 = distinct !{!2, !0, !1}
+!0 = distinct !{!0, !1, !2, !3, !4}
+!1 = !{!"tapir.loop.reduction"}
+!2 = !{!"tapir.loop.target", i32 2}
+!3 = !{!"tapir.loop.perfect.depth", i32 1}
+!4 = !{!"tapir.loop.perfect.level", i32 1}

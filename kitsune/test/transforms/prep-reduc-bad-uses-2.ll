@@ -3,40 +3,48 @@
 ;
 ; RUN: not opt -passes=kit-prepare %s 2>&1 | FileCheck %s
 ;
-; CHECK: value 'res2' must only be used as destination of reduction in loop
+; CHECK: value 'res1' must only be used as destination of reduction in loop
 ; CHECK: from loop 'bad-call'
 
 declare void @ext(ptr)
 declare void @sum(ptr %res, i64 %v)
 
-define void @f2(i64 %n) {
+define void @f2(ptr %res1, i64 %n1) {
 entry:
-  %res2 = alloca i64
-  %syncreg = tail call token @llvm.syncregion.start()
-  br label %for.i.header
+  %sr1 = tail call token @llvm.syncregion.start()
+  %cmpn = icmp ult i64 0, %n1
+  br i1 %cmpn, label %ph1, label %sync1
 
-for.i.header:
-  %i = phi i64 [ 0, %entry ], [ %inc.i, %for.i.latch ]
-  detach within %syncreg, label %for.i.body, label %for.i.latch
+ph1:
+  br label %header1
 
-for.i.body:
-  call void @ext(ptr %res2)
-  call void(i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.reduce(i32 1, i32 5, ptr %res2, i64 %i, i32 0, i32 8, i64 0, ptr @sum)
-  reattach within %syncreg, label %for.i.latch
+header1:
+  %i1 = phi i64 [ 0, %ph1 ], [ %inc1, %latch1 ]
+  detach within %sr1, label %body1, label %latch1
 
-for.i.latch:
-  %inc.i = add i64 %i, 1
-  %cmp.i = icmp eq i64 %inc.i, %n
-  br i1 %cmp.i, label %for.i.exit, label %for.i.header, !llvm.loop !2
+body1:
+  call void @ext(ptr %res1)
+  call void(i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.reduce(i32 1, i32 5, ptr %res1, i64 %i1, i32 0, i32 8, i64 0, ptr @sum)
+  reattach within %sr1, label %latch1
 
-for.i.exit:
-  sync within %syncreg, label %for.i.end
+latch1:
+  %inc1 = add i64 %i1, 1
+  %cmp1 = icmp eq i64 %inc1, %n1
+  br i1 %cmp1, label %loopexit1, label %header1, !llvm.loop !0
 
-for.i.end:
+loopexit1:
+  br label %sync1
+
+sync1:
+  sync within %sr1, label %exit
+
+exit:
   ret void
 }
 
-!0 = !{!"tapir.loop.reduction"}
+!0 = distinct !{!0, !1, !2, !3, !4, !5}
 !1 = !{!"tapir.loop.target", i32 1}
-!2 = distinct !{!2, !0, !1, !3}
+!2 = !{!"tapir.loop.reduction"}
 !3 = !{!"tapir.loop.name", !"bad-call"}
+!4 = !{!"tapir.loop.perfect.depth", i32 1}
+!5 = !{!"tapir.loop.perfect.level", i32 1}

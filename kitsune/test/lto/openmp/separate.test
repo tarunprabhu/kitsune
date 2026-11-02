@@ -36,14 +36,15 @@
 # CHECK-SAME: ptr {{[^%]*}}%[[A:[^,]+]],
 # CHECK-SAME: ptr {{[^%]*}}%[[B:[^,]+]],
 # CHECK-SAME: i64 {{[^%]*}}%[[N:[^,]+]])
-# CHECK: %[[NUM_THREADS:.+]] = tail call i64 @llvm.kit.cpu.num.threads(i32 512)
-# CHECK: %[[PER_THREAD:.+]] = udiv i64 {{.+}}, %[[NUM_THREADS]]
-# CHECK: call void (i32, ptr, i64, i64, ...) @llvm.kit.cpu.threads.launch(
+# CHECK: %[[SYSTHRDS:.+]] = tail call i64 @llvm.kit.cpu.num.threads(i32 512)
+# CHECK: %[[CTX:.+]] = tail call ptr @__kitrt_nest_begin(i64 %[[SYSTHRDS]], i32 1)
+# CHECK: %[[THREADS:.+]] = tail call i64 @__kitrt_nest_threads(ptr %[[CTX]])
+# CHECK: call {{.+}} @llvm.kit.cpu.threads.launch(
 # CHECK-SAME: i32 512,
 # CHECK-SAME: ptr @[[WRAPPER:[^,]+]],
 # CHECK-SAME: i64 0,
-# CHECK-SAME: i64 %[[NUM_THREADS]],
-# CHECK-SAME: i64 %[[PER_THREAD]],
+# CHECK-SAME: i64 %[[THREADS]],
+# CHECK-SAME: ptr %[[CTX]],
 # CHECK-SAME: i64 %[[N]],
 # CHECK-SAME: ptr %[[A]],
 # CHECK-SAME: ptr %[[B]],
