@@ -200,8 +200,8 @@ def ErrTapirLoopNoGuardBlock
 def ErrTapirLoopNoBypassBlock
   : Error<"tapir loop must have a bypass block">;
 
-def ErrTapirLoopNestTooDeep
-  : Error<"depth of tapir loop nest must be in range [1,3]">;
+def ErrTapirLoopNestInvalidDepth
+  : Error<"depth of tapir loop nest must be in range [{},{}]">;
 
 def ErrTapirLoopIVCount
   : Error<"tapir loop must have exactly one induction variable">;

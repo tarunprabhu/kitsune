@@ -21,7 +21,7 @@ latch:
   %inc.i = add i64 %i, 1
   switch i64 %inc.i, label %header [
     i64 12, label %exit
-  ], !llvm.loop !1
+  ], !llvm.loop !3
 
 exit:
   sync within %syncreg, label %end
@@ -30,5 +30,7 @@ end:
   ret void
 }
 
-!0 = !{!"tapir.loop.target", i32 1024}
-!1 = distinct !{!1, !0}
+!0 = !{!"tapir.loop.target", i32 1}
+!1 = !{!"tapir.loop.perfect.level", i32 1}
+!2 = !{!"tapir.loop.perfect.depth", i32 1}
+!3 = !{!3, !0, !1, !2}

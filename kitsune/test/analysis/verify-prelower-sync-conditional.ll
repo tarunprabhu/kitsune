@@ -8,32 +8,34 @@
 
 define void @f1(i64 %n) {
 entry:
-  %syncreg = tail call token @llvm.syncregion.start()
-  br label %for.i.header
+  %sr = tail call token @llvm.syncregion.start()
+  br label %header
 
-for.i.header:
-  %i = phi i64 [ 0, %entry ], [ %inc.i, %for.i.latch ]
-  detach within %syncreg, label %for.i.body, label %for.i.latch
+header:
+  %i = phi i64 [ 0, %entry ], [ %inc, %latch ]
+  detach within %sr, label %body, label %latch
 
-for.i.body:
-  reattach within %syncreg, label %for.i.latch
+body:
+  reattach within %sr, label %latch
 
-for.i.latch:
-  %inc.i = add i64 %i, 1
-  %cmp.i = icmp eq i64 %inc.i, %n
-  br i1 %cmp.i, label %for.i.exit, label %for.i.header, !llvm.loop !0
+latch:
+  %inc = add i64 %i, 1
+  %cmp = icmp eq i64 %inc, %n
+  br i1 %cmp, label %loopexit, label %header, !llvm.loop !4
 
-for.i.exit:
+loopexit:
   %cmp.n = icmp sgt i64 %n, 21
-  br i1 %cmp.n, label %for.i.sync, label %exit
+  br i1 %cmp.n, label %sync, label %exit
 
-for.i.sync:
-  sync within %syncreg, label %exit
+sync:
+  sync within %sr, label %exit
 
 exit:
   ret void
 }
 
-!0 = distinct !{!0, !1, !2}
-!1 = !{!"tapir.loop.target", i32 1024}
-!2 = !{!"loop.name", !"f1.loop.i"}
+!0 = !{!"tapir.loop.target", i32 1}
+!1 = !{!"tapir.loop.perfect.level", i32 1}
+!2 = !{!"tapir.loop.perfect.depth", i32 1}
+!3 = !{!"loop.name", !"f1.loop.i"}
+!4 = !{!4, !0, !1, !2, !3}

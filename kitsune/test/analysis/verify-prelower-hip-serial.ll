@@ -17,61 +17,64 @@
 
 define void @hip_serial(i64 %m, i64 %n, i64 %p) {
 entry:
-  %syncreg.i = tail call token @llvm.syncregion.start()
-  br label %for.i.header
+  %sr.i = tail call token @llvm.syncregion.start()
+  br label %header.i
 
-for.i.header:
-  %i = phi i64 [ 0, %entry ], [ %inc.i, %for.i.latch ]
-  detach within %syncreg.i, label %for.i.body, label %for.i.latch
+header.i:
+  %i = phi i64 [ 0, %entry ], [ %inc.i, %latch.i ]
+  detach within %sr.i, label %body.i, label %latch.i
 
-for.i.body:
-  %syncreg.j = tail call token @llvm.syncregion.start()
-  br label %for.j.header
+body.i:
+  %sr.j = tail call token @llvm.syncregion.start()
+  br label %header.j
 
-for.j.header:
-  %j = phi i64 [ 0, %for.i.body ], [ %inc.j, %for.j.latch ]
-  detach within %syncreg.j, label %for.j.body, label %for.j.latch
+header.j:
+  %j = phi i64 [ 0, %body.i ], [ %inc.j, %latch.j ]
+  detach within %sr.j, label %body.j, label %latch.j
 
-for.j.body:
-  br label %for.k.body
+body.j:
+  br label %body.k
 
-for.k.body:
-  %k = phi i64 [ 0, %for.j.body ], [ %inc.k, %for.k.body ]
+body.k:
+  %k = phi i64 [ 0, %body.j ], [ %inc.k, %body.k ]
   %inc.k = add i64 %k, 1
   %cmp.k = icmp eq i64 %inc.k, %p
-  br i1 %cmp.k, label %for.k.exit, label %for.k.body, !llvm.loop !2
+  br i1 %cmp.k, label %exit.k, label %body.k, !llvm.loop !2
 
-for.k.exit:
-  reattach within %syncreg.j, label %for.j.latch
+exit.k:
+  reattach within %sr.j, label %latch.j
 
-for.j.latch:
+latch.j:
   %inc.j = add i64 %j, 1
   %cmp.j = icmp eq i64 %inc.j, %n
-  br i1 %cmp.j, label %for.j.exit, label %for.j.header, !llvm.loop !1
+  br i1 %cmp.j, label %exit.j, label %header.j, !llvm.loop !1
 
-for.j.exit:
-  sync within %syncreg.j, label %for.j.end
+exit.j:
+  sync within %sr.j, label %end.j
 
-for.j.end:
-  reattach within %syncreg.i, label %for.i.latch
+end.j:
+  reattach within %sr.i, label %latch.i
 
-for.i.latch:
+latch.i:
   %inc.i = add i64 %i, 1
   %cmp.i = icmp eq i64 %inc.i, %m
-  br i1 %cmp.i, label %for.i.exit, label %for.i.header, !llvm.loop !0
+  br i1 %cmp.i, label %exit.i, label %header.i, !llvm.loop !0
 
-for.i.exit:
-  sync within %syncreg.i, label %for.i.end
+exit.i:
+  sync within %sr.i, label %end.i
 
-for.i.end:
+end.i:
   ret void
 }
 
-!0 = distinct !{!0, !3, !5}
-!1 = distinct !{!1, !4, !6}
+!0 = distinct !{!0, !3, !5, !8, !10}
+!1 = distinct !{!1, !4, !6, !9}
 !2 = distinct !{!2, !7}
 !3 = !{!"tapir.loop.target", i32 4}
 !4 = !{!"tapir.loop.target", i32 1}
 !5 = !{!"tapir.loop.name", !"outer.loop"}
 !6 = !{!"tapir.loop.name", !"inner.loop"}
 !7 = !{!"tapir.loop.name", !"serial.loop"}
+!8 = !{!"tapir.loop.perfect.level", i32 1}
+!9 = !{!"tapir.loop.perfect.level", i32 2}
+!10 = !{!"tapir.loop.perfect.depth", i32 2}

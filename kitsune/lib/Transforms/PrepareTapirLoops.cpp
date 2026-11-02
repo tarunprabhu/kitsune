@@ -76,7 +76,8 @@ static bool checkCommon(TapirLoopInfo &tapirLoop, DominatorTree &dt,
     return emitDiagnostic(root, DiagID::ErrAttrMissing,
                           getAttrName(LoopAttrKind::PerfectDepth));
   else if (*depth < 1 || *depth > NEST_MAX_DEPTH)
-    return emitDiagnostic(root, DiagID::ErrTapirLoopNestTooDeep);
+    return emitDiagnostic(root, DiagID::ErrTapirLoopNestInvalidDepth, 1,
+                          NEST_MAX_DEPTH);
 
   SmallVector<const Loop *, 4> loops = getTapirLoopsInNest(root);
   for (const Loop *loop : loops) {
