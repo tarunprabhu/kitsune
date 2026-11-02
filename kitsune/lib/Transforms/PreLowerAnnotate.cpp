@@ -32,20 +32,13 @@
 using namespace llvm;
 
 static void addLoweringEnabledAttrs(LoopInfo &li) {
-  // Find the subloops that are contained within a tapir loop nest consisting
-  // of loops that are to be run on a GPU. These will be ignored.
-  SmallSet<Loop *, 8> ignore;
-  for (Loop *loop : getTapirLoops(li))
-    if (isTopLevelTapirLoopForGPU(*loop))
-      for (Loop *subLoop : getAllSubLoops(*loop))
-        ignore.insert(subLoop);
-
-  // Any tapir loop that is not ignored should be annotated with the
-  // tapir.loop.lowering.enabled attribute that indicates to loop-spawning that
-  // the loop must be lowered.
-  for (Loop *loop : getTapirLoops(li))
-    if (!ignore.contains(loop))
-      addLoweringEnabledAttr(*loop);
+  // Tapir loop nests that will be executed on the CPU will have been
+  // transformed so there is a single tapir loop over the available threads; the
+  // original tapir loops will have been serialized. There will, therefore, be
+  // only a single top-level tapir loop to lower. The lowering of tapir loop
+  // nests on the GPU already operates only on the top-level loop.
+  for (Loop *loop : getTopLevelTapirLoops(li))
+    addLoweringEnabledAttr(*loop);
 }
 
 PreservedAnalyses PreLowerAnnotatePass::run(Function &f,
