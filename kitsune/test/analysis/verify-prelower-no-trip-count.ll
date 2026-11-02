@@ -26,7 +26,7 @@ latch:
   %inc.i = add i64 %i, 1
   %tc = sub i64 %n, 2
   %cmp.i = icmp eq i64 %inc.i, %tc
-  br i1 %cmp.i, label %sync, label %header, !llvm.loop !0
+  br i1 %cmp.i, label %sync, label %header, !llvm.loop !3
 
 sync:
   sync within %syncreg, label %exit
@@ -35,5 +35,7 @@ exit:
   ret void
 }
 
-!0 = distinct !{!0, !1}
-!1 = !{!"tapir.loop.target", i32 1024}
+!0 = !{!"tapir.loop.target", i32 1024}
+!1 = !{!"tapir.loop.perfect.level", i32 1}
+!2 = !{!"tapir.loop.perfect.depth", i32 1}
+!3 = !{!3, !0, !1, !2}

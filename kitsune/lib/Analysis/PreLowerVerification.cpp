@@ -51,6 +51,7 @@
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
 #include "kitsune/Core/TTUtils.h"
+#include "kitsune/Shared/RTNestUtils.h"
 #include "kitsune/Support/CommandLineOptions.h"
 #include "kitsune/Support/ErrorHandling.h"
 #include "llvm/ADT/SmallSet.h"
@@ -89,6 +90,9 @@ struct Log {
   unsigned warnings = 0;
 };
 
+//==---------------------------- Verifier base -----------------------------==//
+
+// CRTP base class for all verifiers.
 template <typename T> class Verifier {
 protected:
   Log &log;
@@ -129,354 +133,29 @@ private:
   TaskInfo &ti;
 
 private:
-  // Check that the tapir targets on all subloops in a tapir loop nest rooted at
-  // the given loop are consistent. The target of the root must be a GPU-centric
-  // tapir target.
-  void checkConsistentTTsForGPU(Loop &root) {
-    TTID ttRoot = *getTargetAttr(root);
-    for (Loop *subLoop : getAllSubLoops(root)) {
-      if (isTapirLoop(*subLoop)) {
-        TTID tt = *getTargetAttr(*subLoop);
-        if (tt != ttRoot) {
-          emitDiag(*subLoop, DiagID::ErrTTIncompatibleLoopGPU, tt, ttRoot);
-          emitDiag(root, DiagID::NoteAncestorLoopTarget, ttRoot);
-        }
-      }
-    }
-  }
+  bool checkConsistentTTsForGPU(Loop &root);
+  bool checkConsistentTTsForCPU(Loop &root);
+  bool checkTopLevelTapirLoop(Loop &loop);
+  bool checkTapirLoopIV(Loop &loop);
+  bool checkTapirLoopPreheader(Loop &loop);
+  bool checkTapirLoopHeader(Loop &loop);
+  bool checkTapirLoopLatch(Loop &loop);
+  bool checkTapirLoopAttrs(Loop &loop);
+  bool checkTapirLoopInsts(const Loop &loop, Task &task);
+  bool checkTapirLoopProperties(Loop &loop, Task &task);
 
-  // Check that the tapir targets on all subloops in a tapir loop nest rooted at
-  // the given loop are consistent. The target of the root must be a CPU-centric
-  // tapir target.
-  void checkConsistentTTsForCPU(Loop &root) {
-    TTID ttRoot = *getTargetAttr(root);
-    for (Loop *subLoop : getAllSubLoops(root)) {
-      if (isTapirLoop(*subLoop)) {
-        TTID tt = *getTargetAttr(*subLoop);
-        if (isGPUTT(tt) || tt != ttRoot) {
-          // FIXME: We don't yet support multi-target compilation anyway, but
-          // GPU's inside parallel CPU loops are particularly thorny. Until we
-          // have a decent plan for handling these, complain about them.
-          //
-          // Although nesting CPU targets should be ok, we need to think about
-          // the consequences of these, so don't allow those either.
-          emitDiag(*subLoop, DiagID::ErrTTIncompatibleLoop, tt, ttRoot);
-          emitDiag(root, DiagID::NoteAncestorLoopTarget, ttRoot);
-        }
-      }
-    }
-  }
+  template <typename InstType> bool checkSyncRegionDefn(const InstType &inst);
 
-  void checkTopLevelTapirLoop(Loop &loop) {
-    switch (*getTargetAttr(loop)) {
-    case TTID::Nolo:
-    case TTID::Serial:
-    case TTID::OpenCilk:
-    case TTID::OpenMP:
-    case TTID::Pthreads:
-    case TTID::Qthreads: //
-      checkConsistentTTsForCPU(loop);
-      return;
-    case TTID::Cuda:
-    case TTID::Hip: //
-      checkConsistentTTsForGPU(loop);
-      return;
-    case TTID::Custom:
-      // FIXME: We should probably require the custom targets to have a hook
-      // that provides suitable checks.
-      return;
-    case TTID::Lambda:
-    case TTID::OMPTask:
-    case TTID::Realm: break;
-    }
-    llvm_unreachable("checkTopLevelTapirLoop: TTID not handled");
-  }
-
-  // Find the top-level tapir loops in a function and check that they are
-  // consistent. This primarily checks the tapir targets on the subloops and
-  // the loop nest structure.
-  void checkTopLevelTapirLoops(Function &f) {
-    for (Loop *loop : getTopLevelTapirLoops(li))
-      checkTopLevelTapirLoop(*loop);
-  }
-
-  // Check the instructions in the tapir loop preheader.
-  //
-  //   - It must be terminated by an unconditional branch instruction.
-  //
-  bool checkTapirLoopPreheader(Loop &loop) {
-    BasicBlock *ph = loop.getLoopPreheader();
-    if (!isUncondBr(*ph->getTerminator()))
-      return emitDiag(loop, DiagID::ErrTapirLoopBlockTerminator, "preheader",
-                      "unconditional branch");
-    return true;
-  }
-
-  // Check the instructions in the tapir loop header.
-  //
-  //  - It must be terminated by a detach instruction.
-  //
-  //  - It can only contain PHI nodes, and no other instructions.
-  //
-  bool checkTapirLoopHeader(Loop &loop) {
-    BasicBlock *header = loop.getHeader();
-
-    // Debug info instructions are permitted. However, we expect these to be
-    // automatically upgraded to DbgRecord's, so we don't check for them.
-    for (Instruction &inst : *header) {
-      if (!isa<PHINode>(inst) && !isa<DetachInst>(inst)) {
-        // FIXME: This should be an error, but it has been changed to a warning
-        // because it causes too many codes to break. The underlying issue can
-        // probably be fixed by making some LLVM passes - notably the loop
-        // vectorizer - tapir-aware. Until then, we issue a warning instead of
-        // an error; the way Kitsune currently works, the presence of any
-        // non-PHI instructions in the header does not result in incorrect code
-        // generation. But, obviously, this will not always be the case.
-        return emitDiag(loop, DiagID::WarnTapirLoopHeaderInstNotPHI,
-                        getName(inst));
-      }
-    }
-
-    if (!isa<DetachInst>(header->getTerminator()))
-      return emitDiag(loop, DiagID::ErrTapirLoopBlockTerminator, "header",
-                      "detach");
-
-    return true;
-  }
-
-  // Check the instructions in the tapir loop latch.
-  //
-  //  - It must be terminated by a conditional branch instruction.
-  //
-  //  - It can only contain the instructions to update the canonical loop
-  //    induction variable, and nothing else.
-  //
-  bool checkTapirLoopLatch(Loop &loop) {
-    BasicBlock *latch = loop.getLoopLatch();
-    Instruction *latchTerm = latch->getTerminator();
-    if (!isCondBr(*latchTerm))
-      return emitDiag(loop, DiagID::ErrTapirLoopBlockTerminator, "latch",
-                      "conditional branch");
-
-    // Collect the instructions that are used to compute the termination
-    // condition and branch.
-    SmallPtrSet<Instruction *, 4> expected;
-    BranchInst *br = cast<BranchInst>(latchTerm);
-    if (auto *cmp = dyn_cast<Instruction>(br->getCondition())) {
-      for (Value *op : cmp->operands())
-        if (auto *inst = dyn_cast<Instruction>(op))
-          expected.insert(inst);
-      expected.insert(cmp);
-    }
-    expected.insert(br);
-
-    // In some cases, the updated induction variable is not actually used to
-    // compute the termination condition. This can happen, for instance, when
-    // the loop induction variable is in the range [1,n], in which case the
-    // termination condition in the loop is computed using the "old" value of
-    // the canonical loop induction, i, not the "updated" value of i. In other
-    // words, while one might expect to see the following code in the latch:
-    //
-    //   %next.i = add i64 %i, 1
-    //   %cmp.i = icmp eq i64 %next.i, %n
-    //   br label %cmp.i, label %exit, label %header
-    //
-    // we instead see something like this:
-    //
-    //   %next.i = add i64 %i, 1
-    //   %cmp.i = icmp eq i64 %i, %n1
-    //   br label %cmp.i, label %exit, label %header
-    //
-    // where %n1 = sub i64 %n, 1.
-    //
-    // To handle this case, we unconditionally add the incoming value from the
-    // latch to the expected instructions list. It is safe to cast this to an
-    // instruction because we are guaranteed that it is incremented by 1
-    //
-    PHINode *primIV = loop.getCanonicalInductionVariable();
-    expected.insert(cast<Instruction>(primIV->getIncomingValueForBlock(latch)));
-
-    // Debug info instructions are permitted. However, we expect these to be
-    // automatically upgraded to DbgRecord's, so we don't check for them.
-    for (Instruction &inst : *latch)
-      if (!expected.contains(&inst))
-        return emitDiag(loop, DiagID::ErrTapirLoopLatchInstUnexpected,
-                        getName(inst));
-
-    return true;
-  }
-
-  // Check that a given value is a sync region definition.
-  template <typename InstType> bool checkSyncRegionDefn(const InstType &inst) {
-    if (const auto *call = dyn_cast<CallBase>(inst.getSyncRegion()))
-      if (Function *f = call->getCalledFunction())
-        if (f->getIntrinsicID() == Intrinsic::syncregion_start)
-          return true;
-    return emitDiag(inst, DiagID::ErrTapirLoopSyncRegionDefn);
-  }
-
-  // Check the instructions in a tapir loop.
-  //
-  //  - The loop must contain exactly one detach instruction, and exactly one
-  //    reattach instruction (subloops may also contain detaches and
-  //    reattaches, but these are ignored). Specifically, we don't allow
-  //    "free-standing" detaches and reattaches, although Tapir allows them.
-  //    This is because this represents a form of nested parallelism that we
-  //    don't yet support.
-  //
-  //  - A sync instruction must post-dominate the tapir loop.
-  //
-  //  - The terminator of the loop preheader must be an unconditional branch.
-  //
-  //  - The terminator of the loop latch must be a conditional branch. This
-  //    should nearly always be the case, but changes to the pass pipeline may
-  //    result in this constraint being violated.
-  //
-  bool checkTapirLoopInsts(const Loop &loop, Task &task) {
-    const DetachInst *detachInst = task.getDetach();
-    if (getUniqueInstInLoopOnly<DetachInst>(loop) != detachInst)
-      return emitDiag(loop, DiagID::ErrTapirLoopNoUniqueDetachInst);
-
-    const auto *reattachInst = getUniqueInstInLoopOnly<ReattachInst>(loop);
-    if (!reattachInst)
-      return emitDiag(loop, DiagID::ErrTapirLoopNoUniqueReattachInst);
-
-    const Value *syncRegion = detachInst->getSyncRegion();
-    SmallSet<const SyncInst *, 4> syncInsts = getSyncInstsFor(*syncRegion);
-    if (syncInsts.size() < 1) {
-      return emitDiag(loop, DiagID::ErrTapirLoopNoUniqueSyncInst);
-    } else if (syncInsts.size() > 1) {
-      // We could have multiple sync instructions in a sync since task-simplify
-      // may have merged sync regions. Ideally, we would not want this to be an
-      // error, but we will have to fix the optimization pipeline before we can
-      // do that.
-      return true;
-    }
-
-    // We have to check that the sync instruction post-dominates the loop. We
-    // do this by checking that each of the loop exit blocks is post-dominated
-    // by the sync instruction. We expect that the tapir loop is in
-    // loop-simplify form at this time. This would imply that all exit blocks
-    // are dominated by the loop header. Therefore, if the body of the loop is
-    // entered, and a sync instruction post-dominates all exits, then the sync
-    // is guaranteed to be encountered when the loop body is exited.
-    //
-    // When doing so, we deliberately skip "unreachable" blocks i.e. those
-    // blocks that consist of a single unreachable instruction. We have to do
-    // this as a special case because the presence of such blocks will cause
-    // the post-dominator tree to report that the sync does not post-dominate
-    // the exit. While the semantics of LLVM's unreachable instruction are not
-    // formally specified at the time of writing this, it is reasonable to
-    // assume that encountering it at runtime will result in a catastrophic
-    // failure. In the CFG, therefore, there can be no path from there to a sync
-    // instruction.
-    const SyncInst *syncInst = *syncInsts.begin();
-    for (BasicBlock *exit : getUniqueExitBlocks(loop))
-      if (!isDeadEnd(*exit) && !pdt.dominates(syncInst, &exit->front()))
-        return emitDiag(loop, DiagID::ErrTapirLoopSyncMustPostDominate);
-
-    checkSyncRegionDefn(*detachInst);
-    checkSyncRegionDefn(*reattachInst);
-
-    return true;
-  }
-
-  // Check that the tapir loop has a single induction variable, and that that IV
-  // is canonical.
-  bool checkTapirLoopIV(Loop &loop) {
-    if (getNumIndVars(loop) > 1)
-      return emitDiag(loop, DiagID::ErrTapirLoopIVCount);
-
-    if (!loop.getCanonicalInductionVariable())
-      return emitDiag(loop, DiagID::ErrTapirLoopIVNotCanonical);
-
-    return true;
-  }
-
-  // Check additional properties of tapir loops. These are derived from the
-  // loop structure, the induction variable etc.
-  //
-  //  - The tapir loop has a finite trip count
-  //
-  bool checkTapirLoopProperties(Loop &loop, Task &task) {
-    PredicatedScalarEvolution pse(se, loop);
-    TapirLoopInfo tl(&loop, &task);
-    tl.collectIVs(pse, DEBUG_TYPE, &ore);
-    if (!tl.getOrCreateTripCount(pse, DEBUG_TYPE, &ore))
-      return emitDiag(loop, DiagID::ErrTapirLoopNoFiniteTripCount);
-
-    return true;
-  }
-
-  // Check the tapir loop attributes.
-  //
-  //  - The tapir loop must have a nesting level
-  //   - If the tapir loop is a top-level loop, it must have a depth
-  //
-  bool checkTapirLoopAttrs(Loop &loop) {
-    if (!hasPerfectLevelAttr(loop))
-      return emitDiag(loop, DiagID::ErrAttrMissing,
-                      getAttrName(LoopAttrKind::PerfectLevel));
-
-    if (isTopLevelTapirLoop(loop) && !hasPerfectDepthAttr(loop))
-      return emitDiag(loop, DiagID::ErrAttrMissing,
-                      getAttrName(LoopAttrKind::PerfectDepth));
-
-    return true;
-  }
-
-  bool checkAllTapirLoops(Function &f) {
-    for (Loop *loop : getTapirLoops(li)) {
-      Task *task = getTaskIfTapirLoop(loop, &ti);
-      if (!task)
-        return emitDiag(*loop, DiagID::ErrTapirLoopNoTask);
-
-      if (!loop->isLoopSimplifyForm())
-        return emitDiag(*loop, DiagID::ErrLoopNotSimplifyForm);
-
-      // clang-format off
-      if (!checkTapirLoopIV(*loop)
-          || !checkTapirLoopInsts(*loop, *task)
-          || !checkTapirLoopPreheader(*loop)
-          || !checkTapirLoopHeader(*loop)
-          || !checkTapirLoopLatch(*loop)
-          || !checkTapirLoopProperties(*loop, *task)
-          || !checkTapirLoopAttrs(*loop))
-        return false;
-      // clang-format on
-    }
-
-    return true;
-  }
-
-  // Check that detach and reattach instructions do not appear outside tapir
-  // loops.
-  void checkTapirInsts(const Function &f) {
-    SmallSet<const BasicBlock *, 8> bbs;
-    for (const Loop *loop : getTapirLoops(li))
-      for (const BasicBlock *bb : getBlocksNotInSubLoops(*loop))
-        bbs.insert(bb);
-
-    for (const_inst_iterator i = inst_begin(f), e = inst_end(f); i != e; ++i) {
-      if (isa<DetachInst>(*i) || isa<ReattachInst>(*i)) {
-        if (!bbs.contains(i->getParent()))
-          emitDiag(*i, DiagID::ErrTapirInstNotInTapirLoop);
-      } else if (const auto *syncInst = dyn_cast<SyncInst>(&*i)) {
-        checkSyncRegionDefn(*syncInst);
-      }
-    }
-  }
+  bool checkTapirInsts(const Function &f);
+  bool checkAllTapirLoops(Function &f);
+  bool checkTopLevelTapirLoops(Function &f);
 
 public:
   VerifierF(Log &log, LoopInfo &li, OptimizationRemarkEmitter &ore,
             PostDominatorTree &pdt, ScalarEvolution &se, TaskInfo &ti)
       : Verifier(log), li(li), ore(ore), pdt(pdt), se(se), ti(ti) {}
 
-  void run(Function &f) {
-    checkTapirInsts(f);
-    checkAllTapirLoops(f);
-    checkTopLevelTapirLoops(f);
-  }
+  bool run(Function &f);
 };
 
 // Verifier for a module. This does not descend into any of the functions, but
@@ -487,29 +166,402 @@ private:
   TTObjects &ttObjs;
 
 private:
-  // Check if all tapir targets required by the module have been enabled.
-  void checkTTsEnabled(ArrayRef<TTID> tts) {
-    for (TTID tt : tts)
-      if (not isEnabledTT(tt))
-        emitDiag(DiagID::ErrTTNotEnabled);
-  }
+  bool checkTTsEnabled(ArrayRef<TTID> tts);
 
 public:
   VerifierM(Log &log, TTObjects &ttObjs) : Verifier(log), ttObjs(ttObjs) {}
 
-  void run(Module &m) {
-    ArrayRef tts = ttObjs.getRequiredTTs(m);
-    checkTTsEnabled(tts);
-
-    // At this time, we do not support multi-target execution. Therefore, only
-    // one tapir target must be required in the module. Once we support
-    // multi-target execution, this check can be removed.
-    if (tts.size() > 1)
-      emitDiag(DiagID::ErrTTMultiple);
-  }
+  bool run(Module &m);
 };
 
 } // namespace
+
+//==-------------------------- Function verifier ---------------------------==//
+
+// Check that the tapir targets on all subloops in a tapir loop nest rooted at
+// the given loop are consistent. The target of the root must be a GPU-centric
+// tapir target.
+bool VerifierF::checkConsistentTTsForGPU(Loop &root) {
+  TTID ttRoot = *getTargetAttr(root);
+  for (Loop *subLoop : getAllSubLoops(root)) {
+    if (isTapirLoop(*subLoop)) {
+      TTID tt = *getTargetAttr(*subLoop);
+      if (tt != ttRoot) {
+        emitDiag(*subLoop, DiagID::ErrTTIncompatibleLoopGPU, tt, ttRoot);
+        emitDiag(root, DiagID::NoteAncestorLoopTarget, ttRoot);
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+// Check that the tapir targets on all subloops in a tapir loop nest rooted at
+// the given loop are consistent. The target of the root must be a CPU-centric
+// tapir target.
+bool VerifierF::checkConsistentTTsForCPU(Loop &root) {
+  TTID ttRoot = *getTargetAttr(root);
+  for (Loop *subLoop : getAllSubLoops(root)) {
+    if (isTapirLoop(*subLoop)) {
+      TTID tt = *getTargetAttr(*subLoop);
+      if (isGPUTT(tt) || tt != ttRoot) {
+        // FIXME: We don't yet support multi-target compilation anyway, but
+        // GPU's inside parallel CPU loops are particularly thorny. Until we
+        // have a decent plan for handling these, complain about them.
+        //
+        // Although nesting CPU targets should be ok, we need to think about the
+        // consequences of these, so don't allow those either.
+        emitDiag(*subLoop, DiagID::ErrTTIncompatibleLoop, tt, ttRoot);
+        emitDiag(root, DiagID::NoteAncestorLoopTarget, ttRoot);
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+bool VerifierF::checkTopLevelTapirLoop(Loop &loop) {
+  TTID tt = *getTargetAttr(loop);
+  unsigned depth = *getPerfectDepthAttr(loop);
+
+  if (isCPUTT(tt)) {
+    if (depth != 1)
+      return emitDiag(loop, DiagID::ErrTapirLoopNestInvalidDepth, 1, 1);
+  } else if (isGPUTT(tt)) {
+    if (depth < 1 || depth > NEST_MAX_DEPTH)
+      return emitDiag(loop, DiagID::ErrTapirLoopNestInvalidDepth, 1,
+                      NEST_MAX_DEPTH);
+  }
+
+  switch (tt) {
+  case TTID::Nolo:
+  case TTID::Serial:
+  case TTID::OpenCilk:
+  case TTID::OpenMP:
+  case TTID::Pthreads:
+  case TTID::Qthreads: //
+    return checkConsistentTTsForCPU(loop);
+  case TTID::Cuda:
+  case TTID::Hip: //
+    return checkConsistentTTsForGPU(loop);
+  case TTID::Custom:
+    // FIXME: We should probably require the custom targets to have a hook
+    // that provides suitable checks.
+    return true;
+  case TTID::Lambda:
+  case TTID::OMPTask:
+  case TTID::Realm: break;
+  }
+  llvm_unreachable("checkTopLevelTapirLoop: TTID not handled");
+}
+
+// Find the top-level tapir loops in a function and check that they are
+// consistent. This primarily checks the tapir targets on the subloops and the
+// loop nest structure.
+bool VerifierF::checkTopLevelTapirLoops(Function &f) {
+  bool ok = true;
+  for (Loop *loop : getTopLevelTapirLoops(li))
+    ok &= checkTopLevelTapirLoop(*loop);
+  return ok;
+}
+
+// Check the instructions in the tapir loop preheader.
+//
+//   - It must be terminated by an unconditional branch instruction.
+//
+bool VerifierF::checkTapirLoopPreheader(Loop &loop) {
+  BasicBlock *ph = loop.getLoopPreheader();
+  if (!isUncondBr(*ph->getTerminator()))
+    return emitDiag(loop, DiagID::ErrTapirLoopBlockTerminator, "preheader",
+                    "unconditional branch");
+  return true;
+}
+
+// Check the instructions in the tapir loop header.
+//
+//  - It must be terminated by a detach instruction.
+//
+//  - It can only contain PHI nodes, and no other instructions.
+//
+bool VerifierF::checkTapirLoopHeader(Loop &loop) {
+  BasicBlock *header = loop.getHeader();
+
+  // Debug info instructions are permitted. However, we expect these to be
+  // automatically upgraded to DbgRecord's, so we don't check for them.
+  for (Instruction &inst : *header) {
+    if (!isa<PHINode>(inst) && !isa<DetachInst>(inst)) {
+      // FIXME: This should be an error, but it has been changed to a warning
+      // because it causes too many codes to break. The underlying issue can
+      // probably be fixed by making some LLVM passes - notably the loop
+      // vectorizer - tapir-aware. Until then, we issue a warning instead of an
+      // error; the way Kitsune currently works, the presence of any non-PHI
+      // instructions in the header does not result in incorrect code
+      // generation. But, obviously, this will not always be the case.
+      return emitDiag(loop, DiagID::WarnTapirLoopHeaderInstNotPHI,
+                      getName(inst));
+    }
+  }
+
+  if (!isa<DetachInst>(header->getTerminator()))
+    return emitDiag(loop, DiagID::ErrTapirLoopBlockTerminator, "header",
+                    "detach");
+
+  return true;
+}
+
+// Check the instructions in the tapir loop latch.
+//
+//  - It must be terminated by a conditional branch instruction.
+//
+//  - It can only contain the instructions to update the canonical loop
+//    induction variable, and nothing else.
+//
+bool VerifierF::checkTapirLoopLatch(Loop &loop) {
+  BasicBlock *latch = loop.getLoopLatch();
+  Instruction *latchTerm = latch->getTerminator();
+  if (!isCondBr(*latchTerm))
+    return emitDiag(loop, DiagID::ErrTapirLoopBlockTerminator, "latch",
+                    "conditional branch");
+
+  // Collect the instructions that are used to compute the termination condition
+  // and branch.
+  SmallPtrSet<Instruction *, 4> expected;
+  BranchInst *br = cast<BranchInst>(latchTerm);
+  if (auto *cmp = dyn_cast<Instruction>(br->getCondition())) {
+    for (Value *op : cmp->operands())
+      if (auto *inst = dyn_cast<Instruction>(op))
+        expected.insert(inst);
+    expected.insert(cmp);
+  }
+  expected.insert(br);
+
+  // In some cases, the updated induction variable is not actually used to
+  // compute the termination condition. This can happen, for instance, when the
+  // loop induction variable is in the range [1,n], in which case the
+  // termination condition in the loop is computed using the "old" value of the
+  // canonical loop induction, i, not the "updated" value of i. In other words,
+  // while one might expect to see the following code in the latch:
+  //
+  //   %next.i = add i64 %i, 1
+  //   %cmp.i = icmp eq i64 %next.i, %n
+  //   br label %cmp.i, label %exit, label %header
+  //
+  // we instead see something like this:
+  //
+  //   %next.i = add i64 %i, 1
+  //   %cmp.i = icmp eq i64 %i, %n1
+  //   br label %cmp.i, label %exit, label %header
+  //
+  // where %n1 = sub i64 %n, 1.
+  //
+  // To handle this case, we unconditionally add the incoming value from the
+  // latch to the expected instructions list. It is safe to cast this to an
+  // instruction because we are guaranteed that it is incremented by 1
+  //
+  PHINode *primIV = loop.getCanonicalInductionVariable();
+  expected.insert(cast<Instruction>(primIV->getIncomingValueForBlock(latch)));
+
+  // Debug info instructions are permitted. However, we expect these to be
+  // automatically upgraded to DbgRecord's, so we don't check for them.
+  for (Instruction &inst : *latch)
+    if (!expected.contains(&inst))
+      return emitDiag(loop, DiagID::ErrTapirLoopLatchInstUnexpected,
+                      getName(inst));
+
+  return true;
+}
+
+// Check that a given value is a sync region definition.
+template <typename InstType>
+bool VerifierF::checkSyncRegionDefn(const InstType &inst) {
+  if (const auto *call = dyn_cast<CallBase>(inst.getSyncRegion()))
+    if (const Function *f = call->getCalledFunction())
+      if (f->getIntrinsicID() == Intrinsic::syncregion_start)
+        return true;
+  return emitDiag(inst, DiagID::ErrTapirLoopSyncRegionDefn);
+}
+
+// Check the instructions in a tapir loop.
+//
+//  - The loop must contain exactly one detach instruction, and exactly one
+//    reattach instruction (subloops may also contain detaches and reattaches,
+//    but these are ignored). Specifically, we don't allow "free-standing"
+//    detaches and reattaches, although Tapir allows them. This is because this
+//    represents a form of nested parallelism that we don't yet support.
+//
+//  - A sync instruction must post-dominate the tapir loop.
+//
+//  - The terminator of the loop preheader must be an unconditional branch.
+//
+//  - The terminator of the loop latch must be a conditional branch. This should
+//    nearly always be the case, but changes to the pass pipeline may result in
+//    this constraint being violated.
+//
+bool VerifierF::checkTapirLoopInsts(const Loop &loop, Task &task) {
+  const DetachInst *detachInst = task.getDetach();
+  if (getUniqueInstInLoopOnly<DetachInst>(loop) != detachInst)
+    return emitDiag(loop, DiagID::ErrTapirLoopNoUniqueDetachInst);
+
+  const auto *reattachInst = getUniqueInstInLoopOnly<ReattachInst>(loop);
+  if (!reattachInst)
+    return emitDiag(loop, DiagID::ErrTapirLoopNoUniqueReattachInst);
+
+  const Value *syncRegion = detachInst->getSyncRegion();
+  SmallSet<const SyncInst *, 4> syncInsts = getSyncInstsFor(*syncRegion);
+  if (syncInsts.size() < 1) {
+    return emitDiag(loop, DiagID::ErrTapirLoopNoUniqueSyncInst);
+  } else if (syncInsts.size() > 1) {
+    // We could have multiple sync instructions in a sync since task-simplify
+    // may have merged sync regions. Ideally, we would not want this to be an
+    // error, but we will have to fix the optimization pipeline before we can do
+    // that.
+    return true;
+  }
+
+  // We have to check that the sync instruction post-dominates the loop. We do
+  // this by checking that each of the loop exit blocks is post-dominated by the
+  // sync instruction. We expect that the tapir loop is in loop-simplify form at
+  // this time. This would imply that all exit blocks are dominated by the loop
+  // header. Therefore, if the body of the loop is entered, and a sync
+  // instruction post-dominates all exits, then the sync is guaranteed to be
+  // encountered when the loop body is exited.
+  //
+  // When doing so, we deliberately skip "unreachable" blocks i.e. those blocks
+  // that consist of a single unreachable instruction. We have to do this as a
+  // special case because the presence of such blocks will cause the
+  // post-dominator tree to report that the sync does not post-dominate the
+  // exit. While the semantics of LLVM's unreachable instruction are not
+  // formally specified at the time of writing this, it is reasonable to assume
+  // that encountering it at runtime will result in a catastrophic failure. In
+  // the CFG, therefore, there can be no path from there to a sync instruction.
+  const SyncInst *syncInst = *syncInsts.begin();
+  for (BasicBlock *exit : getUniqueExitBlocks(loop))
+    if (!isDeadEnd(*exit) && !pdt.dominates(syncInst, &exit->front()))
+      return emitDiag(loop, DiagID::ErrTapirLoopSyncMustPostDominate);
+
+  checkSyncRegionDefn(*detachInst);
+  checkSyncRegionDefn(*reattachInst);
+
+  return true;
+}
+
+// Check that the tapir loop has a single induction variable, and that that IV
+// is canonical.
+bool VerifierF::checkTapirLoopIV(Loop &loop) {
+  if (getNumIndVars(loop) > 1)
+    return emitDiag(loop, DiagID::ErrTapirLoopIVCount);
+
+  if (!loop.getCanonicalInductionVariable())
+    return emitDiag(loop, DiagID::ErrTapirLoopIVNotCanonical);
+
+  return true;
+}
+
+// Check additional properties of tapir loops. These are derived from the loop
+// structure, the induction variable etc.
+//
+//  - The tapir loop has a finite trip count
+//
+bool VerifierF::checkTapirLoopProperties(Loop &loop, Task &task) {
+  PredicatedScalarEvolution pse(se, loop);
+  TapirLoopInfo tl(&loop, &task);
+  tl.collectIVs(pse, DEBUG_TYPE, &ore);
+  if (!tl.getOrCreateTripCount(pse, DEBUG_TYPE, &ore))
+    return emitDiag(loop, DiagID::ErrTapirLoopNoFiniteTripCount);
+
+  return true;
+}
+
+// Check the tapir loop attributes.
+//
+//  - The tapir loop must have a nesting level
+//   - If the tapir loop is a top-level loop, it must have a depth
+//
+bool VerifierF::checkTapirLoopAttrs(Loop &loop) {
+  if (!hasPerfectLevelAttr(loop))
+    return emitDiag(loop, DiagID::ErrAttrMissing,
+                    getAttrName(LoopAttrKind::PerfectLevel));
+
+  if (isTopLevelTapirLoop(loop) && !hasPerfectDepthAttr(loop))
+    return emitDiag(loop, DiagID::ErrAttrMissing,
+                    getAttrName(LoopAttrKind::PerfectDepth));
+
+  return true;
+}
+
+bool VerifierF::checkAllTapirLoops(Function &f) {
+  for (Loop *loop : getTapirLoops(li)) {
+    Task *task = getTaskIfTapirLoop(loop, &ti);
+    if (!task)
+      return emitDiag(*loop, DiagID::ErrTapirLoopNoTask);
+
+    if (!loop->isLoopSimplifyForm())
+      return emitDiag(*loop, DiagID::ErrLoopNotSimplifyForm);
+
+    if (!checkTapirLoopIV(*loop)                   //
+        || !checkTapirLoopInsts(*loop, *task)      //
+        || !checkTapirLoopPreheader(*loop)         //
+        || !checkTapirLoopHeader(*loop)            //
+        || !checkTapirLoopLatch(*loop)             //
+        || !checkTapirLoopProperties(*loop, *task) //
+        || !checkTapirLoopAttrs(*loop))
+      return false;
+  }
+  return true;
+}
+
+// Check that detach and reattach instructions do not appear outside tapir
+// loops.
+bool VerifierF::checkTapirInsts(const Function &f) {
+  SmallSet<const BasicBlock *, 8> bbs;
+  for (const Loop *loop : getTapirLoops(li))
+    for (const BasicBlock *bb : getBlocksNotInSubLoops(*loop))
+      bbs.insert(bb);
+
+  for (const_inst_iterator i = inst_begin(f), e = inst_end(f); i != e; ++i) {
+    if (isa<DetachInst>(*i) || isa<ReattachInst>(*i)) {
+      if (!bbs.contains(i->getParent()))
+        return emitDiag(*i, DiagID::ErrTapirInstNotInTapirLoop);
+    } else if (const auto *syncInst = dyn_cast<SyncInst>(&*i)) {
+      if (!checkSyncRegionDefn(*syncInst))
+        return false;
+    }
+  }
+  return true;
+}
+
+bool VerifierF::run(Function &f) {
+  return checkTapirInsts(f)       //
+         && checkAllTapirLoops(f) //
+         && checkTopLevelTapirLoops(f);
+}
+
+//==--------------------------- Module verifier ----------------------------==//
+
+// Check if all tapir targets required by the module have been enabled.
+bool VerifierM::checkTTsEnabled(ArrayRef<TTID> tts) {
+  bool ok = true;
+  for (TTID tt : tts)
+    if (not isEnabledTT(tt))
+      ok &= emitDiag(DiagID::ErrTTNotEnabled);
+  return ok;
+}
+
+bool VerifierM::run(Module &m) {
+  ArrayRef tts = ttObjs.getRequiredTTs(m);
+  if (!checkTTsEnabled(tts))
+    return false;
+
+  // At this time, we do not support multi-target execution. Therefore, only one
+  // tapir target must be required in the module. Once we support multi-target
+  // execution, this check can be removed.
+  if (tts.size() > 1)
+    return emitDiag(DiagID::ErrTTMultiple);
+
+  return true;
+}
+
+//==------------------------------------------------------------------------==//
 
 PreservedAnalyses PreLowerVerificationPass::run(Module &m,
                                                 ModuleAnalysisManager &mam) {
