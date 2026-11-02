@@ -89,7 +89,7 @@ void SerialTT::postProcessFunction(Function &f, bool processingTapirLoops) {
   DominatorTree dt(f);
   LoopInfo li(dt);
 
-  for (Loop *loop : li.getLoopsInPreorder())
-    if (getTargetAttr(*loop) == TTID::Serial)
+  for (Loop *loop : getTopLevelTapirLoops(li))
+    if (*getTargetAttr(*loop) == TTID::Serial)
       serializeTapirLoop(*loop);
 }

@@ -224,18 +224,18 @@ const Loop *llvm::getNearestAncestorTapirLoop(const Loop &loop) {
     return getNearestAncestorTapirLoop(*parentLoop);
 }
 
-SmallVector<Loop *, 4> llvm::getTopLevelTapirLoops(LoopInfo &li) {
-  SmallVector<Loop *, 4> loops;
+SmallVector<Loop *, 0> llvm::getTapirLoops(LoopInfo &li) {
+  SmallVector<Loop *, 0> loops;
   for (Loop *loop : li.getLoopsInPreorder())
-    if (isTopLevelTapirLoop(*loop))
+    if (isTapirLoop(*loop))
       loops.push_back(loop);
   return loops;
 }
 
-SmallVector<Loop *, 4> llvm::getTapirLoops(LoopInfo &li) {
-  SmallVector<Loop *, 4> loops;
+SmallVector<Loop *, 0> llvm::getTopLevelTapirLoops(LoopInfo &li) {
+  SmallVector<Loop *, 0> loops;
   for (Loop *loop : li.getLoopsInPreorder())
-    if (isTapirLoop(*loop))
+    if (isTopLevelTapirLoop(*loop))
       loops.push_back(loop);
   return loops;
 }

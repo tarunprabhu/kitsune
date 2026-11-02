@@ -134,9 +134,7 @@ static bool serializeLoop(Loop &loop) {
 // required to be present on all tapir loops at this point.
 static SmallVector<Loop *> getLoopsToSerialize(LoopInfo &li) {
   auto shouldSerialize = [](const Loop &loop) -> bool {
-    if (!isTapirLoop(loop))
-      return false;
-
+    assert(isTapirLoop(loop) && "Loop is a tapir loop");
     assert(hasPerfectLevelAttr(loop) && "Loop has perfect.level attribute");
     if (*getPerfectLevelAttr(loop) <= NEST_MAX_DEPTH)
       return false;
@@ -145,7 +143,7 @@ static SmallVector<Loop *> getLoopsToSerialize(LoopInfo &li) {
   };
 
   SmallVector<Loop *, 0> loopsToSerialize;
-  for (Loop *loop : li.getLoopsInPreorder())
+  for (Loop *loop : getTapirLoops(li))
     if (shouldSerialize(*loop))
       loopsToSerialize.push_back(loop);
 

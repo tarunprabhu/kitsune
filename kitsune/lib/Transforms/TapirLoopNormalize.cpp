@@ -152,17 +152,9 @@ PreservedAnalyses TapirLoopNormalizePass::run(Function &f,
   MemorySSA &mssa = am.getResult<MemorySSAAnalysis>(f).getMSSA();
   ScalarEvolution &se = am.getResult<ScalarEvolutionAnalysis>(f);
 
-  SmallVector<Loop *, 0> loops;
-  for (Loop *loop : li.getLoopsInPreorder())
-    if (isTapirLoop(*loop))
-      loops.push_back(loop);
-
-  if (loops.empty())
-    return PreservedAnalyses::all();
-
   bool changed = false;
   TapirLoopNormalizeImpl normalizer(ac, dt, li, mssa, se);
-  for (Loop *loop : loops)
+  for (Loop *loop : getTapirLoops(li))
     changed |= normalizer.runOnLoop(*loop);
 
   if (!changed)

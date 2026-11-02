@@ -17,23 +17,21 @@
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
 #include "llvm/Analysis/LoopInfo.h"
-#include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/IR/Intrinsics.h"
 
 #define DEBUG_TYPE "kit-annotate-early"
 
 using namespace llvm;
 
-static void addMandatoryLoopAttrs(LoopInfo &li) {
-  for (Loop *loop : li.getLoopsInPreorder())
-    if (isTapirLoop(*loop))
-      addMandatoryLLVMLoopAttrs(*loop);
+static void addMandatoryLoopAttrs(const SmallVectorImpl<Loop *> &loops) {
+  for (Loop *loop : loops)
+    addMandatoryLLVMLoopAttrs(*loop);
 }
 
 // This only annotates the top-level loop of a loop nest with the reduction
 // attribute. This is because loop nests are treated as a unit by kit-prepare,
 // loop-spawning and other passes.
-static void annotateReductionLoops(LoopInfo &li) {
+static void annotateReductionLoops(const SmallVectorImpl<Loop *> &loops) {
   auto isReductionLoop = [](const Loop &loop) -> bool {
     for (const BasicBlock *bb : loop.getBlocks())
       for (const Instruction &inst : *bb)
@@ -43,60 +41,72 @@ static void annotateReductionLoops(LoopInfo &li) {
     return false;
   };
 
-  for (Loop *loop : li.getLoopsInPreorder())
+  for (Loop *loop : loops)
     if (isTopLevelTapirLoop(*loop) && isReductionLoop(*loop))
       addReductionAttr(*loop);
 }
 
-static unsigned addLoopNestAnnotations(Loop &loop, unsigned depth) {
+// This will add the tapir.loop.perfect.level annotation to \p loop and any
+// valid subloops of \p loop (see below). Along the way, it also effectively
+// computes the tapir nest depth and returns it.
+//
+// Though we expect that any tapir loop whose parent is also a tapir loop is
+// perfectly nested relative to its parent, we should not assume that this is
+// guaranteed. Since it is difficult to reliably identify perfect nesting of
+// loops in LLVM IR, we do not attempt to handle the general case. Rather, we
+// only check for the cases that we can consistently identify.
+//
+//    forall (...) {           forall (...) {
+//      expr;                    forall (...)
+//      forall (...)               ...
+//        ...                    forall (...)
+//      expr;                      ...
+//    }                        }
+//
+// The loop nest on the left consists of imperfectly nested loops. Nevertheless,
+// the inner loop will be annotated with a perfect nesting level of 2. On the
+// other hand, neither of the inner loops in the nest on the right will have any
+// nesting level attributes added since they are, obviously, not perfectly
+// nested.
+//
+// Therefore, if the current loop does not have exactly one subloop that is also
+// a tapir loop, we can assume that it is the innermost tapir loop in the nest.
+// The current depth will be the tapir nest depth of the nest (this is not the
+// same as the true nesting level since the current loop may have one or more
+// subloops that are not tapir loops, so the loop nest depth may be larger than
+// the tapir nest depth).
+static unsigned addLoopLevelAnnotation(Loop &loop, unsigned depth) {
   assert(isTapirLoop(loop) && "Loop is a tapir loop");
 
   addPerfectLevelAttr(loop, depth);
 
-  // Though we expect that any tapir loop whose parent is also a tapir loop is
-  // perfectly nested relative to its parent, we should not assume that this is
-  // guaranteed. Since it is difficult to reliably identify perfect nesting of
-  // loops in LLVM IR, we do not attempt to handle the general case. Rather, we
-  // only check for the cases that we can consistently identify.
-  //
-  //    forall (...) {           forall (...) {
-  //      expr;                    forall (...)
-  //      forall (...)               ...
-  //        ...                    forall (...)
-  //      expr;                      ...
-  //    }                        }
-  //
-  // The loop nest on the left consists of imperfectly nested loops.
-  // Nevertheless, the inner loop will be annotated with a perfect nesting
-  // level of 2. On the other hand, neither of the inner loops in the nest on
-  // the right will have any nesting level attributes added since they are,
-  // obviously, not perfectly nested.
-  //
   const std::vector<Loop *> &subLoops = loop.getSubLoops();
-  if (subLoops.size() == 1) {
-    Loop &subLoop = *subLoops[0];
-    if (isTapirLoop(subLoop))
-      return addLoopNestAnnotations(subLoop, depth + 1);
-  }
+  if (subLoops.size() != 1 || !isTapirLoop(*subLoops[0]))
+    return depth;
 
-  return depth;
+  // The current tapir loop has exactly one subloop, which is itself a tapir
+  // loop. The tapir depth of the nest can only be determined by descending into
+  // it and adding the appropriate annotations.
+  return addLoopLevelAnnotation(*subLoops[0], depth + 1);
 }
 
-static void annotateLoopNests(LoopInfo &li, ScalarEvolution &se) {
+static void addLoopNestAnnotations(Loop &root) {
+  unsigned depth = addLoopLevelAnnotation(root, 1);
+  addPerfectDepthAttr(root, depth);
+}
+
+static void annotateLoopNests(const SmallVectorImpl<Loop *> &loops) {
   // Since this runs early in the pipeline, it assumes that what it sees is
   // essentially exactly what was generated by the frontend (modulo having been
-  // run through mem2reg, or an equivalent). Currently, we require Kitsune's
+  // run through mem2reg, or an equivalent). At this time, we require Kitsune's
   // frontends to ensure that any non-top-level tapir loops are perfectly nested
   // with relative to their parents. We, therefore, just add the correct
   // annotations here. Obviously, it would be ideal if the frontend added these
   // annotations in the first place, but that gets ugly quickly, especially in
   // clang.
-  for (Loop *loop : li.getLoopsInPreorder()) {
-    if (isTopLevelTapirLoop(*loop)) {
-      unsigned perfectDepth = addLoopNestAnnotations(*loop, 1);
-      addPerfectDepthAttr(*loop, perfectDepth);
-    }
-  }
+  for (Loop *loop : loops)
+    if (isTopLevelTapirLoop(*loop))
+      addLoopNestAnnotations(*loop);
 }
 
 PreservedAnalyses EarlyAnnotatePass::run(Function &f,
@@ -107,13 +117,13 @@ PreservedAnalyses EarlyAnnotatePass::run(Function &f,
     return PreservedAnalyses::all();
 
   LoopInfo &li = am.getResult<LoopAnalysis>(f);
-  ScalarEvolution &se = am.getResult<ScalarEvolutionAnalysis>(f);
+  SmallVector<Loop *, 0> loops = getTapirLoops(li);
 
   // This is done in this order only to make testing a little easier. If this
   // order is changed, tests will break.
-  annotateReductionLoops(li);
-  annotateLoopNests(li, se);
-  addMandatoryLoopAttrs(li);
+  annotateReductionLoops(loops);
+  annotateLoopNests(loops);
+  addMandatoryLoopAttrs(loops);
 
   // At this time, the added annotations do not invalidate other analyses.
   // However, if we ever add any that do such as !tbaa (which affects alias
