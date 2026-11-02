@@ -94,7 +94,7 @@ entry:
   br label %header
 
 header:
-  %i = phi i64 [ 0, %entry ], [ %inc.i, %latch ]
+  %i = phi i64 [ 0, %entry ], [ %inc, %latch ]
   detach within %syncreg, label %body, label %latch
 
 body:
@@ -102,8 +102,8 @@ body:
   reattach within %syncreg, label %latch
 
 latch:
-  %inc.i = add i64 %i, 1
-  %cmp = icmp eq i64 %inc.i, %n
+  %inc = add i64 %i, 1
+  %cmp = icmp eq i64 %inc, %n
   br i1 %cmp, label %exit, label %header, !llvm.loop !0
 
 exit:

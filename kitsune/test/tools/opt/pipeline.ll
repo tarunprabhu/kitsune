@@ -21,8 +21,8 @@
 ; RUN:     | FileCheck -check-prefix DEFAULT %s
 ;
 ; DEFAULT-NOT: Running pass:     SerializePass
-; DEFAULT-NOT: Running pass:     ComputeReductionStrategyPass
 ; DEFAULT-NOT: Running pass:     PrepareTapirLoopsPass
+; DEFAULT-NOT: Running pass:     ComputeReductionStrategyPass
 ; DEFAULT-NOT: Running pass:     PreLowerAnnotatePass
 ; DEFAULT-NOT: Running pass:     LoopSpawningPass
 ; DEFAULT-NOT: Running pass:     HoistAllocasPass
@@ -61,16 +61,16 @@
 ; optimization levels.
 ;
 ; RUN: opt -O1 --tapir=serial -debug-pass-manager %s -o /dev/null 2>&1 \
-; RUN:     | FileCheck -check-prefix O123SZ %s
+; RUN:     | FileCheck -check-prefix O123S %s
 ;
 ; RUN: opt -O2 --tapir=serial -debug-pass-manager %s -o /dev/null 2>&1 \
-; RUN:     | FileCheck -check-prefix O123SZ %s
+; RUN:     | FileCheck -check-prefix O123S %s
 ;
 ; RUN: opt -O3 --tapir=serial -debug-pass-manager %s -o /dev/null 2>&1 \
-; RUN:     | FileCheck -check-prefix O123SZ %s
+; RUN:     | FileCheck -check-prefix O123S %s
 ;
 ; RUN: opt -Os --tapir=serial -debug-pass-manager %s -o /dev/null 2>&1 \
-; RUN:     | FileCheck -check-prefix O123SZ %s
+; RUN:     | FileCheck -check-prefix O123S %s
 ;
 ; The Early* passes run early in the pass pipeline.
 ; O123S:       Running pass:     EarlyVerificationPass
@@ -78,10 +78,9 @@
 ;
 ; <KIT-PREPARE>
 ; O123S:       Running pass:     SerializePass
-; O123S:       Running pass:     ComputeReductionStrategyPass
 ; O123S:       Running pass:     PrepareTapirLoopsPass
-; O123S:       Running pass:     ComputeGPULoopBlockSizePass
-; O123SZ-NOT:  Running pass:     InstrumentPass
+; O123S:       Running pass:     ComputeReductionStrategyPass
+; O123S-NOT:   Running pass:     InstrumentPass
 ; </KIT-PREPARE>
 ;
 ; <KIT-PRE-VECTORIZE>
@@ -93,35 +92,35 @@
 ; </KIT-PRE-TAPIR>
 ;
 ; <KIT-PRE-LOOP-SPAWNING>
-; O123SZ:      Running pass:     SecondaryIVEliminationPass
-; O123SZ:      Running pass:     PreLowerVerificationPass
-; O123SZ:      Running pass:     PreLowerAnnotatePass
+; O123S:       Running pass:     SecondaryIVEliminationPass
+; O123S:       Running pass:     PreLowerVerificationPass
+; O123S:       Running pass:     PreLowerAnnotatePass
 ; </KIT-PRE-LOOP-SPAWNING>
 ;
-; O123SZ:      Running pass:     LoopSpawningPass
+; O123S:       Running pass:     LoopSpawningPass
 ;
 ; <KIT-POST-LOOP-SPAWNING>
-; O123SZ:      Running pass:     HoistAllocasPass
-; O123SZ:      Running pass:     EmbHoistAllocasPass
+; O123S:       Running pass:     HoistAllocasPass
+; O123S:       Running pass:     EmbHoistAllocasPass
 ; </KIT-POST-LOOP-SPAWNING>
 ;
-; O123SZ:      Running pass:     TapirToTargetPass
-; O123SZ:      Running pass:     GlobalDCEPass
+; O123S:       Running pass:     TapirToTargetPass
+; O123S:       Running pass:     GlobalDCEPass
 ;
 ; <KIT-POST-TAPIR>
-; O123SZ:      Running pass:     PrefetchForDevicePass
-; O123SZ:      Running pass:     EmbFinalizeReductionsPass
-; O123SZ:      Running pass:     EmbLowerIntrinsicsPass
-; O123SZ:      Running pass:     EmbResolveLibDeviceCallsPass
-; O123SZ:      Running pass:     EmbPreparePass
-; O123SZ:      Running pass:     EmbLinkLibDeviceBitcodePass
-; O123SZ:      Running pass:     EmbOptimizePass
-; O123SZ:      Running pass:     RecomputeKernelPropertiesPass
-; O123SZ:      Running pass:     GenerateCtorsPass
+; O123S:       Running pass:     PrefetchForDevicePass
+; O123S:       Running pass:     EmbFinalizeReductionsPass
+; O123S:       Running pass:     EmbLowerIntrinsicsPass
+; O123S:       Running pass:     EmbResolveLibDeviceCallsPass
+; O123S:       Running pass:     EmbPreparePass
+; O123S:       Running pass:     EmbLinkLibDeviceBitcodePass
+; O123S:       Running pass:     EmbOptimizePass
+; O123S:       Running pass:     RecomputeKernelPropertiesPass
+; O123S:       Running pass:     GenerateCtorsPass
 ; </KIT-POST-TAPIR>
 ;
-; O123SZ:      Running pass:     VerifierPass
-; O123SZ:      Running pass:     BitcodeWriterPass
+; O123S:       Running pass:     VerifierPass
+; O123S:       Running pass:     BitcodeWriterPass
 ;
 ; -----------------------------------------------------------------------------
 ; The instrumentation pass will only run if instrumentation is explicitly
