@@ -48,8 +48,8 @@
 //
 // <KIT-PREPARE>
 // O123S:      Running pass:     SerializePass
-// O123S:      Running pass:     ComputeReductionStrategyPass
 // O123S:      Running pass:     PrepareTapirLoopsPass
+// O123S:      Running pass:     ComputeReductionStrategyPass
 // O123S-NOT:  Running pass:     InstrumentPass
 // </KIT-PREPARE>
 //
