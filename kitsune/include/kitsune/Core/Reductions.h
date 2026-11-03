@@ -13,6 +13,7 @@
 #ifndef KITSUNE_CORE_REDUCTIONS_H
 #define KITSUNE_CORE_REDUCTIONS_H
 
+#include "kitsune/Core/Diagnostics.h"
 #include "kitsune/Core/ReductionStrategy.h"
 #include "kitsune/Core/TTID.h"
 #include "kitsune/Support/FromInt.h"
@@ -28,6 +29,7 @@ namespace llvm {
 class Constant;
 class Function;
 class Loop;
+class LoopInfo;
 class Module;
 class Value;
 class Type;
@@ -145,6 +147,14 @@ public:
 
   /// Get all arguments that will be passed to a call to the reducer.
   SmallVector<Value *, 2> getReducerArgs() const;
+
+  /// Check the uses of the destination of this reduction. The only uses of the
+  /// destination in the reduction loop must be destinations of this, or other
+  /// reductions. If the destination is used in more than one reduction call,
+  /// the reduction operators must be identical. If any of these constraints are
+  /// not satisfied, a diagnostic identifier will be returned. If the uses of
+  /// the destination is valid, return std::nullopt.
+  std::optional<DiagID> checkUsesOfDest(LoopInfo &li) const;
 };
 
 /// Collect the reductions in loop \p loop.

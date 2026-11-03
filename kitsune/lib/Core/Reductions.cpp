@@ -12,7 +12,10 @@
 
 #include "kitsune/Core/Reductions.h"
 #include "kitsune/Core/ConstantUtils.h"
+#include "kitsune/Core/LoopUtils.h"
 #include "kitsune/Core/ModuleUtils.h"
+#include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/IRBuilder.h"
@@ -72,6 +75,50 @@ Type *ReductionInfo::getResultBufferType() const {
   Type *i8 = Type::getInt8Ty(ctx);
   return ArrayType::get(i8, elemSize);
 };
+
+std::optional<DiagID> ReductionInfo::checkUsesOfDest(LoopInfo &li) const {
+  Value *dest = getDest();
+  Loop &loop = *getLoopFor(*call, li);
+  Loop &root = *getOutermostTapirLoopInNest(loop);
+
+  SmallVector<Instruction *, 1> uses;
+  for (const Use &u : dest->uses())
+    if (auto *inst = dyn_cast<Instruction>(u.getUser()))
+      if (isInLoop(*inst, root, li))
+        uses.push_back(inst);
+
+  if (uses.size() == 1)
+    return std::nullopt;
+
+  for (Instruction *inst : uses) {
+    auto *call = dyn_cast<CallInst>(inst);
+    if (!call || call->getIntrinsicID() != Intrinsic::kit_reduce)
+      return DiagID::ErrReduceDestUsedInLoop;
+
+    // At this point, the instruction is a reduce intrinsic.
+    const ReductionInfo redxn(call);
+    if (redxn.getValue() == dest || redxn.getUnit() == dest ||
+        redxn.getReducer() == dest)
+      return DiagID::ErrReduceDestUsedInLoop;
+
+    SmallVector<Value *, 0> extraArgs = redxn.getExtraArgs();
+    for (Value *arg : extraArgs)
+      if (arg == dest)
+        return DiagID::ErrReduceDestUsedInLoop;
+  }
+
+  // If the destination of a reduction is used in two different reductions in
+  // the loop, the two reductions must have the same operator.
+  SmallSet<ReduceOp, 1> reduceOpsForDest;
+  for (Instruction *use : uses)
+    if (auto *call = dyn_cast<CallInst>(use))
+      if (call->getIntrinsicID() == Intrinsic::kit_reduce)
+        reduceOpsForDest.insert(ReductionInfo(call).reduceOp);
+  if (reduceOpsForDest.size() > 1)
+    return DiagID::ErrReduceDestMultipleOps;
+
+  return std::nullopt;
+}
 
 // -----------------------------------------------------------------------------
 
