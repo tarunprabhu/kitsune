@@ -13,6 +13,7 @@ add_llvm_component_library(LLVMKitTransforms
   GenerateCtors.cpp
   HoistAllocas.cpp
   Instrument.cpp
+  LocalizeReductions.cpp
   LoopWrapping.cpp
   LowerGPUIndexIntrinsics.cpp
   LowerGPUReduceIntrinsics.cpp

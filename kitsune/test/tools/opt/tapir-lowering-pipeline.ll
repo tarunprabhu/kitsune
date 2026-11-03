@@ -48,6 +48,7 @@
 ; O123S-NOT:  Running pass:     SerializePass
 ; O123S-NOT:  Running pass:     SecondaryIVEliminationPass
 ; O123S-NOT:  Running pass:     PrepareTapirLoops
+; O123S-NOT:  Running pass:     LocalizeReductionsPass
 ; O123S-NOT:  Running pass:     ComputeGPULoopBlockPass
 ;
 ; O123S:      Running pass:     SecondaryIVEliminationPass

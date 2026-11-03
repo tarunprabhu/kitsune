@@ -11,10 +11,19 @@
 ! RUN:     -Xflang -fdebug-pass-manager 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix O0
 !
+! O0-NOT:     Running pass:     SerializePass
+! O0-NOT:     Running pass:     PrepareTapirLoopsPass
+! O0-NOT:     Running pass:     LocalizeReductionsPass
+! O0-NOT:     Running pass:     ComputeReductionStrategyPass
+! O0-NOT:     Running pass:     InstrumentPass
 ! O0-NOT:     Running pass:     SecondaryIVEliminationPass
+! O0-NOT:     Running pass:     PreLowerVerificationPass
 ! O0-NOT:     Running pass:     PreLowerAnnotatePass
+! O0-NOT:     Running pass:     TapirLoopNormalizePass
 ! O0-NOT:     Running pass:     LoopSpawningPass
 ! O0-NOT:     Running pass:     TapirToTargetPass
+! O0-NOT:     Running pass:     HoistAllocasPass
+! O0-NOT:     Running pass:     EmbHoistAllocasPass
 ! O0-NOT:     Running pass:     PrefetchForDevicePass
 ! O0-NOT:     Running pass:     EmbLowerIntrinsicsPass
 ! O0-NOT:     Running pass:     EmbResolveLibDeviceCallsPass
@@ -46,6 +55,7 @@
 ! <KIT-PREPARE>
 ! O123S:      Running pass:     SerializePass
 ! O123S:      Running pass:     PrepareTapirLoopsPass
+! O123S:      Running pass:     LocalizeReductionsPass
 ! O123S-NOT:  Running pass:     InstrumentPass
 ! </KIT-PREPARE>
 !
