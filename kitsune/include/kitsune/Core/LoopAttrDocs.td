@@ -46,6 +46,16 @@ loops on the right.
 }];
 }
 
+def KitLoopLocalizedDoc : KitDocAttr {
+  let Documentation = [{
+The presence of this attribute on a tapir reduction loop indicates that the loop
+has been localized, i.e. it has been modified so each thread computes a local
+reduction, then accumulates this contribution into the final result. If this
+attribute is present, the `kit-reduce-localize` pass will have no effect on a
+loop.
+}];
+}
+
 def KitLoopLoweringEnabledDoc : KitDocAttr {
   let Documentation = [{
 If this attribute is present in a tapir loop, it will be lowered using the tapir

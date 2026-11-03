@@ -75,6 +75,7 @@ FUNCTION_PASS("kit-instrument", InstrumentPass(PTO.KitInstrOpts))
 FUNCTION_PASS("kit-loop-normalize", TapirLoopNormalizePass())
 FUNCTION_PASS("kit-lower-intrinsics", LowerIntrinsicsPass())
 FUNCTION_PASS("kit-prepare", PrepareTapirLoopsPass())
+FUNCTION_PASS("kit-reduce-localize", LocalizeReductionsPass())
 FUNCTION_PASS("kit-serialize", SerializePass())
 #endif // FUNCTION_PASS
 

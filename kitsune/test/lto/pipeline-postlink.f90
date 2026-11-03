@@ -35,6 +35,7 @@
 ! O23-NOT:    Running pass:     EarlyAnnotatePass
 ! O23-NOT:    Running pass:     SerializePass
 ! O23-NOT:    Running pass:     PrepareTapirLoopsPass
+! O23-NOT:    Running pass:     LocalizeReductionsPass
 ! O23-NOT:    Running pass:     ComputeReductionStrategyPass
 !
 ! O23:        Running pass:     SecondaryIVEliminationPass

@@ -70,6 +70,13 @@ def Grainsize : LoopAttr<U32Ty> {
   let Documentation = KitLoopGrainsizeDoc;
 }
 
+// Flag indicating that the reduction loop to which it is attached has been
+// localized i.e. that each parallel thread performs a local reduction, then
+// accumulates this into the final result.
+def Localized : LoopAttr<> {
+  let Documentation = KitLoopLocalizedDoc;
+}
+
 // Flag indicating that the loop spawning pass should lowrer the tapir loop
 // using the tapir target specified in the loop's target attribute. Tapir loops
 // that do not have this attribute set will not be lowered by the loop-spawning
