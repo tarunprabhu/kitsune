@@ -37,7 +37,7 @@ ReductionInfo::ReductionInfo(CallInst *call) : call(call) {
 
 SmallVector<Type *, 2> ReductionInfo::getOverloadTypes() const {
   Type *type = getValue()->getType();
-  SmallVector<Type *, 2> overloadTypes = {type, type};
+  SmallVector<Type *, 1> overloadTypes = {type};
   for (Value *arg : getExtraArgs())
     overloadTypes.push_back(arg->getType());
   return overloadTypes;

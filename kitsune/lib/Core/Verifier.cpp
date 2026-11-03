@@ -112,13 +112,12 @@ KitVerifier &KitVerifier::verifyIntrMobileInit(const CallBase &call) {
   return *this;
 }
 
-KitVerifier &KitVerifier::verifyIntrReduce(const CallBase &call, Value *unitVal,
-                                           Value *reducerVal,
-                                           unsigned extraArgNum) {
+KitVerifier &KitVerifier::verifyIntrReduce(const CallBase &call) {
   // This is a best effort attempt at verifying the call. The reducer may have
   // been passed as an argument to the function containing this call, in which
   // case, it cannot be cast to a Function object.
-  Function *reducer = dyn_cast<Function>(reducerVal);
+  Function *reducer =
+      dyn_cast<Function>(call.getArgOperand(ReductionInfo::argNumReducer));
   if (!reducer)
     return *this;
 
@@ -140,21 +139,23 @@ KitVerifier &KitVerifier::verifyIntrReduce(const CallBase &call, Value *unitVal,
   check(destArg->getType()->isPointerTy(), DiagID::ErrReducerTypeMismatch,
         reducerName, 1, *ptr);
 
-  Type *unitTy = unitVal->getType();
+  Value *unit = call.getArgOperand(ReductionInfo::argNumUnit);
+  Type *unitTy = unit->getType();
   Argument *valArg = reducer->getArg(1);
-  check(valArg->getType() == unitVal->getType(), DiagID::ErrReducerTypeMismatch,
+  check(valArg->getType() == unit->getType(), DiagID::ErrReducerTypeMismatch,
         reducerName, 2, *unitTy);
 
   unsigned numArgs = call.arg_size();
-  bool hasExtraArgs = numArgs > extraArgNum;
+  bool hasExtraArgs = numArgs > ReductionInfo::argNumExtra;
   if (hasExtraArgs) {
     unsigned numExtraFunc = numParams - 2;
-    unsigned numExtraCall = numArgs - extraArgNum;
+    unsigned numExtraCall = numArgs - ReductionInfo::argNumExtra;
     if (numExtraCall != numExtraFunc) {
       check(false, DiagID::ErrReducerNumParams, reducerName, numExtraCall + 2,
             numParams);
     } else {
-      for (unsigned i = 2, j = extraArgNum; i < numParams; ++i, ++j) {
+      for (unsigned i = 2, j = ReductionInfo::argNumExtra; i < numParams;
+           ++i, ++j) {
         Type *paramTy = reducerTy->getParamType(i);
         Type *argTy = call.getArgOperand(j)->getType();
         check(paramTy == argTy, DiagID::ErrReducerTypeMismatch, reducerName,
@@ -167,19 +168,6 @@ KitVerifier &KitVerifier::verifyIntrReduce(const CallBase &call, Value *unitVal,
   }
 
   return *this;
-}
-
-KitVerifier &KitVerifier::verifyIntrReduce(const CallBase &call) {
-  Value *val = call.getArgOperand(ReductionInfo::argNumValue);
-  Value *unit = call.getArgOperand(ReductionInfo::argNumUnit);
-  Value *reducer = call.getArgOperand(ReductionInfo::argNumReducer);
-
-  Type *valTy = val->getType();
-  Type *unitTy = unit->getType();
-
-  check(valTy == unitTy, DiagID::ErrReduceUnitValMismatch);
-
-  return verifyIntrReduce(call, unit, reducer, ReductionInfo::argNumExtra);
 }
 
 KitVerifier &KitVerifier::verifyIntrWarpIdOrLane(const CallBase &call) {
