@@ -29,7 +29,6 @@
 ; DEFAULT-NOT: Running pass:     EmbHoistAllocasPass
 ; DEFAULT-NOT: Running pass:     TapirToTargetPass
 ; DEFAULT-NOT: Running pass:     PrefetchForDevicePass
-; DEFAULT-NOT: Running pass:     EmbFinalizeReductionsPass
 ; DEFAULT-NOT: Running pass:     EmbLowerIntrinsicsPass
 ; DEFAULT-NOT: Running pass:     EmbResolveLibDeviceCallsPass
 ; DEFAULT-NOT: Running pass:     EmbPreparePass
@@ -110,7 +109,6 @@
 ;
 ; <KIT-POST-TAPIR>
 ; O123S:       Running pass:     PrefetchForDevicePass
-; O123S:       Running pass:     EmbFinalizeReductionsPass
 ; O123S:       Running pass:     EmbLowerIntrinsicsPass
 ; O123S:       Running pass:     EmbResolveLibDeviceCallsPass
 ; O123S:       Running pass:     EmbPreparePass

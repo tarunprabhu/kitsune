@@ -58,7 +58,15 @@
 ; O123S:      Running pass:     LoopSpawningPass
 ; O123S:      Running pass:     HoistAllocasPass
 ; O123S:      Running pass:     TapirToTargetPass
-; O123S:      Running pass:     VerifierPass
+;
+; O123S-NOT:  Running pass:     PrefetchForDevicePass
+; O123S-NOT:  Running pass:     EmbLowerIntrinsicsPass
+; O123S-NOT:  Running pass:     EmbResolveLibDeviceCallsPass
+; O123S-NOT:  Running pass:     EmbPreparePass
+; O123S-NOT:  Running pass:     EmbLinkLibDeviceBitcodePass
+; O123S-NOT:  Running pass:     EmbOptimizePass
+; O123S-NOT:  Running pass:     RecomputeKernelPropertiesPass
+; O123S-NOT:  Running pass:     GenerateCtorsPass
 ;
 ; ------------------------------------------------------------------------------
 
