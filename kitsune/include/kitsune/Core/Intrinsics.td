@@ -660,7 +660,7 @@ def int_kit_reduce
                     llvm_any_ty,     // The value to pass to the reducer
                     llvm_i32_ty,     // The reduction algorithm to use
                     llvm_i32_ty,     // Size, in bytes, of the reduced result
-                    llvm_any_ty,     // The unit value for the reducer
+                    LLVMMatchType<0>,// The unit value for the reducer
                     llvm_ptr_ty,     // The reducer function
                     llvm_vararg_ty], // Additional reducer arguments
                    [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>,
