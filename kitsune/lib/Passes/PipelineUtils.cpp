@@ -229,6 +229,7 @@ llvm::populateKitPreparePasses(PassBuilder &pb, OptimizationLevel optLevel,
     addLoopPass<IndVarSimplifyPass>(fpm, /*WidenIndVars=*/true,
                                     /*TapirLoopsOnly=*/true);
     addFunctionPass<PrepareTapirLoopsPass>(fpm);
+    addFunctionPass<LocalizeReductionsPass>(fpm);
     addLoopPassMSSA<ComputeReductionStrategyPass>(fpm);
     addFunctionPass<SimplifyCFGPass>(fpm);
 
