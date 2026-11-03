@@ -1,5 +1,4 @@
-; Calls to the `kit.gpu.reduce` intrinsic with the `Auto` strategy cannot be
-; lowered.
+; Calls to the kit.reduce intrinsic with the `Auto` strategy cannot be lowered.
 ;
 ; RUN: %kit-enc --tapir=cuda %s \
 ; RUN:     | not --crash opt -passes=emb-lower-intrinsics 2>&1 \
