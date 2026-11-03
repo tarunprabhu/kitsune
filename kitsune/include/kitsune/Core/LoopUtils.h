@@ -128,11 +128,6 @@ bool isTapirLoopForGPU(const Loop &loop);
 /// more details.
 bool isTopLevelTapirLoopForGPU(const Loop &loop);
 
-/// Get the nearest tapir loop that is an ancestor of \p loop. \p loop need not
-/// be a tapir loop. The returned value is guaranteed to be distinct from
-/// \p loop. Return nullptr if no such loop was found.
-const Loop *getNearestAncestorTapirLoop(const Loop &loop);
-
 /// Get all the tapir loops in a function.
 SmallVector<Loop *, 0> getTapirLoops(LoopInfo &li);
 
@@ -149,6 +144,11 @@ SmallVector<const Loop *, 4> getTapirLoopsInNest(const Loop &root);
 /// Get the innermost tapir loop in a tapir loop nest.
 Loop *getInnermostTapirLoopInNest(Loop &root);
 const Loop *getInnermostTapirLoopInNest(const Loop &root);
+
+/// Get the outermost tapir loop in a tapir loop nest containing the tapir loop
+/// \p loop. Essentially, this returns the root of the tapir loop nest.
+Loop *getOutermostTapirLoopInNest(Loop &loop);
+const Loop *getOutermostTapirLoopInNest(const Loop &loop);
 
 /// Tapir loops may require mandatory LLVM loop attributes. Those can be added
 /// using this function.
