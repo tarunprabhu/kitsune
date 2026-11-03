@@ -141,48 +141,9 @@ static bool checkReductionLoop(TapirLoopInfo &tapirLoop, DominatorTree &dt,
   // cannot require exactly one use because the reduction intrinsic could be in
   // an unrolled sequential loop within this tapir loop, which would appear as
   // multiple uses, though that case is not actually an error.
-  SmallDenseMap<Value *, SmallVector<Instruction *, 1>> usesOfDest;
   for (const ReductionInfo &redxn : redxns)
-    for (const Use &use : redxn.getDest()->uses())
-      if (auto *inst = dyn_cast<Instruction>(use.getUser()))
-        if (isInLoop(*inst, root, li))
-          usesOfDest[redxn.getDest()].push_back(inst);
-
-  for (const auto &[dest, uses] : usesOfDest) {
-    if (uses.size() == 1)
-      continue;
-
-    for (Instruction *inst : uses) {
-      auto *call = dyn_cast<CallInst>(inst);
-      if (!call || call->getIntrinsicID() != Intrinsic::kit_reduce)
-        return emitDiagnostic(root, DiagID::ErrReduceDestUsedInLoop,
-                              getName(*dest));
-
-      // At this point, the instruction is a reduce intrinsic.
-      const ReductionInfo redxn(call);
-      if (redxn.getValue() == dest || redxn.getUnit() == dest ||
-          redxn.getReducer() == dest)
-        return emitDiagnostic(root, DiagID::ErrReduceDestUsedInLoop,
-                              getName(*dest));
-
-      SmallVector<Value *, 0> extraArgs = redxn.getExtraArgs();
-      for (Value *arg : extraArgs)
-        if (arg == dest)
-          return emitDiagnostic(root, DiagID::ErrReduceDestUsedInLoop,
-                                getName(*dest));
-    }
-
-    // If the destination of a reduction is used in two different reductions in
-    // the loop, the two reductions must have the same operator.
-    SmallSet<ReduceOp, 1> reduceOpsForDest;
-    for (Instruction *use : uses)
-      if (auto *call = dyn_cast<CallInst>(use))
-        if (call->getIntrinsicID() == Intrinsic::kit_reduce)
-          reduceOpsForDest.insert(ReductionInfo(call).reduceOp);
-    if (reduceOpsForDest.size() > 1)
-      return emitDiagnostic(root, DiagID::ErrReduceDestMultipleOps,
-                            getName(*dest));
-  }
+    if (std::optional<DiagID> err = redxn.checkUsesOfDest(li))
+      return emitDiagnostic(root, *err, getName(*redxn.getDest()));
 
   if (isGPUTT(*getTargetAttr(root))) {
     // We only need the top-level loop in the nest to have a non-dead-end exit
