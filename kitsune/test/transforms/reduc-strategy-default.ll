@@ -7,6 +7,33 @@
 ;
 ; RUN: opt -passes='kit-reduce-strategy' -S %s | FileCheck %s
 
+; CHECK-LABEL: @fserial
+; CHECK-SAME: ptr %[[RES:[^,]+]]
+; CHECK: %[[I:.+]] = phi i64
+; CHECK: call {{.+}} @llvm.kit.reduce
+; CHECK-SAME: ptr %[[RES]], i64 %[[I]], i32 1
+define void @fserial(ptr %res, i64 %n) {
+entry:
+  %sr = call token @llvm.syncregion.start()
+  br label %header
+
+header:
+  %i = phi i64 [ 0, %entry ], [ %inc, %latch ]
+  detach within %sr, label %body, label %latch
+
+body:
+  call void(i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.reduce(i32 1, i32 1, ptr %res, i64 %i, i32 0, i32 8, i64 0, ptr @sum)
+  reattach within %sr, label %latch
+
+latch:
+  %inc = add i64 %i, 1
+  %cmp = icmp eq i64 %inc, %n
+  br i1 %cmp, label %exit, label %header, !llvm.loop !4
+
+exit:
+  ret void
+}
+
 ; CHECK-LABEL: @fcpu
 ; CHECK-SAME: ptr %[[RES:[^,]+]]
 ; CHECK: %[[I:.+]] = phi i64
@@ -28,7 +55,7 @@ body:
 latch:
   %inc = add i64 %i, 1
   %cmp = icmp eq i64 %inc, %n
-  br i1 %cmp, label %exit, label %header, !llvm.loop !3
+  br i1 %cmp, label %exit, label %header, !llvm.loop !5
 
 exit:
   ret void
@@ -55,7 +82,7 @@ body:
 latch:
   %inc = add i64 %i, 1
   %cmp = icmp eq i64 %inc, %n
-  br i1 %cmp, label %exit, label %header, !llvm.loop !4
+  br i1 %cmp, label %exit, label %header, !llvm.loop !6
 
 exit:
   ret void
@@ -63,8 +90,10 @@ exit:
 
 declare void @sum(ptr, i64)
 
-!0 = !{!"tapir.loop.target", i32 512}
-!1 = !{!"tapir.loop.target", i32 4}
-!2 = !{!"tapir.loop.reduction"}
-!3 = distinct !{!3, !0, !2}
-!4 = distinct !{!4, !1, !2}
+!0 = !{!"tapir.loop.reduction"}
+!1 = !{!"tapir.loop.target", i32 1}
+!2 = !{!"tapir.loop.target", i32 512}
+!3 = !{!"tapir.loop.target", i32 4}
+!4 = distinct !{!4, !0, !1}
+!5 = distinct !{!5, !0, !2}
+!6 = distinct !{!6, !0, !3}

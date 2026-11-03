@@ -87,7 +87,9 @@ static ReductionStrategy computeStrategy(const Loop &loop) {
   // a reduction strategy based on the computation being performed in the loop.
   // For now, we simply use the default strategy depending on the tapir target.
   TTID tt = *getTargetAttr(loop);
-  if (isCPUTT(tt))
+  if (tt == TTID::Serial)
+    return ReductionStrategy::Naive;
+  else if (isCPUTT(tt))
     return computeStrategyCPU(loop);
   else if (isGPUTT(tt))
     return computeStrategyGPU(loop);
