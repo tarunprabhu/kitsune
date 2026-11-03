@@ -276,6 +276,14 @@ SmallVector<const Loop *, 4> llvm::getTapirLoopsInNest(const Loop &root) {
   return getTapirLoopsInNestImpl(root);
 }
 
+Loop * llvm::getInnermostTapirLoopInNest(Loop &root) {
+  return getTapirLoopsInNest(root).back();
+}
+
+const Loop *llvm::getInnermostTapirLoopInNest(const Loop &root) {
+  return getTapirLoopsInNest(root).back();
+}
+
 void llvm::addMandatoryLLVMLoopAttrs(Loop &loop) {
   assert(isTapirLoop(loop));
 

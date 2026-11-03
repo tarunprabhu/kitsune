@@ -1478,6 +1478,33 @@ TEST_F(KitLoopUtils, getTapirLoopsInNest) {
   }
 }
 
+TEST_F(KitLoopUtils, getInnermostTapirLoopInNest) {
+  {
+    setup(nest1, "f");
+    Loop &root = **li->begin();
+    Loop *loop = getInnermostTapirLoopInNest(root);
+    EXPECT_EQ(getName(*loop), "header1");
+  }
+  {
+    setup(nest2, "f");
+    Loop &root = **li->begin();
+    Loop *loop = getInnermostTapirLoopInNest(root);
+    EXPECT_EQ(getName(*loop), "header2");
+  }
+  {
+    setup(nest3, "f");
+    Loop &root = **li->begin();
+    Loop *loop = getInnermostTapirLoopInNest(root);
+    EXPECT_EQ(getName(*loop), "header3");
+  }
+  {
+    setup(nest4, "f");
+    Loop &root = **li->begin();
+    Loop *loop = getInnermostTapirLoopInNest(root);
+    EXPECT_EQ(getName(*loop), "header4");
+  }
+}
+
 static constexpr StringRef guarded = R"(
 define void @f(i64 %n) {
 entry:
