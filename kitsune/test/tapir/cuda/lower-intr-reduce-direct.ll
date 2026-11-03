@@ -1,4 +1,4 @@
-; Check that the kit.gpu.reduce intrinsic with the `Direct` strategy is lowered
+; Check that the kit.reduce intrinsic with the `Direct` strategy is lowered
 ; correctly.
 ;
 ; RUN: %kit-enc --tapir=cuda %s \
