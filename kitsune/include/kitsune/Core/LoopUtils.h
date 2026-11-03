@@ -146,6 +146,10 @@ SmallVector<Loop *, 0> getTopLevelTapirLoops(LoopInfo &li);
 SmallVector<Loop *, 4> getTapirLoopsInNest(Loop &root);
 SmallVector<const Loop *, 4> getTapirLoopsInNest(const Loop &root);
 
+/// Get the innermost tapir loop in a tapir loop nest.
+Loop *getInnermostTapirLoopInNest(Loop &root);
+const Loop *getInnermostTapirLoopInNest(const Loop &root);
+
 /// Tapir loops may require mandatory LLVM loop attributes. Those can be added
 /// using this function.
 void addMandatoryLLVMLoopAttrs(Loop &loop);
