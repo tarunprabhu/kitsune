@@ -299,9 +299,6 @@ def ErrReduceDestUsedInLoop
 def ErrReduceDestMultipleOps
   : Error<"value '{}' used as destination of inconsistent reduce operations">;
 
-def ErrReduceUnitValMismatch
-  : Error<"type mismatch between value being reduced and unit">;
-
 def ErrReducerMinArgs
   : Error<"incorrect number of params in reducer '{}'. Expected 2">;
 
