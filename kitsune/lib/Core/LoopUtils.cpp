@@ -186,6 +186,22 @@ BasicBlock *llvm::getUniqueBackEdge(const Loop &loop) {
 
 bool llvm::isTapirLoop(const Loop &loop) { return hasTargetAttr(loop); }
 
+template <typename L> static L *getFarthestAncestorTapirLoop(L &loop) {
+  L *parent = loop.getParentLoop();
+  if (!parent || !isTapirLoop(*parent))
+    return &loop;
+  return getFarthestAncestorTapirLoop(*parent);
+}
+
+template <typename L> static L *getNearestAncestorTapirLoop(L &loop) {
+  L *parent = loop.getParentLoop();
+  if (!parent)
+    return nullptr;
+  else if (isTapirLoop(*parent))
+    return parent;
+  return getNearestAncestorTapirLoop(*parent);
+}
+
 bool llvm::isAnyAncestorTapirLoop(const Loop &loop) {
   return getNearestAncestorTapirLoop(loop);
 }
@@ -212,16 +228,6 @@ bool llvm::isTapirLoopForGPU(const Loop &loop) {
 
 bool llvm::isTopLevelTapirLoopForGPU(const Loop &loop) {
   return isTopLevelTapirLoop(loop) && isTapirLoopForGPU(loop);
-}
-
-const Loop *llvm::getNearestAncestorTapirLoop(const Loop &loop) {
-  Loop *parentLoop = loop.getParentLoop();
-  if (!parentLoop)
-    return nullptr;
-  else if (isTapirLoop(*parentLoop))
-    return parentLoop;
-  else
-    return getNearestAncestorTapirLoop(*parentLoop);
 }
 
 SmallVector<Loop *, 0> llvm::getTapirLoops(LoopInfo &li) {
@@ -276,12 +282,29 @@ SmallVector<const Loop *, 4> llvm::getTapirLoopsInNest(const Loop &root) {
   return getTapirLoopsInNestImpl(root);
 }
 
-Loop * llvm::getInnermostTapirLoopInNest(Loop &root) {
+Loop *llvm::getInnermostTapirLoopInNest(Loop &root) {
   return getTapirLoopsInNest(root).back();
 }
 
 const Loop *llvm::getInnermostTapirLoopInNest(const Loop &root) {
   return getTapirLoopsInNest(root).back();
+}
+
+template <typename L> static L* getOutermostTapirLoopInNestImpl(L &loop) {
+  if (isTapirLoop(loop))
+    return getFarthestAncestorTapirLoop(loop);
+  else if (L *ancestor = getNearestAncestorTapirLoop(loop))
+    return getFarthestAncestorTapirLoop(*ancestor);
+  else
+    return nullptr;
+}
+
+Loop *llvm::getOutermostTapirLoopInNest(Loop &loop) {
+  return getOutermostTapirLoopInNestImpl(loop);
+}
+
+const Loop *llvm::getOutermostTapirLoopInNest(const Loop &loop) {
+  return getOutermostTapirLoopInNestImpl(loop);
 }
 
 void llvm::addMandatoryLLVMLoopAttrs(Loop &loop) {

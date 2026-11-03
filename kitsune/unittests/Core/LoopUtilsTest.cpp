@@ -1505,6 +1505,104 @@ TEST_F(KitLoopUtils, getInnermostTapirLoopInNest) {
   }
 }
 
+static constexpr StringRef ppss = R"(
+define void @f(i64 %n) {
+entry:
+  %sr1 = call token @llvm.syncregion.start()
+  br label %header1
+
+header1:
+  %i1 = phi i64 [ 0, %entry ], [ %inc1, %latch1 ]
+  detach within %sr1, label %body1, label %latch1
+
+body1:
+  %sr2 = call token @llvm.syncregion.start()
+  br label %header2
+
+header2:
+  %i2 = phi i64 [ 0, %body1 ], [ %inc2, %latch2 ]
+  detach within %sr2, label %body2, label %latch2
+
+body2:
+  br label %header3
+
+header3:
+  %i3 = phi i64 [ 0, %body2 ], [ %inc3, %latch3 ]
+  br label %header4
+
+header4:
+  %i4 = phi i64 [ 0, %header3 ], [ %inc4, %header4 ]
+  %inc4 = add i64 %i4, 1
+  %cmp4 = icmp eq i64 %inc4, %n
+  br i1 %cmp4, label %latch3, label %header4, !llvm.loop !7
+
+latch3:
+  %inc3 = add i64 %i3, 1
+  %cmp3 = icmp eq i64 %inc3, %n
+  br i1 %cmp3, label %reattach2, label %header3, !llvm.loop !6
+
+reattach2:
+  reattach within %sr2, label %latch2
+
+latch2:
+  %inc2 = add i64 %i2, 1
+  %cmp2 = icmp eq i64 %inc2, %n
+  br i1 %cmp2, label %sync2, label %header2, !llvm.loop !5
+
+sync2:
+  sync within %sr2, label %reattach1
+
+reattach1:
+  reattach within %sr1, label %latch1
+
+latch1:
+  %inc1 = add i64 %i1, 1
+  %cmp1 = icmp eq i64 %inc1, %n
+  br i1 %cmp1, label %sync1, label %header1, !llvm.loop !4
+
+sync1:
+  sync within %sr1, label %exit
+
+exit:
+  ret void
+}
+
+!0 = !{!"tapir.loop.target", i32 1024}
+!1 = !{!"tapir.loop.perfect.level", i32 1}
+!2 = !{!"tapir.loop.perfect.level", i32 2}
+!3 = !{!"tapir.loop.perfect.depth", i32 2}
+!4 = distinct !{!4, !0, !2, !3}
+!5 = distinct !{!5, !0, !1}
+!6 = distinct !{!6}
+!7 = distinct !{!7}
+)";
+
+TEST_F(KitLoopUtils, getOutermostTapirLoopInNest) {
+  auto getLoopNamed = [](LoopInfo &li, StringRef name) -> Loop * {
+    for (Loop *loop : li.getLoopsInPreorder())
+      if (getName(*loop) == name)
+        return loop;
+    return nullptr;
+  };
+
+  {
+    setup(nest3, "f");
+    Loop &root = **li->begin();
+    SmallVector<Loop *, 4> loops = getTapirLoopsInNest(root);
+    EXPECT_EQ(getName(*getOutermostTapirLoopInNest(*loops[0])), "header1");
+    EXPECT_EQ(getName(*getOutermostTapirLoopInNest(*loops[1])), "header1");
+    EXPECT_EQ(getName(*getOutermostTapirLoopInNest(*loops[2])), "header1");
+  }
+
+  {
+    setup(ppss, "f");
+    Loop *loop3 = getLoopNamed(*li, "header3");
+    Loop *loop4 = getLoopNamed(*li, "header4");
+    EXPECT_EQ(getName(*getOutermostTapirLoopInNest(*loop3)), "header1");
+    EXPECT_EQ(getName(*getOutermostTapirLoopInNest(*loop4)), "header1");
+  }
+}
+
 static constexpr StringRef guarded = R"(
 define void @f(i64 %n) {
 entry:
