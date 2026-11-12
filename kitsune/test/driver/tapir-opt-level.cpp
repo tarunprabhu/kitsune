@@ -40,8 +40,8 @@
 // RUN: %kitcc -flto --tapir=serial -O3 %s -c -emit-llvm -o /dev/null 2>&1 \
 // RUN:      | FileCheck %s --allow-empty --check-prefix=OK
 //
-// RUN: %kitcc -flto --tapir=serial -Os %s -c -emit-llvm -o /dev/null 2>&1 \
-// RUN:      | FileCheck %s --allow-empty --check-prefix=OK
+// RUN: not %kitcc -flto --tapir=serial -Os %s -c -emit-llvm -o /dev/null 2>&1 \
+// RUN:      | FileCheck %s --allow-empty --check-prefix=ERROR
 //
 // RUN: not %kitcc -flto --tapir=serial -Oz %s -c -emit-llvm -o /dev/null 2>&1 \
 // RUN:      | FileCheck %s --allow-empty --check-prefix=ERROR
@@ -51,4 +51,4 @@
 // O1: error: --tapir requires optimization level O1 or higher
 // O2: error: --tapir requires optimization level O2 or higher for LTO
 // OK-NOT: {{.+}}
-// ERROR: unsupported optimization level '-Oz'
+// ERROR: unsupported optimization level '-O{{[sz]}}'

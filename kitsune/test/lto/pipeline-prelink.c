@@ -5,15 +5,15 @@
 //
 // RUN: %kitcc -O2 --tapir=serial -c -emit-llvm -o /dev/null %s \
 // RUN:     -flto -Xclang -fdebug-pass-manager 2>&1 \
-// RUN:     | FileCheck %s
+// RUN:     | FileCheck %s --check-prefix=O23
 //
 // RUN: %kitcc -O3 --tapir=serial -c -emit-llvm -o /dev/null %s \
 // RUN:     -flto -Xclang -fdebug-pass-manager 2>&1 \
-// RUN:     | FileCheck %s
+// RUN:     | FileCheck %s --check-prefix=O23
 //
-// RUN: %kitcc -Os --tapir=serial -c -emit-llvm -o /dev/null %s \
+// RUN: not %kitcc -Os --tapir=serial -c -emit-llvm -o /dev/null %s \
 // RUN:     -flto -Xclang -fdebug-pass-manager 2>&1 \
-// RUN:     | FileCheck %s
+// RUN:     | FileCheck %s --check-prefix=ERROR
 //
 // RUN: not %kitcc -Oz --tapir=serial -c -emit-llvm -o /dev/null %s \
 // RUN:     -flto -Xclang -fdebug-pass-manager 2>&1 \
@@ -21,31 +21,31 @@
 //
 // -----------------------------------------------------------------------------
 //
-// CHECK:      Running pass:      EarlyVerificationPass
-// CHECK:      Running pass:      EarlyAnnotatePass
-// CHECK:      Running pass:      SerializePass
-// CHECK:      Running pass:      PrepareTapirLoopsPass
-// CHECK:      Running pass:      LocalizeReductionsPass
-// CHECK:      Running pass:      SecondaryIVEliminationPass
-// CHECK-NOT:  Running pass:      InstrumentPass
+// O23:        Running pass:      EarlyVerificationPass
+// O23:        Running pass:      EarlyAnnotatePass
+// O23:        Running pass:      SerializePass
+// O23:        Running pass:      PrepareTapirLoopsPass
+// O23:        Running pass:      LocalizeReductionsPass
+// O23:        Running pass:      SecondaryIVEliminationPass
+// O23-NOT:    Running pass:      InstrumentPass
 //
-// CHECK-NOT:  Running pass:      SecondaryIVEliminationPass
-// CHECK-NOT:  Running pass:      PreLowerVerificationPass
-// CHECK-NOT:  Running pass:      PreLowerAnnotatePass
-// CHECK-NOT:  Running pass:      TapirLoopNormalizePass
-// CHECK-NOT:  Running pass:      LoopSpawningPass
-// CHECK-NOT:  Running pass:      HoistAllocasPass
-// CHECK-NOT:  Running pass:      EmbHoistAllocasPass
-// CHECK-NOT:  Running pass:      EmbLowerIntrinsicsPass
-// CHECK-NOT:  Running pass:      EmbResolveLibDeviceCallsPass
-// CHECK-NOT:  Running pass:      EmbPreparePass
-// CHECK-NOT:  Running pass:      EmbLinkLibDeviceBitcodePass
-// CHECK-NOT:  Running pass:      EmbOptimizePass
-// CHECK-NOT:  Running pass:      RecomputeKernelPropertiesPass
-// CHECK-NOT:  Running pass:      GenerateCtorsPass
-// CHECK-NOT:  Running pass:      LowerRuntimeIntrinsicsPass
+// O23-NOT:    Running pass:      SecondaryIVEliminationPass
+// O23-NOT:    Running pass:      PreLowerVerificationPass
+// O23-NOT:    Running pass:      PreLowerAnnotatePass
+// O23-NOT:    Running pass:      TapirLoopNormalizePass
+// O23-NOT:    Running pass:      LoopSpawningPass
+// O23-NOT:    Running pass:      HoistAllocasPass
+// O23-NOT:    Running pass:      EmbHoistAllocasPass
+// O23-NOT:    Running pass:      EmbLowerIntrinsicsPass
+// O23-NOT:    Running pass:      EmbResolveLibDeviceCallsPass
+// O23-NOT:    Running pass:      EmbPreparePass
+// O23-NOT:    Running pass:      EmbLinkLibDeviceBitcodePass
+// O23-NOT:    Running pass:      EmbOptimizePass
+// O23-NOT:    Running pass:      RecomputeKernelPropertiesPass
+// O23-NOT:    Running pass:      GenerateCtorsPass
+// O23-NOT:    Running pass:      LowerRuntimeIntrinsicsPass
 //
-// ERROR: unsupported optimization level '-Oz'
+// ERROR: unsupported optimization level '-O{{[sz]}}'
 //
 // -----------------------------------------------------------------------------
 // The instrumentation pass will only run if instrumentation is explicitly
@@ -58,11 +58,6 @@
 //
 // RUN: %kitcc -O3 --tapir=serial -c -emit-llvm -o /dev/null %s \
 // RUN:     --kit-instr=timer \
-// RUN:     -flto -Xclang -fdebug-pass-manager 2>&1 \
-// RUN:     | FileCheck %s --check-prefix=INSTR
-//
-// RUN: %kitcc -Os --tapir=serial -c -emit-llvm -o /dev/null %s \
-// RUN:     --kit-instr=timer,generic \
 // RUN:     -flto -Xclang -fdebug-pass-manager 2>&1 \
 // RUN:     | FileCheck %s --check-prefix=INSTR
 //

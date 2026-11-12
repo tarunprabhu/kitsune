@@ -63,18 +63,15 @@ static std::optional<std::string> getUniqueArgValue(const ArgList &args,
 // optimization levels than clang or flang. If an optimization level is
 // specified and it is invalid, return true, otherwise return false.
 //
-// We currently only support -O1, -O2, -O3, -Og, and -Os. -Oz results in tapir
-// loops not being transformed correctly prior to loop spawning. It is not clear
-// that -Os and -Oz are relevant for the users of Kitsune. Since -Os seems to
-// works, we support it, but if, in the future, Kitsune requires certain passes
-// that are not run at -Os, we may remove support for that too.
+// We currently only support -O1, -O2, -O3, and -Og. It is not clear that -Os
+// and -Oz are relevant for the users of Kitsune, so we don't support it.
 static bool checkOptLevel(const ArgList &args) {
   if (const Arg *a = args.getLastArg(options::OPT_O_Group)) {
     if (a->getOption().matches(options::OPT_O0)) {
       return true;
     } else if (a->getNumValues()) {
       StringRef v = a->getValue();
-      if (v == "1" || v == "2" || v == "3" || v == "g" || v == "s")
+      if (v == "1" || v == "2" || v == "3" || v == "g")
         return true;
     }
     return false;

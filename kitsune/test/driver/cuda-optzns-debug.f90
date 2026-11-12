@@ -15,7 +15,7 @@
 ! RUN:     | FileCheck %s -check-prefixes ERR
 !
 ! RUN: not %kitfc -### --tapir=cuda --tapir-cuda-arch=sm_80 -Os -g %s 2>&1 \
-! RUN:     | FileCheck %s -check-prefixes ERR
+! RUN:     | FileCheck %s -check-prefixes BADOPTLEVEL
 !
 ! RUN: not %kitfc -### --tapir=cuda --tapir-cuda-arch=sm_80 -Oz -g %s 2>&1 \
 ! RUN:     | FileCheck %s -check-prefixes BADOPTLEVEL
@@ -26,4 +26,4 @@
 !
 ! ERR: error: ptxas does not support optimized debugging. Use -O1
 !
-! BADOPTLEVEL: error: unsupported optimization level '-Oz'
+! BADOPTLEVEL: error: unsupported optimization level '-O{{[sz]}}'

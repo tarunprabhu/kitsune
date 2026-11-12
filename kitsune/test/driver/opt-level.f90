@@ -7,7 +7,7 @@
 ! RUN: %kitfc -### -O1 %s 2>&1 | FileCheck %s -check-prefix O1
 ! RUN: %kitfc -### -O2 %s 2>&1 | FileCheck %s -check-prefix O2
 ! RUN: %kitfc -### -O3 %s 2>&1 | FileCheck %s -check-prefix O3
-! RUN: %kitfc -### -Os %s 2>&1 | FileCheck %s -check-prefix OS
+! RUN: not %kitfc -### -Os %s 2>&1 | FileCheck %s -check-prefixes ERROR,Os
 ! RUN: not %kitfc -### -Oz %s 2>&1 | FileCheck %s -check-prefixes ERROR,OZ
 ! RUN: not %kitfc -### -O4 %s 2>&1 | FileCheck %s -check-prefixes ERROR,O4
 ! RUN: not %kitfc -### -O5 %s 2>&1 | FileCheck %s -check-prefixes ERROR,O5

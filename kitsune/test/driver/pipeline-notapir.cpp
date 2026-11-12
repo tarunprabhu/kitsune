@@ -16,9 +16,9 @@
 // RUN:     -Xclang -fdebug-pass-manager 2>&1 \
 // RUN:     | FileCheck %s
 //
-// RUN: %kitxx -Os -c -emit-llvm -o /dev/null %s \
+// RUN: not %kitxx -Os -c -emit-llvm -o /dev/null %s \
 // RUN:     -Xclang -fdebug-pass-manager 2>&1 \
-// RUN:     | FileCheck %s
+// RUN:     | FileCheck %s --check-prefix ERROR
 //
 // RUN: not %kitxx -Oz -c -emit-llvm -o /dev/null %s \
 // RUN:     -Xclang -fdebug-pass-manager 2>&1 \
@@ -34,4 +34,4 @@
 // CHECK-NOT:  Running pass:     RecomputeKernelPropertiesPass
 // CHECK-NOT:  Running pass:     GenerateCtorsPass
 //
-// ERROR: unsupported optimization level '-Oz'
+// ERROR: unsupported optimization level '-O{{[sz]}}'

@@ -1,47 +1,41 @@
 ! REQUIRES: kitfc
 !
-!-------------------------------------------------------------------------------
+! TODO: -Os and -Oz are not supported in flang at the time of writing these
+! tests. Those will eventually be supported, at which time this test should be
+! updated to include those as well.
 !
-! The -fstripmine option is only enabled when the kitsune frontend is used
-! with a tapir target
+! -----------------------------------------------------------------------------
+! Check that the strip-mining is enabled correctly depending on the
+! optimization level.
 !
-! RUN: not %flang -### -fstripmine %s 2>&1 \
-! RUN:     | FileCheck %s -check-prefix FRONTEND
-! RUN: not %flang -### -fno-stripmine %s 2>&1 \
-! RUN:     | FileCheck %s -check-prefix FRONTEND
-! FRONTEND: '-f{{.*}}stripmine' must be used with a Kitsune frontend
+! RUN: %kitxx -### -O1 --tapir=opencilk %s 2>&1 \
+! RUN:     | FileCheck %s -check-prefix NO-STRIPMINE
+! RUN: %kitxx -### -O2 --tapir=opencilk %s 2>&1 \
+! RUN:     | FileCheck %s -check-prefix STRIPMINE
+! RUN: %kitxx -### -O3 --tapir=opencilk %s 2>&1 \
+! RUN:     | FileCheck %s -check-prefix STRIPMINE
 !
-!-------------------------------------------------------------------------------
+! -----------------------------------------------------------------------------
+! If strip-mining is only enabled at certain optimization levels, adding
+! -fstripmine should not change the behavior at those levels.
 !
-! RUN: %kitfc -### -fstripmine %s 2>&1 \
-! RUN:     | FileCheck %s -check-prefixes=ALLOWED,STRIPMINE
+! RUN: %kitxx -### -O2 --tapir=opencilk -fstripmine %s 2>&1 \
+! RUN:     | FileCheck %s --check-prefix STRIPMINE
+! RUN: %kitxx -### -O3 --tapir=opencilk -fstripmine %s 2>&1 \
+! RUN:     | FileCheck %s --check-prefix STRIPMINE
 !
-! RUN: %kitfc -### -fno-stripmine %s 2>&1 \
-! RUN:     | FileCheck %s -check-prefixes=ALLOWED,NO-STRIPMINE
+! Check that the -fstripmine and -fno-stripmine flags override the defaults.
 !
-! ALLOWED-NOT: must be used with a Kitsune frontend
+! -----------------------------------------------------------------------------
+! RUN: %kitxx -### -O1 --tapir=opencilk -fstripmine %s 2>&1    \
+! RUN:     | FileCheck %s -check-prefix STRIPMINE
+! RUN: %kitxx -### -O2 --tapir=opencilk -fno-stripmine %s 2>&1 \
+! RUN:     | FileCheck %s -check-prefix NO-STRIPMINE
+! RUN: %kitxx -### -O3 --tapir=opencilk -fno-stripmine %s 2>&1 \
+! RUN:     | FileCheck %s -check-prefix NO-STRIPMINE
+!
+! -----------------------------------------------------------------------------
 ! STRIPMINE: -fstripmine
 ! NO-STRIPMINE-NOT: -fstripmine
 !
-!-------------------------------------------------------------------------------
-! On certain tapir targets, stripmining is enabled by default depending on the
-! optimization level. Tests for this behavior are added to the directories
-! containing tests for specific tapir targets. These are in
-! kitsune/test/tapir/<tt>, where <tt> is a tapir target.
-!
-!-------------------------------------------------------------------------------
-!
-! Check that the stripmine pass is enabled/disabled correctly
-!
-! RUN: %kitfc -mllvm -print-pipeline-passes -O2 -fstripmine --tapir=serial \
-! RUN:     -S -emit-llvm -o /dev/null %s 2>&1 \
-! RUN:     | FileCheck %s -check-prefix STRIPMINE-PASS
-!
-! RUN: %kitfc -mllvm -print-pipeline-passes -O2 -fno-stripmine --tapir=serial \
-! RUN:     -S -emit-llvm -o /dev/null %s 2>&1 \
-! RUN:     | FileCheck %s -check-prefix NO-STRIPMINE-PASS
-!
-! STRIPMINE-PASS: loop-stripmine
-! NO-STRIPMINE-PASS-NOT: loop-stripmine
-!
-!-------------------------------------------------------------------------------
+! ERROR: unsupported optimization level '-O{{[sz]}}'

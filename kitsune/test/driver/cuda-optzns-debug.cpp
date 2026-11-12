@@ -14,7 +14,7 @@
 // RUN:     | FileCheck %s -check-prefixes ERR
 //
 // RUN: not %kitxx -### --tapir=cuda -Os --tapir-cuda-arch=sm_80 -g %s 2>&1 \
-// RUN:     | FileCheck %s -check-prefixes ERR
+// RUN:     | FileCheck %s -check-prefixes BADOPTLEVEL
 //
 // RUN: not %kitxx -### --tapir=cuda -Oz --tapir-cuda-arch=sm_80 -g %s 2>&1 \
 // RUN:     | FileCheck %s -check-prefixes BADOPTLEVEL
@@ -25,4 +25,4 @@
 //
 // ERR: error: ptxas does not support optimized debugging. Use -O1
 //
-// BADOPTLEVEL: error: unsupported optimization level '-Oz'
+// BADOPTLEVEL: error: unsupported optimization level '-O{{[sz]}}'

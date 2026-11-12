@@ -32,27 +32,27 @@
 //
 // RUN: %kitxx --tapir=serial -O1 -c -emit-llvm -o /dev/null %s \
 // RUN:     -Xclang -fdebug-pass-manager 2>&1 \
-// RUN:     | FileCheck %s -check-prefix O123S
+// RUN:     | FileCheck %s -check-prefix O123
 //
 // RUN: %kitxx --tapir=serial -O2 -c -emit-llvm -o /dev/null %s \
 // RUN:     -Xclang -fdebug-pass-manager 2>&1 \
-// RUN:     | FileCheck %s -check-prefix O123S
+// RUN:     | FileCheck %s -check-prefix O123
 //
 // RUN: %kitxx --tapir=serial -O3 -c -emit-llvm -o /dev/null %s \
 // RUN:     -Xclang -fdebug-pass-manager 2>&1 \
-// RUN:     | FileCheck %s -check-prefix O123S
+// RUN:     | FileCheck %s -check-prefix O123
 //
-// RUN: %kitxx --tapir=serial -Os -c -emit-llvm -o /dev/null %s \
+// RUN: not %kitxx --tapir=serial -Os -c -emit-llvm -o /dev/null %s \
 // RUN:     -Xclang -fdebug-pass-manager 2>&1 \
-// RUN:     | FileCheck %s -check-prefix O123S
+// RUN:     | FileCheck %s -check-prefix ERROR
 //
 // RUN: not %kitxx --tapir=serial -Oz -c -emit-llvm -o /dev/null %s \
 // RUN:     -Xclang -fdebug-pass-manager 2>&1 \
 // RUN:     | FileCheck %s -check-prefix ERROR
 //
 // The Early* passes run early in the pass pipeline.
-// O123S:      Running pass:     EarlyVerificationPass
-// O123S:      Running pass:     EarlyAnnotatePass
+// O123:       Running pass:     EarlyVerificationPass
+// O123:       Running pass:     EarlyAnnotatePass
 //
 // <KIT-PREPARE>
 // O123S:      Running pass:     SerializePass
@@ -62,7 +62,7 @@
 // </KIT-PREPARE>
 //
 // <KIT-PRE-VECTORIZE>
-// O123S:      Running pass:     SecondaryIVEliminationPass
+// O123:       Running pass:     SecondaryIVEliminationPass
 // </KIT-PRE-VECTORIZE>
 //
 // <KIT-PRE-TAPIR>
@@ -70,37 +70,37 @@
 // </KIT-PRE-TAPIR>
 //
 // <KIT-PRE-LOOP-SPAWNING>
-// O123S:      Running pass:     SecondaryIVEliminationPass
-// O123S:      Running pass:     PreLowerVerificationPass
-// O123S:      Running pass:     PreLowerAnnotatePass
-// O123S:      Running pass:     TapirLoopNormalizePass
+// O123:       Running pass:     SecondaryIVEliminationPass
+// O123:       Running pass:     PreLowerVerificationPass
+// O123:       Running pass:     PreLowerAnnotatePass
+// O123:       Running pass:     TapirLoopNormalizePass
 // </KIT-PRE-LOOP-SPAWNING>
 //
-// O123S:      Running pass:     LoopSpawningPass
+// O123:       Running pass:     LoopSpawningPass
 //
 // <KIT-POST-LOOP-SPAWNING>
-// O123S:      Running pass:     HoistAllocasPass
-// O123S:      Running pass:     EmbHoistAllocasPass
+// O123:       Running pass:     HoistAllocasPass
+// O123:       Running pass:     EmbHoistAllocasPass
 // </KIT-POST-LOOP-SPAWNING>
 //
-// O123S:      Running pass:     TapirToTargetPass
-// O123S:      Running pass:     GlobalDCEPass
+// O123:       Running pass:     TapirToTargetPass
+// O123:       Running pass:     GlobalDCEPass
 //
 // <KIT-POST-TAPIR>
-// O123S:      Running pass:     PrefetchForDevicePass
-// O123S:      Running pass:     EmbLowerIntrinsicsPass
-// O123S:      Running pass:     EmbResolveLibDeviceCallsPass
-// O123S:      Running pass:     EmbPreparePass
-// O123S:      Running pass:     EmbLinkLibDeviceBitcodePass
-// O123S:      Running pass:     EmbOptimizePass
-// O123S:      Running pass:     RecomputeKernelPropertiesPass
-// O123S:      Running pass:     GenerateCtorsPass
+// O123:       Running pass:     PrefetchForDevicePass
+// O123:       Running pass:     EmbLowerIntrinsicsPass
+// O123:       Running pass:     EmbResolveLibDeviceCallsPass
+// O123:       Running pass:     EmbPreparePass
+// O123:       Running pass:     EmbLinkLibDeviceBitcodePass
+// O123:       Running pass:     EmbOptimizePass
+// O123:       Running pass:     RecomputeKernelPropertiesPass
+// O123:       Running pass:     GenerateCtorsPass
 // </KIT-POST-TAPIR>
 //
-// O123S:      Running pass:     VerifierPass
-// O123S:      Running pass:     BitcodeWriterPass
+// O123:       Running pass:     VerifierPass
+// O123:       Running pass:     BitcodeWriterPass
 //
-// ERROR: unsupported optimization level '-Oz'
+// ERROR: unsupported optimization level '-O{{[sz]}}'
 //
 // -----------------------------------------------------------------------------
 // The instrumentation pass will only run if instrumentation is explicitly
@@ -118,11 +118,6 @@
 //
 // RUN: %kitxx --tapir=serial -O3 -c -emit-llvm -o /dev/null %s \
 // RUN:     --kit-instr=generic \
-// RUN:     -Xclang -fdebug-pass-manager 2>&1 \
-// RUN:     | FileCheck %s -check-prefix INSTR
-//
-// RUN: %kitxx --tapir=serial -Os -c -emit-llvm -o /dev/null %s \
-// RUN:     --kit-instr=generic,timer \
 // RUN:     -Xclang -fdebug-pass-manager 2>&1 \
 // RUN:     | FileCheck %s -check-prefix INSTR
 //

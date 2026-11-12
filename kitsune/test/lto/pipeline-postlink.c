@@ -17,15 +17,15 @@
 //
 // RUN: %kitcc -flto -O2 --tapir=serial -o /dev/null %s %sysroot \
 // RUN:     -Xlinker --lto-debug-pass-manager -Xlinker --lto-emit-llvm 2>&1 \
-// RUN:     | FileCheck %s -check-prefix O23S
+// RUN:     | FileCheck %s -check-prefix O23
 //
 // RUN: %kitcc -flto -O3 --tapir=serial -o /dev/null %s %sysroot \
 // RUN:     -Xlinker --lto-debug-pass-manager -Xlinker --lto-emit-llvm 2>&1 \
-// RUN:     | FileCheck %s -check-prefix O23S
+// RUN:     | FileCheck %s -check-prefix O23
 //
-// RUN: %kitcc -flto -Os --tapir=serial -o /dev/null %s %sysroot \
+// RUN: not %kitcc -flto -Os --tapir=serial -o /dev/null %s %sysroot \
 // RUN:     -Xlinker --lto-debug-pass-manager -Xlinker --lto-emit-llvm 2>&1 \
-// RUN:     | FileCheck %s -check-prefix O23S
+// RUN:     | FileCheck %s -check-prefix ERROR
 //
 // RUN: not %kitcc -flto -Oz --tapir=serial -o /dev/null %s %sysroot \
 // RUN:     -Xlinker --lto-debug-pass-manager -Xlinker --lto-emit-llvm 2>&1 \
@@ -33,34 +33,34 @@
 //
 // -----------------------------------------------------------------------------
 //
-// O23S-NOT:  Running pass:     EarlyVerificationPass
-// O23S-NOT:  Running pass:     EarlyAnnotatePass
-// O23S-NOT:  Running pass:     SerializePass
-// O23S-NOT:  Running pass:     PrepareTapirLoopsPass
-// O23S-NOT:  Running pass:     LocalizeReductionsPass
+// O23-NOT:    Running pass:     EarlyVerificationPass
+// O23-NOT:    Running pass:     EarlyAnnotatePass
+// O23-NOT:    Running pass:     SerializePass
+// O23-NOT:    Running pass:     PrepareTapirLoopsPass
+// O23-NOT:    Running pass:     LocalizeReductionsPass
 //
-// O23S:      Running pass:     SecondaryIVEliminationPass
-// O23S:      Running pass:     SimplifyCFGPass
-// O23S:      Running pass:     LoopSimplifyPass
-// O23S:      Running pass:     PreLowerVerificationPass
-// O23S:      Running pass:     PreLowerAnnotatePass
-// O23S:      Running pass:     TapirLoopNormalizePass
-// O23S:      Running pass:     LoopSpawningPass
-// O23S:      Running pass:     HoistAllocasPass
-// O23S:      Running pass:     EmbHoistAllocasPass
-// O23S:      Running pass:     TapirToTargetPass
-// O23S:      Running pass:     PrefetchForDevicePass
-// O23S:      Running pass:     EmbLowerIntrinsicsPass
-// O23S:      Running pass:     EmbResolveLibDeviceCallsPass
-// O23S:      Running pass:     EmbPreparePass
-// O23S:      Running pass:     EmbLinkLibDeviceBitcodePass
-// O23S:      Running pass:     EmbOptimizePass
-// O23S:      Running pass:     RecomputeKernelPropertiesPass
-// O23S:      Running pass:     GenerateCtorsPass
-// O23S:      Running pass:     VerifierPass
-// O23S:      Running analysis: VerifierAnalysis
+// O23:        Running pass:     SecondaryIVEliminationPass
+// O23:        Running pass:     SimplifyCFGPass
+// O23:        Running pass:     LoopSimplifyPass
+// O23:        Running pass:     PreLowerVerificationPass
+// O23:        Running pass:     PreLowerAnnotatePass
+// O23:        Running pass:     TapirLoopNormalizePass
+// O23:        Running pass:     LoopSpawningPass
+// O23:        Running pass:     HoistAllocasPass
+// O23:        Running pass:     EmbHoistAllocasPass
+// O23:        Running pass:     TapirToTargetPass
+// O23:        Running pass:     PrefetchForDevicePass
+// O23:        Running pass:     EmbLowerIntrinsicsPass
+// O23:        Running pass:     EmbResolveLibDeviceCallsPass
+// O23:        Running pass:     EmbPreparePass
+// O23:        Running pass:     EmbLinkLibDeviceBitcodePass
+// O23:        Running pass:     EmbOptimizePass
+// O23:        Running pass:     RecomputeKernelPropertiesPass
+// O23:        Running pass:     GenerateCtorsPass
+// O23:        Running pass:     VerifierPass
+// O23:        Running analysis: VerifierAnalysis
 //
-// ERROR: unsupported optimization level '-Oz'
+// ERROR: unsupported optimization level '-O{{[sz]}}'
 
 #include <kitsune.h>
 

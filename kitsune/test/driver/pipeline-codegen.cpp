@@ -13,8 +13,8 @@
 // RUN: %kitxx -O3 -mllvm -debug-pass=Structure %s -c -o /dev/null 2>&1 \
 // RUN:     | FileCheck -check-prefix DEFAULT %s
 //
-// RUN: %kitxx -Os -mllvm -debug-pass=Structure %s -c -o /dev/null 2>&1 \
-// RUN:     | FileCheck -check-prefix DEFAULT %s
+// RUN: not %kitxx -Os -mllvm -debug-pass=Structure %s -c -o /dev/null 2>&1 \
+// RUN:     | FileCheck -check-prefix ERROR %s
 //
 // RUN: not %kitxx -Oz -mllvm -debug-pass=Structure %s -c -o /dev/null 2>&1 \
 // RUN:     | FileCheck -check-prefix ERROR %s
@@ -23,7 +23,7 @@
 // DEFAULT-NOT: Lower Kitsune intrinsics
 // DEFAULT-NOT: Generate Kitsune fat binaries
 //
-// ERROR: unsupported optimization level '-Oz'
+// ERROR: unsupported optimization level '-O{{[sz]}}'
 //
 // -----------------------------------------------------------------------------
 // If the --tapir option is provided, the Kitsune passes are run at all
@@ -45,9 +45,9 @@
 // RUN:     -mllvm -debug-pass=Structure 2>&1 \
 // RUN:     | FileCheck %s -check-prefix TAPIR,OPT
 //
-// RUN: %kitxx -Os --tapir=nolo %s -c -o /dev/null \
+// RUN: not %kitxx -Os --tapir=nolo %s -c -o /dev/null \
 // RUN:     -mllvm -debug-pass=Structure 2>&1 \
-// RUN:     | FileCheck %s -check-prefix TAPIR,OPT
+// RUN:     | FileCheck %s -check-prefix ERROR
 //
 // RUN: not %kitxx -Oz --tapir=nolo %s -c -o /dev/null \
 // RUN:     -mllvm -debug-pass=Structure 2>&1 \
