@@ -16,6 +16,7 @@
 #include "CGFBImpl.h"
 #include "kitsune/Config/Config.h"
 #include "kitsune/Core/EmbUtils.h"
+#include "kitsune/Core/OptimizationLevelUtils.h"
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/TTUtils.h"
 #include "kitsune/Support/CommandLineOptions.h"
@@ -57,21 +58,20 @@ static cl::opt<CodeGenOptLevel> clCGOptLevel(
 // form of the code will also be embedded into the fat binary. static
 // cl::opt<bool> clEmbedPTXInFatbinaries(
 //     "cgfb-embed-ptx", cl::init(false), cl::Hidden,
-//     cl::desc("Embed PTX code in the fat binaries generated for the cuda
-//     tapir
-//     "
-//              "target (NOT YET IMPLEMENTED)"));
+//     cl::desc("Embed PTX code in the fat binaries generated for the cuda "
+//              "tapir target (NOT YET IMPLEMENTED)"));
 
 // Override the optimization level used by ptxas when generating GPU code.
 // If this is not explicitly set, it will use the optimization level set in
 // the TTOptions, which is usually whatever was passed to the
 // frontend.
-static cl::opt<OptznLevel> clPtxasOptLevel(
-    cl::init(OptznLevel::O3), cl::Hidden,
-    cl::values(clEnumValN(OptznLevel::O0, "cgfb-ptxas-O0", "Pass O0 to ptxas"),
-               clEnumValN(OptznLevel::O1, "cgfb-ptxas-O1", "Pass O1 to ptxas"),
-               clEnumValN(OptznLevel::O2, "cgfb-ptxas-O2", "Pass O2 to ptxas"),
-               clEnumValN(OptznLevel::O3, "cgfb-ptxas-O3", "Pass O3 to ptxas")),
+static cl::opt<OptimizationLevel> clPtxasOptLevel(
+    cl::init(OptimizationLevel::O3), cl::Hidden,
+    cl::values(
+        clEnumValN(OptimizationLevel::O0, "cgfb-ptxas-O0", "Pass O0 to ptxas"),
+        clEnumValN(OptimizationLevel::O1, "cgfb-ptxas-O1", "Pass O1 to ptxas"),
+        clEnumValN(OptimizationLevel::O2, "cgfb-ptxas-O2", "Pass O2 to ptxas"),
+        clEnumValN(OptimizationLevel::O3, "cgfb-ptxas-O3", "Pass O3 to ptxas")),
     cl::desc("Override the optimization level passed to ptxas"),
     cl::cat(cl::catKitClDevOpts));
 
@@ -141,7 +141,7 @@ private:
 
 private:
   void initializeCGFBOptions(const Module &m) {
-    cgfbOpts.cgOptLevel = createCodeGenOptLevelFrom(tto.getOptznLevel());
+    cgfbOpts.cgOptLevel = createCodeGenOptLevelFrom(tto.getOptLevel());
     if (clCGOptLevel.getNumOccurrences())
       cgfbOpts.cgOptLevel = clCGOptLevel;
 
@@ -161,11 +161,11 @@ private:
     // in the frontend. Currently, any use of --tapir=cuda requires
     // optimizations. There are several ways around this issue, but until we
     // decide on an approach, we will just override the optimization level here.
-    cgfbOpts.ptxasOptLevel = tto.getOptznLevel();
+    cgfbOpts.ptxasOptLevel = tto.getOptLevel();
     if (clPtxasOptLevel.getNumOccurrences())
       cgfbOpts.ptxasOptLevel = clPtxasOptLevel;
     else if (m.getNamedMetadata("llvm.dbg.cu"))
-      cgfbOpts.ptxasOptLevel = OptznLevel::O0;
+      cgfbOpts.ptxasOptLevel = OptimizationLevel::O0;
 
     cgfbOpts.keepFiles = clKeepFiles;
     cgfbOpts.debugCommandLines = clDebugCommandLines;

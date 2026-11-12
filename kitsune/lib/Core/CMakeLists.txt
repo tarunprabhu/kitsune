@@ -25,7 +25,7 @@ add_llvm_component_library(LLVMKitCore
   MetadataUtils.cpp
   ModuleAttrs.cpp
   ModuleUtils.cpp
-  OptznLevel.cpp
+  OptimizationLevelUtils.cpp
   PrintfDebugging.cpp
   Reductions.cpp
   ReductionStrategy.cpp

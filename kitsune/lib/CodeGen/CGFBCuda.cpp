@@ -132,8 +132,7 @@ std::unique_ptr<ToolOutputFile> CGFBCuda::assemblePTX(ToolOutputFile &ptxFile) {
 
   LLVM_DEBUG(args.push_back("--verbose"));
 
-  std::string optLevel =
-      std::to_string(getSpeedupLevel(cgfbOpts.ptxasOptLevel));
+  std::string optLevel = std::to_string(unsigned(cgfbOpts.ptxasOptLevel));
   args.push_back("--opt-level");
   args.push_back(optLevel);
 

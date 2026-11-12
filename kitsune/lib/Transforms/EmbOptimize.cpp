@@ -36,16 +36,14 @@
 
 using namespace llvm;
 
-static cl::opt<OptznLevel> clOptznLevel(
-    cl::init(OptznLevel::O2), cl::Hidden,
-    cl::values(clEnumValN(OptznLevel::O0, "emb-O0", "No optimizations"),
-               clEnumValN(OptznLevel::O1, "emb-O1", "Some optimizations"),
-               clEnumValN(OptznLevel::O2, "emb-O2", "Most optimizations"),
-               clEnumValN(OptznLevel::O3, "emb-O3",
-                          "Most optimizations plus expensive ones"),
-               clEnumValN(OptznLevel::Os, "emb-Os", "Optimize for size"),
-               clEnumValN(OptznLevel::Oz, "emb-Oz",
-                          "Aggressively optimize for size")),
+static cl::opt<OptimizationLevel> clOptimizationLevel(
+    cl::init(OptimizationLevel::O2), cl::Hidden,
+    cl::values(
+        clEnumValN(OptimizationLevel::O0, "emb-O0", "No optimizations"),
+        clEnumValN(OptimizationLevel::O1, "emb-O1", "Some optimizations"),
+        clEnumValN(OptimizationLevel::O2, "emb-O2", "Most optimizations"),
+        clEnumValN(OptimizationLevel::O3, "emb-O3",
+                   "Most optimizations plus expensive ones")),
     cl::desc("Optimization level for the embedded modules"),
     cl::cat(cl::catKitClDevOpts));
 
@@ -53,18 +51,6 @@ static cl::opt<bool> clPrintEmbPipelinePasses(
     "emb-print-pipeline-passes", cl::init(false), cl::Hidden,
     cl::desc("Print the passes that will be run on the embedded modules"),
     cl::cat(cl::catKitClDevOpts));
-
-static OptimizationLevel mapToOptimizationLevel(OptznLevel optznLevel) {
-  switch (optznLevel) {
-  case OptznLevel::O0: return OptimizationLevel::O0;
-  case OptznLevel::O1: return OptimizationLevel::O1;
-  case OptznLevel::O2: return OptimizationLevel::O2;
-  case OptznLevel::O3: return OptimizationLevel::O3;
-  case OptznLevel::Os: return OptimizationLevel::O2;
-  case OptznLevel::Oz: return OptimizationLevel::O2;
-  }
-  llvm_unreachable("mapToOptimizationLevel: OptznLevel not handled");
-}
 
 namespace {
 
@@ -87,11 +73,13 @@ public:
   virtual ~EmbOptimize() = default;
 
   bool run(Module &devM) {
-    // If the optimization level has been overridden on the command line, prefer
-    // that, otherwise, use the optimization level from the TTOptions.
-    OptznLevel optznLevel = tto.getOptznLevel();
-    if (clOptznLevel.getNumOccurrences())
-      optznLevel = clOptznLevel;
+    auto getOptLevel = [](const TTOptions &tto) -> OptimizationLevel {
+      // If the optimization level has been overridden on the command line,
+      // prefer that, otherwise, use the optimization level from the TTOptions.
+      if (clOptimizationLevel.getNumOccurrences())
+        return clOptimizationLevel;
+      return tto.getOptLevel();
+    };
 
     // The analysis managers must be declared in this order so that they are
     // destroyed in the correct order due to inter-analysis-manager references
@@ -101,7 +89,7 @@ public:
     ModuleAnalysisManager mam;
     PassInstrumentationCallbacks pic;
     TargetMachine *tm = createTargetMachine(tt, tto);
-    OptimizationLevel optLevel = mapToOptimizationLevel(optznLevel);
+    OptimizationLevel optLevel = getOptLevel(tto);
     PipelineTuningOptions pto = getPipelineTuningOptions(optLevel);
 
     // It is not clear why we need to disable the sandbox before creating a

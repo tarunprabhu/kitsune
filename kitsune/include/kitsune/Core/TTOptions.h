@@ -13,7 +13,6 @@
 #ifndef KITSUNE_CORE_TTOPTIONS_H
 #define KITSUNE_CORE_TTOPTIONS_H
 
-#include "kitsune/Core/OptznLevel.h"
 #include "kitsune/Core/TTID.h"
 #include "kitsune/Core/TTPlugin.h"
 #include "kitsune/Support/MaybeBool.h"
@@ -54,7 +53,7 @@ public:
   /// most compiler frontends by explicitly requiring optimizations. We could
   /// have set this to -O0, but most of the pipeline will not work in that case,
   /// so we set it to -O1 - the lowest level that is still usable.
-  static constexpr OptznLevel defaultOptznLevel = OptznLevel::O1;
+  static constexpr OptimizationLevel defaultOptLevel = OptimizationLevel::O1;
 
   /// The default fusion mode for floating point operations. This is mainly
   /// used by tools that need to create a tapir target options object, but don't
@@ -84,7 +83,7 @@ private:
   /// The optimization level set on the command line. This level will be used
   /// for both the middle-end optimizations on the kernel functions and the
   /// backend GPU code generators (including external assemblers as needed).
-  OptznLevel optLevel = defaultOptznLevel;
+  OptimizationLevel optLevel = defaultOptLevel;
 
   /// How to use fuse floating-point operations.
   FPOpFusion::FPOpFusionMode fpOpFusionMode = defaultFpOpFusionMode;
@@ -167,14 +166,14 @@ public:
   /// Initialize this object from the frontend options \p kitOpts. If a TTID is
   /// not set in \p kitOpts, leave the object unchanged and return false.
   /// Otherwise, return true.
-  bool init(const KitOptions &kitOpts, OptznLevel optLevel,
+  bool init(const KitOptions &kitOpts, OptimizationLevel optLevel,
             FPOpFusionMode fpOpFusionMode);
 
   /// Initialize this object from the frontend options \p kitOpts. If a TTID is
   /// not set in \p kitOpts, leave the object unchanged and return false.
   /// Otherwise, return true.
   bool init(const KitOptions &kitOpts, unsigned speedupLevel,
-            unsigned sizeLevel, FPOpFusionMode fpOpFusionMode);
+            FPOpFusionMode fpOpFusionMode);
 
   /// Minimally initialize this object from the command-line options. This only
   /// examines the "shared" i.e. those that used by Kitsune's utilities in
@@ -188,7 +187,7 @@ public:
   /// anything, so we use a "reasonable" default if one is not provided. Since
   /// Kitsune requires optimizations, we just use the minimum optimization level
   /// that is known to work.
-  bool initFromCommandLine(OptznLevel optznLevel = OptznLevel::O1);
+  bool initFromCommandLine(OptimizationLevel optLevel = defaultOptLevel);
 
   /// Initialize this object from the command line options. If the --tapir
   /// option is not provided, leave the object unchanged and return false.
@@ -207,8 +206,7 @@ public:
   Error validate() const;
 
   // Set the Kitsune-specific optimization level.
-  void setOptznLevel(OptznLevel optLevel) { this->optLevel = optLevel; }
-  void setOptznLevelFrom(OptimizationLevel optLevel);
+  void setOptLevel(OptimizationLevel optLevel) { this->optLevel = optLevel; }
 
   /// Check if a primary tapir target has been set.
   bool hasTTID() const { return tt.has_value(); }
@@ -220,7 +218,7 @@ public:
   /// @{
   /// Options common to all tapir targets.
 
-  OptznLevel getOptznLevel() const { return optLevel; }
+  OptimizationLevel getOptLevel() const { return optLevel; }
   FPOpFusion::FPOpFusionMode getFPOpFusionMode() const {
     return fpOpFusionMode;
   }

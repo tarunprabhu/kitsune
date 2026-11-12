@@ -31,7 +31,6 @@
 
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Passes/PipelineUtils.h"
-#include "kitsune/Support/OptznLevelUtils.h"
 #include "mlir/IR/Dialect.h"
 #include "mlir/Parser/Parser.h"
 #include "mlir/Pass/PassManager.h"
@@ -627,12 +626,10 @@ static std::optional<llvm::TTOptions> getTTOptions(CompilerInstance &ci) {
   const Fortran::common::LangOptions &langOpts = invoc.getLangOpts();
   const CodeGenOptions &opts = invoc.getCodeGenOpts();
   llvm::OptimizationLevel level = mapToLevel(opts);
-  llvm::OptznLevel optznLevel =
-      llvm::createOptznLevelFrom(level.getSpeedupLevel(), level.getSizeLevel());
   llvm::FPOpFusion::FPOpFusionMode fpFusion =
       getFPOpFusionMode(langOpts.getFPContractMode());
 
-  return llvm::TTOptions::create(kitOpts, optznLevel, fpFusion);
+  return llvm::TTOptions::create(kitOpts, level, fpFusion);
 }
 
 // Lower using HLFIR then run the FIR to HLFIR pipeline

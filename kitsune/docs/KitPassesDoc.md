@@ -98,8 +98,8 @@ This meta-pass can be used to run Kitsune's core
 [pass pipeline](PassPipeline.md). This is primarily intended to be used with
 [opt](https://llvm.org/CommandGuide/opt.html). This is a parameterized pass
 that requires an optimization level to be provided. The parameter must be one
-of `O0`, `O1`, `O2`, `O3`, `Os`, or `Oz`. The example below shows
-how this pass can be run with `opt`.
+of `O0`, `O1`, `O2`, or `O3`. The example below shows how this pass can be run
+with `opt`.
 
 ```shell
 opt -passes='kit-lowering<O2>' ...

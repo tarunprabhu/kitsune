@@ -51,7 +51,7 @@ public:
     mam.registerPass([&] { return FunctionAnalysisManagerModuleProxy(fam); });
     mam.registerPass([&] { return PassInstrumentationAnalysis(); });
 
-    tto.init(kitOpts, OptznLevel::O2, FPOpFusion::Standard);
+    tto.init(kitOpts, OptimizationLevel::O2, FPOpFusion::Standard);
     tta = std::make_unique<TTObjectsAnalysis>(tto);
 
     return tta->run(*m, mam);

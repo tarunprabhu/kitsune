@@ -928,8 +928,7 @@ void EmitAssemblyHelper::RunOptimizationPipeline(
   PTO.UnifiedLTO = CodeGenOpts.UnifiedLTO;
   PTO.DevirtualizeSpeculatively = CodeGenOpts.DevirtualizeSpeculatively;
   PTO.LoopStripmine = KitOpts.getStripmineLoops();
-  PTO.TTOpts.init(KitOpts, CodeGenOpts.OptimizationLevel,
-                  CodeGenOpts.OptimizeSize, getFPOpFusionMode());
+  PTO.TTOpts.init(KitOpts, CodeGenOpts.OptimizationLevel, getFPOpFusionMode());
   PTO.KitInstrOpts.init(KitOpts);
 
   LoopAnalysisManager LAM;
@@ -1284,8 +1283,7 @@ void EmitAssemblyHelper::RunCodegenPipelineLegacy(
       llvm::driver::createTLII(TargetTriple, CodeGenOpts.getVecLib()));
   CodeGenPasses.add(new TargetLibraryInfoWrapperPass(*TLII));
 
-  if (TTOpts.init(KitOpts, CodeGenOpts.OptimizationLevel,
-                  CodeGenOpts.OptimizeSize, getFPOpFusionMode()))
+  if (TTOpts.init(KitOpts, CodeGenOpts.OptimizationLevel, getFPOpFusionMode()))
     populateKitCodeGenPasses(CodeGenPasses, TTOpts);
 
   const llvm::TargetOptions &Options = TM->Options;
@@ -1446,7 +1444,7 @@ runThinLTOBackend(CompilerInstance &CI, ModuleSummaryIndex *CombinedIndex,
   // Only enable CGProfilePass when using integrated assembler, since
   // non-integrated assemblers don't recognize .cgprofile section.
   Conf.PTO.CallGraphProfile = !CGOpts.DisableIntegratedAS;
-  Conf.PTO.TTOpts.init(KitOpts, CGOpts.OptimizationLevel, CGOpts.OptimizeSize,
+  Conf.PTO.TTOpts.init(KitOpts, CGOpts.OptimizationLevel,
                        Conf.Options.AllowFPOpFusion);
   Conf.PTO.KitInstrOpts.init(KitOpts);
 

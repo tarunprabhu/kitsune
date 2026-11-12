@@ -13,7 +13,7 @@
 #ifndef LLVM_KITSUNE_CGFB_IMPL_H
 #define LLVM_KITSUNE_CGFB_IMPL_H
 
-#include "kitsune/Core/OptznLevel.h"
+#include "llvm/Passes/OptimizationLevel.h"
 #include "llvm/Support/CodeGen.h"
 
 #define DEBUG_TYPE "kit-cgfb"
@@ -40,7 +40,7 @@ struct CGFBOptions {
   /// The optimization level to use for ptxas. This will be set to the value in
   /// TTOptions if the -cgfb-ptxas-O\<N\> option is not used. If it is,
   /// that value takes precedence.
-  OptznLevel ptxasOptLevel;
+  OptimizationLevel ptxasOptLevel;
 
   /// Don't delete any intermediate files that were generated in the course of
   /// fat binary generation.

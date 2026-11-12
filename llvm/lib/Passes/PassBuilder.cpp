@@ -2187,9 +2187,9 @@ Error PassBuilder::parseModulePass(ModulePassManager &MPM,
       return Params.takeError();                                               \
                                                                                \
     OptimizationLevel L = Params.get();                                        \
-    PTO.TTOpts.setOptznLevelFrom(L);                                           \
-                                                                               \
+    PTO.TTOpts.setOptLevel(L);                                                 \
     MPM.addPass(CREATE_PASS(L));                                               \
+                                                                               \
     return Error::success();                                                   \
   }
 #define CGSCC_PASS(NAME, CREATE_PASS)                                          \

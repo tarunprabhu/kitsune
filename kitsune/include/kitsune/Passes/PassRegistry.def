@@ -101,5 +101,5 @@ TAPIR_PIPELINE_PASS(
       setupOptionsForPipelineAlias(PTO, L);
       return buildKitsuneLoweringPipeline(L, ThinOrFullLTOPhase::None);
     },
-    parseOptLevelParam, "O0;O1;O2;O3;Os")
+    parseOptLevelParam, "O0;O1;O2;O3")
 #endif // TAPIR_PIPELINE_PASS

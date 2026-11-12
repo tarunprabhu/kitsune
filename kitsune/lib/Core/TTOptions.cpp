@@ -18,7 +18,8 @@
 #include "kitsune/Support/CommandLineOptions.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/CodeGen/CommandFlags.h"
-#include "llvm/IRReader/IRReader.h"
+// #include "llvm/IRReader/IRReader.h"
+#include "kitsune/Core/OptimizationLevelUtils.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/SourceMgr.h"
@@ -270,12 +271,6 @@ Error TTOptions::validate() const {
   llvm_unreachable("TTID not handled!");
 }
 
-void TTOptions::setOptznLevelFrom(OptimizationLevel optLevel) {
-  unsigned speedupLevel = (unsigned)optLevel;
-  OptznLevel optznLevel = createOptznLevelFrom(speedupLevel, /*sizeLevel=*/0);
-  setOptznLevel(optznLevel);
-}
-
 bool TTOptions::initFromCommandLineMinimal() {
   if (!clTapir.getNumOccurrences())
     return false;
@@ -284,14 +279,14 @@ bool TTOptions::initFromCommandLineMinimal() {
   return true;
 }
 
-bool TTOptions::initFromCommandLine(OptznLevel optznLevel) {
+bool TTOptions::initFromCommandLine(OptimizationLevel optLevel) {
   if (!clTapir.getNumOccurrences())
     return false;
 
   this->tt = clTapir;
 
   // Set common tapir target options
-  this->optLevel = optznLevel;
+  this->optLevel = optLevel;
   this->fpOpFusionMode = codegen::getFuseFPOps();
   this->lld = clLLD;
   this->gpuPrefetch = clGPUPrefetch;
@@ -327,14 +322,14 @@ bool TTOptions::initFromCommandLine(OptznLevel optznLevel) {
 }
 
 bool TTOptions::initFromCommandLine(unsigned speedupLevel) {
-  return initFromCommandLine(createOptznLevelFrom(speedupLevel));
+  return initFromCommandLine(*fromInt<OptimizationLevel>(speedupLevel));
 }
 
 bool TTOptions::initFromCommandLine(char optLevel) {
-  return initFromCommandLine(createOptznLevelFrom(optLevel));
+  return initFromCommandLine(createOptLevelFrom(optLevel));
 }
 
-bool TTOptions::init(const KitOptions &kitOpts, OptznLevel optznLevel,
+bool TTOptions::init(const KitOptions &kitOpts, OptimizationLevel optLevel,
                      FPOpFusionMode fpOpFusionMode) {
   if (!kitOpts.getTTID())
     return false;
@@ -343,7 +338,7 @@ bool TTOptions::init(const KitOptions &kitOpts, OptznLevel optznLevel,
 
   // Set common tapir target options.
   this->fpOpFusionMode = fpOpFusionMode;
-  this->optLevel = optznLevel;
+  this->optLevel = optLevel;
   this->lld = kitOpts.getLLD();
 
   // Set tapir target options shared by GPU-centric tapir targets.
@@ -377,9 +372,9 @@ bool TTOptions::init(const KitOptions &kitOpts, OptznLevel optznLevel,
 }
 
 bool TTOptions::init(const KitOptions &kitOpts, unsigned speedupLevel,
-                     unsigned sizeLevel, FPOpFusionMode fpOpFusionMode) {
-  OptznLevel optznLevel = createOptznLevelFrom(speedupLevel, sizeLevel);
-  return init(kitOpts, optznLevel, fpOpFusionMode);
+                     FPOpFusionMode fpOpFusionMode) {
+  OptimizationLevel optLevel = *fromInt<OptimizationLevel>(speedupLevel);
+  return init(kitOpts, optLevel, fpOpFusionMode);
 }
 
 void TTOptions::print(raw_ostream &os, bool all) const {
@@ -388,7 +383,7 @@ void TTOptions::print(raw_ostream &os, bool all) const {
     return;
 
   os << "  Primary:                 " << tt << "\n";
-  os << "  Optimization level:      " << getOptznLevel() << "\n";
+  os << "  Optimization level:      " << getOptLevel() << "\n";
   os << "  FP fusion:               " << toString(getFPOpFusionMode()) << "\n";
   if (all || tt == TTID::Cuda || tt == TTID::Hip) {
     os << "  GPU prefetch:            " << getGPUPrefetch() << "\n";

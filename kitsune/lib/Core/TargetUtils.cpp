@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/TargetUtils.h"
+#include "kitsune/Core/OptimizationLevelUtils.h"
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Support/ToString.h"
 #include "llvm/ADT/Twine.h"
@@ -74,7 +75,7 @@ std::string llvm::appendToTargetFeatures(StringRef features, StringRef arch) {
 }
 
 TargetMachine *llvm::createTargetMachine(TTID tt, const TTOptions &tto) {
-  CodeGenOptLevel cgOptLevel = createCodeGenOptLevelFrom(tto.getOptznLevel());
+  CodeGenOptLevel cgOptLevel = createCodeGenOptLevelFrom(tto.getOptLevel());
   return createTargetMachine(tt, tto, cgOptLevel);
 }
 
@@ -88,7 +89,7 @@ TargetMachine *llvm::createTargetMachine(TTID tt, const TTOptions &tto,
 }
 
 TargetMachine *llvm::createHostTargetMachine(const TTOptions &tto) {
-  CodeGenOptLevel cgOptLevel = createCodeGenOptLevelFrom(tto.getOptznLevel());
+  CodeGenOptLevel cgOptLevel = createCodeGenOptLevelFrom(tto.getOptLevel());
   Triple triple(sys::getDefaultTargetTriple());
 
   std::string err;

@@ -152,7 +152,7 @@ CGFBHip::createSharedObject(ToolOutputFile &objFile) {
                                 getSRAMECCFeature(tto), getXnackFeature(tto));
   args.push_back(mcpu);
 
-  std::string optLevel = "-" + toString(tto.getOptznLevel());
+  std::string optLevel = "-" + toString(tto.getOptLevel());
   args.push_back(optLevel);
 
   args.push_back("-o");
