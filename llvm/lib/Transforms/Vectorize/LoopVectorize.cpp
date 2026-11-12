@@ -7913,7 +7913,7 @@ bool LoopVectorizePass::processLoop(Loop *L) {
   LoopVectorizationRequirements Requirements;
   LoopVectorizationLegality LVL(L, PSE, DT, TTI, TLI, F, *LAIs, LI, ORE,
                                 &Requirements, &Hints, DB, AC,
-                                /*AllowRuntimeSCEVChecks=*/!OptForSize, AA);
+                                /*AllowRuntimeSCEVChecks=*/!OptForSize, AA, TI);
   if (!LVL.canVectorize(EnableVPlanNativePath)) {
     LLVM_DEBUG(dbgs() << "LV: Not vectorizing: Cannot prove legality.\n");
     Hints.emitRemarkWithHints();
@@ -8442,6 +8442,7 @@ PreservedAnalyses LoopVectorizePass::run(Function &F,
   ORE = &AM.getResult<OptimizationRemarkEmitterAnalysis>(F);
   LAIs = &AM.getResult<LoopAccessAnalysis>(F);
   AA = &AM.getResult<AAManager>(F);
+  TI = &AM.getResult<TaskAnalysis>(F);
 
   auto &MAMProxy = AM.getResult<ModuleAnalysisManagerFunctionProxy>(F);
   PSI = MAMProxy.getCachedResult<ProfileSummaryAnalysis>(*F.getParent());

@@ -265,7 +265,7 @@ ModRefInfo AAResults::getModRefInfo(const Instruction *I, const CallBase *Call2,
       if (!Visited.insert(BB).second)
         continue;
 
-      for (Instruction &DI : BB->instructionsWithoutDebug()) {
+      for (Instruction &DI : *BB) {
         // Fail fast if we encounter an invalid CFG.
         assert(!(D == &DI) &&
                "Detached CFG reaches its own Detach instruction.");
@@ -861,7 +861,7 @@ ModRefInfo AAResults::getModRefInfo(const DetachInst *D,
     if (!Visited.insert(BB).second)
       continue;
 
-    for (const Instruction &I : BB->instructionsWithoutDebug()) {
+    for (const Instruction &I : *BB) {
       // Fail fast if we encounter an invalid CFG.
       assert(!(D == &I) &&
              "Invalid CFG found: Detached CFG reaches its own Detach.");

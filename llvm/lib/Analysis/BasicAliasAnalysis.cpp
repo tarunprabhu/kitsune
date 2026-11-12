@@ -1657,10 +1657,12 @@ static AliasResult underlyingNoAlias(const Value *O1, const Value *O2,
   // location if that memory location doesn't escape. Or it may pass a
   // nocapture value to other functions as long as they don't capture it.
   if (isEscapeSource(O1) && capturesNothing(AAQI.CA->getCapturesBefore(
-                                O2, dyn_cast<Instruction>(O1), /*OrAt*/ true)))
-   return AliasResult::NoAlias;
+                                O2, dyn_cast<Instruction>(O1), /*OrAt*/ true,
+                                /*ReturnCaptures=*/false)))
+    return AliasResult::NoAlias;
   if (isEscapeSource(O2) && capturesNothing(AAQI.CA->getCapturesBefore(
-                                O1, dyn_cast<Instruction>(O2), /*OrAt*/ true)))
+                                O1, dyn_cast<Instruction>(O2), /*OrAt*/ true,
+                                /*ReturnCaptures=*/false)))
     return AliasResult::NoAlias;
 
   return AliasResult::MayAlias;

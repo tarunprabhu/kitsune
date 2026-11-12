@@ -88,11 +88,13 @@ static void estimateLoopCostHelper(const Loop *L, CodeMetrics &Metrics,
   for (BasicBlock *BB : L->blocks())
     if (LI->getLoopFor(BB) == L) {
       // Check if this BB suffices to make loop L huge.
-      if (InstructionCost::getMax() - LoopCost.Work < Metrics.NumBBInsts[BB]) {
+      unsigned BBNum = BB->getNumber();
+      if (InstructionCost::getMax() - LoopCost.Work <
+          Metrics.NumBBInsts[BBNum]) {
         LoopCost.Work = InstructionCost::getMax();
         return;
       }
-      LoopCost.Work += Metrics.NumBBInsts[BB];
+      LoopCost.Work += Metrics.NumBBInsts[BBNum];
     }
 }
 

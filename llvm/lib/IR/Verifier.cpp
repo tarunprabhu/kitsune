@@ -7261,6 +7261,8 @@ void Verifier::visitIntrinsicCall(Intrinsic::ID ID, CallBase &Call) {
     Check(Key == 0 || Key == 1,
           "ptrauth.auth.with.pc.and.resign key must be IA (0) or IB (1)",
           &Call);
+    break;
+  }
   case Intrinsic::syncregion_start: {
     SmallVector<const DetachInst *, 4> DetachUsers;
     for (const User *U : Call.users())

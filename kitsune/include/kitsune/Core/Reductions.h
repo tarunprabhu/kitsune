@@ -165,7 +165,7 @@ SmallVector<ReductionInfo, 1> collectReductions(Loop &loop);
 std::optional<AtomicRMWInst::BinOp> getAtomicOp(ReduceOp op);
 
 /// Get the unit value with type \p ty for a reduction operator \p op.
-Constant *getUnitValue(ReduceOp op, Type *ty);
+Constant *getUnitValue(ReduceOp op, Type *ty, bool isSigned = false);
 
 /// Generate a reducer function in module \p m for the operator \p op. The
 /// values that it reduces are of type \p ty.

@@ -91,7 +91,6 @@
 #include "llvm/CodeGen/BranchRelaxation.h"
 #include "llvm/CodeGen/BreakFalseDeps.h"
 #include "llvm/CodeGen/CFIFixup.h"
-#include "llvm/CodeGen/CodeGenFatBinaries.h"
 #include "llvm/CodeGen/CodeGenPrepare.h"
 #include "llvm/CodeGen/ComplexDeinterleavingPass.h"
 #include "llvm/CodeGen/DeadMachineInstructionElim.h"
@@ -2095,13 +2094,6 @@ static void setupOptionsForPipelineAlias(PipelineTuningOptions &PTO,
   PTO.SLPVectorization = L >= OptimizationLevel::O2;
 }
 
-/// Tests whether a pass name starts with a valid prefix for a default pipeline
-/// alias.
-static bool startsWithDefaultPipelineAliasPrefix(StringRef Name) {
-  return Name.starts_with("default") || Name.starts_with("thinlto") ||
-         Name.starts_with("lto") || Name.starts_with("tapir-lowering");
-}
-
 Error PassBuilder::parseModulePass(ModulePassManager &MPM,
                                    const PipelineElement &E) {
   auto &Name = E.Name;
@@ -2195,10 +2187,6 @@ Error PassBuilder::parseModulePass(ModulePassManager &MPM,
       return Params.takeError();                                               \
                                                                                \
     OptimizationLevel L = Params.get();                                        \
-    if (L.getSizeLevel() == 2)                                                 \
-      return createStringError(                                                \
-          formatv("error: unsupported optimization level '-Oz'"));             \
-                                                                               \
     PTO.TTOpts.setOptznLevelFrom(L);                                           \
                                                                                \
     MPM.addPass(CREATE_PASS(L));                                               \

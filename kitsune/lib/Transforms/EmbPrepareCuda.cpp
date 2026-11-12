@@ -15,6 +15,7 @@
 #include "kitsune/Core/AddrSpace.h"
 #include "kitsune/Core/FuncAttrs.h"
 #include "kitsune/Core/TTOptions.h"
+#include "kitsune/Core/TargetUtils.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/Function.h"
@@ -56,9 +57,9 @@ bool EmbPrepareCuda::fixDeviceFuncAttrs(Module &devM) {
       f.removeFnAttr("tune-cpu");
 
       f.addFnAttr("target-cpu", tto.getCudaArch());
-      f.addFnAttr(
-          "target-features",
-          join_items(",", tto.getCudaTargetFeatures(), tto.getCudaArch()));
+      f.addFnAttr("target-features",
+                  appendToTargetFeatures(tto.getCudaTargetFeatures(),
+                                         tto.getCudaArch()));
 
       bool hasNoInline = f.hasFnAttribute(Attribute::NoInline);
       if (prepOpts.inlineAllForce) {

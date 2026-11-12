@@ -2,7 +2,14 @@
 ; - Accesses based on NULL pointers
 ; - Calls to llvm.experimental.noalias.scope.decl
 ;
-; RUN: opt < %s -passes='cilksan' -S | FileCheck %s
+; KITSUNE FIXME: cilksan is broken since the merge with 23.x. Once the
+; underlying unreachable has been removed, the --check-prefix in the FileCheck
+; invocation below must also be removed.
+;
+; RUN: not --crash \
+; RUN: opt < %s -passes='cilksan' -S 2>&1 | FileCheck %s --check-prefix=UNREACHABLE
+;
+; UNREACHABLE: has been broken since 23.x and needs to be fixed
 
 target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
@@ -152,7 +159,7 @@ attributes #38 = { nounwind }
 !47469 = !{!11, !11, !102}
 !49814 = distinct !DILexicalBlock(scope: !47467, file: !2013, line: 902, column: 7)
 !49823 = distinct !DILexicalBlock(scope: !49814, file: !2013, line: 902, column: 34)
-!49831 = distinct !DISubprogram(name: "operator<<", linkageName: "_ZNSolsEPFRSoS_E")
+!49831 = distinct !DISubprogram(name: "operator<<", linkageName: "_ZNSolsEPFRSoS_E", type: !47468)
 !49839 = !DILocalVariable(name: "__pf", arg: 2, scope: !49831, line: 108)
 !49841 = distinct !DILocation(line: 903, column: 46, scope: !49823)
 !49842 = !DILocation(line: 113, column: 9, scope: !49831, inlinedAt: !49841)

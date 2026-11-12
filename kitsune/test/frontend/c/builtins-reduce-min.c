@@ -159,7 +159,7 @@ void reduce_u64() {
 // CHECK-NEXT: %[[V:.+]] = load float, ptr %[[R]]
 // CHECK-NEXT: call {{.+}} @llvm.kit.reduce{{[^(]+}}
 // CHECK-SAME: (i32 0, i32 20, ptr %[[R]], float %[[V]], i32 0, i32 4,
-// CHECK-SAME: float 0x47EFFFFFE0000000,
+// CHECK-SAME: float f0x7F7FFFFF,
 // CHECK-SAME: ptr @__kitsune_reduce.min.f32)
 //
 // CHECK-LABEL: define linkonce_odr void @__kitsune_reduce.min.f32
@@ -179,7 +179,7 @@ void reduce_f32() {
 // CHECK-NEXT: %[[V:.+]] = load double, ptr %[[R]]
 // CHECK-NEXT: call {{.+}} @llvm.kit.reduce{{[^(]+}}
 // CHECK-SAME: (i32 0, i32 20, ptr %[[R]], double %[[V]], i32 0, i32 8,
-// CHECK-SAME: double 0x7FEFFFFFFFFFFFFF,
+// CHECK-SAME: double f0x7FEFFFFFFFFFFFFF,
 // CHECK-SAME: ptr @__kitsune_reduce.min.f64)
 //
 // CHECK-LABEL: define linkonce_odr void @__kitsune_reduce.min.f64

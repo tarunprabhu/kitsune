@@ -197,10 +197,6 @@ std::optional<AtomicRMWInst::BinOp> llvm::getAtomicOp(ReduceOp op) {
   llvm_unreachable("getAtomicOp: ReduceOp not handled");
 }
 
-static Constant *getOnes(Type *type) {
-  return ConstantInt::get(type, -1, /*isSigned=*/false);
-}
-
 template <typename T> static T getMin() {
   return std::numeric_limits<T>::min();
 }
@@ -244,6 +240,7 @@ template <typename T> static T getMax() {
 static Constant *getMaxInt(IntegerType *ity, bool isSigned) {
   if (isSigned) {
     switch (ity->getBitWidth()) {
+    case 1: return ConstantInt::getTrue(ity);
     case 8: return ConstantInt::get(ity, getMax<int8_t>(), isSigned);
     case 16: return ConstantInt::get(ity, getMax<int16_t>(), isSigned);
     case 32: return ConstantInt::get(ity, getMax<int32_t>(), isSigned);
@@ -252,6 +249,7 @@ static Constant *getMaxInt(IntegerType *ity, bool isSigned) {
     }
   } else {
     switch (ity->getBitWidth()) {
+    case 1: return ConstantInt::getTrue(ity);
     case 8: return ConstantInt::get(ity, getMax<uint8_t>(), isSigned);
     case 16: return ConstantInt::get(ity, getMax<uint16_t>(), isSigned);
     case 32: return ConstantInt::get(ity, getMax<uint32_t>(), isSigned);
@@ -273,7 +271,15 @@ static Constant *getMax(Type *type, bool isSigned) {
   llvm_unreachable("getMax: Type not handled");
 }
 
-Constant *llvm::getUnitValue(ReduceOp op, Type *type) {
+static Constant *getOnes(Type *type, bool isSigned) {
+  assert(isa<IntegerType>(type) && "Getting ones for an integer type");
+  if (isSigned)
+    return ConstantInt::get(type, -1, isSigned);
+  else
+    return getMaxInt(cast<IntegerType>(type), isSigned);
+}
+
+Constant *llvm::getUnitValue(ReduceOp op, Type *type, bool isSigned) {
   switch (op) {
   case ReduceOp::Custom:
     llvm_unreachable("getUnitValueFor: cannot be used with ReduceOp::Custom");
@@ -283,7 +289,7 @@ Constant *llvm::getUnitValue(ReduceOp op, Type *type) {
   case ReduceOp::FAdd: return getZero(type);
   case ReduceOp::Mul:
   case ReduceOp::FMul: return getOne(type);
-  case ReduceOp::And: return getOnes(type);
+  case ReduceOp::And: return getOnes(type, isSigned);
   case ReduceOp::FMin:
   case ReduceOp::FMinimum:
   case ReduceOp::FMinimumNum:
@@ -295,7 +301,7 @@ Constant *llvm::getUnitValue(ReduceOp op, Type *type) {
   case ReduceOp::SMax: return getMin(type, /*isSigned=*/true);
   case ReduceOp::UMax: return getMin(type, /*isSigned=*/false);
   }
-  llvm_unreachable("getUnitValueFor: Reduction operand not handled");
+  llvm_unreachable("getUnitValue: Reduction operand not handled");
 }
 
 static StringRef getReducerOpSuffix(ReduceOp op) {
@@ -364,7 +370,7 @@ static StringRef getReducerTypeSuffix(ReduceOp op, Type *ty) {
   case ReduceOp::FMinimum:
   case ReduceOp::FMinimumNum: return getTypeSuffix(ty, /*isUnsigned=*/false);
   case ReduceOp::Custom:
-    llvm_unreachable("getReducerOpSuffix: ReduceOp::Custom not expected");
+    llvm_unreachable("getReducerTypeSuffix: ReduceOp::Custom not expected");
   }
   llvm_unreachable("getReducerTypeSuffix: ReduceOp not handled");
 }

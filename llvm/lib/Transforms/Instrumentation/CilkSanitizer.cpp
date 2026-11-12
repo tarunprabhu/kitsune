@@ -607,9 +607,10 @@ uint64_t ObjectTable::add(Instruction &I, Value *Obj) {
 
   // Next, if this is an alloca instruction, look for a #dbg_declare.
   if (AllocaInst *AI = dyn_cast<AllocaInst>(Obj)) {
-    TinyPtrVector<DbgDeclareInst *> DbgDeclares = findDbgDeclares(AI);
-    if (!DbgDeclares.empty()) {
-      auto *LV = DbgDeclares.front()->getVariable();
+    SmallVector<DbgVariableRecord *> DbgVariableRecords;
+    findDbgValues(AI, DbgVariableRecords);
+    if (!DbgVariableRecords.empty()) {
+      auto *LV = DbgVariableRecords.front()->getVariable();
       add(ID, LV->getLine(), LV->getFilename(), LV->getDirectory(),
           LV->getName());
       return ID;
@@ -618,16 +619,7 @@ uint64_t ObjectTable::add(Instruction &I, Value *Obj) {
 
   // Otherwise look for a #dbg_value.
   SmallVector<DbgVariableRecord *> DbgVariableRecords;
-  SmallVector<DbgValueInst *, 1> DbgValues;
-  findDbgValues(DbgValues, Obj, &DbgVariableRecords);
-  for (auto *DVI : DbgValues) {
-    auto *LV = DVI->getVariable();
-    if (LV->getName() != "") {
-      add(ID, LV->getLine(), LV->getFilename(), LV->getDirectory(),
-          LV->getName());
-      return ID;
-    }
-  }
+  findDbgValues(Obj, DbgVariableRecords);
   for (auto *DVR : DbgVariableRecords) {
     auto *LV = DVR->getVariable();
     if (LV->getName() != "") {
@@ -681,7 +673,7 @@ Constant *ObjectTable::insertIntoModule(Module &M) const {
   for (uint64_t LocalID = 0; LocalID < IdCounter; ++LocalID) {
     const SourceLocation &E = LocalIdToSourceLocationMap.find(LocalID)->second;
     // Source line
-    Constant *Line = ConstantInt::get(Int32Ty, E.Line);
+    Constant *Line = ConstantInt::get(Int32Ty, E.Line, /*isSigned=*/true);
     // Source file
     Constant *File;
     {
@@ -2796,9 +2788,8 @@ bool CilkSanitizerImpl::Instrumentor::instrumentLoops(
     const SCEV *Addr = NegativeStride ? LastAddr : FirstAddr;
 
     // Get instructions for calculating address range
-    const DataLayout &DL = CilkSanImpl.M.getDataLayout();
     LLVMContext &Ctx = CilkSanImpl.M.getContext();
-    SCEVExpander Expander(*SE, DL, "cilksan");
+    SCEVExpander Expander(*SE, "cilksan");
 
     Value *AddrVal =
         Expander.expandCodeFor(Addr, PointerType::getUnqual(Ctx), InsertPt);
@@ -2870,8 +2861,7 @@ bool CilkSanitizerImpl::Instrumentor::instrumentLoops(
     // Expand SCEV's into instructions for calculating the coalesced hook
     // arguments in each exit block.
     LLVMContext &Ctx = CilkSanImpl.M.getContext();
-    const DataLayout &DL = CilkSanImpl.M.getDataLayout();
-    SCEVExpander Expander(*SE, DL, "cilksan");
+    SCEVExpander Expander(*SE, "cilksan");
     SmallVector<BasicBlock *, 4> ExitBlocks;
     L->getUniqueExitBlocks(ExitBlocks);
     for (BasicBlock *ExitBB : ExitBlocks) {
@@ -4394,7 +4384,7 @@ void CilkSanitizerImpl::instrumentTapirLoop(Loop &L, TaskInfo &TI,
       if (TripCountSC->getType() != IRB.getInt64Ty())
         TripCountSC = SE->getZeroExtendExpr(TripCountSC, IRB.getInt64Ty());
       // Compute the trip count to pass to the CSI hook.
-      SCEVExpander Expander(*SE, DL, "csi");
+      SCEVExpander Expander(*SE, "csi");
       TripCount = Expander.expandCodeFor(TripCountSC, IRB.getInt64Ty(),
                                          &*IRB.GetInsertPoint());
     }
@@ -4478,9 +4468,9 @@ static Value *getHeapObject(Value *I) {
        UI != E;)
     if (BitCastInst *BCI = dyn_cast<BitCastInst>(*UI++)) {
       // Look for a dbg.value intrinsic for this bitcast.
-      SmallVector<DbgValueInst *, 1> DbgValues;
-      findDbgValues(DbgValues, BCI);
-      if (!DbgValues.empty()) {
+      SmallVector<DbgVariableRecord *, 1> DbgRecords;
+      findDbgValues(BCI, DbgRecords);
+      if (!DbgRecords.empty()) {
         Object = BCI;
         NumOfBitCastUses++;
       }

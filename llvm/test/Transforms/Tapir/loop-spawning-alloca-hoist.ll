@@ -70,9 +70,9 @@ _ZL5ilog2i.exit:                                  ; preds = %while.body.i, %entr
 ; CHECK-NOT: alloca [512 x [18 x %struct.dcomplex]], align 16
 ; CHECK-NOT: alloca [512 x [18 x %struct.dcomplex]], align 16
 ; CHECK: %[[Y08BITCAST:.+]] = bitcast ptr %[[Y08ALLOC]] to ptr
-; CHECK: call void @llvm.lifetime.start.p0({{.+}}, ptr {{.*}}%[[Y08BITCAST]])
+; CHECK: call void @llvm.lifetime.start.p0(ptr %[[Y08ALLOC]])
 ; CHECK: %[[Y19BITCAST:.+]] = bitcast ptr %[[Y19ALLOC]] to ptr
-; CHECK: call void @llvm.lifetime.start.p0({{.+}}, ptr {{.*}}%[[Y19BITCAST]])
+; CHECK: call void @llvm.lifetime.start.p0(ptr %[[Y19ALLOC]])
 
 pfor.cond:                                        ; preds = %pfor.inc, %pfor.cond.preheader
   %indvars.iv29 = phi i64 [ 0, %pfor.cond.preheader ], [ %indvars.iv.next30, %pfor.inc ]

@@ -3144,10 +3144,8 @@ static Value *isSafeToSpeculateStore(Instruction *I, BasicBlock *BrBB,
             (!ExplicitlyDereferenceableOnly ||
              isDereferenceablePointer(StorePtr, StoreTy, LI->getDataLayout(),
                                       /*IgnoreFree=*/true))) {
-          AllocaInst *AI = dyn_cast<AllocaInst>(Obj);
-          BasicBlock *DetachedCtx = GetDetachedCtx(LI->getParent());
-          if (AI && (DetachedCtx == GetDetachedCtx(AI->getParent())))
-            return LI;
+          // Found a previous load, return it.
+          return LI;
         }
       }
       // The load didn't work out, but we may still find a store.

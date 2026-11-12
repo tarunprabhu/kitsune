@@ -41,7 +41,6 @@ define i64 @id(i64 %n) #0 {
 
 define i64 @sieve(i64 %0) {
   %2 = alloca [256 x i8], align 16
-  call void @llvm.lifetime.start.p0(i64 256, ptr nonnull %2)
   br label %5
 
 3:
@@ -98,7 +97,6 @@ define i64 @sieve(i64 %0) {
 
 39:
   %40 = phi i64 [ %38, %34 ], [ %15, %10 ]
-  call void @llvm.lifetime.end.p0(i64 256, ptr nonnull %2)
   ret i64 %40
 }
 

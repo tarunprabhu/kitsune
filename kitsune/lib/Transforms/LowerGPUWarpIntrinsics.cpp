@@ -24,6 +24,7 @@
 #include "llvm/IR/IntrinsicsAMDGPU.h"
 #include "llvm/IR/IntrinsicsNVPTX.h"
 #include "llvm/IR/Module.h"
+#include "llvm/TargetParser/AMDGPUTargetParser.h"
 #include "llvm/TargetParser/TargetParser.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
@@ -483,16 +484,14 @@ Value *LowerWarpShuffleDownSync::genPiecewise64(IRBuilder<> &builder, TTID tt,
   // will return a 32-bit result which is then zero-extended to get the lower
   // 32-bits of the result.
   Value *l32 = builder.CreateTrunc(v64, i32, "l32");
-  Value *resL32 =
-      builder.CreateCall(coreImpl, {l32, offset}, /*FMFSource=*/{}, "rl32");
+  Value *resL32 = builder.CreateCall(coreImpl, {l32, offset}, "rl32");
   Value *resL64 = builder.CreateZExt(resL32, i64, "rl64");
 
   // Shift right by 32 bits and obtain the upper 32 bits of the result.
   // Zero-extend it to 64 bits and shift it left to get the final upper 32 bits.
   Value *u64 = builder.CreateLShr(v64, 32);
   Value *u32 = builder.CreateTrunc(u64, i32, "u32", /*nuw=*/true);
-  Value *resU32 =
-      builder.CreateCall(coreImpl, {u32, offset}, /*FMFSource=*/{}, "ru32");
+  Value *resU32 = builder.CreateCall(coreImpl, {u32, offset}, "ru32");
   Value *resU64Tmp = builder.CreateZExt(resU32, i64);
   Value *resU64 =
       builder.CreateShl(resU64Tmp, 32, "ru64", /*nuw=*/false, /*nsw=*/true);

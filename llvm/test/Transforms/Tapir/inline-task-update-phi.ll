@@ -7,7 +7,7 @@ $_ZN5outerC2ERKS_ = comdat any
 
 $_ZNSt5arrayI5outerLm2EED2Ev = comdat any
 
-define dso_local void @main() local_unnamed_addr personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) {
+define dso_local void @main() local_unnamed_addr personality i32 (...)* @__gxx_personality_v0 {
 entry:
   invoke void @_ZN5outerC2ERKS_()
           to label %invoke.cont unwind label %lpad
@@ -50,9 +50,13 @@ lpad:                                             ; preds = %entry, %invoke.cont
 ; CHECK-NEXT: to label %{{.*}} unwind label %lpad
 
 ; CHECK: lpad:
-; CHECK-NEXT: %arrayinit.endOfInit.0.idx = phi i64 [ 0, %[[LPAD1]] ], [ 0, %entry ], [ 1, %[[LPAD2]] ], [ 1, %invoke.cont ]
+; CHECK-NEXT: %arrayinit.endOfInit.0.idx = phi i64
+; CHECK-SAME: [ 1, %invoke.cont ]
+; CHECK-SAME: [ 0, %entry ]
+; CHECK-SAME: [ 0, %[[LPAD1]] ]
+; CHECK-SAME: [ 1, %[[LPAD2]] ]
 
-define dso_local void @_ZN5outerC2ERKS_() unnamed_addr #1 comdat align 2 personality i8* bitcast (i32 (...)* @__gxx_personality_v0 to i8*) {
+define dso_local void @_ZN5outerC2ERKS_() unnamed_addr #1 comdat align 2 personality i32 (...)* @__gxx_personality_v0 {
 entry:
   %syncreg = call token @llvm.syncregion.start()
   br label %pfor.cond

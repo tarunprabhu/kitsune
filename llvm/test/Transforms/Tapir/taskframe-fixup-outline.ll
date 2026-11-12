@@ -107,11 +107,11 @@ det.cont.i.i.ls2:                                 ; preds = %if.then.tf.i.i.i.i.
 ; CHECK-NEXT: br label %invoke.cont61.tf.i.i.ls2.tf.otf0
 
 ; CHECK: invoke.cont61.tf.i.i.ls2.tf.otf0:
-; CHECK-NEXT: call void @llvm.lifetime.start.p0(i64 1, ptr %[[CMP5_NOT_ALLOCA]])
+; CHECK-NEXT: call void @llvm.lifetime.start.p0(ptr %[[CMP5_NOT_ALLOCA]])
 ; CHECK-NEXT: br i1 false, label %if.then.tf.i.i.i.i.ls2.otf0, label %for.cond.preheader.i.i.i.i.ls2.otf0
 
 ; CHECK: for.cond.preheader.i.i.i.i.ls2.otf0:
-; CHECK-NEXT: call void @llvm.lifetime.end.p0(i64 1, ptr %[[CMP5_NOT_ALLOCA]])
+; CHECK-NEXT: call void @llvm.lifetime.end.p0(ptr %[[CMP5_NOT_ALLOCA]])
 ; CHECK-NEXT: br label %for.cond.preheader.i.i.i.i.ls2.tfend.otf0
 
 ; CHECK: if.then.tf.i.i.i.i.ls2.otf0:

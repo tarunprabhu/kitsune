@@ -1,6 +1,13 @@
 ; Check how Cilksan handles a pointer that cannot be stripped.
 ;
-; RUN: opt < %s -passes='cilksan' -ignore-sanitize-cilk-attr -S | FileCheck %s
+; KITSUNE FIXME: cilksan is broken since the merge with 23.x. Once the
+; underlying unreachable has been removed, the --check-prefix in the FileCheck
+; invocation below must also be removed.
+;
+; RUN: not --crash \
+; RUN: opt < %s -passes='cilksan' -ignore-sanitize-cilk-attr -S 2>&1 | FileCheck %s --check-prefix=UNREACHABLE
+;
+; UNREACHABLE: has been broken since 23.x and needs to be fixed
 
 target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"

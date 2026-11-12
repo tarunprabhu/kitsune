@@ -7,7 +7,7 @@
 // CHECK-NEXT: %[[V:.+]] = load float, ptr %[[R]]
 // CHECK-NEXT: call {{.+}} @llvm.kit.reduce{{[^(]+}}
 // CHECK-SAME: (i32 0, i32 17, ptr %[[R]], float %[[V]], i32 0, i32 4,
-// CHECK-SAME: float 0x3810000000000000,
+// CHECK-SAME: float f0x00800000,
 // CHECK-SAME: ptr @__kitsune_reduce.maximum.f32)
 //
 // CHECK-LABEL: define linkonce_odr void @__kitsune_reduce.maximum.f32
@@ -27,7 +27,7 @@ extern "C" void reduce_f32() {
 // CHECK-NEXT: %[[V:.+]] = load double, ptr %[[R]]
 // CHECK-NEXT: call {{.+}} @llvm.kit.reduce{{[^(]+}}
 // CHECK-SAME: (i32 0, i32 17, ptr %[[R]], double %[[V]], i32 0, i32 8,
-// CHECK-SAME: double 0x10000000000000,
+// CHECK-SAME: double f0x0010000000000000,
 // CHECK-SAME: ptr @__kitsune_reduce.maximum.f64)
 //
 // CHECK-LABEL: define linkonce_odr void @__kitsune_reduce.maximum.f64

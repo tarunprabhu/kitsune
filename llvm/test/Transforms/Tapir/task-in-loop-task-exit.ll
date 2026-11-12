@@ -153,7 +153,7 @@ pfor.body.entry:                                  ; preds = %pfor.cond
 ; CHECK-NEXT: br i1 false, label %"_ZZN6parlay8sequenceINS0_ISt6vectorIiSaIiEENS_9allocatorIS3_EELb0EEENS4_IS6_EELb0EEC1IZNS_8internal7delayed25block_delayed_filter_op_tIRKNS_16delayed_sequenceIS3_S3_ZN58TestDelayedFilterOp_TestFilterOpNonTrivialTemporaries_Test8TestBodyEvE3$_0EEZNSE_8TestBodyEvE3$_1E13filter_blocksISI_SJ_EEDaOT_OT0_EUlmE_EEmSN_NS8_18_from_function_tagEmENKUlmE_clEm.exit", label %if.then.i.i.i.i
 
 ; CHECK: if.then.i.i.i.i:
-; CHECK-NEXT: call void @llvm.lifetime.start.p0(i64 16, ptr [[REFTMP11IIIII]])
+; CHECK-NEXT: call void @llvm.lifetime.start.p0(ptr [[REFTMP11IIIII]])
 ; CHECK-NEXT: br label %pfor.cond.i.i.i.i.i.i
 
 ; CHECK: pfor.cond.i.i.i.i.i.i:

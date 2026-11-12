@@ -10,7 +10,7 @@
   "instruction_pre": {
     "cast": {
       "enabled": true,
-      "filter": "opcode==48",
+      "filter": "opcode==51",
       "filter.description": "Only instrument PtrToInt (opcode 48) casts.",
       "input": true,
       "input.description": "The input value of the cast.",
@@ -21,7 +21,7 @@
   "instruction_post": {
     "cast": {
       "enabled": true,
-      "filter": "opcode==48",
+      "filter": "opcode==51",
       "filter.description": "Only instrument PtrToInt (opcode 48) casts.",
       "input": true,
       "input.description": "The input value of the cast.",

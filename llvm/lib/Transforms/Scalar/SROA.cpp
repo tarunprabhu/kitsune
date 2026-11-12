@@ -3336,7 +3336,7 @@ private:
     assert(IntTy && "We cannot insert an integer to the alloca");
     assert(!LI.isVolatile());
     LoadInst *NewLI =
-        IRB.CreateAlignedLoad(NewAllocaTy, &NewAI, NewAI.getAlign(), "load");
+        cast<LoadInst>(IRB.CreateAlignedLoad(NewAllocaTy, &NewAI, NewAI.getAlign(), "load"));
     if (LI.isAtomic())
       NewLI->setAtomic(LI.getOrdering(), LI.getSyncScopeID());
     Value *V = NewLI;
@@ -6314,16 +6314,18 @@ std::pair<bool /*Changed*/, bool /*CFGChanged*/> SROA::runSROA(Function &F) {
   }
 
   const DataLayout &DL = F.getDataLayout();
-  BasicBlock &EntryBB = F.getEntryBlock();
-  for (BasicBlock::iterator I = EntryBB.begin(), E = std::prev(EntryBB.end());
-       I != E; ++I) {
-    if (AllocaInst *AI = dyn_cast<AllocaInst>(I)) {
-      std::optional<TypeSize> Size = AI->getAllocationSize(DL);
-      if (Size && Size->isScalable() && isAllocaPromotable(AI) &&
-          TI->isAllocaParallelPromotable(AI))
-        PromotableAllocas.insert(AI);
-      else
-        Worklist.insert(AI);
+  for (BasicBlock *BB : EntryBlocks) {
+    BasicBlock &EntryBB = *BB;
+    for (BasicBlock::iterator I = EntryBB.begin(), E = std::prev(EntryBB.end());
+         I != E; ++I) {
+      if (AllocaInst *AI = dyn_cast<AllocaInst>(I)) {
+        std::optional<TypeSize> Size = AI->getAllocationSize(DL);
+        if (Size && Size->isScalable() && isAllocaPromotable(AI) &&
+            TI->isAllocaParallelPromotable(AI))
+          PromotableAllocas.insert(AI);
+        else
+          Worklist.insert(AI);
+      }
     }
   }
 

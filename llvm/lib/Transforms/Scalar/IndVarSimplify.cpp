@@ -907,7 +907,7 @@ static bool needsLFTR(Loop *L, BasicBlock *ExitingBB, TaskInfo *TI) {
     if (BasicBlock *Preheader = L->getLoopPreheader())
       if (Constant *Start =
           dyn_cast<Constant>(Phi->getIncomingValueForBlock(Preheader)))
-        return !(Start->isZeroValue());
+        return !(Start->isNullValue());
   }
 
   return false;
@@ -2112,7 +2112,7 @@ static bool ensureZeroStartIV(Loop *L, const DataLayout &DL,
   const SCEVAddRecExpr *AR = cast<SCEVAddRecExpr>(SE->getSCEV(IncVar));
 
   if (!AR->getStart()->isZero()) {
-    SCEVExpander ARRewriter(*SE, DL, "indvars");
+    SCEVExpander ARRewriter(*SE, "indvars");
     ARRewriter.expandCodeFor(AR, AR->getType(),
                              &L->getHeader()->front());
   }

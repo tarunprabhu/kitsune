@@ -11,7 +11,9 @@
 #include "ToolChains/Arch/AMDGPU.h"
 #include "ToolChains/Arch/ARM.h"
 #include "ToolChains/Arch/RISCV.h"
+#include "ToolChains/AMDGPU.h"
 #include "ToolChains/Clang.h"
+#include "ToolChains/Cuda.h"
 #include "ToolChains/Flang.h"
 #include "ToolChains/InterfaceStubs.h"
 #include "kitsune/Clang/KitDriverUtils.h"
@@ -27,7 +29,6 @@
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/InputInfo.h"
 #include "clang/Driver/Job.h"
-#include "clang/Driver/Options.h"
 #include "clang/Driver/SanitizerArgs.h"
 #include "clang/Driver/XRayArgs.h"
 #include "clang/Options/Options.h"
@@ -51,6 +52,7 @@
 #include "llvm/Support/VersionTuple.h"
 #include "llvm/Support/VirtualFileSystem.h"
 #include "llvm/TargetParser/AArch64TargetParser.h"
+#include "llvm/TargetParser/AMDGPUTargetParser.h"
 #include "llvm/TargetParser/RISCVISAInfo.h"
 #include "llvm/TargetParser/TargetParser.h"
 #include "llvm/TargetParser/Triple.h"
@@ -1290,7 +1292,7 @@ std::string ToolChain::GetLinkerPath(bool *LinkerIsLLD) const {
   // with Kitsune. This is the only linker that is guaranteed to support
   // Kitsune-specific options.
   const Driver &D = getDriver();
-  if (D.IsKitsuneFrontend() && D.isUsingLTO() &&
+  if (D.IsKitsuneFrontend() && isUsingLTO(Args) &&
       Args.getLastArg(options::OPT_tapir_EQ)) {
     StringRef LinkerName = Triple.isOSDarwin() ? "ld64.lld" : "ld.lld";
     std::string LinkerPath = GetProgramPath(LinkerName.data());
@@ -2376,7 +2378,7 @@ void ToolChain::AddKitsuneHipCommonArgs(const ArgList &Args,
   // that will be recounted in excruciating detail later in this function).
   ExtendedArgs = ParseExtendedArgs(D, CmdArgs, ExtraArgs);
   auto AMDTC =
-      std::make_unique<toolchains::ROCMToolChain>(D, AMDTriple, ExtendedArgs);
+      std::make_unique<toolchains::AMDGPUToolChain>(D, AMDTriple, ExtendedArgs);
 
   std::string HipArch;
   if (Args.hasArg(options::OPT_tapir_hip_arch_EQ))
@@ -2469,7 +2471,7 @@ void ToolChain::AddKitsuneHipCommonArgs(const ArgList &Args,
   // lookups.
   ExtendedArgs = ParseExtendedArgs(D, CmdArgs, ExtraArgs);
   AMDTC =
-      std::make_unique<toolchains::ROCMToolChain>(D, AMDTriple, ExtendedArgs);
+      std::make_unique<toolchains::AMDGPUToolChain>(D, AMDTriple, ExtendedArgs);
 
   // The target features. Each element is of the form [+-]FEATURE.
   std::vector<StringRef> Features;
@@ -2481,7 +2483,7 @@ void ToolChain::AddKitsuneHipCommonArgs(const ArgList &Args,
   // us.
   amdgpu::getAMDGPUTargetFeatures(D, AMDTriple, ExtendedArgs, Features);
 
-  if (toolchains::ROCMToolChain::isWave64(
+  if (toolchains::AMDGPUToolChain::isWave64(
           ExtendedArgs, llvm::AMDGPU::parseArchAMDGCN(HipArch)))
     Features.push_back("+wavefrontsize64");
   else
@@ -2501,9 +2503,8 @@ void ToolChain::AddKitsuneHipCommonArgs(const ArgList &Args,
 
   std::string BCFilesStr;
   raw_string_ostream BCFilesStream(BCFilesStr);
-  for (BitCodeLibraryInfo BCInfo :
-       AMDTC->getCommonDeviceLibNames(ExtendedArgs, HipArch,
-                                      /*IsOpenMP=*/false)) {
+  for (BitCodeLibraryInfo BCInfo : AMDTC->getCommonDeviceLibNames(
+           ExtendedArgs, HipArch, HipArch, Action::OffloadKind::OFK_None)) {
     if (!BCFilesStr.empty())
       BCFilesStream << ",";
     BCFilesStream << BCInfo.Path;

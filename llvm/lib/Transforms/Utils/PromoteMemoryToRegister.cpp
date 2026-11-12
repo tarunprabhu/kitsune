@@ -252,7 +252,6 @@ struct AllocaInfo {
           assert(ValueType == SI->getValueOperand()->getType() &&
                  "All stores were checked to have used the same type");
       } else if (LoadInst *LI = dyn_cast<LoadInst>(User)) {
-        LoadInst *LI = cast<LoadInst>(User);
         // Otherwise it must be a load instruction, keep track of variable
         // reads.
         UsingBlocks.push_back(LI->getParent());

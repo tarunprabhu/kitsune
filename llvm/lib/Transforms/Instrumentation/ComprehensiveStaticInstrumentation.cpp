@@ -521,8 +521,8 @@ Constant *FrontEndDataTable::insertIntoModule(Module &M) const {
 
   for (uint64_t LocalID = 0; LocalID < IdCounter; ++LocalID) {
     const SourceLocation &E = LocalIdToSourceLocationMap.find(LocalID)->second;
-    Constant *Line = ConstantInt::get(Int32Ty, E.Line);
-    Constant *Column = ConstantInt::get(Int32Ty, E.Column);
+    Constant *Line = ConstantInt::get(Int32Ty, E.Line, /*isSigned=*/true);
+    Constant *Column = ConstantInt::get(Int32Ty, E.Column, /*isSigned=*/true);
     Constant *File;
     {
       std::string Filename = E.Filename.str();
@@ -1200,7 +1200,7 @@ void CSIImpl::instrumentLoop(Loop &L, TaskInfo &TI, ScalarEvolution *SE) {
       if (TripCountSC->getType() != IRB.getInt64Ty())
         TripCountSC = SE->getZeroExtendExpr(TripCountSC, IRB.getInt64Ty());
       // Compute the trip count to pass to the CSI hook.
-      SCEVExpander Expander(*SE, DL, "csi");
+      SCEVExpander Expander(*SE, "csi");
       TripCount = Expander.expandCodeFor(TripCountSC, IRB.getInt64Ty(),
                                          &*IRB.GetInsertPoint());
     }

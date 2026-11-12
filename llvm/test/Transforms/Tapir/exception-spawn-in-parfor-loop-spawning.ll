@@ -733,7 +733,7 @@ declare i32 @llvm.tapir.loop.grainsize.i32(i32) #7
 ; CHECK-NEXT: %[[SYNCREG:.+]] = call token @llvm.syncregion.start()
 
 ; CHECK: pfor.body76.ls1:
-; CHECK: call void @llvm.lifetime.start.p0(i64 1, ptr nonnull %[[B3PTR:.+]])
+; CHECK: call void @llvm.lifetime.start.p0(ptr %[[B3PTR:.+]])
 ; CHECK-NEXT: invoke void @_ZN3BarC1Ev(ptr nonnull %[[B3]])
 ; CHECK-NEXT: to label %[[B3CONSTRCONT:.+]] unwind label %lpad77.ls1
 
@@ -748,7 +748,7 @@ declare i32 @llvm.tapir.loop.grainsize.i32(i32) #7
 ; CHECK-NEXT: detach within %[[SYNCREG]], label %det.achd82.ls1, label %det.cont95.ls1 unwind label %lpad92.ls1
 
 ; CHECK: ehcleanup104.ls1:
-; CHECK: call void @llvm.lifetime.end.p0(i64 1, ptr nonnull %[[B3PTR]])
+; CHECK: call void @llvm.lifetime.end.p0(ptr %[[B3PTR]])
 
 ; CHECK: det.cont95.ls1:
 ; CHECK-NEXT: call void @_Z9nothrowfni(i32 5)
@@ -756,7 +756,7 @@ declare i32 @llvm.tapir.loop.grainsize.i32(i32) #7
 
 ; CHECK: sync.continue102.ls1:
 ; CHECK-NEXT: call void @_ZN3BarD1Ev(ptr nonnull %[[B3]])
-; CHECK-NEXT: call void @llvm.lifetime.end.p0(i64 1, ptr nonnull %[[B3PTR]])
+; CHECK-NEXT: call void @llvm.lifetime.end.p0(ptr %[[B3PTR]])
 
 ; CHECK: lpad92.ls1:
 ; CHECK-NEXT: landingpad
@@ -818,7 +818,7 @@ declare i32 @llvm.tapir.loop.grainsize.i32(i32) #7
 ; CHECK-NEXT: %[[SYNCREG:.+]] = call token @llvm.syncregion.start()
 
 ; CHECK: pfor.body.ls1:
-; CHECK: call void @llvm.lifetime.start.p0(i64 1, ptr nonnull %[[B2PTR:.+]])
+; CHECK: call void @llvm.lifetime.start.p0(ptr %[[B2PTR:.+]])
 ; CHECK-NEXT: invoke void @_ZN3BarC1Ev(ptr nonnull %[[B2]])
 ; CHECK-NEXT: to label %[[B2CONSTRCONT:.+]] unwind label %lpad15.ls1
 
@@ -833,7 +833,7 @@ declare i32 @llvm.tapir.loop.grainsize.i32(i32) #7
 ; CHECK-NEXT: detach within %[[SYNCREG]], label %det.achd20.ls1, label %det.cont33.ls1 unwind label %lpad30.ls1
 
 ; CHECK: ehcleanup41.ls1:
-; CHECK: call void @llvm.lifetime.end.p0(i64 1, ptr nonnull %[[B2PTR]])
+; CHECK: call void @llvm.lifetime.end.p0(ptr %[[B2PTR]])
 
 ; CHECK: det.cont33.ls1:
 ; CHECK-NEXT: call void @_Z9nothrowfni(i32 3)
@@ -841,7 +841,7 @@ declare i32 @llvm.tapir.loop.grainsize.i32(i32) #7
 
 ; CHECK: sync.continue.ls1:
 ; CHECK-NEXT: call void @_ZN3BarD1Ev(ptr nonnull %[[B2]])
-; CHECK-NEXT: call void @llvm.lifetime.end.p0(i64 1, ptr nonnull %[[B2PTR]])
+; CHECK-NEXT: call void @llvm.lifetime.end.p0(ptr %[[B2PTR]])
 
 ; CHECK: lpad30.ls1:
 ; CHECK-NEXT: landingpad

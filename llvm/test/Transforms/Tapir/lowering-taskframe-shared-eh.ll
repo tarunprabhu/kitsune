@@ -4,6 +4,12 @@
 ; spindles when outlining taskframes.
 ;
 ; RUN: opt < %s -tapir-target=opencilk -passes='tapir2target' -S -use-opencilk-runtime-bc=false -debug-abi-calls | FileCheck %s
+;
+; KITSUNE FIXME: The lifetime intrinsics only operate on alloca's. Some uses of
+; these intrinsics are not valid, but we have commented out all of them since
+; they are not strictly relevant for this test. But it might be good to fix
+; them instead.
+
 target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
 
@@ -368,7 +374,7 @@ pfor.body.tf.tf:                                  ; preds = %pfor.cond
   %92 = load %"class.parlay::sequence"*, %"class.parlay::sequence"** %88, align 8, !tbaa !8
   %arrayidx.i = getelementptr inbounds %"class.parlay::sequence", %"class.parlay::sequence"* %92, i64 %__begin.0
   %93 = bitcast %"class.parlay::sequence"* %ref.tmp.i to i8*
-  call void @llvm.lifetime.start.p0i8(i64 15, i8* nonnull %93) #10
+  ; call void @llvm.lifetime.start.p0(ptr %ref.tmp.i) #10
   %94 = and i8 %13, 1
   %95 = icmp eq i8 %94, 0
   br i1 %95, label %pfor.body.tf.tf.tf, label %96
@@ -383,7 +389,7 @@ pfor.body.tf.tf:                                  ; preds = %pfor.cond
 pfor.body.tf.tf.tf:                               ; preds = %96, %87
   %100 = load %class.anon.86*, %class.anon.86** %15, align 8, !tbaa !9
   %101 = bitcast %"struct.std::pair.87"* %agg.tmp.i.i to i8*
-  call void @llvm.lifetime.start.p0i8(i64 24, i8* nonnull %101)
+  ; call void @llvm.lifetime.start.p0(ptr %agg.tmp.i.i)
   %102 = getelementptr inbounds %class.anon.86, %class.anon.86* %100, i64 0, i32 0
   %103 = load i64, i64* @__csi_unit_load_base_id, align 8, !invariant.load !2
   %104 = add i64 %103, 1005
@@ -405,9 +411,9 @@ pfor.body.tf.tf.tf:                               ; preds = %96, %87
   %114 = load i64, i64* %second3.i.i.i, align 8, !tbaa !16, !noalias !12
   store i64 %114, i64* %second.i.i.i, align 8, !tbaa !16, !noalias !12
   %115 = bitcast %"class.parlay::sequence.2"* %s.i.i.i to i8*
-  call void @llvm.lifetime.start.p0i8(i64 15, i8* nonnull %115) #10, !noalias !20
+  ; call void @llvm.lifetime.start.p0(ptr %s.i.i.i) #10, !noalias !20
   %116 = bitcast [4 x %"class.parlay::sequence"]* %ref.tmp.i.i.i to i8*
-  call void @llvm.lifetime.start.p0i8(i64 60, i8* nonnull %116) #10, !noalias !20
+  ; call void @llvm.lifetime.start.p0(ptr %ref.tmp.i.i.i) #10, !noalias !20
   %impl.i.i.i2.i.i = getelementptr inbounds [4 x %"class.parlay::sequence"], [4 x %"class.parlay::sequence"]* %ref.tmp.i.i.i, i64 0, i64 0, i32 0, i32 0
   %impl.i.i.i.i = getelementptr inbounds %"struct.std::pair.87", %"struct.std::pair.87"* %110, i64 %__begin.0, i32 0, i32 0, i32 0
   %tf.i = call token @llvm.taskframe.create()
@@ -453,7 +459,7 @@ _ZNK6parlay14_sequence_baseIcNS_9allocatorIcEEE14_sequence_impl8capacityEv.exit.
   %arrayinit.element3.ptr.i.i.i = getelementptr inbounds [4 x %"class.parlay::sequence"], [4 x %"class.parlay::sequence"]* %ref.tmp.i.i.i, i64 0, i64 2
   %131 = load i64, i64* %second.i.i.i, align 8, !tbaa !16, !noalias !20
   %132 = getelementptr inbounds [22 x i8], [22 x i8]* %s.i.i.i.i, i64 0, i64 0
-  call void @llvm.lifetime.start.p0i8(i64 22, i8* nonnull %132) #10, !noalias !25
+  ; call void @llvm.lifetime.start.p0(ptr %s.i.i.i.i) #10, !noalias !25
   %133 = load i64, i64* @__csi_func_id_snprintf, align 8
   call void @__csan_set_MAAP(i8 4, i64 %133)
   call void @__csan_set_MAAP(i8 7, i64 %133)
@@ -470,9 +476,9 @@ _ZNK6parlay14_sequence_baseIcNS_9allocatorIcEEE14_sequence_impl8capacityEv.exit.
   call void @__csan_store(i64 %137, i8* nonnull %small_n.i.i.i.i.i.i.i.i, i32 1, i64 2)
   store i8 0, i8* %small_n.i.i.i.i.i.i.i.i, align 2, !alias.scope !28, !noalias !20
   %138 = bitcast i8** %first.addr.i.i.i.i to i8*
-  call void @llvm.lifetime.start.p0i8(i64 8, i8* nonnull %138), !noalias !20
+  ; call void @llvm.lifetime.start.p0(ptr %first.addr.i.i.i.i), !noalias !20
   %139 = bitcast %class.anon.92* %agg.tmp.i.i.i.i to i8*
-  call void @llvm.lifetime.start.p0i8(i64 24, i8* nonnull %139), !noalias !20
+  ; call void @llvm.lifetime.start.p0(ptr %agg.tmp.i.i.i.i), !noalias !20
   %140 = load i64, i64* @__csi_unit_store_base_id, align 8, !invariant.load !2
   %141 = add i64 %140, 567
   %142 = bitcast i8** %first.addr.i.i.i.i to i8*
@@ -483,7 +489,7 @@ _ZNK6parlay14_sequence_baseIcNS_9allocatorIcEEE14_sequence_impl8capacityEv.exit.
 
 _ZN6parlay14_sequence_baseIcNS_9allocatorIcEEE14_sequence_impl19initialize_capacityEm.exit.i.thread.i.i.i: ; preds = %_ZNK6parlay14_sequence_baseIcNS_9allocatorIcEEE14_sequence_impl8capacityEv.exit.i.i.i.i.i
   %143 = bitcast i8** %buffer.i.i.i.i to i8*
-  call void @llvm.lifetime.start.p0i8(i64 8, i8* nonnull %143) #10, !noalias !20
+  ; call void @llvm.lifetime.start.p0(ptr %buffer.i.i.i.i) #10, !noalias !20
   br label %if.then.i10.i61.i.i.i
 
 if.then.i6.i58.i.i.i:                             ; preds = %_ZNK6parlay14_sequence_baseIcNS_9allocatorIcEEE14_sequence_impl8capacityEv.exit.i.i.i.i.i
@@ -492,7 +498,7 @@ if.then.i6.i58.i.i.i:                             ; preds = %_ZNK6parlay14_seque
   call void @__csan_store(i64 %145, i8* nonnull %small_n.i.i.i.i.i.i.i.i, i32 1, i64 2)
   store i8 -128, i8* %small_n.i.i.i.i.i.i.i.i, align 2, !noalias !20
   %146 = getelementptr inbounds %"struct.parlay::allocator.35", %"struct.parlay::allocator.35"* %alloc.i.i42.i.i.i, i64 0, i32 0
-  call void @llvm.lifetime.start.p0i8(i64 1, i8* nonnull %146) #10, !noalias !20
+  ; call void @llvm.lifetime.start.p0(ptr %alloc.i.i42.i.i.i) #10, !noalias !20
   %add.i.i.i.i.i.i.i = add nsw i64 %idx.ext.i.i.i.i, 8
   %147 = load i64, i64* @__csi_func_id__ZN6parlay9allocatorISt4byteE8allocateEm, align 8
   call void @__csan_set_MAAP(i8 7, i64 %147)
@@ -522,13 +528,13 @@ _ZN6parlay14_sequence_baseIcNS_9allocatorIcEEE14_sequence_impl19initialize_capac
   %158 = getelementptr [6 x i8], [6 x i8]* %ref.tmp.sroa.4.0..sroa_idx5.i.i55.i.i.i, i64 0, i64 0
   call void @__csan_store(i64 %157, i8* %158, i32 6, i64 2)
   store i48 0, i48* %ref.tmp.sroa.4.0..sroa_cast6.i.i56.i.i.i, align 2, !tbaa.struct !31, !noalias !20
-  call void @llvm.lifetime.end.p0i8(i64 1, i8* nonnull %146) #10, !noalias !20
+  ; call void @llvm.lifetime.end.p0(ptr %alloc.i.i42.i.i.i) #10, !noalias !20
   %159 = load i64, i64* @__csi_unit_load_base_id, align 8, !invariant.load !2
   %160 = add i64 %159, 1024
   call void @__csan_load(i64 %160, i8* nonnull %small_n.i.i.i.i.i.i.i.i, i32 1, i64 2)
   %bf.load.i.i8.pre.i57.i.i.i = load i8, i8* %small_n.i.i.i.i.i.i.i.i, align 2, !noalias !20
   %161 = bitcast i8** %buffer.i.i.i.i to i8*
-  call void @llvm.lifetime.start.p0i8(i64 8, i8* nonnull %161) #10, !noalias !20
+  ; call void @llvm.lifetime.start.p0(ptr %buffer.i.i.i.i) #10, !noalias !20
   %cmp.i.i9.i60.i.i.i = icmp sgt i8 %bf.load.i.i8.pre.i57.i.i.i, -1
   br i1 %cmp.i.i9.i60.i.i.i, label %if.then.i10.i61.i.i.i, label %if.else.i11.i63.i.i.i
 
@@ -670,10 +676,10 @@ lpad.body.thread.i.i.i:                           ; preds = %.noexc.i.i.i.i.i.i.
   br label %arraydestroy.body.preheader.i.i.i
 
 invoke.cont4.i.i.i:                               ; preds = %if.else.i.i71.i.i.i, %if.then.i.i69.i.i.i
-  call void @llvm.lifetime.end.p0i8(i64 8, i8* nonnull %165) #10, !noalias !20
-  call void @llvm.lifetime.end.p0i8(i64 8, i8* nonnull %138), !noalias !20
-  call void @llvm.lifetime.end.p0i8(i64 24, i8* nonnull %139), !noalias !20
-  call void @llvm.lifetime.end.p0i8(i64 22, i8* nonnull %132) #10, !noalias !25
+  ; call void @llvm.lifetime.end.p0(i64 8, i8* nonnull %165) #10, !noalias !20
+  ; call void @llvm.lifetime.end.p0(ptr %first.addr.i.i.i.i), !noalias !20
+  ; call void @llvm.lifetime.end.p0(ptr %agg.tmp.i.i.i.i), !noalias !20
+  ; call void @llvm.lifetime.end.p0(ptr %s.i.i.i.i) #10, !noalias !25
   %214 = getelementptr inbounds %class.anon.27, %class.anon.27* %106, i64 0, i32 1
   %215 = load i64, i64* @__csi_unit_load_base_id, align 8, !invariant.load !2
   %216 = add i64 %215, 1010
@@ -699,7 +705,7 @@ if.then.i6.i.i.i.i:                               ; preds = %invoke.cont4.i.i.i
   call void @__csan_store(i64 %223, i8* nonnull %small_n.i.i.i.i.i.i.i, i32 1, i64 2)
   store i8 -128, i8* %small_n.i.i.i.i.i.i.i, align 2, !noalias !20
   %224 = getelementptr inbounds %"struct.parlay::allocator.35", %"struct.parlay::allocator.35"* %alloc.i.i.i.i.i, i64 0, i32 0
-  call void @llvm.lifetime.start.p0i8(i64 1, i8* nonnull %224) #10, !noalias !20
+  ; call void @llvm.lifetime.start.p0(ptr %alloc.i.i.i.i.i) #10, !noalias !20
   %225 = load i64, i64* @__csi_func_id__ZN6parlay9allocatorISt4byteE8allocateEm, align 8
   call void @__csan_set_MAAP(i8 7, i64 %225)
   %226 = load i64, i64* @__csi_unit_callsite_base_id, align 8, !invariant.load !2
@@ -728,7 +734,7 @@ _ZN6parlay14_sequence_baseINS_8sequenceIcNS_9allocatorIcEEEENS2_IS4_EEE14_sequen
   %236 = getelementptr [6 x i8], [6 x i8]* %ref.tmp.sroa.4.0..sroa_idx5.i.i.i.i.i, i64 0, i64 0
   call void @__csan_store(i64 %235, i8* %236, i32 6, i64 8)
   store i48 0, i48* %ref.tmp.sroa.4.0..sroa_cast6.i.i.i.i.i, align 8, !tbaa.struct !31, !noalias !20
-  call void @llvm.lifetime.end.p0i8(i64 1, i8* nonnull %224) #10, !noalias !20
+  ; call void @llvm.lifetime.end.p0(ptr %alloc.i.i.i.i.i) #10, !noalias !20
   %237 = load i64, i64* @__csi_unit_load_base_id, align 8, !invariant.load !2
   %238 = add i64 %237, 1028
   call void @__csan_load(i64 %238, i8* nonnull %small_n.i.i.i.i.i.i.i, i32 1, i64 2)
@@ -1085,7 +1091,7 @@ _ZN6parlay14_sequence_baseIcNS_9allocatorIcEEED2Ev.exit41.i.i.i: ; preds = %.noe
 
 ehcleanup.i.i.i:                                  ; preds = %_ZN6parlay14_sequence_baseIcNS_9allocatorIcEEED2Ev.exit41.3.i.i.i, %_ZN6parlay14_sequence_baseIcNS_9allocatorIcEEED2Ev.exit29.i.i.i, %lpad.body.i.i.i
   %353 = bitcast [4 x %"class.parlay::sequence"]* %ref.tmp.i.i.i to i8*
-  call void @llvm.lifetime.end.p0i8(i64 60, i8* nonnull %353) #10, !noalias !20
+  ; call void @llvm.lifetime.end.p0(ptr %ref.tmp.i.i.i) #10, !noalias !20
   br label %ehcleanup24.i.i.i
 
 lpad21.i.i.i:                                     ; preds = %_ZN6parlay14_sequence_baseIcNS_9allocatorIcEEED2Ev.exit.3.i.i.i
@@ -1104,7 +1110,7 @@ lpad21.i.i.i:                                     ; preds = %_ZN6parlay14_sequen
 
 ehcleanup24.i.i.i:                                ; preds = %lpad21.i.i.i, %ehcleanup.i.i.i
   %359 = bitcast %"class.parlay::sequence.2"* %s.i.i.i to i8*
-  call void @llvm.lifetime.end.p0i8(i64 15, i8* nonnull %359) #10, !noalias !20
+  ; call void @llvm.lifetime.end.p0(ptr %s.i.i.i) #10, !noalias !20
   %flag.i.i.i.i.i11.i.i = getelementptr inbounds %"struct.std::pair.87", %"struct.std::pair.87"* %agg.tmp.i.i, i64 0, i32 0, i32 0, i32 0, i32 0, i32 1
   %bf.load.i.i.i.i.i12.i.i = load i8, i8* %flag.i.i.i.i.i11.i.i, align 2, !noalias !12
   %cmp.i.i.i.i.i13.i.i = icmp slt i8 %bf.load.i.i.i.i.i12.i.i, 0
@@ -1277,7 +1283,7 @@ call.i.i.i.i.i.noexc.i.i.3.i.i.i:                 ; preds = %if.then.i.i.i.3.i.i
   br label %_ZN6parlay14_sequence_baseIcNS_9allocatorIcEEED2Ev.exit.3.i.i.i
 
 _ZN6parlay14_sequence_baseIcNS_9allocatorIcEEED2Ev.exit.3.i.i.i: ; preds = %.noexc.i.i.3.i.i.i, %_ZN6parlay14_sequence_baseIcNS_9allocatorIcEEED2Ev.exit.2.i.i.i
-  call void @llvm.lifetime.end.p0i8(i64 60, i8* nonnull %116) #10, !noalias !20
+  ; call void @llvm.lifetime.end.p0(ptr %ref.tmp.i.i.i) #10, !noalias !20
   %430 = load i64, i64* @__csi_func_id__ZN6parlay7flattenINS_8sequenceINS1_IcNS_9allocatorIcEEEENS2_IS4_EEEEEEDaRKT_, align 8
   call void @__csan_set_MAAP(i8 7, i64 %430)
   call void @__csan_set_MAAP(i8 7, i64 %430)
@@ -1531,7 +1537,7 @@ invoke.cont.i.i:                                  ; preds = %_ZN6parlay14_sequen
   call void @__csan_before_call(i64 %517, i64 %515, i8 1, i64 0)
   call void @_ZN6parlay14_sequence_baseINS_8sequenceIcNS_9allocatorIcEEEENS2_IS4_EEED2Ev(%"struct.parlay::_sequence_base.3"* nonnull %514) #10
   call void @__csan_after_call(i64 %517, i64 %515, i8 1, i64 0)
-  call void @llvm.lifetime.end.p0i8(i64 15, i8* nonnull %115) #10, !noalias !20
+  ; call void @llvm.lifetime.end.p0(ptr %s.i.i.i) #10, !noalias !20
   %flag.i.i.i.i.i.i.i = getelementptr inbounds %"struct.std::pair.87", %"struct.std::pair.87"* %agg.tmp.i.i, i64 0, i32 0, i32 0, i32 0, i32 0, i32 1
   %bf.load.i.i.i.i.i.i.i = load i8, i8* %flag.i.i.i.i.i.i.i, align 2, !noalias !12
   %cmp.i.i.i.i.i.i.i = icmp sgt i8 %bf.load.i.i.i.i.i.i.i, -1
@@ -1613,7 +1619,7 @@ lpad.i.i.i21.i.i:                                 ; preds = %call.i.i.i.i.i.noex
   unreachable
 
 "_ZZN6parlay8sequenceINS0_IcNS_9allocatorIcEEEENS1_IS3_EEEC1IRZNS_3mapIRKNS0_ISt4pairIS3_mENS1_IS9_EEEEZ21writeHistogramsToFileSB_PcE3$_1EEDaOT_OT0_mEUlmE_EEmSH_NS5_18_from_function_tagEmENKUlmE_clEm.exit": ; preds = %.noexc.i.i.i8.i.i, %invoke.cont.i.i
-  call void @llvm.lifetime.end.p0i8(i64 24, i8* nonnull %101)
+  ; call void @llvm.lifetime.end.p0(ptr %agg.tmp.i.i)
   %small_n.i.i.i.i.i.i.i2.i = getelementptr inbounds %"class.parlay::sequence", %"class.parlay::sequence"* %92, i64 %__begin.0, i32 0, i32 0, i32 0, i32 1
   %544 = load i64, i64* @__csi_unit_store_base_id, align 8, !invariant.load !2
   %545 = add i64 %544, 564
@@ -1629,7 +1635,7 @@ lpad.i.i.i21.i.i:                                 ; preds = %call.i.i.i.i.i.noex
   %552 = bitcast %"class.parlay::sequence"* %ref.tmp.i to i8*
   call void @__csan_large_load(i64 %551, i8* nonnull %552, i64 15, i64 8)
   call void @llvm.memcpy.p0i8.p0i8.i64(i8* nonnull align 1 dereferenceable(15) %546, i8* nonnull align 8 dereferenceable(15) %93, i64 15, i1 false) #10
-  call void @llvm.lifetime.end.p0i8(i64 15, i8* nonnull %93) #10
+  ; call void @llvm.lifetime.end.p0(ptr %ref.tmp.i) #10
   call void @llvm.taskframe.end(token %tf.i)
   call void @__csan_task_exit(i64 %5, i64 %3, i64 %1, i8 0, i64 1)
   reattach within %syncreg, label %pfor.inc
@@ -1704,8 +1710,16 @@ csi.cleanup:                                      ; preds = %sync.continue
 
 ; CHECK-LABEL: define {{.*}}void @"_ZN6parlay12parallel_forIZNS_8sequenceINS1_IcNS_9allocatorIcEEEENS2_IS4_EEEC1IRZNS_3mapIRKNS1_ISt4pairIS4_mENS2_ISA_EEEEZ21writeHistogramsToFileSC_PcE3$_1EEDaOT_OT0_mEUlmE_EEmSI_NS6_18_from_function_tagEmEUlmE_EEvmmSH_mb.outline_pfor.body.tf.tf.tf.tf.otf1"(
 ; CHECK: lpad.i.loopexit.split-lp.i.i.i.csi-split.csi-split.otf1:
-; CHECK-NEXT: %[[DETCONT_ID:.+]] = phi i64 [ %{{.+}}, %pfor.inc.i.i.2.i.i.i.otf1.split ], [ %{{.+}}, %pfor.inc.i.i.1.i.i.i.otf1.split ], [ %{{.+}}, %pfor.inc.i.i.i.i.i.otf1.split ], [ %{{.+}}, %_ZN6parlay14_sequence_baseINS_8sequenceIcNS_9allocatorIcEEEENS2_IS4_EEE14_sequence_impl19initialize_capacityEm.exit.i.i.i.i.otf1.split ]
-; CHECK-NEXT: %[[DETACH_ID:.+]] = phi i64 [ %{{.+}}, %pfor.inc.i.i.2.i.i.i.otf1.split ], [ %{{.+}}, %pfor.inc.i.i.1.i.i.i.otf1.split ], [ %{{.+}}, %pfor.inc.i.i.i.i.i.otf1.split ], [ %{{.+}}, %_ZN6parlay14_sequence_baseINS_8sequenceIcNS_9allocatorIcEEEENS2_IS4_EEE14_sequence_impl19initialize_capacityEm.exit.i.i.i.i.otf1.split ]
+; CHECK-NEXT: %[[DETCONT_ID:.+]] = phi i64
+; CHECK-SAME: [ %{{.+}}, %pfor.inc.i.i.2.i.i.i.otf1.split ]
+; CHECK-SAME: [ %{{.+}}, %pfor.inc.i.i.1.i.i.i.otf1.split ]
+; CHECK-SAME: [ %{{.+}}, %_ZN6parlay14_sequence_baseINS_8sequenceIcNS_9allocatorIcEEEENS2_IS4_EEE14_sequence_impl19initialize_capacityEm.exit.i.i.i.i.otf1.split ]
+; CHECK-SAME: [ %{{.+}}, %pfor.inc.i.i.i.i.i.otf1.split ]
+; CHECK-NEXT: %[[DETACH_ID:.+]] = phi i64
+; CHECK-SAME: [ %{{.+}}, %pfor.inc.i.i.2.i.i.i.otf1.split ]
+; CHECK-SAME: [ %{{.+}}, %pfor.inc.i.i.1.i.i.i.otf1.split ]
+; CHECK-SAME: [ %{{.+}}, %_ZN6parlay14_sequence_baseINS_8sequenceIcNS_9allocatorIcEEEENS2_IS4_EEE14_sequence_impl19initialize_capacityEm.exit.i.i.i.i.otf1.split ]
+; CHECK-SAME: [ %{{.+}}, %pfor.inc.i.i.i.i.i.otf1.split ]
 ; CHECK-NEXT: landingpad
 
 ; CHECK: @__csan_detach_continue(i64 %[[DETCONT_ID]], i64 %[[DETACH_ID]]
@@ -1735,12 +1749,12 @@ declare dso_local i8* @_ZN6parlay9allocatorISt4byteE8allocateEm(%"struct.parlay:
 declare hidden void @__clang_call_terminate(i8*) local_unnamed_addr #3
 
 ; Function Attrs: argmemonly nounwind willreturn
-declare void @llvm.lifetime.start.p0i8(i64 immarg, i8* nocapture) #4
+declare void @llvm.lifetime.start.p0(ptr) #4
 
 declare dso_local i32 @__gxx_personality_v0(...)
 
 ; Function Attrs: argmemonly nounwind willreturn
-declare void @llvm.lifetime.end.p0i8(i64 immarg, i8* nocapture) #4
+declare void @llvm.lifetime.end.p0(ptr) #4
 
 ; Function Attrs: argmemonly nounwind willreturn
 declare void @llvm.memcpy.p0i8.p0i8.i64(i8* noalias nocapture writeonly, i8* noalias nocapture readonly, i64, i1 immarg) #4

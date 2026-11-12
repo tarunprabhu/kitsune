@@ -10,7 +10,8 @@ from lit.llvm.subst import ToolSubst
 config.name = "kitsune"
 
 # The test format to use to interpret tests.
-config.test_format = lit.formats.ShTest(not llvm_config.use_lit_shell)
+config.test_format = lit.formats.ShTest(execute_external=True,
+                                        force_execute_external=True)
 
 # A list of file extensions to treat as test files. We could probably reduce
 # this list somewhat and spread it out among the lit.local files since some of

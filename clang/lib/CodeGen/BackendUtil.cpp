@@ -672,63 +672,6 @@ static OptimizationLevel mapToLevel(const CodeGenOptions &Opts) {
   }
 }
 
-bool EmitAssemblyHelper::AddEmitPasses(legacy::PassManager &CodeGenPasses,
-                                       BackendAction Action,
-                                       raw_pwrite_stream &OS,
-                                       raw_pwrite_stream *DwoOS) {
-  // Add LibraryInfo.
-  std::unique_ptr<TargetLibraryInfoImpl> TLII(
-      llvm::driver::createTLII(TargetTriple, CodeGenOpts.getVecLib()));
-  CodeGenPasses.add(new TargetLibraryInfoWrapperPass(*TLII));
-
-  if (TTOpts.init(KitOpts, CodeGenOpts.OptimizationLevel,
-                  CodeGenOpts.OptimizeSize, getFPOpFusionMode()))
-    populateKitCodeGenPasses(CodeGenPasses, TTOpts);
-
-  // Normal mode, emit a .s or .o file by running the code generator. Note,
-  // this also adds codegenerator level optimization passes.
-  CodeGenFileType CGFT = getCodeGenFileType(Action);
-
-  if (TM->addPassesToEmitFile(CodeGenPasses, OS, DwoOS, CGFT,
-                              /*DisableVerify=*/!CodeGenOpts.VerifyModule)) {
-    Diags.Report(diag::err_fe_unable_to_interface_with_target);
-    return false;
-  }
-
-  return true;
-}
-
-static OptimizationLevel mapToLevel(const CodeGenOptions &Opts) {
-  switch (Opts.OptimizationLevel) {
-  default:
-    llvm_unreachable("Invalid optimization level!");
-
-  case 0:
-    return OptimizationLevel::O0;
-
-  case 1:
-    return OptimizationLevel::O1;
-
-  case 2:
-    switch (Opts.OptimizeSize) {
-    default:
-      llvm_unreachable("Invalid optimization level for size!");
-
-    case 0:
-      return OptimizationLevel::O2;
-
-    case 1:
-      return OptimizationLevel::Os;
-
-    case 2:
-      return OptimizationLevel::Oz;
-    }
-
-  case 3:
-    return OptimizationLevel::O3;
-  }
-}
-
 static void addKCFIPass(const Triple &TargetTriple, const LangOptions &LangOpts,
                         PassBuilder &PB) {
   // If the back-end supports KCFI operand bundle lowering, skip KCFIPass.
@@ -1337,9 +1280,13 @@ void EmitAssemblyHelper::RunCodegenPipelineLegacy(
   CodeGenPasses.add(
       createTargetTransformInfoWrapperPass(getTargetIRAnalysis()));
   // Add LibraryInfo.
-  std::unique_ptr<TargetLibraryInfoImpl> TLII(llvm::driver::createTLII(
-      TargetTriple, CodeGenOpts.getVecLib(), KitsuneOpts.getTapirTarget()));
+  std::unique_ptr<TargetLibraryInfoImpl> TLII(
+      llvm::driver::createTLII(TargetTriple, CodeGenOpts.getVecLib()));
   CodeGenPasses.add(new TargetLibraryInfoWrapperPass(*TLII));
+
+  if (TTOpts.init(KitOpts, CodeGenOpts.OptimizationLevel,
+                  CodeGenOpts.OptimizeSize, getFPOpFusionMode()))
+    populateKitCodeGenPasses(CodeGenPasses, TTOpts);
 
   const llvm::TargetOptions &Options = TM->Options;
   CodeGenPasses.add(new RuntimeLibraryInfoWrapper(

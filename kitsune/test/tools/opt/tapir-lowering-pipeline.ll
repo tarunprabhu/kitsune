@@ -25,48 +25,46 @@
 ;
 ; RUN: opt -passes='tapir-lowering<O1>' --tapir=serial -debug-pass-manager %s \
 ; RUN:     -disable-output 2>&1 \
-; RUN:     | FileCheck %s -check-prefix O123S
+; RUN:     | FileCheck %s -check-prefix O123
 ;
 ; RUN: opt -passes='tapir-lowering<O2>' --tapir=serial -debug-pass-manager %s \
 ; RUN:     -disable-output 2>&1 \
-; RUN:     | FileCheck %s -check-prefix O123S
+; RUN:     | FileCheck %s -check-prefix O123
 ;
 ; RUN: opt -passes='tapir-lowering<O3>' --tapir=serial -debug-pass-manager %s \
 ; RUN:     -disable-output 2>&1 \
-; RUN:     | FileCheck %s -check-prefix O123S
+; RUN:     | FileCheck %s -check-prefix O123
 ;
-; RUN: opt -passes='tapir-lowering<Os>' --tapir=serial -debug-pass-manager %s \
-; RUN:     -disable-output 2>&1 \
-; RUN:     | FileCheck %s -check-prefix O123S
+; RUN: not opt -passes='tapir-lowering<Os>' --tapir=serial -debug-pass-manager \
+; RUN:     -disable-output %s 2>&1 \
+; RUN:     | FileCheck %s -check-prefix ERROR
 ;
 ; RUN: not opt -passes='tapir-lowering<Oz>' --tapir=serial -debug-pass-manager \
 ; RUN:     -disable-output %s 2>&1 \
 ; RUN:     | FileCheck %s -check-prefix ERROR
 ;
-; ERROR: unsupported optimization level '-Oz'
+; ERROR: The optimization level "{{.+}}" is no longer supported
 ;
-; O123S-NOT:  Running pass:     SerializePass
-; O123S-NOT:  Running pass:     SecondaryIVEliminationPass
-; O123S-NOT:  Running pass:     PrepareTapirLoops
-; O123S-NOT:  Running pass:     LocalizeReductionsPass
-; O123S-NOT:  Running pass:     ComputeGPULoopBlockPass
+; O123-NOT:    Running pass:     SerializePass
+; O123-NOT:    Running pass:     PrepareTapirLoops
+; O123-NOT:    Running pass:     LocalizeReductionsPass
 ;
-; O123S:      Running pass:     SecondaryIVEliminationPass
-; O123S:      Running pass:     PreLowerVerificationPass
-; O123S:      Running pass:     PreLowerAnnotatePass
-; O123S:      Running pass:     TapirLoopNormalizePass
-; O123S:      Running pass:     LoopSpawningPass
-; O123S:      Running pass:     HoistAllocasPass
-; O123S:      Running pass:     TapirToTargetPass
+; O123:        Running pass:     SecondaryIVEliminationPass
+; O123:        Running pass:     PreLowerVerificationPass
+; O123:        Running pass:     PreLowerAnnotatePass
+; O123:        Running pass:     TapirLoopNormalizePass
+; O123:        Running pass:     LoopSpawningPass
+; O123:        Running pass:     HoistAllocasPass
+; O123:        Running pass:     TapirToTargetPass
 ;
-; O123S-NOT:  Running pass:     PrefetchForDevicePass
-; O123S-NOT:  Running pass:     EmbLowerIntrinsicsPass
-; O123S-NOT:  Running pass:     EmbResolveLibDeviceCallsPass
-; O123S-NOT:  Running pass:     EmbPreparePass
-; O123S-NOT:  Running pass:     EmbLinkLibDeviceBitcodePass
-; O123S-NOT:  Running pass:     EmbOptimizePass
-; O123S-NOT:  Running pass:     RecomputeKernelPropertiesPass
-; O123S-NOT:  Running pass:     GenerateCtorsPass
+; O123-NOT:    Running pass:     PrefetchForDevicePass
+; O123-NOT:    Running pass:     EmbLowerIntrinsicsPass
+; O123-NOT:    Running pass:     EmbResolveLibDeviceCallsPass
+; O123-NOT:    Running pass:     EmbPreparePass
+; O123-NOT:    Running pass:     EmbLinkLibDeviceBitcodePass
+; O123-NOT:    Running pass:     EmbOptimizePass
+; O123-NOT:    Running pass:     RecomputeKernelPropertiesPass
+; O123-NOT:    Running pass:     GenerateCtorsPass
 ;
 ; ------------------------------------------------------------------------------
 

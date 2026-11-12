@@ -271,10 +271,8 @@ Error TTOptions::validate() const {
 }
 
 void TTOptions::setOptznLevelFrom(OptimizationLevel optLevel) {
-  unsigned speedupLevel = optLevel.getSpeedupLevel();
-  unsigned sizeLevel = optLevel.getSizeLevel();
-  OptznLevel optznLevel = createOptznLevelFrom(speedupLevel, sizeLevel);
-
+  unsigned speedupLevel = (unsigned)optLevel;
+  OptznLevel optznLevel = createOptznLevelFrom(speedupLevel, /*sizeLevel=*/0);
   setOptznLevel(optznLevel);
 }
 

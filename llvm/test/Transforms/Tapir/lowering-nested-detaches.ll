@@ -110,7 +110,10 @@ synced22:                                         ; preds = %loop_exit
 declare token @llvm.syncregion.start() #1
 
 ; CHECK-LABEL: define internal fastcc void @kernel_anon.outline_det.achd18.otd4(
-; CHECK: getelementptr
+; CHECK: getelementptr inbounds [66528 x i8]
+; CHECK-NEXT: getelementptr inbounds [2772 x i8]
+; CHECK-NEXT: getelementptr inbounds [132 x i8]
+; CHECK-NEXT: getelementptr inbounds [4 x i8]
 ; CHECK-NEXT: load
 ; CHECK-NEXT: fmul
 ; CHECK-NEXT: load

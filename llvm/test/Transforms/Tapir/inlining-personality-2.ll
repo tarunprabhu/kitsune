@@ -6,6 +6,13 @@
 ; default.  Revisit this test if the workaround is replaced.
 ;
 ; RUN: opt < %s -passes="always-inline" -S | FileCheck %s
+;
+; KITSUNE FIXME: In 23.x, we have removed tapir's addition to the inliner that
+; allows inlining even when personality functions do not match since it is
+; unlikely that we will support exceptions in Kitsune. We keep this test around
+; in case we change our minds about this.;
+;
+; XFAIL: *
 
 %"class.std::__1::basic_string" = type { %"class.std::__1::__compressed_pair" }
 %"class.std::__1::__compressed_pair" = type { %"struct.std::__1::__compressed_pair_elem" }

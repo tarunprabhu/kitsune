@@ -17,7 +17,7 @@
 using namespace llvm;
 
 static cl::Option &getOption(StringRef spelling) {
-  StringMap<cl::Option *> clOpts = cl::getRegisteredOptions();
+  DenseMap<StringRef, cl::Option *> clOpts = cl::getRegisteredOptions();
   assert(clOpts.count(spelling) && "Option must have been registered");
 
   return *clOpts[spelling];

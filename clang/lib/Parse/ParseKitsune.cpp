@@ -64,7 +64,8 @@ StmtResult Parser::ParseSpawnStatement() {
 ///         '_kitsune_forall' '(' expr ';' expr ';' expr ')' statement
 ///         '_kitsune_forall' '(' declaration expr ';' expr ';' expr ')'
 ///         statement
-StmtResult Parser::ParseForallStatement(SourceLocation *TrailingElseLoc) {
+StmtResult Parser::ParseForallStatement(SourceLocation *TrailingElseLoc,
+                                        LabelDecl *PrecedingLabel) {
   assert(Tok.is(tok::kw__kitsune_forall) && "Not a forall stmt!");
   SourceLocation ForLoc = ConsumeToken(); // eat the 'for'.
 
@@ -78,8 +79,8 @@ StmtResult Parser::ParseForallStatement(SourceLocation *TrailingElseLoc) {
     return StmtError();
   }
 
-  bool C99orCXXorObjC =
-      getLangOpts().C99 || getLangOpts().CPlusPlus || getLangOpts().ObjC;
+  bool C99orCXXorObjC = getLangOpts().C99 || getLangOpts().CPlusPlus ||
+    getLangOpts().ObjC;
 
   // C99 6.8.5p5 - In C99, the for statement is a block.  This is not
   // the case for C90.  Start the loop scope.
@@ -96,12 +97,13 @@ StmtResult Parser::ParseForallStatement(SourceLocation *TrailingElseLoc) {
   // Names declared in the for-init-statement are in the same declarative-region
   // as those declared in the condition.
   //
-  unsigned ScopeFlags = 0;
-  if (C99orCXXorObjC)
-    ScopeFlags = Scope::DeclScope | Scope::ControlScope;
-
-  ParseScope ForScope(this, ScopeFlags);
-
+  // Always enter a ControlScope, even in C90 mode; this is harmless as it
+  // doesn't cause declarations to bind to this scope. We use this to avoid
+  // diagnosing a comma operator in e.g. the third part of a for loop when
+  // '-Wcomma' is enabled.
+  unsigned ScopeFlags = Scope::ControlScope |
+                        (C99orCXXorObjC ? Scope::DeclScope : Scope::NoScope);
+  ParseScope ForallScope(this, ScopeFlags);
   BalancedDelimiterTracker T(*this, tok::l_paren);
   T.consumeOpen();
 
@@ -113,12 +115,26 @@ StmtResult Parser::ParseForallStatement(SourceLocation *TrailingElseLoc) {
   ExprResult Collection;
   ForRangeInfo ForRangeInfo;
   FullExprArg ThirdPart(Actions);
+  ForRangeInfo.ExpansionStmt = nullptr;
 
+  // RAII helper to enter a context if we're parsing an expansion statement.
+  //
+  // This is required because some parts of an expansion statement (e.g. the
+  // init-statement) are not in a dependent context and must thus be parsed in
+  // the parent context.
+  struct [[nodiscard]] ExpansionStmtContextRAII : Sema::ContextRAII {
+    ExpansionStmtContextRAII(Sema &S, struct ForRangeInfo &Info,
+                             DeclContext *Ctx)
+        : ContextRAII(S, Info.ExpansionStmt ? Ctx : S.CurContext,
+                      /*NewThis=*/false) {}
+  };
+
+  assert(!Actions.CurContext->isExpansionStmt());
   if (Tok.is(tok::code_completion)) {
+    cutOffParsing();
     Actions.CodeCompletion().CodeCompleteOrdinaryName(
         getCurScope(), C99orCXXorObjC ? SemaCodeCompletion::PCC_ForInit
                                       : SemaCodeCompletion::PCC_Expression);
-    cutOffParsing();
     return StmtError();
   }
 
@@ -137,26 +153,30 @@ StmtResult Parser::ParseForallStatement(SourceLocation *TrailingElseLoc) {
     ConsumeToken();
   } else if (getLangOpts().CPlusPlus && Tok.is(tok::identifier) &&
              isForRangeIdentifier()) {
+    // Note: This path is solely for error recovery if a user omits the type-id
+    // and writes 'for (x : ...)'; normally, the for-range-declaration is parsed
+    // in the 'if (isForInitDeclaration())' branch below.
     ProhibitAttributes(attrs);
     IdentifierInfo *Name = Tok.getIdentifierInfo();
     SourceLocation Loc = ConsumeToken();
     MaybeParseCXX11Attributes(attrs);
 
     ForRangeInfo.ColonLoc = ConsumeToken();
-    if (Tok.is(tok::l_brace))
-      ForRangeInfo.RangeExpr = ParseBraceInitializer();
-    else
-      ForRangeInfo.RangeExpr = ParseExpression();
+    ParseForRangeInitializerAfterColon(ForRangeInfo, /*VarDeclSpec=*/nullptr);
 
     Diag(Loc, diag::err_for_range_identifier)
+        << (ForRangeInfo.ExpansionStmt != nullptr)
         << ((getLangOpts().CPlusPlus11 && !getLangOpts().CPlusPlus17)
                 ? FixItHint::CreateInsertion(Loc, "auto &&")
                 : FixItHint());
 
-    ForRangeInfo.LoopVar =
-        Actions.ActOnCXXForRangeIdentifier(getCurScope(), Loc, Name, attrs);
+    if (!ForRangeInfo.ExpansionStmt)
+      ForRangeInfo.LoopVar =
+          Actions.ActOnCXXForRangeIdentifier(getCurScope(), Loc, Name, attrs);
   } else if (isForInitDeclaration()) { // for (int X = 4;
     ParenBraceBracketBalancer BalancerRAIIObj(*this);
+    ExpansionStmtContextRAII EnterParentContext{
+        Actions, ForRangeInfo, Actions.CurContext->getParent()};
 
     // Parse declaration, which eats the ';'.
     if (!C99orCXXorObjC) { // Use of C99-style for loops in C90 mode?
@@ -164,15 +184,21 @@ StmtResult Parser::ParseForallStatement(SourceLocation *TrailingElseLoc) {
       Diag(Tok, diag::warn_gcc_variable_decl_in_for_loop);
     }
     DeclGroupPtrTy DG;
-    if (Tok.is(tok::kw_using)) {
+    SourceLocation DeclStart = Tok.getLocation(), DeclEnd;
+    if (!getLangOpts().CPlusPlus &&
+        Tok.isOneOf(tok::kw_static_assert, tok::kw__Static_assert)) {
+      ProhibitAttributes(attrs);
+      Decl *D = ParseStaticAssertDeclaration(DeclEnd);
+      DG = Actions.ConvertDeclToDeclGroup(D);
+      FirstPart = Actions.ActOnDeclStmt(DG, DeclStart, Tok.getLocation());
+    } else if (Tok.is(tok::kw_using)) {
       DG = ParseAliasDeclarationInInitStatement(DeclaratorContext::ForInit,
                                                 attrs);
+      FirstPart = Actions.ActOnDeclStmt(DG, DeclStart, Tok.getLocation());
     } else {
       // In C++0x, "for (T NS:a" might not be a typo for ::
-      bool MightBeForRangeStmt = getLangOpts().CPlusPlus;
+      bool MightBeForRangeStmt = getLangOpts().CPlusPlus || getLangOpts().ObjC;
       ColonProtectionRAIIObject ColonProtection(*this, MightBeForRangeStmt);
-
-      SourceLocation DeclStart = Tok.getLocation(), DeclEnd;
       ParsedAttributes DeclSpecAttrs(AttrFactory);
       DG = ParseSimpleDeclaration(
           DeclaratorContext::ForInit, DeclEnd, attrs, DeclSpecAttrs, false,
@@ -192,9 +218,9 @@ StmtResult Parser::ParseForallStatement(SourceLocation *TrailingElseLoc) {
         ConsumeToken(); // consume 'in'
 
         if (Tok.is(tok::code_completion)) {
+          cutOffParsing();
           Actions.CodeCompletion().CodeCompleteObjCForCollection(getCurScope(),
                                                                  DG);
-          cutOffParsing();
           return StmtError();
         }
         Collection = ParseExpression();
@@ -203,6 +229,9 @@ StmtResult Parser::ParseForallStatement(SourceLocation *TrailingElseLoc) {
       }
     }
   } else {
+    // An expression here should not be inside the expansion statement context.
+    ExpansionStmtContextRAII EnterParentContext{
+        Actions, ForRangeInfo, Actions.CurContext->getParent()};
     ProhibitAttributes(attrs);
     Value = ParseExpression();
 
@@ -230,9 +259,9 @@ StmtResult Parser::ParseForallStatement(SourceLocation *TrailingElseLoc) {
       ConsumeToken(); // consume 'in'
 
       if (Tok.is(tok::code_completion)) {
+        cutOffParsing();
         Actions.CodeCompletion().CodeCompleteObjCForCollection(getCurScope(),
                                                                nullptr);
-        cutOffParsing();
         return StmtError();
       }
       Collection = ParseExpression();
@@ -241,7 +270,7 @@ StmtResult Parser::ParseForallStatement(SourceLocation *TrailingElseLoc) {
       // User tried to write the reasonable, but ill-formed, for-range-statement
       //   for (expr : expr) { ... }
       Diag(Tok, diag::err_for_range_expected_decl)
-          << FirstPart.get()->getSourceRange();
+          << false << FirstPart.get()->getSourceRange();
       SkipUntil(tok::r_paren, StopBeforeMatch);
       SecondPart = Sema::ConditionError();
     } else {
@@ -270,11 +299,12 @@ StmtResult Parser::ParseForallStatement(SourceLocation *TrailingElseLoc) {
         // for-range-declaration next.
         bool MightBeForRangeStmt = !ForRangeInfo.ParsedForRangeDecl();
         ColonProtectionRAIIObject ColonProtection(*this, MightBeForRangeStmt);
+        SourceLocation SecondPartStart = Tok.getLocation();
+        Sema::ConditionKind CK = Sema::ConditionKind::Boolean;
         SecondPart = ParseCXXCondition(
-            nullptr, ForLoc, Sema::ConditionKind::Boolean,
+            /*InitStmt=*/nullptr, ForLoc, CK,
             // FIXME: recovery if we don't see another semi!
-            /*MissingOK=*/true, MightBeForRangeStmt ? &ForRangeInfo : nullptr,
-            /*EnterForConditionScope*/ true);
+            /*MissingOK=*/true, MightBeForRangeStmt ? &ForRangeInfo : nullptr);
 
         if (ForRangeInfo.ParsedForRangeDecl()) {
           Diag(FirstPart.get() ? FirstPart.get()->getBeginLoc()
@@ -290,10 +320,20 @@ StmtResult Parser::ParseForallStatement(SourceLocation *TrailingElseLoc) {
                 << FixItHint::CreateRemoval(EmptyInitStmtSemiLoc);
           }
         }
-      } else {
-        // We permit 'continue' and 'break' in the condition of a for loop.
-        getCurScope()->AddFlags(Scope::BreakScope | Scope::ContinueScope);
 
+        if (SecondPart.isInvalid()) {
+          ExprResult CondExpr = Actions.CreateRecoveryExpr(
+              SecondPartStart,
+              Tok.getLocation() == SecondPartStart ? SecondPartStart
+                                                   : PrevTokLocation,
+              {}, Actions.PreferredConditionType(CK));
+          if (!CondExpr.isInvalid())
+            SecondPart = Actions.ActOnCondition(getCurScope(), ForLoc,
+                                                CondExpr.get(), CK,
+                                                /*MissingOK=*/false);
+        }
+
+      } else {
         ExprResult SecondExpr = ParseExpression();
         if (SecondExpr.isInvalid())
           SecondPart = Sema::ConditionError();
@@ -305,19 +345,12 @@ StmtResult Parser::ParseForallStatement(SourceLocation *TrailingElseLoc) {
     }
   }
 
-  // Enter a break / continue scope, if we didn't already enter one while
-  // parsing the second part.
-  if (!getCurScope()->isContinueScope())
-    getCurScope()->AddFlags(Scope::BreakScope | Scope::ContinueScope);
-
   // Parse the third part of the for statement.
   if (!ForEach && !ForRangeInfo.ParsedForRangeDecl()) {
     if (Tok.isNot(tok::semi)) {
-      if (!SecondPart.isInvalid()) {
+      if (!SecondPart.isInvalid())
         Diag(Tok, diag::err_expected_semi_for);
-      } else
-        // Skip until semicolon or rparen, don't consume it.
-        SkipUntil(tok::r_paren, StopAtSemi | StopBeforeMatch);
+      SkipUntil(tok::r_paren, StopAtSemi | StopBeforeMatch);
     }
 
     if (Tok.is(tok::semi)) {
@@ -355,10 +388,9 @@ StmtResult Parser::ParseForallStatement(SourceLocation *TrailingElseLoc) {
         getCurScope(), ForLoc, CoawaitLoc, FirstPart.get(),
         ForRangeInfo.LoopVar.get(), ForRangeInfo.ColonLoc,
         ForRangeInfo.RangeExpr.get(), T.getCloseLocation(), Sema::BFRK_Build);
-
+  } else if (ForEach) {
     // Similarly, we need to do the semantic analysis for a for-range
     // statement immediately in order to close over temporaries correctly.
-  } else if (ForEach) {
     ForEachStmt = Actions.ObjC().ActOnObjCForCollectionStmt(
         ForLoc, FirstPart.get(), Collection.get(), T.getCloseLocation());
   } else {
@@ -368,6 +400,10 @@ StmtResult Parser::ParseForallStatement(SourceLocation *TrailingElseLoc) {
       Actions.OpenMP().ActOnOpenMPLoopInitialization(ForLoc, FirstPart.get());
     }
   }
+
+  // Set this only right before parsing the body to disallow break/continue in
+  // the other parts.
+  getCurScope()->EnterLoopBody(PrecedingLabel);
 
   // C99 6.8.5p5 - In C99, the body of the for statement is a scope, even if
   // there is no compound stmt.  C90 does not have this clause.  We only do this
@@ -397,7 +433,7 @@ StmtResult Parser::ParseForallStatement(SourceLocation *TrailingElseLoc) {
   InnerScope.Exit();
 
   // Leave the for-scope.
-  ForScope.Exit();
+  ForallScope.Exit();
 
   if (Body.isInvalid())
     return StmtError();

@@ -19,7 +19,7 @@ using namespace llvm;
 const SCEV *llvm::getNonMatchingOperand(const SCEV *sc, const SCEV *match) {
   assert(sc->operands().size() == 2 && "SCEV must have exactly two operands");
 
-  ArrayRef<const SCEV*> scOps = sc->operands();
+  ArrayRef<SCEVUse> scOps = sc->operands();
   const SCEV *sc0 = scOps[0];
   const SCEV *sc1 = scOps[1];
   if (sc0 == match)

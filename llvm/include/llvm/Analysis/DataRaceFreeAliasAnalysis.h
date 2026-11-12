@@ -48,6 +48,12 @@ public:
                            AAQueryInfo &AAQI);
   ModRefInfo getModRefInfo(const CallBase *Call1, const CallBase *Call2,
                            AAQueryInfo &AAQI);
+  // We should not have to specialize this. It should have been inherited from
+  // AAResultBase, but, for some reason, it is not visible.
+  ModRefInfo getModRefInfo(const FenceInst *F, const MemoryLocation &Loc,
+                           AAQueryInfo &AAQI) {
+    return ModRefInfo::ModRef;
+  }
 };
 
 /// Analysis pass providing a never-invalidated alias analysis result.

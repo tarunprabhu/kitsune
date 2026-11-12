@@ -30,6 +30,8 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
 
+#include "llvm/Support/IOSandbox.h"
+
 #define DEBUG_TYPE "emb-optimize"
 
 using namespace llvm;
@@ -58,8 +60,8 @@ static OptimizationLevel mapToOptimizationLevel(OptznLevel optznLevel) {
   case OptznLevel::O1: return OptimizationLevel::O1;
   case OptznLevel::O2: return OptimizationLevel::O2;
   case OptznLevel::O3: return OptimizationLevel::O3;
-  case OptznLevel::Os: return OptimizationLevel::Os;
-  case OptznLevel::Oz: return OptimizationLevel::Oz;
+  case OptznLevel::Os: return OptimizationLevel::O2;
+  case OptznLevel::Oz: return OptimizationLevel::O2;
   }
   llvm_unreachable("mapToOptimizationLevel: OptznLevel not handled");
 }
@@ -102,6 +104,9 @@ public:
     OptimizationLevel optLevel = mapToOptimizationLevel(optznLevel);
     PipelineTuningOptions pto = getPipelineTuningOptions(optLevel);
 
+    // It is not clear why we need to disable the sandbox before creating a
+    // pass builder. Should really figure it out.
+    sys::sandbox::ScopedSetting disableSandbox = sys::sandbox::scopedDisable();
     PassBuilder pb(tm, pto);
     pb.registerModuleAnalyses(mam);
     pb.registerCGSCCAnalyses(cgam);
@@ -130,7 +135,7 @@ class EmbOptimizeCuda : public EmbOptimize {
 protected:
   PipelineTuningOptions
   getPipelineTuningOptions(OptimizationLevel optLevel) override final {
-    unsigned speedupLevel = optLevel.getSpeedupLevel();
+    unsigned speedupLevel = (unsigned)optLevel;
     PipelineTuningOptions pto;
     pto.LoopUnrolling = speedupLevel > 1;
     pto.LoopInterleaving = speedupLevel > 2;
@@ -150,7 +155,7 @@ class EmbOptimizeHip : public EmbOptimize {
 protected:
   PipelineTuningOptions
   getPipelineTuningOptions(OptimizationLevel optLevel) override final {
-    unsigned speedupLevel = optLevel.getSpeedupLevel();
+    unsigned speedupLevel = (unsigned)optLevel;
     PipelineTuningOptions pto;
     pto.LoopUnrolling = speedupLevel > 1;
     pto.LoopInterleaving = speedupLevel > 2;

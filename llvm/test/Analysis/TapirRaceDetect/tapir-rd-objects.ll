@@ -1,4 +1,13 @@
-; RUN: opt < %s -passes='print<race-detect>' -aa-pipeline=default -evaluate-aa-metadata -disable-output 2>&1 | FileCheck %s
+; KITSUNE FIXME: Tapir's race detector has been broken since llvm/23.x and must
+; be fixed. We don't want to mark it as xfail, so we check for a crash with a
+; custom prefix. When we fix the race detector, remove --check-prefix. In that
+; case, opt should return 0.
+;
+; RUN: not --crash \
+; RUN:     opt < %s -passes='print<race-detect>' -aa-pipeline=default -evaluate-aa-metadata -disable-output 2>&1 | FileCheck %s --check-prefix=UNREACHABLE
+;
+; UNREACHABLE: has been broken since 23.x and needs to be fixed
+; UNREACHABLE: UNREACHABLE executed
 
 target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"

@@ -12,38 +12,17 @@
 ;     bitcode contains a function named "f"
 ;
 ; ------------------------------------------------------------------------------
-; RUN: ENC_2=`%kit-enc --tapir=cuda %s`
-; RUN: MAX_2=`echo "${ENC_2}" \
-; RUN:     | tail -n 1 \
-; RUN:     | grep -oE "^[\!][0-9]+" \
-; RUN:     | tail -c +2`
-; RUN: KPID_2=`echo "${MAX_2} + 1" \
-; RUN:     | bc`
-; RUN: KP_2=`echo "${KPID_2} + 1" \
-; RUN:     | bc`
-;
-; RUN: echo "${ENC_2}" \
-; RUN:     | sed "\$a\@0 = constant i32 0, \!kit.gv \!${KPID_2}" \
-; RUN:     | sed "\$a\\!${KPID_2} = distinct \!\{\!${KPID_2}, \!${KP_2}\}" \
-; RUN:     | sed "\$a\\!${KP_2} = \!{\!\"kit.gv.kernel.properties\", i32 2, \!\"g\"\}" \
-; RUN:     | not llvm-as -o /dev/null 2>&1 \
-; RUN:     | FileCheck %s
-;
-; ------------------------------------------------------------------------------
-; RUN: ENC_4=`%kit-enc --tapir=hip %s`
-; RUN: MAX_4=`echo "${ENC_4}" \
-; RUN:     | tail -n 1 \
-; RUN:     | grep -oE "^[\!][0-9]+" \
-; RUN:     | tail -c +2`
-; RUN: KPID_4=`echo "${MAX_4} + 1" \
-; RUN:     | bc`
-; RUN: KP_4=`echo "${KPID_4} + 1" \
-; RUN:     | bc`
-;
-; RUN: echo "${ENC_4}" \
-; RUN:     | sed "\$a\@0 = constant i32 0, \!kit.gv \!${KPID_4}" \
-; RUN:     | sed "\$a\\!${KPID_4} = distinct \!\{\!${KPID_4}, \!${KP_4}\}" \
-; RUN:     | sed "\$a\\!${KP_4} = \!{\!\"kit.gv.kernel.properties\", i32 4, \!\"g\"\}" \
+; RUN: %kit-enc --tapir=cuda %s \
+; RUN:     | grep -vE "[\!][0-9]+ = " \
+; RUN:     | grep -vE "^$" \
+; RUN:     | sed '2s/\!2$/\!1/' \
+; RUN:     | sed '2s/$/\n@kp = constant { i64, i64, i64, i64 } zeroinitializer, !kit.gv !2/' \
+; RUN:     | sed '3s/$/\n!0 = distinct !{!0, !3}/' \
+; RUN:     | sed '4s/$/\n!1 = distinct !{!1, !4}/' \
+; RUN:     | sed '5s/$/\n!2 = distinct !{!2, !5}/' \
+; RUN:     | sed '6s/$/\n!3 = !{!"kit.gv.bit.code", i32 2}/' \
+; RUN:     | sed '7s/$/\n!4 = !{!"kit.gv.device.code", i32 2}/' \
+; RUN:     | sed '8s/$/\n!5 = !{!"kit.gv.kernel.properties", i32 2, !"g"}/' \
 ; RUN:     | not llvm-as -o /dev/null 2>&1 \
 ; RUN:     | FileCheck %s
 ;

@@ -16,7 +16,6 @@
 #include "clang/Driver/Compilation.h"
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/DriverDiagnostic.h"
-#include "clang/Driver/Options.h"
 #include "clang/Driver/SanitizerArgs.h"
 #include "clang/Options/Options.h"
 #include "llvm/ADT/StringSwitch.h"
@@ -792,7 +791,7 @@ void darwin::Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
   // Add the Kitsune-specific options just before linking the C++ standard
   // library (if needed).
-  if (D.isUsingLTO())
+  if (auto LTO = getToolChain().getLTOMode(Args); LTO != LTOK_None)
     getToolChain().AddKitsuneLTOArgs(Args, CmdArgs);
   getToolChain().AddKitsuneLinkerArgs(Args, CmdArgs);
 

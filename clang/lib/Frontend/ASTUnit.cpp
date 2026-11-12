@@ -689,7 +689,7 @@ std::unique_ptr<ASTUnit> ASTUnit::LoadFromASTFile(
     std::shared_ptr<DiagnosticOptions> DiagOpts,
     IntrusiveRefCntPtr<DiagnosticsEngine> Diags,
     const FileSystemOptions &FileSystemOpts, const HeaderSearchOptions &HSOpts,
-    const LangOptions *ProvidedLangOpts, const KitsuneOptions* KitOpts,
+    const LangOptions *ProvidedLangOpts, const KitOptions *KitOpts,
     bool OnlyLocalDecls,
     CaptureDiagsKind CaptureDiagnostics, bool AllowASTWithCompilerErrors,
     bool UserFilesAreVolatile) {
@@ -762,7 +762,7 @@ std::unique_ptr<ASTUnit> ASTUnit::LoadFromASTFile(
   AST->HeaderInfo->initializeModuleCachePath(std::move(ContextHash));
 
   AST->PP = std::make_shared<Preprocessor>(
-      *AST->PPOpts, AST->getDiagnostics(), *AST->LangOpts, *AST->KitOpts,
+      *AST->PPOpts, AST->getDiagnostics(), *AST->LangOpts,
       AST->getSourceManager(), *AST->HeaderInfo, AST->ModuleLoader,
       /*IILookup=*/nullptr,
       /*OwnsHeaderSearch=*/false);

@@ -46,6 +46,7 @@ class PredicatedScalarEvolution;
 class ProfileSummaryInfo;
 class TargetLibraryInfo;
 class TargetTransformInfo;
+class TaskInfo;
 class Type;
 
 /// Utility class for getting and setting loop vectorizer hints in the form
@@ -280,10 +281,11 @@ public:
       TargetTransformInfo *TTI, TargetLibraryInfo *TLI, Function *F,
       LoopAccessInfoManager &LAIs, LoopInfo *LI, OptimizationRemarkEmitter *ORE,
       LoopVectorizationRequirements *R, LoopVectorizeHints *H, DemandedBits *DB,
-      AssumptionCache *AC, bool AllowRuntimeSCEVChecks, AAResults *AA)
+      AssumptionCache *AC, bool AllowRuntimeSCEVChecks, AAResults *AA,
+      TaskInfo *TI)
       : TheLoop(L), LI(LI), PSE(PSE), TTI(TTI), TLI(TLI), DT(DT), LAIs(LAIs),
         ORE(ORE), Requirements(R), Hints(H), DB(DB), AC(AC),
-        AllowRuntimeSCEVChecks(AllowRuntimeSCEVChecks), AA(AA) {}
+        AllowRuntimeSCEVChecks(AllowRuntimeSCEVChecks), AA(AA), TI(TI) {}
 
   /// ReductionList contains the reduction descriptors for all
   /// of the reductions that were found in the loop.
@@ -738,6 +740,9 @@ private:
   // Alias Analysis results used to check for possible aliasing with loads
   // used in uncountable exit conditions.
   AAResults *AA;
+
+  /// Tapir task analysis.
+  TaskInfo *TI;
 
   /// If we discover function calls within the loop which have a valid
   /// vectorized variant, record that fact so that LoopVectorize can

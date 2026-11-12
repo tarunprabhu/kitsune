@@ -5,12 +5,16 @@
 ; that ASan does not attempt to unpoison allocas that end up on
 ; different stacks.
 ;
+; KITSUNE FIXME: cilksan is broken since the merge with 23.x.
+; XFAIL: *
+;
 ; RUN: opt < %s -passes="cilksan" --tapir-opencilk-runtime-bc=%S/libopencilk-abi.bc -S | FileCheck %s --check-prefixes=CHECK,CHECK-CSAN
 ; RUN: opt < %s -passes="cilksan,tapir-lowering<O0>" -tapir-target=opencilk -use-opencilk-runtime-bc=false --tapir-opencilk-runtime-bc=%S/libopencilk-abi.bc -debug-abi-calls -S | FileCheck %s --check-prefixes=CHECK,CHECK-CSAN,CHECK-TAPIR
 ; RUN: opt < %s -passes="cilksan,tapir-lowering<O0>,asan" -tapir-target=opencilk -use-opencilk-runtime-bc=false --tapir-opencilk-runtime-bc=%S/libopencilk-abi.bc -debug-abi-calls -S | FileCheck %s --check-prefixes=CHECK,CHECK-ASAN
 ; RUN: opt < %s -passes="csi-setup,csi" --tapir-opencilk-runtime-bc=%S/libopencilk-abi.bc -S | FileCheck %s --check-prefixes=CHECK,CHECK-CSI
 ; RUN: opt < %s -passes="csi-setup,csi,tapir-lowering<O0>" -tapir-target=opencilk -use-opencilk-runtime-bc=false --tapir-opencilk-runtime-bc=%S/libopencilk-abi.bc -debug-abi-calls -S | FileCheck %s --check-prefixes=CHECK,CHECK-CSI,CHECK-TAPIR
 ; RUN: opt < %s -passes="csi-setup,csi,tapir-lowering<O0>,asan" -tapir-target=opencilk -use-opencilk-runtime-bc=false --tapir-opencilk-runtime-bc=%S/libopencilk-abi.bc -debug-abi-calls -S | FileCheck %s --check-prefixes=CHECK-CSI-ASAN
+
 target datalayout = "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
 

@@ -808,6 +808,59 @@ void DependenceInfo::collectCommonLoops(const SCEV *Expression,
   }
 }
 
+void DependenceInfo::unifySubscriptType(ArrayRef<Subscript *> Pairs) {
+
+  unsigned widestWidthSeen = 0;
+  Type *widestType;
+
+  // Go through each pair and find the widest bit to which we need
+  // to extend all of them.
+  for (Subscript *Pair : Pairs) {
+    const SCEV *Src = Pair->Src;
+    const SCEV *Dst = Pair->Dst;
+    IntegerType *SrcTy = dyn_cast<IntegerType>(Src->getType());
+    IntegerType *DstTy = dyn_cast<IntegerType>(Dst->getType());
+    if (SrcTy == nullptr || DstTy == nullptr) {
+      assert(SrcTy == DstTy && "This function only unify integer types and "
+             "expect Src and Dst share the same type "
+             "otherwise.");
+      continue;
+    }
+    if (SrcTy->getBitWidth() > widestWidthSeen) {
+      widestWidthSeen = SrcTy->getBitWidth();
+      widestType = SrcTy;
+    }
+    if (DstTy->getBitWidth() > widestWidthSeen) {
+      widestWidthSeen = DstTy->getBitWidth();
+      widestType = DstTy;
+    }
+  }
+
+
+  assert(widestWidthSeen > 0);
+
+  // Now extend each pair to the widest seen.
+  for (Subscript *Pair : Pairs) {
+    const SCEV *Src = Pair->Src;
+    const SCEV *Dst = Pair->Dst;
+    IntegerType *SrcTy = dyn_cast<IntegerType>(Src->getType());
+    IntegerType *DstTy = dyn_cast<IntegerType>(Dst->getType());
+    if (SrcTy == nullptr || DstTy == nullptr) {
+      assert(SrcTy == DstTy && "This function only unify integer types and "
+             "expect Src and Dst share the same type "
+             "otherwise.");
+      continue;
+    }
+    if (SrcTy->getBitWidth() < widestWidthSeen)
+      // Sign-extend Src to widestType
+      Pair->Src = SE->getSignExtendExpr(Src, widestType);
+    if (DstTy->getBitWidth() < widestWidthSeen) {
+      // Sign-extend Dst to widestType
+      Pair->Dst = SE->getSignExtendExpr(Dst, widestType);
+    }
+  }
+}
+
 // Examine the scev and return true iff it's affine.
 // Collect any loops mentioned in the set of "Loops".
 bool DependenceInfo::checkSubscript(const SCEV *Expr, const Loop *LoopNest,
@@ -878,6 +931,116 @@ DependenceInfo::classifyPair(const SCEV *Src, const Loop *SrcLoopNest,
   if (N == 2 && SrcLoops.count() == 1 && DstLoops.count() == 1)
     return Subscript::RDIV;
   return Subscript::MIV;
+}
+
+
+// A wrapper around SCEV::isKnownPredicate.
+// Looks for cases where we're interested in comparing for equality.
+// If both X and Y have been identically sign or zero extended,
+// it strips off the (confusing) extensions before invoking
+// SCEV::isKnownPredicate. Perhaps, someday, the ScalarEvolution package
+// will be similarly updated.
+//
+// If SCEV::isKnownPredicate can't prove the predicate,
+// we try simple subtraction, which seems to help in some cases
+// involving symbolics.
+bool DependenceInfo::isKnownPredicate(ICmpInst::Predicate Pred, const SCEV *X,
+                                      const SCEV *Y, const Loop *L) const {
+  if (Pred == CmpInst::ICMP_EQ ||
+      Pred == CmpInst::ICMP_NE) {
+    if ((isa<SCEVSignExtendExpr>(X) &&
+         isa<SCEVSignExtendExpr>(Y)) ||
+        (isa<SCEVZeroExtendExpr>(X) &&
+         isa<SCEVZeroExtendExpr>(Y))) {
+      const SCEVIntegralCastExpr *CX = cast<SCEVIntegralCastExpr>(X);
+      const SCEVIntegralCastExpr *CY = cast<SCEVIntegralCastExpr>(Y);
+      const SCEV *Xop = CX->getOperand();
+      const SCEV *Yop = CY->getOperand();
+      if (Xop->getType() == Yop->getType()) {
+        X = Xop;
+        Y = Yop;
+      }
+    }
+  }
+  if (SE->isKnownPredicate(Pred, X, Y))
+    return true;
+  if (L && isLoopInvariant(X, L) && isLoopInvariant(Y, L) &&
+      isTrueAtLoopEntry(L, Pred, X, Y))
+    return true;
+  // If SE->isKnownPredicate can't prove the condition,
+  // we try the brute-force approach of subtracting
+  // and testing the difference.
+  // By testing with SE->isKnownPredicate first, we avoid
+  // the possibility of overflow when the arguments are constants.
+  const SCEV *Delta = SE->getMinusSCEV(X, Y);
+  switch (Pred) {
+  case CmpInst::ICMP_EQ:
+    return Delta->isZero();
+  case CmpInst::ICMP_NE:
+    return SE->isKnownNonZero(Delta);
+  case CmpInst::ICMP_SGE:
+    return SE->isKnownNonNegative(Delta);
+  case CmpInst::ICMP_SLE:
+    return SE->isKnownNonPositive(Delta);
+  case CmpInst::ICMP_SGT:
+    return SE->isKnownPositive(Delta);
+  case CmpInst::ICMP_SLT:
+    return SE->isKnownNegative(Delta);
+  default:
+    llvm_unreachable("unexpected predicate in isKnownPredicate");
+  }
+}
+
+/// Compare to see if S is less than Size, using isKnownNegative(S - max(Size, 1))
+/// with some extra checking if S is an AddRec and we can prove less-than using
+/// the loop bounds.
+bool DependenceInfo::isKnownLessThan(const SCEV *S, const SCEV *Size) const {
+  // First unify to the same type
+  auto *SType = dyn_cast<IntegerType>(S->getType());
+  auto *SizeType = dyn_cast<IntegerType>(Size->getType());
+  if (!SType || !SizeType)
+    return false;
+  Type *MaxType =
+      (SType->getBitWidth() >= SizeType->getBitWidth()) ? SType : SizeType;
+  S = SE->getTruncateOrZeroExtend(S, MaxType);
+  Size = SE->getTruncateOrZeroExtend(Size, MaxType);
+
+  // Special check for addrecs using BE taken count
+  const SCEV *Bound = SE->getMinusSCEV(S, Size);
+  if (const SCEVAddRecExpr *AddRec = dyn_cast<SCEVAddRecExpr>(Bound)) {
+    if (AddRec->isAffine()) {
+      const SCEV *BECount = SE->getBackedgeTakenCount(AddRec->getLoop());
+      if (!isa<SCEVCouldNotCompute>(BECount)) {
+        const SCEV *Limit = AddRec->evaluateAtIteration(BECount, *SE);
+        if (SE->isKnownNegative(Limit))
+          return true;
+      }
+    }
+  }
+
+  // Check using normal isKnownNegative
+  const SCEV *LimitedBound =
+      SE->getMinusSCEV(S, SE->getSMaxExpr(Size, SE->getOne(Size->getType())));
+  return SE->isKnownNegative(LimitedBound);
+}
+
+bool DependenceInfo::isKnownNonNegative(const SCEV *S, const Value *Ptr) const {
+  bool Inbounds = false;
+  if (auto *SrcGEP = dyn_cast<GetElementPtrInst>(Ptr))
+    Inbounds = SrcGEP->isInBounds();
+  if (Inbounds) {
+    if (const SCEVAddRecExpr *AddRec = dyn_cast<SCEVAddRecExpr>(S)) {
+      if (AddRec->isAffine()) {
+        // We know S is for Ptr, the operand on a load/store, so doesn't wrap.
+        // If both parts are NonNegative, the end result will be NonNegative
+        if (SE->isKnownNonNegative(AddRec->getStart()) &&
+            SE->isKnownNonNegative(AddRec->getOperand(1)))
+          return true;
+      }
+    }
+  }
+
+  return SE->isKnownNonNegative(S);
 }
 
 // All subscripts are all the same type.
@@ -2178,10 +2341,10 @@ bool DependenceInfo::testBounds(unsigned char DirKind, unsigned Level,
                                 const SCEV *Delta) const {
   Bound[Level].Direction = DirKind;
   if (const SCEV *LowerBound = getLowerBound(Bound))
-    if (SE->isKnownPredicate(CmpInst::ICMP_SGT, LowerBound, Delta, CommonLoop))
+    if (isKnownPredicate(CmpInst::ICMP_SGT, LowerBound, Delta, CommonLoop))
       return false;
   if (const SCEV *UpperBound = getUpperBound(Bound))
-    if (SE->isKnownPredicate(CmpInst::ICMP_SGT, Delta, UpperBound, CommonLoop))
+    if (isKnownPredicate(CmpInst::ICMP_SGT, Delta, UpperBound, CommonLoop))
       return false;
   return true;
 }
@@ -2216,12 +2379,12 @@ void DependenceInfo::findBoundsALL(ArrayRef<CoefficientInfo> A,
         SE->getMinusSCEV(A[K].PosPart, B[K].NegPart), Bound[K].Iterations);
   } else {
     // If the difference is 0, we won't need to know the number of iterations.
-    if (SE->isKnownPredicate(CmpInst::ICMP_EQ, A[K].NegPart, B[K].PosPart,
-                             CommonLoop))
+    if (isKnownPredicate(CmpInst::ICMP_EQ, A[K].NegPart, B[K].PosPart,
+                         CommonLoop))
       Bound[K].Lower[Dependence::DVEntry::ALL] =
           SE->getZero(A[K].Coeff->getType());
-    if (SE->isKnownPredicate(CmpInst::ICMP_EQ, A[K].PosPart, B[K].NegPart,
-                             CommonLoop))
+    if (isKnownPredicate(CmpInst::ICMP_EQ, A[K].PosPart, B[K].NegPart,
+                         CommonLoop))
       Bound[K].Upper[Dependence::DVEntry::ALL] =
           SE->getZero(A[K].Coeff->getType());
   }
@@ -2362,6 +2525,14 @@ void DependenceInfo::findBoundsGT(ArrayRef<CoefficientInfo> A,
       Bound[K].Upper[Dependence::DVEntry::GT] = A[K].Coeff;
   }
 }
+
+
+// Returns true if predicate LHS `Pred` RHS is true at entry of L.
+bool DependenceInfo::isTrueAtLoopEntry(const Loop *L, ICmpInst::Predicate Pred,
+                                       const SCEV *LHS, const SCEV *RHS) const {
+  return SE->isLoopEntryGuardedByCond(L, Pred, LHS, RHS);
+}
+
 
 // X^+ = max(X, 0)
 const SCEV *DependenceInfo::getPositivePart(const SCEV *X) const {
@@ -2975,230 +3146,6 @@ DependenceInfo::depends(Instruction *Src, Instruction *Dst,
   return std::make_unique<FullDependence>(std::move(Result));
 }
 
-//===----------------------------------------------------------------------===//
-// getSplitIteration -
-// Rather than spend rarely-used space recording the splitting iteration
-// during the Weak-Crossing SIV test, we re-compute it on demand.
-// The re-computation is basically a repeat of the entire dependence test,
-// though simplified since we know that the dependence exists.
-// It's tedious, since we must go through all propagations, etc.
-//
-// Care is required to keep this code up to date with respect to the routine
-// above, depends().
-//
-// Generally, the dependence analyzer will be used to build
-// a dependence graph for a function (basically a map from instructions
-// to dependences). Looking for cycles in the graph shows us loops
-// that cannot be trivially vectorized/parallelized.
-//
-// We can try to improve the situation by examining all the dependences
-// that make up the cycle, looking for ones we can break.
-// Sometimes, peeling the first or last iteration of a loop will break
-// dependences, and we've got flags for those possibilities.
-// Sometimes, splitting a loop at some other iteration will do the trick,
-// and we've got a flag for that case. Rather than waste the space to
-// record the exact iteration (since we rarely know), we provide
-// a method that calculates the iteration. It's a drag that it must work
-// from scratch, but wonderful in that it's possible.
-//
-// Here's an example:
-//
-//    for (i = 0; i < 10; i++)
-//        A[i] = ...
-//        ... = A[11 - i]
-//
-// There's a loop-carried flow dependence from the store to the load,
-// found by the weak-crossing SIV test. The dependence will have a flag,
-// indicating that the dependence can be broken by splitting the loop.
-// Calling getSplitIteration will return 5.
-// Splitting the loop breaks the dependence, like so:
-//
-//    for (i = 0; i <= 5; i++)
-//        A[i] = ...
-//        ... = A[11 - i]
-//    for (i = 6; i < 10; i++)
-//        A[i] = ...
-//        ... = A[11 - i]
-//
-// breaks the dependence and allows us to vectorize/parallelize
-// both loops.
-const SCEV *DependenceInfo::getSplitIteration(const Dependence &Dep,
-                                              unsigned SplitLevel) {
-  assert(Dep.isSplitable(SplitLevel) &&
-         "Dep should be splitable at SplitLevel");
-  Instruction *Src = Dep.getSrc();
-  Instruction *Dst = Dep.getDst();
-  assert(Src->mayReadFromMemory() || Src->mayWriteToMemory());
-  assert(Dst->mayReadFromMemory() || Dst->mayWriteToMemory());
-  assert(isLoadOrStore(Src));
-  assert(isLoadOrStore(Dst));
-  Value *SrcPtr = getLoadStorePointerOperand(Src);
-  Value *DstPtr = getLoadStorePointerOperand(Dst);
-  assert(underlyingObjectsAlias(
-             AA, F->getDataLayout(), MemoryLocation::get(Dst),
-             MemoryLocation::get(Src)) == AliasResult::MustAlias);
-
-  // establish loop nesting levels
-  establishNestingLevels(Src, Dst);
-
-  FullDependence Result(Src, Dst, Dep.Assumptions, false, CommonLevels);
-
-  unsigned Pairs = 1;
-  SmallVector<Subscript, 2> Pair(Pairs);
-  const SCEV *SrcSCEV = SE->getSCEV(SrcPtr);
-  const SCEV *DstSCEV = SE->getSCEV(DstPtr);
-  Pair[0].Src = SrcSCEV;
-  Pair[0].Dst = DstSCEV;
-
-  if (Delinearize) {
-    if (tryDelinearize(Src, Dst, Pair)) {
-      LLVM_DEBUG(dbgs() << "    delinearized\n");
-      Pairs = Pair.size();
-    }
-  }
-
-  for (unsigned P = 0; P < Pairs; ++P) {
-    Pair[P].Loops.resize(MaxLevels + 1);
-    Pair[P].GroupLoops.resize(MaxLevels + 1);
-    Pair[P].Group.resize(Pairs);
-    removeMatchingExtensions(&Pair[P]);
-    Pair[P].Classification =
-      classifyPair(Pair[P].Src, LI->getLoopFor(Src->getParent()),
-                   Pair[P].Dst, LI->getLoopFor(Dst->getParent()),
-                   Pair[P].Loops);
-    Pair[P].GroupLoops = Pair[P].Loops;
-    Pair[P].Group.set(P);
-  }
-
-  SmallBitVector Separable(Pairs);
-  SmallBitVector Coupled(Pairs);
-
-  // partition subscripts into separable and minimally-coupled groups
-  for (unsigned SI = 0; SI < Pairs; ++SI) {
-    if (Pair[SI].Classification == Subscript::NonLinear) {
-      // ignore these, but collect loops for later
-      collectCommonLoops(Pair[SI].Src,
-                         LI->getLoopFor(Src->getParent()),
-                         Pair[SI].Loops);
-      collectCommonLoops(Pair[SI].Dst,
-                         LI->getLoopFor(Dst->getParent()),
-                         Pair[SI].Loops);
-      Result.Consistent = false;
-    }
-    else if (Pair[SI].Classification == Subscript::ZIV)
-      Separable.set(SI);
-    else {
-      // SIV, RDIV, or MIV, so check for coupled group
-      bool Done = true;
-      for (unsigned SJ = SI + 1; SJ < Pairs; ++SJ) {
-        SmallBitVector Intersection = Pair[SI].GroupLoops;
-        Intersection &= Pair[SJ].GroupLoops;
-        if (Intersection.any()) {
-          // accumulate set of all the loops in group
-          Pair[SJ].GroupLoops |= Pair[SI].GroupLoops;
-          // accumulate set of all subscripts in group
-          Pair[SJ].Group |= Pair[SI].Group;
-          Done = false;
-        }
-      }
-      if (Done) {
-        if (Pair[SI].Group.count() == 1)
-          Separable.set(SI);
-        else
-          Coupled.set(SI);
-      }
-    }
-  }
-
-  Constraint NewConstraint;
-  NewConstraint.setAny(SE);
-
-  // test separable subscripts
-  for (unsigned SI : Separable.set_bits()) {
-    switch (Pair[SI].Classification) {
-    case Subscript::SIV: {
-      unsigned Level;
-      const SCEV *SplitIter = nullptr;
-      (void) testSIV(Pair[SI].Src, Pair[SI].Dst, Level,
-                     Result, NewConstraint, SplitIter);
-      if (Level == SplitLevel) {
-        assert(SplitIter != nullptr);
-        return SplitIter;
-      }
-      break;
-    }
-    case Subscript::ZIV:
-    case Subscript::RDIV:
-    case Subscript::MIV:
-      break;
-    default:
-      llvm_unreachable("subscript has unexpected classification");
-    }
-  }
-
-  assert(!Coupled.empty() && "coupled expected non-empty");
-
-  // test coupled subscript groups
-  SmallVector<Constraint, 4> Constraints(MaxLevels + 1);
-  for (unsigned II = 0; II <= MaxLevels; ++II)
-    Constraints[II].setAny(SE);
-  for (unsigned SI : Coupled.set_bits()) {
-    SmallBitVector Group(Pair[SI].Group);
-    SmallBitVector Sivs(Pairs);
-    SmallBitVector Mivs(Pairs);
-    SmallBitVector ConstrainedLevels(MaxLevels + 1);
-    for (unsigned SJ : Group.set_bits()) {
-      if (Pair[SJ].Classification == Subscript::SIV)
-        Sivs.set(SJ);
-      else
-        Mivs.set(SJ);
-    }
-    while (Sivs.any()) {
-      bool Changed = false;
-      for (unsigned SJ : Sivs.set_bits()) {
-        // SJ is an SIV subscript that's part of the current coupled group
-        unsigned Level;
-        const SCEV *SplitIter = nullptr;
-        (void)testSIV(Pair[SJ].Src, Pair[SJ].Dst, Level, Result, NewConstraint,
-                      SplitIter);
-        if (Level == SplitLevel && SplitIter)
-          return SplitIter;
-        ConstrainedLevels.set(Level);
-        if (intersectConstraints(&Constraints[Level], &NewConstraint))
-          Changed = true;
-        Sivs.reset(SJ);
-      }
-      if (!Changed)
-        continue;
-      // propagate, possibly creating new SIVs and ZIVs
-      for (unsigned SJ : Mivs.set_bits()) {
-        // SJ is an MIV subscript that's part of the current coupled group
-        if (!propagate(Pair[SJ].Src, Pair[SJ].Dst, Pair[SJ].Loops, Constraints,
-                       Result.Consistent))
-          continue;
-        Pair[SJ].Classification = classifyPair(
-            Pair[SJ].Src, LI->getLoopFor(Src->getParent()), Pair[SJ].Dst,
-            LI->getLoopFor(Dst->getParent()), Pair[SJ].Loops);
-        switch (Pair[SJ].Classification) {
-        case Subscript::ZIV:
-          Mivs.reset(SJ);
-          break;
-        case Subscript::SIV:
-          Sivs.set(SJ);
-          Mivs.reset(SJ);
-          break;
-        case Subscript::RDIV:
-        case Subscript::MIV:
-          break;
-        default:
-          llvm_unreachable("bad subscript classification");
-        }
-      }
-    }
-  }
-  llvm_unreachable("somehow reached end of routine");
-}
-
 static Value *getGeneralAccessPointerOperand(GeneralAccess *A) {
   return const_cast<Value *>(A->Loc->Ptr);
 }
@@ -3270,9 +3217,11 @@ bool DependenceInfo::tryDelinearize(GeneralAccess *SrcA, GeneralAccess *DstA,
   return true;
 }
 
-static bool tryDelinearizeGAFixedSizeImpl(
-    ScalarEvolution *SE, GeneralAccess *GA, const SCEV *AccessFn,
-    SmallVectorImpl<const SCEV *> &Subscripts, SmallVectorImpl<int> &Sizes) {
+static bool
+tryDelinearizeGAFixedSizeImpl(ScalarEvolution *SE, GeneralAccess *GA,
+                              const SCEV *AccessFn,
+                              SmallVectorImpl<const SCEV *> &Subscripts,
+                              SmallVectorImpl<const SCEV *> &Sizes) {
   Value *SrcPtr = getGeneralAccessPointerOperand(GA);
 
   // Check the simple case where the array dimensions are fixed size.
@@ -3321,8 +3270,8 @@ bool DependenceInfo::tryDelinearizeFixedSize(
            "expected src and dst scev unknowns to be equal");
   });
 
-  SmallVector<int, 4> SrcSizes;
-  SmallVector<int, 4> DstSizes;
+  SmallVector<const SCEV *, 4> SrcSizes;
+  SmallVector<const SCEV *, 4> DstSizes;
   if (!tryDelinearizeGAFixedSizeImpl(SE, SrcA, SrcAccessFn, SrcSubscripts,
                                      SrcSizes) ||
       !tryDelinearizeGAFixedSizeImpl(SE, DstA, DstAccessFn, DstSubscripts,
@@ -3353,7 +3302,7 @@ bool DependenceInfo::tryDelinearizeFixedSize(
   // dimensions and that the number of dimensions matches the number of
   // subscripts being recovered.
   if (!DisableDelinearizationChecks) {
-    auto AllIndiciesInRange = [&](SmallVector<int, 4> &DimensionSizes,
+    auto AllIndiciesInRange = [&](SmallVectorImpl<const SCEV *> &DimensionSizes,
                                   SmallVectorImpl<const SCEV *> &Subscripts,
                                   Value *Ptr) {
       size_t SSize = Subscripts.size();
@@ -3362,8 +3311,7 @@ bool DependenceInfo::tryDelinearizeFixedSize(
         if (!isKnownNonNegative(S, Ptr))
           return false;
         if (auto *SType = dyn_cast<IntegerType>(S->getType())) {
-          const SCEV *Range = SE->getConstant(
-              ConstantInt::get(SType, DimensionSizes[I - 1], false));
+          const SCEV *Range = DimensionSizes[I - 1];
           if (!isKnownLessThan(S, Range))
             return false;
         }
@@ -3458,6 +3406,12 @@ bool DependenceInfo::tryDelinearizeParametricSize(
   return true;
 }
 
+// KITSUNE FIXME: During the merge with 23.x, something seems to have
+// changed/broken which causes this method to raise errors at build time. Since
+// it is only used in TapirRaceDetect, and that needs a fair bit of work anyway,
+// we just disable it. If we do decide to resurrect the race detector, this will
+// have to be fixed together with that.
+#if 0
 // depends -
 // Returns NULL if there is no dependence.
 // Otherwise, return a Dependence with as many details as possible.
@@ -3935,3 +3889,4 @@ DependenceInfo::depends(GeneralAccess *SrcA, GeneralAccess *DstA,
 
   return std::make_unique<FullDependence>(std::move(Result));
 }
+#endif // 0

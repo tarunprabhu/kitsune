@@ -58,19 +58,21 @@ bool llvm::isEntryBlock(const BasicBlock &bb) {
 }
 
 bool llvm::isDisconnected(const BasicBlock &bb) {
+  assert(bb.hasTerminator() && "Basic block has a terminator");
   return pred_size(&bb) == 0 && succ_size(&bb) == 0;
 }
 
 bool llvm::isOrphaned(const BasicBlock &bb) { return pred_size(&bb) == 0; }
 
 bool llvm::isDeadEnd(const BasicBlock &bb) {
-  if (const Instruction *term = bb.getTerminator()) {
-    if (isa<UnreachableInst>(term))
-      return true;
-    else if (isUncondBr(*term))
-      return isDeadEnd(**succ_begin(&bb));
-  }
-  return false;
+  assert(bb.hasTerminator() && "Basic block has a terminator");
+  const Instruction *term = bb.getTerminator();
+  if (isa<UnreachableInst>(term))
+    return true;
+  else if (isUncondBr(*term))
+    return isDeadEnd(**succ_begin(&bb));
+  else
+    return false;
 }
 
 PHINode *llvm::getUniquePHI(BasicBlock &bb) {

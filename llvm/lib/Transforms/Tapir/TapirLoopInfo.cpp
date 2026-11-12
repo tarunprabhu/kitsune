@@ -444,7 +444,7 @@ Value *TapirLoopInfo::getOrCreateTripCount(PredicatedScalarEvolution &PSE,
 
   // Expand the trip count and place the new instructions in the preheader.
   // Notice that the pre-header does not change, only the loop body.
-  SCEVExpander Exp(*SE, DL, "induction");
+  SCEVExpander Exp(*SE, "induction");
 
   // Count holds the overall loop count (N).
   TripCount = Exp.expandCodeFor(ExitCount, ExitCount->getType(),
@@ -557,7 +557,7 @@ Value *llvm::emitTransformedIndex(
     IRBuilder<> &B, Value *Index, ScalarEvolution *SE, const DataLayout &DL,
     const InductionDescriptor &ID) {
 
-  SCEVExpander Exp(*SE, DL, "induction");
+  SCEVExpander Exp(*SE, "induction");
   const auto *Step = ID.getStep();
   auto *StartValue = ID.getStartValue();
   assert(Index->getType() == Step->getType() &&

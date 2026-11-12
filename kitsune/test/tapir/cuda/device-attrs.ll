@@ -19,7 +19,7 @@
 ; CHECK-NOT: "personality"
 ; CHECK-NOT: "tune-cpu"
 ; CHECK-SAME: "target-cpu"="sm_72"
-; CHECK-SAME: "target-features"="+ptx87,sm_72"
+; CHECK-SAME: "target-features"="+ptx87,+sm_72"
 
 ; CHECK: ![[MD]] = distinct !{![[MD]], ![[DEVICE:[0-9]+]]}
 ; CHECK: ![[DEVICE]] = !{!"kit.func.device"}

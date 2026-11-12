@@ -3522,7 +3522,11 @@ RValue CodeGenFunction::EmitBuiltinExpr(const GlobalDecl GD, unsigned BuiltinID,
   };
 
   switch (BuiltinIDIfNoAsmLabel) {
-  default: break;
+  default:
+    if (IsKitBuiltin(BuiltinIDIfNoAsmLabel))
+      return EmitKitBuiltinCall(*this, FD, BuiltinIDIfNoAsmLabel, E,
+                                ReturnValue);
+    break;
   case Builtin::BI__builtin___CFStringMakeConstantString:
   case Builtin::BI__builtin___NSStringMakeConstantString:
     return RValue::get(ConstantEmitter(*this).emitAbstract(E, E->getType()));

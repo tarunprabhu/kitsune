@@ -62,8 +62,8 @@ bool isKitsuneFrontend(StringRef progName);
 /// so we pass in certain values that we would otherwise have looked up in the
 /// Driver object.
 void checkKitOptions(const llvm::opt::ArgList &args, bool isKitsuneFrontend,
-                     KitDriverMode driverMode, bool isUsingLTO,
-                     StringRef triple, unsigned amdgpuCodeObjectVersion,
+                     KitDriverMode driverMode, StringRef triple,
+                     unsigned amdgpuCodeObjectVersion,
                      DiagnosticsEngine &diags);
 
 /// Get the optimization speedup level as an integer. This is not as

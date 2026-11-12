@@ -17,11 +17,13 @@
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/Linker/Linker.h"
+#include "llvm/Support/IOSandbox.h"
 #include "llvm/Support/SourceMgr.h"
 
 using namespace llvm;
 
 static Expected<OwnedModule> parseLLVMFile(StringRef file, LLVMContext &ctx) {
+  sys::sandbox::ScopedSetting disableSandbox = sys::sandbox::scopedDisable();
   SMDiagnostic diag;
   if (OwnedModule m = parseIRFile(file, diag, ctx))
     return m;

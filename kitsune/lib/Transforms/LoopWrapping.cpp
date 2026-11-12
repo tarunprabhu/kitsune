@@ -237,16 +237,14 @@ void WrapLoopBase::genGuardBlock(Loop &loop, LoopBlocks &bbs,
   // be added, i.e. they will be present in LoopGuard1 in the CFG diagram in the
   // documentation for this class. Since the guard of the original loop has
   // effectively now changed, we must update the recorded guard.
-  bbs.guard = SplitBlock(origGuard, splitPt, &dtu, &li, &mssau, "guard",
-                         /*Before=*/false);
+  bbs.guard = SplitBlock(origGuard, splitPt, &dtu, &li, &mssau, "guard");
 
   // Splitting the guard block at the beginning will generate an empty block
   // between LoopGuard1 that was created above and, what is now LoopGuard2. This
   // will be the guard block for the wrapper loop.
   BasicBlock *guard = bbs.guard;
   bbsGen.guard =
-      SplitBlock(guard, guard->begin(), &dtu, &li, &mssau, "wrap.guard",
-                 /*Before=*/true);
+      splitBlockBefore(guard, guard->begin(), &dtu, &li, &mssau, "wrap.guard");
 }
 
 void WrapLoopBase::genPreheaderBlock(Loop &loop, const LoopBlocks &bbs,
@@ -257,8 +255,7 @@ void WrapLoopBase::genPreheaderBlock(Loop &loop, const LoopBlocks &bbs,
 
   BasicBlock *guard = bbsGen.guard;
   Instruction *term = guard->getTerminator();
-  bbsGen.ph =
-      SplitBlock(guard, term, &dtu, &li, &mssau, "wrap.ph", /*Before=*/false);
+  bbsGen.ph = SplitBlock(guard, term, &dtu, &li, &mssau, "wrap.ph");
 }
 
 void WrapLoopBase::genHeaderBlock(Loop &loop, const LoopBlocks &bbs,
@@ -269,8 +266,7 @@ void WrapLoopBase::genHeaderBlock(Loop &loop, const LoopBlocks &bbs,
 
   BasicBlock *ph = bbsGen.ph;
   Instruction *term = ph->getTerminator();
-  bbsGen.header =
-      SplitBlock(ph, term, &dtu, &li, &mssau, "wrap.header", /*Before=*/false);
+  bbsGen.header = SplitBlock(ph, term, &dtu, &li, &mssau, "wrap.header");
 }
 
 void WrapLoopBase::genReattachBlock(Loop &loop, const LoopBlocks &bbs,
@@ -286,8 +282,7 @@ void WrapLoopBase::genReattachBlock(Loop &loop, const LoopBlocks &bbs,
   BasicBlock *cont = sync->getSuccessor(0);
 
   bbsGen.reattach =
-      SplitBlock(cont, cont->begin(), &dtu, &li, &mssau, "wrap.reattach",
-                 /*Before=*/true);
+      splitBlockBefore(cont, cont->begin(), &dtu, &li, &mssau, "wrap.reattach");
 }
 
 void WrapLoopBase::genLatchBlock(Loop &loop, const LoopBlocks &bbs,
@@ -298,8 +293,7 @@ void WrapLoopBase::genLatchBlock(Loop &loop, const LoopBlocks &bbs,
 
   BasicBlock *reattach = bbsGen.reattach;
   Instruction *term = reattach->getTerminator();
-  bbsGen.latch = SplitBlock(reattach, term, &dtu, &li, &mssau, "wrap.latch",
-                            /*Before=*/false);
+  bbsGen.latch = SplitBlock(reattach, term, &dtu, &li, &mssau, "wrap.latch");
 }
 
 void WrapLoopBase::genExitBlock(Loop &loop, const LoopBlocks &bbs,
@@ -310,8 +304,7 @@ void WrapLoopBase::genExitBlock(Loop &loop, const LoopBlocks &bbs,
 
   BasicBlock *latch = bbsGen.latch;
   Instruction *term = latch->getTerminator();
-  bbsGen.exit = SplitBlock(latch, term, &dtu, &li, &mssau, "wrap.loopexit",
-                           /*Before=*/false);
+  bbsGen.exit = SplitBlock(latch, term, &dtu, &li, &mssau, "wrap.loopexit");
 }
 
 void WrapLoopBase::genBypassBlock(Loop &loop, const LoopBlocks &bbs,
@@ -322,8 +315,7 @@ void WrapLoopBase::genBypassBlock(Loop &loop, const LoopBlocks &bbs,
 
   BasicBlock *exit = bbsGen.exit;
   Instruction *term = exit->getTerminator();
-  bbsGen.bypass = SplitBlock(exit, term, &dtu, &li, &mssau, "wrap.bypass",
-                             /*Before=*/false);
+  bbsGen.bypass = SplitBlock(exit, term, &dtu, &li, &mssau, "wrap.bypass");
 }
 
 void WrapLoopBase::genGuardInsts(const Loop &loop, const LoopBlocks &bbs,

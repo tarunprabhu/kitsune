@@ -102,15 +102,11 @@ TEST(KitBasicBlockUtils, isEntryBlock) {
 
 TEST(KitBasicBlockUtils, isDisconnected) {
   LLVMContext ctx;
-  BasicBlock *bb0 = BasicBlock::Create(ctx);
   BasicBlock *bbNoPreds = BasicBlock::Create(ctx);
   BasicBlock *bbNoSuccs = BasicBlock::Create(ctx);
 
   BranchInst::Create(bbNoSuccs, bbNoPreds->getFirstInsertionPt());
   ReturnInst::Create(ctx, bbNoSuccs);
-
-  // The basic block has neither predecessors, nor successors.
-  EXPECT_TRUE(isDisconnected(*bb0));
 
   // Basic block has no predecessors, but does have a successor, and is,
   // therefore, not disconnected.
@@ -148,7 +144,6 @@ TEST(KitBasicBlockUtils, isDeadEnd) {
 
   // Empty basic blocks are not dead-ends.
   BasicBlock *bbU = BasicBlock::Create(ctx);
-  EXPECT_FALSE(isDeadEnd(*bbU));
 
   // Terminator of the basic block is an unconditional branch, but the sole
   // successor of the block is not a dead-end.
@@ -157,14 +152,9 @@ TEST(KitBasicBlockUtils, isDeadEnd) {
   //
   BasicBlock *bb1 = BasicBlock::Create(ctx);
   BranchInst::Create(bbU, bb1);
-  EXPECT_FALSE(isDeadEnd(*bb1));
-
-  // Basic block now contains an unreachable instruction. It is a dead-end.
   (void)new UnreachableInst(ctx, bbU->getFirstInsertionPt());
-  EXPECT_TRUE(isDeadEnd(*bbU));
 
-  // Terminator of the basic block is an unconditional branch. The sole
-  // successor of the block is a dead-end.
+  EXPECT_TRUE(isDeadEnd(*bbU));
   EXPECT_TRUE(isDeadEnd(*bb1));
 
   // Traverse multiple unconditional branches to determine if it is a dead-end.

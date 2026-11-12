@@ -9130,7 +9130,8 @@ public:
   /// [C++0x]   braced-init-list            [TODO]
   ///
   /// \endverbatim
-  StmtResult ParseForallStatement(SourceLocation *TrailingElseLoc);
+  StmtResult ParseForallStatement(SourceLocation *TrailingElseLoc,
+                                  LabelDecl *PrecedingLabel);
 
   ///@}
 };

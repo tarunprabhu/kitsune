@@ -324,7 +324,7 @@ void CodeGenFunction::EmitForallStmt(const ForallStmt &S,
   JumpDest Increment = getJumpDestInCurrentScope("forall.inc");
 
   // Store the blocks to use for break and continue.
-  BreakContinueStack.push_back(BreakContinue(LoopExit, Reattach));
+  BreakContinueStack.push_back(BreakContinue(S, LoopExit, Reattach));
 
   // Create a cleanup scope for the condition variable cleanups.
   // We don't need this unless we allow condition scope variables
@@ -540,7 +540,7 @@ void CodeGenFunction::EmitCXXForallRangeStmt(const CXXForallRangeStmt &S,
   incrementProfileCounter(&S);
 
   // Store the blocks to use for break and continue.
-  BreakContinueStack.push_back(BreakContinue(LoopExit, Reattach));
+  BreakContinueStack.push_back(BreakContinue(S, LoopExit, Reattach));
 
   {
     // Create a separate cleanup scope for the loop variable and body.

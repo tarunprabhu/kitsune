@@ -385,7 +385,15 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
     // encountered in the body and will jump to the Reattach. If we move the
     // detach to one of the outer loops, then we will need to move the reattach
     // accordingly
+#if 0
+    // FIXME: The BreakContinue struct now requires a loop or switch statement
+    // to associate with the break/continue. In this case, we don't have one.
+    // However, we also don't expect a break or continue to appear in the body
+    // of a Kokkos parallel for, so it should be safe to disable this statement.
+    // We don't remove it just yet while we do a more careful analysis to
+    // determine if it is indeed always safe to just remove this statement.
     BreakContinueStack.push_back(BreakContinue(LoopExit, Reattach));
+#endif // 0
 
     // Note: There is need for condition scopes since we create the conditions
     // and they are simple inequalities.
@@ -467,8 +475,10 @@ bool CodeGenFunction::EmitKokkosParallelFor(const CallExpr *CE,
   for (int i = numIVs - 1; i >= 0; --i) {
     EmitBlock(Increment[i].getBlock());
     EmitKokkosIncrement(IVInfos[i].IVDecl);
-
+#if 0
+    // BreakContinueStack has been disabled earlier. See the comment there.
     BreakContinueStack.pop_back();
+#endif // 0
     EmitStopPoint(CE);
     EmitBranch(CondBlock[i]);
     ForScope[i]->ForceCleanup();

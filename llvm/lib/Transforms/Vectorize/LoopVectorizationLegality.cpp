@@ -1816,7 +1816,7 @@ bool LoopVectorizationLegality::canUncountableExitConditionLoadBeMoved(
   LoadInst *Load = cast<LoadInst>(L);
   // We need to know that load will be executed before we can hoist a
   // copy out to run just before the first iteration.
-  if (!SafetyInfo.isGuaranteedToExecute(*Load, DT, TheLoop)) {
+  if (!SafetyInfo.isGuaranteedToExecute(*Load, DT, TI, TheLoop)) {
     reportVectorizationFailure(
         "Load for uncountable exit not guaranteed to execute",
         "ConditionalUncountableExitLoad", ORE, TheLoop);

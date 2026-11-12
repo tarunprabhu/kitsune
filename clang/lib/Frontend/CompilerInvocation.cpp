@@ -31,7 +31,6 @@
 #include "clang/Config/config.h"
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/DriverDiagnostic.h"
-#include "clang/Driver/Options.h"
 #include "clang/Frontend/CommandLineSourceLoc.h"
 #include "clang/Frontend/DependencyOutputOptions.h"
 #include "clang/Frontend/FrontendOptions.h"
@@ -143,7 +142,7 @@ CompilerInvocationBase::CompilerInvocationBase()
       DependencyOutputOpts(std::make_shared<DependencyOutputOptions>()),
       PreprocessorOutputOpts(std::make_shared<PreprocessorOutputOptions>()),
       SSAFOpts(std::make_shared<ssaf::SSAFOptions>()),
-      KitOpts(std::make_shared<KitsuneOptions>()) {}
+      KitOpts(std::make_shared<KitOptions>()) {}
 
 CompilerInvocationBase &
 CompilerInvocationBase::deep_copy_assign(const CompilerInvocationBase &X) {
@@ -5253,7 +5252,7 @@ bool CompilerInvocation::CreateFromArgsImpl(
   // Parse the Kitsune arguments as early as possible. These affect how the
   // lang options are setup. For instance, the default FPContract value changes
   // when compiling with Kitsune's frontend.
-  parseKitsuneArgs(KitOpts, Argv0, Args, Opts, Diags);
+  driver::parseKitsuneArgs(KitOpts, Argv0, Args, Opts, Diags);
   ParseLangArgs(LangOpts, Args, DashX, T, Res.getPreprocessorOpts().Includes,
                 Diags, KitOpts);
   if (Res.getFrontendOpts().ProgramAction == frontend::RewriteObjC)

@@ -15,4 +15,7 @@ add_subdirectory(Chapter6)
 add_subdirectory(Chapter7)
 add_subdirectory(Chapter8)
 add_subdirectory(Chapter9)
-add_subdirectory(Tapir)
+
+# KITSUNE FIXME: The Kaleidoscope Tapir tutorial is broken. It may be better to
+# add a Kitsune-specific tutorial instead of fixing this.
+# add_subdirectory(Tapir)

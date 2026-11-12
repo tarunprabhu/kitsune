@@ -112,7 +112,7 @@ TEST(KitInstUtils, getInstClassName) {
 
   EXPECT_EQ(getInstClassName(*ret), "ReturnInst");
   EXPECT_EQ(getInstClassName(*binOp), "BinaryOperator");
-  EXPECT_EQ(getInstClassName(*unOp), "UnaryOperator");
+  EXPECT_EQ(getInstClassName(*unOp), "FPUnaryOperator");
   EXPECT_EQ(getInstClassName(*load), "LoadInst");
   EXPECT_EQ(getInstClassName(*trunc), "TruncInst");
   EXPECT_EQ(getInstClassName(*phi), "PHINode");

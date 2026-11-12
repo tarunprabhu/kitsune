@@ -31,23 +31,23 @@
 //
 // RUN: %kitxx -O0 --tapir=nolo %s -c -o /dev/null \
 // RUN:     -mllvm -debug-pass=Structure 2>&1 \
-// RUN:     | FileCheck %s -check-prefix TAPIR
+// RUN:     | FileCheck %s -check-prefix TAPIR,O0
 //
 // RUN: %kitxx -O1 --tapir=nolo %s -c -o /dev/null \
 // RUN:     -mllvm -debug-pass=Structure 2>&1 \
-// RUN:     | FileCheck %s -check-prefix TAPIR
+// RUN:     | FileCheck %s -check-prefix TAPIR,OPT
 //
 // RUN: %kitxx -O2 --tapir=nolo %s -c -o /dev/null \
 // RUN:     -mllvm -debug-pass=Structure 2>&1 \
-// RUN:     | FileCheck %s -check-prefix TAPIR
+// RUN:     | FileCheck %s -check-prefix TAPIR,OPT
 //
 // RUN: %kitxx -O3 --tapir=nolo %s -c -o /dev/null \
 // RUN:     -mllvm -debug-pass=Structure 2>&1 \
-// RUN:     | FileCheck %s -check-prefix TAPIR
+// RUN:     | FileCheck %s -check-prefix TAPIR,OPT
 //
 // RUN: %kitxx -Os --tapir=nolo %s -c -o /dev/null \
 // RUN:     -mllvm -debug-pass=Structure 2>&1 \
-// RUN:     | FileCheck %s -check-prefix TAPIR
+// RUN:     | FileCheck %s -check-prefix TAPIR,OPT
 //
 // RUN: not %kitxx -Oz --tapir=nolo %s -c -o /dev/null \
 // RUN:     -mllvm -debug-pass=Structure 2>&1 \
@@ -58,6 +58,7 @@
 // TAPIR-NEXT: Lower Kitsune intrinsics
 // TAPIR-NEXT: Strip Kitsune address spaces
 // TAPIR-NEXT: Generate Kitsune fat binaries
-// TAPIR-NEXT: Pre-ISel Intrinsic Lowering
+// O0-NEXT: Pre-ISel Intrinsic Lowering
+// OPT-NEXT: FunctionPass Manager
 //
 // -----------------------------------------------------------------------------

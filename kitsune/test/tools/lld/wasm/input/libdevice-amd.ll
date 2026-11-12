@@ -302,7 +302,7 @@ define linkonce_odr hidden float @__ocml_sqrt_f32(float noundef %0) local_unname
   br label %54
 
 47:                                               ; preds = %42
-  %48 = fcmp olt float %0, 0x3810000000000000
+  %48 = fcmp olt float %0, f0x00800000
   %49 = tail call float @llvm.ldexp.f32.i32(float %0, i32 32)
   %50 = select i1 %48, float %49, float %0
   %51 = tail call float @llvm.amdgcn.sqrt.f32(float %50)

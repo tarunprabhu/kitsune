@@ -20,8 +20,8 @@
 ; CHECK-NOT: "personality"
 ; CHECK-NOT: "tune-cpu"
 ; CHECK-SAME: "target-cpu"="sm_72"
-; CHECK-SAME: "target-features"="+ptx87,sm_72"
-; CHECK-SAME: "uniform-work-group-size"="true"
+; CHECK-SAME: "target-features"="+ptx87,+sm_72"
+; CHECK-SAME: "uniform-work-group-size"
 ;
 ; CHECK-DAG: ![[MD]] = distinct !{![[MD]], ![[KERNEL:[0-9+]]]}
 ; CHECK-DAG: ![[KERNEL]] = !{!"kit.func.kernel", i32 2}

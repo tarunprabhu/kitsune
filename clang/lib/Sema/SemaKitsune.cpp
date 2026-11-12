@@ -412,8 +412,7 @@ bool SemaKitsune::checkMobileCast(Expr *srcExpr, QualType destType,
 }
 
 bool SemaKitsune::checkForallNesting(FunctionDecl &f) {
-  class ForallNestingChecker
-      : public ConstEvaluatedExprVisitor<ForallNestingChecker> {
+  class ForallNestingChecker : public ConstStmtVisitor<ForallNestingChecker> {
   private:
     Sema &sema;
     ParentMapContext &parentCtx;
@@ -468,13 +467,12 @@ bool SemaKitsune::checkForallNesting(FunctionDecl &f) {
 
   public:
     ForallNestingChecker(Sema &sema, const Stmt *body)
-        : ConstEvaluatedExprVisitor<ForallNestingChecker>(sema.Context),
-          sema(sema), parentCtx(sema.getASTContext().getParentMapContext()),
-          ok(true) {
+        : ConstStmtVisitor<ForallNestingChecker>(), sema(sema),
+          parentCtx(sema.getASTContext().getParentMapContext()), ok(true) {
       // We clear the context to force the parent relationships to be
       // recomputed. It's probably inefficient, but, if we don't do so, we risk
       // getting incorrect results if the map has been manually managed
-      // elsewhere in the code.
+      // elsewhere.
       parentCtx.clear();
       Visit(body);
     }

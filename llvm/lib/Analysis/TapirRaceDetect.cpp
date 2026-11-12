@@ -1361,8 +1361,11 @@ void AccessPtrAnalysis::evaluateMaybeParallelAccesses(
                << "    Ptr:" << *GA1.getPtr() << "\n    I:" << *GA1.I << "\n"
                << "  GA2 =\n"
                << "    Ptr:" << *GA2.getPtr() << "\n    I:" << *GA2.I << "\n");
-    if (checkDependence(DI.depends(&GA1, &GA2, true), GA1, GA2))
-      LocalRace = true;
+    llvm_unreachable(
+        "\nDependenceInfo::depends(GeneralAccess&, GeneralAccess&, bool) has "
+        "been broken since 23.x and needs to be fixed\n");
+    // if (checkDependence(DI.depends(&GA1, &GA2, true), GA1, GA2))
+    //   LocalRace = true;
   }
 
   if (LocalRace) {
@@ -1647,7 +1650,7 @@ void RaceInfo::analyzeFunction() {
   // TODO: Add global variables to APA.
 
   for (BasicBlock &BB : *F) {
-    for (Instruction &I : BB.instructionsWithoutDebug()) {
+    for (Instruction &I : BB) {
       if (I.mayReadFromMemory() || I.mayWriteToMemory()) {
         if (checkInstructionForRace(&I, TLI))
           APA.addAccess(&I);

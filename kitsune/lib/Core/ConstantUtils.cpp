@@ -61,7 +61,7 @@ template Constant *llvm::toConstant(const bool &val, LLVMContext &ctx);
 
 template <typename T, std::enable_if_t<std::is_integer_v<T>, int>>
 Constant *llvm::toConstant(const T &val, LLVMContext &ctx) {
-  return ConstantInt::get(getLLVMTypeFor<T>(ctx), val);
+  return ConstantInt::get(getLLVMTypeFor<T>(ctx), val, std::is_signed_v<T>);
 }
 template Constant *llvm::toConstant(const int8_t &val, LLVMContext &ctx);
 template Constant *llvm::toConstant(const uint8_t &val, LLVMContext &ctx);

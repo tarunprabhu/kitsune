@@ -65,7 +65,6 @@
 #include "clang/Driver/InputInfo.h"
 #include "clang/Driver/Job.h"
 #include "clang/Driver/ModulesDriver.h"
-#include "clang/Driver/Options.h"
 #include "clang/Driver/Phases.h"
 #include "clang/Driver/SanitizerArgs.h"
 #include "clang/Driver/Tool.h"
@@ -127,65 +126,6 @@
 using namespace clang::driver;
 using namespace clang;
 using namespace llvm::opt;
-
-static std::optional<llvm::Triple> getOffloadTargetTriple(const Driver &D,
-                                                          const ArgList &Args) {
-  auto OffloadTargets = Args.getAllArgValues(options::OPT_offload_EQ);
-  // Offload compilation flow does not support multiple targets for now. We
-  // need the HIPActionBuilder (and possibly the CudaActionBuilder{,Base}too)
-  // to support multiple tool chains first.
-  switch (OffloadTargets.size()) {
-  default:
-    D.Diag(diag::err_drv_only_one_offload_target_supported);
-    return std::nullopt;
-  case 0:
-    D.Diag(diag::err_drv_invalid_or_unsupported_offload_target) << "";
-    return std::nullopt;
-  case 1:
-    break;
-  }
-  return llvm::Triple(OffloadTargets[0]);
-}
-
-static std::optional<llvm::Triple>
-getNVIDIAOffloadTargetTriple(const Driver &D, const ArgList &Args,
-                             const llvm::Triple &HostTriple) {
-  if (!Args.hasArg(options::OPT_offload_EQ)) {
-    return llvm::Triple(HostTriple.isArch64Bit() ? "nvptx64-nvidia-cuda"
-                                                 : "nvptx-nvidia-cuda");
-  }
-  auto TT = getOffloadTargetTriple(D, Args);
-  if (TT && (TT->getArch() == llvm::Triple::spirv32 ||
-             TT->getArch() == llvm::Triple::spirv64)) {
-    if (Args.hasArg(options::OPT_emit_llvm))
-      return TT;
-    D.Diag(diag::err_drv_cuda_offload_only_emit_bc);
-    return std::nullopt;
-  }
-  D.Diag(diag::err_drv_invalid_or_unsupported_offload_target) << TT->str();
-  return std::nullopt;
-}
-
-static std::optional<llvm::Triple>
-getHIPOffloadTargetTriple(const Driver &D, const ArgList &Args) {
-  if (!Args.hasArg(options::OPT_offload_EQ)) {
-    auto OffloadArchs = Args.getAllArgValues(options::OPT_offload_arch_EQ);
-    if (llvm::is_contained(OffloadArchs, "amdgcnspirv") &&
-        OffloadArchs.size() == 1)
-      return llvm::Triple("spirv64-amd-amdhsa");
-    return llvm::Triple("amdgcn-amd-amdhsa"); // Default HIP triple.
-  }
-  auto TT = getOffloadTargetTriple(D, Args);
-  if (!TT)
-    return std::nullopt;
-  if (TT->isAMDGCN() && TT->getVendor() == llvm::Triple::AMD &&
-      TT->getOS() == llvm::Triple::AMDHSA)
-    return TT;
-  if (TT->getArch() == llvm::Triple::spirv64)
-    return TT;
-  D.Diag(diag::err_drv_invalid_or_unsupported_offload_target) << TT->str();
-  return std::nullopt;
-}
 
 template <typename F> static bool usesInput(const ArgList &Args, F &&Fn) {
   return llvm::any_of(Args, [&](Arg *A) {
@@ -288,7 +228,7 @@ Driver::Driver(StringRef DriverExecutable, StringRef TargetTriple,
   ResourceDir = GetResourcesPath(DriverExecutable);
 
   if (isKitsuneFrontend(DriverExecutable)) {
-    StringRef BinDir = llvm::sys::path::parent_path(ClangExecutable);
+    StringRef BinDir = llvm::sys::path::parent_path(DriverExecutable);
     SmallString<128> P = llvm::sys::path::parent_path(BinDir);
     llvm::sys::path::append(P, CLANG_INSTALL_LIBDIR_BASENAME, "kitsune",
                             CLANG_VERSION_MAJOR_STRING);
@@ -300,11 +240,11 @@ void Driver::setDriverMode(StringRef Value) {
   static StringRef OptName =
       getOpts().getOption(options::OPT_driver_mode).getPrefixedName();
   if (auto M = llvm::StringSwitch<std::optional<DriverMode>>(Value)
-                   .Cases("gcc", KITSUNE_C_FRONTEND, GCCMode)
-                   .Cases("g++", KITSUNE_CXX_FRONTEND, GXXMode)
+                   .Cases({"gcc", KITSUNE_C_FRONTEND}, GCCMode)
+                   .Cases({"g++", KITSUNE_CXX_FRONTEND}, GXXMode)
                    .Case("cpp", CPPMode)
                    .Case("cl", CLMode)
-                   .Cases("flang", KITSUNE_Fortran_FRONTEND, FlangMode)
+                   .Cases({"flang", KITSUNE_Fortran_FRONTEND}, FlangMode)
                    .Case("dxc", DXCMode)
                    .Default(std::nullopt))
     Mode = *M;
@@ -1799,7 +1739,7 @@ Compilation *Driver::BuildCompilation(ArrayRef<const char *> ArgList) {
   };
   unsigned amdgpuCodeObjVer = tools::getAMDGPUCodeObjectVersion(*this, Args);
   checkKitOptions(Args, IsKitsuneFrontend(), getKitDriverMode(*this),
-                  isUsingLTO(), getTargetTriple(), amdgpuCodeObjVer, Diags);
+                  getTargetTriple(), amdgpuCodeObjVer, Diags);
 
   std::unique_ptr<llvm::opt::InputArgList> UArgs =
       std::make_unique<InputArgList>(std::move(Args));

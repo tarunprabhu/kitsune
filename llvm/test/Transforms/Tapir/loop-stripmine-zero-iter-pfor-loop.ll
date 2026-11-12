@@ -60,7 +60,7 @@ entry:
 ; CHECK-NEXT: ret void
 
 ; CHECK: [[IF_THEN]]:
-; CHECK: %[[LOOP_GUARD_CMP:.+]] = icmp ult ptr
+; CHECK: %[[LOOP_GUARD_CMP:.+]] = icmp eq i64 %[[SUB_PTR]], 0
 ; CHECK-NEXT: br i1 %[[LOOP_GUARD_CMP]], label %[[RET]], label %[[EPIL:.+]]
 
 ; CHECK: [[EPIL]]:

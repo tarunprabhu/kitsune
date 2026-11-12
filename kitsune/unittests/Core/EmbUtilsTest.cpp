@@ -188,7 +188,7 @@ TEST(KitEmbUtils, createEmbFBCuda) {
 
   EXPECT_TRUE(g->hasInitializer());
   EXPECT_TRUE(g->isConstant());
-  EXPECT_TRUE(g->getInitializer()->isZeroValue());
+  EXPECT_TRUE(g->getInitializer()->isNullValue());
   EXPECT_TRUE(isa<ArrayType>(g->getValueType()));
   EXPECT_EQ(cast<ArrayType>(g->getValueType())->getNumElements(), 0U);
   EXPECT_EQ(g->getSection(), ".nv_fatbin");
@@ -208,7 +208,7 @@ TEST(KitEmbUtils, createEmbFBHip) {
 
   EXPECT_TRUE(g->hasInitializer());
   EXPECT_TRUE(g->isConstant());
-  EXPECT_TRUE(g->getInitializer()->isZeroValue());
+  EXPECT_TRUE(g->getInitializer()->isNullValue());
   EXPECT_TRUE(isa<ArrayType>(g->getValueType()));
   EXPECT_EQ(cast<ArrayType>(g->getValueType())->getNumElements(), 0U);
   EXPECT_EQ(g->getSection(), ".hip_fatbin");

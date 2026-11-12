@@ -56,7 +56,6 @@ while.cond:                                       ; preds = %while.cond, %pfor.c
 ; CHECK: [[EXIT]]:
 ; CHECK: call void @llvm.lifetime.start
 ; CHECK: call void @llvm.lifetime.start
-; CHECK: call void @llvm.lifetime.start
 ; CHECK: call void @llvm.memcpy
 ; CHECK: invoke void @_ZN4pbbs10sliced_forIZNS_6reduceI7in_imapImZN16vertexSubsetDataINS_5emptyEEC1ElPbEUlmE_EZNS5_C1ElS6_EUlmmE_EENT_1TESA_RKT0_jEUlmmmE_EEvmmRKSA_
 ; CHECK-NEXT: to label %[[INVOKE_CONT:.+]] unwind label %[[LPAD_I:.+]]
@@ -73,7 +72,6 @@ while.cond:                                       ; preds = %while.cond, %pfor.c
 ; CHECK-NEXT: resume
 
 ; CHECK: [[INVOKE_CONT]]:
-; CHECK: call void @llvm.lifetime.end
 ; CHECK: call void @llvm.lifetime.end
 ; CHECK: call void @llvm.lifetime.end
 ; CHECK-NEXT: call void @llvm.taskframe.end(token %[[TF_I]])

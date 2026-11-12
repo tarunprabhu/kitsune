@@ -16,7 +16,7 @@
 
 @stash = global ptr zeroinitializer
 
-define void @_ZL20initialize_variablesiN7kitsune10mobile_ptrIfEES1_(i64 %nelr, ptr %variables, ptr %ff_variable) {
+define void @f(i64 %nelr, ptr %variables, ptr %ff_variable) {
 entry:
   %syncreg = tail call token @llvm.syncregion.start()
   %invariant.gep = getelementptr float, ptr %variables, i64 %nelr

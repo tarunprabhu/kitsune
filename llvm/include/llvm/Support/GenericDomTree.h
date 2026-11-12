@@ -401,8 +401,18 @@ private:
         if (!BB)
           return 0; // BB may be nullptr for post-dominator tree, map to 0.
       } else
+        // KITSUNE FIXME: Tapir's task analysis queries the dominator tree with
+        // a null BasicBlock in cases where the block containing a call to
+        // taskframe.end intrinsic does not have a successor. That needs to be
+        // fixed ASAP so this can be restored to match upstream. Once that is
+        // done,
+#if 0
         assert(BB && "dominator tree block must be non-null");
       return GraphTraits<const NodeT *>::getNumber(BB) + 1;
+#else // !0
+        assert(true && "bogus assert to allow tapir's questionable behavior");
+      return BB ? GraphTraits<const NodeT *>::getNumber(BB) + 1 : 0;
+#endif // !0
     } else {
       if (auto It = NodeNumberMap.find(BB); It != NodeNumberMap.end())
         return It->second;

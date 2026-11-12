@@ -145,6 +145,50 @@ bool EmbPrepareHip::fixKernelArgumentAddrSpace(Module &devM) {
   return changed;
 }
 
+static bool fixAllocaAddrSpace(AllocaInst &alloca, unsigned newAddrSpace,
+                               IRBuilder<> &builder) {
+  // The new alloca is created just before the alloca that it is replacing.
+  AllocaInst *newAlloca =
+      new AllocaInst(alloca.getAllocatedType(), newAddrSpace,
+                     alloca.getArraySize(), alloca.getAlign(), alloca.getName(),
+                     /*insertBefore=*/alloca.getIterator());
+
+  // The address space cast that strips away the address space is added after
+  // the allocas.
+  Value *cst = builder.CreateAddrSpaceCast(newAlloca, alloca.getType());
+
+  // If the alloca is used in a lifetime intrinsic, that use cannot be
+  // replaced with a cast. Those uses will be handled separately.
+  alloca.replaceUsesWithIf(cst, [](Use &u) -> bool {
+    if (const auto *call = dyn_cast<CallInst>(u.getUser()))
+      if (Intrinsic::ID id = call->getIntrinsicID())
+        if (id == Intrinsic::lifetime_start || id == Intrinsic::lifetime_end)
+          return false;
+    return true;
+  });
+
+  for (User *user : alloca.users()) {
+    assert(isa<CallInst>(user) &&
+           "Only calls to the lifetime intrinsics will not have been replaced");
+    CallInst *call = cast<CallInst>(user);
+    IRBuilder<> bldr(call);
+    switch (call->getIntrinsicID()) {
+    case Intrinsic::lifetime_start: bldr.CreateLifetimeStart(newAlloca); break;
+    case Intrinsic::lifetime_end: bldr.CreateLifetimeEnd(newAlloca); break;
+    default: llvm_unreachable("Unexpected use of alloca in device module");
+    }
+  }
+
+  SmallVector<User*, 4> users(alloca.user_begin(), alloca.user_end());
+  for (User *u : users)
+    cast<Instruction>(u)->eraseFromParent();
+
+  assert(alloca.getNumUses() == 0 && "No remaining uses of alloca");
+  alloca.eraseFromParent();
+
+  return true;
+}
+
 /// Fix the address space of all allocas in the device module. These must be in
 /// the alloca address space. This works by creating new alloca instructions in
 /// the alloca address space, then casting away the address space from the
@@ -153,13 +197,13 @@ bool EmbPrepareHip::fixAllocaAddrSpace(Module &devM) {
   bool changed = false;
   LLVMContext &ctx = devM.getContext();
   const DataLayout &dl = devM.getDataLayout();
-  unsigned addrSpaceAlloca = dl.getAllocaAddrSpace();
+  unsigned newAddrSpace = dl.getAllocaAddrSpace();
 
   for (Function &f : devM.functions()) {
     std::vector<AllocaInst *> toFix;
     for (inst_iterator i = inst_begin(f), e = inst_end(f); i != e; ++i)
       if (auto ai = dyn_cast<AllocaInst>(&*i))
-        if (ai->getAddressSpace() != addrSpaceAlloca)
+        if (ai->getAddressSpace() != newAddrSpace)
           toFix.push_back(ai);
 
     if (toFix.empty())
@@ -171,21 +215,8 @@ bool EmbPrepareHip::fixAllocaAddrSpace(Module &devM) {
     IRBuilder builder(ctx);
     builder.SetInsertPointPastAllocas(&f);
 
-    for (AllocaInst *ai : toFix) {
-      // The new alloca is created just before the alloca that it is replacing.
-      AllocaInst *newAlloca = new AllocaInst(
-          ai->getAllocatedType(), addrSpaceAlloca, ai->getArraySize(),
-          ai->getAlign(), ai->getName(), /*insertBefore=*/ai->getIterator());
-
-      // The address space cast that strips away the address space is added
-      // after the allocas.
-      Value *cst = builder.CreateAddrSpaceCast(newAlloca, ai->getType());
-
-      ai->replaceAllUsesWith(cst);
-      ai->eraseFromParent();
-    }
-
-    changed |= true;
+    for (AllocaInst *ai : toFix)
+      changed |= ::fixAllocaAddrSpace(*ai, newAddrSpace, builder);
   }
   return changed;
 }

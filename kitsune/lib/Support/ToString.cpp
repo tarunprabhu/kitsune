@@ -222,6 +222,7 @@ template <> std::string llvm::toString(const DebugCompressionType &dc) {
 template <> std::string llvm::toString(const EmitDwarfUnwindType &du) {
   switch (du) {
   case EmitDwarfUnwindType::Always: return "always";
+  case EmitDwarfUnwindType::DwarfOnly: return "dwarf-only";
   case EmitDwarfUnwindType::NoCompactUnwind: return "no-compact-unwind";
   case EmitDwarfUnwindType::Default: return "default";
   }

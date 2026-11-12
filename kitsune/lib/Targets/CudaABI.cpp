@@ -76,6 +76,7 @@
 #include "kitsune/Core/KernelProperties.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/TTOptions.h"
+#include "kitsune/Core/TargetUtils.h"
 #include "kitsune/Core/ValueUtils.h"
 #include "kitsune/Support/CommandLineOptions.h"
 #include "llvm/ADT/StringExtras.h"
@@ -170,7 +171,7 @@ void CudaLoop::setKernelFuncAttrs(Function &f) {
   StringRef features = tto.getCudaTargetFeatures();
 
   f.addFnAttr("target-cpu", arch);
-  f.addFnAttr("target-features", join_items(",", features, arch));
+  f.addFnAttr("target-features", appendToTargetFeatures(features, arch));
 
   // Add other attributes that are relevant for the target.
   f.addFnAttr("uniform-work-group-size", "true");

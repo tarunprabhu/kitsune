@@ -520,7 +520,7 @@ static MDNode *getMDNodeForAttr(LLVMContext &Ctx, LoopAttrKind Attr,
 }
 
 std::vector<Metadata *>
-LoopInfo::getTapirLoopProperties(const LoopAttributes &Attrs) {
+clang::CodeGen::LoopInfo::getTapirLoopProperties(const LoopAttributes &Attrs) {
   // If the --tapir option was not provided, we don't have a tapir target, nor
   // do we (currently) have a reasonable default. In this case, don't add any
   // tapir loop metadata.
@@ -642,55 +642,6 @@ void clang::CodeGen::LoopInfo::finish() {
   LoopID->replaceOperandWith(0, LoopID);
 
   TempLoopID->replaceAllUsesWith(LoopID);
-}
-
-std::vector<Metadata *>
-clang::CodeGen::LoopInfo::getTapirLoopProperties(const LoopAttributes &Attrs) {
-  std::vector<Metadata *> LoopProperties;
-  LLVMContext &Ctx = Header->getContext();
-
-  if (Attrs.SpawnStrategy == llvm::TapirSpawnStrategy::Sequential)
-    return LoopProperties;
-
-  // Setting tapir.loop.spawn.strategy
-  if (Attrs.SpawnStrategy != llvm::TapirSpawnStrategy::Sequential) {
-    Metadata *Vals[] = {
-        MDString::get(Ctx, "tapir.loop.spawn.strategy"),
-        ConstantAsMetadata::get(ConstantInt::get(
-            llvm::Type::getInt32Ty(Ctx), unsigned(Attrs.SpawnStrategy)))};
-    LoopProperties.push_back(MDNode::get(Ctx, Vals));
-  }
-
-  // Setting tapir.loop.grainsize
-  if (Attrs.TapirGrainSize > 0) {
-    Metadata *Vals[] = {
-        MDString::get(Ctx, "tapir.loop.grainsize"),
-        ConstantAsMetadata::get(ConstantInt::get(llvm::Type::getInt32Ty(Ctx),
-                                                 Attrs.TapirGrainSize))};
-    LoopProperties.push_back(MDNode::get(Ctx, Vals));
-  }
-
-  // Setting tapir.loop.target. A target may not have been set and we do not
-  // have a reasonable "default". If we don't have a target, don't add the
-  // metadata.
-  if (Attrs.LoopTarget) {
-    Metadata *Vals[] = {
-        MDString::get(Ctx, "tapir.loop.target"),
-        ConstantAsMetadata::get(ConstantInt::get(llvm::Type::getInt32Ty(Ctx),
-                                                 unsigned(*Attrs.LoopTarget)))};
-    LoopProperties.push_back(MDNode::get(Ctx, Vals));
-  }
-
-  // Setting tapir.loop.threads.per.block
-  if (Attrs.ThreadsPerBlock) {
-    Metadata *Vals[] = {
-        MDString::get(Ctx, "tapir.loop.threads.per.block"),
-        ConstantAsMetadata::get(ConstantInt::get(
-            llvm::Type::getInt32Ty(Ctx), unsigned(Attrs.ThreadsPerBlock)))};
-    LoopProperties.push_back(MDNode::get(Ctx, Vals));
-  }
-
-  return LoopProperties;
 }
 
 void LoopInfoStack::push(BasicBlock *Header, const llvm::DebugLoc &StartLoc,

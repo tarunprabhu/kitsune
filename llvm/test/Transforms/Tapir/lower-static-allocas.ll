@@ -33,9 +33,9 @@ sync.continue:                                    ; preds = %det.cont
 ; TT-LABEL: define internal fastcc void @detach_test.outline_det.achd.otd1(
 ; TT: %y.otd1 = alloca
 ; TT-LABEL: det.achd.otd1:
-; TT-NEXT: call void @llvm.lifetime.start.p0(i64 64, ptr %y.otd1)
+; TT-NEXT: call void @llvm.lifetime.start.p0(ptr %y.otd1)
 ; TT: call void @baz(
-; TT-NEXT: call void @llvm.lifetime.end.p0(i64 64, ptr %y.otd1)
+; TT-NEXT: call void @llvm.lifetime.end.p0(ptr %y.otd1)
 
 ; Function Attrs: argmemonly nounwind
 declare void @llvm.lifetime.start.p0i8(i64, i8* nocapture) #1
@@ -120,17 +120,17 @@ sync.continue28:                                  ; preds = %pfor.cond.cleanup16
 ; LS-LABEL: define internal fastcc void @ploop_test.outline_pfor.detach17.ls1(
 ; LS: %[[ALLOCACALLPTR:.+]] = alloca
 ; LS: pfor.body22.ls1:
-; LS-NEXT: call void @llvm.lifetime.start.p0(i64 64, ptr %[[ALLOCACALLPTR]])
+; LS-NEXT: call void @llvm.lifetime.start.p0(ptr %[[ALLOCACALLPTR]])
 ; LS: call void @baz(
-; LS-NEXT: call void @llvm.lifetime.end.p0(i64 64, ptr %[[ALLOCACALLPTR]])
+; LS-NEXT: call void @llvm.lifetime.end.p0(ptr %[[ALLOCACALLPTR]])
 
 ; LS-LABEL: define internal fastcc void @ploop_test.outline_pfor.detach.ls1(
 ; LS: %y.ls1 = alloca
 ; LS: pfor.body.ls1:
 ; LS: %[[YLSPTRSTART:.+]] = bitcast ptr %y.ls1 to ptr
-; LS-NEXT: call void @llvm.lifetime.start.p0(i64 64, ptr nonnull %[[YLSPTRSTART]])
+; LS-NEXT: call void @llvm.lifetime.start.p0(ptr %y.ls1)
 ; LS: call void @baz(
-; LS-NEXT: call void @llvm.lifetime.end.p0(i64 64, ptr nonnull %[[YLSPTRSTART]])
+; LS-NEXT: call void @llvm.lifetime.end.p0(ptr %y.ls1)
 
 attributes #0 = { nounwind uwtable "correctly-rounded-divide-sqrt-fp-math"="false" "disable-tail-calls"="false" "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-jump-tables"="false" "no-nans-fp-math"="false" "no-signed-zeros-fp-math"="false" "no-trapping-math"="false" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+fxsr,+mmx,+sse,+sse2,+x87" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { argmemonly nounwind }

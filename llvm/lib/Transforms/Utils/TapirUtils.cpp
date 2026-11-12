@@ -380,9 +380,9 @@ bool llvm::MoveStaticAllocasInBlock(
         }
       }
 
-      Builder.CreateLifetimeStart(AI, AllocaSize);
+      Builder.CreateLifetimeStart(AI);
       for (Instruction *ExitPoint : ExitPoints)
-        IRBuilder<>(ExitPoint).CreateLifetimeEnd(AI, AllocaSize);
+        IRBuilder<>(ExitPoint).CreateLifetimeEnd(AI);
     }
   }
 

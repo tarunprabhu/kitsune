@@ -63,36 +63,6 @@
 ; O3-SAME: VerifierPass
 ;
 ; ------------------------------------------------------------------------------
-;
-; RUN: opt --tapir=hip -disable-output %s \
-; RUN:     -passes='loop-spawning,emb-optimize' \
-; RUN:     -emb-print-pipeline-passes -emb-Os \
-; RUN:     | FileCheck %s --check-prefix=Os
-;
-; Os: AMDGPUPrintfRuntimeBindingPass
-; Os-SAME: LoopRotatePass<header-duplication;no-prepare-for-lto>
-; Os-NOT: LibCallsShrinkWrapPass
-; Os-NOT: EmbResolveLibDeviceCalls
-; Os-NOT: GenerateCtors
-; Os-SAME: GlobalDCEPass
-; Os-SAME: VerifierPass
-;
-; ------------------------------------------------------------------------------
-;
-; RUN: opt --tapir=hip -disable-output %s \
-; RUN:     -passes='loop-spawning,emb-optimize' \
-; RUN:     -emb-print-pipeline-passes -emb-Oz \
-; RUN:     | FileCheck %s --check-prefix=Oz
-;
-; Oz: AMDGPUPrintfRuntimeBindingPass
-; Oz-SAME: LoopRotatePass<no-header-duplication;no-prepare-for-lto>
-; Oz-NOT: LibCallsShrinkWrapPass
-; Oz-NOT: EmbResolveLibDeviceCalls
-; Oz-NOT: GenerateCtors
-; Oz-SAME: GlobalDCEPass
-; Oz-SAME: VerifierPass
-;
-; ------------------------------------------------------------------------------
 
 define void @f(ptr %c, i64 %n) {
 entry:

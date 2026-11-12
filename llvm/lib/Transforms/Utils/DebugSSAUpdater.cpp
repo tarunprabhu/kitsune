@@ -203,6 +203,18 @@ public:
   /// GetPHIValue - For the specified PHI instruction, return the value
   /// that it defines.
   static DbgValueDef GetPHIValue(DbgSSAPhi *PHI) { return PHI; }
+
+  /// BlockReattaches - Return true if this block is terminated with a
+  /// reattach, false otherwise.
+  static bool BlockReattaches(DbgSSABlock *BB, DebugSSAUpdater *Updater) {
+    return isa<ReattachInst>(BB->BB.getTerminator());
+  }
+
+  /// BlockReattaches - Return true if this block is terminated with a
+  /// detach, false otherwise.
+  static bool BlockDetaches(DbgSSABlock *BB, DebugSSAUpdater *Updater) {
+    return isa<DetachInst>(BB->BB.getTerminator());
+  }
 };
 
 } // end namespace llvm

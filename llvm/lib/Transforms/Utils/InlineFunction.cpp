@@ -646,13 +646,14 @@ static void splitTaskFrameEnds(Instruction *TFCreate) {
 }
 
 // Recursively handle inlined tasks.
-static void HandleInlinedTasksHelper(
-    SmallPtrSetImpl<BasicBlock *> &BlocksToProcess,
-    BasicBlock *FirstNewBlock, BasicBlock *UnwindEdge,
-    BasicBlock *Unreachable, Value *CurrentTaskFrame,
-    SmallVectorImpl<BasicBlock *> *ParentWorklist,
-    LandingPadInliningInfo &Invoke,
-    SmallPtrSetImpl<LandingPadInst *> &InlinedLPads) {
+static void
+HandleInlinedTasksHelper(SmallPtrSetImpl<BasicBlock *> &BlocksToProcess,
+                         BasicBlock *FirstNewBlock, BasicBlock *UnwindEdge,
+                         BasicBlock *Unreachable, Value *CurrentTaskFrame,
+                         SmallVectorImpl<BasicBlock *> *ParentWorklist,
+                         LandingPadInliningInfo &Invoke,
+                         SmallPtrSetImpl<LandingPadInst *> &InlinedLPads,
+                         ClonedCodeInfo &InlinedCodeInfo) {
   SmallVector<DetachInst *, 8> DetachesToReplace;
   SmallVector<BasicBlock *, 32> Worklist;
   // TODO: See if we need a global Visited set over all recursive calls, i.e.,
@@ -690,7 +691,7 @@ static void HandleInlinedTasksHelper(
       // Recursively check all blocks
       HandleInlinedTasksHelper(BlocksToProcess, NewBB, TaskFrameUnwindEdge,
                                Unreachable, TFCreate, &Worklist, Invoke,
-                               InlinedLPads);
+                               InlinedLPads, InlinedCodeInfo);
 
       // Remove the unwind edge for the taskframe if it is not needed.
       if (pred_empty(TaskFrameUnwindEdge))
@@ -699,8 +700,8 @@ static void HandleInlinedTasksHelper(
     }
 
     // Promote any calls in the block to invokes.
-    if (BasicBlock *NewBB =
-            HandleCallsInBlockInlinedThroughInvoke(BB, UnwindEdge)) {
+    if (BasicBlock *NewBB = HandleCallsInBlockInlinedThroughInvoke(
+            BB, UnwindEdge, InlinedCodeInfo.OriginallyIndirectCalls)) {
       // If this is the topmost invocation of HandleInlinedTasksHelper, update
       // any PHI nodes in the exceptional block to indicate that there is now a
       // new entry in them.
@@ -756,7 +757,7 @@ static void HandleInlinedTasksHelper(
         HandleInlinedTasksHelper(BlocksToProcess, DI->getDetached(),
                                  SubTaskUnwindEdge, Unreachable,
                                  CurrentTaskFrame, &Worklist, Invoke,
-                                 InlinedLPads);
+                                 InlinedLPads, InlinedCodeInfo);
 
         // If the new unwind edge is not used, remove it.
         if (pred_empty(SubTaskUnwindEdge))
@@ -808,10 +809,12 @@ static void HandleInlinedTasksHelper(
   }
 }
 
-static void HandleInlinedTasks(
-    SmallPtrSetImpl<BasicBlock *> &BlocksToProcess, BasicBlock *FirstNewBlock,
-    Value *TFCreate, BasicBlock *UnwindEdge, LandingPadInliningInfo &Invoke,
-    SmallPtrSetImpl<LandingPadInst *> &InlinedLPads) {
+static void HandleInlinedTasks(SmallPtrSetImpl<BasicBlock *> &BlocksToProcess,
+                               BasicBlock *FirstNewBlock, Value *TFCreate,
+                               BasicBlock *UnwindEdge,
+                               LandingPadInliningInfo &Invoke,
+                               SmallPtrSetImpl<LandingPadInst *> &InlinedLPads,
+                               ClonedCodeInfo &InlinedCodeInfo) {
   Function *Caller = UnwindEdge->getParent();
 
   // Create the normal return for the detached rethrow.
@@ -821,7 +824,7 @@ static void HandleInlinedTasks(
   // Recursively handle inlined tasks.
   HandleInlinedTasksHelper(BlocksToProcess, FirstNewBlock, UnwindEdge,
                            UnreachableBlk, TFCreate, nullptr, Invoke,
-                           InlinedLPads);
+                           InlinedLPads, InlinedCodeInfo);
 
   // Either finish the unreachable block or remove it, depending on whether it
   // is used.
@@ -924,7 +927,8 @@ static void HandleInlinedLandingPad(InvokeInst *II, BasicBlock *FirstNewBlock,
 
     // Process inlined subtasks.
     HandleInlinedTasks(BlocksToProcess, FirstNewBlock, TFCreate,
-                       Invoke.getOuterResumeDest(), Invoke, InlinedLPads);
+                       Invoke.getOuterResumeDest(), Invoke, InlinedLPads,
+                       InlinedCodeInfo);
     // Now that everything is happy, we have one final detail.  The PHI nodes in
     // the exception destination block still have entries due to the original
     // invoke instruction. Eliminate these entries (which might even delete the
@@ -2974,44 +2978,12 @@ llvm::InlineResult llvm::CanInlineCallSite(const CallBase &CB,
           ? Caller->getPersonalityFn()->stripPointerCasts()
           : nullptr;
   if (CalledPersonality) {
-    Triple T(Caller->getParent()->getTargetTriple());
-    if (!CallerPersonality)
-      Caller->setPersonalityFn(CalledPersonality);
-    else if (CalledPersonality != CallerPersonality) {
-      // See if we want to replace CallerPersonality with the CalledPersonality,
-      // because CalledPersonality is a proper superset.
-      if (classifyEHPersonality(CallerPersonality) ==
-          getDefaultEHPersonality(T))
-        // The caller is using the default personality function.  We assume
-        // CalledPersonality is a superset.
-        Caller->setPersonalityFn(CalledPersonality);
-
-      else if (classifyEHPersonality(CalledPersonality) ==
-                   EHPersonality::Cilk_CXX &&
-               classifyEHPersonality(CallerPersonality) ==
-                   EHPersonality::GNU_CXX)
-        // The Cilk personality is a superset of the caller's.
-        Caller->setPersonalityFn(CalledPersonality);
-
-      // If the personality functions match, then we can perform the
-      // inlining. Otherwise, we can't inline.
-      // TODO: This isn't 100% true. Some personality functions are proper
-      //       supersets of others and can be used in place of the other.
-      else {
-        EHPersonality CalledEHPersonality =
-            classifyEHPersonality(CalledPersonality);
-        // We can inline if:
-        // - CalledPersonality is the default personality, or
-        // - CallerPersonality is the Cilk personality and CalledPersonality is
-        //   GNU_CXX.
-        // Otherwise, declare that we can't inline.
-        if (CalledEHPersonality != getDefaultEHPersonality(T) &&
-            (classifyEHPersonality(CallerPersonality) !=
-                 EHPersonality::Cilk_CXX ||
-             CalledEHPersonality != EHPersonality::GNU_CXX))
-          return InlineResult::failure("incompatible personality");
-      }
-    }
+    // If the personality functions match, then we can perform the
+    // inlining. Otherwise, we can't inline.
+    // TODO: This isn't 100% true. Some personality functions are proper
+    //       supersets of others and can be used in place of the other.
+    if (CallerPersonality && CalledPersonality != CallerPersonality)
+      return InlineResult::failure("incompatible personality");
   }
 
   // We need to figure out which funclet the callsite was in so that we may

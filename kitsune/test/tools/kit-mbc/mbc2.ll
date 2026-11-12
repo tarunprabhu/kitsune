@@ -1,5 +1,8 @@
 ; Check the basic operations of this utility in various cases.
 ;
+; KITSUNE FIXME: Fix kit-mbc to return embedded modules for multiple tapir
+; targets at the same time. After that, this can be fixed.
+;
 ; Create a temporary directory
 ; RUN: mkdir -p %t
 ;

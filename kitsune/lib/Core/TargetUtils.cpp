@@ -58,6 +58,21 @@ static TargetMachine *createPTXTargetMachine(const TTOptions &tto,
                                      relocModel, codeModel, cgOptLevel);
 }
 
+std::string llvm::appendToTargetFeatures(StringRef features, StringRef arch) {
+  assert(!arch.empty() &&
+         "Architecture to append to target features must not be empty");
+
+  std::string buf;
+  raw_string_ostream os(buf);
+
+  if (!features.empty())
+    os << features << ",";
+  os << "+" << arch;
+
+  os.flush();
+  return buf;
+}
+
 TargetMachine *llvm::createTargetMachine(TTID tt, const TTOptions &tto) {
   CodeGenOptLevel cgOptLevel = createCodeGenOptLevelFrom(tto.getOptznLevel());
   return createTargetMachine(tt, tto, cgOptLevel);
@@ -115,7 +130,6 @@ void llvm::dump(const TargetOptions &opts, raw_ostream &os) {
   // order in the TargetOptions object itself.
   os << "Target Options:\n";
   os << "  AllowFPOpFusion: " << toString(opts.AllowFPOpFusion) << "\n";
-  OPT_BOOL(ApproxFuncFPMath);
   OPT_BOOL(BBAddrMap);
   OPT_ENUM(BBSections);
   os << "  BinutilsVersion: " << opts.BinutilsVersion.first << "."
@@ -149,9 +163,6 @@ void llvm::dump(const TargetOptions &opts, raw_ostream &os) {
   OPT_BOOL(JMCInstrument);
   OPT_INT(LoopAlignment);
   OPT_BOOL(MisExpect);
-  OPT_BOOL(NoInfsFPMath);
-  OPT_BOOL(NoNaNsFPMath);
-  OPT_BOOL(NoSignedZerosFPMath);
   OPT_BOOL(NoTrapAfterNoreturn);
   OPT_BOOL(NoTrappingFPMath);
   OPT_BOOL(NoZerosInBSS);
@@ -160,7 +171,7 @@ void llvm::dump(const TargetOptions &opts, raw_ostream &os) {
   OPT_BOOL(SupportsDebugEntryValues);
   OPT_BOOL(SupportsDefaultOutlining);
   OPT_BOOL(StackSymbolOrdering);
-  OPT_ENUM(StackUsageOutput);
+  OPT_ENUM(StackUsageFile);
   os << "  SwiftAsyncFramePointerMode: "
      << toString(opts.SwiftAsyncFramePointer) << "\n";
   OPT_ENUM(ThreadModel);
@@ -168,7 +179,6 @@ void llvm::dump(const TargetOptions &opts, raw_ostream &os) {
   OPT_BOOL(TrapUnreachable);
   OPT_BOOL(UniqueBasicBlockSectionNames);
   OPT_BOOL(UniqueSectionNames);
-  OPT_BOOL(UnsafeFPMath);
   OPT_BOOL(UseInitArray);
   OPT_BOOL(ValueTrackingVariableLocations);
   OPT_BOOL(VerifyArgABICompliance);

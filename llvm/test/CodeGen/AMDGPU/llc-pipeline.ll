@@ -92,9 +92,9 @@
 ; GCN-O0-NEXT:      Uniformity Analysis
 ; GCN-O0-NEXT:      Basic Alias Analysis (stateless AA impl)
 ; GCN-O0-NEXT:      Function Alias Analysis Results
+; GCN-O0-NEXT:      Tapir Task Information
 ; GCN-O0-NEXT:      Memory SSA
 ; GCN-O0-NEXT:      AMDGPU Annotate Uniform Values
-; GCN-O0-NEXT:      Tapir Task Information
 ; GCN-O0-NEXT:      Natural Loop Information
 ; GCN-O0-NEXT:      SI annotate control flow
 ; GCN-O0-NEXT:      Cycle Info Analysis

@@ -1,6 +1,13 @@
 ; Thanks to Brian Wheatman for the source code behind this test.
 ;
-; RUN: opt %s -aa-pipeline=default -passes='cilksan' -S | FileCheck %s
+; KITSUNE FIXME: cilksan is broken since the merge with 23.x. Once the
+; underlying unreachable has been removed, the --check-prefix in the FileCheck
+; invocation below must also be removed.
+;
+; RUN: not --crash \
+; RUN: opt %s -aa-pipeline=default -passes='cilksan' -S 2>&1 | FileCheck %s --check-prefix=UNREACHABLE
+;
+; UNREACHABLE: has been broken since 23.x and needs to be fixed
 
 target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"

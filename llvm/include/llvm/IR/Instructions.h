@@ -4806,21 +4806,10 @@ class DetachInst : public Instruction {
   ///  SyncRegion, Detached, Continue[, Unwind]
   DetachInst(const DetachInst &DI, AllocInfo AllocInfo);
   void AssertOK();
-  // DetachInst constructors (where {D, C, U} are blocks and SR is a token):
-  // DetachInst(BB *D, BB *C, Value *SR) - 'detach SR, D, C'
-  // DetachInst(BB *D, BB *C, Value *SR, Inst *I)
-  //                                     - 'detach SR, D, C', insert before I
-  // DetachInst(BB *D, BB *C, Value *SR, BB *I)
-  //                                     - 'detach SR, D, C', insert at end
-  DetachInst(BasicBlock *Detached, BasicBlock *Continue, Value *SyncRegion,
+  DetachInst(Value *SyncRegion, BasicBlock *Detached, BasicBlock *Continue,
              AllocInfo AllocInfo, InsertPosition InsertBefore = nullptr);
-  // DetachInst(BB *D, BB *C, BB *U, Value *SR) - 'detach SR, D, C, U'
-  // DetachInst(BB *D, BB *C, BB *U, Value *SR, Inst *I)
-  //                                     - 'detach SR, D, C, U', insert before I
-  // DetachInst(BB *D, BB *C, BB *U, Value *SR, BB *I)
-  //                                     - 'detach SR, D, C, U', insert at end
-  DetachInst(BasicBlock *Detached, BasicBlock *Continue, BasicBlock *Unwind,
-             Value *SyncRegion, AllocInfo AllocInfo,
+  DetachInst(Value *SyncRegion, BasicBlock *Detached, BasicBlock *Continue,
+             BasicBlock *Unwind, AllocInfo AllocInfo,
              InsertPosition InsertBefore = nullptr);
 
 protected:
@@ -4834,13 +4823,13 @@ public:
                             InsertPosition InsertBefore = nullptr) {
     IntrusiveOperandsAllocMarker AllocMarker{3};
     return new (AllocMarker)
-        DetachInst(Detached, Continue, SyncRegion, AllocMarker, InsertBefore);
+        DetachInst(SyncRegion, Detached, Continue, AllocMarker, InsertBefore);
   }
   static DetachInst *Create(BasicBlock *Detached, BasicBlock *Continue,
                             BasicBlock *Unwind, Value *SyncRegion,
                             InsertPosition InsertBefore = nullptr) {
     IntrusiveOperandsAllocMarker AllocMarker{4};
-    return new (AllocMarker) DetachInst(Detached, Continue, Unwind, SyncRegion,
+    return new (AllocMarker) DetachInst(SyncRegion, Detached, Continue, Unwind,
                                         AllocMarker, InsertBefore);
   }
 
@@ -4848,23 +4837,53 @@ public:
   DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Value);
 
   Value *getSyncRegion() const {
-    return Op<-1>();
+    if (hasUnwindDest())
+      return Op<-4>();
+    else
+      return Op<-3>();
   }
 
   void setSyncRegion(Value *SyncRegion) {
-    Op<-1>() = SyncRegion;
+    if (hasUnwindDest())
+      Op<-4>() = SyncRegion;
+    else
+      Op<-3>() = SyncRegion;
   }
 
   unsigned getNumSuccessors() const { return 2 + hasUnwindDest(); }
 
   BasicBlock *getSuccessor(unsigned i) const {
     assert(i < getNumSuccessors() && "Successor # out of range for detach!");
-    return cast<BasicBlock>((&Op<-2>() - i)->get());
+    if (hasUnwindDest())
+      return cast<BasicBlock>((&Op<-3>() + i)->get());
+    else
+      return cast<BasicBlock>((&Op<-2>() + i)->get());
   }
 
   void setSuccessor(unsigned idx, BasicBlock *NewSucc) {
     assert(idx < getNumSuccessors() && "Successor # out of range for detach!");
-    *(&Op<-2>() - idx) = reinterpret_cast<Value*>(NewSucc);
+    if (hasUnwindDest())
+      *(&Op<-3>() + idx) = reinterpret_cast<Value*>(NewSucc);
+    else
+      *(&Op<-2>() + idx) = reinterpret_cast<Value*>(NewSucc);
+  }
+
+  iterator_range<succ_iterator> successors() {
+    if (hasUnwindDest())
+      return make_range(succ_iterator(std::next(op_begin())),
+                        succ_iterator(op_end()));
+    else
+      return make_range(succ_iterator(std::next(op_begin())),
+                        succ_iterator(op_end()));
+  }
+
+  iterator_range<const_succ_iterator> successors() const {
+    if (hasUnwindDest())
+      return make_range(const_succ_iterator(std::next(op_begin())),
+                        const_succ_iterator(op_end()));
+    else
+      return make_range(const_succ_iterator(std::next(op_begin())),
+                        const_succ_iterator(op_end()));
   }
 
   // Methods for support type inquiry through isa, cast, and dyn_cast:
@@ -4921,13 +4940,10 @@ DEFINE_TRANSPARENT_OPERAND_ACCESSORS(DetachInst, Value)
 /// corresponding to this reattach.
 ///
 class ReattachInst : public Instruction {
+  constexpr static IntrusiveOperandsAllocMarker AllocMarker{2};
   ReattachInst(const ReattachInst &RI, AllocInfo AllocInfo);
   void AssertOK();
-  // ReattachInst constructors (where C is a block and SR is a token):
-  // ReattachInst(BB *C, Value *SR)          - 'reattach SR, C'
-  // ReattachInst(BB *C, Value *SR, Inst *I) - 'reattach SR, C', insert before I
-  // ReattachInst(BB *C, Value *SR, BB *I)   - 'reattach SR, C', insert at end
-  explicit ReattachInst(BasicBlock *DetachContinue, Value *SyncRegion,
+  explicit ReattachInst(Value *SyncRegion, BasicBlock *DetachContinue,
                         AllocInfo AllocInfo,
                         InsertPosition InsertBefore = nullptr);
 
@@ -4939,27 +4955,30 @@ protected:
 public:
   static ReattachInst *Create(BasicBlock *DetachContinue, Value *SyncRegion,
                               InsertPosition InsertBefore = nullptr) {
-    IntrusiveOperandsAllocMarker AllocMarker{2};
     return new (AllocMarker)
-        ReattachInst(DetachContinue, SyncRegion, AllocMarker, InsertBefore);
+        ReattachInst(SyncRegion, DetachContinue, AllocMarker, InsertBefore);
   }
 
   /// Transparently provide more efficient getOperand methods.
   DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Value);
 
-  Value *getSyncRegion() const {
-    return Op<-1>();
-  }
+  Value *getSyncRegion() const { return Op<-2>(); }
 
-  void setSyncRegion(Value *SyncRegion) {
-    Op<-1>() = SyncRegion;
-  }
+  void setSyncRegion(Value *SyncRegion) { Op<-2>() = SyncRegion; }
 
   unsigned getNumSuccessors() const { return 1; }
 
-  BasicBlock *getDetachContinue() const {
-    return getSuccessor(0);
+  iterator_range<succ_iterator> successors() {
+    return make_range(succ_iterator(std::next(op_begin())),
+                      succ_iterator(op_end()));
   }
+
+  iterator_range<const_succ_iterator> successors() const {
+    return make_range(const_succ_iterator(std::next(op_begin())),
+                      const_succ_iterator(op_end()));
+  }
+
+  BasicBlock *getDetachContinue() const { return getSuccessor(0); }
 
   // Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const Instruction *I) {
@@ -4970,12 +4989,12 @@ public:
   }
   BasicBlock *getSuccessor(unsigned i) const {
     assert(i < getNumSuccessors() && "Successor # out of range for reattach!");
-    return cast<BasicBlock>((&Op<-2>() - i)->get());
+    return cast<BasicBlock>((&Op<-1>() + i)->get());
   }
   void setSuccessor(unsigned idx, BasicBlock *NewSucc) {
     assert(idx < getNumSuccessors() &&
            "Successor # out of range for reattach!");
-    *(&Op<-2>() - idx) = reinterpret_cast<Value*>(NewSucc);
+    *(&Op<-1>() + idx) = reinterpret_cast<Value*>(NewSucc);
   }
 };
 
@@ -4993,14 +5012,11 @@ DEFINE_TRANSPARENT_OPERAND_ACCESSORS(ReattachInst, Value)
 /// SyncInst - Sync instruction.
 ///
 class SyncInst : public Instruction {
+  constexpr static IntrusiveOperandsAllocMarker AllocMarker{2};
   /// Ops list - A sync looks like an unconditional branch to its continuation.
   SyncInst(const SyncInst &SI, AllocInfo AllocInfo);
   void AssertOK();
-  // SyncInst constructor (where C is a block and SR is a token):
-  // SyncInst(BB *C, Value *SR)          - 'sync SR, C'
-  // SyncInst(BB *C, Value *SR, Inst *I) - 'sync SR, C'        insert before I
-  // SyncInst(BB *C, Value *SR, BB *I)   - 'sync SR, C'        insert at end
-  explicit SyncInst(BasicBlock *Continue, Value *SyncRegion,
+  explicit SyncInst(Value *SyncRegion, BasicBlock *Continue,
                     AllocInfo AllocInfo, InsertPosition InsertBefore = nullptr);
 
 protected:
@@ -5011,23 +5027,28 @@ protected:
 public:
   static SyncInst *Create(BasicBlock *Continue, Value *SyncRegion,
                           InsertPosition InsertBefore = nullptr) {
-    IntrusiveOperandsAllocMarker AllocMarker{2};
     return new (AllocMarker)
-        SyncInst(Continue, SyncRegion, AllocMarker, InsertBefore);
+        SyncInst(SyncRegion, Continue, AllocMarker, InsertBefore);
   }
 
   /// Transparently provide more efficient getOperand methods.
   DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Value);
 
-  Value *getSyncRegion() const {
-    return Op<-1>();
-  }
+  Value *getSyncRegion() const { return Op<-2>(); }
 
-  void setSyncRegion(Value *SyncRegion) {
-    Op<-1>() = SyncRegion;
-  }
+  void setSyncRegion(Value *SyncRegion) { Op<-2>() = SyncRegion; }
 
   unsigned getNumSuccessors() const { return 1; }
+
+  iterator_range<succ_iterator> successors() {
+    return make_range(succ_iterator(std::next(op_begin())),
+                      succ_iterator(op_end()));
+  }
+
+  iterator_range<const_succ_iterator> successors() const {
+    return make_range(const_succ_iterator(std::next(op_begin())),
+                      const_succ_iterator(op_end()));
+  }
 
   // Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const Instruction *I) {
@@ -5039,11 +5060,11 @@ public:
 
   BasicBlock *getSuccessor(unsigned i) const {
     assert(i < getNumSuccessors() && "Successor # out of range for sync!");
-    return cast<BasicBlock>((&Op<-2>() - i)->get());
+    return cast<BasicBlock>((&Op<-1>() + i)->get());
   }
   void setSuccessor(unsigned idx, BasicBlock *NewSucc) {
     assert(idx < getNumSuccessors() && "Successor # out of range for sync!");
-    *(&Op<-2>() - idx) = reinterpret_cast<Value*>(NewSucc);
+    *(&Op<-1>() + idx) = reinterpret_cast<Value*>(NewSucc);
   }
 };
 

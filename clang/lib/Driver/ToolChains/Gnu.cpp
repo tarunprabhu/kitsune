@@ -442,10 +442,6 @@ void tools::gnutools::Linker::ConstructJob(Compilation &C, const JobAction &JA,
   if (auto LTO = ToolChain.getLTOMode(Args); LTO != LTOK_None)
     addLTOOptions(ToolChain, Args, CmdArgs, Output, Inputs, LTO == LTOK_Thin);
 
-  if (D.isUsingLTO())
-    addLTOOptions(ToolChain, Args, CmdArgs, Output, Inputs,
-                  D.getLTOMode() == LTOK_Thin);
-
   if (Args.hasArg(options::OPT_Z_Xlinker__no_demangle))
     CmdArgs.push_back("--no-demangle");
 
@@ -461,7 +457,7 @@ void tools::gnutools::Linker::ConstructJob(Compilation &C, const JobAction &JA,
 
   // Add the Kitsune-specific options just before linking the C++ standard
   // library (if needed).
-  if (D.isUsingLTO())
+  if (auto LTO = ToolChain.getLTOMode(Args); LTO != LTOK_None)
     ToolChain.AddKitsuneLTOArgs(Args, CmdArgs);
   ToolChain.AddKitsuneLinkerArgs(Args, CmdArgs);
 
@@ -2167,10 +2163,11 @@ void Generic_GCC::GCCInstallationDetector::init(
     StringRef TripleText =
         llvm::sys::path::filename(llvm::sys::path::parent_path(InstallDir));
 
-    Version = GCCVersion::Parse(VersionText);
-    GCCTriple.setTriple(TripleText);
-    GCCInstallPath = std::string(InstallDir);
-    GCCParentLibPath = GCCInstallPath + "/../../..";
+    SelectedInstallation.Version = GCCVersion::Parse(VersionText);
+    SelectedInstallation.GCCTriple.setTriple(TripleText);
+    SelectedInstallation.GCCInstallPath = std::string(InstallDir);
+    SelectedInstallation.GCCParentLibPath = 
+        SelectedInstallation.GCCInstallPath + "/../../..";
     IsValid = true;
     return;
   }

@@ -9,7 +9,7 @@
 // CHECK-NEXT: [[ENTRY:.+]]:
 // CHECK: [[HEADER:.+]]:
 // CHECK: %[[I:.+]] = phi i64
-// CHECK: %[[IDX:.+]] = getelementptr {{.*}}i64, ptr %[[A]], i64 %[[I]]
+// CHECK: %[[IDX:.+]] = getelementptr {{.*}}, ptr %[[A]], i64 %[[I]]
 // CHECK: store i64 %[[I]], ptr %[[IDX]]
 // CHECK: %[[INC:.+]] = add {{.+}} %[[I]], 1
 // CHECK: %[[CMP:.+]] = icmp eq i64 %[[INC]], %[[N]]

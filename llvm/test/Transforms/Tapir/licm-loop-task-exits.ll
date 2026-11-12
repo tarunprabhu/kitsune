@@ -2165,8 +2165,8 @@ pfor.body.entry157:                               ; preds = %pfor.cond153
   br label %pfor.body159, !dbg !5067
 
 ; CHECK: pfor.body.entry157:
-; CHECK: %78 = bitcast ptr %i158 to ptr
-; CHECK: call void @llvm.lifetime.start.p0(i64 4, ptr nonnull %78)
+; CHECK: %[[I158:.+]] = alloca
+; CHECK: call void @llvm.lifetime.start.p0(ptr %[[I158]])
 
 pfor.body159:                                     ; preds = %pfor.body.entry157
   %idxprom = zext i32 %__begin147.0 to i64, !dbg !5073
@@ -2193,7 +2193,7 @@ for.cond.cleanup:                                 ; preds = %for.cond.for.cond.c
   reattach within %syncreg284, label %pfor.inc199, !dbg !5086
 
 ; CHECK: for.cond.cleanup:
-; CHECK: call void @llvm.lifetime.end.p0(i64 4, ptr nonnull %78)
+; CHECK: call void @llvm.lifetime.end.p0(ptr %[[I158]])
 ; CHECK: reattach within %syncreg284, label %pfor.inc199
 
 for.body:                                         ; preds = %invoke.cont178, %for.body.lr.ph
@@ -2242,7 +2242,7 @@ lpad175:                                          ; preds = %for.body
           to label %unreachable unwind label %lpad198.loopexit, !dbg !5086
 
 ; CHECK: lpad175:
-; CHECK: call void @llvm.lifetime.end.p0(i64 4, ptr nonnull %78)
+; CHECK: call void @llvm.lifetime.end.p0(ptr %[[I158]])
 ; CHECK: invoke void @llvm.detached.rethrow.sl_p0i32s(token %syncreg284, { ptr, i32 } %{{.+}})
 ; CHECK-NEXT: to label %{{.+}} unwind label %lpad198.loopexit
 

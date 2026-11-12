@@ -8744,30 +8744,6 @@ void SelectionDAGBuilder::visitIntrinsicCall(const CallInst &I,
                          getValue(I.getOperand(0)), getValue(I.getOperand(1)),
                          getValue(I.getOperand(2))));
     return;
-  }
-}
-
-void SelectionDAGBuilder::pushFPOpOutChain(SDValue Result,
-                                           fp::ExceptionBehavior EB) {
-  assert(Result.getNode()->getNumValues() == 2);
-  SDValue OutChain = Result.getValue(1);
-  assert(OutChain.getValueType() == MVT::Other);
-
-  // Instead of updating the root immediately, push the produced chain to the
-  // appropriate list, deferring the update until the root is requested. In this
-  // case, the nodes from the lists are chained using TokenFactor, indicating
-  // that the operations are independent.
-  //
-  // In particular, the root is updated before any call that might access the
-  // floating-point environment, except for constrained intrinsics.
-  switch (EB) {
-  case fp::ExceptionBehavior::ebMayTrap:
-  case fp::ExceptionBehavior::ebIgnore:
-    PendingConstrainedFP.push_back(OutChain);
-    break;
-  case fp::ExceptionBehavior::ebStrict:
-    PendingConstrainedFPStrict.push_back(OutChain);
-    break;
   // Tapir intrinsics
   case Intrinsic::syncregion_start:
     // Lower the starting point of a Tapir sync region to a no-op.
@@ -8798,6 +8774,30 @@ void SelectionDAGBuilder::pushFPOpOutChain(SDValue Result,
                              TLI.getFrameIndexTy(DAG.getDataLayout()),
                              getValue(I.getArgOperand(0))));
     return;
+  }
+}
+
+void SelectionDAGBuilder::pushFPOpOutChain(SDValue Result,
+                                           fp::ExceptionBehavior EB) {
+  assert(Result.getNode()->getNumValues() == 2);
+  SDValue OutChain = Result.getValue(1);
+  assert(OutChain.getValueType() == MVT::Other);
+
+  // Instead of updating the root immediately, push the produced chain to the
+  // appropriate list, deferring the update until the root is requested. In this
+  // case, the nodes from the lists are chained using TokenFactor, indicating
+  // that the operations are independent.
+  //
+  // In particular, the root is updated before any call that might access the
+  // floating-point environment, except for constrained intrinsics.
+  switch (EB) {
+  case fp::ExceptionBehavior::ebMayTrap:
+  case fp::ExceptionBehavior::ebIgnore:
+    PendingConstrainedFP.push_back(OutChain);
+    break;
+  case fp::ExceptionBehavior::ebStrict:
+    PendingConstrainedFPStrict.push_back(OutChain);
+    break;
   }
 }
 

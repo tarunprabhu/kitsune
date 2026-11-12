@@ -34,11 +34,7 @@ entry:
   %3 = load i32, i32* %__init, align 4, !tbaa !15
   %4 = load i32, i32* %__limit, align 4, !tbaa !15
   %cmp = icmp slt i32 %3, %4
-  br i1 %cmp, label %pfor.ph, label %pfor.initcond.cleanup
-
-pfor.initcond.cleanup:                            ; preds = %entry
-  store i32 2, i32* %cleanup.dest.slot, align 4
-  br label %cleanup
+  br i1 %cmp, label %pfor.ph, label %pfor.cond.cleanup
 
 pfor.ph:                                          ; preds = %entry
   %5 = bitcast i32* %__begin to i8*

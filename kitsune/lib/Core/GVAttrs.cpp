@@ -224,7 +224,7 @@ void llvm::verifyDeviceCodeAttr(KitVerifier &v, const GlobalVariable &g,
     return;
 
   const Constant *init = g.getInitializer();
-  v.check(isa<ConstantDataArray>(init) || init->isZeroValue(), g,
+  v.check(isa<ConstantDataArray>(init) || init->isNullValue(), g,
           DiagID::ErrAttrGlobalBadInit, attr,
           "Must be a constant data array or zero-initialized");
 }
@@ -246,7 +246,7 @@ void llvm::verifyKernelPropertiesAttr(KitVerifier &v, const GlobalVariable &g,
     return;
 
   const Constant *init = g.getInitializer();
-  if (!v.check(isa<ConstantStruct>(init) || init->isZeroValue(), g,
+  if (!v.check(isa<ConstantStruct>(init) || init->isNullValue(), g,
                DiagID::ErrAttrGlobalBadInit, attr,
                "Must be a constant struct or zero-initialized"))
     return;

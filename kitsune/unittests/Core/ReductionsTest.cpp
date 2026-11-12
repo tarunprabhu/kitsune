@@ -294,10 +294,10 @@ TEST(KitReductions, getReducerType) {
   BasicBlock *bb = BasicBlock::Create(ctx, "", f);
   IRBuilder<> builder(bb);
 
-  CallInst *cf =
+  Value *cf =
       builder.CreateIntrinsic(Intrinsic::kit_reduce, {i32, i32},
                               {one, five, cnull, ten, zero, four, zero, cnull});
-  ReductionInfo redf(cf);
+  ReductionInfo redf(cast<CallInst>(cf));
   FunctionType *tyf = redf.getReducerType();
 
   EXPECT_EQ(tyf->getNumParams(), 2U);
@@ -306,10 +306,10 @@ TEST(KitReductions, getReducerType) {
   EXPECT_FALSE(tyf->isVarArg());
   EXPECT_EQ(redf.getReducerArgs(), (SmallVector<Value *, 2>{cnull, ten}));
 
-  CallInst *cv = builder.CreateIntrinsic(
+  Value *cv = builder.CreateIntrinsic(
       Intrinsic::kit_reduce, {i32, i32, ptr},
       {one, five, cnull, ten, zero, four, zero, cnull, cnull});
-  ReductionInfo redv(cv);
+  ReductionInfo redv(cast<CallInst>(cv));
   FunctionType *tyv = redv.getReducerType();
 
   EXPECT_FALSE(tyv->isVarArg());

@@ -57,6 +57,7 @@
 ; CHECK-O23-NEXT: Running analysis: OuterAnalysisManagerProxy
 ; CHECK-O23-NEXT: Running pass: ArgumentPromotionPass
 ; CHECK-O23-NEXT: Running pass: SROAPass
+; CHECK-O23-NEXT: Running analysis: TaskAnalysis
 ; CHECK-O23-NEXT: Running pass: IPSCCPPass
 ; CHECK-O23-NEXT: Running pass: CalledValuePropagationPass
 ; CHECK-O-NEXT: Running pass: ReversePostOrderFunctionAttrsPass

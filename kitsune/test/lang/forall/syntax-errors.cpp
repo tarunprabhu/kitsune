@@ -12,26 +12,30 @@ void f1() {
   // expected-error@+1 {{expected ';' in 'for'}}
   forall(int n = 0 n < 10; n++) { }
 
+  // expected-error@+2 {{forall statement must have an increment expression}}
   // expected-error@+1 {{expected ';' in 'for'}}
   forall(int n = 0; n < 10 n++) { }
 
   // expected-error@+1 {{expected ';' in 'for'}}
   forall(int n = 0 n < 10; n++) { }
 
+  // expected-error@+2 {{forall statement must have an increment expression}}
   // expected-error@+1 {{expected ';' in 'for'}}
   forall(int n = 0; n < 10 n++) { }
 
   // expected-error@+1 {{expected ';' in 'for'}}
   forall(int n = 0 bool b = n < 10; n++) { }
 
+  // expected-error@+2 {{forall statement must have an increment expression}}
   // expected-error@+1 {{expected ';' in 'for'}}
   forall(int n = 0; bool b = n < 10 n++) { }
 
+  // expected-error@+2 {{forall statement must have an increment expression}}
   // expected-error@+1 2{{expected ';' in 'for'}}
   forall(int n = 0 n < 10 n++) { }
 
-  // expected-error@+2 {{expected ';' in 'for'}}
-  // expected-error@+1 {{forall statement must have an initialization expression}}
+  // expected-error@+2 {{forall statement must have an initialization expression}}
+  // expected-error@+1 {{expected ';' in 'for'}}
   forall(;) { }
 
   // clang-format off

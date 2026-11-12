@@ -26,7 +26,7 @@
 ; CHECK-SAME: "no-trapping-math"="true"
 ; CHECK-SAME: "target-cpu"="gfx906"
 ; CHECK-SAME: "target-features"="+wavefrontsize32,+atomic-fadd-rtn-insts"
-; CHECK-SAME: "uniform-work-group-size"="true"
+; CHECK-SAME: "uniform-work-group-size"
 ;
 ; CHECK-DAG: ![[MD]] = distinct !{![[MD]], ![[KERNEL:[0-9+]]]}
 ; CHECK-DAG: ![[KERNEL]] = !{!"kit.func.kernel", i32 2}

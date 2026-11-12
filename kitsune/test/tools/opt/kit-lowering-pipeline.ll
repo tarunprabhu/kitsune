@@ -25,31 +25,30 @@
 ;
 ; RUN: opt --tapir=serial -passes='kit-lowering<O1>' -debug-pass-manager %s \
 ; RUN:     -o /dev/null 2>&1 \
-; RUN:     | FileCheck %s -check-prefix O123S
+; RUN:     | FileCheck %s -check-prefix O123
 ;
 ; RUN: opt --tapir=serial -passes='kit-lowering<O2>' -debug-pass-manager %s \
 ; RUN:     -o /dev/null 2>&1 \
-; RUN:     | FileCheck %s -check-prefix O123S
+; RUN:     | FileCheck %s -check-prefix O123
 ;
 ; RUN: opt --tapir=serial -passes='kit-lowering<O3>' -debug-pass-manager %s \
 ; RUN:     -o /dev/null 2>&1 \
-; RUN:     | FileCheck %s -check-prefix O123S
+; RUN:     | FileCheck %s -check-prefix O123
 ;
-; RUN: opt --tapir=serial -passes='kit-lowering<Os>' -debug-pass-manager %s \
-; RUN:     -o /dev/null 2>&1 \
-; RUN:     | FileCheck %s -check-prefix O123S
+; RUN: not opt --tapir=serial -passes='kit-lowering<Os>' -debug-pass-manager \
+; RUN:     %s -o /dev/null 2>&1 \
+; RUN:     | FileCheck %s -check-prefix ERROR
 ;
 ; RUN: not opt --tapir=serial -passes='kit-lowering<Oz>' -debug-pass-manager \
 ; RUN:     %s -o /dev/null 2>&1 \
 ; RUN:     | FileCheck %s -check-prefix ERROR
 ;
-; ERROR: unsupported optimization level '-Oz'
+; ERROR: The optimization level "{{.+}}" is no longer supported
 ;
 ; <KIT-PREPARE>
-; O123S-NOT:  Running pass:     SerializePass
-; O123S-NOT:  Running pass:     PrepareTapirLoops
-; O123S-NOT:  Running pass:     LocalizeReductionsPass
-; O123S-NOT:  Running pass:     ComputeGPULoopBlockPass
+; O123-NOT:    Running pass:     SerializePass
+; O123-NOT:    Running pass:     PrepareTapirLoops
+; O123-NOT:    Running pass:     LocalizeReductionsPass
 ; </KIT-PREPARE>
 ;
 ; <KIT-PRE-TAPIR>
@@ -57,34 +56,34 @@
 ; </KIT-PRE-TAPIR>
 ;
 ; <KIT-PRE-LOOP-SPAWNING>
-; O123S:      Running pass:     SecondaryIVEliminationPass
-; O123S:      Running pass:     PreLowerVerificationPass
-; O123S:      Running pass:     PreLowerAnnotatePass
-; O123S:      Running pass:     TapirLoopNormalizePass
+; O123:        Running pass:     SecondaryIVEliminationPass
+; O123:        Running pass:     PreLowerVerificationPass
+; O123:        Running pass:     PreLowerAnnotatePass
+; O123:        Running pass:     TapirLoopNormalizePass
 ; </KIT-PRE-LOOP-SPAWNING>
 ;
-; O123S:      Running pass:     LoopSpawningPass
+; O123:        Running pass:     LoopSpawningPass
 ;
 ; <KIT-POST-LOOP-SPAWNING>
-; O123SZ:     Running pass:     HoistAllocasPass
-; O123SZ:     Running pass:     EmbHoistAllocasPass
+; O123Z:       Running pass:     HoistAllocasPass
+; O123Z:       Running pass:     EmbHoistAllocasPass
 ; </KIT-POST-LOOP-SPAWNING>
 ;
-; O123S:      Running pass:     TapirToTargetPass
+; O123:        Running pass:     TapirToTargetPass
 ;
 ; <KIT-POST-TAPIR>
-; O123S:      Running pass:     PrefetchForDevicePass
-; O123S:      Running pass:     EmbLowerIntrinsicsPass
-; O123S:      Running pass:     EmbResolveLibDeviceCallsPass
-; O123S:      Running pass:     EmbPreparePass
-; O123S:      Running pass:     EmbLinkLibDeviceBitcodePass
-; O123S:      Running pass:     EmbOptimizePass
-; O123S:      Running pass:     RecomputeKernelPropertiesPass
-; O123S:      Running pass:     GenerateCtorsPass
+; O123:        Running pass:     PrefetchForDevicePass
+; O123:        Running pass:     EmbLowerIntrinsicsPass
+; O123:        Running pass:     EmbResolveLibDeviceCallsPass
+; O123:        Running pass:     EmbPreparePass
+; O123:        Running pass:     EmbLinkLibDeviceBitcodePass
+; O123:        Running pass:     EmbOptimizePass
+; O123:        Running pass:     RecomputeKernelPropertiesPass
+; O123:        Running pass:     GenerateCtorsPass
 ; </KIT-POST-TAPIR>
 ;
-; O123S:      Running pass:     VerifierPass
-; O123S:      Running pass:     BitcodeWriterPass
+; O123:        Running pass:     VerifierPass
+; O123:        Running pass:     BitcodeWriterPass
 
 define i32 @main(i32 %argc, ptr %argv) {
 entry:

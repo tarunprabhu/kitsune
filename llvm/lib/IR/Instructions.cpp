@@ -1279,28 +1279,32 @@ void DetachInst::AssertOK() {
 
 void DetachInst::init(Value *SyncRegion, BasicBlock *Detached,
                       BasicBlock *Continue, BasicBlock *Unwind) {
-  Op<-1>() = SyncRegion;
-  Op<-2>() = Detached;
-  Op<-3>() = Continue;
   if (Unwind) {
+    Op<-4>() = SyncRegion;
+    Op<-3>() = Detached;
+    Op<-2>() = Continue;
     setSubclassData<UnwindDestField>(true);
-    Op<-4>() = Unwind;
+    Op<-1>() = Unwind;
+  } else {
+    Op<-3>() = SyncRegion;
+    Op<-2>() = Detached;
+    Op<-1>() = Continue;
   }
 #ifndef NDEBUG
   AssertOK();
 #endif
 }
 
-DetachInst::DetachInst(BasicBlock *Detached, BasicBlock *Continue,
-                       Value *SyncRegion, AllocInfo AllocInfo,
+DetachInst::DetachInst(Value *SyncRegion, BasicBlock *Detached,
+                       BasicBlock *Continue, AllocInfo AllocInfo,
                        InsertPosition InsertBefore)
     : Instruction(Type::getVoidTy(Detached->getContext()), Instruction::Detach,
                   AllocInfo, InsertBefore) {
   init(SyncRegion, Detached, Continue);
 }
 
-DetachInst::DetachInst(BasicBlock *Detached, BasicBlock *Continue,
-                       BasicBlock *Unwind, Value *SyncRegion,
+DetachInst::DetachInst(Value *SyncRegion, BasicBlock *Detached,
+                       BasicBlock *Continue, BasicBlock *Unwind,
                        AllocInfo AllocInfo, InsertPosition InsertBefore)
     : Instruction(Type::getVoidTy(Detached->getContext()), Instruction::Detach,
                   AllocInfo, InsertBefore) {
@@ -1338,12 +1342,12 @@ void ReattachInst::AssertOK() {
          "Sync region must be a token!");
 }
 
-ReattachInst::ReattachInst(BasicBlock *DetachContinue, Value *SyncRegion,
+ReattachInst::ReattachInst(Value *SyncRegion, BasicBlock *DetachContinue,
                            AllocInfo AllocInfo, InsertPosition InsertBefore)
     : Instruction(Type::getVoidTy(DetachContinue->getContext()),
                   Instruction::Reattach, AllocInfo, InsertBefore) {
-  Op<-1>() = SyncRegion;
-  Op<-2>() = DetachContinue;
+  Op<-2>() = SyncRegion;
+  Op<-1>() = DetachContinue;
 #ifndef NDEBUG
   AssertOK();
 #endif
@@ -1367,12 +1371,12 @@ void SyncInst::AssertOK() {
          "Sync region must be a token!");
 }
 
-SyncInst::SyncInst(BasicBlock *Continue, Value *SyncRegion, AllocInfo AllocInfo,
+SyncInst::SyncInst(Value *SyncRegion, BasicBlock *Continue, AllocInfo AllocInfo,
                    InsertPosition InsertBefore)
     : Instruction(Type::getVoidTy(Continue->getContext()), Instruction::Sync,
                   AllocInfo, InsertBefore) {
-  Op<-1>() = SyncRegion;
-  Op<-2>() = Continue;
+  Op<-2>() = SyncRegion;
+  Op<-1>() = Continue;
 #ifndef NDEBUG
   AssertOK();
 #endif

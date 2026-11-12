@@ -1,3 +1,7 @@
+// KITSUNE NOTE: This test originally had -Werror. Unlike upstream, we don't require
+// offload support and do support newer cuda versions. We have, therefore, removed
+// -Werror.
+//
 // REQUIRES: x86-registered-target, amdgpu-registered-target
 // REQUIRES: nvptx-registered-target, lld
 
@@ -10,7 +14,7 @@
 // RUN: cd %t && %clang -x cuda --target=x86_64-unknown-linux-gnu \
 // RUN:   -nocudainc -nocudalib \
 // RUN:   --cuda-gpu-arch=sm_70 --cuda-gpu-arch=sm_80 --offload-jobs=2 \
-// RUN:   --cuda-device-only -S -Werror %s
+// RUN:   --cuda-device-only -S %s
 
 // RUN: not %clang -x cuda --target=x86_64-unknown-linux-gnu \
 // RUN:   -nocudainc -nocudalib \

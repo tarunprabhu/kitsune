@@ -154,7 +154,7 @@ static RValue emitKitReduceCall(const CallExpr &theCall, CodeGenFunction &cgf,
   Value *reduceOpV = toConstant(reduceOp, ctx);
   Value *strategy = toConstant(ReductionStrategy::Auto, ctx);
   Value *valueSz = toConstant((uint32_t)layout.getTypeStoreSize(valueTy), ctx);
-  Value *unit = getUnitValue(reduceOp, valueTy);
+  Value *unit = getUnitValue(reduceOp, valueTy, !isUnsigned);
   Value *reducer = getReducer(reduceOp, valueTy, m);
 
   CGBuilderTy &builder = cgf.Builder;

@@ -3197,7 +3197,6 @@ def int_experimental_convergence_loop
 
 //===----------------- Structure Protection Intrinsics --------------------===//
 
-<<<<<<< HEAD
 def int_protected_field_ptr :
   DefaultAttrsIntrinsic<[llvm_anyptr_ty],
                         [LLVMMatchType<0>, llvm_i64_ty, llvm_i1_ty],

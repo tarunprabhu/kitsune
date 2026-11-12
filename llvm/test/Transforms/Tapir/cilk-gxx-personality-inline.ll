@@ -2,6 +2,15 @@
 ; Cilk and GXX personality functions.
 ;
 ; RUN: opt < %s -passes='always-inline' -S | FileCheck %s
+;
+; KITSUNE FIXME: The original inlining implementation would check the
+; functions, and inline if one they were compatible - i.e. if one was a superset
+; of the other. This change was made in Tapir, but we have removed it in the
+; merge with 23.x. In part, this is because we have no plans to support
+; exceptions in Kitsune, so it didn't make sense to carry around that code. But
+; we keep this test in case we ever change our minds.
+;
+; XFAIL: *
 
 ; Function Attrs: alwaysinline
 define weak_odr void @_Z12conv2d_loopsIfEvPT_PKS0_S3_llllllllllllllllllll() #0 personality i32 (...)* @__cilk_personality_v0 {

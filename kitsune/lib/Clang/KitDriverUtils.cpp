@@ -17,9 +17,9 @@
 #include "kitsune/Core/TTUtils.h"
 #include "clang/Basic/DiagnosticDriver.h"
 #include "clang/Basic/OffloadArch.h"
-#include "clang/Driver/OptionUtils.h"
-#include "clang/Driver/Options.h"
 #include "clang/Driver/ToolChain.h"
+#include "clang/Options/OptionUtils.h"
+#include "clang/Options/Options.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/Option/ArgList.h"
 
@@ -27,7 +27,7 @@
 
 using namespace clang;
 using namespace clang::driver;
-using namespace clang::driver::options;
+using namespace clang::options;
 using namespace llvm;
 using namespace llvm::opt;
 
@@ -84,7 +84,7 @@ static bool checkOptLevel(const ArgList &args) {
 }
 
 void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
-                                    KitDriverMode driverMode, bool isUsingLTO,
+                                    KitDriverMode driverMode,
                                     StringRef tripleStr,
                                     unsigned amdgpuCodeObjectVersion,
                                     DiagnosticsEngine &diags) {
@@ -316,7 +316,7 @@ void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
   // string is returned, the option has an invalid value.
   if (const Arg *a = args.getLastArg(options::OPT_tapir_cuda_arch_EQ)) {
     OffloadArch arch = StringToOffloadArch(a->getValue());
-    if (arch == OffloadArch::UNKNOWN || !IsNVIDIAOffloadArch(arch))
+    if (arch == OffloadArch::Unknown || !IsNVIDIAOffloadArch(arch))
       diags.Report(diag::err_drv_kit_bad_cuda_arch) << a->getValue();
   }
 
@@ -324,7 +324,7 @@ void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
   // string is returned, the option has an invalid value.
   if (const Arg *a = args.getLastArg(options::OPT_tapir_hip_arch_EQ)) {
     OffloadArch arch = StringToOffloadArch(a->getValue());
-    if (arch == OffloadArch::UNKNOWN || !IsAMDOffloadArch(arch))
+    if (arch == OffloadArch::Unknown || !IsAMDOffloadArch(arch))
       diags.Report(diag::err_drv_kit_bad_hip_arch) << a->getValue();
   }
 
@@ -341,9 +341,14 @@ void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
     }
   }
 
-  // If LTO is enabled for use with Kitsune, the only linker that can be used is
-  // lld built with Kitsune. Using any other linker is not allowed.
-  if (isUsingLTO && args.getLastArg(options::OPT_tapir_EQ)) {
+  // When compiling with --tapir, don't allow overriding the linker.
+  // This is only strictly necessary when compiling with a GPU-centric tapir
+  // target. Although not yet fully implemented, this is necessary for true
+  // separate compilation support in that case since Kitsune's patched LLD must
+  // be used in that case. It is not clear that there is an advantage to
+  // relaxing this constraint, and it has not, so far, caused any issues, but it
+  // might be worth looking into at some point.
+  if (isKitsuneFrontend && args.getLastArg(options::OPT_tapir_EQ)) {
     if (const Arg *a =
             args.getLastArg(options::OPT_fuse_ld_EQ, options::OPT_ld_path_EQ))
       diags.Report(diag::err_drv_kit_lto_disallowed_arg) << a->getSpelling();

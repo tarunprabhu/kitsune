@@ -1703,15 +1703,13 @@ PassBuilder::buildModuleOptimizationPipeline(OptimizationLevel Level,
   // function passes.
 
   // Stripmine Tapir loops, if pass is enabled.
-  if (PTO.LoopStripmine && Level.getSpeedupLevel() > 1 &&
-      !Level.isOptimizingForSize()) {
+  if (PTO.LoopStripmine && unsigned(Level) > 1) {
     LoopPassManager LPM1, LPM2;
     LPM1.addPass(
         IndVarSimplifyPass(/*WidenIndVars=*/true, /*TapirLoopsOnly=*/true));
     OptimizePM.addPass(
         createFunctionToLoopPassAdaptor(std::move(LPM1),
-                                        /*UseMemorySSA=*/true,
-                                        /*UseBlockFrequencyInfo=*/true));
+                                        /*UseMemorySSA=*/true));
     OptimizePM.addPass(LoopStripMinePass(PTO.TTOpts));
     // Cleanup tasks after stripmining loops.
     OptimizePM.addPass(TaskSimplifyPass());
@@ -1721,8 +1719,7 @@ PassBuilder::buildModuleOptimizationPipeline(OptimizationLevel Level,
                           /*AllowSpeculation=*/true));
     OptimizePM.addPass(
         createFunctionToLoopPassAdaptor(std::move(LPM2),
-                                        /*UseMemorySSA=*/true,
-                                        /*UseBlockFrequencyInfo=*/true));
+                                        /*UseMemorySSA=*/true));
     // Don't run IndVarSimplify at this point, as it can actually inhibit
     // vectorization in some cases.
     OptimizePM.addPass(JumpThreadingPass());
@@ -1901,7 +1898,7 @@ PassBuilder::buildTapirLoopLoweringPipeline(OptimizationLevel Level,
         createModuleToFunctionPassAdaptor(SROAPass(SROAOptions::ModifyCFG)));
 
   // Rotate Loop - disable header duplication at -Oz
-  LPM1.addPass(LoopRotatePass(Level != OptimizationLevel::Oz));
+  LPM1.addPass(LoopRotatePass(/*EnableLoopHeaderDuplication=*/true));
   LPM1.addPass(LICMPass(PTO.LicmMssaOptCap, PTO.LicmMssaNoAccForPromotionCap,
                         /*AllowSpeculation=*/true));
   LPM2.addPass(IndVarSimplifyPass());
@@ -1910,15 +1907,13 @@ PassBuilder::buildTapirLoopLoweringPipeline(OptimizationLevel Level,
   // The loop pass in LPM2 (IndVarSimplifyPass) does not preserve MemorySSA.
   // *All* loop passes must preserve it, in order to be able to use it.
   FPM.addPass(createFunctionToLoopPassAdaptor(std::move(LPM1),
-                                              /*UseMemorySSA=*/true,
-                                              /*UseBlockFrequencyInfo=*/true));
+                                              /*UseMemorySSA=*/true));
   FPM.addPass(SimplifyCFGPass(SimplifyCFGOptions().convertSwitchRangeToICmp(
       true))); // Merge & remove basic blocks.
   FPM.addPass(InstCombinePass());
   FPM.addPass(LoopSimplifyPass());
   FPM.addPass(createFunctionToLoopPassAdaptor(std::move(LPM2),
-                                              /*UseMemorySSA=*/false,
-                                              /*UseBlockFrequencyInfo=*/false));
+                                              /*UseMemorySSA=*/false));
   MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
 
   MPM.addPass(populateKitPreLoopSpawningPasses(*this, Level, Phase, PTO));
@@ -2891,8 +2886,6 @@ PassBuilder::buildO0DefaultPipeline(OptimizationLevel Level,
     MPM.addPass(buildKitsuneLoweringPipeline(Level, Phase));
   else
     invokeTapirLoopEndEPCallbacks(MPM, Level);
-
-  invokeOptimizerLastEPCallbacks(MPM, Level, Phase);
 
   if (isLTOPreLink(Phase))
     addRequiredLTOPreLinkPasses(MPM);

@@ -470,19 +470,6 @@ void StmtPrinter::VisitCXXExpansionStmtPattern(CXXExpansionStmtPattern *Node) {
   PrintControlledStmt(Node->getBody());
 }
 
-void StmtPrinter::VisitCXXForallRangeStmt(CXXForallRangeStmt *Node) {
-  Indent() << "forall (";
-  if (Node->getInit())
-    PrintInitStmt(Node->getInit(), 5);
-  PrintingPolicy SubPolicy(Policy);
-  SubPolicy.SuppressInitializers = true;
-  Node->getLoopVariable()->print(OS, SubPolicy, IndentLevel);
-  OS << " : ";
-  PrintExpr(Node->getRangeInit());
-  OS << ")";
-  PrintControlledStmt(Node->getBody());
-}
-
 void StmtPrinter::VisitCXXExpansionStmtInstantiation(
     CXXExpansionStmtInstantiation *) {
   llvm_unreachable("should never be printed");
@@ -539,13 +526,6 @@ void StmtPrinter::VisitBreakStmt(BreakStmt *Node) {
 void StmtPrinter::VisitDeferStmt(DeferStmt *Node) {
   Indent() << "_Defer";
   PrintControlledStmt(Node->getBody());
-}
-
-void StmtPrinter::VisitSpawnStmt(SpawnStmt *Node) {
-  Indent() << "spawn " << Node->getSyncVar();
-  PrintStmt(Node->getSpawnedStmt());
-  OS << ";";
-  if (Policy.IncludeNewlines) OS << "\n";
 }
 
 void StmtPrinter::VisitReturnStmt(ReturnStmt *Node) {

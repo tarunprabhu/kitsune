@@ -202,14 +202,13 @@ bool InstrumentImpl::instrumentLoop(Loop &loop) {
   // instrumentation, but we do so for consistency, and because it makes testing
   // this pass in isolation a shade more reliable.
   BasicBlock *bbBefore = loop.getLoopPreheader();
-  BasicBlock *bbStart =
-      SplitBlock(bbBefore, bbBefore->getTerminator(), &dtu, &li, &mssau,
-                 "kit.instr.start", /*Before=*/false);
+  BasicBlock *bbStart = SplitBlock(bbBefore, bbBefore->getTerminator(), &dtu,
+                                   &li, &mssau, "kit.instr.start");
   InsertPosition startPt = bbStart->getTerminator()->getIterator();
 
   BasicBlock *bbAfter = getUniqueNonDeadEndExitBlock(loop);
-  BasicBlock *bbEnd = SplitBlock(bbAfter, bbAfter->begin(), &dtu, &li, &mssau,
-                                 "kit.instr.stop", /*Before=*/true);
+  BasicBlock *bbEnd = splitBlockBefore(bbAfter, bbAfter->begin(), &dtu, &li,
+                                       &mssau, "kit.instr.stop");
   InsertPosition endPt = bbEnd->begin();
 
   std::string name = getName(loop);
@@ -298,8 +297,8 @@ bool InstrumentImpl::instrumentThreads(Loop &loop) {
   // is executed on each thread in CPU-centric tapir loops.
   DetachInst *detach = getTapirLoopDetachInst(loop);
   BasicBlock *bbDetached = detach->getDetached();
-  BasicBlock *bbStart = SplitBlock(bbDetached, bbDetached->begin(), &dtu, &li,
-                                   &mssau, "kit.instr.start", /*Before=*/true);
+  BasicBlock *bbStart = splitBlockBefore(bbDetached, bbDetached->begin(), &dtu,
+                                         &li, &mssau, "kit.instr.start");
   InsertPosition startPt = bbStart->begin();
 
   // Split the block immediately before the loop latch. The terminator of this
@@ -310,8 +309,8 @@ bool InstrumentImpl::instrumentThreads(Loop &loop) {
   // each thread.
   ReattachInst *reattach = getTapirLoopReattachInst(loop);
   BasicBlock *bbReattach = reattach->getParent();
-  BasicBlock *bbEnd = SplitBlock(bbReattach, reattach, &dtu, &li, &mssau,
-                                 "kit.instr.stop", /*Before=*/false);
+  BasicBlock *bbEnd =
+      SplitBlock(bbReattach, reattach, &dtu, &li, &mssau, "kit.instr.stop");
   InsertPosition endPt = bbEnd->begin();
 
   std::string name = getName(loop);

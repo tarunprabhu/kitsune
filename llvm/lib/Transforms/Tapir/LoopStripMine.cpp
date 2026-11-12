@@ -861,7 +861,7 @@ Loop *llvm::StripMineLoop(Loop *L, unsigned Count, bool AllowExpensiveTripCount,
   }
 
   const DataLayout &DL = Header->getModule()->getDataLayout();
-  SCEVExpander Expander(*SE, DL, "loop-stripmine");
+  SCEVExpander Expander(*SE, "loop-stripmine");
   if (!AllowExpensiveTripCount &&
       Expander.isHighCostExpansion(TripCountSC, L, SCEVCheapExpansionBudget,
                                    &TTI, PreheaderBR)) {

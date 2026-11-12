@@ -23,7 +23,7 @@ declare void @effecting()
 ; Place dead instruction(s) before the terminator
 define void @call_effecting() {
 ; CHECK-LABEL: define void @call_effecting() {
-; CHECK-NEXT:  bb12985:
+; CHECK-NEXT:  bb18231:
 ; CHECK-NEXT:    call void @effecting()
 ; CHECK-NEXT:    [[TMP0:%.*]] = add i32 0, 1
 ; CHECK-NEXT:    ret void
@@ -51,7 +51,7 @@ exit:
 
 define void @dont_move_above_alloca() {
 ; CHECK-LABEL: define void @dont_move_above_alloca() {
-; CHECK-NEXT:  bb12985:
+; CHECK-NEXT:  bb18231:
 ; CHECK-NEXT:    [[TMP0:%.*]] = alloca i32, align 4
 ; CHECK-NEXT:    call void @effecting()
 ; CHECK-NEXT:    ret void
@@ -65,7 +65,7 @@ declare void @effecting1()
 
 define void @dont_reorder_effecting() {
 ; CHECK-LABEL: define void @dont_reorder_effecting() {
-; CHECK-NEXT:  bb11818:
+; CHECK-NEXT:  bb34184:
 ; CHECK-NEXT:    call void @effecting()
 ; CHECK-NEXT:    call void @effecting1()
 ; CHECK-NEXT:    ret void
@@ -79,7 +79,7 @@ declare void @effecting2(i32)
 
 define void @dont_reorder_effecting1() {
 ; CHECK-LABEL: define void @dont_reorder_effecting1() {
-; CHECK-NEXT:  bb11818:
+; CHECK-NEXT:  bb34184:
 ; CHECK-NEXT:    [[ONE:%.*]] = add i32 1, 1
 ; CHECK-NEXT:    call void @effecting2(i32 [[ONE]])
 ; CHECK-NEXT:    [[TWO:%.*]] = add i32 2, 2
@@ -112,11 +112,11 @@ exit:
 define void @independentldst(ptr %a, ptr %b) {
 ; CHECK-LABEL: define void @independentldst(
 ; CHECK-SAME: ptr [[A:%.*]], ptr [[B:%.*]]) {
-; CHECK-NEXT:  bb13754:
-; CHECK-NEXT:    %"vl13444([[B]])" = load i32, ptr [[B]], align 4
-; CHECK-NEXT:    store i32 %"vl13444([[B]])", ptr [[A]], align 4
-; CHECK-NEXT:    %"vl73166([[A]])" = load i32, ptr [[A]], align 4
-; CHECK-NEXT:    store i32 %"vl73166([[A]])", ptr [[B]], align 4
+; CHECK-NEXT:  bb12990:
+; CHECK-NEXT:    %"vl25061([[B]])" = load i32, ptr [[B]], align 4
+; CHECK-NEXT:    store i32 %"vl25061([[B]])", ptr [[A]], align 4
+; CHECK-NEXT:    %"vl92800([[A]])" = load i32, ptr [[A]], align 4
+; CHECK-NEXT:    store i32 %"vl92800([[A]])", ptr [[B]], align 4
 ; CHECK-NEXT:    ret void
 ;
   %2 = load i32, ptr %a
@@ -129,12 +129,12 @@ define void @independentldst(ptr %a, ptr %b) {
 define void @multiple_use_ld(ptr %a, ptr %b) {
 ; CHECK-LABEL: define void @multiple_use_ld(
 ; CHECK-SAME: ptr [[A:%.*]], ptr [[B:%.*]]) {
-; CHECK-NEXT:  bb97447:
-; CHECK-NEXT:    %"vl12815([[A]])" = load i32, ptr [[A]], align 4
-; CHECK-NEXT:    store i32 %"vl12815([[A]])", ptr [[A]], align 4
-; CHECK-NEXT:    %"vl73166([[B]])" = load i32, ptr [[B]], align 4
-; CHECK-NEXT:    store i32 %"vl73166([[B]])", ptr [[B]], align 4
-; CHECK-NEXT:    store i32 %"vl12815([[A]])", ptr [[A]], align 4
+; CHECK-NEXT:  bb81713:
+; CHECK-NEXT:    %"vl14373([[A]])" = load i32, ptr [[A]], align 4
+; CHECK-NEXT:    store i32 %"vl14373([[A]])", ptr [[A]], align 4
+; CHECK-NEXT:    %"vl92800([[B]])" = load i32, ptr [[B]], align 4
+; CHECK-NEXT:    store i32 %"vl92800([[B]])", ptr [[B]], align 4
+; CHECK-NEXT:    store i32 %"vl14373([[A]])", ptr [[A]], align 4
 ; CHECK-NEXT:    ret void
 ;
   %2 = load i32, ptr %a
@@ -150,10 +150,10 @@ define void @multiple_use_ld(ptr %a, ptr %b) {
 define void @undef_st(ptr %a, ptr %b) {
 ; CHECK-LABEL: define void @undef_st(
 ; CHECK-SAME: ptr [[A:%.*]], ptr [[B:%.*]]) {
-; CHECK-NEXT:  bb13754:
+; CHECK-NEXT:  bb12990:
 ; CHECK-NEXT:    store i32 undef, ptr [[B]], align 4
-; CHECK-NEXT:    %"vl13336([[A]])" = load i32, ptr [[A]], align 4
-; CHECK-NEXT:    store i32 %"vl13336([[A]])", ptr [[A]], align 4
+; CHECK-NEXT:    %"vl28529([[A]])" = load i32, ptr [[A]], align 4
+; CHECK-NEXT:    store i32 %"vl28529([[A]])", ptr [[A]], align 4
 ; CHECK-NEXT:    ret void
 ;
   %2 = load i32, ptr %a

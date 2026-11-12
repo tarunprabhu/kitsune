@@ -15,14 +15,19 @@
 // CHECK-SAME: %[[D3:[^ ]+]])
 // CHECK-NEXT: [[ENTRY:.+]]:
 // CHECK-NEXT: %[[SYNCREG:.+]] = {{.+}}call token @llvm.syncregion.start
-// CHECK: [[LOOPPH_I:^.+]]:
-// CHECK: [[LOOP_I:^.+]]:
-// CHECK-NEXT: %[[I:.+]] = phi i32 {{.*}}[ %[[NEXT_I:[^ ]+]], %[[LATCH_I:[^ ]+]] ]
+// CHECK: [[LOOPPH_I:.+]]:
+// CHECK: [[LOOP_I:.+]]:
+// CHECK-NEXT: %[[I:.+]] = phi i32
+// CHECK-SAME: [ %[[NEXT_I:[^,]+]], %[[LATCH_I:[^ ]+]] ]
+// CHECK-SAME: [ 0, {{[^ ]+}} ]
 // CHECK: [[LOOP_J:^.+]]:
-// CHECK-NEXT: %[[J:.+]] = phi i32 {{.*}}[ %[[NEXT_J:[^ ]+]], %[[LATCH_J:[^ ]+]] ]
-// CHECK: [[LOOPPH_K:^.+]]:
+// CHECK-NEXT: %[[J:.+]] = phi i32
+// CHECK-SAME: [ 0, {{[^ ]+}} ]
+// CHECK-SAME: [ %[[NEXT_J:.+]], %[[LATCH_J:.+]] ]
 // CHECK: [[LOOP_K:^.+]]:
-// CHECK-NEXT: %[[K:.+]] = phi i32 {{.*}}[ %[[NEXT_K:[^ ]+]], %[[LATCH_K:[^ ]+]] ]
+// CHECK-NEXT: %[[K:.+]] = phi i32
+// CHECK-SAME: [ 0, {{[^ ]+}} ]
+// CHECK-SAME: [ %[[NEXT_K:.+]], %[[LATCH_K:.+]] ]
 // CHECK-NEXT: detach within %[[SYNCREG]], label %[[BODY:[^ ]+]], label %[[LATCH_K]]
 // CHECK: [[BODY]]:
 // CHECK: reattach within %[[SYNCREG]], label %[[LATCH_K]]

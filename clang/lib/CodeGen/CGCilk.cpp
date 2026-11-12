@@ -150,15 +150,13 @@ void CodeGenFunction::DetachScope::StartDetach() {
     switch (RefTmpSD) {
     case SD_Automatic:
     case SD_FullExpression:
-      if (auto *Size = CGF.EmitLifetimeStart(
-              CGF.CGM.getDataLayout().getTypeAllocSize(RefTmp.getElementType()),
-              RefTmp.getPointer())) {
+      if (CGF.EmitLifetimeStart(RefTmp.getPointer())) {
         if (RefTmpSD == SD_Automatic)
           CGF.pushCleanupAfterFullExpr<CallLifetimeEnd>(NormalEHLifetimeMarker,
-                                                        RefTmp, Size);
+                                                        RefTmp);
         else
           CGF.pushFullExprCleanup<CallLifetimeEnd>(NormalEHLifetimeMarker,
-                                                   RefTmp, Size);
+                                                   RefTmp);
       }
       break;
     default:

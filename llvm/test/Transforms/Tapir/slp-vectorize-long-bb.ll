@@ -465,11 +465,10 @@ target triple = "x86_64-unknown-linux-gnu"
 ; CHECK-NEXT: or disjoint <4 x i64>
 ; CHECK-NEXT: store <4 x i64>
 
-; CHECK: load <2 x i64>
-; CHECK-NEXT: load <2 x i64>
-; CHECK-NEXT: shufflevector <2 x i64>
+; CHECK-NEXT: load <3 x i64>
+; CHECK-NEXT: shufflevector <3 x i64>
+; CHECK-NEXT: shufflevector <3 x i64>
 ; CHECK-NEXT: shufflevector <4 x i64>
-; CHECK-NEXT: shufflevector <2 x i64>
 
 ; CHECK-NEXT: and <4 x i64> %{{.+}}, <i64 6148914691236517205, i64 -6148914691236517206, i64 -6148914691236517206, i64 -6148914691236517206>
 ; CHECK-NEXT: load <4 x i64>

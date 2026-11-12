@@ -78,6 +78,7 @@ class ProfileSummaryInfo;
 class ScalarEvolution;
 class TargetLibraryInfo;
 class TargetTransformInfo;
+class TaskInfo;
 
 LLVM_ABI extern cl::opt<bool> EnableLoopInterleaving;
 LLVM_ABI extern cl::opt<bool> EnableLoopVectorization;
@@ -153,6 +154,7 @@ public:
   OptimizationRemarkEmitter *ORE;
   ProfileSummaryInfo *PSI;
   AAResults *AA;
+  TaskInfo *TI;
 
   LLVM_ABI PreservedAnalyses run(Function &F, FunctionAnalysisManager &AM);
   LLVM_ABI void

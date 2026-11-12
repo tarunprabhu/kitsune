@@ -335,7 +335,7 @@ void LowerDirect::lower(CallInst *call) {
   InsertPosition insertPt = call->getIterator();
   (void)new AtomicRMWInst(*atomicOp, result, value, align,
                           AtomicOrdering::Monotonic, SyncScope::System,
-                          insertPt);
+                          /*ElementWise=*/false, insertPt);
 }
 
 // -----------------------------------------------------------------------------

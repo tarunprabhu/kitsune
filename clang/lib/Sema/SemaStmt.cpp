@@ -4956,9 +4956,6 @@ StmtResult Sema::ActOnForallStmt(SourceLocation ForLoc,
     }
   }
 
-  CheckBreakContinueBinding(Second.get().second);
-  CheckBreakContinueBinding(third.get());
-
   if (!Second.get().first)
     CheckForLoopConditionalStatement(*this, Second.get().second, third.get(),
                                      Body);
@@ -5097,10 +5094,12 @@ StmtResult Sema::ActOnCXXForallRangeStmt(Scope *S, SourceLocation ForLoc,
   // Build  auto && __range = range-init
   // Divide by 2, since the variables are in the inner scope (loop body).
   const auto DepthStr = std::to_string(S->getDepth() / 2);
+  IdentifierInfo *RangeVarName =
+      PP.getIdentifierInfo(std::string("__range") + DepthStr);
   SourceLocation RangeLoc = Range->getBeginLoc();
   VarDecl *RangeVar =
-      BuildForRangeVarDecl(*this, RangeLoc, Context.getAutoRRefDeductType(),
-                           std::string("__range") + DepthStr);
+      BuildForRangeVarDecl(RangeLoc, Context.getAutoRRefDeductType(),
+                           RangeVarName, /*IsConstExpr=*/false);
   if (FinishForRangeVarDecl(*this, RangeVar, Range, RangeLoc,
                             diag::err_for_range_deduction_failure)) {
     LoopVar->setInvalidDecl();
@@ -5241,10 +5240,14 @@ StmtResult Sema::BuildCXXForallRangeStmt(
     // Build auto __begin = begin-expr, __end = end-expr.
     // Divide by 2, since the variables are in the inner scope (loop body).
     const auto DepthStr = std::to_string(S->getDepth() / 2);
-    VarDecl *BeginVar = BuildForRangeVarDecl(*this, ColonLoc, AutoType,
-                                             std::string("__begin") + DepthStr);
-    VarDecl *EndVar = BuildForRangeVarDecl(*this, ColonLoc, AutoType,
-                                           std::string("__end") + DepthStr);
+    IdentifierInfo *BeginVarName =
+        PP.getIdentifierInfo(std::string("__begin") + DepthStr);
+    IdentifierInfo *EndVarName =
+        PP.getIdentifierInfo(std::string("__end") + DepthStr);
+    VarDecl *BeginVar = BuildForRangeVarDecl(ColonLoc, AutoType, BeginVarName,
+                                             /*IsConstExpr=*/false);
+    VarDecl *EndVar = BuildForRangeVarDecl(ColonLoc, AutoType, EndVarName,
+                                           /*IsConstExpr=*/false);
 
     // Build begin-expr and end-expr and attach to __begin and __end variables.
     ExprResult BeginExpr, EndExpr;

@@ -719,6 +719,7 @@ public:
   }
   ModRefInfo getModRefInfo(const Instruction *I, const Instruction *I2) {
     return AA.getModRefInfo(I, I2, AAQI);
+  }
 
   ModRefInfo getModRefInfo(Instruction *I, const CallBase *Call2,
                            bool AssumeSameSpindle) {

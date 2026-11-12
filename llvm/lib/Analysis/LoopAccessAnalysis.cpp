@@ -3342,7 +3342,7 @@ LoopAccessInfoManager LoopAccessAnalysis::run(Function &F,
   auto &TTI = FAM.getResult<TargetIRAnalysis>(F);
   auto &TLI = FAM.getResult<TargetLibraryAnalysis>(F);
   auto &AC = FAM.getResult<AssumptionAnalysis>(F);
-  return LoopAccessInfoManager(SE, AA, DT, LI, &TTI, &TLI, &AC, &TLI);
+  return LoopAccessInfoManager(SE, AA, DT, LI, TI, &TTI, &TLI, &AC);
 }
 
 AnalysisKey LoopAccessAnalysis::Key;

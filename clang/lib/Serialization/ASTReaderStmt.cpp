@@ -1809,22 +1809,6 @@ void ASTStmtReader::VisitCXXExpansionSelectExpr(CXXExpansionSelectExpr *E) {
   E->setIndexExpr(Record.readSubExpr());
 }
 
-void ASTStmtReader::VisitCXXForallRangeStmt(CXXForallRangeStmt *S) {
-  VisitStmt(S);
-  S->ForLoc = readSourceLocation();
-  S->CoawaitLoc = readSourceLocation();
-  S->ColonLoc = readSourceLocation();
-  S->RParenLoc = readSourceLocation();
-  S->setInit(Record.readSubStmt());
-  S->setRangeStmt(Record.readSubStmt());
-  S->setBeginStmt(Record.readSubStmt());
-  S->setEndStmt(Record.readSubStmt());
-  S->setCond(Record.readSubExpr());
-  S->setInc(Record.readSubExpr());
-  S->setLoopVarStmt(Record.readSubStmt());
-  S->setBody(Record.readSubStmt());
-}
-
 void ASTStmtReader::VisitMSDependentExistsStmt(MSDependentExistsStmt *S) {
   VisitStmt(S);
   S->KeywordLoc = readSourceLocation();

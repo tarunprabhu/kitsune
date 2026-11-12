@@ -1,27 +1,61 @@
-; Currently, we expect all the code embedded bitcode from a given tapir target
-; must be combined into a single global. If more than one global with the kit_bc
-; attribute is found for a given tapir target, it is an error.
+; Currently, we expect exactly one embedded bitcode module, and exactly one
+; embedded device code variable for a given tapir target. It is an error if more
+; than one global variable has the bit.code, or device.code, attribute.
 ;
-; RUN: MBC_4=`%kit-enc --tapir=hip %s \
-; RUN:     | grep "c\"BC" \
-; RUN:     | sed 's/.kitsune.emb//g' \
-; RUN:     | sed 's/@.bc/@.bc.4/g'`
+; The commands below do the following:
 ;
-; RUN: MBC_H=`%kit-enc --tapir=hip %s \
-; RUN:     | grep "c\"BC" \
-; RUN:     | sed 's/.kitsune.emb//g' \
-; RUN:     | sed 's/@.bc/@.bc.h/g' \
-; RUN:     | sed 's/#0/#1/g'`
+;   - The kit-enc command creates a module with one pair of embedded bitcode,
+;     and embedded device code, globals
 ;
-; RUN: printf "%%s\n%%s\n%%s\n%%s\n\n%%s\n%%s\n%%s\n%%s" \
-; RUN:         "${MBC_4}" \
-; RUN:         "${MBC_H}" \
-; RUN:         "@fb.4 = constant [0 x i8] zeroinitializer #2" \
-; RUN:         "@fb.h = constant [0 x i8] zeroinitializer #3" \
-; RUN:         "attributes #0 = { kit_bc kit_tt(4) }" \
-; RUN:         "attributes #1 = { kit_bc kit_tt(4) }" \
-; RUN:         "attributes #2 = { kit_fb kit_tt(4) }" \
-; RUN:         "attributes #3 = { kit_fb kit_tt(4) }" \
-; RUN:     | not llvm-as -o /dev/null
+;   - The grep commands strip the empty lines and metadata definitions
 ;
-; CHECK: too many embedded bitcode globals for tapir target 'hip'
+;   - The first two sed commands create clones of these globals
+;
+;   - The next three sed commands fix the metadata on these globals so the
+;     nodes on each are distinct
+;
+;   - The remaining sed commands add definitions for the metadata.
+;
+; ------------------------------------------------------------------------------
+; RUN: echo "" \
+; RUN:     | %kit-enc --tapir=cuda \
+; RUN:     | grep -vE "[\!][0-9]+ = " \
+; RUN:     | grep -vE "^$" \
+; RUN:     | sed --posix 'N;s/^\(.*\)\n\(.*\)/\1\n\2\n\1\n\2/' \
+; RUN:     | sed '1s/kit[.]emb[.]/kit.emb.1./' \
+; RUN:     | sed '2s/kit[.]emb[.]/kit.emb.1./' \
+; RUN:     | sed '2s/\!2$/\!1/' \
+; RUN:     | sed '3s/\!0$/\!2/' \
+; RUN:     | sed '4s/\!2$/\!3/' \
+; RUN:     | sed '4s/$/\n!0 = distinct !{!0, !4}/' \
+; RUN:     | sed '5s/$/\n!1 = distinct !{!1, !5}/' \
+; RUN:     | sed '6s/$/\n!2 = distinct !{!2, !4}/' \
+; RUN:     | sed '7s/$/\n!3 = distinct !{!3, !5}/' \
+; RUN:     | sed '8s/$/\n!4 = !{!"kit.gv.bit.code", i32 2}/' \
+; RUN:     | sed '9s/$/\n!5 = !{!"kit.gv.device.code", i32 2}/' \
+; RUN:     | not llvm-as -o /dev/null 2>&1 \
+; RUN:     | FileCheck %s
+;
+; ------------------------------------------------------------------------------
+; RUN: echo "" \
+; RUN:     | %kit-enc --tapir=hip \
+; RUN:     | grep -vE "[\!][0-9]+ = " \
+; RUN:     | grep -vE "^$" \
+; RUN:     | sed --posix 'N;s/^\(.*\)\n\(.*\)/\1\n\2\n\1\n\2/' \
+; RUN:     | sed '1s/kit[.]emb[.]/kit.emb.1./' \
+; RUN:     | sed '2s/kit[.]emb[.]/kit.emb.1./' \
+; RUN:     | sed '2s/\!2$/\!1/' \
+; RUN:     | sed '3s/\!0$/\!2/' \
+; RUN:     | sed '4s/\!2$/\!3/' \
+; RUN:     | sed '4s/$/\n!0 = distinct !{!0, !4}/' \
+; RUN:     | sed '5s/$/\n!1 = distinct !{!1, !5}/' \
+; RUN:     | sed '6s/$/\n!2 = distinct !{!2, !4}/' \
+; RUN:     | sed '7s/$/\n!3 = distinct !{!3, !5}/' \
+; RUN:     | sed '8s/$/\n!4 = !{!"kit.gv.bit.code", i32 2}/' \
+; RUN:     | sed '9s/$/\n!5 = !{!"kit.gv.device.code", i32 2}/' \
+; RUN:     | not llvm-as -o /dev/null 2>&1 \
+; RUN:     | FileCheck %s
+;
+; ------------------------------------------------------------------------------
+; CHECK-DAG: too many embedded bitcode globals for tapir target '[[TT:.+]]'
+; CHECK-DAG: too many embedded device code globals for tapir target '[[TT]]'
