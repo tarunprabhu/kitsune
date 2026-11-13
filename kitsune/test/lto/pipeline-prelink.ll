@@ -31,6 +31,7 @@
 ;
 ; ... pipeline prepare
 ; O123:        Running pass:       SerializePass
+; O123:        Running pass:       GuardLoopPass
 ; O123:        Running pass:       PrepareTapirLoopsPass
 ; O123:        Running pass:       LocalizeReductionsPass
 ; O123-NOT:    Running pass:       InstrumentPass

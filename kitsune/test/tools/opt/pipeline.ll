@@ -23,6 +23,7 @@
 ; DEFAULT-NOT: Running pass:       EarlyVerificationPass
 ; DEFAULT-NOT: Running pass:       EarlyAnnotatePass
 ; DEFAULT-NOT: Running pass:       SerializePass
+; DEFAULT-NOT: Running pass:       GuardLoopPass
 ; DEFAULT-NOT: Running pass:       PrepareTapirLoopsPass
 ; DEFAULT-NOT: Running pass:       LocalizeReductionsPass
 ; DEFAULT-NOT: Running pass:       PreLowerAnnotatePass
@@ -82,6 +83,7 @@
 ;
 ; ... pipeline prepare
 ; O123:        Running pass:       SerializePass
+; O123:        Running pass:       GuardLoopPass
 ; O123:        Running pass:       PrepareTapirLoopsPass
 ; O123:        Running pass:       LocalizeReductionsPass
 ; O123-NOT:    Running pass:       InstrumentPass

@@ -7,6 +7,7 @@
 //
 // O0-NOT:     Running pass:       SerializePass
 // O0-NOT:     Running pass:       PrepareTapirLoopsPass
+// O0-NOT:     Running pass:       GuardLoopPass
 // O0-NOT:     Running pass:       LocalizeReductionsPass
 // O0-NOT:     Running pass:       InstrumentPass
 // O0-NOT:     Running pass:       SecondaryIVEliminationPass

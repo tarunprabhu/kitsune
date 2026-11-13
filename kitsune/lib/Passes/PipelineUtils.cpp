@@ -257,6 +257,7 @@ llvm::populateKitPreparePasses(PassBuilder &pb, OptimizationLevel optLevel,
     // requires indvars to be run after instcombine.
     addLoopPass<IndVarSimplifyPass>(fpm, /*WidenIndVars=*/true,
                                     /*TapirLoopsOnly=*/true);
+    addLoopPassMSSA<GuardLoopPass>(fpm);
     addFunctionPass<PrepareTapirLoopsPass>(fpm);
     addFunctionPass<LocalizeReductionsPass>(fpm);
     addFunctionPass<SimplifyCFGPass>(fpm);
