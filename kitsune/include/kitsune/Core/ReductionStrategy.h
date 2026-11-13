@@ -28,23 +28,37 @@ class raw_ostream;
 /// @{
 
 /// The various reduction strategies that are available. This is the strategy
-/// used to perform the final reduction into the result.
+/// used to perform the final reduction into the result. Some strategies are
+/// only relevant for parallel reduction loops that will be executed on the CPU,
+/// others are only relevant for GPU-reductions, while some are relevant for any
+/// reduction.
 ///
 /// ----
 /// Maintainers must avoid changing the numerical values of the members of this
-/// enum since doing so will require updating a number of tests. Some strategies
-/// are only relevant for parallel reduction loops that will be executed on the
-/// CPU, others are only relevant for GPU-reductions, while some are relevant
-/// for any reduction. The numerical values of the strategies reflect this
-/// categorization. Not all numerical values in the range may correspond to a
-/// known reduction strategy.
+/// enum since doing so will require updating a number of tests. The values
+/// roughly correspond to the bitvector shown here:
 ///
-///     |  Category  |  Range     |
-///     |------------|------------|
-///     |  All       |  `[0, 3]`  |
-///     |  CPU only  |  `[4, 8]`  |
-///     |  GPU only  |  `[8, 16]` |
+///    .----------------------------------------.
+///    |        Unused        | WS | SH | D | N |
+///    '----------------------------------------'
 ///
+/// where
+///
+///    N   Naive
+///    D   Direct
+///    SH  Shared Memory (GPU)
+///    WS  Warp Shuffle (GPU)
+///
+/// Here, the value of the GPUWarpShuffleWithSharedMemory strategy is 14 because
+/// the strategy can be thought of as a combination of the GPUWarpShuffle (8),
+/// GPUSharedMemory (4), and Direct (2) strategies - threads within a warp
+/// perform a warp shuffle and store their contribution to the final reduction
+/// in shared memory, following which the values are reduced into the final
+/// result directly using atomics.
+///
+/// Not all combination of bits is reasonable. It is not clear if this approach
+/// will allow any form of extensibility, but it might. The third LSB is unused
+/// in case we ever develop a different strategy for CPU's.
 enum class ReductionStrategy : uint32_t {
   /// Let the compiler pick a suitable strategy. This should only be used by the
   /// frontend when first generating an intrinsic. By the time the intrinsic is
@@ -73,37 +87,24 @@ enum class ReductionStrategy : uint32_t {
   /// will not be done.
   Direct = 0x2,
 
-  /// Each thread computes its contribution to the reduction into a location in
-  /// thread-local memory. This is then accumulated into the result variable
-  /// using an atomic operation just before the thread finishes executing. This
-  /// is the default strategy used for reductions by the CPU-centric tapir
-  /// targets. It may also be used on the GPU, though it is not clear if there
-  /// is any advantage to doing so. However, this can be more efficient than the
-  /// \ref Direct strategy in cases where the call to the reduction intrinsic is
-  /// in a serial loop within a tapir loop. If the destination of the reduction
-  /// is loop-invariant relative to the parallel loop, accumulating the result
-  /// into a thread-local variable first will usually require fewer atomic
-  /// operations than the \ref Direct strategy.
-  ThreadLocal = 0x4,
-
   /// Each thread in a block writes its contribution to the result into a
   /// dedicated location in GPU shared memory. These are then reduced into a
   /// single value for the block. This is accumulated into the result variable
   /// using an atomic operation.
-  GPUSharedMemory = 0x8,
+  GPUSharedMemory = 0x6,
 
   /// Each thread in a warp computes its contribution to the result, which are
   /// the reduced to a single value for the warp using warp shuffles. A single
   /// thread in the warp will accumulate this directly into the result variable
   /// using an atomic operation.
-  GPUWarpShuffle = 0x9,
+  GPUWarpShuffle = 0xA,
 
   /// Each thread in a warp computes its contribution to the result, which are
   /// the reduced to a single value for the warp using warp shuffles. A single
   /// thread in the warp writes this to a dedicated location in shared memory.
   /// These are then reduced to a single value for the block. This value is
   /// accumulated into the result variable using an atomic operation.
-  GPUWarpShuffleWithSharedMemory = 0xA,
+  GPUWarpShuffleWithSharedMemory = 0xE,
 };
 
 /// Check if the reduction strategy is valid for reductions that are computed on

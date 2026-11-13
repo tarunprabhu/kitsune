@@ -15,7 +15,7 @@ header:
   detach within %sr, label %body, label %latch
 
 body:
-  call void(i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.reduce(i32 1, i32 1, ptr %res, i64 %i, i32 9, i32 8, i64 0, ptr @sum)
+  call void(i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.reduce(i32 1, i32 1, ptr %res, i64 %i, i32 10, i32 8, i64 0, ptr @sum)
   reattach within %sr, label %latch
 
 latch:

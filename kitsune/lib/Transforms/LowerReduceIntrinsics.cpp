@@ -38,8 +38,6 @@ bool llvm::detail::lowerReduceIntr(CallInst *call,
   case ReductionStrategy::Auto:
     llvm_unreachable("Unexpected reduction strategy: 'auto'");
   case ReductionStrategy::Naive: return lowerReduceIntrNaive(call);
-  case ReductionStrategy::ThreadLocal:
-    llvm_unreachable("NOT IMPLEMENTED: ThreadLocal reduction strategy");
   case ReductionStrategy::Direct: return lowerGPU.lowerReduceIntrDirect(call);
   case ReductionStrategy::GPUSharedMemory:
     return lowerGPU.lowerReduceIntrShmem(call);

@@ -13,7 +13,7 @@
 ; CHECK-SAME: i32 1
 ; CHECK-SAME: ptr @fadd
 ; CHECK: call {{.+}} @llvm.kit.reduce
-; CHECK-SAME: i32 9
+; CHECK-SAME: i32 10
 ; CHECK-SAME: ptr @iadd
 
 define void @f(ptr %fsum, ptr %isum, i64 %n) {

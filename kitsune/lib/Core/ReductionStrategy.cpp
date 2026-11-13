@@ -25,7 +25,6 @@ template <> std::string llvm::toString(const ReductionStrategy &strategy) {
   case ReductionStrategy::Auto: return "auto";
   case ReductionStrategy::Naive: return "naive";
   case ReductionStrategy::Direct: return "direct";
-  case ReductionStrategy::ThreadLocal: return "local";
   case ReductionStrategy::GPUSharedMemory: return "shmem";
   case ReductionStrategy::GPUWarpShuffle: return "wshfl";
   case ReductionStrategy::GPUWarpShuffleWithSharedMemory: return "wsfhlshmem";
@@ -44,7 +43,6 @@ template <> std::optional<ReductionStrategy> llvm::fromString(StringRef s) {
       .Case("auto", ReductionStrategy::Auto)
       .Case("naive", ReductionStrategy::Naive)
       .Case("direct", ReductionStrategy::Direct)
-      .Case("local", ReductionStrategy::ThreadLocal)
       .Case("shmem", ReductionStrategy::GPUSharedMemory)
       .Case("wshfl", ReductionStrategy::GPUWarpShuffle)
       .Case("wshflshmem", ReductionStrategy::GPUWarpShuffleWithSharedMemory)
@@ -56,10 +54,9 @@ template <> std::optional<ReductionStrategy> llvm::fromInt(int64_t v) {
   case 0x0: return ReductionStrategy::Auto;
   case 0x1: return ReductionStrategy::Naive;
   case 0x2: return ReductionStrategy::Direct;
-  case 0x4: return ReductionStrategy::ThreadLocal;
-  case 0x8: return ReductionStrategy::GPUSharedMemory;
-  case 0x9: return ReductionStrategy::GPUWarpShuffle;
-  case 0xA: return ReductionStrategy::GPUWarpShuffleWithSharedMemory;
+  case 0x6: return ReductionStrategy::GPUSharedMemory;
+  case 0xA: return ReductionStrategy::GPUWarpShuffle;
+  case 0xE: return ReductionStrategy::GPUWarpShuffleWithSharedMemory;
   default: return std::nullopt;
   }
 }
@@ -68,8 +65,7 @@ bool llvm::isCPUStrategy(ReductionStrategy strategy) {
   switch (strategy) {
   case ReductionStrategy::Auto:
   case ReductionStrategy::Naive:
-  case ReductionStrategy::Direct:
-  case ReductionStrategy::ThreadLocal: //
+  case ReductionStrategy::Direct: //
     return true;
   case ReductionStrategy::GPUSharedMemory:
   case ReductionStrategy::GPUWarpShuffle:
@@ -88,7 +84,6 @@ bool llvm::isGPUStrategy(ReductionStrategy strategy) {
   case ReductionStrategy::GPUWarpShuffle:
   case ReductionStrategy::GPUWarpShuffleWithSharedMemory: //
     return true;
-  case ReductionStrategy::ThreadLocal: return false;
   }
   llvm_unreachable("isGPUStrategy: ReductionStrategy not handled");
 }

@@ -57,7 +57,7 @@
 declare void @umax(ptr, i64)
 
 define void @f(ptr %result, i64 %v) !kit.func !0 {
-  call void(i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.reduce(i32 4, i32 26, ptr %result, i64 %v, i32 9, i32 8, i64 0, ptr @umax)
+  call void(i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.reduce(i32 4, i32 26, ptr %result, i64 %v, i32 10, i32 8, i64 0, ptr @umax)
   ret void
 }
 
