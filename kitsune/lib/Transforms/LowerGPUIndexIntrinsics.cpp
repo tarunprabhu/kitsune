@@ -96,7 +96,7 @@ static bool lowerForHip(CallInst *call) {
     return replaceLibDevice(call, getGlobalSize, 2);
   default: break;
   }
-  llvm_unreachable("replaceKitIntrinsicsEarlyHip: Unexpected intrinsic");
+  llvm_unreachable("lowerGPUIndexIntr[hip]: Unexpected intrinsic");
 }
 
 static bool lowerForCuda(CallInst *call) {
@@ -127,10 +127,10 @@ static bool lowerForCuda(CallInst *call) {
     return replaceSimple(call, Intrinsic::nvvm_read_ptx_sreg_nctaid_z);
   default: break;
   }
-  llvm_unreachable("lowerGPUIndexIntrinsic[cuda]: Unexpected intrinsic");
+  llvm_unreachable("lowerGPUIndexIntr[cuda]: Unexpected intrinsic");
 }
 
-bool llvm::detail::lowerIndexIntr(CallInst *call) {
+bool llvm::detail::lowerGPUIndexIntr(CallInst *call) {
   switch (*getTTIDFromKitIntrCall(*call)) {
   case TTID::Cuda: return lowerForCuda(call);
   case TTID::Hip: return lowerForHip(call);

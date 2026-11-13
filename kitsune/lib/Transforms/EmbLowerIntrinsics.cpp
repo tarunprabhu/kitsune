@@ -27,11 +27,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Transforms/EmbLowerIntrinsics.h"
-#include "LowerGPUIntrinsicsImpl.h"
 #include "LowerIntrinsicsImpl.h"
 #include "kitsune/Core/IntrinsicUtils.h"
-#include "kitsune/Core/ModuleUtils.h"
-#include "kitsune/Core/Reductions.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/Instructions.h"
 
@@ -39,16 +36,33 @@
 
 using namespace llvm;
 
+namespace {
+
+class LowerIntrinsicsImpl {
+protected:
+  const TTOptions &tto;
+
+protected:
+  bool lowerIntr(CallInst *call);
+  bool runOn(Function &f);
+
+public:
+  LowerIntrinsicsImpl(const TTOptions &tto) : tto(tto) {}
+
+  bool runOn(Module &m);
+};
+
+} // namespace
+
 // Not all intrinsics will be lowered here. Return true if it is lowered, false
 // otherwise.
-static bool lowerIntr(CallInst *call, detail::LowerGPUIntrImpl &lowerGPU) {
+bool LowerIntrinsicsImpl::lowerIntr(CallInst *call) {
   switch (call->getIntrinsicID()) {
   case Intrinsic::kit_reduce: return detail::lowerReduceIntr(call);
   case Intrinsic::kit_gpu_warp_shfl_down_sync:
-    return lowerGPU.lowerWarpShflDownSyncIntr(call);
-  case Intrinsic::kit_gpu_warp_id: return lowerGPU.lowerWarpIdIntr(call);
-  case Intrinsic::kit_gpu_warp_lane: return lowerGPU.lowerWarpLaneIntr(call);
-  case Intrinsic::kit_gpu_warp_size: return lowerGPU.lowerWarpSizeIntr(call);
+  case Intrinsic::kit_gpu_warp_id:
+  case Intrinsic::kit_gpu_warp_lane:
+  case Intrinsic::kit_gpu_warp_size: return detail::lowerGPUWarpIntr(call, tto);
   case Intrinsic::kit_gpu_thread_id_x:
   case Intrinsic::kit_gpu_thread_id_y:
   case Intrinsic::kit_gpu_thread_id_z:
@@ -60,16 +74,20 @@ static bool lowerIntr(CallInst *call, detail::LowerGPUIntrImpl &lowerGPU) {
   case Intrinsic::kit_gpu_block_size_z:
   case Intrinsic::kit_gpu_grid_size_x:
   case Intrinsic::kit_gpu_grid_size_y:
-  case Intrinsic::kit_gpu_grid_size_z: //
-    return detail::lowerIndexIntr(call);
+  case Intrinsic::kit_gpu_grid_size_z: return detail::lowerGPUIndexIntr(call);
   default: break;
   }
   return false;
 }
 
-static bool lowerImpl(Module &m, detail::LowerGPUIntrImpl &lowerGPU) {
-  SmallVector<CallInst *, 0> calls;
-  for (Function &f : m)
+bool LowerIntrinsicsImpl::runOn(Function &f) {
+  bool result = false;
+  bool changed = false;
+  do {
+    // The lowering of some intrinsics introduces calls to other intrinsics that
+    // are to be lowered by this pass. Iterate until no new intrinsics are
+    // generated.
+    SmallVector<CallInst *, 0> calls;
     for (BasicBlock &bb : f)
       for (Instruction &inst : bb)
         if (auto *call = dyn_cast<CallInst>(&inst))
@@ -77,35 +95,24 @@ static bool lowerImpl(Module &m, detail::LowerGPUIntrImpl &lowerGPU) {
             if (isKitIntrinsic(intr))
               calls.push_back(call);
 
-  bool changed = false;
-  for (CallInst *call : calls)
-    changed |= lowerIntr(call, lowerGPU);
-  return changed;
-}
+    changed = false;
+    for (CallInst *call : calls)
+      changed |= lowerIntr(call);
 
-// The lowering of some intrinsics introduces calls to other intrinsics that
-// are to be lowered by this pass. Iterate until no new intrinsics are
-// generated.
-static bool lowerIntrs(Module &m, detail::LowerGPUIntrImpl &lowerGPU) {
-  bool result = false;
-  bool changed = false;
-  do {
-    changed = lowerImpl(m, lowerGPU);
     result |= changed;
   } while (changed);
   return result;
 }
 
-static bool lowerIntrs(Module &m, const TTOptions &tto) {
+bool LowerIntrinsicsImpl::runOn(Module &m) {
   bool changed = false;
-  detail::LowerGPUIntrImpl lowerGPU(tto);
-
-  changed |= lowerIntrs(m, lowerGPU);
-
+  for (Function &f : m)
+    if (f.size())
+      changed |= runOn(f);
   return changed;
 }
 
 bool EmbLowerIntrinsicsPass::run(TTID tt, Module &devM, Module &hostM,
                                  ModuleAnalysisManager &hostAM) {
-  return lowerIntrs(devM, tto);
+  return LowerIntrinsicsImpl(tto).runOn(devM);
 }

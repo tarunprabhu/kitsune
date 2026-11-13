@@ -16,13 +16,18 @@
 namespace llvm {
 
 class CallInst;
+class TTOptions;
 
 namespace detail {
 
 // Lower a call to Kitsune's index intrinsic. These intrinsics correspond to
 // the threadIdx, blockIdx, blockDim, gridSize, and gridDim builtin objects.
 /// The call will be erased from the function. Always returns true.
-bool lowerIndexIntr(CallInst *call);
+bool lowerGPUIndexIntr(CallInst *call);
+
+/// Lower a call to an intrinsic that will be lowered to an operation on a GPU
+/// warp. The call will be erased from the function. Always returns true.
+bool lowerGPUWarpIntr(CallInst *call, const TTOptions &tto);
 
 /// Lower a call to Kitsune's kit.reduce intrinsic. The call will be erased from
 /// the function. Always returns true.

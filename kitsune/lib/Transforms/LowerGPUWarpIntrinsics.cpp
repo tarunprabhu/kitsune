@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "LowerGPUIntrinsicsImpl.h"
+#include "LowerIntrinsicsImpl.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/IRBuilderUtils.h"
 #include "kitsune/Core/IntrinsicUtils.h"
@@ -568,18 +568,16 @@ Value *LowerWarpShuffleDownSync::replaceIntrHip(CallInst *call) {
 
 //==------------------------------------------------------------------------==//
 
-bool detail::LowerGPUIntrImpl::lowerWarpSizeIntr(CallInst *call) {
-  return LowerWarpSize(tto).run(call);
-}
-
-bool detail::LowerGPUIntrImpl::lowerWarpIdIntr(CallInst *call) {
-  return LowerWarpIdOrLane("id", Instruction::UDiv).run(call);
-}
-
-bool detail::LowerGPUIntrImpl::lowerWarpLaneIntr(CallInst *call) {
-  return LowerWarpIdOrLane("lane", Instruction::URem).run(call);
-}
-
-bool detail::LowerGPUIntrImpl::lowerWarpShflDownSyncIntr(CallInst *call) {
-  return LowerWarpShuffleDownSync().run(call);
+bool llvm::detail::lowerGPUWarpIntr(CallInst *call, const TTOptions &tto) {
+  switch (call->getIntrinsicID()) {
+  case Intrinsic::kit_gpu_warp_id:
+    return LowerWarpIdOrLane("id", Instruction::UDiv).run(call);
+  case Intrinsic::kit_gpu_warp_lane:
+    return LowerWarpIdOrLane("lane", Instruction::URem).run(call);
+  case Intrinsic::kit_gpu_warp_size: return LowerWarpSize(tto).run(call);
+  case Intrinsic::kit_gpu_warp_shfl_down_sync:
+    return LowerWarpShuffleDownSync().run(call);
+  default: break;
+  }
+  llvm_unreachable("lowerWarpIntr: Warp intrinsic not handled");
 }
