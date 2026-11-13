@@ -223,7 +223,7 @@ bool PerfectNestChecker::checkLoopsStructure(Loop &outerLoop, Loop &innerLoop,
 
     // no conditional branch present
     if (outerLoopHeaderSucc != innerLoopPreheader) {
-      auto *br = dyn_cast<BranchInst>(outerLoopHeaderSucc->getTerminator());
+      auto *br = dyn_cast<CondBrInst>(outerLoopHeaderSucc->getTerminator());
 
       if (!br || br != innerLoop.getLoopGuardBranch()) {
         LLVM_DEBUG(dbgs() << "Successor of outer loop header must must be "
@@ -277,7 +277,7 @@ bool PerfectNestChecker::checkLoopsStructure(Loop &outerLoop, Loop &innerLoop,
 }
 
 CmpInst *PerfectNestChecker::getInnerLoopGuardCmp(Loop &innerLoop) const {
-  if (BranchInst *innerGuard = innerLoop.getLoopGuardBranch())
+  if (CondBrInst *innerGuard = innerLoop.getLoopGuardBranch())
     if (auto *cmpInst = dyn_cast<CmpInst>(innerGuard->getCondition()))
       return cmpInst;
   return nullptr;
@@ -305,8 +305,7 @@ bool PerfectNestChecker::checkOuterLoopHeader(BasicBlock &header,
     // expect.
     if (isa<CmpInst>(inst))
       return &inst == innerLoopGuardCmp;
-    else if (isa<PHINode>(inst) || isa<BranchInst>(inst) ||
-             isa<DetachInst>(inst))
+    else if (isa<PHINode>(inst) || isa<DetachInst>(inst))
       return true;
     return false;
   };
@@ -328,7 +327,7 @@ bool PerfectNestChecker::checkOuterLoopLatch(BasicBlock &latch,
       return &inst == latchCmpInst;
     else if (isa<BinaryOperator>(inst))
       return &inst == step;
-    else if (isa<BranchInst>(inst))
+    else if (isa<CondBrInst>(inst))
       return true;
     return false;
   };

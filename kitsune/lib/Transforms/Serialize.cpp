@@ -61,7 +61,7 @@ static void removeSyncRegionAndSync(Value *syncRegion) {
       assert(syncInst->getNumSuccessors() == 1 &&
              "Sync instruction must have a single successor");
       BasicBlock *succ = syncInst->getSuccessor(0);
-      BranchInst::Create(succ, syncInst->getIterator());
+      UncondBrInst::Create(succ, syncInst->getIterator());
       syncInst->eraseFromParent();
 
       assert(isa<CallBase>(syncRegion) &&

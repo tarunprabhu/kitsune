@@ -67,7 +67,7 @@ bool llvm::isDeadEnd(const BasicBlock &bb) {
   const Instruction *term = bb.getTerminator();
   if (isa<UnreachableInst>(term))
     return true;
-  else if (isUncondBr(*term))
+  else if (isa<UncondBrInst>(*term))
     return isDeadEnd(**succ_begin(&bb));
   else
     return false;

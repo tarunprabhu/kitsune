@@ -440,7 +440,7 @@ private:
     BasicBlock *bbEntry = BasicBlock::Create(ctx, "entry", f);
     BasicBlock *bbExit = BasicBlock::Create(ctx, "exit", f);
 
-    BranchInst::Create(bbExit, bbEntry);
+    UncondBrInst::Create(bbExit, bbEntry);
     ReturnInst::Create(ctx, bbExit);
 
     return f;

@@ -105,7 +105,7 @@ TEST(KitBasicBlockUtils, isDisconnected) {
   BasicBlock *bbNoPreds = BasicBlock::Create(ctx);
   BasicBlock *bbNoSuccs = BasicBlock::Create(ctx);
 
-  BranchInst::Create(bbNoSuccs, bbNoPreds->getFirstInsertionPt());
+  UncondBrInst::Create(bbNoSuccs, bbNoPreds->getFirstInsertionPt());
   ReturnInst::Create(ctx, bbNoSuccs);
 
   // Basic block has no predecessors, but does have a successor, and is,
@@ -123,7 +123,7 @@ TEST(KitBasicBlockUtils, isOrphaned) {
   BasicBlock *bbNoPreds = BasicBlock::Create(ctx);
   BasicBlock *bbNoSuccs = BasicBlock::Create(ctx);
 
-  BranchInst::Create(bbNoSuccs, bbNoPreds->getFirstInsertionPt());
+  UncondBrInst::Create(bbNoSuccs, bbNoPreds->getFirstInsertionPt());
   ReturnInst::Create(ctx, bbNoSuccs);
 
   // The basic block has neither predecessors, nor successors. It is, therefore,
@@ -151,7 +151,7 @@ TEST(KitBasicBlockUtils, isDeadEnd) {
   //   bb1 -> bbU
   //
   BasicBlock *bb1 = BasicBlock::Create(ctx);
-  BranchInst::Create(bbU, bb1);
+  UncondBrInst::Create(bbU, bb1);
   (void)new UnreachableInst(ctx, bbU->getFirstInsertionPt());
 
   EXPECT_TRUE(isDeadEnd(*bbU));
@@ -163,8 +163,8 @@ TEST(KitBasicBlockUtils, isDeadEnd) {
   //
   BasicBlock *bb2 = BasicBlock::Create(ctx);
   BasicBlock *bb3 = BasicBlock::Create(ctx);
-  BranchInst::Create(bb3, bb2);
-  BranchInst::Create(bbU, bb3);
+  UncondBrInst::Create(bb3, bb2);
+  UncondBrInst::Create(bbU, bb3);
   EXPECT_TRUE(isDeadEnd(*bb2));
   EXPECT_TRUE(isDeadEnd(*bb3));
 
@@ -172,7 +172,7 @@ TEST(KitBasicBlockUtils, isDeadEnd) {
   // itself will not be a dead-end.
   Constant *cond = ConstantInt::getTrue(ctx);
   BasicBlock *bb4 = BasicBlock::Create(ctx);
-  BranchInst::Create(bbU, bbU, cond, bb4);
+  CondBrInst::Create(cond, bbU, bbU, bb4);
 
   EXPECT_FALSE(isDeadEnd(*bb4));
 }

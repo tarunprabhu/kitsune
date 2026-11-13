@@ -21,7 +21,6 @@
 
 namespace llvm {
 
-class BranchInst;
 class DominatorTree;
 class Loop;
 class LoopInfo;

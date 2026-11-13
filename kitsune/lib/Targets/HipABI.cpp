@@ -284,7 +284,7 @@ protected:
     Argument *tcX = f.getArg(1);
     Value *ivCond = bldr.CreateICmpUGE(ivBeg, tcX);
     ReplaceInstWithInst(bbEntry->getTerminator(),
-                        BranchInst::Create(bbExit, bbHeader, ivCond));
+                        CondBrInst::Create(ivCond, bbExit, bbHeader));
 
     iv->getIncomingValueForBlock(bbEntry)->replaceAllUsesWith(ivBeg);
     updateTripCount(loop, iv, ivEnd, vmap);

@@ -104,7 +104,6 @@ Value *TapirLoopNormalizeImpl::getOrGenerateTripCount(Loop &loop) {
 
   // Otherwise, generate an LLVM instruction/expression out of this. Since the
   // loop is in simplify form, a preheader is guaranteed to exist.
-  const DataLayout &dl = getFunction(loop)->getDataLayout();
   SCEVExpander scExpander(se, "tlnorm", /*PreserveLCSSA=*/true);
   BasicBlock *ph = loop.getLoopPreheader();
   Instruction *term = ph->getTerminator();

@@ -319,8 +319,8 @@ TEST(KitInstUtils, getNonMatchingSuccessor) {
   ConstantInt *c3 = cast<ConstantInt>(ConstantInt::get(i32, 3));
 
   BinaryOperator *binOp = BinaryOperator::Create(Instruction::Add, c1, c2);
-  BranchInst *uncondBr = BranchInst::Create(def);
-  BranchInst *condBr = BranchInst::Create(bt, bf, ConstantInt::getTrue(ctx));
+  UncondBrInst *uncondBr = UncondBrInst::Create(def);
+  CondBrInst *condBr = CondBrInst::Create(ConstantInt::getTrue(ctx), bt, bf);
   SwitchInst *swch = SwitchInst::Create(c3, def, 2);
   swch->addCase(c1, bt);
   swch->addCase(c2, bf);
@@ -332,30 +332,6 @@ TEST(KitInstUtils, getNonMatchingSuccessor) {
   EXPECT_FALSE(getNonMatchingSuccessor(*swch, bt));
   EXPECT_EQ(getNonMatchingSuccessor(*condBr, bt), bf);
   EXPECT_EQ(getNonMatchingSuccessor(*condBr, bf), bt);
-}
-
-TEST(KitInstUtils, isCondBr) {
-  LLVMContext ctx;
-  BasicBlock *bt = BasicBlock::Create(ctx);
-  BasicBlock *bf = BasicBlock::Create(ctx);
-  Constant *cond = ConstantInt::getTrue(ctx);
-  BranchInst *condBr = BranchInst::Create(bt, bf, cond);
-  BranchInst *uncondBr = BranchInst::Create(bt);
-
-  EXPECT_TRUE(isCondBr(*condBr));
-  EXPECT_FALSE(isCondBr(*uncondBr));
-}
-
-TEST(KitInstUtils, isUncondBr) {
-  LLVMContext ctx;
-  BasicBlock *bt = BasicBlock::Create(ctx);
-  BasicBlock *bf = BasicBlock::Create(ctx);
-  Constant *cond = ConstantInt::getTrue(ctx);
-  BranchInst *condBr = BranchInst::Create(bt, bf, cond);
-  BranchInst *uncondBr = BranchInst::Create(bt);
-
-  EXPECT_TRUE(isUncondBr(*uncondBr));
-  EXPECT_FALSE(isUncondBr(*condBr));
 }
 
 } // namespace

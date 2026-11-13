@@ -375,8 +375,8 @@ bool llvm::serializeTapirLoop(Loop &loop, bool addAttr, DominatorTree *dt,
   // Since we impose many restriction on tapir loops, just do the simple thing
   // here, which is replace the detach and reattach instructions with
   // unconditional branches.
-  ReplaceInstWithInst(detach, BranchInst::Create(body));
-  ReplaceInstWithInst(reattach, BranchInst::Create(latch));
+  ReplaceInstWithInst(detach, UncondBrInst::Create(body));
+  ReplaceInstWithInst(reattach, UncondBrInst::Create(latch));
 
   if (dt) {
     dt->deleteEdge(bbDetach, latch);
@@ -494,7 +494,7 @@ BasicBlock *llvm::getExitBlockFromLatch(const Loop &loop) {
   return nullptr;
 }
 
-BranchInst *llvm::getLoopGuardBranch(const Loop &loop, bool allowDeadEndExits) {
+CondBrInst *llvm::getLoopGuardBranch(const Loop &loop, bool allowDeadEndExits) {
   if (!allowDeadEndExits)
     return loop.getLoopGuardBranch();
 
@@ -515,11 +515,11 @@ BranchInst *llvm::getLoopGuardBranch(const Loop &loop, bool allowDeadEndExits) {
   if (!bbGuard)
     return nullptr;
 
-  // The terminator of the guard block is expected to be a BranchInst. In
+  // The terminator of the guard block is expected to be a CondBrInst. In
   // principle, it could be an equivalent switch instruction. But adding that
   // instruction there would require a truly perverse frontend/optimization
   // pass.
-  BranchInst *br = dyn_cast<BranchInst>(bbGuard->getTerminator());
+  CondBrInst *br = dyn_cast<CondBrInst>(bbGuard->getTerminator());
   if (!br)
     return nullptr;
 
@@ -535,7 +535,7 @@ BranchInst *llvm::getLoopGuardBranch(const Loop &loop, bool allowDeadEndExits) {
 }
 
 BasicBlock *llvm::getLoopGuardBlock(const Loop &loop, bool allowDeadEndExits) {
-  if (BranchInst *br = getLoopGuardBranch(loop, allowDeadEndExits))
+  if (CondBrInst *br = getLoopGuardBranch(loop, allowDeadEndExits))
     return br->getParent();
   return nullptr;
 }
@@ -546,7 +546,7 @@ bool llvm::isGuarded(const Loop &loop, bool allowDeadEndExits) {
 
 BasicBlock *llvm::getLoopBypassBlock(const Loop &loop, bool allowDeadEndExits) {
   if (BasicBlock *ph = loop.getLoopPreheader())
-    if (BranchInst *br = getLoopGuardBranch(loop, allowDeadEndExits))
+    if (CondBrInst *br = getLoopGuardBranch(loop, allowDeadEndExits))
       return getNonMatchingSuccessor(*br, ph);
   return nullptr;
 }

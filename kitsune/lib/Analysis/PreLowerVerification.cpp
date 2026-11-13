@@ -271,7 +271,7 @@ bool VerifierF::checkTopLevelTapirLoops(Function &f) {
 //
 bool VerifierF::checkTapirLoopPreheader(Loop &loop) {
   BasicBlock *ph = loop.getLoopPreheader();
-  if (!isUncondBr(*ph->getTerminator()))
+  if (!isa<UncondBrInst>(*ph->getTerminator()))
     return emitDiag(loop, DiagID::ErrTapirLoopBlockTerminator, "preheader",
                     "unconditional branch");
   return true;
@@ -319,14 +319,14 @@ bool VerifierF::checkTapirLoopHeader(Loop &loop) {
 bool VerifierF::checkTapirLoopLatch(Loop &loop) {
   BasicBlock *latch = loop.getLoopLatch();
   Instruction *latchTerm = latch->getTerminator();
-  if (!isCondBr(*latchTerm))
+  if (!isa<CondBrInst>(*latchTerm))
     return emitDiag(loop, DiagID::ErrTapirLoopBlockTerminator, "latch",
                     "conditional branch");
 
   // Collect the instructions that are used to compute the termination condition
   // and branch.
   SmallPtrSet<Instruction *, 4> expected;
-  BranchInst *br = cast<BranchInst>(latchTerm);
+  CondBrInst *br = cast<CondBrInst>(latchTerm);
   if (auto *cmp = dyn_cast<Instruction>(br->getCondition())) {
     for (Value *op : cmp->operands())
       if (auto *inst = dyn_cast<Instruction>(op))

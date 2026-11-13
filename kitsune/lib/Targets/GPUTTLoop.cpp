@@ -318,12 +318,12 @@ void GPUTTLoopBase::serializeKernelFunc(Function &f) {
   // Fixup the terminator instructions.
   for (Instruction *inst : del) {
     if (auto *detach = dyn_cast<DetachInst>(inst))
-      ReplaceInstWithInst(detach, BranchInst::Create(detach->getDetached()));
+      ReplaceInstWithInst(detach, UncondBrInst::Create(detach->getDetached()));
     else if (auto *reattach = dyn_cast<ReattachInst>(inst))
       ReplaceInstWithInst(reattach,
-                          BranchInst::Create(reattach->getDetachContinue()));
+                          UncondBrInst::Create(reattach->getDetachContinue()));
     else if (auto *sync = dyn_cast<SyncInst>(inst))
-      ReplaceInstWithInst(sync, BranchInst::Create(sync->getSuccessor(0)));
+      ReplaceInstWithInst(sync, UncondBrInst::Create(sync->getSuccessor(0)));
   }
 
   // Finally, delete the syncregion creation calls.
@@ -566,7 +566,7 @@ void GPUTTLoopBase::processOutlinedIVs(Function &f, TapirLoopInfo &tl,
   BasicBlock *bbHeader = cast<BasicBlock>(vmap.lookup(root->getHeader()));
   BasicBlock *bbExit = cast<BasicBlock>(vmap.lookup(tl.getExitBlock()));
   ReplaceInstWithInst(bbEntry->getTerminator(),
-                      BranchInst::Create(bbHeader, bbExit, allInRange));
+                      CondBrInst::Create(allInRange, bbHeader, bbExit));
 
   // Otherwise, set the initial values of the loop induction variables to be
   // these computed values.

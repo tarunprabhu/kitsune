@@ -47,7 +47,7 @@ static void serializeLoop(Loop &loop, DominatorTree &dt) {
   // safe, just in case.
   if (sr->getNumUses() == 1 && isa<SyncInst>(*sr->user_begin())) {
     SyncInst *sync = cast<SyncInst>(*sr->user_begin());
-    BranchInst *br = BranchInst::Create(sync->getSuccessor(0));
+    UncondBrInst *br = UncondBrInst::Create(sync->getSuccessor(0));
     ReplaceInstWithInst(sync, br);
     cast<Instruction>(sr)->eraseFromParent();
   }
@@ -325,10 +325,8 @@ void PrepareTapirNestParallel::updateLoopBounds(Loop &wrapperLoop, Loop &loop,
     [[maybe_unused]] BasicBlock *guard =
         getLoopGuardBlock(loop, /*allowDeadEndExits=*/true);
     assert(guard && "Loop has a guard block");
-    assert(isa<BranchInst>(guard->getTerminator()) &&
-           "Loop guard terminator is a branch instruction");
-    assert(cast<BranchInst>(guard->getTerminator())->isConditional() &&
-           "Lopo guard terminator is a conditional branch instruction");
+    assert(isa<CondBrInst>(guard->getTerminator()) &&
+           "Loop guard terminator is a conditional branch instruction");
 
     [[maybe_unused]] Loop::LoopBounds bounds = *loop.getBounds(se);
     [[maybe_unused]] Instruction *inc = &bounds.getStepInst();
@@ -363,7 +361,7 @@ void PrepareTapirNestParallel::updateLoopBounds(Loop &wrapperLoop, Loop &loop,
   BasicBlock &ph = *loop.getLoopPreheader();
 
   ICmpInst *cmp = loop.getLatchCmpInst();
-  BranchInst *br = cast<BranchInst>(guard.getTerminator());
+  CondBrInst *br = cast<CondBrInst>(guard.getTerminator());
 
   PHINode *iv = loop.getCanonicalInductionVariable();
   Type *ivTy = iv->getType();

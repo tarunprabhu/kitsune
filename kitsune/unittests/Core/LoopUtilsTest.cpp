@@ -1671,11 +1671,11 @@ TEST_F(KitLoopUtils, getLoopGuardBranch) {
     setup(guarded, "f");
     const Loop &loop = **li->begin();
 
-    BranchInst *brt = getLoopGuardBranch(loop, /*allowDeadEndExits=*/true);
+    CondBrInst *brt = getLoopGuardBranch(loop, /*allowDeadEndExits=*/true);
     EXPECT_EQ(brt->getSuccessor(0)->getName(), "ph");
     EXPECT_EQ(brt->getSuccessor(1)->getName(), "skip");
 
-    BranchInst *brf = getLoopGuardBranch(loop, /*allowDeadEndExits=*/false);
+    CondBrInst *brf = getLoopGuardBranch(loop, /*allowDeadEndExits=*/false);
     EXPECT_EQ(brf->getSuccessor(0)->getName(), "ph");
     EXPECT_EQ(brf->getSuccessor(1)->getName(), "skip");
 
@@ -1685,7 +1685,7 @@ TEST_F(KitLoopUtils, getLoopGuardBranch) {
     setup(guardedDeadEnd, "f");
     const Loop &loop = **li->begin();
 
-    BranchInst *br = getLoopGuardBranch(loop, /*allowDeadEndExits=*/true);
+    CondBrInst *br = getLoopGuardBranch(loop, /*allowDeadEndExits=*/true);
     EXPECT_EQ(br->getSuccessor(0)->getName(), "ph");
     EXPECT_EQ(br->getSuccessor(1)->getName(), "skip");
 
@@ -1704,11 +1704,11 @@ TEST_F(KitLoopUtils, getLoopGuardBlock) {
     setup(guarded, "f");
     const Loop &loop = **li->begin();
 
-    BranchInst *brt = getLoopGuardBranch(loop, /*allowDeadEndExits=*/true);
+    CondBrInst *brt = getLoopGuardBranch(loop, /*allowDeadEndExits=*/true);
     BasicBlock *bbt = brt->getParent();
     EXPECT_EQ(bbt->getName(), "entry");
 
-    BranchInst *brf = getLoopGuardBranch(loop, /*allowDeadEndExits=*/false);
+    CondBrInst *brf = getLoopGuardBranch(loop, /*allowDeadEndExits=*/false);
     BasicBlock *bbf = brf->getParent();
     EXPECT_EQ(bbf->getName(), "entry");
 
@@ -1718,7 +1718,7 @@ TEST_F(KitLoopUtils, getLoopGuardBlock) {
     setup(guardedDeadEnd, "f");
     const Loop &loop = **li->begin();
 
-    BranchInst *br = getLoopGuardBranch(loop, /*allowDeadEndExits=*/true);
+    CondBrInst *br = getLoopGuardBranch(loop, /*allowDeadEndExits=*/true);
     BasicBlock *bb = br->getParent();
     EXPECT_EQ(bb->getName(), "entry");
 

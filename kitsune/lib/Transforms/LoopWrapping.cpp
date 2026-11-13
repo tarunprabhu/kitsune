@@ -196,7 +196,7 @@ void WrapLoopBase::genGuardBlock(Loop &loop, LoopBlocks &bbs,
   // LoopGuard1. At the very least, this will return the terminator of the guard
   // block \p bb.
   auto getGuardSplitPoint = [](BasicBlock &guard) -> Instruction * {
-    BranchInst *br = cast<BranchInst>(guard.getTerminator());
+    CondBrInst *br = cast<CondBrInst>(guard.getTerminator());
     Value *cond = br->getCondition();
     if (!isa<Instruction>(cond))
       return br;
@@ -217,9 +217,7 @@ void WrapLoopBase::genGuardBlock(Loop &loop, LoopBlocks &bbs,
   LLVM_DEBUG(dbgs() << "WrapLoop:   Create guard block\n");
 
   assert(bbs.guard && "Loop has guard block");
-  assert(isa<BranchInst>(bbs.guard->getTerminator()) &&
-         "Terminator of guard block is a branch instruction");
-  assert(cast<BranchInst>(bbs.guard->getTerminator()) &&
+  assert(isa<CondBrInst>(bbs.guard->getTerminator()) &&
          "Terminator of guard block is a conditional branch instruction");
 
   BasicBlock *origGuard = bbs.guard;
@@ -339,7 +337,7 @@ void WrapLoopBase::genGuardInsts(const Loop &loop, const LoopBlocks &bbs,
 
   Instruction *term = guard->getTerminator();
   Value *cond = ConstantInt::getTrue(i1);
-  BranchInst *condBr = BranchInst::Create(ph, bypass, cond);
+  CondBrInst *condBr = CondBrInst::Create(cond, ph, bypass);
 
   ReplaceInstWithInst(term, condBr);
 
@@ -404,7 +402,7 @@ void WrapLoopBase::genLatchInsts(const Loop &loop, const LoopBlocks &bbs,
   IRBuilder<> builder(latch->getTerminator());
   Value *inc = builder.CreateNUWAdd(iv, one, "wrap.iv.inc");
   Value *cmp = builder.CreateICmpEQ(inc, zero, "wrap.iv.cmp");
-  BranchInst *br = BranchInst::Create(exit, header, cmp);
+  CondBrInst *br = CondBrInst::Create(cmp, exit, header);
 
   iv->addIncoming(inc, latch);
   ReplaceInstWithInst(latch->getTerminator(), br);

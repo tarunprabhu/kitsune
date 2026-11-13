@@ -97,12 +97,6 @@ BasicBlock *getNonMatchingSuccessor(Instruction &inst, BasicBlock *bb);
 /// true.
 bool replaceStrategy(Instruction &inst, ReductionStrategy newStrategy);
 
-/// Is the given instruction a conditional branch.
-bool isCondBr(const Instruction &inst);
-
-/// Is the given instruction an unconditional branch.
-bool isUncondBr(const Instruction &inst);
-
 /// Is the value \p v the increment of a canonical induction variable, \p iv.
 /// Since canonical induction variables are always incremented by one, this
 /// checks that \p inst is an add instruction where one operand is \p iv and the

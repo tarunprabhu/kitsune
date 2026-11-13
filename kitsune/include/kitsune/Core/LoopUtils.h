@@ -277,7 +277,7 @@ BasicBlock *getExitBlockFromLatch(const Loop &loop);
 /// the same as Loop::getLoopGuardBranch. While that function requires a unique
 /// exit block, this relaxes that condition and requires a unique non-dead-end
 /// exit block.
-BranchInst *getLoopGuardBranch(const Loop &loop, bool allowDeadEndExits);
+CondBrInst *getLoopGuardBranch(const Loop &loop, bool allowDeadEndExits);
 
 /// Get the block containing the loop guard instruction. See the documentation
 /// of \ref getLoopGuardBranch for more information. Returns nullptr if \p loop
