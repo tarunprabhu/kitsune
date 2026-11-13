@@ -27,10 +27,6 @@ protected:
 public:
   LowerGPUIntrImpl(const TTOptions &tto) : tto(tto) {}
 
-  // Lower a call to Kitsune's index intrinsic. These intrinsics correspond to
-  // the threadIdx, blockIdx, blockDim, gridSize, and gridDim builtin objects.
-  bool lowerIndexIntr(CallInst *call);
-
   // Lower a call to Kitsune's kit.gpu.warp.shfl.down.sync intrinsic.
   bool lowerWarpShflDownSyncIntr(CallInst *call);
 

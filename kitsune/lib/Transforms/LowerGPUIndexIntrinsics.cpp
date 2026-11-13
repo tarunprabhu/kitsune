@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "LowerGPUIntrinsicsImpl.h"
+#include "LowerIntrinsicsImpl.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/IntrinsicUtils.h"
 #include "kitsune/Core/ModuleUtils.h"
@@ -18,7 +18,6 @@
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicsAMDGPU.h"
 #include "llvm/IR/IntrinsicsNVPTX.h"
-#include "llvm/IR/Module.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 
 using namespace llvm;
@@ -131,7 +130,7 @@ static bool lowerForCuda(CallInst *call) {
   llvm_unreachable("lowerGPUIndexIntrinsic[cuda]: Unexpected intrinsic");
 }
 
-bool detail::LowerGPUIntrImpl::lowerIndexIntr(CallInst *call) {
+bool llvm::detail::lowerIndexIntr(CallInst *call) {
   switch (*getTTIDFromKitIntrCall(*call)) {
   case TTID::Cuda: return lowerForCuda(call);
   case TTID::Hip: return lowerForHip(call);

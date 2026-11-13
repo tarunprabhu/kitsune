@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "LowerReduceIntrinsics.h"
+#include "LowerIntrinsicsImpl.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/FuncAttrs.h"
 #include "kitsune/Core/ModuleUtils.h"

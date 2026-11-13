@@ -28,7 +28,7 @@
 
 #include "kitsune/Transforms/EmbLowerIntrinsics.h"
 #include "LowerGPUIntrinsicsImpl.h"
-#include "LowerReduceIntrinsics.h"
+#include "LowerIntrinsicsImpl.h"
 #include "kitsune/Core/IntrinsicUtils.h"
 #include "kitsune/Core/ModuleUtils.h"
 #include "kitsune/Core/Reductions.h"
@@ -61,7 +61,7 @@ static bool lowerIntr(CallInst *call, detail::LowerGPUIntrImpl &lowerGPU) {
   case Intrinsic::kit_gpu_grid_size_x:
   case Intrinsic::kit_gpu_grid_size_y:
   case Intrinsic::kit_gpu_grid_size_z: //
-    return lowerGPU.lowerIndexIntr(call);
+    return detail::lowerIndexIntr(call);
   default: break;
   }
   return false;
