@@ -47,6 +47,23 @@ bool runKitPreparePasses(ThinOrFullLTOPhase phase,
 bool runTapirLoweringPasses(ThinOrFullLTOPhase phase,
                             const PipelineTuningOptions &pto);
 
+/// Create a pipeline with passes that run "immutable" printer passes early in
+/// the pipeline. These will typically run before any other pass, and generally
+/// print configuration/option information that may not depend on an LLVM
+/// module.
+ModulePassManager
+populateKitEarlyPrinterPasses(PassBuilder &pb, OptimizationLevel optLevel,
+                              ThinOrFullLTOPhase ltoPhase,
+                              const PipelineTuningOptions &pto);
+
+/// Create a pipeline with passes that run "immutable" printer passes late in
+/// the pipeline. These will typically run late in the pipeline after most, if
+/// not all, the analyses and transformation passes have run.
+ModulePassManager
+populateKitLatePrinterPasses(PassBuilder &pb, OptimizationLevel optLevel,
+                             ThinOrFullLTOPhase ltoPhase,
+                             const PipelineTuningOptions &pto);
+
 /// Create a pipeline with passes that should be run early in the optimization
 /// pipeline. These are generally run immediately after mem2reg (or the
 /// equivalent).

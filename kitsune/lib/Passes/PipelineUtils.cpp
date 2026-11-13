@@ -13,6 +13,7 @@
 #include "kitsune/Passes/PipelineUtils.h"
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Passes/Passes.h"
+#include "kitsune/Support/CommandLineOptions.h"
 #include "llvm/Transforms/InstCombine/InstCombine.h"
 #include "llvm/Transforms/Scalar/ADCE.h"
 #include "llvm/Transforms/Scalar/BDCE.h"
@@ -29,6 +30,11 @@
 #include "llvm/Transforms/Utils/TaskSimplify.h"
 
 using namespace llvm;
+
+static cl::opt<bool>
+    clPrintTTOptions("print-tt-options", cl::init(false),
+                     cl::desc("Write the tapir target options to stdout"),
+                     cl::Hidden, cl::cat(cl::catKitClOpts));
 
 bool llvm::isKitsuneOrTapirPipelineAlias(StringRef name) {
   // The tapir and kitsune pipeline aliases are parameterized i.e. they take
@@ -178,6 +184,29 @@ static void populateSimplifyPasses(FunctionPassManager &fpm,
   addLoopPassMSSA<LICMPass>(fpm, pto.LicmMssaOptCap,
                             pto.LicmMssaNoAccForPromotionCap,
                             /*AllowSpeculation=*/true);
+}
+
+ModulePassManager
+llvm::populateKitEarlyPrinterPasses(PassBuilder &pb, OptimizationLevel level,
+                                    ThinOrFullLTOPhase ltoPhase,
+                                    const PipelineTuningOptions &pto) {
+  ModulePassManager mpm;
+
+  if (clPrintTTOptions)
+    mpm.addPass(TTOptionsPrinterPass(pto.TTOpts));
+
+  return mpm;
+}
+
+ModulePassManager
+llvm::populateKitLatePrinterPasses(PassBuilder &pb, OptimizationLevel optLevel,
+                                   ThinOrFullLTOPhase ltoPhase,
+                                   const PipelineTuningOptions &pto) {
+  ModulePassManager mpm;
+
+  // There are currently no late printer passes.
+
+  return mpm;
 }
 
 FunctionPassManager

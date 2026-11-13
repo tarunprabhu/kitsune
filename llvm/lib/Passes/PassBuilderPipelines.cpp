@@ -15,8 +15,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Passes/PipelineUtils.h"
-#include "kitsune/Analysis/TTOptionsPrinter.h"
-#include "kitsune/Support/CommandLineOptions.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/Analysis/BasicAliasAnalysis.h"
@@ -345,11 +343,6 @@ static cl::opt<bool>
     VerifyTapirLowering("verify-tapir-lowering-npm", cl::init(false),
                         cl::Hidden,
                         cl::desc("Verify IR after Tapir lowering steps"));
-
-static cl::opt<bool>
-    clPrintTTOptions("print-tt-options", cl::init(false),
-                     cl::desc("Write the tapir target options to stdout"),
-                     cl::Hidden, cl::cat(cl::catKitClOpts));
 
 extern cl::opt<std::string> UseCtxProfile;
 extern cl::opt<bool> PGOInstrumentColdFunctionOnly;
@@ -2079,14 +2072,13 @@ PassBuilder::buildPerModuleDefaultPipeline(OptimizationLevel Level,
   // are not running LTO. If that changes the below checks may need updating.
   assert(isLTOPreLink(Phase) || Phase == ThinOrFullLTOPhase::None);
 
+  MPM.addPass(populateKitEarlyPrinterPasses(*this, Level, Phase, PTO));
+
   // If we are invoking this in non-LTO mode, remove any MemProf related
   // attributes and metadata, as we don't know whether we are linking with
   // a library containing the necessary interfaces.
   if (Phase == ThinOrFullLTOPhase::None)
     MPM.addPass(MemProfRemoveInfo());
-
-  if (clPrintTTOptions)
-    MPM.addPass(TTOptionsPrinterPass(PTO.TTOpts));
 
   // Convert @llvm.global.annotations to !annotation metadata.
   MPM.addPass(Annotation2MetadataPass());
@@ -2761,10 +2753,9 @@ PassBuilder::buildO0DefaultPipeline(OptimizationLevel Level,
 
   ModulePassManager MPM;
 
-  if (clPrintTTOptions)
-    MPM.addPass(TTOptionsPrinterPass(PTO.TTOpts));
-
   instructionCountersPass(MPM, /* IsPreOptimization */ true);
+
+  MPM.addPass(populateKitEarlyPrinterPasses(*this, Level, Phase, PTO));
 
   // Perform pseudo probe instrumentation in O0 mode. This is for the
   // consistency between different build modes. For example, a LTO build can be
