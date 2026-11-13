@@ -125,7 +125,7 @@ TEST(KitrtRuntimeTraits, isContext) {
 
   struct BadFiniSig {
     void initialize(void);
-    void finalize(void*);
+    void finalize(void *);
   };
 
   struct Good {

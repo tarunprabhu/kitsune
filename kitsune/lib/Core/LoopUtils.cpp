@@ -290,7 +290,7 @@ const Loop *llvm::getInnermostTapirLoopInNest(const Loop &root) {
   return getTapirLoopsInNest(root).back();
 }
 
-template <typename L> static L* getOutermostTapirLoopInNestImpl(L &loop) {
+template <typename L> static L *getOutermostTapirLoopInNestImpl(L &loop) {
   if (isTapirLoop(loop))
     return getFarthestAncestorTapirLoop(loop);
   else if (L *ancestor = getNearestAncestorTapirLoop(loop))

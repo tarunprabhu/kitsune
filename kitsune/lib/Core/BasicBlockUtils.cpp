@@ -31,9 +31,7 @@ const Module *llvm::getModule(const BasicBlock &bb) {
   return nullptr;
 }
 
-Function *llvm::getFunction(BasicBlock &bb) {
-  return bb.getParent();
-}
+Function *llvm::getFunction(BasicBlock &bb) { return bb.getParent(); }
 
 const Function *llvm::getFunction(const BasicBlock &bb) {
   return bb.getParent();

@@ -249,8 +249,8 @@ bool SecondaryIVElimination::tryToEliminateFPDiv(PHINode &secIV, Value *step,
 //
 //     siv = init + step*civ
 //
-bool SecondaryIVElimination::tryToEliminateIntAdd(PHINode &secIV,
-                                                  Value *step, Loop &loop) {
+bool SecondaryIVElimination::tryToEliminateIntAdd(PHINode &secIV, Value *step,
+                                                  Loop &loop) {
   LLVM_DEBUG(dbgs() << "SecIVE:   Integer addition induction with step '"
                     << *step << "'\n");
 
@@ -278,8 +278,8 @@ bool SecondaryIVElimination::tryToEliminateIntAdd(PHINode &secIV,
 //
 //     siv = init - step*civ
 //
-bool SecondaryIVElimination::tryToEliminateIntSub(PHINode &secIV,
-                                                  Value *step, Loop &loop) {
+bool SecondaryIVElimination::tryToEliminateIntSub(PHINode &secIV, Value *step,
+                                                  Loop &loop) {
   LLVM_DEBUG(dbgs() << "SecIVE:   Integer subtraction induction with step '"
                     << *step << "'\n");
 
@@ -309,8 +309,8 @@ bool SecondaryIVElimination::tryToEliminateIntSub(PHINode &secIV,
 //
 // where `^` is the exponentiation operator.
 //
-bool SecondaryIVElimination::tryToEliminateIntMul(PHINode &secIV,
-                                                  Value *step, Loop &loop) {
+bool SecondaryIVElimination::tryToEliminateIntMul(PHINode &secIV, Value *step,
+                                                  Loop &loop) {
   LLVM_DEBUG(dbgs() << "SecIVE:   Integer multiplication induction with step '"
                     << *step << "'\n");
 
@@ -341,9 +341,8 @@ bool SecondaryIVElimination::tryToEliminateIntMul(PHINode &secIV,
 //
 // where `^` is the exponentiation operator.
 //
-bool SecondaryIVElimination::tryToEliminateIntDiv(PHINode &secIV,
-                                                  Value *step, bool isSigned,
-                                                  Loop &loop) {
+bool SecondaryIVElimination::tryToEliminateIntDiv(PHINode &secIV, Value *step,
+                                                  bool isSigned, Loop &loop) {
   LLVM_DEBUG(dbgs() << "SecIVE:   Integer division induction with step '"
                     << *step << "'\n");
 
@@ -366,8 +365,8 @@ bool SecondaryIVElimination::tryToEliminateIntDiv(PHINode &secIV,
 //
 //     siv = init << step*civ
 //
-bool SecondaryIVElimination::tryToEliminateIntLShl(PHINode &secIV,
-                                                   Value *step, Loop &loop) {
+bool SecondaryIVElimination::tryToEliminateIntLShl(PHINode &secIV, Value *step,
+                                                   Loop &loop) {
   LLVM_DEBUG(dbgs() << "SecIVE:   Logical shift left induction with step '"
                     << *step << "'\n");
 
@@ -395,8 +394,8 @@ bool SecondaryIVElimination::tryToEliminateIntLShl(PHINode &secIV,
 //
 //     siv = init >> step*civ
 //
-bool SecondaryIVElimination::tryToEliminateIntLShr(PHINode &secIV,
-                                                   Value *step, Loop &loop) {
+bool SecondaryIVElimination::tryToEliminateIntLShr(PHINode &secIV, Value *step,
+                                                   Loop &loop) {
   LLVM_DEBUG(dbgs() << "SecIVE:   Logical shift right induction with step '"
                     << *step << "'\n");
 
@@ -424,8 +423,8 @@ bool SecondaryIVElimination::tryToEliminateIntLShr(PHINode &secIV,
 //
 //     siv = init >>> step*civ
 //
-bool SecondaryIVElimination::tryToEliminateIntAShr(PHINode &secIV,
-                                                   Value *step, Loop &loop) {
+bool SecondaryIVElimination::tryToEliminateIntAShr(PHINode &secIV, Value *step,
+                                                   Loop &loop) {
   LLVM_DEBUG(dbgs() << "SecIVE:   Arithmetic shift right induction with step '"
                     << *step << "'\n");
 

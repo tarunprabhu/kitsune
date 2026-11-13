@@ -179,7 +179,7 @@ static bool fixAllocaAddrSpace(AllocaInst &alloca, unsigned newAddrSpace,
     }
   }
 
-  SmallVector<User*, 4> users(alloca.user_begin(), alloca.user_end());
+  SmallVector<User *, 4> users(alloca.user_begin(), alloca.user_end());
   for (User *u : users)
     cast<Instruction>(u)->eraseFromParent();
 

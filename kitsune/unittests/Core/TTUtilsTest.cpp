@@ -52,18 +52,12 @@ TEST(KitTTUtils, getSpawnStrategy) {
       EXPECT_EQ(strategy, TapirSpawnStrategy::DivideAndConquer);
       break;
     case TTID::Cuda:
-    case TTID::Hip:
-      EXPECT_EQ(strategy, TapirSpawnStrategy::GPU);
-      break;
+    case TTID::Hip: EXPECT_EQ(strategy, TapirSpawnStrategy::GPU); break;
     case TTID::Custom:
     case TTID::OpenMP:
     case TTID::Pthreads:
-    case TTID::Qthreads:
-      EXPECT_EQ(strategy, TapirSpawnStrategy::Basic);
-      break;
-    default:
-      FAIL();
-      break;
+    case TTID::Qthreads: EXPECT_EQ(strategy, TapirSpawnStrategy::Basic); break;
+    default: FAIL(); break;
     }
   }
 }
