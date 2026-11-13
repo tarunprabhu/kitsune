@@ -36,6 +36,27 @@
 ; HIP-DAG: ![[DC]] = !{!"kit.gv.device.code", i32 4}
 ;
 ; ------------------------------------------------------------------------------
+; The --tapir option can be provided more than once. In that case, one
+; bit/device-code pair of globals must be created for each tapir target.
+;
+; RUN: %kit-enc --tapir=cuda --tapir=hip %s \
+; RUN:     | FileCheck %s --check-prefix=MULTIPLE
+;
+; MULTIPLE-DAG: @{{.+}} = {{.+}}, !kit.gv ![[ATTRSBC2:[0-9]+]]
+; MULTIPLE-DAG: @{{.+}} = {{.+}}, !kit.gv ![[ATTRSDC2:[0-9]+]]
+; MULTIPLE-DAG: @{{.+}} = {{.+}}, !kit.gv ![[ATTRSBC4:[0-9]+]]
+; MULTIPLE-DAG: @{{.+}} = {{.+}}, !kit.gv ![[ATTRSDC4:[0-9]+]]
+;
+; MULTIPLE-DAG: ![[ATTRSBC2]] = distinct !{![[ATTRSBC2]], ![[BC2:[0-9]+]]}
+; MULTIPLE-DAG: ![[BC2]] = !{!"kit.gv.bit.code", i32 2}
+; MULTIPLE-DAG: ![[ATTRSDC2]] = distinct !{![[ATTRSDC2]], ![[DC2:[0-9]+]]}
+; MULTIPLE-DAG: ![[DC2]] = !{!"kit.gv.device.code", i32 2}
+; MULTIPLE-DAG: ![[ATTRSBC4]] = distinct !{![[ATTRSBC4]], ![[BC4:[0-9]+]]}
+; MULTIPLE-DAG: ![[BC4]] = !{!"kit.gv.bit.code", i32 4}
+; MULTIPLE-DAG: ![[ATTRSDC4]] = distinct !{![[ATTRSDC4]], ![[DC4:[0-9]+]]}
+; MULTIPLE-DAG: ![[DC4]] = !{!"kit.gv.device.code", i32 4}
+;
+; ------------------------------------------------------------------------------
 ; Check that the --name option overrides the input module name. In this case,
 ; the input module name would be the name of this file, basic.ll
 ;

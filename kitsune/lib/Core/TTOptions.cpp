@@ -14,15 +14,11 @@
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/Diagnostics.h"
 #include "kitsune/Core/KitOptions.h"
+#include "kitsune/Core/OptimizationLevelUtils.h"
 #include "kitsune/Core/TTUtils.h"
 #include "kitsune/Support/CommandLineOptions.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/CodeGen/CommandFlags.h"
-// #include "llvm/IRReader/IRReader.h"
-#include "kitsune/Core/OptimizationLevelUtils.h"
-#include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Process.h"
-#include "llvm/Support/SourceMgr.h"
 
 using namespace llvm;
 
@@ -34,8 +30,8 @@ using namespace llvm;
 
 // -------------------- options common to all tapir targets --------------------
 
-static cl::opt<TTID>
-    clTapir("tapir", cl::desc("The primary tapir target"), cl::init(TTID::Nolo),
+static cl::list<TTID>
+    clTapir("tapir", cl::desc("The primary tapir target"),
             cl::value_desc("target"), cl::cat(cl::catKitClOpts),
             cl::values(clEnumValN(TTID::Nolo, "nolo", ""),
                        clEnumValN(TTID::Serial, "serial", ""),
@@ -271,19 +267,25 @@ Error TTOptions::validate() const {
   llvm_unreachable("TTID not handled!");
 }
 
-bool TTOptions::initFromCommandLineMinimal() {
-  if (!clTapir.getNumOccurrences())
-    return false;
+SetVector<TTID> TTOptions::getTTIDsFromCmdLine() {
+  return SetVector<TTID>(clTapir.begin(), clTapir.end());
+}
 
-  this->tt = clTapir;
-  return true;
+std::optional<TTID> TTOptions::getUniqueTTIDFromCmdLine() {
+  SetVector<TTID> tts = getTTIDsFromCmdLine();
+  if (tts.size() == 1)
+    return *tts.begin();
+  return std::nullopt;
 }
 
 bool TTOptions::initFromCommandLine(OptimizationLevel optLevel) {
-  if (!clTapir.getNumOccurrences())
+  // We currently only support a single unique tapir target. At some point, if
+  // we support multi-target compilation, this will have to change.
+  std::optional<TTID> tt = getUniqueTTIDFromCmdLine();
+  if (!tt.has_value())
     return false;
 
-  this->tt = clTapir;
+  this->tt = *tt;
 
   // Set common tapir target options
   this->optLevel = optLevel;

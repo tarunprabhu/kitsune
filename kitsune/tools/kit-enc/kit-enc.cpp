@@ -73,12 +73,16 @@ int main(int argc, char *argv[]) {
   InitializeAllAsmPrinters();
   InitializeAllAsmParsers();
 
-  TTOptions tto;
-  TTID tt = tto.initFromCommandLineMinimal() ? tto.getTTID() : ttDefault;
-  if (not generatesEmbBC(tt)) {
-    WithColor::error() << "'" << tt
-                       << "' tapir target does not generate embedded bitcode\n";
-    return 2;
+  SetVector<TTID> tts = TTOptions::getTTIDsFromCmdLine();
+  if (tts.empty())
+    tts.insert(ttDefault);
+
+  for (TTID tt : tts) {
+    if (!generatesEmbBC(tt)) {
+      WithColor::error()
+          << "'" << tt << "' tapir target does not generate embedded bitcode\n";
+      return 2;
+    }
   }
 
   LLVMContext ctx;
@@ -89,15 +93,18 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  if (clModuleName.getNumOccurrences())
-    embM->setModuleIdentifier(clModuleName);
-
-  if (not clSkipMetadata)
-    (void)addDeviceModuleFlagsAttr(*embM, tt);
-
   Module hostM("", ctx);
-  (void)createEmbBCGlobal(*embM, tt, hostM);
-  (void)createEmbFBGlobal(tt, hostM);
+  for (TTID tt : tts) {
+
+    if (clModuleName.getNumOccurrences())
+      embM->setModuleIdentifier(clModuleName);
+
+    if (!clSkipMetadata)
+      (void)addDeviceModuleFlagsAttr(*embM, tt);
+
+    (void)createEmbBCGlobal(*embM, tt, hostM);
+    (void)createEmbFBGlobal(tt, hostM);
+  }
 
   outs() << hostM;
 

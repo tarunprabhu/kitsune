@@ -4,26 +4,5 @@
 ; This should contain one bitcode and device code global for each tapir target
 ; that is known to generate embedded bitcode.
 ;
-; KITSUNE FIXME: kit-mbc must be modified to allow it to generate embedded
-; bitcode (and device code) for more than one tapir target at once. This test
-; must then be fixed to use that functionality.
-;
-; RUN: MBC_2=`%kit-enc --tapir=cuda %s \
-; RUN:     | grep "c\"BC" \
-; RUN:     | sed 's/.kit.emb//g' \
-; RUN:     | sed 's/@.bc/@.bc.cuda/g'`
-; RUN:
-; RUN: MBC_4=`%kit-enc --tapir=hip %s \
-; RUN:     | grep "c\"BC" \
-; RUN:     | sed 's/.kit.emb//g' \
-; RUN:     | sed 's/@.bc/@.bc.hip/g' \
-; RUN:     | sed 's/\!0/\!1/g'`
-; RUN:
-; RUN: printf "%%s\n%%s\n%%s\n%%s\n\n%%s\n%%s" \
-; RUN:         "${MBC_2}" \
-; RUN:         "${MBC_4}" \
-; RUN:         "@fb.2 = constant [0 x i8] zeroinitializer, !kit.gv.device.code !0" \
-; RUN:         "@fb.4 = constant [0 x i8] zeroinitializer, !kit.gv.device.code !1" \
-; RUN:         "!0 = !{i32 2}" \
-; RUN:         "!1 = !{i32 4}" \
+; RUN: %kit-enc --tapir=cuda --tapir=hip %s \
 ; RUN:     | llvm-as -o /dev/null

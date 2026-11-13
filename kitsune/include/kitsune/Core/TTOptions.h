@@ -175,12 +175,6 @@ public:
   bool init(const KitOptions &kitOpts, unsigned speedupLevel,
             FPOpFusionMode fpOpFusionMode);
 
-  /// Minimally initialize this object from the command-line options. This only
-  /// examines the "shared" i.e. those that used by Kitsune's utilities in
-  /// addition to opt and llc. If the --tapir option is not provided, leave the
-  /// object unchanged and return false. Otherwise, return true.
-  bool initFromCommandLineMinimal();
-
   /// Initialize this object from the command line options. If the --tapir
   /// option is not provided, leave the object unchanged and return false.
   /// Otherwise, return true. The optimization level is not really used for
@@ -278,6 +272,18 @@ public:
   /// all the options will be printed, otherwise only those options relevant to
   /// the primary tapir target will be printed.
   void print(llvm::raw_ostream &os, bool all = false) const;
+
+public:
+  /// Get the tapir targets specified on the command line. This is a list of the
+  /// unique tapir targets provided to the --tapir option. The option is not
+  /// required, so the result may be an empty list.
+  static SetVector<TTID> getTTIDsFromCmdLine();
+
+  /// Get the sole TTID specified on the command line. If the --tapir option is
+  /// provided more than once, but all the values are identical, this will
+  /// return that value. If zero, or more than one unique TTID were specified,
+  /// returns std::nullopt.
+  static std::optional<TTID> getUniqueTTIDFromCmdLine();
 };
 
 /// @}
