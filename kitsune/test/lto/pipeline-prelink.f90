@@ -16,39 +16,43 @@
 !
 ! -----------------------------------------------------------------------------
 !
+! RUN: %kitfc -O1 --tapir=serial -c -emit-llvm -o /dev/null %s \
+! RUN:     -flto -Xflang -fdebug-pass-manager %sysroot 2>&1 \
+! RUN:     | FileCheck %s --check-prefix=O123
+!
 ! RUN: %kitfc -O2 --tapir=serial -c -emit-llvm -o /dev/null %s \
 ! RUN:     -flto -Xflang -fdebug-pass-manager %sysroot 2>&1 \
-! RUN:     | FileCheck %s
+! RUN:     | FileCheck %s --check-prefix=O123
 !
 ! RUN: %kitfc -O3 --tapir=serial -c -emit-llvm -o /dev/null %s \
 ! RUN:     -flto -Xflang -fdebug-pass-manager %sysroot 2>&1 \
-! RUN:     | FileCheck %s
+! RUN:     | FileCheck %s --check-prefix=O123
 !
 ! -----------------------------------------------------------------------------
 !
-! CHECK:      Running pass:      EarlyVerificationPass
-! CHECK:      Running pass:      EarlyAnnotatePass
-! CHECK:      Running pass:      SerializePass
-! CHECK:      Running pass:      PrepareTapirLoopsPass
-! CHECK:      Running pass:      LocalizeReductionsPass
-! CHECK:      Running pass:      SecondaryIVEliminationPass
-! CHECK-NOT:  Running pass:      InstrumentPass
+! O123:        Running pass:      EarlyVerificationPass
+! O123:        Running pass:      EarlyAnnotatePass
+! O123:        Running pass:      SerializePass
+! O123:        Running pass:      PrepareTapirLoopsPass
+! O123:        Running pass:      LocalizeReductionsPass
+! O123:        Running pass:      SecondaryIVEliminationPass
+! O123-NOT:    Running pass:      InstrumentPass
 !
-! CHECK-NOT:  Running pass:      SecondaryIVEliminationPass
-! CHECK-NOT:  Running pass:      PreLowerVerificationPass
-! CHECK-NOT:  Running pass:      PreLowerAnnotatePass
-! CHECK-NOT:  Running pass:      TapirLoopNormalizePass
-! CHECK-NOT:  Running pass:      LoopSpawningPass
-! CHECK-NOT:  Running pass:      HoistAllocasPass
-! CHECK-NOT:  Running pass:      EmbHoistAllocasPass
-! CHECK-NOT:  Running pass:      EmbLowerIntrinsicsPass
-! CHECK-NOT:  Running pass:      EmbResolveLibDeviceCallsPass
-! CHECK-NOT:  Running pass:      EmbPreparePass
-! CHECK-NOT:  Running pass:      EmbLinkLibDeviceBitcodePass
-! CHECK-NOT:  Running pass:      EmbOptimizePass
-! CHECK-NOT:  Running pass:      RecomputeKernelPropertiesPass
-! CHECK-NOT:  Running pass:      GenerateCtorsPass
-! CHECK-NOT:  Running pass:      LowerRuntimeIntrinsicsPass
+! O123-NOT:    Running pass:      SecondaryIVEliminationPass
+! O123-NOT:    Running pass:      PreLowerVerificationPass
+! O123-NOT:    Running pass:      PreLowerAnnotatePass
+! O123-NOT:    Running pass:      TapirLoopNormalizePass
+! O123-NOT:    Running pass:      LoopSpawningPass
+! O123-NOT:    Running pass:      HoistAllocasPass
+! O123-NOT:    Running pass:      EmbHoistAllocasPass
+! O123-NOT:    Running pass:      EmbLowerIntrinsicsPass
+! O123-NOT:    Running pass:      EmbResolveLibDeviceCallsPass
+! O123-NOT:    Running pass:      EmbPreparePass
+! O123-NOT:    Running pass:      EmbLinkLibDeviceBitcodePass
+! O123-NOT:    Running pass:      EmbOptimizePass
+! O123-NOT:    Running pass:      RecomputeKernelPropertiesPass
+! O123-NOT:    Running pass:      GenerateCtorsPass
+! O123-NOT:    Running pass:      LowerRuntimeIntrinsicsPass
 !
 ! -----------------------------------------------------------------------------
 ! The instrumentation pass will only run if instrumentation is explicitly

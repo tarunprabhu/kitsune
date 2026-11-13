@@ -284,16 +284,6 @@ void clang::driver::checkKitOptions(const ArgList &args, bool isKitsuneFrontend,
     if (speedupLevel == 0 && *tt != TTID::Nolo)
       diags.Report(clang::diag::err_drv_kit_optzns_required);
 
-    // The way the middle-end passes are built, the tapir passes are not run if
-    // LTO is enabled and the optimization level is < O2. It is not clear why
-    // this is the case, but until we decide whether we want to enable tapir
-    // lowering at O1 with LTO, don't allow it at all in the frontend. In this
-    // case, we don't make an exception for --tapir=nolo
-    bool isLTO =
-        args.hasArg(options::OPT_flto) || args.hasArg(options::OPT_flto_EQ);
-    if (isLTO && speedupLevel < 2)
-      diags.Report(clang::diag::err_drv_kit_lto_o2_required);
-
     // With the cuda tapir target, if debug info is enabled, ptxas cannot be
     // run with optimizations because it does not support "optimized debugging".
     // Just emit a warning so the user is aware of the consequences of using

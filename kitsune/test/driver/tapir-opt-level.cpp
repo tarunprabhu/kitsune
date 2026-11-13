@@ -2,10 +2,10 @@
 // The --tapir option requires optimizations, unless the tapir target is nolo.
 //
 // RUN: not %kitcc --tapir=serial %s -c -emit-llvm -o /dev/null 2>&1 \
-// RUN:      | FileCheck %s --check-prefix=O1
+// RUN:      | FileCheck %s --check-prefix=MINOPT
 //
 // RUN: not %kitcc --tapir=serial -O0 %s -c -emit-llvm -o /dev/null 2>&1 \
-// RUN:      | FileCheck %s --check-prefix=O1
+// RUN:      | FileCheck %s --check-prefix=MINOPT
 //
 // -----------------------------------------------------------------------------
 //
@@ -13,7 +13,7 @@
 // RUN:      | FileCheck %s --allow-empty --check-prefix=OK
 //
 // ----------------------------------------------------------------------------
-// Sanity check that we don't *always* require optimizations.
+// Sanity check that we don't require optimizations if --tapir is not provided.
 //
 // RUN: %kitcc %s -c -emit-llvm -o /dev/null \
 // RUN:     | FileCheck %s --allow-empty -check-prefix OK
@@ -26,13 +26,10 @@
 // target is set to nolo.
 //
 // RUN: not %kitcc -flto --tapir=serial -O0 %s -c -emit-llvm -o /dev/null 2>&1 \
-// RUN:      | FileCheck %s --check-prefix=O2
+// RUN:      | FileCheck %s --check-prefix=MINOPT
 //
-// RUN: not %kitcc -flto --tapir=serial -O1 %s -c -emit-llvm -o /dev/null 2>&1 \
-// RUN:      | FileCheck %s --check-prefix=O2
-//
-// RUN: not %kitcc -flto --tapir=nolo -O1 %s -c -emit-llvm -o /dev/null 2>&1 \
-// RUN:      | FileCheck %s --check-prefix=O2
+// RUN: %kitcc -flto --tapir=serial -O1 %s -c -emit-llvm -o /dev/null 2>&1 \
+// RUN:      | FileCheck %s --allow-empty --check-prefix=OK
 //
 // RUN: %kitcc -flto --tapir=serial -O2 %s -c -emit-llvm -o /dev/null 2>&1 \
 // RUN:      | FileCheck %s --allow-empty --check-prefix=OK
@@ -48,7 +45,6 @@
 //
 // -----------------------------------------------------------------------------
 //
-// O1: error: --tapir requires optimization level O1 or higher
-// O2: error: --tapir requires optimization level O2 or higher for LTO
-// OK-NOT: {{.+}}
+// MINOPT: error: --tapir requires optimization level O1 or higher
 // ERROR: unsupported optimization level '-O{{[sz]}}'
+// OK-NOT: {{.+}}

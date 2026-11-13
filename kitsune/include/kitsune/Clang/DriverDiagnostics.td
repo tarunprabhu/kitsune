@@ -62,8 +62,6 @@ def err_drv_kit_plugin_invalid : Error<
 
 def err_drv_kit_optzns_required : Error<
   "--tapir requires optimization level O1 or higher">;
-def err_drv_kit_lto_o2_required : Error<
-  "--tapir requires optimization level O2 or higher for LTO">;
 def err_drv_kit_bad_opt_level : Error<
   "unsupported optimization level '%0'">;
 

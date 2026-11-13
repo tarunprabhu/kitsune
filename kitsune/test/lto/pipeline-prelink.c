@@ -3,13 +3,17 @@
 //
 // -----------------------------------------------------------------------------
 //
+// RUN: %kitcc -O1 --tapir=serial -c -emit-llvm -o /dev/null %s \
+// RUN:     -flto -Xclang -fdebug-pass-manager 2>&1 \
+// RUN:     | FileCheck %s --check-prefix=O123
+//
 // RUN: %kitcc -O2 --tapir=serial -c -emit-llvm -o /dev/null %s \
 // RUN:     -flto -Xclang -fdebug-pass-manager 2>&1 \
-// RUN:     | FileCheck %s --check-prefix=O23
+// RUN:     | FileCheck %s --check-prefix=O123
 //
 // RUN: %kitcc -O3 --tapir=serial -c -emit-llvm -o /dev/null %s \
 // RUN:     -flto -Xclang -fdebug-pass-manager 2>&1 \
-// RUN:     | FileCheck %s --check-prefix=O23
+// RUN:     | FileCheck %s --check-prefix=O123
 //
 // RUN: not %kitcc -Os --tapir=serial -c -emit-llvm -o /dev/null %s \
 // RUN:     -flto -Xclang -fdebug-pass-manager 2>&1 \
@@ -21,29 +25,29 @@
 //
 // -----------------------------------------------------------------------------
 //
-// O23:        Running pass:      EarlyVerificationPass
-// O23:        Running pass:      EarlyAnnotatePass
-// O23:        Running pass:      SerializePass
-// O23:        Running pass:      PrepareTapirLoopsPass
-// O23:        Running pass:      LocalizeReductionsPass
-// O23:        Running pass:      SecondaryIVEliminationPass
-// O23-NOT:    Running pass:      InstrumentPass
+// O123:       Running pass:      EarlyVerificationPass
+// O123:       Running pass:      EarlyAnnotatePass
+// O123:       Running pass:      SerializePass
+// O123:       Running pass:      PrepareTapirLoopsPass
+// O123:       Running pass:      LocalizeReductionsPass
+// O123:       Running pass:      SecondaryIVEliminationPass
+// O123-NOT:   Running pass:      InstrumentPass
 //
-// O23-NOT:    Running pass:      SecondaryIVEliminationPass
-// O23-NOT:    Running pass:      PreLowerVerificationPass
-// O23-NOT:    Running pass:      PreLowerAnnotatePass
-// O23-NOT:    Running pass:      TapirLoopNormalizePass
-// O23-NOT:    Running pass:      LoopSpawningPass
-// O23-NOT:    Running pass:      HoistAllocasPass
-// O23-NOT:    Running pass:      EmbHoistAllocasPass
-// O23-NOT:    Running pass:      EmbLowerIntrinsicsPass
-// O23-NOT:    Running pass:      EmbResolveLibDeviceCallsPass
-// O23-NOT:    Running pass:      EmbPreparePass
-// O23-NOT:    Running pass:      EmbLinkLibDeviceBitcodePass
-// O23-NOT:    Running pass:      EmbOptimizePass
-// O23-NOT:    Running pass:      RecomputeKernelPropertiesPass
-// O23-NOT:    Running pass:      GenerateCtorsPass
-// O23-NOT:    Running pass:      LowerRuntimeIntrinsicsPass
+// O123-NOT:   Running pass:      SecondaryIVEliminationPass
+// O123-NOT:   Running pass:      PreLowerVerificationPass
+// O123-NOT:   Running pass:      PreLowerAnnotatePass
+// O123-NOT:   Running pass:      TapirLoopNormalizePass
+// O123-NOT:   Running pass:      LoopSpawningPass
+// O123-NOT:   Running pass:      HoistAllocasPass
+// O123-NOT:   Running pass:      EmbHoistAllocasPass
+// O123-NOT:   Running pass:      EmbLowerIntrinsicsPass
+// O123-NOT:   Running pass:      EmbResolveLibDeviceCallsPass
+// O123-NOT:   Running pass:      EmbPreparePass
+// O123-NOT:   Running pass:      EmbLinkLibDeviceBitcodePass
+// O123-NOT:   Running pass:      EmbOptimizePass
+// O123-NOT:   Running pass:      RecomputeKernelPropertiesPass
+// O123-NOT:   Running pass:      GenerateCtorsPass
+// O123-NOT:   Running pass:      LowerRuntimeIntrinsicsPass
 //
 // ERROR: unsupported optimization level '-O{{[sz]}}'
 //

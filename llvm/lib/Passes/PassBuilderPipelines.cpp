@@ -2475,8 +2475,8 @@ PassBuilder::buildLTODefaultPipeline(OptimizationLevel Level,
     invokeTapirLateEPCallbacks(MPM, Level);
 
     // Lower Tapir if necessary
-    if (runTapirLoweringPasses(ThinOrFullLTOPhase::ThinLTOPostLink, PTO))
-      MPM.addPass(buildTapirLoweringPipeline(
+    if (runTapirLoweringPasses(ThinOrFullLTOPhase::FullLTOPostLink, PTO))
+      MPM.addPass(buildKitsuneLoweringPipeline(
           Level, ThinOrFullLTOPhase::FullLTOPostLink));
     else
       invokeTapirLoopEndEPCallbacks(MPM, Level);
