@@ -1031,7 +1031,7 @@ Task *LoopSpawningImpl::getTaskIfTapirLoop(const Loop *L) {
     return nullptr;
   }
 
-  if (!isa<BranchInst>(Preheader->getTerminator())) {
+  if (!isa<UncondBrInst>(Preheader->getTerminator())) {
     LLVM_DEBUG(dbgs() << "Loop preheader is not terminated by a branch.\n");
     if (TT) {
       ORE.emit(TapirLoopInfo::createMissedAnalysis(LS_NAME, "ComplexPreheader",
@@ -1042,9 +1042,7 @@ Task *LoopSpawningImpl::getTaskIfTapirLoop(const Loop *L) {
     return nullptr;
   }
 
-  if (!isa<BranchInst>(L->getLoopLatch()->getTerminator()) ||
-      dyn_cast<BranchInst>(L->getLoopLatch()->getTerminator())
-          ->isUnconditional()) {
+  if (!isa<CondBrInst>(L->getLoopLatch()->getTerminator())) {
     LLVM_DEBUG(
         dbgs() << "Loop latch is not terminated by a conditional branch.\n");
     if (TT) {
@@ -1577,10 +1575,10 @@ Function *LoopSpawningImpl::createHelperForTapirLoop(
     BasicBlock *ClonedContinue = ClonedDI->getContinue();
     for (BasicBlock *RB : ReattachBlocks) {
       ReattachInst *ClonedRI = cast<ReattachInst>(VMap[RB->getTerminator()]);
-      ReplaceInstWithInst(ClonedRI, BranchInst::Create(ClonedContinue));
+      ReplaceInstWithInst(ClonedRI, UncondBrInst::Create(ClonedContinue));
     }
     ClonedContinue->removePredecessor(ClonedDetacher);
-    BranchInst *DetachRepl = BranchInst::Create(ClonedDI->getDetached());
+    UncondBrInst *DetachRepl = UncondBrInst::Create(ClonedDI->getDetached());
     ReplaceInstWithInst(ClonedDI, DetachRepl);
     VMap[DI] = DetachRepl;
   } // end timed region

@@ -9082,18 +9082,15 @@ bool SimplifyCFGOpt::simplifySync(SyncInst *SI) {
       // meaning the given sync is redundant.  Eliminate the given sync.
       if (SyncUnwind)
         SyncUnwind->eraseFromParent();
-      ReplaceInstWithInst(SI, BranchInst::Create(Succ));
+      ReplaceInstWithInst(SI, UncondBrInst::Create(Succ));
       return requestResimplify();
     }
   }
 
   // Otherwise check for an unconditional branch terminating the successor
   // block.
-  if (!isa<BranchInst>(*SuccI))
-    return false;
-
-  BranchInst *BI = dyn_cast<BranchInst>(&*SuccI);
-  if (!BI->isUnconditional())
+  UncondBrInst *BI = dyn_cast<UncondBrInst>(&*SuccI);
+  if (!BI)
     return false;
 
   // Check if the successor of the unconditional branch simply contains a sync
@@ -9110,7 +9107,7 @@ bool SimplifyCFGOpt::simplifySync(SyncInst *SI) {
       // meaning the given sync is redundant.  Eliminate the given sync.
       if (SyncUnwind)
         SyncUnwind->eraseFromParent();
-      ReplaceInstWithInst(SI, BranchInst::Create(Succ));
+      ReplaceInstWithInst(SI, UncondBrInst::Create(Succ));
       return requestResimplify();
     }
   }
@@ -9368,7 +9365,7 @@ static bool serializeDetachToImmediateSync(BasicBlock *BB,
 
       // Replace the detach with a branch to the detached block.
       BB->removePredecessor(DI->getParent());
-      ReplaceInstWithInst(DI, BranchInst::Create(Detached));
+      ReplaceInstWithInst(DI, UncondBrInst::Create(Detached));
       // Record update to DTU if DTU is available.
       if (DTU)
         Updates.push_back({DominatorTree::Delete, DI->getParent(), BB});
@@ -9389,7 +9386,7 @@ static bool serializeDetachToImmediateSync(BasicBlock *BB,
     }
     for (Instruction *RI : ReattachPreds) {
       // Replace the reattach with an unconditional branch.
-      ReplaceInstWithInst(RI, BranchInst::Create(BB));
+      ReplaceInstWithInst(RI, UncondBrInst::Create(BB));
       Changed = true;
     }
     // Update DTU if available.
@@ -9440,7 +9437,7 @@ static bool serializeTrivialDetachedBlock(BasicBlock *BB, DomTreeUpdater *DTU) {
       // Remove the predecessor through the detach from the continue block.
       Continue->removePredecessor(PredBB);
       // Serialize the detach: replace it with an unconditional branch.
-      ReplaceInstWithInst(DI, BranchInst::Create(Detached));
+      ReplaceInstWithInst(DI, UncondBrInst::Create(Detached));
       // Update DTU if available.
       if (DTU)
         DTU->applyUpdates({{DominatorTree::Delete, PredBB, Continue}});
@@ -9449,7 +9446,7 @@ static bool serializeTrivialDetachedBlock(BasicBlock *BB, DomTreeUpdater *DTU) {
     for (Instruction *I : ToErase)
       I->eraseFromParent();
     // Serialize the reattach: replace it with an unconditional branch.
-    ReplaceInstWithInst(RI, BranchInst::Create(RI->getSuccessor(0)));
+    ReplaceInstWithInst(RI, UncondBrInst::Create(RI->getSuccessor(0)));
     return true;
   }
   return false;
@@ -9498,7 +9495,7 @@ static bool serializeDetachOfUnreachable(BasicBlock *BB, DomTreeUpdater *DTU) {
     if (DTU)
       DTU->applyUpdates({{DominatorTree::Delete, BB, Continue}});
     // Replace the detach with a branch to the detached block.
-    ReplaceInstWithInst(DI, BranchInst::Create(DI->getDetached()));
+    ReplaceInstWithInst(DI, UncondBrInst::Create(DI->getDetached()));
     // Erase any instructions marked to be erased.
     for (Instruction *I : ToErase)
       I->eraseFromParent();
@@ -9537,7 +9534,7 @@ static bool removeEmptySyncs(BasicBlock *BB) {
           MaybeDeadSyncUnwinds.insert(cast<CallBase>(MaybeSyncUnwind));
 
         LLVM_DEBUG(dbgs() << "Removing empty sync " << *Sync << "\n");
-        ReplaceInstWithInst(Sync, BranchInst::Create(Sync->getSuccessor(0)));
+        ReplaceInstWithInst(Sync, UncondBrInst::Create(Sync->getSuccessor(0)));
       }
       // Remove any dead sync.unwinds.
       for (CallBase *CB : MaybeDeadSyncUnwinds) {

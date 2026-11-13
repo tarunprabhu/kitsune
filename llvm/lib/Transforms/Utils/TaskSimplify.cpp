@@ -101,7 +101,7 @@ static bool removeRedundantSyncs(MaybeParallelTasks &MPTasks, Task *T) {
       MaybeDeadSyncUnwinds.insert(cast<CallBase>(MaybeSyncUnwind));
 
     LLVM_DEBUG(dbgs() << "Removing redundant sync " << *Y << "\n");
-    ReplaceInstWithInst(Y, BranchInst::Create(Y->getSuccessor(0)));
+    ReplaceInstWithInst(Y, UncondBrInst::Create(Y->getSuccessor(0)));
   }
   // Remove any dead sync.unwinds.
   for (CallBase *CB : MaybeDeadSyncUnwinds) {

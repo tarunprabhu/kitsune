@@ -1041,10 +1041,9 @@ bool TailRecursionEliminator::processBlock(BasicBlock &BB) {
       // After the sync, there might be a block with a sync.unwind instruction
       // and an unconditional branch to a block containing just a return.  Check
       // for this structure.
-      if (BranchInst *BI = dyn_cast<BranchInst>(NextI)) {
-        if (BI->isConditional())
-          return false;
-
+      if (isa<CondBrInst>(NextI)) {
+        return false;
+      } else if (UncondBrInst *BI = dyn_cast<UncondBrInst>(NextI)) {
         BrSucc = BI->getSuccessor(0);
         Ret = dyn_cast<ReturnInst>(BrSucc->getFirstNonPHIOrDbg(true));
       }

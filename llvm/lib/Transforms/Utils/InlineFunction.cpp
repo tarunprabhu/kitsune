@@ -3746,7 +3746,7 @@ void llvm::InlineFunctionImpl(CallBase &CB, InlineFunctionInfo &IFI,
         // Insert incoming values to the PHI node.
         PN->addIncoming(RI->getValue(), RI->getParent());
         // Replace the resume with a branch to the unified block.
-        ReplaceInstWithInst(RI, BranchInst::Create(UnifiedResume));
+        ReplaceInstWithInst(RI, UncondBrInst::Create(UnifiedResume));
       }
       // Insert a resume instruction at the end of the block.
       Resume = Builder.CreateResume(PN);

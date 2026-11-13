@@ -707,7 +707,7 @@ BasicBlock *llvm::SplitEdge(BasicBlock *BB, BasicBlock *Succ, DominatorTree *DT,
         BB->getParent(), BB->getNextNode());
     DebugLoc Loc = Succ->front().getDebugLoc();
     // Terminate that block with an unconditional branch to Succ.
-    BranchInst::Create(Succ, NewBB)->setDebugLoc(Loc);
+    UncondBrInst::Create(Succ, NewBB)->setDebugLoc(Loc);
     // Update the successor of the sync instruction to be NewBB.
     OldSI->setSuccessor(0, NewBB);
     // Update any PHI ndes in Succ.

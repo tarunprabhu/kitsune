@@ -197,7 +197,7 @@ bool llvm::removeDeadSyncUnwind(CallBase *SyncUnwind,
     if (DTU)
       DTU->applyUpdates(
           {{DominatorTree::Delete, II->getUnwindDest(), II->getParent()}});
-    ReplaceInstWithInst(II, BranchInst::Create(II->getNormalDest()));
+    ReplaceInstWithInst(II, UncondBrInst::Create(II->getNormalDest()));
   } else {
     SyncUnwind->eraseFromParent();
   }
@@ -559,7 +559,7 @@ void LandingPadInliningInfo::forwardTaskResume(InvokeInst *TR) {
   BasicBlock *Dest = getInnerResumeDest();
   BasicBlock *Src = TR->getParent();
 
-  BranchInst::Create(Dest, Src);
+  UncondBrInst::Create(Dest, Src);
   if (DT)
     DT->changeImmediateDominator(
         Dest, DT->findNearestCommonDominator(Dest, Src));
@@ -1013,14 +1013,14 @@ void llvm::SerializeDetach(DetachInst *DI, BasicBlock *ParentEntry,
           Intrinsic::getOrInsertDeclaration(M, Intrinsic::taskframe_end);
       IRBuilder<>(I).CreateCall(TFEnd, {TaskFrame});
     }
-    ReplaceInstWithInst(I, BranchInst::Create(Continue));
+    ReplaceInstWithInst(I, UncondBrInst::Create(Continue));
   }
 
   // Replace the detach with an unconditional branch to the task entry.
   Continue->removePredecessor(Spawner);
   if (HasUnwind)
     Unwind->removePredecessor(Spawner);
-  ReplaceInstWithInst(DI, BranchInst::Create(TaskEntry));
+  ReplaceInstWithInst(DI, UncondBrInst::Create(TaskEntry));
 
   // Erase instructions marked to be erased.
   for (Instruction *I : ToErase)
@@ -1431,8 +1431,8 @@ void llvm::GetDetachedCFG(const DetachInst &DI, const DominatorTree &DT,
       Todo.push_back(SI->getSuccessor(0));
       continue;
     }
-    if (isa<BranchInst>(Term) || isa<SwitchInst>(Term) ||
-        isa<InvokeInst>(Term)) {
+    if (isa<CondBrInst>(Term) || isa<UncondBrInst>(Term) ||
+        isa<SwitchInst>(Term) || isa<InvokeInst>(Term)) {
       if (isDetachedRethrow(Term, SyncRegion)) {
         // A detached rethrow terminates this task and is included in the set of
         // exception-handling blocks that might not be unique to this task.
@@ -2151,7 +2151,8 @@ static void promoteCallsInTasksHelper(
       assert(ParentWorklist &&
              "Unexpected taskframe.end: no parent worklist");
       if (BB->getTerminator()->getPrevNode() != TFI ||
-          !isa<BranchInst>(BB->getTerminator())) {
+          !isa<CondBrInst>(BB->getTerminator()) ||
+          !isa<UncondBrInst>(BB->getTerminator())) {
         // This taskframe.end does not terminate the basic block.  To make sure
         // the rest of the block is processed properly, split the block.
         BasicBlock *NewBB = SplitBlock(BB, TFI->getNextNode());

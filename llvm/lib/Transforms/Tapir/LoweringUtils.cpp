@@ -732,7 +732,7 @@ Function *llvm::createHelperForTask(Function &F, Task *T, ValueSet &Args,
     BasicBlock *ClonedDetacher = ClonedDI->getParent();
     BasicBlock *ClonedContinue = ClonedDI->getContinue();
     ClonedContinue->removePredecessor(ClonedDetacher);
-    BranchInst *DetachRepl = BranchInst::Create(ClonedDI->getDetached());
+    UncondBrInst *DetachRepl = UncondBrInst::Create(ClonedDI->getDetached());
     ReplaceInstWithInst(ClonedDI, DetachRepl);
     VMap[DI] = DetachRepl;
   }
@@ -1022,7 +1022,7 @@ Instruction *llvm::replaceTaskFrameWithCallToOutline(
     if (Out.Outline->doesNotThrow())
       TopCall->setDoesNotThrow();
     // Replace the detach with an unconditional branch to its continuation.
-    ReplaceInstWithInst(ToReplace, BranchInst::Create(Out.ReplRet));
+    ReplaceInstWithInst(ToReplace, UncondBrInst::Create(Out.ReplRet));
     return TopCall;
   }
   // The detach might catch an exception from the task.  Replace the detach
@@ -1195,7 +1195,7 @@ Instruction *llvm::replaceLoopWithCallToOutline(
       TopCall->setDoesNotThrow();
     // Replace the loop with an unconditional branch to its exit.
     L->getHeader()->removePredecessor(Out.ReplCall->getParent());
-    ReplaceInstWithInst(Out.ReplCall, BranchInst::Create(Out.ReplRet));
+    ReplaceInstWithInst(Out.ReplCall, UncondBrInst::Create(Out.ReplRet));
     return TopCall;
   }
   // The detach might catch an exception from the task.  Replace the detach

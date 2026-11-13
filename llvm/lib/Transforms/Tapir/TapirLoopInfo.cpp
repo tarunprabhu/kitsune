@@ -231,9 +231,8 @@ bool TapirLoopInfo::getLoopCondition(const char *PassName,
 
   // Check that the latch is terminated by a branch instruction.  The
   // LoopRotate pass can be helpful to ensure this property.
-  BranchInst *BI =
-    dyn_cast<BranchInst>(L->getLoopLatch()->getTerminator());
-  if (!BI || BI->isUnconditional()) {
+  CondBrInst *BI = dyn_cast<CondBrInst>(L->getLoopLatch()->getTerminator());
+  if (!BI) {
     LLVM_DEBUG(dbgs()
                << "Loop-latch terminator is not a conditional branch.\n");
     if (ORE)
@@ -439,7 +438,6 @@ Value *TapirLoopInfo::getOrCreateTripCount(PredicatedScalarEvolution &PSE,
     return TripCount;
   }
 
-  const DataLayout &DL = L->getHeader()->getModule()->getDataLayout();
   Type *IdxTy = getWidestInductionType();
 
   // Expand the trip count and place the new instructions in the preheader.
@@ -525,7 +523,7 @@ bool TapirLoopInfo::prepareForOutlining(
             : PrimaryInduction->getIncomingValueForBlock(L->getLoopLatch());
     // Get the parity of the LoopLatch terminator, i.e., whether the true or
     // false branch is the backedge.
-    BranchInst *BI = dyn_cast<BranchInst>(L->getLoopLatch()->getTerminator());
+    CondBrInst *BI = dyn_cast<CondBrInst>(L->getLoopLatch()->getTerminator());
     bool BEBranchParity = (BI->getSuccessor(0) == L->getHeader());
     // Create the new Condition
     ICmpInst *NewCond =

@@ -141,7 +141,7 @@ static void CloneBasicBlocksInto(
       // remapping will take correct the name.
       BasicBlock *Succ = ClonedRB->getSingleSuccessor();
       ReplaceInstWithInst(ClonedRB->getTerminator(),
-                          BranchInst::Create(Succ));
+                          UncondBrInst::Create(Succ));
     }
   }
   if (TaskResumeBlocks) {
@@ -619,7 +619,7 @@ Function *llvm::CreateHelper(
 
   // Add a branch in the new function to the cloned Header.
   BasicBlock *ClonedHeader = cast<BasicBlock>(VMap[Header]);
-  BranchInst *EntryBr = BranchInst::Create(ClonedHeader, NewEntry);
+  UncondBrInst *EntryBr = UncondBrInst::Create(ClonedHeader, NewEntry);
   // Set the debug location of the entry branch to match the first debug
   // location in the cloned header.
   for (const Instruction &I : *ClonedHeader)

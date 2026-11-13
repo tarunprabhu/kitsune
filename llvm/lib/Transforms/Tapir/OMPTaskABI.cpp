@@ -464,7 +464,7 @@ void OMPTaskABI::lowerSync(SyncInst &SI) {
       CB = CallInst::Create(RTSSync, Args, "",
                             /*insert before*/ SI.getIterator());
 
-    BranchInst::Create(SyncCont, CB->getParent());
+    UncondBrInst::Create(SyncCont, CB->getParent());
   } else {
     CB = InvokeInst::Create(RTSSync, SyncCont, SyncUnwindDest, Args, "",
                             /*insert before*/ SI.getIterator());

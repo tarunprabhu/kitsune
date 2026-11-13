@@ -281,7 +281,7 @@ static bool removeUselessSyncs(Function &F, DomTreeUpdater *DTU) {
         BasicBlock* Succ = Sync->getSuccessor(0);
         const Value *SyncReg = Sync->getSyncRegion();
         auto MaybeSyncUnwind = Succ->getFirstNonPHIOrDbgOrLifetime();
-        ReplaceInstWithInst(Sync, BranchInst::Create(Succ));
+        ReplaceInstWithInst(Sync, UncondBrInst::Create(Succ));
         Changed = true;
         bool Recheck = false;
         if (isSyncUnwind(MaybeSyncUnwind, SyncReg))

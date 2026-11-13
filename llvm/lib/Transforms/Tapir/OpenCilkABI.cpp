@@ -732,7 +732,7 @@ void OpenCilkABI::lowerSync(SyncInst &SI) {
       // of cilk_sync.
       CB = CallInst::Create(GetCilkSyncNoThrowFn(), Args, "",
                             /*insert before*/ SI.getIterator());
-      BranchInst::Create(SyncCont, CB->getParent());
+      UncondBrInst::Create(SyncCont, CB->getParent());
     } else if (SyncUnwind) {
       // The presence of the sync.unwind indicates that the sync might rethrow
       // an exception, but there isn't a landingpad associated with the sync.
@@ -751,7 +751,7 @@ void OpenCilkABI::lowerSync(SyncInst &SI) {
       // TODO: This case shouldn't be reachable.  Check whether it is reachable.
       CB = CallInst::Create(GetCilkSyncFn(), Args, "",
                             /*insert before*/ SI.getIterator());
-      BranchInst::Create(SyncCont, CB->getParent());
+      UncondBrInst::Create(SyncCont, CB->getParent());
     }
   } else {
     CB = InvokeInst::Create(GetCilkSyncFn(), SyncCont, SyncUnwindDest, Args, "",

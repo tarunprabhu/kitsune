@@ -239,7 +239,7 @@ static Task *getTapirLoopForStripMining(const Loop *L, TaskInfo &TI,
                 << "loop lacks a preheader");
     return nullptr;
   }
-  assert(isa<BranchInst>(Preheader->getTerminator()) &&
+  assert(isa<UncondBrInst>(Preheader->getTerminator()) &&
          "Preheader not terminated by a branch");
 
   BasicBlock *LatchBlock = L->getLoopLatch();
@@ -277,9 +277,8 @@ static Task *getTapirLoopForStripMining(const Loop *L, TaskInfo &TI,
   // latch that's a conditional branch exiting the loop.
   // FIXME: The implementation can be extended to work with more complicated
   // cases, e.g. loops with multiple latches.
-  BranchInst *BI = dyn_cast<BranchInst>(LatchBlock->getTerminator());
-
-  if (!BI || BI->isUnconditional()) {
+  CondBrInst *BI = dyn_cast<CondBrInst>(LatchBlock->getTerminator());
+  if (!BI) {
     // The loop-rotate pass can be helpful to avoid this in many cases.
     LLVM_DEBUG(
         dbgs()
@@ -470,7 +469,7 @@ static Loop *cloneLoopBlocks(
       // jump to InsertBot. If not, create a loop back to cloned head.
       VMap.erase((*BB)->getTerminator());
       BasicBlock *FirstLoopBB = cast<BasicBlock>(VMap[Header]);
-      BranchInst *LatchBR = cast<BranchInst>(NewBB->getTerminator());
+      Instruction *LatchBR = NewBB->getTerminator();
       IRBuilder<> Builder(LatchBR);
       if (!CreateRemainderLoop) {
         Builder.CreateBr(InsertBot);
@@ -811,7 +810,7 @@ Loop *llvm::StripMineLoop(Loop *L, unsigned Count, bool AllowExpensiveTripCount,
   // block of the loop body to build the serial inner loop.
 
   BasicBlock *Preheader = L->getLoopPreheader();
-  BranchInst *PreheaderBR = cast<BranchInst>(Preheader->getTerminator());
+  Instruction *PreheaderBR = Preheader->getTerminator();
   BasicBlock *Latch = L->getLoopLatch();
   BasicBlock *Header = L->getHeader();
   BasicBlock *TaskEntry = T->getEntry();
@@ -821,7 +820,7 @@ Loop *llvm::StripMineLoop(Loop *L, unsigned Count, bool AllowExpensiveTripCount,
   assert(DI->getDetached() == TaskEntry &&
          "Task entry does not match block detached from header.");
   BasicBlock *ParentEntry = T->getParentTask()->getEntry();
-  BranchInst *LatchBR = cast<BranchInst>(Latch->getTerminator());
+  CondBrInst *LatchBR = cast<CondBrInst>(Latch->getTerminator());
   unsigned ExitIndex = LatchBR->getSuccessor(0) == Header ? 1 : 0;
   BasicBlock *LatchExit = LatchBR->getSuccessor(ExitIndex);
 
@@ -921,7 +920,7 @@ Loop *llvm::StripMineLoop(Loop *L, unsigned Count, bool AllowExpensiveTripCount,
   // in epilog case and around prolog remainder loop in prolog case.
   // Compute the number of extra iterations required, which is:
   //  extra iterations = run-time trip count % loop stripmine factor
-  PreheaderBR = cast<BranchInst>(Preheader->getTerminator());
+  PreheaderBR = Preheader->getTerminator();
   Value *BECount = Expander.expandCodeFor(BECountSC, BECountSC->getType(),
                                           PreheaderBR);
 
@@ -1293,7 +1292,7 @@ Loop *llvm::StripMineLoop(Loop *L, unsigned Count, bool AllowExpensiveTripCount,
                         DetachInst::Create(NewEntry, NewLatch, NewSyncReg));
   // Replace the old detach instruction with a branch
   ReplaceInstWithInst(Header->getTerminator(),
-                      BranchInst::Create(DI->getDetached()));
+                      UncondBrInst::Create(DI->getDetached()));
 
   // Replace the old reattach instructions with branches.  Along the way,
   // determine their common dominator.
@@ -1303,7 +1302,7 @@ Loop *llvm::StripMineLoop(Loop *L, unsigned Count, bool AllowExpensiveTripCount,
       ReattachDom = I->getParent();
     else
       ReattachDom = DT->findNearestCommonDominator(ReattachDom, I->getParent());
-    ReplaceInstWithInst(I, BranchInst::Create(Latch));
+    ReplaceInstWithInst(I, UncondBrInst::Create(Latch));
   }
   assert(ReattachDom && "No reattach-dominator block found");
   // Insert a reattach at the end of NewReattB.
@@ -1348,7 +1347,7 @@ Loop *llvm::StripMineLoop(Loop *L, unsigned Count, bool AllowExpensiveTripCount,
   //                                   ConstantInt::get(TestVal->getType(), 0),
   //                                   TestVal->getName() + ".ncmp");
   // ReplaceInstWithInst(NewPreheader->getTerminator(),
-  //                     BranchInst::Create(Header, LatchExit, TestCmp));
+  //                     CondBrInst::Create(TestCmp, Header, LatchExit));
   // DT->changeImmediateDominator(LatchExit,
   //                              DT->findNearestCommonDominator(LatchExit,
   //                                                             NewPreheader));
@@ -1380,7 +1379,7 @@ Loop *llvm::StripMineLoop(Loop *L, unsigned Count, bool AllowExpensiveTripCount,
   Value *IdxCmp = B2.CreateICmpEQ(IdxAdd, TestVal,
                                   NewIdx->getName() + ".ncmp");
   ReplaceInstWithInst(NewLatch->getTerminator(),
-                      BranchInst::Create(LoopReattach, NewHeader, IdxCmp));
+                      CondBrInst::Create(IdxCmp, LoopReattach, NewHeader));
   DT->changeImmediateDominator(NewLatch, NewHeader);
   // The block structure of the stripmined loop should now look like so:
   //

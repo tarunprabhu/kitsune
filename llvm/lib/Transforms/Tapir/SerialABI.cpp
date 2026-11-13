@@ -32,7 +32,7 @@ Value *SerialABI::lowerGrainsizeCall(CallInst *GrainsizeCall) {
 }
 
 void SerialABI::lowerSync(SyncInst &SI) {
-  ReplaceInstWithInst(&SI, BranchInst::Create(SI.getSuccessor(0)));
+  ReplaceInstWithInst(&SI, UncondBrInst::Create(SI.getSuccessor(0)));
 }
 
 bool SerialABI::preProcessFunction(Function &F, TaskInfo &TI,

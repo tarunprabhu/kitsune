@@ -2895,8 +2895,8 @@ Instruction *llvm::removeUnwindEdge(BasicBlock *BB, DomTreeUpdater *DTU) {
     if (auto *Called = II->getCalledFunction()) {
       if (Intrinsic::detached_rethrow == Called->getIntrinsicID() ||
           Intrinsic::taskframe_resume == Called->getIntrinsicID()) {
-        BranchInst *BI =
-            BranchInst::Create(II->getNormalDest(), II->getIterator());
+        UncondBrInst *BI =
+            UncondBrInst::Create(II->getNormalDest(), II->getIterator());
         BI->takeName(II);
         BI->setDebugLoc(II->getDebugLoc());
         II->getUnwindDest()->removePredecessor(BB);

@@ -247,7 +247,7 @@ void QthreadsABI::lowerSync(SyncInst &SI) {
   std::vector<Value *> args = {sinc, null};
   auto sincwait = get_qt_sinc_wait();
   builder.CreateCall(sincwait, args);
-  BranchInst *PostSync = BranchInst::Create(SI.getSuccessor(0));
+  UncondBrInst *PostSync = UncondBrInst::Create(SI.getSuccessor(0));
   ReplaceInstWithInst(&SI, PostSync);
 }
 
@@ -296,7 +296,7 @@ void QthreadsABI::processSubTaskCall(TaskOutlineInfo &TOI, DominatorTree &DT) {
     // replacing the invocation of the helper function with the call to
     // qthread_fork_copyargs will remove the terminator from CallBlock.  Restore
     // that terminator here.
-    BranchInst::Create(TOI.ReplRet, CallBlock);
+    UncondBrInst::Create(TOI.ReplRet, CallBlock);
 
   // VERIFY: If we're using fork_copyargs, we don't need a separate helper
   // function to manage the allocation of the argument structure.
