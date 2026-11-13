@@ -1,6 +1,6 @@
 // Check that __kitpthr_async_launch works as expected.
 //
-// RUN: KIT_NUM_THREADS=3 %exe | FileCheck %s
+// RUN: env KIT_NUM_THREADS=3 %exe | FileCheck %s
 //
 // CHECK-COUNT-3: From thread
 

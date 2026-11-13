@@ -2,7 +2,7 @@
 //
 // The openmp tapir target should be initialized before PAPI.
 //
-// RUN: KIT_VERBOSE=1 %exe 2>&1 | FileCheck %s
+// RUN: env KIT_VERBOSE=1 %exe 2>&1 | FileCheck %s
 //
 // CHECK: Initializing Kitsune runtime (openmp)
 // CHECK: Initialized Kitsune runtime (openmp)

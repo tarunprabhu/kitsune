@@ -1,6 +1,6 @@
 // Check that __kitqthr_worker_id works as expected.
 //
-// RUN: KIT_NUM_THREADS=3 %exe | FileCheck %s
+// RUN: env KIT_NUM_THREADS=3 %exe | FileCheck %s
 //
 // CHECK-DAG: 1
 // CHECK-DAG: 2

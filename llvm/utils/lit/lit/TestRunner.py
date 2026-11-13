@@ -1010,6 +1010,7 @@ def getDefaultSubstitutions(test, tmpDir, tmpBase, normalize_slashes=False):
     tmpBaseName = os.path.basename(tmpBase)
     sourceBaseName = os.path.basename(sourcepath)
     sourceStem = os.path.splitext(sourceBaseName)[0]
+    sourcedirBaseName = os.path.basename(sourcedir)
 
     substitutions.append(("%{pathsep}", os.pathsep))
     substitutions.append(("%basename_t", tmpBaseName))
@@ -1017,6 +1018,8 @@ def getDefaultSubstitutions(test, tmpDir, tmpBase, normalize_slashes=False):
     substitutions.append(("%{s:basename}", sourceBaseName))
     substitutions.append(("%{s:stem}", sourceStem))
     substitutions.append(("%{t:stem}", tmpBaseName))
+
+    substitutions.append(("%{S:basename}", sourcedirBaseName))
 
     fs_sep = os.path.sep
     if normalize_slashes:

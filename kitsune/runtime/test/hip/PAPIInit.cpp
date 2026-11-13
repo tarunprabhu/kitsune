@@ -3,7 +3,7 @@
 // PAPI can be used when the hip tapir target is enabled. In this case, a thread
 // ID function will not be used.
 //
-// RUN: KIT_VERBOSE=1 %exe 2>&1 | FileCheck %s
+// RUN: env KIT_VERBOSE=1 %exe 2>&1 | FileCheck %s
 //
 // CHECK: Initializing Kitsune runtime (hip)
 // CHECK: Initialized Kitsune runtime (hip)
