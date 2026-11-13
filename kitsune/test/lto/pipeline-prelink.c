@@ -25,29 +25,34 @@
 //
 // -----------------------------------------------------------------------------
 //
-// O123:       Running pass:      EarlyVerificationPass
-// O123:       Running pass:      EarlyAnnotatePass
-// O123:       Running pass:      SerializePass
-// O123:       Running pass:      PrepareTapirLoopsPass
-// O123:       Running pass:      LocalizeReductionsPass
-// O123:       Running pass:      SecondaryIVEliminationPass
-// O123-NOT:   Running pass:      InstrumentPass
+// ... pipeline early
+// O123:       Running pass:       EarlyVerificationPass
+// O123:       Running pass:       EarlyAnnotatePass
 //
-// O123-NOT:   Running pass:      SecondaryIVEliminationPass
-// O123-NOT:   Running pass:      PreLowerVerificationPass
-// O123-NOT:   Running pass:      PreLowerAnnotatePass
-// O123-NOT:   Running pass:      TapirLoopNormalizePass
-// O123-NOT:   Running pass:      LoopSpawningPass
-// O123-NOT:   Running pass:      HoistAllocasPass
-// O123-NOT:   Running pass:      EmbHoistAllocasPass
-// O123-NOT:   Running pass:      EmbLowerIntrinsicsPass
-// O123-NOT:   Running pass:      EmbResolveLibDeviceCallsPass
-// O123-NOT:   Running pass:      EmbPreparePass
-// O123-NOT:   Running pass:      EmbLinkLibDeviceBitcodePass
-// O123-NOT:   Running pass:      EmbOptimizePass
-// O123-NOT:   Running pass:      RecomputeKernelPropertiesPass
-// O123-NOT:   Running pass:      GenerateCtorsPass
-// O123-NOT:   Running pass:      LowerRuntimeIntrinsicsPass
+// ... pipeline prepare
+// O123:       Running pass:       SerializePass
+// O123:       Running pass:       PrepareTapirLoopsPass
+// O123:       Running pass:       LocalizeReductionsPass
+// O123-NOT:   Running pass:       InstrumentPass
+//
+// ... pipeline pre-vectorize
+// O123:       Running pass:       SecondaryIVEliminationPass
+//
+// O123-NOT:   Running pass:       SecondaryIVEliminationPass
+// O123-NOT:   Running pass:       PreLowerVerificationPass
+// O123-NOT:   Running pass:       PreLowerAnnotatePass
+// O123-NOT:   Running pass:       TapirLoopNormalizePass
+// O123-NOT:   Running pass:       LoopSpawningPass
+// O123-NOT:   Running pass:       HoistAllocasPass
+// O123-NOT:   Running pass:       EmbHoistAllocasPass
+// O123-NOT:   Running pass:       EmbLowerIntrinsicsPass
+// O123-NOT:   Running pass:       EmbResolveLibDeviceCallsPass
+// O123-NOT:   Running pass:       EmbPreparePass
+// O123-NOT:   Running pass:       EmbLinkLibDeviceBitcodePass
+// O123-NOT:   Running pass:       EmbOptimizePass
+// O123-NOT:   Running pass:       RecomputeKernelPropertiesPass
+// O123-NOT:   Running pass:       GenerateCtorsPass
+// O123-NOT:   Running pass:       LowerRuntimeIntrinsicsPass
 //
 // ERROR: unsupported optimization level '-O{{[sz]}}'
 //
@@ -65,8 +70,9 @@
 // RUN:     -flto -Xclang -fdebug-pass-manager 2>&1 \
 // RUN:     | FileCheck %s --check-prefix=INSTR
 //
-// INSTR:      Running pass:      PrepareTapirLoopsPass
-// INSTR:      Running pass:      InstrumentPass
+// INSTR:      Running pass:       PrepareTapirLoopsPass
+// INSTR:      Running pass:       LocalizeReductionsPass
+// INSTR:      Running pass:       InstrumentPass
 //
 // -----------------------------------------------------------------------------
 

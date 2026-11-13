@@ -20,21 +20,24 @@
 ; RUN: not opt -Oz -debug-pass-manager %s -disable-output 2>&1 \
 ; RUN:     | FileCheck -check-prefix DEFAULT %s
 ;
-; DEFAULT-NOT: Running pass:     SecondaryIVEliminationPass
-; DEFAULT-NOT: Running pass:     PrepareTapirLoopsPass
-; DEFAULT-NOT: Running pass:     PreLowerAnnotatePass
-; DEFAULT-NOT: Running pass:     LoopSpawningPass
-; DEFAULT-NOT: Running pass:     HoistAllocasPass
-; DEFAULT-NOT: Running pass:     EmbHoistAllocasPass
-; DEFAULT-NOT: Running pass:     TapirToTargetPass
-; DEFAULT-NOT: Running pass:     PrefetchForDevicePass
-; DEFAULT-NOT: Running pass:     EmbLowerIntrinsicsPass
-; DEFAULT-NOT: Running pass:     EmbResolveLibDeviceCallsPass
-; DEFAULT-NOT: Running pass:     EmbPreparePass
-; DEFAULT-NOT: Running pass:     EmbLinkLibDeviceBitcodePass
-; DEFAULT-NOT: Running pass:     EmbOptimizePass
-; DEFAULT-NOT: Running pass:     RecomputeKernelPropertiesPass
-; DEFAULT-NOT: Running pass:     GenerateCtorsPass
+; DEFAULT-NOT: Running pass:       EarlyVerificationPass
+; DEFAULT-NOT: Running pass:       EarlyAnnotatePass
+; DEFAULT-NOT: Running pass:       SerializePass
+; DEFAULT-NOT: Running pass:       PrepareTapirLoopsPass
+; DEFAULT-NOT: Running pass:       LocalizeReductionsPass
+; DEFAULT-NOT: Running pass:       PreLowerAnnotatePass
+; DEFAULT-NOT: Running pass:       LoopSpawningPass
+; DEFAULT-NOT: Running pass:       HoistAllocasPass
+; DEFAULT-NOT: Running pass:       EmbHoistAllocasPass
+; DEFAULT-NOT: Running pass:       TapirToTargetPass
+; DEFAULT-NOT: Running pass:       PrefetchForDevicePass
+; DEFAULT-NOT: Running pass:       EmbLowerIntrinsicsPass
+; DEFAULT-NOT: Running pass:       EmbResolveLibDeviceCallsPass
+; DEFAULT-NOT: Running pass:       EmbPreparePass
+; DEFAULT-NOT: Running pass:       EmbLinkLibDeviceBitcodePass
+; DEFAULT-NOT: Running pass:       EmbOptimizePass
+; DEFAULT-NOT: Running pass:       RecomputeKernelPropertiesPass
+; DEFAULT-NOT: Running pass:       GenerateCtorsPass
 ;
 ; -----------------------------------------------------------------------------
 ; Unlike the frontends, -O0 is allowed with --tapir, even if the tapir target
@@ -49,10 +52,10 @@
 ; RUN: echo "" | opt -O0 --tapir=serial -debug-pass-manager -o /dev/null 2>&1 \
 ; RUN:     | FileCheck -check-prefix O0 %s
 ;
-; O0:      Running pass:     TapirToTargetPass
-; O0:      Running pass:     AlwaysInlinerPass
-; O0:      Running pass:     VerifierPass
-; O0:      Running pass:     BitcodeWriterPass
+; O0:          Running pass:       TapirToTargetPass
+; O0:          Running pass:       AlwaysInlinerPass
+; O0:          Running pass:       VerifierPass
+; O0:          Running pass:       BitcodeWriterPass
 ;
 ; -----------------------------------------------------------------------------
 ; If the --tapir option is provided to opt, the Kitsune passes are run at all
@@ -73,54 +76,47 @@
 ; RUN: not opt -Oz --tapir=serial -debug-pass-manager %s -o /dev/null 2>&1 \
 ; RUN:     | FileCheck -check-prefix ERROR %s
 ;
-; The Early* passes run early in the pass pipeline.
-; O123:        Running pass:     EarlyVerificationPass
-; O123:        Running pass:     EarlyAnnotatePass
+; ... pipeline early
+; O123:        Running pass:       EarlyVerificationPass
+; O123:        Running pass:       EarlyAnnotatePass
 ;
-; <KIT-PREPARE>
-; O123:        Running pass:     SerializePass
-; O123:        Running pass:     PrepareTapirLoopsPass
-; O123:        Running pass:     LocalizeReductionsPass
-; O123-NOT:    Running pass:     InstrumentPass
-; </KIT-PREPARE>
+; ... pipeline prepare
+; O123:        Running pass:       SerializePass
+; O123:        Running pass:       PrepareTapirLoopsPass
+; O123:        Running pass:       LocalizeReductionsPass
+; O123-NOT:    Running pass:       InstrumentPass
 ;
-; <KIT-PRE-VECTORIZE>
-; O123:        Running pass:     SecondaryIVEliminationPass
-; </KIT-PRE-VECTORIZE>
+; ... pipeline pre-vectorize
+; O123:        Running pass:       SecondaryIVEliminationPass
 ;
-; <KIT-PRE-TAPIR>
+; ... pipeline pre-tapir
 ; There are no standard pre-tapir passes at this time
-; </KIT-PRE-TAPIR>
 ;
-; <KIT-PRE-LOOP-SPAWNING>
-; O123:        Running pass:     SecondaryIVEliminationPass
-; O123:        Running pass:     PreLowerVerificationPass
-; O123:        Running pass:     PreLowerAnnotatePass
-; </KIT-PRE-LOOP-SPAWNING>
+; ... pipeline pre-loop-spawning
+; O123:        Running pass:       SecondaryIVEliminationPass
+; O123:        Running pass:       PreLowerVerificationPass
+; O123:        Running pass:       PreLowerAnnotatePass
 ;
-; O123:        Running pass:     LoopSpawningPass
+; O123:        Running pass:       LoopSpawningPass
 ;
-; <KIT-POST-LOOP-SPAWNING>
-; O123:        Running pass:     HoistAllocasPass
-; O123:        Running pass:     EmbHoistAllocasPass
-; </KIT-POST-LOOP-SPAWNING>
+; ... pipeline post-loop-spawning
+; O123:        Running pass:       HoistAllocasPass
+; O123:        Running pass:       EmbHoistAllocasPass
 ;
-; O123:        Running pass:     TapirToTargetPass
-; O123:        Running pass:     GlobalDCEPass
+; O123:        Running pass:       TapirToTargetPass
 ;
-; <KIT-POST-TAPIR>
-; O123:        Running pass:     PrefetchForDevicePass
-; O123:        Running pass:     EmbLowerIntrinsicsPass
-; O123:        Running pass:     EmbResolveLibDeviceCallsPass
-; O123:        Running pass:     EmbPreparePass
-; O123:        Running pass:     EmbLinkLibDeviceBitcodePass
-; O123:        Running pass:     EmbOptimizePass
-; O123:        Running pass:     RecomputeKernelPropertiesPass
-; O123:        Running pass:     GenerateCtorsPass
-; </KIT-POST-TAPIR>
+; ... pipeline post-tapir
+; O123:        Running pass:       PrefetchForDevicePass
+; O123:        Running pass:       EmbLowerIntrinsicsPass
+; O123:        Running pass:       EmbResolveLibDeviceCallsPass
+; O123:        Running pass:       EmbPreparePass
+; O123:        Running pass:       EmbLinkLibDeviceBitcodePass
+; O123:        Running pass:       EmbOptimizePass
+; O123:        Running pass:       RecomputeKernelPropertiesPass
+; O123:        Running pass:       GenerateCtorsPass
 ;
-; O123:        Running pass:     VerifierPass
-; O123:        Running pass:     BitcodeWriterPass
+; O123:        Running pass:       VerifierPass
+; O123:        Running pass:       BitcodeWriterPass
 ;
 ; ERROR: The optimization level "{{.+}}" is no longer supported
 ;
@@ -140,8 +136,8 @@
 ; RUN:     --kit-instr=timer 2>&1 \
 ; RUN:     | FileCheck %s --check-prefix=INSTR
 ;
-; INSTR:      Running pass:      PrepareTapirLoopsPass
-; INSTR:      Running pass:      InstrumentPass
+; INSTR:       Running pass:       PrepareTapirLoopsPass
+; INSTR:       Running pass:       InstrumentPass
 ;
 ; -----------------------------------------------------------------------------
 

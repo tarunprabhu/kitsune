@@ -14,9 +14,9 @@
 ; RUN:           -disable-output 2>&1 \
 ; RUN:     | FileCheck %s -check-prefix O0
 ;
-; O0:      Running pass:     TapirToTargetPass
-; O0:      Running pass:     AlwaysInlinerPass
-; O0:      Running pass:     VerifierPass
+; O0:          Running pass:       TapirToTargetPass
+; O0:          Running pass:       AlwaysInlinerPass
+; O0:          Running pass:       VerifierPass
 ;
 ; ------------------------------------------------------------------------------
 ; At higher optimization levels, the Kitsune passes that are run are always
@@ -45,45 +45,42 @@
 ;
 ; ERROR: The optimization level "{{.+}}" is no longer supported
 ;
-; <KIT-PREPARE>
-; O123-NOT:    Running pass:     SerializePass
-; O123-NOT:    Running pass:     PrepareTapirLoops
-; O123-NOT:    Running pass:     LocalizeReductionsPass
-; </KIT-PREPARE>
+; O123-NOT:    Running pass:       EarlyVerificationPass
+; O123-NOT:    Running pass:       EarlyAnnotatePass
+; O123-NOT:    Running pass:       SerializePass
+; O123-NOT:    Running pass:       PrepareTapirLoops
+; O123-NOT:    Running pass:       LocalizeReductionsPass
+; O123-NOT:    Running pass:       SecondaryIVEliminationPass
 ;
-; <KIT-PRE-TAPIR>
-; There are no standard pre-tapir passes at this time
-; </KIT-PRE-TAPIR>
+; ... pipeline pre-tapir
 ;
-; <KIT-PRE-LOOP-SPAWNING>
-; O123:        Running pass:     SecondaryIVEliminationPass
-; O123:        Running pass:     PreLowerVerificationPass
-; O123:        Running pass:     PreLowerAnnotatePass
-; O123:        Running pass:     TapirLoopNormalizePass
-; </KIT-PRE-LOOP-SPAWNING>
+; ... pipeline pre-loop-spawning
+; O123:        Running pass:       SecondaryIVEliminationPass
+; O123:        Running pass:       PreLowerVerificationPass
+; O123:        Running pass:       PreLowerAnnotatePass
+; O123:        Running pass:       TapirLoopNormalizePass
 ;
-; O123:        Running pass:     LoopSpawningPass
+; O123:        Running pass:       LoopSpawningPass
 ;
-; <KIT-POST-LOOP-SPAWNING>
-; O123Z:       Running pass:     HoistAllocasPass
-; O123Z:       Running pass:     EmbHoistAllocasPass
-; </KIT-POST-LOOP-SPAWNING>
+; ... pipeline post-loop-spawning
+; O123Z:       Running pass:       HoistAllocasPass
+; O123Z:       Running pass:       EmbHoistAllocasPass
 ;
-; O123:        Running pass:     TapirToTargetPass
+; O123:        Running pass:       TapirToTargetPass
 ;
-; <KIT-POST-TAPIR>
-; O123:        Running pass:     PrefetchForDevicePass
-; O123:        Running pass:     EmbLowerIntrinsicsPass
-; O123:        Running pass:     EmbResolveLibDeviceCallsPass
-; O123:        Running pass:     EmbPreparePass
-; O123:        Running pass:     EmbLinkLibDeviceBitcodePass
-; O123:        Running pass:     EmbOptimizePass
-; O123:        Running pass:     RecomputeKernelPropertiesPass
-; O123:        Running pass:     GenerateCtorsPass
+; ... pipeline post-tapir
+; O123:        Running pass:       PrefetchForDevicePass
+; O123:        Running pass:       EmbLowerIntrinsicsPass
+; O123:        Running pass:       EmbResolveLibDeviceCallsPass
+; O123:        Running pass:       EmbPreparePass
+; O123:        Running pass:       EmbLinkLibDeviceBitcodePass
+; O123:        Running pass:       EmbOptimizePass
+; O123:        Running pass:       RecomputeKernelPropertiesPass
+; O123:        Running pass:       GenerateCtorsPass
 ; </KIT-POST-TAPIR>
 ;
-; O123:        Running pass:     VerifierPass
-; O123:        Running pass:     BitcodeWriterPass
+; O123:        Running pass:       VerifierPass
+; O123:        Running pass:       BitcodeWriterPass
 
 define i32 @main(i32 %argc, ptr %argv) {
 entry:

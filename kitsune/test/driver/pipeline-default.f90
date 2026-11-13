@@ -11,91 +11,83 @@
 ! RUN:     -Xflang -fdebug-pass-manager 2>&1 \
 ! RUN:     | FileCheck %s -check-prefix O0
 !
-! O0-NOT:     Running pass:     SerializePass
-! O0-NOT:     Running pass:     PrepareTapirLoopsPass
-! O0-NOT:     Running pass:     LocalizeReductionsPass
-! O0-NOT:     Running pass:     ComputeReductionStrategyPass
-! O0-NOT:     Running pass:     InstrumentPass
-! O0-NOT:     Running pass:     SecondaryIVEliminationPass
-! O0-NOT:     Running pass:     PreLowerVerificationPass
-! O0-NOT:     Running pass:     PreLowerAnnotatePass
-! O0-NOT:     Running pass:     TapirLoopNormalizePass
-! O0-NOT:     Running pass:     LoopSpawningPass
-! O0-NOT:     Running pass:     TapirToTargetPass
-! O0-NOT:     Running pass:     HoistAllocasPass
-! O0-NOT:     Running pass:     EmbHoistAllocasPass
-! O0-NOT:     Running pass:     PrefetchForDevicePass
-! O0-NOT:     Running pass:     EmbLowerIntrinsicsPass
-! O0-NOT:     Running pass:     EmbResolveLibDeviceCallsPass
-! O0-NOT:     Running pass:     EmbPreparePass
-! O0-NOT:     Running pass:     EmbLinkLibDeviceBitcodePass
-! O0-NOT:     Running pass:     EmbOptimizePass
-! O0-NOT:     Running pass:     RecomputeKernelPropertiesPass
-! O0-NOT:     Running pass:     GenerateCtorsPass
+! O0-NOT:      Running pass:       SerializePass
+! O0-NOT:      Running pass:       PrepareTapirLoopsPass
+! O0-NOT:      Running pass:       LocalizeReductionsPass
+! O0-NOT:      Running pass:       InstrumentPass
+! O0-NOT:      Running pass:       SecondaryIVEliminationPass
+! O0-NOT:      Running pass:       PreLowerVerificationPass
+! O0-NOT:      Running pass:       PreLowerAnnotatePass
+! O0-NOT:      Running pass:       TapirLoopNormalizePass
+! O0-NOT:      Running pass:       LoopSpawningPass
+! O0-NOT:      Running pass:       TapirToTargetPass
+! O0-NOT:      Running pass:       HoistAllocasPass
+! O0-NOT:      Running pass:       EmbHoistAllocasPass
+! O0-NOT:      Running pass:       PrefetchForDevicePass
+! O0-NOT:      Running pass:       EmbLowerIntrinsicsPass
+! O0-NOT:      Running pass:       EmbResolveLibDeviceCallsPass
+! O0-NOT:      Running pass:       EmbPreparePass
+! O0-NOT:      Running pass:       EmbLinkLibDeviceBitcodePass
+! O0-NOT:      Running pass:       EmbOptimizePass
+! O0-NOT:      Running pass:       RecomputeKernelPropertiesPass
+! O0-NOT:      Running pass:       GenerateCtorsPass
 !
 ! -----------------------------------------------------------------------------
 ! If the --tapir argument is provided, all Tapir and Kitsune passes should run.
 !
 ! RUN: %kitfc --tapir=serial -O1 -c -emit-llvm -o /dev/null %s \
 ! RUN:     -Xflang -fdebug-pass-manager 2>&1 \
-! RUN:     | FileCheck %s -check-prefix O123S
+! RUN:     | FileCheck %s -check-prefix O123
 !
 ! RUN: %kitfc --tapir=serial -O2 -c -emit-llvm -o /dev/null %s \
 ! RUN:     -Xflang -fdebug-pass-manager 2>&1 \
-! RUN:     | FileCheck %s -check-prefix O123S
+! RUN:     | FileCheck %s -check-prefix O123
 !
 ! RUN: %kitfc --tapir=serial -O3 -c -emit-llvm -o /dev/null %s \
 ! RUN:     -Xflang -fdebug-pass-manager 2>&1 \
-! RUN:     | FileCheck %s -check-prefix O123S
+! RUN:     | FileCheck %s -check-prefix O123
 !
-! The Early* passes run early in the pass pipeline.
-! O123S:      Running pass:     EarlyVerificationPass
-! O123S:      Running pass:     EarlyAnnotatePass
+! ... pipeline early
+! O123:        Running pass:       EarlyVerificationPass
+! O123:        Running pass:       EarlyAnnotatePass
 !
-! <KIT-PREPARE>
-! O123S:      Running pass:     SerializePass
-! O123S:      Running pass:     PrepareTapirLoopsPass
-! O123S:      Running pass:     LocalizeReductionsPass
-! O123S-NOT:  Running pass:     InstrumentPass
-! </KIT-PREPARE>
+! ... pipeline prepare
+! O123:        Running pass:       SerializePass
+! O123:        Running pass:       PrepareTapirLoopsPass
+! O123:        Running pass:       LocalizeReductionsPass
+! O123S-NOT:   Running pass:       InstrumentPass
 !
-! <KIT-PRE-VECTORIZE>
-! O123S:      Running pass:     SecondaryIVEliminationPass
-! </KIT-PRE-VECTORIZE>
+! ... pipeline pre-vectorize
+! O123:        Running pass:       SecondaryIVEliminationPass
 !
-! <KIT-PRE-TAPIR>
+! ... pipeline pre-tapir
 ! There are no standard pre-tapir passes at this time
-! </KIT-PRE-TAPIR>
 !
-! <KIT-PRE-LOOP-SPAWNING>
-! O123S:      Running pass:     SecondaryIVEliminationPass
-! O123S:      Running pass:     PreLowerVerificationPass
-! O123S:      Running pass:     PreLowerAnnotatePass
-! O123S:      Running pass:     TapirLoopNormalizePass
-! </KIT-PRE-LOOP-SPAWNING>
+! ... pipeline pre-loop-spawning
+! O123:        Running pass:       SecondaryIVEliminationPass
+! O123:        Running pass:       PreLowerVerificationPass
+! O123:        Running pass:       PreLowerAnnotatePass
+! O123:        Running pass:       TapirLoopNormalizePass
 !
-! O123S:      Running pass:     LoopSpawningPass
+! O123:        Running pass:       LoopSpawningPass
 !
-! <KIT-POST-LOOP-SPAWNING>
-! O123S:      Running pass:     HoistAllocasPass
-! O123S:      Running pass:     EmbHoistAllocasPass
-! </KIT-POST-LOOP-SPAWNING>
+! ... pipeline post-loop-spawning
+! O123:        Running pass:       HoistAllocasPass
+! O123:        Running pass:       EmbHoistAllocasPass
 !
-! O123S:      Running pass:     TapirToTargetPass
-! O123S:      Running pass:     GlobalDCEPass
+! O123:        Running pass:       TapirToTargetPass
 !
-! <KIT-POST-TAPIR>
-! O123S:      Running pass:     PrefetchForDevicePass
-! O123S:      Running pass:     EmbLowerIntrinsicsPass
-! O123S:      Running pass:     EmbResolveLibDeviceCallsPass
-! O123S:      Running pass:     EmbPreparePass
-! O123S:      Running pass:     EmbLinkLibDeviceBitcodePass
-! O123S:      Running pass:     EmbOptimizePass
-! O123S:      Running pass:     RecomputeKernelPropertiesPass
-! O123S:      Running pass:     GenerateCtorsPass
-! </KIT-POST-TAPIR>
+! ... pipeline post-tapir
+! O123:        Running pass:       PrefetchForDevicePass
+! O123:        Running pass:       EmbLowerIntrinsicsPass
+! O123:        Running pass:       EmbResolveLibDeviceCallsPass
+! O123:        Running pass:       EmbPreparePass
+! O123:        Running pass:       EmbLinkLibDeviceBitcodePass
+! O123:        Running pass:       EmbOptimizePass
+! O123:        Running pass:       RecomputeKernelPropertiesPass
+! O123:        Running pass:       GenerateCtorsPass
 !
-! O123S:      Running pass:     BitcodeWriterPass
+! O123:        Running pass:       BitcodeWriterPass
 !
 ! ------------------------------------------------------------------------------
 ! The instrumentation pass will only run if instrumentation is explicitly

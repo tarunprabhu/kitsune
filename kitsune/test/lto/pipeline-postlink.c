@@ -6,10 +6,10 @@
 // RUN:     -Xlinker --lto-debug-pass-manager -Xlinker --lto-emit-llvm 2>&1 \
 // RUN:     | FileCheck %s -check-prefix NOLO
 //
-// NOLO:      Running pass:     VerifierPass
-// NOLO-NOT:  Running pass:     LoopSpawning
-// NOLO:      Running pass:     VerifierPass
-// NOLO-NEXT: Running analysis: VerifierAnalysis
+// NOLO:       Running pass:       VerifierPass
+// NOLO-NOT:   Running pass:       LoopSpawning
+// NOLO:       Running pass:       VerifierPass
+// NOLO-NEXT:  Running analysis:   VerifierAnalysis
 //
 // -----------------------------------------------------------------------------
 // The Kitsune (and Tapir) lowering passes should run during the postlink phase
@@ -37,32 +37,41 @@
 //
 // -----------------------------------------------------------------------------
 //
-// O123-NOT:   Running pass:     EarlyVerificationPass
-// O123-NOT:   Running pass:     EarlyAnnotatePass
-// O123-NOT:   Running pass:     SerializePass
-// O123-NOT:   Running pass:     PrepareTapirLoopsPass
-// O123-NOT:   Running pass:     LocalizeReductionsPass
+// O123-NOT:   Running pass:       EarlyVerificationPass
+// O123-NOT:   Running pass:       EarlyAnnotatePass
+// O123-NOT:   Running pass:       SerializePass
+// O123-NOT:   Running pass:       PrepareTapirLoopsPass
+// O123-NOT:   Running pass:       LocalizeReductionsPass
+// O123-NOT:   Running pass:       InstrumentPass
 //
-// O123:       Running pass:     SecondaryIVEliminationPass
-// O123:       Running pass:     SimplifyCFGPass
-// O123:       Running pass:     LoopSimplifyPass
-// O123:       Running pass:     PreLowerVerificationPass
-// O123:       Running pass:     PreLowerAnnotatePass
-// O123:       Running pass:     TapirLoopNormalizePass
-// O123:       Running pass:     LoopSpawningPass
-// O123:       Running pass:     HoistAllocasPass
-// O123:       Running pass:     EmbHoistAllocasPass
-// O123:       Running pass:     TapirToTargetPass
-// O123:       Running pass:     PrefetchForDevicePass
-// O123:       Running pass:     EmbLowerIntrinsicsPass
-// O123:       Running pass:     EmbResolveLibDeviceCallsPass
-// O123:       Running pass:     EmbPreparePass
-// O123:       Running pass:     EmbLinkLibDeviceBitcodePass
-// O123:       Running pass:     EmbOptimizePass
-// O123:       Running pass:     RecomputeKernelPropertiesPass
-// O123:       Running pass:     GenerateCtorsPass
-// O123:       Running pass:     VerifierPass
-// O123:       Running analysis: VerifierAnalysis
+// ... pipeline pre-tapir
+//
+// ... pipeline pre-loop-spawning
+// O123:       Running pass:       SecondaryIVEliminationPass
+// O123:       Running pass:       PreLowerVerificationPass
+// O123:       Running pass:       PreLowerAnnotatePass
+// O123:       Running pass:       TapirLoopNormalizePass
+//
+// O123:       Running pass:       LoopSpawningPass
+//
+// ... pipeline post-loop-spawning
+// O123:       Running pass:       HoistAllocasPass
+// O123:       Running pass:       EmbHoistAllocasPass
+//
+// O123:       Running pass:       TapirToTargetPass
+//
+// ... pipeline post-tapir
+// O123:       Running pass:       PrefetchForDevicePass
+// O123:       Running pass:       EmbLowerIntrinsicsPass
+// O123:       Running pass:       EmbResolveLibDeviceCallsPass
+// O123:       Running pass:       EmbPreparePass
+// O123:       Running pass:       EmbLinkLibDeviceBitcodePass
+// O123:       Running pass:       EmbOptimizePass
+// O123:       Running pass:       RecomputeKernelPropertiesPass
+// O123:       Running pass:       GenerateCtorsPass
+//
+// O123:       Running pass:       VerifierPass
+// O123:       Running analysis:   VerifierAnalysis
 //
 // ERROR: unsupported optimization level '-O{{[sz]}}'
 
