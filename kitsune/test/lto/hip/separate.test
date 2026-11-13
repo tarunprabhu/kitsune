@@ -4,14 +4,14 @@
 # RUN: mkdir -p %t
 #
 # RUN: %kitxx -c -flto -O2 -o %t/add.o %S/../input/add.cpp \
-# RUN:      --tapir=hip --tapir-hip-arch=gfx1103
+# RUN:     --tapir=hip --tapir-hip-arch=gfx1103
 # RUN: llvm-dis -o - %t/add.o | FileCheck %s --check-prefix NO-LAUNCH
 #
 # NO-LAUNCH-NOT: @llvm.kit.async.gpu.kernel.launch
 #
 #
 # RUN: %kitxx -c -flto -O2 -o %t/main.o %S/../input/main.cpp \
-# RUN:      --tapir=hip --tapir-hip-arch=gfx1103
+# RUN:     --tapir=hip --tapir-hip-arch=gfx1103
 # RUN: llvm-dis -o - %t/main.o | FileCheck %s --check-prefix MAIN
 #
 # MAIN: call void @vecadd

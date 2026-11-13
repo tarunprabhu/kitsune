@@ -18,7 +18,7 @@
 #
 #
 # RUN: %kitxx -flto -O2 %t/main.o %t/add.o %sysroot \
-# RUN:     --tapir=cuda --tapir-cuda-arch=sm_72 2>&1 \
+# RUN:     --tapir=cuda --tapir-cuda-arch=sm_72 \
 # RUN:     -Wl,--lto-emit-llvm -o - \
 # RUN:     | llvm-dis -o - \
 # RUN:     | FileCheck %s --check-prefix LAUNCH
