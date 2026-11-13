@@ -15,7 +15,6 @@ add_llvm_component_library(LLVMKitTransforms
   LocalizeReductions.cpp
   LoopWrapping.cpp
   LowerGPUIndexIntrinsics.cpp
-  LowerGPUReduceIntrinsics.cpp
   LowerGPUWarpIntrinsics.cpp
   LowerReduceIntrinsics.cpp
   PreLowerAnnotate.cpp

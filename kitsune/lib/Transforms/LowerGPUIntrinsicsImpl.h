@@ -31,19 +31,6 @@ public:
   // the threadIdx, blockIdx, blockDim, gridSize, and gridDim builtin objects.
   bool lowerIndexIntr(CallInst *call);
 
-  // Lower a call to Kitsune's kit.gpu.reduce.direct intrinsic.
-  bool lowerReduceIntrDirect(CallInst *call);
-
-  // Lower a call to Kitsnue's kit.gpu.reduce.shared.memory intrinsic.
-  bool lowerReduceIntrShmem(CallInst *call);
-
-  // Lower a call to Kitsune's kit.gpu.reduce.warp.shuffle intrinsic.
-  bool lowerReduceIntrWarpShfl(CallInst *call);
-
-  // Lower a call to Kitsune's kit.gpu.reduce.warp.shuffle.shared.memory
-  // intrinsic.
-  bool lowerReduceIntrWarpShflShmem(CallInst *call);
-
   // Lower a call to Kitsune's kit.gpu.warp.shfl.down.sync intrinsic.
   bool lowerWarpShflDownSyncIntr(CallInst *call);
 
