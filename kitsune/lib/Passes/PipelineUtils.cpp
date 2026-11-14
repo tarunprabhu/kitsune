@@ -14,6 +14,7 @@
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Passes/Passes.h"
 #include "kitsune/Support/CommandLineOptions.h"
+#include "llvm/Transforms/IPO/GlobalDCE.h"
 #include "llvm/Transforms/InstCombine/InstCombine.h"
 #include "llvm/Transforms/Scalar/ADCE.h"
 #include "llvm/Transforms/Scalar/BDCE.h"
@@ -261,11 +262,12 @@ llvm::populateKitPreparePasses(PassBuilder &pb, OptimizationLevel optLevel,
     addFunctionPass<PrepareTapirLoopsPass>(fpm);
     addFunctionPass<LocalizeReductionsPass>(fpm);
     addFunctionPass<SimplifyCFGPass>(fpm);
+    addFunctionPass<LowerIntrinsicsEarlyPass>(fpm, pto.TTOpts);
+    addFunctionPass<LoopSimplifyPass>(fpm);
 
     if (pto.KitInstrOpts.enabled()) {
       // FIXME: The instrument pass should be fixed so it doesn't depend on the
       // loop being in simplify form.
-      addFunctionPass<LoopSimplifyPass>(fpm);
       addFunctionPass<InstrumentPass>(fpm, pto.KitInstrOpts);
       addFunctionPass<SimplifyCFGPass>(fpm);
     }
@@ -372,6 +374,7 @@ void llvm::populateKitCodeGenPasses(legacy::PassManager &pm,
                                     const TTOptions &tto) {
   if (tto.hasTTID()) {
     pm.add(createLowerIntrinsicsLegacyPass());
+    pm.add(createGlobalDCEPass());
     pm.add(createStripKitAddrSpacesLegacyPass());
     pm.add(createCodeGenFatBinariesLegacyPass(tto));
   }

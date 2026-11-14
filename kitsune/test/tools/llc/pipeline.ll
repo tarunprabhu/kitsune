@@ -34,6 +34,7 @@
 ; TAPIR: ModulePass Manager
 ; TAPIR-NEXT: FunctionPass Manager
 ; TAPIR-NEXT: Lower Kitsune intrinsics
+; TAPIR-NEXT: Dead Global Elimination
 ; TAPIR-NEXT: Strip Kitsune address spaces
 ; TAPIR-NEXT: Generate Kitsune fat binaries
 ;

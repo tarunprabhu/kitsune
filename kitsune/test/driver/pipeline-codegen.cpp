@@ -56,6 +56,7 @@
 // TAPIR: ModulePass Manager
 // TAPIR-NEXT: FunctionPass Manager
 // TAPIR-NEXT: Lower Kitsune intrinsics
+// TAPIR-NEXT: Unnamed pass
 // TAPIR-NEXT: Strip Kitsune address spaces
 // TAPIR-NEXT: Generate Kitsune fat binaries
 // O0-NEXT: Pre-ISel Intrinsic Lowering
