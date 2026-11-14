@@ -163,7 +163,7 @@ template <> std::string llvm::toString(const ReduceOp &op) {
   case ReduceOp::FMaximumNum: return "maximumnum";
   case ReduceOp::FMin: return "fmin";
   case ReduceOp::SMin: return "smin";
-  case ReduceOp::UMin: return "min";
+  case ReduceOp::UMin: return "umin";
   case ReduceOp::FMinimum: return "minimum";
   case ReduceOp::FMinimumNum: return "minimumnum";
   }
@@ -171,9 +171,6 @@ template <> std::string llvm::toString(const ReduceOp &op) {
 }
 
 std::optional<AtomicRMWInst::BinOp> llvm::getAtomicOp(ReduceOp op) {
-  // FIXME: AtomicRMWInst does not support FMaximumNum and FMinimumNum in
-  // LLVM 21.x. When we upgrade to a newer version of LLVM that supports it,
-  // this switch statement should be changed.
   switch (op) {
   case ReduceOp::And: return AtomicRMWInst::And;
   case ReduceOp::Or: return AtomicRMWInst::Or;
@@ -182,10 +179,10 @@ std::optional<AtomicRMWInst::BinOp> llvm::getAtomicOp(ReduceOp op) {
   case ReduceOp::FAdd: return AtomicRMWInst::FAdd;
   case ReduceOp::FMax: return AtomicRMWInst::FMax;
   case ReduceOp::FMaximum: return AtomicRMWInst::FMaximum;
-  case ReduceOp::FMaximumNum: return std::nullopt;
+  case ReduceOp::FMaximumNum: return AtomicRMWInst::FMaximumNum;
   case ReduceOp::FMin: return AtomicRMWInst::FMin;
   case ReduceOp::FMinimum: return AtomicRMWInst::FMinimum;
-  case ReduceOp::FMinimumNum: return std::nullopt;
+  case ReduceOp::FMinimumNum: return AtomicRMWInst::FMinimumNum;
   case ReduceOp::SMax: return AtomicRMWInst::Max;
   case ReduceOp::SMin: return AtomicRMWInst::Min;
   case ReduceOp::UMax: return AtomicRMWInst::UMax;
