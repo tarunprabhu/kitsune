@@ -34,6 +34,7 @@
 ; O123:        Running pass:       GuardLoopPass
 ; O123:        Running pass:       PrepareTapirLoopsPass
 ; O123:        Running pass:       LocalizeReductionsPass
+; O123:        Running pass:       LowerIntrinsicsEarlyPass
 ; O123-NOT:    Running pass:       InstrumentPass
 ;
 ; ... pipeline pre-vectorize
@@ -61,6 +62,11 @@
 ; The instrumentation pass will only run if instrumentation is explicitly
 ; enabled.
 ;
+; RUN: %kitcc -O1 --tapir=serial -c -emit-llvm -o /dev/null %s \
+; RUN:     --kit-instr=generic \
+; RUN:     -flto -Xclang -fdebug-pass-manager 2>&1 \
+; RUN:     | FileCheck %s --check-prefix=INSTR
+;
 ; RUN: %kitcc -O2 --tapir=serial -c -emit-llvm -o /dev/null %s \
 ; RUN:     --kit-instr=generic \
 ; RUN:     -flto -Xclang -fdebug-pass-manager 2>&1 \
@@ -73,6 +79,7 @@
 ;
 ; INSTR:       Running pass:       PrepareTapirLoopsPass
 ; INSTR:       Running pass:       LocalizeReductionsPass
+; INSTR:       Running pass:       LowerIntrinsicsEarlyPass
 ; INSTR:       Running pass:       InstrumentPass
 ;
 ; -----------------------------------------------------------------------------

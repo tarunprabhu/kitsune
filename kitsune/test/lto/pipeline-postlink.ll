@@ -43,6 +43,7 @@
 ; O123-NOT:    Running pass:       GuardLoopPass
 ; O123-NOT:    Running pass:       PrepareTapirLoopsPass
 ; O123-NOT:    Running pass:       LocalizeReductionsPass
+; O123-NOT:    Running pass:       LowerIntrinsicsEarlyPass
 ; O123-NOT:    Running pass:       InstrumentPass
 ;
 ; ... pipeline pre-tapir

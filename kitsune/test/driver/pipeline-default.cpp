@@ -9,6 +9,7 @@
 // O0-NOT:     Running pass:       PrepareTapirLoopsPass
 // O0-NOT:     Running pass:       GuardLoopPass
 // O0-NOT:     Running pass:       LocalizeReductionsPass
+// O0-NOT:     Running pass:       LowerIntrinsicsEarlyPass
 // O0-NOT:     Running pass:       InstrumentPass
 // O0-NOT:     Running pass:       SecondaryIVEliminationPass
 // O0-NOT:     Running pass:       PreLowerVerificationPass
@@ -58,6 +59,7 @@
 // O123:       Running pass:       SerializePass
 // O123:       Running pass:       PrepareTapirLoopsPass
 // O123:       Running pass:       LocalizeReductionsPass
+// O123:       Running pass:       LowerIntrinsicsEarlyPass
 // O123-NOT:   Running pass:       InstrumentPass
 //
 // ... pipeline pre-vectorize
@@ -115,6 +117,8 @@
 // RUN:     | FileCheck %s -check-prefix INSTR
 //
 // INSTR:      Running pass:       PrepareTapirLoopsPass
+// INSTR:      Running pass:       LocalizeReductionsPass
+// INSTR:      Running pass:       LowerIntrinsicsEarlyPass
 // INSTR:      Running pass:       InstrumentPass
 //
 // -----------------------------------------------------------------------------

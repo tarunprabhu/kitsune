@@ -26,6 +26,7 @@
 ; DEFAULT-NOT: Running pass:       GuardLoopPass
 ; DEFAULT-NOT: Running pass:       PrepareTapirLoopsPass
 ; DEFAULT-NOT: Running pass:       LocalizeReductionsPass
+; DEFAULT-NOT: Running pass:       LowerIntrinsicsEarlyPass
 ; DEFAULT-NOT: Running pass:       PreLowerAnnotatePass
 ; DEFAULT-NOT: Running pass:       LoopSpawningPass
 ; DEFAULT-NOT: Running pass:       HoistAllocasPass
@@ -86,6 +87,7 @@
 ; O123:        Running pass:       GuardLoopPass
 ; O123:        Running pass:       PrepareTapirLoopsPass
 ; O123:        Running pass:       LocalizeReductionsPass
+; O123:        Running pass:       LowerIntrinsicsEarlyPass
 ; O123-NOT:    Running pass:       InstrumentPass
 ;
 ; ... pipeline pre-vectorize
