@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "LowerIntrinsicsImpl.h"
+#include "LowerIntrinsics.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/IRBuilderUtils.h"
 #include "kitsune/Core/IntrinsicUtils.h"
@@ -568,7 +568,7 @@ Value *LowerWarpShuffleDownSync::replaceIntrHip(CallInst *call) {
 
 //==------------------------------------------------------------------------==//
 
-bool llvm::detail::lowerGPUWarpIntr(CallInst *call, const TTOptions &tto) {
+bool detail::LowerIntrinsicsImpl::lowerGPUWarpIntrinsic(CallInst *call) {
   switch (call->getIntrinsicID()) {
   case Intrinsic::kit_gpu_warp_id:
     return LowerWarpIdOrLane("id", Instruction::UDiv).run(call);
@@ -579,5 +579,5 @@ bool llvm::detail::lowerGPUWarpIntr(CallInst *call, const TTOptions &tto) {
     return LowerWarpShuffleDownSync().run(call);
   default: break;
   }
-  llvm_unreachable("lowerWarpIntr: Warp intrinsic not handled");
+  llvm_unreachable("lowerGPUWarpIntrinsic: Warp intrinsic not handled");
 }

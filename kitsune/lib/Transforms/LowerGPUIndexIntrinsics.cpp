@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "LowerIntrinsicsImpl.h"
+#include "LowerIntrinsics.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/IntrinsicUtils.h"
 #include "kitsune/Core/ModuleUtils.h"
@@ -96,7 +96,7 @@ static bool lowerForHip(CallInst *call) {
     return replaceLibDevice(call, getGlobalSize, 2);
   default: break;
   }
-  llvm_unreachable("lowerGPUIndexIntr[hip]: Unexpected intrinsic");
+  llvm_unreachable("lowerGPUIndexIntrinsicForHip: Unexpected intrinsic");
 }
 
 static bool lowerForCuda(CallInst *call) {
@@ -127,10 +127,10 @@ static bool lowerForCuda(CallInst *call) {
     return replaceSimple(call, Intrinsic::nvvm_read_ptx_sreg_nctaid_z);
   default: break;
   }
-  llvm_unreachable("lowerGPUIndexIntr[cuda]: Unexpected intrinsic");
+  llvm_unreachable("lowerGPUIndexIntrinsicForCuda: Unexpected intrinsic");
 }
 
-bool llvm::detail::lowerGPUIndexIntr(CallInst *call) {
+bool detail::LowerIntrinsicsImpl::lowerGPUIndexIntrinsic(CallInst *call) {
   switch (*getTTIDFromKitIntrCall(*call)) {
   case TTID::Cuda: return lowerForCuda(call);
   case TTID::Hip: return lowerForHip(call);

@@ -10,7 +10,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "LowerIntrinsicsImpl.h"
+#include "LowerIntrinsics.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/FuncAttrs.h"
 #include "kitsune/Core/ModuleUtils.h"
@@ -361,7 +361,7 @@ template <typename C> static bool run(const ReductionInfo &redxn) {
   return C().run(redxn);
 }
 
-bool llvm::detail::lowerReduceIntr(CallInst *call) {
+bool detail::LowerIntrinsicsImpl::lowerReduceIntrinsic(CallInst *call) {
   ReductionInfo redxn(call);
   switch (redxn.strategy) {
   case ReductionStrategy::Auto:
@@ -373,5 +373,5 @@ bool llvm::detail::lowerReduceIntr(CallInst *call) {
   case ReductionStrategy::GPUWarpShuffleWithSharedMemory:
     return run<LowerWarpShuffleWithSharedMemory>(redxn);
   }
-  llvm_unreachable("lowerReduceIntr: ReductionStrategy not handled");
+  llvm_unreachable("lowerReduceIntrinsic: ReductionStrategy not handled");
 }
