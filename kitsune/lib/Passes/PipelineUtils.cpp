@@ -339,6 +339,7 @@ llvm::populateKitSpawningPasses(PassBuilder &pb, OptimizationLevel optLevel,
   ModulePassManager mpm;
 
   if (optLevel != OptimizationLevel::O0) {
+    addModulePass<TaskSpawningPass>(mpm);
     addModulePass<LoopSpawningPass>(mpm, pto.TTOpts);
     if (clVerifySpawning)
       addModulePass<VerifierPass>(mpm);

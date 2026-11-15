@@ -43,5 +43,6 @@
 #include "kitsune/Transforms/SecondaryIVElimination.h"
 #include "kitsune/Transforms/Serialize.h"
 #include "kitsune/Transforms/TapirLoopNormalize.h"
+#include "kitsune/Transforms/TaskSpawning.h"
 
 #endif // KITSUNE_PASSES_PASSES_H

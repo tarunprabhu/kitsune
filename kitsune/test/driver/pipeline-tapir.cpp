@@ -74,6 +74,7 @@
 // O123:       Running pass:       AnnotatePreLowerPass
 // O123:       Running pass:       TapirLoopNormalizePass
 //
+// O123:       Running pass:       TaskSpawningPass
 // O123:       Running pass:       LoopSpawningPass
 //
 // ... pipeline post-loop-spawning

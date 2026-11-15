@@ -9,8 +9,9 @@
 // RUN:     -Xclang -fdebug-pass-manager -mllvm -kit-verify-spawning 2>&1 \
 // RUN:     | FileCheck %s --check-prefixes=ALL,VERIFY
 //
-// ALL:             Running pass:       PreLowerVerificationPass
-// ALL:             Running pass:       LoopSpawningPass
+// ALL:             Running pass:       TapirLoopNormalizePass
+// ALL-NEXT:        Running pass:       TaskSpawningPass
+// ALL-NEXT:        Running pass:       LoopSpawningPass
 // NOVERIFY-NOT:    Running pass:       VerifierPass
 // VERIFY-NEXT:     Running pass:       VerifierPass
 // ALL:             Running pass:       HoistAllocasPass

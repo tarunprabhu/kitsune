@@ -44,6 +44,7 @@ MODULE_PASS("kit-kernel-properties", RecomputeKernelPropertiesPass())
 MODULE_PASS("kit-prefetch", PrefetchForDevicePass(PTO.TTOpts))
 MODULE_PASS("kit-print-tt-options", TTOptionsPrinterPass(PTO.TTOpts))
 MODULE_PASS("kit-strip-addrspaces", StripKitAddrSpacesPass())
+MODULE_PASS("kit-task-spawning", TaskSpawningPass())
 MODULE_PASS("kit-verify-early", EarlyVerificationPass(/*exitIfError=*/true))
 MODULE_PASS("kit-verify-prelower", PreLowerVerificationPass(/*exitIfErr=*/true))
 #endif // MODULE_PASS

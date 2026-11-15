@@ -101,6 +101,7 @@
 ; O123:        Running pass:       PreLowerVerificationPass
 ; O123:        Running pass:       AnnotatePreLowerPass
 ;
+; O123:        Running pass:       TaskSpawningPass
 ; O123:        Running pass:       LoopSpawningPass
 ;
 ; ... pipeline post-loop-spawning

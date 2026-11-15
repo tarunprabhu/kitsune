@@ -29,6 +29,7 @@ add_llvm_component_library(LLVMKitTransforms
   SecondaryIVElimination.cpp
   Serialize.cpp
   TapirLoopNormalize.cpp
+  TaskSpawning.cpp
 
   DEPENDS
   intrinsics_gen

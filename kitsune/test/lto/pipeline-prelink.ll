@@ -44,6 +44,7 @@
 ; O123-NOT:    Running pass:       PreLowerVerificationPass
 ; O123-NOT:    Running pass:       AnnotatePreLowerPass
 ; O123-NOT:    Running pass:       TapirLoopNormalizePass
+; O123-NOT:    Running pass:       TaskSpawningPass
 ; O123-NOT:    Running pass:       LoopSpawningPass
 ; O123-NOT:    Running pass:       HoistAllocasPass
 ; O123-NOT:    Running pass:       EmbHoistAllocasPass

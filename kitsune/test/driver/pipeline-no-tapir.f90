@@ -34,6 +34,7 @@
 ! CHECK-NOT:   Running pass:       PreLowerVerificationPass
 ! CHECK-NOT:   Running pass:       AnnotatePreLowerPass
 ! CHECK-NOT:   Running pass:       TapirLoopNormalizePass
+! CHECK-NOT:   Running pass:       TaskSpawningPass
 ! CHECK-NOT:   Running pass:       LoopSpawningPass
 ! CHECK-NOT:   Running pass:       HoistAllocasPass
 ! CHECK-NOT:   Running pass:       EmbHoistAllocasPass
