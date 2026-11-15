@@ -47,6 +47,7 @@
 #include "kitsune/Analysis/TapirLoopNestAnalysis.h"
 #include "kitsune/Core/BasicBlockUtils.h"
 #include "kitsune/Core/Diagnostics.h"
+#include "kitsune/Core/InstAttrs.h"
 #include "kitsune/Core/InstUtils.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
@@ -510,18 +511,17 @@ bool VerifierF::checkAllTapirLoops(Function &f) {
   return true;
 }
 
-// Check that detach and reattach instructions do not appear outside tapir
-// loops.
+// The presence of detach and reattach instructions outside tapir loops is an
+// indicator of task boundaries. Since there is very limited support for this
+// in Kitsune, we only allow this if they contain the "kit.inst.target"
+// attribute with the value `serial`.
 bool VerifierF::checkTapirInsts(const Function &f) {
-  SmallSet<const BasicBlock *, 8> bbs;
-  for (const Loop *loop : getTapirLoops(li))
-    for (const BasicBlock *bb : getBlocksNotInSubLoops(*loop))
-      bbs.insert(bb);
-
   for (const_inst_iterator i = inst_begin(f), e = inst_end(f); i != e; ++i) {
     if (isa<DetachInst>(*i) || isa<ReattachInst>(*i)) {
-      if (!bbs.contains(i->getParent()))
-        return emitDiag(*i, DiagID::ErrTapirInstNotInTapirLoop);
+      Loop *loop = getLoopFor(*i, li);
+      if (!loop || !isTapirLoop(*loop))
+        if (getTargetAttr(*i) != TTID::Serial)
+          return emitDiag(*i, DiagID::ErrTapirInstNotInTapirLoop);
     } else if (const auto *syncInst = dyn_cast<SyncInst>(&*i)) {
       if (!checkSyncRegionDefn(*syncInst))
         return false;
