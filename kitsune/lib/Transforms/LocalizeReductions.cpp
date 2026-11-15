@@ -66,6 +66,7 @@ protected:
                                        const Loop &loop);
   ReductionStrategy computeStrategy(const ReductionInfo &redxn,
                                     const Loop &loop);
+  Value *computeStrategyValue(const ReductionInfo &redxn, const Loop &loop);
   AllocaInst *genLocal(const ReductionInfo &redxn, Instruction *insertPt);
   void genReduceIntoLocal(const ReductionInfo &redxn, AllocaInst *local);
   void genReduceIntoFinal(const ReductionInfo &redxn, AllocaInst *local,
@@ -123,6 +124,14 @@ LocalizeReductionsImpl::computeStrategy(const ReductionInfo &redxn,
   llvm_unreachable("computeStrategy: Unknown TTID kind");
 }
 
+Value *LocalizeReductionsImpl::computeStrategyValue(const ReductionInfo &redxn,
+                                                    const Loop &loop) {
+  LLVMContext &ctx = getContext(loop);
+  ReductionStrategy strategy = computeStrategy(redxn, loop);
+
+  return toConstant(strategy, ctx);
+}
+
 AllocaInst *LocalizeReductionsImpl::genLocal(const ReductionInfo &redxn,
                                              Instruction *insertPt) {
   Type *type = redxn.getType();
@@ -157,8 +166,6 @@ void LocalizeReductionsImpl::genReduceIntoLocal(const ReductionInfo &redxn,
 
 void LocalizeReductionsImpl::genReduceIntoFinal(const ReductionInfo &redxn,
                                                 AllocaInst *local, Loop &loop) {
-  LLVMContext &ctx = getContext(loop);
-
   Value *tt = redxn.getTTV();
   Value *op = redxn.getReduceOpV();
   Value *dest = redxn.getDest();
@@ -166,7 +173,7 @@ void LocalizeReductionsImpl::genReduceIntoFinal(const ReductionInfo &redxn,
   Value *size = redxn.getElemSizeV();
   Value *unit = redxn.getUnit();
   Value *reducer = redxn.getReducer();
-  Value *strategy = toConstant(computeStrategy(redxn, loop), ctx);
+  Value *strategy = computeStrategyValue(redxn, loop);
 
   // The reattach instruction is guaranteed to be the very last instruction in
   // the loop body. Once outlined, any instructions added right before the
@@ -178,6 +185,10 @@ void LocalizeReductionsImpl::genReduceIntoFinal(const ReductionInfo &redxn,
   IRBuilder<> builder(reattach);
   Value *value = builder.CreateLoad(type, local);
 
+  // FIXME: In this final reduction, we are explicitly overriding any strategy
+  // that might have existed. This is not correct. If a non-auto strategy is
+  // present, it is because the programmer will have explicitly requested it,
+  // and that should be respected.
   SmallVector<Type *, 2> overloadTys = redxn.getOverloadTypes();
   SmallVector<Value *, 8> args = {tt,       op,   dest, value,
                                   strategy, size, unit, reducer};
@@ -256,9 +267,19 @@ bool LocalizeReductionsImpl::localizeReductionGPU(Loop &root,
 
 bool LocalizeReductionsImpl::localizeReductionSerial(Loop &loop,
                                                      const Reductions &redxns) {
-  // For tapir reduction loops with the serial tapir target, we don't do
-  // anything.
-  return false;
+  // For tapir reduction loops with the serial tapir target, there is nothing to
+  // be localized, so we must compute a strategy for all reduction calls.
+  //
+  // FIXME: In the code below, we are explicitly overriding any non-auto
+  // strategy in the reduction. This is not correct. If a non-auto strategy is
+  // present, it is because the programmer will have explicitly requested it,
+  // and that should be respected.
+  for (const ReductionInfo &redxn : redxns) {
+    CallInst *call = redxn.call;
+    Value *strategy = computeStrategyValue(redxn, loop);
+    call->setArgOperand(ReductionInfo::argNumStrategy, strategy);
+  }
+  return redxns.size();
 }
 
 bool LocalizeReductionsImpl::check(const Loop &loop, const Reductions &redxns) {

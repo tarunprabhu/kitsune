@@ -20,7 +20,7 @@
 ; CHECK-SAME: i32 5
 ; CHECK-SAME: ptr %[[RES]]
 ; CHECK-SAME: i64 %[[I2]]
-; CHECK-SAME: i32 0
+; CHECK-SAME: i32 1
 ; CHECK-SAME: i32 8
 ; CHECK-SAME: i64 0
 ; CHECK-NEXT: %[[INC2]] = add i64 %[[I2]], 1
