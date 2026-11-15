@@ -82,34 +82,54 @@ static constexpr llvm::StringRef ll2 = R"(
 
 define void @f1(i64 %n, i64 %a) {
 entry:
-  br label %for.i.header
+  br label %header
 
-for.i.header:
-  %i = phi i64 [ 0, %entry ], [ %inc.i, %for.i.header ]
-  %inc.i = add i64 %i, 1
-  %exitcond.i.not = icmp eq i64 %inc.i, %n
-  br i1 %exitcond.i.not, label %for.i.exit, label %for.i.header, !llvm.loop !0
+header:
+  %i = phi i64 [ 0, %entry ], [ %inc, %header ]
+  %inc = add i64 %i, 1
+  %cmp = icmp eq i64 %inc, %n
+  br i1 %cmp, label %exit, label %header, !llvm.loop !0
 
-for.i.exit:
+exit:
   ret void
 }
 
 define void @f2(i64 %n) {
 entry:
-  br label %for.i.header
+  %sr = call token @llvm.syncregion.start()
+  br label %header
 
-for.i.header:
-  %i = phi i64 [ 0, %entry ], [ %inc.i, %for.i.header ]
-  %inc.i = add i64 %i, 1
-  %exitcond.i.not = icmp eq i64 %inc.i, %n
-  br i1 %exitcond.i.not, label %for.i.exit, label %for.i.header, !llvm.loop !1
+header:
+  %i = phi i64 [ 0, %entry ], [ %inc, %header ]
+  detach within %sr, label %body, label %latch
 
-for.i.exit:
+body:
+  reattach within %sr, label %latch
+
+latch:
+  %inc = add i64 %i, 1
+  %cmp = icmp eq i64 %inc, %n
+  br i1 %cmp, label %sync, label %header, !llvm.loop !1
+
+sync:
+  sync within %sr, label %exit
+
+exit:
+  ret void
+}
+
+define void @f3() {
+entry:
+  %sr = call token @llvm.syncregion.start()
+  sync within %sr, label %exit
+
+exit:
   ret void
 }
 
 !0 = distinct !{!0}
-!1 = distinct !{!1}
+!1 = distinct !{!1, !2}
+!2 = !{!"tapir.loop.target", i32 1}
 )";
 
 #define DECLS                                                                  \
@@ -117,8 +137,9 @@ for.i.exit:
                                                                                \
   Function *f1 = m->getFunction("f1");                                         \
   Function *f2 = m->getFunction("f2");                                         \
+  Function *f3 = m->getFunction("f3");                                         \
   [[maybe_unused]] GlobalVariable *g1 = m->getNamedGlobal("g1");               \
-  [[maybe_unused]] Instruction *inst1 = f1->getEntryBlock().getTerminator();   \
+  [[maybe_unused]] Instruction *inst3 = f3->getEntryBlock().getTerminator();   \
                                                                                \
   DominatorTree dtf1(*f1), dtf2(*f2);                                          \
   LoopInfo lif1(dtf1), lif2(dtf2);                                             \
@@ -126,7 +147,7 @@ for.i.exit:
   a = f1->getArg(1);                                                           \
   f = f1;                                                                      \
   g = g1;                                                                      \
-  inst = inst1;                                                                \
+  inst = inst3;                                                                \
   loopF1 = *lif1.begin();                                                      \
   loopF2 = *lif2.begin();                                                      \
   loop = loopF1;

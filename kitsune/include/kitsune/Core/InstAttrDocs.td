@@ -11,45 +11,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-def KitSourceLoopDoc : KitDocAttr {
+def KitInstTargetDoc : KitDocAttr {
   let Documentation = [{
-This attribute should only be attached to instructions that were originally,
-i.e. at the time of IR-generation, part of a loop. The value is the metadata
-node that is the ID of the loop to which the instruction originally belonged.
-This loop will be the "nearest" parent of the instruction. Consider the example
-below:
+This attribute may only be attached to detach, reattach, or sync, instructions.
+When present on a matched pair of detach and reattach instructions that are not
+in a tapir loop, it indicates that the instructions demarcate a task that is to
+be spawned with the tapir target specified in the value of this attribute. When
+present on a sync instruction, it indicates that the sync instruction is to be
+lowered using the given tapir target.
 
-.. code-block::c++
-
-  for (i ...) {
-      for (j ...) {
-          func();
-          ...
-      }
-  }
-
-Here, the value of the SourceLoop metadata attached to the call instruction
-(where the callee is `func`) will be the ID of the `j`-loop since it is the
-nearest parent loop.
-
-This is expressly intended to be used for the "provenance" of instructions. For
-example, if the LICM pass were to hoist the call to `func` from the innermost
-loop as shown below:
-
-.. code-block::c++
-
-  for (i ...) {
-      func();
-      for (j ...) {
-          ...
-      }
-  }
-
-the value of this metadata node is expected to be **unchanged**. With this
-transformation, the nearest parent of the call instruction would be the `i`-loop
-but the SourceLoop attribute value should still be the `j`-loop.
-
-Note that if the original source loop were to be deleted, the value of this
-attribute would be `null`.
+The presence of this attribute on detach/reattach instructions within a tapir
+loop has no effect on the lowering of the loop. However, the target on the
+instructions must be the same as that of the tapir loop.
 }];
 }

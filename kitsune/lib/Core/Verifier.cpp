@@ -21,6 +21,7 @@
 #include "VerifierImpl.h"
 #include "kitsune/Core/Attrs.h"
 #include "kitsune/Core/IntrinsicUtils.h"
+#include "kitsune/Core/LoopUtils.h"
 #include "kitsune/Core/Reductions.h"
 #include "kitsune/Core/TTUtils.h"
 #include "kitsune/Core/ValueUtils.h"
@@ -51,11 +52,13 @@ KitVerifier &KitVerifier::verify(const Function &f) {
   if (!f.size())
     return *this;
 
-  for (const_inst_iterator i = inst_begin(f), e = inst_end(f); i != e; ++i)
-    verify(*i);
-
   DominatorTree dt(const_cast<Function &>(f));
   LoopInfo li(dt);
+  Analyses analyses = {dt, li};
+
+  for (const_inst_iterator i = inst_begin(f), e = inst_end(f); i != e; ++i)
+    verify(*i, analyses);
+
   for (const Loop *loop : li)
     for (const MDNode &attr : detail::attrs(*loop))
       detail::verifyAttr(*this, *loop, detail::getRawAttrName(attr));
@@ -204,9 +207,15 @@ KitVerifier &KitVerifier::verify(const CallBase &call) {
   }
 }
 
-KitVerifier &KitVerifier::verify(const Instruction &inst) {
+KitVerifier &KitVerifier::verify(const Instruction &inst,
+                                 const Analyses &analyses) {
   for (const MDNode &attr : detail::attrs(inst))
     detail::verifyAttr(*this, inst, detail::getRawAttrName(attr));
+
+  if (std::optional<TTID> tti = getTargetAttr(inst))
+    if (Loop *loop = getTapirLoopFor(inst, analyses.li))
+      if (std::optional<TTID> ttl = getTargetAttr(*loop))
+        check(tti == ttl, DiagID::ErrAttrInstLoopTargetMismatch, *tti, *ttl);
 
   if (const auto *call = dyn_cast<CallBase>(&inst))
     return verify(*call);

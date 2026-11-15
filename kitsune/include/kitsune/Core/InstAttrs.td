@@ -34,8 +34,8 @@ class InstAttr<Type ValueType = VoidTy> : AttrBase<ValueType> { }
 
 //------------------------------------------------------------------------------
 
-// The value of this attribute is the nearest loop to which the instruction
-// originally (before any optimizations) belonged.
-def SourceLoop : InstAttr<LoopIDTy> {
-  let Documentation = KitSourceLoopDoc;
+// The tapir target for a detach, reattach, or sync, instruction.
+def Target : InstAttr<TTIDTy> {
+  let HasCustomVerifier = true;
+  let Documentation = KitInstTargetDoc;
 }

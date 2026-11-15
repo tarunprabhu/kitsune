@@ -131,3 +131,21 @@ DEFN_ATTR_GENERIC(Instruction, InstAttrKind)
 // Add custom attribute verifiers here. In general, you should not modify
 // anything above this line unless you are modifying a core part of the
 // attribute implementation.
+
+void llvm::verifyTargetAttr(KitVerifier &v, const Instruction &inst,
+                            const TTID &tt) {
+  v.check(
+      isa<DetachInst>(inst) || isa<ReattachInst>(inst) || isa<SyncInst>(inst),
+      DiagID::ErrAttrInstKind, InstAttrKind::Target, getInstClassName(inst));
+
+  // TODO: We should find pairs of detach/reattach instructions, then ensure
+  // that they form a SESE region. But that requires proper support for tasks,
+  // which requires quite a bit more work, and it is not yet clear if, and how,
+  // to go about that.
+  //
+  // Since we have very limited for now, we require the tapir target to be
+  // serial since the lowering for such cases involves simply replacing the
+  // instructions with unconditional branches.
+  v.check(tt == TTID::Serial, DiagID::ErrGeneric,
+          "the only target allowed on instructions is 'serial'");
+}

@@ -18,11 +18,13 @@
 namespace llvm {
 
 class Argument;
+class DominatorTree;
 class Function;
 class GlobalAlias;
 class GlobalIFunc;
 class GlobalVariable;
 class Instruction;
+class LoopInfo;
 class Module;
 class raw_ostream;
 
@@ -31,7 +33,13 @@ class raw_ostream;
 /// points to run this verifier are in the implementations of the top-level
 /// \ref verifyFunction and \ref verifyModule functions.
 class KitVerifier {
-private:
+protected:
+  struct Analyses {
+    DominatorTree &dt;
+    LoopInfo &li;
+  };
+
+protected:
   raw_ostream *os = nullptr;
   bool res = true;
 
@@ -46,7 +54,7 @@ protected:
   KitVerifier &verify(const GlobalAlias &g);
   KitVerifier &verify(const GlobalIFunc &g);
   KitVerifier &verify(const GlobalVariable &g);
-  KitVerifier &verify(const Instruction &inst);
+  KitVerifier &verify(const Instruction &inst, const Analyses &analyses);
   KitVerifier &verify(const Module &m);
 
 public:

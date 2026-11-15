@@ -95,6 +95,12 @@ def ErrAttrGlobalNoInit
 def ErrAttrGlobalBadInit
   : Error<"global with attribute '{}': invalid initializer. {}">;
 
+def ErrAttrInstKind
+  : Error<"attribute '{}' not allowed on '{}' instruction">;
+
+def ErrAttrInstLoopTargetMismatch
+  : Error<"target attribute mismatch between instruction ('{}') and containing loop ('{}')">;
+
 def ErrTooManyBitCodeGlobals
   : Error<"too many embedded bitcode globals for tapir target '{}'">;
 

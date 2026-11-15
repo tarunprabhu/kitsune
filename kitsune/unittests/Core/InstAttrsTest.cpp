@@ -23,7 +23,18 @@ namespace {
 
 // Override get<>() and verifyAttr<> if needed. See documentation in the base
 // class for details.
-class KitInstAttrs : public TestAttrsBase<KitInstAttrs, InstAttrKind> {};
+class KitInstAttrs : public TestAttrsBase<KitInstAttrs, InstAttrKind> {
+public:
+  template <typename T, InstAttrKind Attr> T get(unsigned idx) {
+    // At this time, the value of the "kit.inst.target" attribute must be
+    // TTID::Serial. Even when this constraint is relaxed, it is likely that
+    // it will not allowed to correspond to a GPU-centric tapir target.
+    if constexpr (Attr == InstAttrKind::Target)
+      return TTID::Serial;
+    else
+      return TestAttrsBase::get<T>(idx);
+  }
+};
 
 TEST_F(KitInstAttrs, attrName) {
 #define INST_ATTR(NAME, IRNAME, ...)                                           \

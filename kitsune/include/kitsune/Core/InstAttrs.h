@@ -15,6 +15,7 @@
 #define KITSUNE_CORE_INST_ATTRS_H
 
 #include "kitsune/Core/AttrsDeclMacros.h"
+#include "kitsune/Core/TTID.h"
 #include "llvm/ADT/StringRef.h"
 
 namespace llvm {
