@@ -14,6 +14,7 @@
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Passes/Passes.h"
 #include "kitsune/Support/CommandLineOptions.h"
+#include "llvm/IR/Verifier.h"
 #include "llvm/Transforms/IPO/GlobalDCE.h"
 #include "llvm/Transforms/InstCombine/InstCombine.h"
 #include "llvm/Transforms/Scalar/ADCE.h"
@@ -26,6 +27,7 @@
 #include "llvm/Transforms/Scalar/LoopSimplifyCFG.h"
 #include "llvm/Transforms/Scalar/SCCP.h"
 #include "llvm/Transforms/Scalar/SimplifyCFG.h"
+#include "llvm/Transforms/Tapir/LoopSpawningTI.h"
 #include "llvm/Transforms/Utils/LCSSA.h"
 #include "llvm/Transforms/Utils/LoopSimplify.h"
 #include "llvm/Transforms/Utils/TaskSimplify.h"
@@ -35,6 +37,11 @@ using namespace llvm;
 static cl::opt<bool>
     clPrintTTOptions("print-tt-options", cl::init(false),
                      cl::desc("Write the tapir target options to stdout"),
+                     cl::Hidden, cl::cat(cl::catKitClOpts));
+
+static cl::opt<bool>
+    clVerifySpawning("kit-verify-spawning", cl::init(false),
+                     cl::desc("Verify the module after loop/task spawning"),
                      cl::Hidden, cl::cat(cl::catKitClOpts));
 
 bool llvm::isKitsuneOrTapirPipelineAlias(StringRef name) {
@@ -298,9 +305,10 @@ llvm::populateKitPreVectorizePasses(PassBuilder &pb, OptimizationLevel optLevel,
   return mpm;
 }
 
-ModulePassManager llvm::populateKitPreLoopSpawningPasses(
-    PassBuilder &pb, OptimizationLevel optLevel, ThinOrFullLTOPhase ltoPhase,
-    const PipelineTuningOptions &pto) {
+ModulePassManager
+llvm::populateKitPreSpawningPasses(PassBuilder &pb, OptimizationLevel optLevel,
+                                   ThinOrFullLTOPhase ltoPhase,
+                                   const PipelineTuningOptions &pto) {
   ModulePassManager mpm;
 
   // At optimization level O0, loop spawning will not be run, so there is no
@@ -324,9 +332,25 @@ ModulePassManager llvm::populateKitPreLoopSpawningPasses(
   return mpm;
 }
 
-ModulePassManager llvm::populateKitPostLoopSpawningPasses(
-    PassBuilder &pb, OptimizationLevel optLevel, ThinOrFullLTOPhase ltoPhase,
-    const PipelineTuningOptions &pto) {
+ModulePassManager
+llvm::populateKitSpawningPasses(PassBuilder &pb, OptimizationLevel optLevel,
+                                ThinOrFullLTOPhase ltoPhase,
+                                const PipelineTuningOptions &pto) {
+  ModulePassManager mpm;
+
+  if (optLevel != OptimizationLevel::O0) {
+    addModulePass<LoopSpawningPass>(mpm, pto.TTOpts);
+    if (clVerifySpawning)
+      addModulePass<VerifierPass>(mpm);
+  }
+
+  return mpm;
+}
+
+ModulePassManager
+llvm::populateKitPostSpawningPasses(PassBuilder &pb, OptimizationLevel optLevel,
+                                    ThinOrFullLTOPhase ltoPhase,
+                                    const PipelineTuningOptions &pto) {
   ModulePassManager mpm;
 
   // At optimization level O0, loop spawning will not be run, so there is no

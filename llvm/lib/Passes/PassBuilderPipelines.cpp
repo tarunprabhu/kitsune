@@ -1909,10 +1909,10 @@ PassBuilder::buildTapirLoopLoweringPipeline(OptimizationLevel Level,
                                               /*UseMemorySSA=*/false));
   MPM.addPass(createModuleToFunctionPassAdaptor(std::move(FPM)));
 
-  MPM.addPass(populateKitPreLoopSpawningPasses(*this, Level, Phase, PTO));
+  MPM.addPass(populateKitPreSpawningPasses(*this, Level, Phase, PTO));
 
   // Outline Tapir loops as needed.
-  MPM.addPass(LoopSpawningPass(PTO.TTOpts));
+  MPM.addPass(populateKitSpawningPasses(*this, Level, Phase, PTO));
   if (VerifyTapirLowering)
     MPM.addPass(VerifierPass());
 
@@ -1922,7 +1922,7 @@ PassBuilder::buildTapirLoopLoweringPipeline(OptimizationLevel Level,
     MPM.addPass(createModuleToFunctionPassAdaptor(
         buildFunctionSimplificationPipeline(Level, Phase)));
 
-  MPM.addPass(populateKitPostLoopSpawningPasses(*this, Level, Phase, PTO));
+  MPM.addPass(populateKitPostSpawningPasses(*this, Level, Phase, PTO));
 
   return MPM;
 }
