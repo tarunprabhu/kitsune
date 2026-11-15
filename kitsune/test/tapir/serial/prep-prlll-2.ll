@@ -8,6 +8,24 @@
 ; CHECK-SAME: i64 %[[N1:[^,]+]]
 ; CHECK-SAME: i64 %[[N2:[^)]+]]
 ; CHECK-NEXT: [[ENTRY:.+]]:
+; CHECK-NEXT: br label %[[GUARDW:.+]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[GUARDW]]:
+; CHECK-NEXT: %[[SRW:.+]] = call token @llvm.syncregion.start()
+; CHECK-NEXT: br i1 true, label %[[PHW:.+]], label %[[BYPASSW:.+]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[PHW]]:
+; CHECK-NEXT: %[[THRDS:.+]] = call i64 @llvm.kit.cpu.num.threads(i32 1)
+; CHECK-NEXT: br label %[[HEADERW:.+]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[HEADERW]]:
+; CHECK-NEXT: %[[THRD:.+]] = phi i64
+; CHECK-SAME: [ 0, %[[PHW]] ],
+; CHECK-SAME: [ %[[INCW:.+]], %[[LATCHW:.+]] ]
+; CHECK-NEXT: detach within %[[SRW]], label %[[GUARD1:.+]], label %[[LATCHW]]
+; CHECK-SAME: !kit.inst ![[DETACH:[0-9]+]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[GUARD1]]:
 ; CHECK-NEXT: %[[CMPN1:.+]] = icmp ult i64 0, %[[N1]]
 ; CHECK-NEXT: br i1 %[[CMPN1]], label %[[PH1:.+]], label %[[BYPASS1:.+]]
 ; CHECK-EMPTY:
@@ -61,13 +79,41 @@
 ; CHECK-NEXT: br label %[[BYPASS1]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[BYPASS1]]:
-; CHECK-NEXT: br label %[[EXIT:.+]]
+; CHECK-NEXT: br label %[[REATTACHW:.+]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[REATTACHW]]:
+; CHECK-NEXT: reattach within %[[SRW]], label %[[LATCHW]]
+; CHECK-SAME: !kit.inst ![[REATTACH:[0-9]+]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[LATCHW]]:
+; CHECK-NEXT: %[[INCW]] = add nuw i64 %[[THRD]], 1
+; CHECK-NEXT: %[[CMPW:.+]] = icmp eq i64 %[[INCW]], %[[THRDS]]
+; CHECK-NEXT: br i1 %[[CMPW]], label %[[LOOPEXITW:.+]], label %[[HEADERW]]
+; CHECK-SAME: !llvm.loop ![[LOOPW:[0-9]+]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[LOOPEXITW]]:
+; CHECK-NEXT: br label %[[BYPASSW]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[BYPASSW]]:
+; CHECK-NEXT: sync within %[[SRW]], label %[[EXIT:[^,]+]]
+; CHECK-SAME: !kit.inst ![[SYNC:[0-9]+]]
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[EXIT]]
 ; CHECK-NEXT: ret void
-
+;
+; CHECK-DAG: ![[DEPTH:[0-9]+]] = !{!"tapir.loop.perfect.depth", i32 1}
+; CHECK-DAG: ![[LEVEL:[0-9]+]] = !{!"tapir.loop.perfect.level", i32 1}
+; CHECK-DAG: ![[PREPARED:[0-9]+]] = !{!"tapir.loop.prepared"}
+; CHECK-DAG: ![[TARGET_INST:[0-9]+]] = !{!"kit.inst.target", i32 1}
+; CHECK-DAG: ![[TARGET_LOOP:[0-9]+]] = !{!"tapir.loop.target", i32 1}
+;
+; CHECK-DAG: ![[DETACH]] = distinct !{![[DETACH]], ![[TARGET_INST]]}
+; CHECK-DAG: ![[REATTACH]] = distinct !{![[REATTACH]], ![[TARGET_INST]]}
+; CHECK-DAG: ![[SYNC]] = distinct !{![[SYNC]], ![[TARGET_INST]]}
+;
 ; CHECK-DAG: ![[LOOP1]] = distinct !{![[LOOP1]]}
 ; CHECK-DAG: ![[LOOP2]] = distinct !{![[LOOP2]]}
+; CHECK-DAG: ![[LOOPW]] = distinct !{![[LOOPW]], ![[TARGET_LOOP]], ![[DEPTH]], ![[LEVEL]], ![[PREPARED]]}
 
 define void @f(i64 %n1, i64 %n2) {
 entry:

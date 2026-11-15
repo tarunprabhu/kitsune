@@ -18,6 +18,7 @@
 #include "PrepareTapirLoopsImpl.h"
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Core/IRBuilderUtils.h"
+#include "kitsune/Core/InstAttrs.h"
 #include "kitsune/Core/InstUtils.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
@@ -51,6 +52,13 @@ static void serializeLoop(Loop &loop, DominatorTree &dt) {
     ReplaceInstWithInst(sync, br);
     cast<Instruction>(sr)->eraseFromParent();
   }
+}
+
+static void addWrapperLoopAttrs(Loop &wrapperLoop) {
+  // The depth of the outer loop will be 1 since all the inner loops will have
+  // been serialized.
+  addPerfectDepthAttr(wrapperLoop, 1);
+  addPreparedAttr(wrapperLoop);
 }
 
 namespace {
@@ -99,8 +107,8 @@ protected:
 
 protected:
   Value *wrapLoopWithContext(Loop &root);
-  void updateWrapperBounds(Loop &wrapperLoop, Value *outerTC);
-  void updateLoopBounds(Loop &wrapperLoop, Loop &loop, Value *ctx);
+  void updateBoundsOfWrapperLoop(Loop &wrapperLoop, Value *nestCtx);
+  void updateBoundsOfSubLoop(Loop &wrapperLoop, Loop &loop, Value *nestCtx);
 
 public:
   PrepareTapirNestParallel(DominatorTree &dt, LoopInfo &li, MemorySSA &mssa,
@@ -212,8 +220,8 @@ Value *PrepareTapirNestParallel::wrapLoopWithContext(Loop &wrapperLoop) {
 //           ...
 //     __kitrt_nest_end(ctx)
 //
-void PrepareTapirNestParallel::updateWrapperBounds(Loop &wrapperLoop,
-                                                   Value *ctx) {
+void PrepareTapirNestParallel::updateBoundsOfWrapperLoop(Loop &wrapperLoop,
+                                                         Value *ctx) {
   auto sanityCheck = [](const Loop &wrapperLoop, Value *ctx,
                         ScalarEvolution &se) {
     assert(wrapperLoop.getCanonicalInductionVariable() &&
@@ -245,8 +253,7 @@ void PrepareTapirNestParallel::updateWrapperBounds(Loop &wrapperLoop,
   };
 
   LLVM_DEBUG(
-      dbgs()
-      << "PrepareTapirNestParallel: Update outer loop induction variable\n");
+      dbgs() << "PrepareTapirNestParallel: Update wrapper loop bounds\n");
   sanityCheck(wrapperLoop, ctx, se);
 
   IRBuilder<> builder(cast<Instruction>(ctx)->getNextNode());
@@ -306,8 +313,9 @@ void PrepareTapirNestParallel::updateWrapperBounds(Loop &wrapperLoop,
 // Here, beg and end are declared in the entry block of the function containing
 // the loop. The call to __kitrt_nest_bounds is added to the lopo guard block.
 //
-void PrepareTapirNestParallel::updateLoopBounds(Loop &wrapperLoop, Loop &loop,
-                                                Value *nestCtx) {
+void PrepareTapirNestParallel::updateBoundsOfSubLoop(Loop &wrapperLoop,
+                                                     Loop &loop,
+                                                     Value *nestCtx) {
   auto sanityCheck = [](const Loop &wrapperLoop, const Loop &loop,
                         ScalarEvolution &se) {
     assert(wrapperLoop.getCanonicalInductionVariable() &&
@@ -429,7 +437,7 @@ bool PrepareTapirNestParallel::run(TapirLoopInfo &tapirLoop) {
 
   Loop *wrapperLoop = wrapWithTapirLoop(tapirLoop, dt, li, mssa, se, ti);
   Value *ctx = wrapLoopWithContext(*wrapperLoop);
-  updateWrapperBounds(*wrapperLoop, ctx);
+  updateBoundsOfWrapperLoop(*wrapperLoop, ctx);
 
   // It may not be strictly necessary to process the loops from inside out, but
   // it may allow us to avoid recalculating TaskInfo after each loop is
@@ -437,14 +445,11 @@ bool PrepareTapirNestParallel::run(TapirLoopInfo &tapirLoop) {
   SmallVector<Loop *, 4> loops = getTapirLoopsInNest(*wrapperLoop);
   for (unsigned i = loops.size() - 1; i > 0; --i) {
     Loop &loop = *loops[i];
-    updateLoopBounds(*wrapperLoop, loop, ctx);
+    updateBoundsOfSubLoop(*wrapperLoop, loop, ctx);
     serializeLoop(loop, dt);
   }
 
-  // The depth of the outer loop will be 1 since all the inner loops will have
-  // been serialized.
-  addPerfectDepthAttr(*wrapperLoop, 1);
-  addPreparedAttr(*wrapperLoop);
+  addWrapperLoopAttrs(*wrapperLoop);
 
 #ifndef NDEBUG
   dt.verify();
@@ -456,6 +461,8 @@ bool PrepareTapirNestParallel::run(TapirLoopInfo &tapirLoop) {
   ti.recalculate(f, dt);
 
 #ifndef NDEBUG
+  ti.verify(dt);
+
   // Check that the outermost loop after the tapir loop nest has been prepared
   // is a parallel loop. All inner loops must be serial loops.
   assert(getTaskIfTapirLoop(wrapperLoop, &ti) &&
@@ -472,75 +479,218 @@ bool PrepareTapirNestParallel::run(TapirLoopInfo &tapirLoop) {
 
 //==------------------------------------------------------------------------==//
 
-static bool prepareTapirNestSerial(Loop &loop, DominatorTree &dt,
-                                   TaskInfo &ti) {
-  // We will be lazy and just serialize everything here.
-  //
-  // ---------------------------------- FIXME ----------------------------------
-  //
-  // FIXME: This is really *NOT* what we ought to be doing. This gets rid of
-  // tapir loops very early in the pipeline, but we may want to keep them around
-  // to do some sort of analysis. Yes, these are loops with the serial tapir
-  // target and are very unlikely to ever be seen in practice, but it is the
-  // principle of the thing. But transforming this in some sort of sane way is
-  // challenging.
-  //
-  // If we were to use the same approach that we use for parallel loops, we end
-  // up with a loop nest context, calls to __kitrt_nest_threads and
-  // __kitrt_nest_bounds even for serial loops. We know that this unnecessary
-  // because __kitrt_nest_threads is guaranteed to return 1 and
-  // __kitrt_nest_bounds will return the original bounds of the loop. This is a
-  // lot of overhead for no good reasons. Besides, we want the output of the
-  // serial tapir target to be no different than a serial compilation of the
-  // code.
-  //
-  // Instead of wrapping the nest with a context object, we could simply wrap it
-  // with a tapir loop that iterates over `[0, @llvm.kit.cpu.num.threads(1))`.
-  // During early intrinsic lowering, the intrinsic call is replaced with 1,
-  // following which the loop is discarded. The problem with this is that the
-  // loop is discarded by a combination of instcombine and simplifycfg, neither
-  // of which know about tapir loops. When they remove the backedge etc, we are
-  // left with a detach-reattach pair that are not part of a loop - something
-  // that we do not currently allow.
-  //
-  // A third option would be to tile the innermost tapir loop in the nest with
-  // the outer loop of the tile iterating over
-  // `[0, @llvm.kit.cpu.num.threads(1))`. This would work a bit better, but
-  // again, it is a lot of work to eventually get back to a standard serial loop
-  // nest.
-  //
-  // We could try only serializing the innermost loop in the nest, which is an
-  // awkward compromise at best. Besides, for tapir loops of depth 1, we would
-  // anyway just be getting rid of the tapir loop anyway.
-  //
-  // Given what an annoying mess this has become, we just serialize everything
-  // for now, with the intention of coming back to this at some point. It does
-  // render the serial tapir target redundant since, by the time we get to
-  // loop-spawning, there will be no tapir loops left to spawn. That is
-  // unfortunate, but we will stick with that for now.
-  // ---------------------------------------------------------------------------
+namespace {
 
-  assert(isTopLevelTapirLoop(loop) && "Loop is a top-level tapir loop");
+// Transform a tapir loop nest with the serial tapir target for parallel
+// execution. Consider a tapir loop nest of depth 3 as shown below:
+//
+//     parallel_for (i1 : [0, n1])
+//         parallel_for (i2 : [0, n2])
+//             parallel_for (i3 : [0, n3])
+//                 ...
+//
+// This will be transformed to the following:
+//
+//     sysThrds = @kit.cpu.num.threads()
+//     parallel_for (t : [0, sysThrds])
+//         for (i1 : [0, n1])
+//             for (i2 : [0, n2])
+//                 for (i3 : [0, e3])
+//                     ...
+//
+// Essentially, this wraps a parallel loop around the original loop nest. This
+// outer loop iterates over the total number of threads available at runtime.
+// Since the tapir target is serial, this will be 1, but we will get that value
+// when the @kit.cpu.num.threads intrinsic is lowered. The original parallel
+// loops are all serialized, but the trip counts are not adjusted since we
+// know that the outer parallel loop will eventually be optimized away. We need
+// a tapir loop here because several passes that run later in the pipeline,
+// such as those that compute suitable lowering strategies for reductions, only
+// operate on tapir loops.
+//
+class PrepareTapirNestSerial {
+protected:
+  DominatorTree &dt;
+  LoopInfo &li;
+  MemorySSA &mssa;
+  ScalarEvolution &se;
+  TaskInfo &ti;
 
-  SmallVector<Loop *, 4> loops = getTapirLoopsInNest(loop);
-  for (unsigned i = loops.size(); i > 0; --i) {
+protected:
+  void addInstTargetAttr(Loop &wrapperLoop);
+  void updateBoundsOfWrapperLoop(Loop &wrapperLoop);
+  void serializeSubLoops(const SmallVectorImpl<Loop *> &loops);
+
+public:
+  PrepareTapirNestSerial(DominatorTree &dt, LoopInfo &li, MemorySSA &mssa,
+                         ScalarEvolution &se, TaskInfo &ti)
+      : dt(dt), li(li), mssa(mssa), se(se), ti(ti) {}
+  bool run(TapirLoopInfo &tapirLoop);
+};
+
+} // namespace
+
+void PrepareTapirNestSerial::updateBoundsOfWrapperLoop(Loop &wrapperLoop) {
+  auto sanityCheck = [](const Loop &wrapperLoop, ScalarEvolution &se) {
+    assert(getTargetAttr(wrapperLoop) == TTID::Serial &&
+           "Wrapper loop has the serial target");
+
+    assert(wrapperLoop.getLoopPreheader() && "Wrapper loop has a preheader");
+    assert(wrapperLoop.getCanonicalInductionVariable() &&
+           "Wrapper loop has a canonical induction variable");
+    assert(wrapperLoop.getLoopLatch() && "Wrapper loop has a unique latch");
+    assert(wrapperLoop.getLatchCmpInst() &&
+           "Wrapper loop has a unique compare instruction");
+
+    [[maybe_unused]] std::optional<Loop::LoopBounds> bounds =
+        wrapperLoop.getBounds(se);
+    assert(bounds.has_value() && "Wrapper loop has computable bounds");
+
+    [[maybe_unused]] PHINode *iv = wrapperLoop.getCanonicalInductionVariable();
+    [[maybe_unused]] Instruction *step = &bounds->getStepInst();
+    assert(step->getOperand(0) == iv &&
+           "First operand of step instruction is indction variable");
+    assert(isIntOne(step->getOperand(1)) &&
+           "Second operand of step instruction is 1");
+
+    [[maybe_unused]] ICmpInst *cmp = wrapperLoop.getLatchCmpInst();
+    assert(cmp->getPredicate() == CmpInst::ICMP_EQ &&
+           "Predicate of compare instruction is EQ");
+    assert(cmp->getOperand(0) == step &&
+           "First operand of compare instruction is the step");
+    assert(isZero(cmp->getOperand(1)) &&
+           "Second argument of compare instruction is 0");
+  };
+
+  LLVM_DEBUG(dbgs() << "PrepareTapirNestSerial: Update wrapper loop bounds\n");
+  sanityCheck(wrapperLoop, se);
+
+  LLVMContext &ctx = getContext(wrapperLoop);
+  Constant *tt = toConstant(*getTargetAttr(wrapperLoop), ctx);
+
+  BasicBlock *ph = wrapperLoop.getLoopPreheader();
+  Loop::LoopBounds bounds = *wrapperLoop.getBounds(se);
+  PHINode *iv = wrapperLoop.getCanonicalInductionVariable();
+  ICmpInst *cmp = wrapperLoop.getLatchCmpInst();
+  Instruction *inc = &bounds.getStepInst();
+
+  IRBuilder<> builder(ph->getTerminator());
+  Value *thrds = builder.CreateIntrinsic(Intrinsic::kit_cpu_num_threads, {tt});
+
+  replaceNonMatchingOperands(*cmp, inc, thrds);
+
+  // Update analyses that may have been invalidated. We can't recalculate SE,
+  // but we can force it recompute the analyses for certain variables and loops
+  // when they are next requested.
+  se.forgetValue(iv);
+  se.forgetValue(cmp);
+  se.forgetLoop(&wrapperLoop);
+
+#ifndef NDEBUG
+  se.verify();
+#endif // NDEBUG
+}
+
+void PrepareTapirNestSerial::addInstTargetAttr(Loop &wrapperLoop) {
+  auto sanityCheck = [](const Loop &wrapperLoop) {
+    assert(getTargetAttr(wrapperLoop) == TTID::Serial &&
+           "Target of the wrapper loop is 'serial'");
+
+    [[maybe_unused]] BasicBlock *bypass =
+        getLoopBypassBlock(wrapperLoop, /*allowDeadEndExits=*/false);
+    assert(bypass && "Wrapper loop has a bypass block");
+
+    [[maybe_unused]] Instruction *term = bypass->getTerminator();
+    assert(isa<SyncInst>(term) &&
+           "Terminator of wrapper loop bypass block is a sync instruction");
+
+    assert(getUniqueInstInLoopOnly<DetachInst>(wrapperLoop) &&
+           "Wrapper loop has a unique detach instruction");
+    assert(getUniqueInstInLoopOnly<ReattachInst>(wrapperLoop) &&
+           "Wrapper loop has a unique reattach instruction");
+  };
+
+  sanityCheck(wrapperLoop);
+
+  BasicBlock *bypass =
+      getLoopBypassBlock(wrapperLoop, /*allowDeadEndExits=*/false);
+  DetachInst *detach = getUniqueInstInLoopOnly<DetachInst>(wrapperLoop);
+  ReattachInst *reattach = getUniqueInstInLoopOnly<ReattachInst>(wrapperLoop);
+  SyncInst *sync = cast<SyncInst>(bypass->getTerminator());
+
+  // The trip count of the wrapper loop is @llvm.kit.cpu.num.threads which will
+  // be lowered to 1 early in the middle end. Later optimization passes will
+  // then remove the loop backedge leaving the detach and reattach instructions
+  // outside of a tapir loop. We must add the target attribute to at least the
+  // detach and reattach instructions so the instructions will be correctly
+  // lowered by Kitsune's TaskSpawning pass.
+  TTID tt = *getTargetAttr(wrapperLoop);
+  addTargetAttr(*detach, tt);
+  addTargetAttr(*reattach, tt);
+  addTargetAttr(*sync, tt);
+}
+
+void PrepareTapirNestSerial::serializeSubLoops(
+    const SmallVectorImpl<Loop *> &loops) {
+  for (unsigned i = loops.size() - 1; i > 0; --i) {
     // We don't pass TaskInfo because recalculating it currently involves
     // recalculating it for the entire function. If we have to incur that cost,
     // it might as well be once per loop nest instead of once per loop.
-    serializeLoop(*loops[i - 1], dt);
+    serializeLoop(*loops[i], dt);
   }
+}
 
-  // FIXME: There is wasteful, but there is currently no better way to update
-  // TaskInfo.
-  Function &f = *getFunction(loop);
+bool PrepareTapirNestSerial::run(TapirLoopInfo &tapirLoop) {
+  auto sanityCheck = [](const TapirLoopInfo &tapirLoop) {
+    const Loop &loop = *tapirLoop.getLoop();
+
+    // These checks are mostly to ensure that the loop objects known to the
+    // driver don't get corrupted when processing a function with many tapir
+    // loops.
+    assert(isTapirLoop(loop) && "Loop is a tapir loop");
+    assert(!hasPreparedAttr(loop) && "Tapir loop has not been prepared");
+    assert(getTargetAttr(loop) == TTID::Serial &&
+           "Tapir loop has the serial tapir target");
+  };
+
+  StringRef name = getName(*tapirLoop.getLoop());
+  LLVM_DEBUG(dbgs() << "PrepareTapirNestSerial: BEGIN '" << name << "'\n");
+  sanityCheck(tapirLoop);
+
+  Loop *wrapperLoop = wrapWithTapirLoop(tapirLoop, dt, li, mssa, se, ti);
+  SmallVector<Loop *, 4> loops = getTapirLoopsInNest(*wrapperLoop);
+
+  updateBoundsOfWrapperLoop(*wrapperLoop);
+  serializeSubLoops(loops);
+  addInstTargetAttr(*wrapperLoop);
+  addWrapperLoopAttrs(*wrapperLoop);
+
+#ifndef NDEBUG
+  dt.verify();
+#endif // NDEBUG
+
+  // FIXME: This is wasteful, but, at this time, there does not seem to be a
+  // better way to do this.
+  Function &f = *getFunction(*wrapperLoop);
   ti.recalculate(f, dt);
 
 #ifndef NDEBUG
   ti.verify(dt);
+
+  // Check that the outermost loop after the tapir loop nest has been prepared
+  // is a parallel loop. All inner loops must be serial loops.
+  assert(getTaskIfTapirLoop(wrapperLoop, &ti) &&
+         "Prepared wrapper loop is a tapir loop");
+  for (unsigned i = 1, e = loops.size(); i < e; ++i)
+    assert(!getTaskIfTapirLoop(loops[i], &ti) &&
+           "Prepared loop is not a tapir loop");
 #endif // NDEBUG
 
+  LLVM_DEBUG(dbgs() << "PrepareTapirNestSerial: END '" << name << "'\n");
   return true;
 }
+
+//==------------------------------------------------------------------------==//
 
 bool llvm::detail::prepareTapirNestCPU(TapirLoopInfo &tapirLoop,
                                        DominatorTree &dt, LoopInfo &li,
@@ -548,7 +698,7 @@ bool llvm::detail::prepareTapirNestCPU(TapirLoopInfo &tapirLoop,
                                        TaskInfo &ti) {
   Loop &loop = *tapirLoop.getLoop();
   if (*getTargetAttr(loop) == TTID::Serial)
-    return prepareTapirNestSerial(loop, dt, ti);
+    return PrepareTapirNestSerial(dt, li, mssa, se, ti).run(tapirLoop);
   else
     return PrepareTapirNestParallel(dt, li, mssa, se, ti).run(tapirLoop);
 }
