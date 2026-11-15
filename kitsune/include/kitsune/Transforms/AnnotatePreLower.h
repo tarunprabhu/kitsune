@@ -1,4 +1,4 @@
-//==- PreLowerAnnotate.h - Add annotations before tapir lowering -*- C++ -*-==//
+//==- AnnotatePreLower.h - Add annotations before tapir lowering -*- C++ -*-==//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -10,8 +10,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef KITSUNE_TRANSFORMS_PRE_LOWER_ANNOTATE_H
-#define KITSUNE_TRANSFORMS_PRE_LOWER_ANNOTATE_H
+#ifndef KITSUNE_TRANSFORMS_ANNOTATE_PRE_LOWER_H
+#define KITSUNE_TRANSFORMS_ANNOTATE_PRE_LOWER_H
 
 #include "kitsune/Core/FuncAttrs.h"
 #include "kitsune/Passes/PassUtils.h"
@@ -23,15 +23,15 @@ namespace llvm {
 /// Add Kitsune-specific annotations that will be used by passes that run later
 /// in the pipeline. This pass is intended to run just before tapir loop
 /// lowering.
-class PreLowerAnnotatePass : public PassInfoMixin<PreLowerAnnotatePass> {
+class AnnotatePreLowerPass : public PassInfoMixin<AnnotatePreLowerPass> {
 public:
   PreservedAnalyses run(Function &f, FunctionAnalysisManager &am);
 
-  static constexpr auto hasRunAttr = FuncAttrKind::PreLowerAnnotatePass;
+  static constexpr auto hasRunAttr = FuncAttrKind::AnnotatePreLowerPass;
 };
 
-static_assert(check_pass_requirable<PreLowerAnnotatePass>());
+static_assert(check_pass_requirable<AnnotatePreLowerPass>());
 
 } // namespace llvm
 
-#endif // KITSUNE_TRANSFORMS_PRE_LOWER_ANNOTATE_H
+#endif // KITSUNE_TRANSFORMS_ANNOTATE_PRE_LOWER_H

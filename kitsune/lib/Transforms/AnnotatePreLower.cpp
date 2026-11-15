@@ -1,4 +1,4 @@
-//===- PreLowerAnnotate.cpp - Add annotations before tapir lowering -------===//
+//===- AnnotatePreLower.cpp - Add annotations before tapir lowering -------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -20,7 +20,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Transforms/PreLowerAnnotate.h"
+#include "kitsune/Transforms/AnnotatePreLower.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
 #include "llvm/ADT/SmallSet.h"
@@ -41,7 +41,7 @@ static void addLoweringEnabledAttrs(LoopInfo &li) {
     addLoweringEnabledAttr(*loop);
 }
 
-PreservedAnalyses PreLowerAnnotatePass::run(Function &f,
+PreservedAnalyses AnnotatePreLowerPass::run(Function &f,
                                             FunctionAnalysisManager &am) {
   LoopInfo &li = am.getResult<LoopAnalysis>(f);
 

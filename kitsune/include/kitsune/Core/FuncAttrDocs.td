@@ -37,7 +37,7 @@ the dimensionality of the kernel.
 }];
 }
 
-def KitPreLowerAnnotatePassDoc : KitDocAttr {
+def KitAnnotatePreLowerPassDoc : KitDocAttr {
   let Documentation = [{
 The presence of this attribute indicates that the `kit-annotate-prelower`
 pass has been run on the function.

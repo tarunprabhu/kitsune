@@ -1,5 +1,6 @@
 add_llvm_component_library(LLVMKitTransforms
   AnnotateEarly.cpp
+  AnnotatePreLower.cpp
   EmbLinkLibDeviceBitcode.cpp
   EmbLowerIntrinsics.cpp
   EmbPrepare.cpp
@@ -20,7 +21,6 @@ add_llvm_component_library(LLVMKitTransforms
   LowerIntrinsics.cpp
   LowerIntrinsicsEarly.cpp
   LowerReduceIntrinsics.cpp
-  PreLowerAnnotate.cpp
   PrefetchForDevice.cpp
   PrepareTapirLoops.cpp
   PrepareTapirLoopsCPU.cpp

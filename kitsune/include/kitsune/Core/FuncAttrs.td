@@ -38,6 +38,12 @@ def AnnotateEarlyPass : FuncAttr<> {
   let Documentation = KitAnnotateEarlyPassDoc;
 }
 
+// Flag indicating that the kit-annotate-prelower pass has been run on the
+// function.
+def AnnotatePreLowerPass : FuncAttr<> {
+  let Documentation = KitAnnotatePreLowerPassDoc;
+}
+
 // Flag indicating that the function is a "device function".
 def Device : FuncAttr<> {
   let HasCustomVerifier = true;
@@ -49,12 +55,6 @@ def Device : FuncAttr<> {
 def Kernel : FuncAttr<U32Ty> {
   let HasCustomVerifier = true;
   let Documentation = KitKernelDoc;
-}
-
-// Flag indicating that the kit-annotate-prelower pass has been run on the
-// function.
-def PreLowerAnnotatePass : FuncAttr<> {
-  let Documentation = KitPreLowerAnnotatePassDoc;
 }
 
 // Flag indicating that the kit-serialize pass has been run on the function.

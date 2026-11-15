@@ -13,7 +13,7 @@
 // O0-NOT:     Running pass:       InstrumentPass
 // O0-NOT:     Running pass:       SecondaryIVEliminationPass
 // O0-NOT:     Running pass:       PreLowerVerificationPass
-// O0-NOT:     Running pass:       PreLowerAnnotatePass
+// O0-NOT:     Running pass:       AnnotatePreLowerPass
 // O0-NOT:     Running pass:       TapirLoopNormalizePass
 // O0-NOT:     Running pass:       LoopSpawningPass
 // O0-NOT:     Running pass:       TapirToTargetPass
@@ -71,7 +71,7 @@
 // ... pipeline pre-loop-spawning
 // O123:       Running pass:       SecondaryIVEliminationPass
 // O123:       Running pass:       PreLowerVerificationPass
-// O123:       Running pass:       PreLowerAnnotatePass
+// O123:       Running pass:       AnnotatePreLowerPass
 // O123:       Running pass:       TapirLoopNormalizePass
 //
 // O123:       Running pass:       LoopSpawningPass

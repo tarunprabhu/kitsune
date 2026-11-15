@@ -8,7 +8,7 @@
 ; CHECK-SAME: !kit.func ![[MD:[0-9]+]]
 ;
 ; CHECK-DAG: ![[MD]] = distinct !{![[MD]], ![[FLAG:[0-9]+]]}
-; CHECK-DAG: ![[FLAG]] = !{!"kit.func.pre.lower.annotate.pass"}
+; CHECK-DAG: ![[FLAG]] = !{!"kit.func.annotate.pre.lower.pass"}
 
 define void @f() {
   ret void

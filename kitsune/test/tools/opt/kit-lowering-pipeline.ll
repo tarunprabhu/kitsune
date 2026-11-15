@@ -59,7 +59,7 @@
 ; ... pipeline pre-loop-spawning
 ; O123:        Running pass:       SecondaryIVEliminationPass
 ; O123:        Running pass:       PreLowerVerificationPass
-; O123:        Running pass:       PreLowerAnnotatePass
+; O123:        Running pass:       AnnotatePreLowerPass
 ; O123:        Running pass:       TapirLoopNormalizePass
 ;
 ; O123:        Running pass:       LoopSpawningPass

@@ -27,7 +27,7 @@
 ; DEFAULT-NOT: Running pass:       PrepareTapirLoopsPass
 ; DEFAULT-NOT: Running pass:       LocalizeReductionsPass
 ; DEFAULT-NOT: Running pass:       LowerIntrinsicsEarlyPass
-; DEFAULT-NOT: Running pass:       PreLowerAnnotatePass
+; DEFAULT-NOT: Running pass:       AnnotatePreLowerPass
 ; DEFAULT-NOT: Running pass:       LoopSpawningPass
 ; DEFAULT-NOT: Running pass:       HoistAllocasPass
 ; DEFAULT-NOT: Running pass:       EmbHoistAllocasPass
@@ -99,7 +99,7 @@
 ; ... pipeline pre-loop-spawning
 ; O123:        Running pass:       SecondaryIVEliminationPass
 ; O123:        Running pass:       PreLowerVerificationPass
-; O123:        Running pass:       PreLowerAnnotatePass
+; O123:        Running pass:       AnnotatePreLowerPass
 ;
 ; O123:        Running pass:       LoopSpawningPass
 ;

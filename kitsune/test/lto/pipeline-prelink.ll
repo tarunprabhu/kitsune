@@ -42,7 +42,7 @@
 ;
 ; O123-NOT:    Running pass:       SecondaryIVEliminationPass
 ; O123-NOT:    Running pass:       PreLowerVerificationPass
-; O123-NOT:    Running pass:       PreLowerAnnotatePass
+; O123-NOT:    Running pass:       AnnotatePreLowerPass
 ; O123-NOT:    Running pass:       TapirLoopNormalizePass
 ; O123-NOT:    Running pass:       LoopSpawningPass
 ; O123-NOT:    Running pass:       HoistAllocasPass

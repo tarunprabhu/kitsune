@@ -315,7 +315,7 @@ ModulePassManager llvm::populateKitPreLoopSpawningPasses(
     mpm.addPass(createModuleToFunctionPassAdaptor(std::move(fpm)));
 
     addModulePass<PreLowerVerificationPass>(mpm);
-    addFunctionPass<PreLowerAnnotatePass>(mpm);
+    addFunctionPass<AnnotatePreLowerPass>(mpm);
     addFunctionPass<TapirLoopNormalizePass>(mpm);
 
     // TODO: Do we need to run the pre-lower verification pass here?
