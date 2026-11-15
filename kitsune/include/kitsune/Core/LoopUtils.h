@@ -198,6 +198,11 @@ bool isInLoop(const BasicBlock &bb, const Loop &loop, LoopInfo &li,
 /// not part of a basic block, or if that basic block is not part of a loop.
 Loop *getLoopFor(const Instruction &inst, LoopInfo &li);
 
+/// Get the nearest tapir loop that contains this instruction. Return false if
+/// it is not part of a basic block, of it that basic block is not part of a
+/// tapir loop.
+Loop *getTapirLoopFor(const Instruction &inst, LoopInfo &li);
+
 /// If the given induction variable has at least one use that is not in \p loop,
 /// return true. \p iv is expected to be an induction variable associated with
 /// \p loop.

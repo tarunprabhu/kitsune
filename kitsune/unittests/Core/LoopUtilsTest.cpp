@@ -1532,6 +1532,7 @@ header3:
 
 header4:
   %i4 = phi i64 [ 0, %header3 ], [ %inc4, %header4 ]
+  call void @ext()
   %inc4 = add i64 %i4, 1
   %cmp4 = icmp eq i64 %inc4, %n
   br i1 %cmp4, label %latch3, label %header4, !llvm.loop !7
@@ -1566,6 +1567,8 @@ sync1:
 exit:
   ret void
 }
+
+declare void @ext()
 
 !0 = !{!"tapir.loop.target", i32 1024}
 !1 = !{!"tapir.loop.perfect.level", i32 1}
@@ -1781,6 +1784,28 @@ TEST_F(KitLoopUtils, getLoopBypassBlock) {
     EXPECT_EQ(getLoopBypassBlock(loop, /*allowDeadEndExits=*/true)->getName(),
               "skip");
   }
+}
+
+TEST_F(KitLoopUtils, getTapirLoopFor) {
+  auto getCallInst = [](Function &f) -> Instruction * {
+    for (BasicBlock &bb : f)
+      for (Instruction &inst : bb)
+        if (auto *call = dyn_cast<CallInst>(&inst))
+          if (!call->getIntrinsicID())
+            return &inst;
+    return nullptr;
+  };
+
+  setup(ppss, "f");
+
+  EXPECT_FALSE(getTapirLoopFor(f->getEntryBlock().front(), *li));
+
+  Instruction *inst = getCallInst(*f);
+  Loop *loop = getTapirLoopFor(*inst, *li);
+  EXPECT_EQ(getName(*loop), "header2");
+
+  Instruction *detach = loop->getHeader()->getTerminator();
+  EXPECT_EQ(getName(*getTapirLoopFor(*detach, *li)), "header2");
 }
 
 } // namespace

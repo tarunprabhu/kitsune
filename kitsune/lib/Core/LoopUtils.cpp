@@ -436,6 +436,16 @@ Loop *llvm::getLoopFor(const Instruction &inst, LoopInfo &li) {
   return nullptr;
 }
 
+Loop *llvm::getTapirLoopFor(const Instruction &inst, LoopInfo &li) {
+  Loop *loop = getLoopFor(inst, li);
+  if (!loop)
+    return nullptr;
+  else if (isTapirLoop(*loop))
+    return loop;
+  else
+    return getNearestAncestorTapirLoop(*loop);
+}
+
 bool llvm::isUsedOutsideLoop(const PHINode &iv, const Loop &loop,
                              LoopInfo &li) {
   for (const User *user : iv.users()) {
