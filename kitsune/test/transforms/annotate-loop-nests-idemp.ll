@@ -58,7 +58,7 @@ for.i.end:
 !1 = distinct !{!1, !0}
 !2 = distinct !{!2, !0}
 !3 = distinct !{!3, !4}
-!4 = !{!"kit.func.early.annotate.pass"}
+!4 = !{!"kit.func.annotate.early.pass"}
 
 ; CHECK-DAG: ![[TARGET:[0-9]+]] = distinct !{!"tapir.loop.target", i32 1}
 ; CHECK-DAG: ![[PP_J]] = distinct !{![[PP_J]], ![[TARGET]]}

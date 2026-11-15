@@ -51,7 +51,7 @@
 !
 ! ... pipeline early
 ! O123:        Running pass:       EarlyVerificationPass
-! O123:        Running pass:       EarlyAnnotatePass
+! O123:        Running pass:       AnnotateEarlyPass
 !
 ! ... pipeline prepare
 ! O123:        Running pass:       SerializePass

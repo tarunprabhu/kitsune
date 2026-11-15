@@ -21,7 +21,7 @@
 ; RUN:     | FileCheck -check-prefix DEFAULT %s
 ;
 ; DEFAULT-NOT: Running pass:       EarlyVerificationPass
-; DEFAULT-NOT: Running pass:       EarlyAnnotatePass
+; DEFAULT-NOT: Running pass:       AnnotateEarlyPass
 ; DEFAULT-NOT: Running pass:       SerializePass
 ; DEFAULT-NOT: Running pass:       GuardLoopPass
 ; DEFAULT-NOT: Running pass:       PrepareTapirLoopsPass
@@ -80,7 +80,7 @@
 ;
 ; ... pipeline early
 ; O123:        Running pass:       EarlyVerificationPass
-; O123:        Running pass:       EarlyAnnotatePass
+; O123:        Running pass:       AnnotateEarlyPass
 ;
 ; ... pipeline prepare
 ; O123:        Running pass:       SerializePass

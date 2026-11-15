@@ -11,7 +11,7 @@
 ; CHECK-LABEL: @g
 ; CHECK-NOT: !kit.func !{{[0-9]+}}
 ;
-; CHECK-DAG: ![[ATTR:[0-9]+]] = !{!"kit.func.early.annotate.pass"}
+; CHECK-DAG: ![[ATTR:[0-9]+]] = !{!"kit.func.annotate.early.pass"}
 ; CHECK-DAG: ![[ATTRS]] = distinct !{![[ATTRS]], ![[ATTR]]}
 
 define void @f() {

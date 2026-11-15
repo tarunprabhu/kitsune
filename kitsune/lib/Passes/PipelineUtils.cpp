@@ -219,7 +219,7 @@ llvm::populateKitEarlyPasses(PassBuilder &pb, OptimizationLevel optLevel,
   if (optLevel != OptimizationLevel::O0) {
     // TODO: Add a pipeline extension point to add passes early and late in
     // this pipeline.
-    fpm.addPass(EarlyAnnotatePass());
+    fpm.addPass(AnnotateEarlyPass());
   }
 
   return fpm;

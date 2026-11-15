@@ -32,16 +32,16 @@ class FuncAttr<Type ValueType = VoidTy> : AttrBase<ValueType> { }
 
 //------------------------------------------------------------------------------
 
+// Flag to indicate that the kit-annotate-early pass has been run on the
+// function.
+def AnnotateEarlyPass : FuncAttr<> {
+  let Documentation = KitAnnotateEarlyPassDoc;
+}
+
 // Flag indicating that the function is a "device function".
 def Device : FuncAttr<> {
   let HasCustomVerifier = true;
   let Documentation = KitDeviceDoc;
-}
-
-// Flag to indicate that the kit-annotate-early pass has been run on the
-// function.
-def EarlyAnnotatePass : FuncAttr<> {
-  let Documentation = KitEarlyAnnotatePassDoc;
 }
 
 // The presence of this attribute indicates that the function is a "kernel

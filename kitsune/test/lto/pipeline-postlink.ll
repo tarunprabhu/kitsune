@@ -38,7 +38,7 @@
 ; -----------------------------------------------------------------------------
 ;
 ; O123-NOT:    Running pass:       EarlyVerificationPass
-; O123-NOT:    Running pass:       EarlyAnnotatePass
+; O123-NOT:    Running pass:       AnnotateEarlyPass
 ; O123-NOT:    Running pass:       SerializePass
 ; O123-NOT:    Running pass:       GuardLoopPass
 ; O123-NOT:    Running pass:       PrepareTapirLoopsPass

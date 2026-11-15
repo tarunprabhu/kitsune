@@ -11,19 +11,19 @@
 //
 //===----------------------------------------------------------------------===//
 
+def KitAnnotateEarlyPassDoc : KitDocAttr {
+  let Documentation = [{
+The presence of this attribute indicates that the `kit-annotate-early` pass has
+been run on the function.
+}];
+}
+
 def KitDeviceDoc : KitDocAttr {
   let Documentation = [{
 The function is a "device function". This is a function in the device module
 that is reachable from at least one kernel function. This attribute must **not**
 be applied to "library" functions such as those provided by the libdevice
 bitcode files.
-}];
-}
-
-def KitEarlyAnnotatePassDoc : KitDocAttr {
-  let Documentation = [{
-The presence of this attribute indicates that the `kit-annotate-early` pass has
-been run on the function.
 }];
 }
 

@@ -1,4 +1,4 @@
-//===- EarlyAnnotate.cpp - Annotator that runs early in the pipeline ------===//
+//===- AnnotateEarly.cpp - Annotator that runs early in the pipeline ------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
@@ -6,14 +6,13 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Annotator that run early in the pipeline.
-//
-// This is intended to run early in the pipeline, typically after mem2reg (or
-// the equivalent).
+// Annotator that run early in the pipeline, typically immediately after mem2reg
+// (or the equivalent). It is independent of the standard LLVM annotators and
+// may be safely run before or after them.
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Transforms/EarlyAnnotate.h"
+#include "kitsune/Transforms/AnnotateEarly.h"
 #include "kitsune/Core/LoopAttrs.h"
 #include "kitsune/Core/LoopUtils.h"
 #include "llvm/Analysis/LoopInfo.h"
@@ -109,11 +108,11 @@ static void annotateLoopNests(const SmallVectorImpl<Loop *> &loops) {
       addLoopNestAnnotations(*loop);
 }
 
-PreservedAnalyses EarlyAnnotatePass::run(Function &f,
+PreservedAnalyses AnnotateEarlyPass::run(Function &f,
                                          FunctionAnalysisManager &am) {
   // This pass is added to the function simplification pipeline. That pipeline
   // is run multiple times per function, but this pass should only be run once.
-  if (hasEarlyAnnotatePassAttr(f))
+  if (hasAnnotateEarlyPassAttr(f))
     return PreservedAnalyses::all();
 
   LoopInfo &li = am.getResult<LoopAnalysis>(f);
