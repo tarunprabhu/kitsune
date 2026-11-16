@@ -77,8 +77,9 @@ static MDNode *replaceInAttrList(MDNode *attrList, unsigned i, Metadata *attr) {
   assert(attrList && "Cannot replace element of null list");
   assert(i < attrList->getNumOperands() && "Invalid index in attribute list");
 
-  attrList->replaceOperandWith(i, attr);
-  return attrList;
+  MDNode *newAttrList = cloneSelfReferencingMDNode(attrList);
+  newAttrList->replaceOperandWith(i, attr);
+  return newAttrList;
 }
 
 // Append the element \p attr to the attribute list \p attrList. Return the
