@@ -39,6 +39,7 @@
 ! O123:        Running pass:       GuardLoopPass
 ! O123:        Running pass:       PrepareTapirLoopsPass
 ! O123:        Running pass:       LocalizeReductionsPass
+! O123:        Running pass:       ComputeReductionStrategyPass
 ! O123:        Running pass:       LowerIntrinsicsEarlyPass
 ! O123-NOT:    Running pass:       InstrumentPass
 !

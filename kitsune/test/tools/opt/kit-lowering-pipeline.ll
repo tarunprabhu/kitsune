@@ -51,6 +51,7 @@
 ; O123-NOT:    Running pass:       GuardLoopPass
 ; O123-NOT:    Running pass:       PrepareTapirLoops
 ; O123-NOT:    Running pass:       LocalizeReductionsPass
+; O123-NOT:    Running pass:       ComputeReductionStrategyPass
 ; O123-NOT:    Running pass:       LowerIntrinsicsEarlyPass
 ; O123-NOT:    Running pass:       SecondaryIVEliminationPass
 ;

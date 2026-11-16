@@ -34,7 +34,7 @@
 ; CHECK-SAME: i32 7
 ; CHECK-SAME: ptr %[[RES]]
 ; CHECK-SAME: i64 %[[V]]
-; CHECK-SAME: i32 2
+; CHECK-SAME: i32 0
 ; CHECK-SAME: i32 8
 ; CHECK-SAME: i64 1
 ; CHECK-SAME: ptr @mul
@@ -82,4 +82,3 @@ declare void @mul(ptr, i64)
 !3 = !{!"tapir.loop.reduction"}
 !4 = !{!"tapir.loop.prepared"}
 !5 = distinct !{!5, !0, !1, !2, !3, !4}
-!6 = distinct !{!6}

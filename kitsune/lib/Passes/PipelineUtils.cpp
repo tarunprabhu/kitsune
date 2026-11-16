@@ -268,6 +268,7 @@ llvm::populateKitPreparePasses(PassBuilder &pb, OptimizationLevel optLevel,
     addLoopPassMSSA<GuardLoopPass>(fpm);
     addFunctionPass<PrepareTapirLoopsPass>(fpm);
     addFunctionPass<LocalizeReductionsPass>(fpm);
+    addFunctionPass<ComputeReductionStrategyPass>(fpm);
     addFunctionPass<SimplifyCFGPass>(fpm);
     addFunctionPass<LowerIntrinsicsEarlyPass>(fpm, pto.TTOpts);
     addFunctionPass<LoopSimplifyPass>(fpm);

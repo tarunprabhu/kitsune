@@ -111,7 +111,7 @@ public:
   Value *getValue() const { return call->getArgOperand(argNumValue); }
 
   /// Get the strategy used to perform this reduction.
-  Value *getStrategy() const { return call->getArgOperand(argNumStrategy); }
+  Value *getStrategyV() const { return call->getArgOperand(argNumStrategy); }
 
   /// Get the operand corresponding to the element size in the call.
   Value *getElemSizeV() const { return call->getArgOperand(argNumElemSize); }

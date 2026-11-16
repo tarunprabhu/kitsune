@@ -70,6 +70,7 @@ MODULE_PASS("kit-verify-prelower", PreLowerVerificationPass(/*exitIfErr=*/true))
 #ifdef FUNCTION_PASS
 FUNCTION_PASS("kit-annotate-early", AnnotateEarlyPass())
 FUNCTION_PASS("kit-annotate-prelower", AnnotatePreLowerPass())
+FUNCTION_PASS("kit-reduce-strategy", ComputeReductionStrategyPass())
 FUNCTION_PASS("kit-hoist-allocas", HoistAllocasPass())
 FUNCTION_PASS("kit-instrument", InstrumentPass(PTO.KitInstrOpts))
 FUNCTION_PASS("kit-loop-normalize", TapirLoopNormalizePass())

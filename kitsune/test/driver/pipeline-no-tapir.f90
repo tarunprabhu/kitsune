@@ -27,6 +27,7 @@
 ! CHECK-NOT:   Running pass:       SerializePass
 ! CHECK-NOT:   Running pass:       PrepareTapirLoopsPass
 ! CHECK-NOT:   Running pass:       LocalizeReductionsPass
+! CHECK-NOT:   Running pass:       ComputeReductionStrategyPass
 ! CHECK-NOT:   Running pass:       LowerIntrinsicsEarlyPass
 ! CHECK-NOT:   Running pass:       InstrumentPass
 ! CHECK-NOT:   Running pass:       SecondaryIVEliminationPass

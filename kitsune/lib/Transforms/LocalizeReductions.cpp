@@ -19,36 +19,12 @@
 #include "kitsune/Core/Reductions.h"
 #include "kitsune/Core/TTUtils.h"
 #include "kitsune/Core/ValueUtils.h"
-#include "kitsune/Shared/RTNestUtils.h"
-#include "kitsune/Support/CommandLineOptions.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/IR/IRBuilder.h"
 
 #define DEBUG_TYPE "kit-reduce-localize"
 
 using namespace llvm;
-
-// The default strategy to use when reducing into the final result.
-static ReductionStrategy defaultStrategyCPU = ReductionStrategy::Direct;
-static ReductionStrategy defaultStrategyGPU = ReductionStrategy::GPUWarpShuffle;
-
-static cl::opt<ReductionStrategy> clStrategyCPU(
-    "kit-cpu-reduce-strategy",
-    cl::desc("The strategy to use for tapir reduction loops on the CPU"),
-    cl::init(defaultStrategyGPU), cl::value_desc("strategy"),
-    cl::cat(cl::catKitClOpts),
-    cl::values(clEnumValN(ReductionStrategy::Direct, "direct", "")));
-
-static cl::opt<ReductionStrategy> clStrategyGPU(
-    "kit-gpu-reduce-strategy",
-    cl::desc("The strategy to use for tapir reduction loops on the GPU"),
-    cl::init(defaultStrategyCPU), cl::value_desc("strategy"),
-    cl::cat(cl::catKitClOpts),
-    cl::values(clEnumValN(ReductionStrategy::Direct, "direct", ""),
-               clEnumValN(ReductionStrategy::GPUSharedMemory, "shmem", ""),
-               clEnumValN(ReductionStrategy::GPUWarpShuffle, "wshfl", ""),
-               clEnumValN(ReductionStrategy::GPUWarpShuffleWithSharedMemory,
-                          "wshflshmem", "")));
 
 namespace {
 
@@ -60,13 +36,6 @@ protected:
   LoopInfo &li;
 
 protected:
-  ReductionStrategy computeStrategyCPU(const ReductionInfo &redxn,
-                                       const Loop &loop);
-  ReductionStrategy computeStrategyGPU(const ReductionInfo &redxn,
-                                       const Loop &loop);
-  ReductionStrategy computeStrategy(const ReductionInfo &redxn,
-                                    const Loop &loop);
-  Value *computeStrategyValue(const ReductionInfo &redxn, const Loop &loop);
   AllocaInst *genLocal(const ReductionInfo &redxn, Instruction *insertPt);
   void genReduceIntoLocal(const ReductionInfo &redxn, AllocaInst *local);
   void genReduceIntoFinal(const ReductionInfo &redxn, AllocaInst *local,
@@ -85,52 +54,6 @@ public:
 };
 
 } // namespace
-
-ReductionStrategy
-LocalizeReductionsImpl::computeStrategyCPU(const ReductionInfo &redxn,
-                                           const Loop &loop) {
-  // At this time, the only reduction strategy available on a CPU is "direct".
-  // Even so, for consistency with the GPU implementation, we pretend as if we
-  // actually have options.
-  if (clStrategyCPU.getNumOccurrences())
-    return clStrategyCPU;
-  return defaultStrategyCPU;
-}
-
-ReductionStrategy
-LocalizeReductionsImpl::computeStrategyGPU(const ReductionInfo &redxn,
-                                           const Loop &loop) {
-  // TODO: We should analyze the loop to calculate a suitable reduction strategy
-  // to reduce the partial reductions computed by each warp/block into the final
-  // result. For now, we just use the default, or the explicit strategy, if one
-  // has been provided.
-  if (clStrategyGPU.getNumOccurrences())
-    return clStrategyGPU;
-  return defaultStrategyGPU;
-}
-
-ReductionStrategy
-LocalizeReductionsImpl::computeStrategy(const ReductionInfo &redxn,
-                                        const Loop &loop) {
-  TTID tt = redxn.tt;
-  if (tt == TTID::Serial)
-    return ReductionStrategy::Naive;
-  else if (isCPUTT(tt))
-    return computeStrategyCPU(redxn, loop);
-  else if (isGPUTT(tt))
-    return computeStrategyGPU(redxn, loop);
-  else if (tt == TTID::Custom)
-    return ReductionStrategy::Direct;
-  llvm_unreachable("computeStrategy: Unknown TTID kind");
-}
-
-Value *LocalizeReductionsImpl::computeStrategyValue(const ReductionInfo &redxn,
-                                                    const Loop &loop) {
-  LLVMContext &ctx = getContext(loop);
-  ReductionStrategy strategy = computeStrategy(redxn, loop);
-
-  return toConstant(strategy, ctx);
-}
 
 AllocaInst *LocalizeReductionsImpl::genLocal(const ReductionInfo &redxn,
                                              Instruction *insertPt) {
@@ -173,7 +96,7 @@ void LocalizeReductionsImpl::genReduceIntoFinal(const ReductionInfo &redxn,
   Value *size = redxn.getElemSizeV();
   Value *unit = redxn.getUnit();
   Value *reducer = redxn.getReducer();
-  Value *strategy = computeStrategyValue(redxn, loop);
+  Value *strategy = redxn.getStrategyV();
 
   // The reattach instruction is guaranteed to be the very last instruction in
   // the loop body. Once outlined, any instructions added right before the
@@ -185,10 +108,6 @@ void LocalizeReductionsImpl::genReduceIntoFinal(const ReductionInfo &redxn,
   IRBuilder<> builder(reattach);
   Value *value = builder.CreateLoad(type, local);
 
-  // FIXME: In this final reduction, we are explicitly overriding any strategy
-  // that might have existed. This is not correct. If a non-auto strategy is
-  // present, it is because the programmer will have explicitly requested it,
-  // and that should be respected.
   SmallVector<Type *, 2> overloadTys = redxn.getOverloadTypes();
   SmallVector<Value *, 8> args = {tt,       op,   dest, value,
                                   strategy, size, unit, reducer};
@@ -267,19 +186,9 @@ bool LocalizeReductionsImpl::localizeReductionGPU(Loop &root,
 
 bool LocalizeReductionsImpl::localizeReductionSerial(Loop &loop,
                                                      const Reductions &redxns) {
-  // For tapir reduction loops with the serial tapir target, there is nothing to
-  // be localized, so we must compute a strategy for all reduction calls.
-  //
-  // FIXME: In the code below, we are explicitly overriding any non-auto
-  // strategy in the reduction. This is not correct. If a non-auto strategy is
-  // present, it is because the programmer will have explicitly requested it,
-  // and that should be respected.
-  for (const ReductionInfo &redxn : redxns) {
-    CallInst *call = redxn.call;
-    Value *strategy = computeStrategyValue(redxn, loop);
-    call->setArgOperand(ReductionInfo::argNumStrategy, strategy);
-  }
-  return redxns.size();
+  // There is nothing to be gained by localizing reductions for loops that will
+  // eventually be executed in serial.
+  return false;
 }
 
 bool LocalizeReductionsImpl::check(const Loop &loop, const Reductions &redxns) {

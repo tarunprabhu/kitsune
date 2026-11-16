@@ -1,24 +1,17 @@
-; Check that non-auto reduction strategies are preserved after localization.
+; Check that the -kit-gpu-reduce-strategy option is respected by the
+; kit-reduce-strategy pass.
 ;
-; RUN: opt -passes='kit-reduce-localize' -kit-gpu-reduce-strategy=direct \
-; RUN:     -S %s | FileCheck --check-prefixes=ALL,DIRECT %s
+; RUN: opt -passes='kit-reduce-strategy' -kit-gpu-reduce-strategy=direct \
+; RUN:     -S %s | FileCheck --check-prefixes=DIRECT %s
 ;
-; RUN: opt -passes='kit-reduce-localize' -kit-gpu-reduce-strategy=shmem \
-; RUN:     -S %s | FileCheck --check-prefixes=ALL,SHMEM %s
+; RUN: opt -passes='kit-reduce-strategy' -kit-gpu-reduce-strategy=shmem \
+; RUN:     -S %s | FileCheck --check-prefixes=SHMEM %s
 ;
-; RUN: opt -passes='kit-reduce-localize' -kit-gpu-reduce-strategy=wshfl \
-; RUN:     -S %s | FileCheck --check-prefixes=ALL,WSHFL %s
+; RUN: opt -passes='kit-reduce-strategy' -kit-gpu-reduce-strategy=wshfl \
+; RUN:     -S %s | FileCheck --check-prefixes=WSHFL %s
 ;
-; RUN: opt -passes='kit-reduce-localize' -kit-gpu-reduce-strategy=wshflshmem \
-; RUN:     -S %s | FileCheck --check-prefixes=ALL,WSHFLSHMEM  %s
-
-; ALL-LABEL: @f
-; ALL: call {{.+}} @llvm.kit.reduce
-; ALL-SAME: i32 1
-; ALL-SAME: ptr @fadd
-; ALL: call {{.+}} @llvm.kit.reduce
-; ALL-SAME: i32 1
-; ALL-SAME: ptr @iadd
+; RUN: opt -passes='kit-reduce-strategy' -kit-gpu-reduce-strategy=wshflshmem \
+; RUN:     -S %s | FileCheck --check-prefixes=WSHFLSHMEM  %s
 ;
 ; DIRECT: call {{.+}} @llvm.kit.reduce
 ; DIRECT-SAME: i32 2
@@ -58,18 +51,9 @@ header1:
   detach within %sr, label %body1, label %latch1
 
 body1:
-  br label %header2
-
-header2:
-  %i2 = phi i64 [ 0, %body1 ], [ %inc2, %header2 ]
-  %f2 = uitofp i64 %i2 to double
-  call void(i32, i32, ptr, double, i32, i32, double, ptr, ...) @llvm.kit.reduce(i32 2, i32 5, ptr %fsum, double %f2, i32 0, i32 8, double 0.0, ptr @fadd)
-  call void(i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.reduce(i32 2, i32 5, ptr %isum, i64 %i2, i32 0, i32 8, i64 0, ptr @iadd)
-  %inc2 = add i64 %i2, 1
-  %cmp2 = icmp eq i64 %inc2, %n
-  br i1 %cmp2, label %reattach1, label %header2, !llvm.loop !6
-
-reattach1:
+  %f1 = uitofp i64 %i1 to double
+  call void(i32, i32, ptr, double, i32, i32, double, ptr, ...) @llvm.kit.reduce(i32 2, i32 5, ptr %fsum, double %f1, i32 0, i32 8, double 0.0, ptr @fadd)
+  call void(i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.reduce(i32 2, i32 5, ptr %isum, i64 %i1, i32 0, i32 8, i64 0, ptr @iadd)
   reattach within %sr, label %latch1
 
 latch1:
@@ -93,4 +77,3 @@ declare void @iadd(ptr, i64)
 !3 = !{!"tapir.loop.reduction"}
 !4 = !{!"tapir.loop.prepared"}
 !5 = distinct !{!5, !0, !1, !2, !3, !4}
-!6 = distinct !{!6}
