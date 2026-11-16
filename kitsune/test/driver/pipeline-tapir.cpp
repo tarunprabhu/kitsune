@@ -57,6 +57,7 @@
 //
 // ... pipeline prepare
 // O123:       Running pass:       SerializePass
+// O123:       Running pass:       GuardLoopPass
 // O123:       Running pass:       PrepareTapirLoopsPass
 // O123:       Running pass:       LocalizeReductionsPass
 // O123:       Running pass:       LowerIntrinsicsEarlyPass
@@ -68,16 +69,17 @@
 // ... pipeline pre-tapir
 // There are no standard pre-tapir passes at this time
 //
-// ... pipeline pre-loop-spawning
+// ... pipeline pre-spawning
 // O123:       Running pass:       SecondaryIVEliminationPass
 // O123:       Running pass:       PreLowerVerificationPass
 // O123:       Running pass:       AnnotatePreLowerPass
 // O123:       Running pass:       TapirLoopNormalizePass
 //
+// ... pipeline spawning
 // O123:       Running pass:       TaskSpawningPass
 // O123:       Running pass:       LoopSpawningPass
 //
-// ... pipeline post-loop-spawning
+// ... pipeline post-spawning
 // O123:       Running pass:       HoistAllocasPass
 // O123:       Running pass:       EmbHoistAllocasPass
 //

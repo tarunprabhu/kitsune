@@ -56,17 +56,20 @@
 ;
 ; ... pipeline pre-tapir
 ;
-; ... pipeline pre-loop-spawning
+; ... pipeline pre-spawning
 ; O123:        Running pass:       SecondaryIVEliminationPass
 ; O123:        Running pass:       PreLowerVerificationPass
 ; O123:        Running pass:       AnnotatePreLowerPass
 ; O123:        Running pass:       TapirLoopNormalizePass
 ;
+; ... pipeline spawning
 ; O123:        Running pass:       TaskSpawningPass
 ; O123:        Running pass:       LoopSpawningPass
 ;
-; ... pipeline post-loop-spawning
+; ... pipeline post-spawning
 ; O123:        Running pass:       HoistAllocasPass
+; O123:        Running pass:       EmbHoistAllocasPass
+;
 ; O123:        Running pass:       TapirToTargetPass
 ;
 ; ... pipeline post-tapir
