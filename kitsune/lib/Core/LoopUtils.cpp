@@ -15,6 +15,7 @@
 #include "kitsune/Core/DIUtils.h"
 #include "kitsune/Core/InstUtils.h"
 #include "kitsune/Core/LoopAttrs.h"
+#include "kitsune/Core/MetadataUtils.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/LoopNestAnalysis.h"
@@ -123,12 +124,7 @@ std::string llvm::getName(const Loop &loop, StringRef defawlt) {
 }
 
 MDNode *llvm::cloneLoopMetadata(const Loop &loop) {
-  MDNode *loopMD = loop.getLoopID();
-  TempMDNode tempMD = loopMD->clone();
-  MDNode *newMD = MDNode::replaceWithDistinct(std::move(tempMD));
-  newMD->replaceOperandWith(0, newMD);
-
-  return newMD;
+  return cloneSelfReferencingMDNode(loop.getLoopID());
 }
 
 void llvm::clearTapirLoopAttrs(Loop &loop) {

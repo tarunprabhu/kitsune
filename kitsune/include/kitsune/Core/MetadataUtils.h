@@ -41,6 +41,14 @@ void add(SmallSet<E, N> &container, const E &elem) {
 /// \addtogroup kitsune
 /// @{
 
+/// Clone a self-referencing metadata node. This is one where the first operand
+/// of the MDNode is the node itself. This is used in upstream LLVM for Loop
+/// metadata, but is used in Kitsune for the attribute lists for all entities.
+/// These appear human-readable LLVM assembly as shown
+///
+///     !<N> = !{!<N>, ....}
+MDNode *cloneSelfReferencingMDNode(MDNode *md);
+
 /// Utilities to construct metadata nodes from C++ values.
 /// @{
 

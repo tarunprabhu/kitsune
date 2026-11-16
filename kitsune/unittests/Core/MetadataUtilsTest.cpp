@@ -16,6 +16,21 @@ using namespace llvm;
 
 namespace {
 
+TEST(KitMetadataUtils, cloneSelfReferencingMDNode) {
+  LLVMContext ctx;
+  Metadata *mi32 = toMetadata(1, ctx);
+  Metadata *mcstr = toMetadata("wadham", ctx);
+  MDNode *md = MDNode::get(ctx, {nullptr, mi32, mcstr});
+  md->replaceOperandWith(0, md);
+
+  MDNode *clone = cloneSelfReferencingMDNode(md);
+
+  EXPECT_EQ(clone->getNumOperands(), 3U);
+  EXPECT_EQ(clone->getOperand(0), clone);
+  EXPECT_EQ(clone->getOperand(1), mi32);
+  EXPECT_EQ(clone->getOperand(2), mcstr);
+}
+
 TEST(KitMetadataUtils, fromMetadata) {
   std::string s = "courtauld institute of art";
   StringLiteral lit = "london school of hygiene and tropical medicine";

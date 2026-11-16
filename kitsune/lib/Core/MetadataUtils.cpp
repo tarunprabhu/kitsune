@@ -14,6 +14,16 @@
 
 using namespace llvm;
 
+MDNode *llvm::cloneSelfReferencingMDNode(MDNode *md) {
+  assert(md->getOperand(0) == md && "MDNode is self-referencing");
+
+  TempMDNode tempMD = md->clone();
+  MDNode *newMD = MDNode::replaceWithDistinct(std::move(tempMD));
+  newMD->replaceOperandWith(0, newMD);
+
+  return newMD;
+}
+
 template <typename T, std::enable_if_t<std::is_string_like_v<T>, int>>
 Metadata *llvm::toMetadata(const T &val, LLVMContext &ctx) {
   return MDString::get(ctx, val);
