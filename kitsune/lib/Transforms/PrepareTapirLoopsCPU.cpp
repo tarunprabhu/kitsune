@@ -321,30 +321,42 @@ void PrepareTapirNestParallel::updateBoundsOfSubLoop(Loop &wrapperLoop,
     assert(wrapperLoop.getCanonicalInductionVariable() &&
            "Wrapper loop has canonical induction variable");
 
-    assert(loop.getLoopPreheader() && "Loop has a preheader");
-    assert(loop.getLoopLatch() && "Loop has a unique latch");
-    assert(loop.getLatchCmpInst() &&
-           "Loop has a unique latch compare instruction");
-    assert(loop.getBounds(se).has_value() && "Loop has computable bounds");
-
-    [[maybe_unused]] PHINode *iv = loop.getCanonicalInductionVariable();
-    assert(iv && "Loop has canonical induction variable");
+    [[maybe_unused]] BasicBlock *ph = loop.getLoopPreheader();
+    assert(ph && "Loop has a preheader");
 
     [[maybe_unused]] BasicBlock *guard =
         getLoopGuardBlock(loop, /*allowDeadEndExits=*/true);
     assert(guard && "Loop has a guard block");
-    assert(isa<CondBrInst>(guard->getTerminator()) &&
-           "Loop guard terminator is a conditional branch instruction");
 
-    [[maybe_unused]] Loop::LoopBounds bounds = *loop.getBounds(se);
-    [[maybe_unused]] Instruction *inc = &bounds.getStepInst();
+    [[maybe_unused]] BasicBlock *bypass =
+        getLoopBypassBlock(loop, /*allowDeadEndExits=*/true);
+    assert(bypass && "Loop has a bypass block");
+
+    [[maybe_unused]] CondBrInst *br =
+        dyn_cast<CondBrInst>(guard->getTerminator());
+    assert(br && "Loop guard terminator is a conditional branch instruction");
+    assert((br->getSuccessor(0) == ph || br->getSuccessor(1) == ph) &&
+           "One successor of loop guard branch is the loop preheader");
+    assert((br->getSuccessor(0) == bypass || br->getSuccessor(1) == bypass) &&
+           "One successor of loop guard branch is the loop bypass block");
+
+    [[maybe_unused]] PHINode *iv = loop.getCanonicalInductionVariable();
+    assert(iv && "Loop has canonical induction variable");
+
+    [[maybe_unused]] std::optional<Loop::LoopBounds> bounds =
+        loop.getBounds(se);
+    assert(bounds.has_value() && "Loop has computable bounds");
+
+    [[maybe_unused]] Instruction *inc = &bounds->getStepInst();
     assert(inc->getOperand(0) == iv &&
            "First operand of step instruction is indction variable");
     assert(isIntOne(inc->getOperand(1)) &&
            "Second operand of step instruction is 1");
 
-    [[maybe_unused]] Value *finl = &bounds.getFinalIVValue();
     [[maybe_unused]] ICmpInst *cmp = loop.getLatchCmpInst();
+    assert(cmp && "Loop has a unique latch compare instruction");
+
+    [[maybe_unused]] Value *finl = &bounds->getFinalIVValue();
     [[maybe_unused]] CmpInst::Predicate cmpOp = cmp->getPredicate();
     [[maybe_unused]] Value *cmp0 = cmp->getOperand(0);
     [[maybe_unused]] Value *cmp1 = cmp->getOperand(1);
@@ -365,11 +377,12 @@ void PrepareTapirNestParallel::updateBoundsOfSubLoop(Loop &wrapperLoop,
 
   LLVMContext &ctx = getContext(loop);
 
-  BasicBlock &guard = *getLoopGuardBlock(loop, /*allowDeadEndExits=*/true);
-  BasicBlock &ph = *loop.getLoopPreheader();
+  BasicBlock *guard = getLoopGuardBlock(loop, /*allowDeadEndExits=*/true);
+  BasicBlock *ph = loop.getLoopPreheader();
+  BasicBlock *bypass = getLoopBypassBlock(loop, /*allowDeadEndExits=*/true);
 
   ICmpInst *cmp = loop.getLatchCmpInst();
-  CondBrInst *br = cast<CondBrInst>(guard.getTerminator());
+  CondBrInst *br = cast<CondBrInst>(guard->getTerminator());
 
   PHINode *iv = loop.getCanonicalInductionVariable();
   Type *ivTy = iv->getType();
@@ -389,7 +402,7 @@ void PrepareTapirNestParallel::updateBoundsOfSubLoop(Loop &wrapperLoop,
   // loop. The allocas will not be within any loop at that point. If we were to
   // add the allocas to the entry block of the function containing the loop, we
   // would be introducing a race.
-  IRBuilder<> builder(guard.getTerminator());
+  IRBuilder<> builder(guard->getTerminator());
   AllocaInst *slotB = builder.CreateAlloca(ivTy, /*array=*/nullptr, "prlll.s");
   AllocaInst *slotE = builder.CreateAlloca(ivTy, /*array=*/nullptr, "prlll.e");
   PHINode *tid = wrapperLoop.getCanonicalInductionVariable();
@@ -401,9 +414,10 @@ void PrepareTapirNestParallel::updateBoundsOfSubLoop(Loop &wrapperLoop,
   LoadInst *newStart = builder.CreateLoad(ivTy, slotB);
   LoadInst *newEnd = builder.CreateLoad(ivTy, slotE);
   Value *newCmp = builder.CreateICmpULT(newStart, newEnd);
+  ReplaceInstWithInst(br, CondBrInst::Create(newCmp, ph, bypass));
 
-  br->setCondition(newCmp);
-  iv->setIncomingValueForBlock(&ph, newStart);
+  // Now that the guard has been fixed, fix the latch.
+  iv->setIncomingValueForBlock(ph, newStart);
   replaceMatchingOperands(*cmp, oldEnd, newEnd);
 
   se.forgetValue(iv);
