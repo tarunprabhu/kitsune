@@ -64,9 +64,6 @@
 ; CHECK-NEXT: [[BYPASS1]]:
 ; CHECK-NEXT: br label %[[REATTACHT:.+]]
 ; CHECK-EMPTY:
-; CHECK-NEXT: [[DEADEND]]:
-; CHECK-NEXT: unreachable
-; CHECK-EMPTY:
 ; CHECK-NEXT: [[REATTACHT]]:
 ; CHECK-NEXT: reattach within %[[SRT]], label %[[LATCHT]]
 ; CHECK-EMPTY:
@@ -82,6 +79,9 @@
 ; CHECK-NEXT: [[SYNCT]]:
 ; CHECK-NEXT: call void @__kitrt_nest_end(ptr %[[CTX]])
 ; CHECK-NEXT: sync within %[[SRT]], label %[[EXIT:.+]]
+; CHECK-EMPTY:
+; CHECK-NEXT: [[DEADEND]]:
+; CHECK-NEXT: unreachable
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[EXIT]]:
 ; CHECK-NEXT: ret void

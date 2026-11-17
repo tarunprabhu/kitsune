@@ -279,8 +279,24 @@ void WrapLoopBase::genReattachBlock(Loop &loop, const LoopBlocks &bbs,
   SyncInst *sync = cast<SyncInst>(bypass->getTerminator());
   BasicBlock *cont = sync->getSuccessor(0);
 
-  bbsGen.reattach =
-      splitBlockBefore(cont, cont->begin(), &dtu, &li, &mssau, "wrap.reattach");
+  // We want to effectively insert a block between the bypass block and the
+  // "continuation" block - essentially the successor of the bypass block.
+  // However, since that block is not related to the original loop in any way,
+  // there are no guarantees on how many predecessors it may have. To keep
+  // things "easy", we first split the bypass block at its terminator. This will
+  // result in the sync instruction being the sole instruction in the new block
+  // obtained after splitting. We then add the sync instruction back to the
+  // original bypass block and insert an unconditional branch in the reattach
+  // block instead.
+  BasicBlock *reattach =
+      SplitBlock(bypass, sync, &dtu, &li, &mssau, "wrap.reattach");
+
+  sync->removeFromParent();
+  sync->setSuccessor(0, reattach);
+  ReplaceInstWithInst(bypass->getTerminator(), sync);
+  UncondBrInst::Create(cont, reattach);
+
+  bbsGen.reattach = reattach;
 }
 
 void WrapLoopBase::genLatchBlock(Loop &loop, const LoopBlocks &bbs,
@@ -434,12 +450,21 @@ Loop *WrapLoopBase::genWrapperLoopObject(Loop &loop, const LoopBlocks &bbs,
     assert(bbsGen.bypass && "Generated wrapper loop bypass block");
   };
 
-  auto addBlockToLoop = [](Loop &loop, BasicBlock &bb, LoopInfo &li) {
-    if (loop.getParentLoop()) {
-      li.changeLoopFor(&bb, &loop);
-      loop.addBlockEntry(&bb);
+  // Add the given block to the wrapper loop. This should only be called with
+  // blocks that were *NOT* in the original loop that is being wrapped.
+  auto addBlockToLoop = [](Loop &wrapperLoop, BasicBlock &bb, LoopInfo &li) {
+    // Although the loop was not in the original loop being wrapped, it may
+    // still be part of a loop. If the original had a parent, it would be part
+    // of that loop. Since we will have inserted a wrapper loop between the
+    // original loop and its original parent, we have to update the LoopInfo
+    // object. In that case, we call addBlockEntry since LoopInfo will already
+    // "know" about the block. Otherwise, ew directly add the basic block to the
+    // wrapper loop.
+    if (wrapperLoop.getParentLoop()) {
+      li.changeLoopFor(&bb, &wrapperLoop);
+      wrapperLoop.addBlockEntry(&bb);
     } else {
-      loop.addBasicBlockToLoop(&bb, li);
+      wrapperLoop.addBasicBlockToLoop(&bb, li);
     }
   };
 
