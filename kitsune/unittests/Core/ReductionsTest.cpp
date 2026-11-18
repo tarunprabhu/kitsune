@@ -7,8 +7,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/Reductions.h"
+#include "TestUtils.h"
 #include "kitsune/Core/ModuleUtils.h"
+#include "llvm/Analysis/LoopInfo.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/IR/Dominators.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Module.h"
 
@@ -315,6 +318,77 @@ TEST(KitReductions, getReducerType) {
   EXPECT_FALSE(tyv->isVarArg());
   EXPECT_EQ(redv.getReducerArgs(),
             (SmallVector<Value *, 2>{cnull, ten, cnull}));
+}
+
+static constexpr StringRef redxnLoops = R"(
+define void @f(ptr %res1, ptr %res2, i64 %i) {
+  br label %loop1
+
+loop1:
+  %done1 = call i1 @done()
+  br i1 %done1, label %loop2, label %loop1, !llvm.loop !0
+
+loop2:
+  call void (i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.reduce(i32 1024, i32 5, ptr %res1, i64 %i, i32 0, i32 8, i64 0, ptr @sum)
+  call void (i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.reduce(i32 1024, i32 5, ptr %res2, i64 %i, i32 0, i32 8, i64 0, ptr @sum)
+  %done2 = call i1 @done()
+  br i1 %done2, label %exit, label %loop2, !llvm.loop !1
+
+exit:
+  ret void
+}
+
+declare i1 @done()
+declare void @sum(ptr, i64)
+
+!0 = distinct !{!0}
+!1 = distinct !{!1}
+)";
+
+TEST(KitReductions, getReductionsInLoop) {
+  LLVMContext ctx;
+  std::unique_ptr<Module> m = parseIR(ctx, redxnLoops);
+  Function *f = m->getFunction("f");
+  std::unique_ptr<DominatorTree> dt = std::make_unique<DominatorTree>(*f);
+  std::unique_ptr<LoopInfo> li = std::make_unique<LoopInfo>(*dt);
+
+  SmallVector<Loop *, 4> loops = li->getLoopsInPreorder();
+  EXPECT_EQ(getReductions(*loops[0]).size(), 0U);
+  EXPECT_EQ(getReductions(*loops[1]).size(), 2U);
+}
+
+TEST(KitReductions, getReductionsInFunction) {
+  LLVMContext ctx;
+  Module m("", ctx);
+
+  PointerType *ptr = PointerType::getUnqual(ctx);
+  Type *voidTy = Type::getVoidTy(ctx);
+  Type *i32 = Type::getInt32Ty(ctx);
+
+  Function *f = getOrInsertFunction(m, "test", voidTy);
+  BasicBlock *bb = BasicBlock::Create(ctx, "", f);
+  IRBuilder<> builder(ctx);
+
+  builder.SetInsertPoint(bb);
+  builder.CreateRetVoid();
+
+  EXPECT_TRUE(getReductions(*f).empty());
+
+  Constant *cnull = ConstantPointerNull::get(ptr);
+  Constant *zero = ConstantInt::get(i32, 0);
+  Constant *one = ConstantInt::get(i32, 1);
+  Constant *four = ConstantInt::get(i32, 4);
+  Constant *five = ConstantInt::get(i32, 5);
+  Constant *ten = ConstantInt::get(i32, 10);
+
+  builder.SetInsertPoint(&bb->front());
+  builder.CreateIntrinsic(Intrinsic::kit_reduce, {i32},
+                          {one, five, cnull, ten, zero, four, zero, cnull});
+  builder.CreateIntrinsic(
+      Intrinsic::kit_reduce, {i32, ptr},
+      {one, five, cnull, ten, zero, four, zero, cnull, cnull});
+
+  EXPECT_EQ(getReductions(*f).size(), 2U);
 }
 
 } // namespace

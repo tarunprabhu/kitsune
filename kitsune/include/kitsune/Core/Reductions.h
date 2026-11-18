@@ -157,8 +157,15 @@ public:
   std::optional<DiagID> checkUsesOfDest(LoopInfo &li) const;
 };
 
+/// Type for a container that contains an info object for every reduction in an
+/// entity.
+using Reductions = SmallVector<ReductionInfo, 0>;
+
 /// Collect the reductions in loop \p loop.
-SmallVector<ReductionInfo, 1> collectReductions(Loop &loop);
+Reductions getReductions(Loop &loop);
+
+/// Collect the reductions in a function.
+Reductions getReductions(Function &f);
 
 /// Get an AtomicRMWInst::BinOp corresponding to a reduction operator, if one
 /// exists. Otherwise, return std::nullopt.

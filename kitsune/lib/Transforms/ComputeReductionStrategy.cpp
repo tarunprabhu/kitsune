@@ -47,8 +47,6 @@ static cl::opt<ReductionStrategy> clStrategyGPU(
 
 namespace {
 
-using Reductions = SmallVector<ReductionInfo, 0>;
-
 class ComputeStrategy {
 protected:
   LoopInfo &li;
@@ -138,14 +136,14 @@ Reductions ComputeStrategy::getReductions(Loop &loop) {
 
   TTID tt = *getTargetAttr(loop);
   if (tt == TTID::Serial)
-    return ::collectReductions(loop);
+    return ::getReductions(loop);
   else if (isCPUTT(tt))
     return collectFinalReductions(loop);
   else if (isGPUTT(tt))
     return collectFinalReductions(*getInnermostTapirLoopInNest(loop));
   else if (tt == TTID::Custom)
     return {};
-  llvm_unreachable("ComputeStrategy::collectReductions: Unknown TT kind");
+  llvm_unreachable("ComputeStrategy::getReductions: Unknown TT kind");
 }
 
 bool ComputeStrategy::runOn(Function &f) {
