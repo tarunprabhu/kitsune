@@ -157,14 +157,18 @@ static AttributeList createNewAttrList(const CallInst &call) {
 }
 
 // Create a new call to the given function to replace an existing call. The
-// debug info, metadata, calling convention and tail call kind will be copied
-// over from the original call. However, the attributes will not be copied. The
-// new call is returned, but the original call will remain unchanged.
+// debug info, metadata, and calling convention will be copied over from the
+// original call. However, the attributes and tail call kind will not be copied.
+// The new call is returned, but the original call will remain unchanged.
 //
 // The attributes are not copied because there are some intrinsics where the
 // attributes cannot be copied over directly. To avoid having conditional
 // statements in this function, we require the attributes to be copied over by
 // callers.
+//
+// Because the result of the lowered intrinsic may be cast to a different type
+// (typically this will be an address space cast), tail calls cannot be
+// guaranteed.
 static Value *createNewCallFor(CallInst &call, FunctionCallee f,
                                ArrayRef<Value *> args, IRBuilder<> &builder) {
   CallInst *newCall = builder.CreateCall(f, args);
@@ -174,9 +178,6 @@ static Value *createNewCallFor(CallInst &call, FunctionCallee f,
   newCall->takeName(&call);
   newCall->setAttributes(createNewAttrList(call));
 
-  // Because the result of the lowered intrinsic may be cast to a different
-  // type (typically this will be an address space cast), tail calls cannot be
-  // guaranteed.
   CallInst::TailCallKind tck = call.getTailCallKind();
   if (tck == CallInst::TCK_MustTail)
     newCall->setTailCallKind(CallInst::TCK_Tail);
