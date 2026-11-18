@@ -376,6 +376,7 @@ void PrepareTapirNestParallel::updateBoundsOfSubLoop(Loop &wrapperLoop,
   sanityCheck(wrapperLoop, loop, se);
 
   LLVMContext &ctx = getContext(loop);
+  Type *i64 = Type::getInt64Ty(ctx);
 
   BasicBlock *guard = getLoopGuardBlock(loop, /*allowDeadEndExits=*/true);
   BasicBlock *ph = loop.getLoopPreheader();
@@ -403,16 +404,19 @@ void PrepareTapirNestParallel::updateBoundsOfSubLoop(Loop &wrapperLoop,
   // add the allocas to the entry block of the function containing the loop, we
   // would be introducing a race.
   IRBuilder<> builder(guard->getTerminator());
-  AllocaInst *slotB = builder.CreateAlloca(ivTy, /*array=*/nullptr, "prlll.s");
-  AllocaInst *slotE = builder.CreateAlloca(ivTy, /*array=*/nullptr, "prlll.e");
+  AllocaInst *slotB = builder.CreateAlloca(i64, /*array=*/nullptr, "prlll.s");
+  AllocaInst *slotE = builder.CreateAlloca(i64, /*array=*/nullptr, "prlll.e");
   PHINode *tid = wrapperLoop.getCanonicalInductionVariable();
   Constant *level = toConstant(*getPerfectLevelAttr(loop) - 1, ctx);
   createCall(builder, KitFunc::kitrt_nest_bounds,
              {nestCtx, tid, oldStart, oldEnd, level, slotB, slotE}, "",
              /*allowArgCasts=*/true);
 
-  LoadInst *newStart = builder.CreateLoad(ivTy, slotB);
-  LoadInst *newEnd = builder.CreateLoad(ivTy, slotE);
+  LoadInst *s64 = builder.CreateLoad(i64, slotB);
+  Value *newStart = builder.CreateIntCast(s64, ivTy, /*isSigned=*/false);
+  LoadInst *e64 = builder.CreateLoad(i64, slotE);
+  Value *newEnd = builder.CreateIntCast(e64, ivTy, /*isSigned=*/false);
+
   Value *newCmp = builder.CreateICmpULT(newStart, newEnd);
   ReplaceInstWithInst(br, CondBrInst::Create(newCmp, ph, bypass));
 
