@@ -23,6 +23,7 @@
 ; DEFAULT-NOT: Running pass:       EarlyVerificationPass
 ; DEFAULT-NOT: Running pass:       AnnotateEarlyPass
 ; DEFAULT-NOT: Running pass:       SerializePass
+; DEFAULT-NOT: Running pass:       SecondaryIVEliminationPass
 ; DEFAULT-NOT: Running pass:       GuardLoopPass
 ; DEFAULT-NOT: Running pass:       PrepareTapirLoopsPass
 ; DEFAULT-NOT: Running pass:       LocalizeReductionsPass
@@ -84,6 +85,9 @@
 ;
 ; ... pipeline prepare
 ; O123:        Running pass:       SerializePass
+; O123:        Running pass:       InstCombinePass
+; O123:        Running pass:       IndVarSimplifyPass
+; O123:        Running pass:       SecondaryIVEliminationPass
 ; O123:        Running pass:       GuardLoopPass
 ; O123:        Running pass:       PrepareTapirLoopsPass
 ; O123:        Running pass:       LocalizeReductionsPass

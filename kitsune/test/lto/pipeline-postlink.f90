@@ -38,6 +38,9 @@
 ! O123-NOT:    Running pass:       EarlyVerificationPass
 ! O123-NOT:    Running pass:       AnnotateEarlyPass
 ! O123-NOT:    Running pass:       SerializePass
+! O123-NOT:    Running pass:       InstCombinePass
+! O123-NOT:    Running pass:       IndVarSimplifyPass
+! O123-NOT:    Running pass:       SecondaryIVEliminationPass
 ! O123-NOT:    Running pass:       GuardLoopPass
 ! O123-NOT:    Running pass:       PrepareTapirLoopsPass
 ! O123-NOT:    Running pass:       LocalizeReductionsPass

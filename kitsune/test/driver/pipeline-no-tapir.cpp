@@ -27,6 +27,7 @@
 // CHECK-NOT:  Running pass:       EarlyVerificationPass
 // CHECK-NOT:  Running pass:       AnnotateEarlyPass
 // CHECK-NOT:  Running pass:       SerializePass
+// CHECK-NOT:  Running pass:       SecondaryIVEliminationPass
 // CHECK-NOT:  Running pass:       PrepareTapirLoopsPass
 // CHECK-NOT:  Running pass:       LocalizeReductionsPass
 // CHECK-NOT:  Running pass:       ComputeReductionStrategyPass

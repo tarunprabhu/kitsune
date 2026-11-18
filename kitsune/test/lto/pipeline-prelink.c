@@ -31,6 +31,9 @@
 //
 // ... pipeline prepare
 // O123:       Running pass:       SerializePass
+// O123:       Running pass:       InstCombinePass
+// O123:       Running pass:       IndVarSimplifyPass
+// O123:       Running pass:       SecondaryIVEliminationPass
 // O123:       Running pass:       GuardLoopPass
 // O123:       Running pass:       PrepareTapirLoopsPass
 // O123:       Running pass:       LocalizeReductionsPass

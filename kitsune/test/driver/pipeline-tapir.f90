@@ -12,6 +12,7 @@
 ! RUN:     | FileCheck %s -check-prefix O0
 !
 ! O0-NOT:      Running pass:       SerializePass
+! O0-NOT:      Running pass:       SecondaryIVEliminationPass
 ! O0-NOT:      Running pass:       GuardLoopPass
 ! O0-NOT:      Running pass:       PrepareTapirLoopsPass
 ! O0-NOT:      Running pass:       LocalizeReductionsPass
@@ -55,6 +56,9 @@
 !
 ! ... pipeline prepare
 ! O123:        Running pass:       SerializePass
+! O123:        Running pass:       InstCombinePass
+! O123:        Running pass:       IndVarSimplifyPass
+! O123:        Running pass:       SecondaryIVEliminationPass
 ! O123:        Running pass:       GuardLoopPass
 ! O123:        Running pass:       PrepareTapirLoopsPass
 ! O123:        Running pass:       LocalizeReductionsPass
