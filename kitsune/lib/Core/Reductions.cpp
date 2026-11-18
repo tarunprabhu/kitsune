@@ -451,12 +451,16 @@ Function *llvm::genReducer(ReduceOp op, Type *ty, Module &m) {
   return f;
 }
 
-SmallVector<ReductionInfo, 1> llvm::collectReductions(Loop &loop) {
-  SmallVector<ReductionInfo, 1> reductions;
+Reductions llvm::getReductions(Loop &loop) {
+  Reductions redxns;
   for (BasicBlock *bb : loop.getBlocks())
-    for (Instruction &inst : *bb)
-      if (auto *call = dyn_cast<CallInst>(&inst))
-        if (call->getIntrinsicID() == Intrinsic::kit_reduce)
-          reductions.emplace_back(call);
-  return reductions;
+    ::collectReductions(*bb, redxns);
+  return redxns;
+}
+
+Reductions llvm::getReductions(Function &f) {
+  Reductions redxns;
+  for (BasicBlock &bb : f)
+    ::collectReductions(bb, redxns);
+  return redxns;
 }

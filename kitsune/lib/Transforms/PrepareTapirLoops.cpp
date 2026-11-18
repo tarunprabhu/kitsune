@@ -122,7 +122,7 @@ static bool checkReductionLoop(TapirLoopInfo &tapirLoop, DominatorTree &dt,
     return false;
 
   Loop &root = *tapirLoop.getLoop();
-  SmallVector<ReductionInfo, 1> redxns = collectReductions(root);
+  Reductions redxns = getReductions(root);
 
   // The destination of a reduction loop must be loop invariant. We currently
   // do not support loop-variant destinations.

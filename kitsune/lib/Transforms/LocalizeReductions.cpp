@@ -29,9 +29,6 @@ using namespace llvm;
 namespace {
 
 class LocalizeReductionsImpl {
-public:
-  using Reductions = SmallVector<ReductionInfo, 1>;
-
 protected:
   LoopInfo &li;
 
@@ -210,7 +207,7 @@ bool LocalizeReductionsImpl::run(Loop &loop) {
   assert(getUniqueInstInLoopOnly<ReattachInst>(loop) &&
          "Tapir loop has a unique reattach instruction");
 
-  Reductions redxns = collectReductions(loop);
+  Reductions redxns = getReductions(loop);
   if (!check(loop, redxns))
     return false;
 

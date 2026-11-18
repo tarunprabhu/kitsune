@@ -74,7 +74,7 @@ bool VerifyFunction::verifyReductions(Function &f) {
   };
 
   for (Loop *loop : getTapirLoops(li)) {
-    SmallVector<ReductionInfo, 1> redxns = collectReductions(*loop);
+    Reductions redxns = getReductions(*loop);
     if (redxns.empty())
       continue;
 

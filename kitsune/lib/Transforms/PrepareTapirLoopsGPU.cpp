@@ -279,7 +279,7 @@ static bool prepareReductionNest(const SmallVectorImpl<Loop *> &nest) {
                     << "'\n");
 
   Loop &root = *nest[0];
-  SmallVector<ReductionInfo, 1> redxns = collectReductions(root);
+  Reductions redxns = getReductions(root);
   std::unique_ptr<IShadowMem> iShadowMem = getShadowMemImpl(root);
   for (const ReductionInfo &redxn : redxns) {
     // We have to save this because this will change during the course of the
