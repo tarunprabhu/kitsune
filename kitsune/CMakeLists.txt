@@ -344,7 +344,7 @@ if (KITSUNE_CUDA_ENABLED)
 
   # The lowest unsupported cuda version that is greater than the minimum
   # supported version
-  set(KITSUNE_CUDA_VERSION_MAX 13.5)
+  set(KITSUNE_CUDA_VERSION_MAX 13.6)
 
   set(KITSUNE_CUDA_VERSION ${CUDAToolkit_VERSION_MAJOR}.${CUDAToolkit_VERSION_MINOR})
   if (KITSUNE_CUDA_VERSION VERSION_LESS KITSUNE_CUDA_VERSION_MIN
@@ -458,7 +458,7 @@ if (KITSUNE_HIP_ENABLED)
 
   # The lowest unsupported ROCm version that is greater than the minimum
   # supported version
-  set(KITSUNE_HIP_VERSION_MAX 7.3)
+  set(KITSUNE_HIP_VERSION_MAX 7.17)
 
   set(KITSUNE_HIP_VERSION
     ${HIP_VERSION_MAJOR}.${HIP_VERSION_MINOR}.${HIP_VERSION_PATCH})
