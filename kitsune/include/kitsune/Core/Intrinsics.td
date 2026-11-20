@@ -247,94 +247,93 @@ def int_kit_cpu_threads_sync
 // Get the thread index in the x dimension in a GPU kernel.
 def int_kit_gpu_thread_id_x
     : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty],
-                   [ImmArg<ArgIndex<0>>, IntrNoMem, IntrWillReturn]> {
+                   [ImmArg<ArgIndex<0>>, IntrNoMem]> {
   let Doc = KitGPUTIDXDoc;
 }
 
 // Get the thread index in the y dimension in a GPU kernel.
 def int_kit_gpu_thread_id_y
     : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty],
-                   [ImmArg<ArgIndex<0>>, IntrNoMem, IntrWillReturn]> {
+                   [ImmArg<ArgIndex<0>>, IntrNoMem]> {
   let Doc = KitGPUTIDYDoc;
 }
 
 // Get the thread index in the z dimension in a GPU kernel.
 def int_kit_gpu_thread_id_z
     : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty],
-                   [ImmArg<ArgIndex<0>>, IntrNoMem, IntrWillReturn]> {
+                   [ImmArg<ArgIndex<0>>, IntrNoMem]> {
   let Doc = KitGPUTIDZDoc;
 }
 
 // Get the block index in the x dimension in a GPU kernel.
 def int_kit_gpu_block_id_x
     : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty],
-                   [ImmArg<ArgIndex<0>>, IntrNoMem, IntrWillReturn]> {
+                   [ImmArg<ArgIndex<0>>, IntrNoMem]> {
   let Doc = KitGPUBlockIDXDoc;
 }
 
 // Get the block index in the y dimension in a GPU kernel.
 def int_kit_gpu_block_id_y
     : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty],
-                   [ImmArg<ArgIndex<0>>, IntrNoMem, IntrWillReturn]> {
+                   [ImmArg<ArgIndex<0>>, IntrNoMem]> {
   let Doc = KitGPUBlockIDYDoc;
 }
 
 // Get the block index in the z dimension in a GPU kernel.
 def int_kit_gpu_block_id_z
     : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty],
-                   [ImmArg<ArgIndex<0>>, IntrNoMem, IntrWillReturn]> {
+                   [ImmArg<ArgIndex<0>>, IntrNoMem]> {
   let Doc = KitGPUBlockIDZDoc;
 }
 
 // Get the number of blocks in the x dimension in a GPU kernel.
 def int_kit_gpu_block_size_x
     : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty],
-                   [ImmArg<ArgIndex<0>>, IntrNoMem, IntrWillReturn]> {
+                   [ImmArg<ArgIndex<0>>, IntrNoMem]> {
   let Doc = KitGPUBlockSizeXDoc;
 }
 
 // Get the number of blocks in the y dimension in a GPU kernel.
 def int_kit_gpu_block_size_y
     : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty],
-                   [ImmArg<ArgIndex<0>>, IntrNoMem, IntrWillReturn]> {
+                   [ImmArg<ArgIndex<0>>, IntrNoMem]> {
   let Doc = KitGPUBlockSizeYDoc;
 }
 
 // Get the number of blocks in the z dimension in a GPU kernel.
 def int_kit_gpu_block_size_z
     : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty],
-                   [ImmArg<ArgIndex<0>>, IntrNoMem, IntrWillReturn]> {
+                   [ImmArg<ArgIndex<0>>, IntrNoMem]> {
   let Doc = KitGPUBlockSizeZDoc;
 }
 
 // Get the number of grids in the x dimension in a GPU kernel.
 def int_kit_gpu_grid_size_x
     : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty],
-                   [ImmArg<ArgIndex<0>>, IntrNoMem, IntrWillReturn]> {
+                   [ImmArg<ArgIndex<0>>, IntrNoMem]> {
   let Doc = KitGPUGridSizeXDoc;
 }
 
 // Get the number of blocks in the y dimension in a GPU kernel.
 def int_kit_gpu_grid_size_y
     : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty],
-                   [ImmArg<ArgIndex<0>>, IntrNoMem, IntrWillReturn]> {
+                   [ImmArg<ArgIndex<0>>, IntrNoMem]> {
   let Doc = KitGPUGridSizeYDoc;
 }
 
 // Get the number of blocks in the z dimension in a GPU kernel.
 def int_kit_gpu_grid_size_z
     : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty],
-                   [ImmArg<ArgIndex<0>>, IntrNoMem, IntrWillReturn]> {
+                   [ImmArg<ArgIndex<0>>, IntrNoMem]> {
   let Doc = KitGPUGridSizeZDoc;
 }
 
-// Get the number of threads per warp.
-// NOTE: This is not really convergent. Doing so is overly conservative, but,
-// this way, it does not get hoisted out of tapir loops. Once we fix the
-// lowering of warp shuffles, we can probably remove this attribute.
+// Get the number of threads per warp. This is not really convergent since it
+// will always be lowered to a constant. But we keep it so it does not get
+// hoisted out of tapir loops if it ever appears in one.
 def int_kit_gpu_warp_size
     : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty],
-                   [IntrConvergent, IntrNoMem, IntrWillReturn]> {
+                   [IntrConvergent, IntrNoMem]> {
   let Doc = KitGPUWarpSizeDoc;
   let LowerMode = LowerCustom;
 }
@@ -343,7 +342,7 @@ def int_kit_gpu_warp_size
 def int_kit_gpu_warp_id
     : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty],
                    [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>,
-                    IntrConvergent, IntrNoMem, IntrWillReturn]> {
+                    IntrConvergent, IntrNoMem]> {
   let Doc = KitGPUWarpIDDoc;
   let LowerMode = LowerCustom;
 }
@@ -352,7 +351,7 @@ def int_kit_gpu_warp_id
 def int_kit_gpu_warp_lane
     : KitIntrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty],
                    [ImmArg<ArgIndex<0>>, ImmArg<ArgIndex<1>>,
-                    IntrConvergent, IntrNoMem, IntrWillReturn]> {
+                    IntrConvergent, IntrNoMem]> {
   let Doc = KitGPUWarpLaneDoc;
   let LowerMode = LowerCustom;
 }
@@ -360,7 +359,7 @@ def int_kit_gpu_warp_lane
 // The equivalent of the __shfl_down_sync builtin available in cuda and hip.
 def int_kit_gpu_warp_shfl_down_sync
     : KitIntrinsic<[llvm_any_ty], [llvm_i32_ty, llvm_any_ty, llvm_i32_ty],
-                   [ImmArg<ArgIndex<0>>, IntrConvergent, IntrWillReturn]> {
+                   [ImmArg<ArgIndex<0>>, IntrConvergent]> {
   let Doc = KitGPUWarpShflDownSyncDoc;
   let LowerMode = LowerCustom;
 }
@@ -512,7 +511,7 @@ def int_kit_async_gpu_prefetch_htod
                     llvm_ptr_ty,  // pointer to memory to prefetch
                     llvm_i64_ty,  // number of bytes to prefetch
                     llvm_ptr_ty], // stream
-                   [ImmArg<ArgIndex<0>>, IntrWillReturn]> {
+                   [ImmArg<ArgIndex<0>>]> {
   let Doc = KitAsyncPrefetchHToDDoc;
   let RTSpec = [RT<Cuda, kitcuda_prefetch_htod>,
                 RT<Hip, kithip_prefetch_htod>];
