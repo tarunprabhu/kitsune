@@ -71,7 +71,10 @@ protected:
 public:
   bool run(CallInst *call) {
     BasicBlock::iterator pos = call->getIterator();
-    ReplaceInstWithValue(pos, replaceImpl(call));
+    if (Value *repl = replaceImpl(call))
+      ReplaceInstWithValue(pos, repl);
+    else
+      call->eraseFromParent();
     return true;
   }
 };
@@ -350,13 +353,11 @@ Function *LowerWarpShuffleDownSync::getOrInsertCoreImplCuda(Module &m) {
   //     c = ((warpSize - width) << 8) | 0x1f;
   //     __nvvm_shfl_down_sync(mask, var, offset, c)
   //
-  // Here mask is a bitmask indicating which threads are participate in the
+  // Here `mask` is a bitmask indicating which threads are participate in the
   // warp shuffle. Since we only use this when lowering reductions, and we do
-  // not support conditional reductions, the mask is always 0xFFFFFFFFU. By
-  // default, even in cuda, width == warpSize. Presumably the reason to have
-  // this be different is if only some threads in a warp were participating in
-  // the shuffle. As we have already stated, we require all threads to
-  // participate, so we assume that `c` is 0x1f.
+  // not support conditional reductions, `mask` is always 0xFFFFFFFFU.
+  // Similarly, we never split a warp, so `width` is always `warpSize`. As a
+  // result, `c` is always 0x1f.
   //
   // The implementation of this function then simply becomes a call to the
   // intrinsic.
@@ -566,6 +567,38 @@ Value *LowerWarpShuffleDownSync::replaceIntrHip(CallInst *call) {
   return replaceIntr(call, TTID::Hip, coreImpl);
 }
 
+//==--------------------------- LowerWarpShuffle ---------------------------==//
+
+namespace {
+
+class LowerWarpSync : public LowerWarpIntrinsicBase {
+protected:
+  virtual Value *replaceIntrCuda(CallInst *call) override;
+  virtual Value *replaceIntrHip(CallInst *call) override;
+};
+
+} // namespace
+
+Value *LowerWarpSync::replaceIntrCuda(CallInst *call) {
+  LLVMContext &ctx = call->getContext();
+  Type *i32 = Type::getInt32Ty(ctx);
+  Constant *mask = ConstantInt::get(i32, -1, /*isSigned=*/true);
+
+  IRBuilder<> builder(call);
+  return builder.CreateIntrinsic(Intrinsic::nvvm_bar_warp_sync, {mask});
+}
+
+Value *LowerWarpSync::replaceIntrHip(CallInst *call) {
+  LLVMContext &ctx = call->getContext();
+  IRBuilder<> builder(call);
+  SyncScope::ID scope = ctx.getOrInsertSyncScopeID("wavefront");
+  builder.CreateFence(AtomicOrdering::Release, scope);
+  builder.CreateIntrinsic(Intrinsic::amdgcn_wave_barrier, {});
+  builder.CreateFence(AtomicOrdering::Acquire, scope);
+
+  return nullptr;
+}
+
 //==------------------------------------------------------------------------==//
 
 bool detail::LowerIntrinsicsImpl::lowerGPUWarpIntrinsic(CallInst *call) {
@@ -577,6 +610,7 @@ bool detail::LowerIntrinsicsImpl::lowerGPUWarpIntrinsic(CallInst *call) {
   case Intrinsic::kit_gpu_warp_size: return LowerWarpSize(tto).run(call);
   case Intrinsic::kit_gpu_warp_shfl_down_sync:
     return LowerWarpShuffleDownSync().run(call);
+  case Intrinsic::kit_gpu_warp_sync: return LowerWarpSync().run(call);
   default: break;
   }
   llvm_unreachable("lowerGPUWarpIntrinsic: Warp intrinsic not handled");

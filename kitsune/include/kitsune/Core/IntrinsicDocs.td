@@ -857,6 +857,16 @@ garbage results.
 }];
 }
 
+def KitGPUWarpSyncDoc : KitDocIntrinsic {
+  let Category = KitDocCatGPU;
+  let ParamDocs = [
+    KitDocParam<"tt", "The ID of the tapir target calling this intrinsic">
+  ];
+  let Descr = [{
+Synchronize all threads in a warp.
+}];
+}
+
 def KitAsyncGPULaunchKernelDoc : KitDocIntrinsic {
   let Category = KitDocCatGPU;
   let ParamDocs = [

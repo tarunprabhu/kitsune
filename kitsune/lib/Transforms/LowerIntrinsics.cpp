@@ -53,6 +53,7 @@ static detail::IntrinsicKind getIntrinsicKind(const CallInst &call) {
   case Intrinsic::kit_gpu_warp_lane:
   case Intrinsic::kit_gpu_warp_size:
   case Intrinsic::kit_gpu_warp_shfl_down_sync:
+  case Intrinsic::kit_gpu_warp_sync:
     return detail::IntrinsicKind::GPUWarp;
   case Intrinsic::kit_gpu_thread_id_x:
   case Intrinsic::kit_gpu_thread_id_y:
