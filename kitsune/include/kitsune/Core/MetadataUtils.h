@@ -15,6 +15,7 @@
 
 #include "kitsune/Core/ConstantUtils.h"
 #include "kitsune/Support/TypeTraits.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
@@ -40,6 +41,17 @@ void add(SmallSet<E, N> &container, const E &elem) {
 
 /// \addtogroup kitsune
 /// @{
+
+/// Create a distinct self-referencing MDNode with \p n operands. The operands
+/// are all set to nullptr. The MDNode that is created will appear in LLVM
+/// assembly as shown below (here, n is assumed to be 3):
+///
+///     !0 = distinct !{!0, null, null, null}
+///
+MDNode *createSelfReferencingMDNode(LLVMContext &ctx, unsigned n = 0);
+
+/// Create a distinct self-referencing MDNode with the given operands.
+MDNode *createSelfReferencingMDNode(LLVMContext &ctx, ArrayRef<Metadata *> ops);
 
 /// Clone a self-referencing metadata node. This is one where the first operand
 /// of the MDNode is the node itself. This is used in upstream LLVM for Loop

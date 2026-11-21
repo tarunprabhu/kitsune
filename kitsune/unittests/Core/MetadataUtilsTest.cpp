@@ -16,13 +16,37 @@ using namespace llvm;
 
 namespace {
 
+TEST(KitMetadtaUtils, createSelfReferencingMDNodeEmpty) {
+  LLVMContext ctx;
+
+  MDNode *md0 = createSelfReferencingMDNode(ctx);
+  EXPECT_EQ(md0->getNumOperands(), 1U);
+  EXPECT_EQ(md0->getOperand(0), md0);
+
+  MDNode *md2 = createSelfReferencingMDNode(ctx, 2);
+  EXPECT_EQ(md2->getNumOperands(), 3U);
+  EXPECT_EQ(md2->getOperand(0), md2);
+  EXPECT_FALSE(md2->getOperand(1));
+  EXPECT_FALSE(md2->getOperand(2));
+}
+
+TEST(KitMetadataUtils, cloneSelfReferencingMDNodeOps) {
+  LLVMContext ctx;
+  Metadata *mi32 = toMetadata(1U, ctx);
+  Metadata *mcstr = toMetadata("homerton", ctx);
+  MDNode *md = createSelfReferencingMDNode(ctx, {mi32, mcstr});
+
+  EXPECT_EQ(md->getNumOperands(), 3U);
+  EXPECT_EQ(md->getOperand(0), md);
+  EXPECT_EQ(md->getOperand(1), mi32);
+  EXPECT_EQ(md->getOperand(2), mcstr);
+}
+
 TEST(KitMetadataUtils, cloneSelfReferencingMDNode) {
   LLVMContext ctx;
-  Metadata *mi32 = toMetadata(1, ctx);
+  Metadata *mi32 = toMetadata(1U, ctx);
   Metadata *mcstr = toMetadata("wadham", ctx);
-  MDNode *md = MDNode::get(ctx, {nullptr, mi32, mcstr});
-  md->replaceOperandWith(0, md);
-
+  MDNode *md = createSelfReferencingMDNode(ctx, {mi32, mcstr});
   MDNode *clone = cloneSelfReferencingMDNode(md);
 
   EXPECT_EQ(clone->getNumOperands(), 3U);

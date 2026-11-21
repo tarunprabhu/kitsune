@@ -14,6 +14,20 @@
 
 using namespace llvm;
 
+MDNode *llvm::createSelfReferencingMDNode(LLVMContext &ctx, unsigned n) {
+  SmallVector<Metadata *> ops(n, nullptr);
+  return createSelfReferencingMDNode(ctx, ops);
+}
+
+MDNode *llvm::createSelfReferencingMDNode(LLVMContext &ctx,
+                                          ArrayRef<Metadata *> ops) {
+  SmallVector<Metadata *, 1> mdOps = {nullptr};
+  mdOps.append(ops.begin(), ops.end());
+  MDNode *md = MDNode::getDistinct(ctx, mdOps);
+  md->replaceOperandWith(0, md);
+  return md;
+}
+
 MDNode *llvm::cloneSelfReferencingMDNode(MDNode *md) {
   assert(md->getOperand(0) == md && "MDNode is self-referencing");
 
