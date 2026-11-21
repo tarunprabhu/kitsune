@@ -46,6 +46,7 @@
 ; CHECK-EMPTY:
 ; CHECK-NEXT: [[REATTACH1]]:
 ; CHECK-NEXT: %[[VF:.+]] = load double, ptr %[[LOCALF]]
+; CHECK-NEXT: %[[VI:.+]] = load i64, ptr %[[LOCALI]]
 ; CHECK-NEXT: call {{.+}} @llvm.kit.reduce
 ; CHECK-SAME: i32 1024
 ; CHECK-SAME: i32 5
@@ -55,7 +56,6 @@
 ; CHECK-SAME: i32 8
 ; CHECK-SAME: double 0.000000e+00
 ; CHECK-SAME: ptr @fadd
-; CHECK-NEXT: %[[VI:.+]] = load i64, ptr %[[LOCALI]]
 ; CHECK-NEXT: call {{.+}} @llvm.kit.reduce
 ; CHECK-SAME: i32 1024
 ; CHECK-SAME: i32 5

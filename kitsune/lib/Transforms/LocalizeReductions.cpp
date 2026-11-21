@@ -7,7 +7,28 @@
 //===----------------------------------------------------------------------===//
 //
 // Compute per-thread reductions in prepared tapir loops. At the end of the
-// thread, accumulate this contribution to the original destination.
+// thread, accumulate this contribution to the original destination. Consider
+// the tapir reduction loop shown below:
+//
+//     int res = <identity>;
+//     forall(...) {
+//       __kitsune_reduce(&res, ...)
+//     }
+//
+// This will be transformed to the following:
+//
+//     int res = <identity>;
+//     forall(...) {
+//       int local = <identity>;
+//       __kitsune_reduce(&local, ...)
+//       __kitsune_reduce(&res, local, ...);
+//     }
+//
+// From the example above, it is not clear why this transformation is
+// beneificial. However, in general, the reduction could be performed inside
+// nested serial loops within the parallel loop body. In such cases, performing
+// a local reduction, which can be performed in serial, followed by a parallel
+// reduction into the actual result can be more efficient.
 //
 //===----------------------------------------------------------------------===//
 
@@ -28,15 +49,22 @@ using namespace llvm;
 
 namespace {
 
-class LocalizeReductionsImpl {
+class LocalizeReductions {
+public:
+  // Map from the destinations of reductions to the local into which they will
+  // be reduced before performing the final reduction.
+  using Locals = DenseMap<Value *, AllocaInst *>;
+
 protected:
   LoopInfo &li;
 
 protected:
   AllocaInst *genLocal(const ReductionInfo &redxn, Instruction *insertPt);
-  void genReduceIntoLocal(const ReductionInfo &redxn, AllocaInst *local);
-  void genReduceIntoFinal(const ReductionInfo &redxn, AllocaInst *local,
-                          Loop &loop);
+  Locals genLocals(Loop &loop, const Reductions &redxns);
+  void genReduceIntoLocal(Loop &loop, const Reductions &redxns,
+                          const Locals &locals);
+  void genReduceIntoFinal(Loop &loop, const Reductions &redxn,
+                          const Locals &locals);
   bool localizeReduction(Loop &loop, const Reductions &redxns);
   bool localizeReductionCPU(Loop &loop, const Reductions &redxns);
   bool localizeReductionGPU(Loop &loop, const Reductions &redxns);
@@ -45,15 +73,15 @@ protected:
   bool run(Loop &loop);
 
 public:
-  LocalizeReductionsImpl(LoopInfo &li) : li(li) {}
+  LocalizeReductions(LoopInfo &li) : li(li) {}
 
   bool run(Function &f);
 };
 
 } // namespace
 
-AllocaInst *LocalizeReductionsImpl::genLocal(const ReductionInfo &redxn,
-                                             Instruction *insertPt) {
+AllocaInst *LocalizeReductions::genLocal(const ReductionInfo &redxn,
+                                         Instruction *insertPt) {
   Type *type = redxn.getType();
   Value *unit = redxn.getUnit();
   unsigned size = redxn.elemSize;
@@ -69,51 +97,8 @@ AllocaInst *LocalizeReductionsImpl::genLocal(const ReductionInfo &redxn,
   return local;
 }
 
-void LocalizeReductionsImpl::genReduceIntoLocal(const ReductionInfo &redxn,
-                                                AllocaInst *local) {
-  // Since we are guaranteed that the destination of the reduction is not used
-  // elsewhere in the loop (except perhaps as the destination of other
-  // reductions in the loop), to reduce into the local instead, we only need to
-  // replace the destination in the call to the reduce intrinsic. We also update
-  // the reduction strategy to naive since this is always a straightforward
-  // serial reduction.
-  LLVMContext &ctx = local->getContext();
-  Value *strategy = toConstant(ReductionStrategy::Naive, ctx);
-
-  redxn.call->setArgOperand(ReductionInfo::argNumDest, local);
-  redxn.call->setArgOperand(ReductionInfo::argNumStrategy, strategy);
-}
-
-void LocalizeReductionsImpl::genReduceIntoFinal(const ReductionInfo &redxn,
-                                                AllocaInst *local, Loop &loop) {
-  Value *tt = redxn.getTTV();
-  Value *op = redxn.getReduceOpV();
-  Value *dest = redxn.getDest();
-  Type *type = redxn.getType();
-  Value *size = redxn.getElemSizeV();
-  Value *unit = redxn.getUnit();
-  Value *reducer = redxn.getReducer();
-  Value *strategy = redxn.getStrategyV();
-
-  // The reattach instruction is guaranteed to be the very last instruction in
-  // the loop body. Once outlined, any instructions added right before the
-  // reattach instruction will be the very last instructions in the outlined
-  // function, except for the return. The accumulation into the final
-  // destination can be safely performed there where it is guaranteed to be
-  // executed after the local reduction has been computed.
-  ReattachInst *reattach = getUniqueInstInLoopOnly<ReattachInst>(loop);
-  IRBuilder<> builder(reattach);
-  Value *value = builder.CreateLoad(type, local);
-
-  SmallVector<Type *, 2> overloadTys = redxn.getOverloadTypes();
-  SmallVector<Value *, 8> args = {tt,       op,   dest, value,
-                                  strategy, size, unit, reducer};
-  args.append(redxn.getExtraArgs());
-  builder.CreateIntrinsic(Intrinsic::kit_reduce, overloadTys, args);
-}
-
-bool LocalizeReductionsImpl::localizeReduction(Loop &loop,
-                                               const Reductions &redxns) {
+LocalizeReductions::Locals
+LocalizeReductions::genLocals(Loop &loop, const Reductions &redxns) {
   // Get the point at which to insert allocas for the local reductions. We
   // cannot use BasicBlock::getFirst* functions because the variant that looks
   // for allocas only works if the basic block is the function entry block.
@@ -124,11 +109,6 @@ bool LocalizeReductionsImpl::localizeReduction(Loop &loop,
     llvm_unreachable("No valid insert point in basic block");
   };
 
-  DenseMap<Value *, AllocaInst *> locals;
-
-  // Generate allocas for the local reduction. We generate one alloca per
-  // destination - not one alloca per reduction.
-  //
   // We add the alloca to the detached block of the tapir loop. This is
   // essentially the "entry block" of the loop body. These tapir loops will
   // eventually be outlined. Tapir loops with a CPU-centric tapir target are
@@ -143,37 +123,108 @@ bool LocalizeReductionsImpl::localizeReduction(Loop &loop,
   // have exactly as many local allocas as there are unique destinations of
   // reductions.
   DetachInst *detach = getUniqueInstInLoopOnly<DetachInst>(loop);
-  BasicBlock &bbBody = *detach->getDetached();
+  BasicBlock *bbBody = detach->getDetached();
+
+  Locals locals;
   for (const ReductionInfo &redxn : redxns) {
     Value *dest = redxn.getDest();
     if (!locals.contains(dest))
-      locals[dest] = genLocal(redxn, getInsertPoint(bbBody));
+      locals[dest] = genLocal(redxn, getInsertPoint(*bbBody));
   }
+  return locals;
+}
+
+void LocalizeReductions::genReduceIntoLocal(Loop &loop,
+                                            const Reductions &redxns,
+                                            const Locals &locals) {
+  // Since we are guaranteed that the destination of the reduction is not used
+  // elsewhere in the loop (except perhaps as the destination of other
+  // reductions in the loop), to reduce into the local instead, we only need to
+  // replace the destination in the call to the reduce intrinsic. We also update
+  // the reduction strategy to naive since this is always a straightforward
+  // serial reduction.
+  LLVMContext &ctx = getContext(loop);
+  Value *strategy = toConstant(ReductionStrategy::Naive, ctx);
+
+  for (const ReductionInfo &redxn : redxns) {
+    AllocaInst *local = locals.at(redxn.getDest());
+
+    redxn.call->setArgOperand(ReductionInfo::argNumDest, local);
+    redxn.call->setArgOperand(ReductionInfo::argNumStrategy, strategy);
+  }
+}
+
+void LocalizeReductions::genReduceIntoFinal(Loop &loop,
+                                            const Reductions &redxns,
+                                            const Locals &locals) {
+  // The reattach instruction is guaranteed to be the very last instruction in
+  // the loop body. Once outlined, any instructions added right before the
+  // reattach instruction will effectively be the very last instructions in the
+  // outlined function, except for the return. The accumulation into the final
+  // destination can be safely performed there where it is guaranteed to be
+  // executed after the local reduction has been computed.
+  ReattachInst *reattach = getUniqueInstInLoopOnly<ReattachInst>(loop);
+  IRBuilder<> builder(reattach);
+
+  // We first insert the loads of the local. This is so the calls to the reduce
+  // intrinsics stay grouped together. This can be useful for a future
+  // optimization that fuses the final reductions.
+  DenseMap<Value *, LoadInst *> loads;
+  for (const ReductionInfo &redxn : redxns) {
+    Type *type = redxn.getType();
+    Value *dest = redxn.getDest();
+    AllocaInst *local = locals.at(dest);
+    LoadInst *load = builder.CreateLoad(type, local);
+    loads[dest] = load;
+  }
+
+  // Now add the final reduction call.
+  for (const ReductionInfo &redxn : redxns) {
+    Value *tt = redxn.getTTV();
+    Value *op = redxn.getReduceOpV();
+    Value *dest = redxn.getDest();
+    Value *size = redxn.getElemSizeV();
+    Value *unit = redxn.getUnit();
+    Value *reducer = redxn.getReducer();
+    Value *strategy = redxn.getStrategyV();
+    Value *value = loads.at(dest);
+
+    SmallVector<Type *, 2> overloadTys = redxn.getOverloadTypes();
+    SmallVector<Value *, 8> args = {tt,       op,   dest, value,
+                                    strategy, size, unit, reducer};
+    args.append(redxn.getExtraArgs());
+    builder.CreateIntrinsic(Intrinsic::kit_reduce, overloadTys, args);
+  }
+}
+
+bool LocalizeReductions::localizeReduction(Loop &loop,
+                                           const Reductions &redxns) {
+  // Generate allocas for the local reduction. We generate one alloca per
+  // destination - not one alloca per reduction.
+  Locals locals = genLocals(loop, redxns);
 
   // Generate the final reduction. We do this first because we need the original
   // destination, which will eventually be replaced with the thread-local stack
   // slot that was allocated for it.
-  for (const ReductionInfo &redxn : redxns)
-    genReduceIntoFinal(redxn, locals.at(redxn.getDest()), loop);
+  genReduceIntoFinal(loop, redxns, locals);
 
   // It is now safe to update the original reduction to reduce into the local
   // variable that was allocated. This will also update the reduction strategy.
   // After this, it is no longer safe to use the ReductionInfo object.
-  for (const ReductionInfo &redxn : redxns)
-    genReduceIntoLocal(redxn, locals.at(redxn.getDest()));
+  genReduceIntoLocal(loop, redxns, locals);
 
   return true;
 }
 
-bool LocalizeReductionsImpl::localizeReductionCPU(Loop &loop,
-                                                  const Reductions &redxns) {
+bool LocalizeReductions::localizeReductionCPU(Loop &loop,
+                                              const Reductions &redxns) {
   bool changed = localizeReduction(loop, redxns);
   addLocalizedAttr(loop);
   return changed;
 }
 
-bool LocalizeReductionsImpl::localizeReductionGPU(Loop &root,
-                                                  const Reductions &redxns) {
+bool LocalizeReductions::localizeReductionGPU(Loop &root,
+                                              const Reductions &redxns) {
   SmallVector<Loop *, 0> loops = getTapirLoopsInNest(root);
   bool changed = localizeReduction(*loops.back(), redxns);
   for (Loop *loop : loops)
@@ -181,14 +232,14 @@ bool LocalizeReductionsImpl::localizeReductionGPU(Loop &root,
   return changed;
 }
 
-bool LocalizeReductionsImpl::localizeReductionSerial(Loop &loop,
-                                                     const Reductions &redxns) {
+bool LocalizeReductions::localizeReductionSerial(Loop &loop,
+                                                 const Reductions &redxns) {
   // There is nothing to be gained by localizing reductions for loops that will
   // eventually be executed in serial.
   return false;
 }
 
-bool LocalizeReductionsImpl::check(const Loop &loop, const Reductions &redxns) {
+bool LocalizeReductions::check(const Loop &loop, const Reductions &redxns) {
   if (!loop.isLoopSimplifyForm())
     return emitDiagnostic(loop, DiagID::ErrLoopNotSimplifyForm);
 
@@ -199,7 +250,7 @@ bool LocalizeReductionsImpl::check(const Loop &loop, const Reductions &redxns) {
   return true;
 }
 
-bool LocalizeReductionsImpl::run(Loop &loop) {
+bool LocalizeReductions::run(Loop &loop) {
   assert(isTapirLoop(loop) && "Loop is a tapir loop");
   assert(hasReductionAttr(loop) && "Loop is a reduction loop");
   assert(getUniqueInstInLoopOnly<DetachInst>(loop) &&
@@ -224,7 +275,7 @@ bool LocalizeReductionsImpl::run(Loop &loop) {
     llvm_unreachable("Unknown tapir target category");
 }
 
-bool LocalizeReductionsImpl::run(Function &f) {
+bool LocalizeReductions::run(Function &f) {
   bool changed = false;
   for (Loop *loop : getTopLevelTapirLoops(li))
     if (hasReductionAttr(*loop) && !hasLocalizedAttr(*loop))
@@ -236,7 +287,7 @@ PreservedAnalyses LocalizeReductionsPass::run(Function &f,
                                               FunctionAnalysisManager &am) {
   LoopInfo &li = am.getResult<LoopAnalysis>(f);
 
-  if (LocalizeReductionsImpl(li).run(f))
+  if (LocalizeReductions(li).run(f))
     return PreservedAnalyses::none();
   return PreservedAnalyses::all();
 }
