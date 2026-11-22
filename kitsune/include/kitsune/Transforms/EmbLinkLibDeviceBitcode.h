@@ -13,7 +13,7 @@
 #ifndef KITSUNE_TRANSFORMS_EMB_LINK_LIBDEVICE_BITCODE_H
 #define KITSUNE_TRANSFORMS_EMB_LINK_LIBDEVICE_BITCODE_H
 
-#include "kitsune/Passes/EmbModulePass.h"
+#include "kitsune/Passes/EmbPass.h"
 
 namespace llvm {
 

@@ -13,7 +13,7 @@
 #ifndef KITSUNE_TRANSFORMS_EMB_OPTIMIZE_H
 #define KITSUNE_TRANSFORMS_EMB_OPTIMIZE_H
 
-#include "kitsune/Passes/EmbModulePass.h"
+#include "kitsune/Passes/EmbPass.h"
 
 namespace llvm {
 

@@ -13,7 +13,7 @@
 #ifndef KITSUNE_TRANSFORMS_EMB_LOWER_INTRINSICS_H
 #define KITSUNE_TRANSFORMS_EMB_LOWER_INTRINSICS_H
 
-#include "kitsune/Passes/EmbModulePass.h"
+#include "kitsune/Passes/EmbPass.h"
 
 namespace llvm {
 

@@ -21,8 +21,8 @@ signature.
 
 ```c++
 bool run(llvm::TTID tt,
-         llvm::Module &m,
-         llvm::ModuleAnalysisManager &am,
+         llvm::Module &devM,
+         llvm::ModuleAnalysisManager &devAM,
          llvm::Module &hostM,
          llvm::ModuleAnalysisManager &hostMAM);
 ```
@@ -33,14 +33,14 @@ The arguments that this method accepts are summarized in the table below.
 |||
 |:-:|:-:|
 | `tt` | The tapir target that generated the embedded module provided to the pass |
-| `m` | The embedded module |
-| `am` | Analysis manager for the embedded module, `m` |
-| `hostM` | The host module in to which `m` is embedded |
+| `devM` | The embedded module |
+| `devAM` | Analysis manager for the embedded module, `devM` |
+| `hostM` | The host module in to which `devM` is embedded |
 | `hostMAM` | Analysis manager for the host module, `hostM` |
 ```
 
-The method must return `true` if the pass modified the embedded module, `m`,
-`false` if `m` was not modified.
+The method must return `true` if the pass modified the embedded module, `devM`,
+`false` if `devM` was not modified.
 
 ```{important}
 An embedded bitcode pass _**must not**_ modify the host module.
@@ -95,7 +95,7 @@ embedded module is shown below. Note that we use the second entry point
 without an analysis manager for the embedded module.
 
 ```c++
-#include <kitsune/Transforms/EmbModulePass.h>
+#include <kitsune/Transforms/EmbPass.h>
 
 using namespace llvm;
 
@@ -145,7 +145,7 @@ embedded bitcode pass is shown below. More information about writing and
 building a pass plugin is provided [here](WritingPassPlugin.md).
 
 ```c++
-#include <kitsune/Transforms/EmbModulePass.h>
+#include <kitsune/Transforms/EmbPass.h>
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Passes/PassPlugin.h>
 

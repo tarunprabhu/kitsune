@@ -11,7 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "kitsune/Passes/EmbModulePass.h"
+#include "kitsune/Passes/EmbPass.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Plugins/PassPlugin.h"
 

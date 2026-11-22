@@ -13,7 +13,7 @@
 #ifndef KITSUNE_TRANSFORMS_HOIST_ALLOCAS_H
 #define KITSUNE_TRANSFORMS_HOIST_ALLOCAS_H
 
-#include "kitsune/Passes/EmbModulePass.h"
+#include "kitsune/Passes/EmbPass.h"
 #include "llvm/IR/PassManager.h"
 
 namespace llvm {
