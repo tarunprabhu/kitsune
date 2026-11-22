@@ -64,7 +64,7 @@ Align llvm::getTypeAlignment(const Module &m, Type *ty) {
   return dl.getABITypeAlign(ty);
 }
 
-SmallVector<CallInst *, 0> llvm::collectCalls(Module &m, Intrinsic::ID intr) {
+SmallVector<CallInst *, 0> llvm::getCalls(Module &m, Intrinsic::ID intr) {
   SmallVector<CallInst *, 0> calls;
   for (Function &f : m)
     for (BasicBlock &bb : f)

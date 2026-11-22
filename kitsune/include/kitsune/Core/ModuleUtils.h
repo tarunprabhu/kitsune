@@ -106,7 +106,7 @@ Align getPointerAlignment(const Module &m, unsigned addrSpace = KitAS::Default);
 Align getTypeAlignment(const Module &m, Type *ty);
 
 /// Get all calls to the intrinsic \p intr in a module.
-SmallVector<CallInst *, 0> collectCalls(Module &m, Intrinsic::ID intr);
+SmallVector<CallInst *, 0> getCalls(Module &m, Intrinsic::ID intr);
 
 /// @}
 

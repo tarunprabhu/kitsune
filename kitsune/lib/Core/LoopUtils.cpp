@@ -20,6 +20,7 @@
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/LoopNestAnalysis.h"
 #include "llvm/Analysis/TapirTaskInfo.h"
+#include "llvm/IR/Intrinsics.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
 
@@ -669,4 +670,24 @@ bool llvm::isTapirLoopNormalized(const Loop &loop, DominatorTree &dt) {
     return false;
 
   return true;
+}
+
+SmallVector<CallInst *, 0> llvm::getCalls(Loop &loop, Intrinsic::ID intr,
+                                          bool onlyInLoop) {
+  auto getBlocks = [](Loop &loop,
+                      bool onlyInLoop) -> SmallVector<BasicBlock *, 1> {
+    if (onlyInLoop)
+      return getBlocksNotInSubLoops(loop);
+
+    std::vector<BasicBlock *> bbs = loop.getBlocks();
+    return SmallVector<BasicBlock *, 1>(bbs.begin(), bbs.end());
+  };
+
+  SmallVector<CallInst *, 0> calls;
+  for (BasicBlock *bb : getBlocks(loop, onlyInLoop))
+    for (Instruction &inst : *bb)
+      if (auto *call = dyn_cast<CallInst>(&inst))
+        if (call->getIntrinsicID() == intr)
+          calls.push_back(call);
+  return calls;
 }

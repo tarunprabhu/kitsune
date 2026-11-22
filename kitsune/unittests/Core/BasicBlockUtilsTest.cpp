@@ -196,4 +196,29 @@ TEST(KitBasicBlockUtils, getUniquePHI) {
   EXPECT_FALSE(getUniquePHI(*bb));
 }
 
+TEST(KitBasicBlockUtils, getCalls) {
+  LLVMContext ctx;
+  Type *i32 = Type::getInt32Ty(ctx);
+  Type *voidTy = Type::getVoidTy(ctx);
+  Constant *one = ConstantInt::get(i32, 1, /*isSigned=*/false);
+  Constant *two = ConstantInt::get(i32, 2, /*isSigned=*/false);
+
+  Module m("", ctx);
+  Function *f = cast<Function>(m.getOrInsertFunction("f", voidTy).getCallee());
+  BasicBlock *bb = BasicBlock::Create(ctx, "", f);
+  IRBuilder<> builder(bb);
+
+  builder.CreateIntrinsic(Intrinsic::kit_cpu_num_threads, {one});
+  builder.CreateIntrinsic(Intrinsic::kit_cpu_num_threads, {two});
+  builder.CreateRetVoid();
+
+  EXPECT_TRUE(getCalls(*bb, Intrinsic::kit_mobile_free).empty());
+
+  SmallVector<CallInst *, 0> calls =
+      getCalls(*bb, Intrinsic::kit_cpu_num_threads);
+  EXPECT_EQ(calls.size(), 2U);
+  EXPECT_EQ(calls[0]->getArgOperand(0), one);
+  EXPECT_EQ(calls[1]->getArgOperand(0), two);
+}
+
 } // namespace

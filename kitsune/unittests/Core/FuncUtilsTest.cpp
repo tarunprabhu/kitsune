@@ -7,8 +7,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/FuncUtils.h"
+#include "TestUtils.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
 
 #include "gtest/gtest.h"
@@ -129,6 +131,50 @@ TEST(KitFuncUtils, getBlockNamed) {
 
   EXPECT_FALSE(getBlockNamed("", *f));
   EXPECT_FALSE(getBlockNamed("body", *f));
+}
+
+static constexpr StringRef calls = R"(
+define ptr addrspace(67) @f1(i64 %n) {
+  %buf1 = call ptr addrspace(67) @llvm.kit.mobile.alloc(i32 1, i64 %n)
+  ret ptr addrspace(67) %buf1
+}
+
+define void @f2(i64 %n) {
+  %ptr2 = call ptr addrspace(67) @llvm.kit.mobile.alloc(i32 2, i64 %n)
+  %ptr4 = call ptr addrspace(67) @llvm.kit.mobile.alloc(i32 4, i64 %n)
+  ret void
+}
+
+define void @f3(ptr addrspace(67) %buf) {
+  call void @llvm.kit.mobile.free(i32 1, ptr addrspace(67) %buf)
+  ret void
+}
+)";
+TEST(KitFuncUtils, getCalls) {
+  LLVMContext ctx;
+  Type *i32 = Type::getInt32Ty(ctx);
+
+  std::unique_ptr<Module> m = parseIR(ctx, calls);
+  Constant *one = ConstantInt::get(i32, 1, /*isSigned=*/false);
+  Constant *two = ConstantInt::get(i32, 2, /*isSigned=*/false);
+  Constant *four = ConstantInt::get(i32, 4, /*isSigned=*/false);
+
+  Function *f1 = m->getFunction("f1");
+  SmallVector<CallInst *, 0> calls1 =
+      getCalls(*f1, Intrinsic::kit_cpu_num_threads);
+  EXPECT_EQ(calls1.size(), 0U);
+
+  Function *f2 = m->getFunction("f2");
+  SmallVector<CallInst *, 0> calls2 =
+      getCalls(*f2, Intrinsic::kit_mobile_alloc);
+  EXPECT_EQ(calls2.size(), 2U);
+  EXPECT_EQ(calls2[0]->getArgOperand(0), two);
+  EXPECT_EQ(calls2[1]->getArgOperand(0), four);
+
+  Function *f3 = m->getFunction("f3");
+  SmallVector<CallInst *, 0> calls3 = getCalls(*f3, Intrinsic::kit_mobile_free);
+  EXPECT_EQ(calls3.size(), 1U);
+  EXPECT_EQ(calls3[0]->getArgOperand(0), one);
 }
 
 } // namespace

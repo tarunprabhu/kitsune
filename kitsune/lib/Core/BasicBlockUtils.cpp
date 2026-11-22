@@ -79,3 +79,12 @@ PHINode *llvm::getUniquePHI(BasicBlock &bb) {
     return &*phis.begin();
   return nullptr;
 }
+
+SmallVector<CallInst *, 0> llvm::getCalls(BasicBlock &bb, Intrinsic::ID intr) {
+  SmallVector<CallInst *, 0> calls;
+  for (Instruction &inst : bb)
+    if (CallInst *call = dyn_cast<CallInst>(&inst))
+      if (call->getIntrinsicID() == intr)
+        calls.push_back(call);
+  return calls;
+}

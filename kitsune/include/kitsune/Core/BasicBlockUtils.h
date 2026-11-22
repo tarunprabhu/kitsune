@@ -13,11 +13,14 @@
 #ifndef KITSUNE_CORE_BASIC_BLOCK_UTILS_H
 #define KITSUNE_CORE_BASIC_BLOCK_UTILS_H
 
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/IR/Intrinsics.h"
 
 namespace llvm {
 
 class BasicBlock;
+class CallInst;
 class Function;
 class Module;
 class PHINode;
@@ -73,6 +76,9 @@ bool isDeadEnd(const BasicBlock &bb);
 /// If the basic block has a since PHI node, return it, otherwise return
 /// nullptr.
 PHINode *getUniquePHI(BasicBlock &bb);
+
+/// Get all calls to the intrinsic \p intr in a basic block.
+SmallVector<CallInst *, 0> getCalls(BasicBlock &bb, Intrinsic::ID intr);
 
 /// @}
 

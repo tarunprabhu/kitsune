@@ -13,12 +13,15 @@
 #ifndef KITSUNE_CORE_FUNC_UTILS_H
 #define KITSUNE_CORE_FUNC_UTILS_H
 
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/IR/Intrinsics.h"
 
 namespace llvm {
 
 class Argument;
 class BasicBlock;
+class CallInst;
 class Function;
 class LLVMContext;
 class Module;
@@ -87,6 +90,9 @@ BasicBlock *getBlockNamed(StringRef name, Function &f);
 /// basic blocks were already sorted. Essentially, this will only return false
 /// if \p f does not contain any basic blocks.
 bool sortBasicBlocks(Function &f);
+
+/// Get all calls to the intrinsic \p int in a function.
+SmallVector<CallInst *, 0> getCalls(Function &f, Intrinsic::ID intr);
 
 /// @}
 

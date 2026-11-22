@@ -16,10 +16,12 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Analysis/LoopInfo.h"
+#include "llvm/IR/Intrinsics.h"
 
 namespace llvm {
 
 class BasicBlock;
+class CallInst;
 class DominatorTree;
 class Function;
 class Instruction;
@@ -345,6 +347,12 @@ static InstType *getUniqueInstInLoopOnly(const Loop &loop) {
   // control will never reach here.
   return uniq;
 }
+
+/// Get all calls to the intrinsic \p intr in the loop, \p loop. If
+/// \p onlyInLoop is `true`, this will not look in subloops of \p loop.
+/// Otherwise, calls from subloops will also be returned.
+SmallVector<CallInst *, 0> getCalls(Loop &loop, Intrinsic::ID intr,
+                                    bool onlyInLoop = false);
 
 /// @}
 

@@ -15,6 +15,7 @@
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/CFG.h"
 #include "llvm/IR/Function.h"
+#include "llvm/IR/Instructions.h"
 
 using namespace llvm;
 
@@ -88,4 +89,14 @@ bool llvm::sortBasicBlocks(Function &f) {
     bbs[i]->moveAfter(bbs[i - 1]);
 
   return true;
+}
+
+SmallVector<CallInst *, 0> llvm::getCalls(Function &f, Intrinsic::ID intr) {
+  SmallVector<CallInst *, 0> calls;
+  for (BasicBlock &bb : f)
+    for (Instruction &inst : bb)
+      if (auto *call = dyn_cast<CallInst>(&inst))
+        if (call->getIntrinsicID() == intr)
+          calls.push_back(call);
+  return calls;
 }

@@ -1808,4 +1808,59 @@ TEST_F(KitLoopUtils, getTapirLoopFor) {
   EXPECT_EQ(getName(*getTapirLoopFor(*detach, *li)), "header2");
 }
 
+static constexpr StringRef calls = R"(
+define void @f(i64 %n) {
+entry:
+  br label %header1
+
+header1:
+  %i1 = phi i64 [ 0, %entry ], [ %inc1, %header1 ]
+  br label %ph2
+
+ph2:
+  %cpu1 = call i64 @llvm.kit.cpu.num.threads(i32 1)
+  br label %header2
+
+header2:
+  %i2 = phi i64 [ 0, %ph2 ], [ %inc2, %header2 ]
+  %cpu2 = call i64 @llvm.kit.cpu.num.threads(i32 2)
+  %inc2 = add i64 %i2, 1
+  %cmp2 = icmp eq i64 %inc2, %n
+  br i1 %cmp2, label %latch1, label %header2, !llvm.loop !1
+
+latch1:
+  %inc1 = add i64 %i1, 1
+  %cmp1 = icmp eq i64 %inc1, %n
+  br i1 %cmp1, label %exit, label %header1, !llvm.loop !0
+
+exit:
+  ret void
+}
+
+!0 = distinct !{!0}
+!1 = distinct !{!1}
+)";
+TEST_F(KitLoopUtils, getCalls) {
+  setup(calls, "f");
+
+  Type *i32 = Type::getInt32Ty(ctx);
+  Constant *one = ConstantInt::get(i32, 1, /*isSigned=*/false);
+  Constant *two = ConstantInt::get(i32, 2, /*isSigned=*/false);
+  Loop &loop = **li->begin();
+
+  EXPECT_TRUE(getCalls(loop, Intrinsic::kit_mobile_alloc, false).empty());
+  EXPECT_TRUE(getCalls(loop, Intrinsic::kit_mobile_alloc, true).empty());
+
+  SmallVector<CallInst *, 0> callsOnly =
+      getCalls(loop, Intrinsic::kit_cpu_num_threads, /*onlyInLoop=*/true);
+  EXPECT_EQ(callsOnly.size(), 1U);
+  EXPECT_EQ(callsOnly[0]->getArgOperand(0), one);
+
+  SmallVector<CallInst *, 0> calls =
+      getCalls(loop, Intrinsic::kit_cpu_num_threads, /*onlyInLoop=*/false);
+  EXPECT_EQ(calls.size(), 2U);
+  EXPECT_EQ(calls[0]->getArgOperand(0), one);
+  EXPECT_EQ(calls[1]->getArgOperand(0), two);
+}
+
 } // namespace

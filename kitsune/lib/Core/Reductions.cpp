@@ -12,6 +12,7 @@
 
 #include "kitsune/Core/Reductions.h"
 #include "kitsune/Core/ConstantUtils.h"
+#include "kitsune/Core/FuncUtils.h"
 #include "kitsune/Core/LoopUtils.h"
 #include "kitsune/Core/ModuleUtils.h"
 #include "llvm/ADT/SmallSet.h"
@@ -453,14 +454,14 @@ Function *llvm::genReducer(ReduceOp op, Type *ty, Module &m) {
 
 Reductions llvm::getReductions(Loop &loop) {
   Reductions redxns;
-  for (BasicBlock *bb : loop.getBlocks())
-    ::collectReductions(*bb, redxns);
+  for (CallInst *call : getCalls(loop, Intrinsic::kit_reduce))
+    redxns.emplace_back(call);
   return redxns;
 }
 
 Reductions llvm::getReductions(Function &f) {
   Reductions redxns;
-  for (BasicBlock &bb : f)
-    ::collectReductions(bb, redxns);
+  for (CallInst *call : getCalls(f, Intrinsic::kit_reduce))
+    redxns.emplace_back(call);
   return redxns;
 }

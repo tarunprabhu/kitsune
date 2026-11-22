@@ -121,16 +121,14 @@ bool ComputeStrategy::updateStrategy(const ReductionInfo &redxn,
 
 Reductions ComputeStrategy::getReductions(Loop &loop) {
   // The tapir loops in a nest will have been serialized, then wrapped with a
-  // single tapir loop. The final reductions will been in this wrapper loop.
-  // All other reductions will have been converted naive serial reductions. So
-  // we only need to look for reductions in the outermost loop.
-  auto collectFinalReductions = [](const Loop &loop) -> Reductions {
+  // single tapir loop. The final reductions will be in this wrapper loop. All
+  // other reductions will have been converted naive serial reductions. So we
+  // only need to look for reductions in the outermost loop.
+  auto collectFinalReductions = [](Loop &loop) -> Reductions {
     Reductions redxns;
-    for (BasicBlock *bb : getBlocksNotInSubLoops(loop))
-      for (Instruction &inst : *bb)
-        if (auto *call = dyn_cast<CallInst>(&inst))
-          if (call->getIntrinsicID() == Intrinsic::kit_reduce)
-            redxns.emplace_back(call);
+    for (CallInst *call :
+         getCalls(loop, Intrinsic::kit_reduce, /*onlyInLoop=*/true))
+      redxns.emplace_back(call);
     return redxns;
   };
 
