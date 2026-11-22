@@ -18,11 +18,11 @@
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/GVAttrs.h"
 #include "kitsune/Core/TTID.h"
+#include "kitsune/Passes/NestedPipelineContext.h"
 #include "kitsune/Support/ErrorHandling.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/PassManager.h"
-#include "llvm/Passes/PassBuilder.h"
 
 namespace llvm {
 
@@ -133,21 +133,12 @@ public:
       static_assert(detail::has_run_with_manager_v<DerivedT> !=
                         detail::has_run_without_manager_v<DerivedT>,
                     "Embedded module pass must have exactly one run method");
+
       TTID tt = *getBitCodeAttr(*g);
       bool changed = false;
       if constexpr (detail::has_run_with_manager_v<DerivedT>) {
-        LoopAnalysisManager lam;
-        FunctionAnalysisManager fam;
-        CGSCCAnalysisManager cgam;
-        ModuleAnalysisManager mam;
-        PassBuilder pb;
-
-        pb.registerModuleAnalyses(mam);
-        pb.registerCGSCCAnalyses(cgam);
-        pb.registerFunctionAnalyses(fam);
-        pb.registerLoopAnalyses(lam);
-        pb.crossRegisterProxies(lam, fam, cgam, mam);
-
+        NestedPipelineContext nestedPipeline;
+        ModuleAnalysisManager &mam = nestedPipeline.getModuleAnalysisManager();
         changed = pass->run(tt, *km, mam, hostM, hostMAM);
       } else {
         changed = pass->run(tt, *km, hostM, hostMAM);

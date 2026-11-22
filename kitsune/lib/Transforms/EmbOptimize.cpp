@@ -18,19 +18,12 @@
 #include "kitsune/Core/TTOptions.h"
 #include "kitsune/Core/TTUtils.h"
 #include "kitsune/Core/TargetUtils.h"
+#include "kitsune/Passes/NestedPipelineContext.h"
 #include "kitsune/Support/CommandLineOptions.h"
-#include "llvm/ADT/StringExtras.h"
-#include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Module.h"
-#include "llvm/IR/PassManager.h"
 #include "llvm/IR/Verifier.h"
 #include "llvm/Passes/OptimizationLevel.h"
-#include "llvm/Passes/PassBuilder.h"
 #include "llvm/Support/CommandLine.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Transforms/Tapir/LoweringUtils.h"
-
-#include "llvm/Support/IOSandbox.h"
 
 #define DEBUG_TYPE "emb-optimize"
 
@@ -81,29 +74,16 @@ public:
       return tto.getOptLevel();
     };
 
-    // The analysis managers must be declared in this order so that they are
-    // destroyed in the correct order due to inter-analysis-manager references
-    LoopAnalysisManager lam;
-    FunctionAnalysisManager fam;
-    CGSCCAnalysisManager cgam;
-    ModuleAnalysisManager mam;
-    PassInstrumentationCallbacks pic;
-    TargetMachine *tm = createTargetMachine(tt, tto);
     OptimizationLevel optLevel = getOptLevel(tto);
+    TargetMachine *tm = createTargetMachine(tt, tto);
     PipelineTuningOptions pto = getPipelineTuningOptions(optLevel);
-
-    // It is not clear why we need to disable the sandbox before creating a
-    // pass builder. Should really figure it out.
-    sys::sandbox::ScopedSetting disableSandbox = sys::sandbox::scopedDisable();
-    PassBuilder pb(tm, pto);
-    pb.registerModuleAnalyses(mam);
-    pb.registerCGSCCAnalyses(cgam);
-    pb.registerFunctionAnalyses(fam);
-    pb.registerLoopAnalyses(lam);
-    tm->registerPassBuilderCallbacks(pb);
-    pb.crossRegisterProxies(lam, fam, cgam, mam);
-
+    NestedPipelineContext nestedPipeline(tm, pto);
+    ModuleAnalysisManager &mam = nestedPipeline.getModuleAnalysisManager();
+    PassInstrumentationCallbacks &pic =
+        nestedPipeline.getPassInstrumentationCallbacks();
+    PassBuilder &pb = nestedPipeline.getPassBuilder();
     ModulePassManager mpm = pb.buildPerModuleDefaultPipeline(optLevel);
+
     mpm.addPass(VerifierPass());
     if (clPrintEmbPipelinePasses) {
       mpm.printPipeline(outs(), [&pic](StringRef className) -> StringRef {
