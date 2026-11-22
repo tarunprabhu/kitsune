@@ -1,4 +1,4 @@
-//==- EmbModulePass.cpp - Embedded module pass for the legacy pass manager -==//
+//==- EmbModuleLegacyPass.cpp - Embedded pass for the legacy pass manager --==//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
