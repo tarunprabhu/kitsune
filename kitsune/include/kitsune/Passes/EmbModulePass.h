@@ -17,6 +17,7 @@
 
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/GVAttrs.h"
+#include "kitsune/Core/ModuleUtils.h"
 #include "kitsune/Core/TTID.h"
 #include "kitsune/Passes/NestedPipelineContext.h"
 #include "kitsune/Support/ErrorHandling.h"
@@ -108,17 +109,8 @@ template <typename DerivedT>
 class EmbModulePass : public PassInfoMixin<DerivedT> {
 public:
   PreservedAnalyses run(Module &hostM, ModuleAnalysisManager &hostMAM) {
-    // Calling resetEmbBCGlobal() will delete the global variable whose
-    // initializer is being reset. In this case, we can't iterate over the
-    // globals while running passes on them, so collect the globals first, then
-    // run the pass on each.
-    SmallVector<GlobalVariable *, 4> gs;
-    for (GlobalVariable &g : hostM.globals())
-      if (hasBitCodeAttr(g))
-        gs.push_back(&g);
-
     auto *pass = static_cast<DerivedT *>(this);
-    for (GlobalVariable *g : gs) {
+    for (GlobalVariable *g : getGlobals(hostM, GVAttrKind::BitCode)) {
       Expected<std::unique_ptr<Module>> kmOrErr = parseEmbBCGlobal(*g);
       if (not kmOrErr)
         exitOnError(kmOrErr.takeError());

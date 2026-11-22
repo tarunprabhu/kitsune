@@ -64,6 +64,14 @@ Align llvm::getTypeAlignment(const Module &m, Type *ty) {
   return dl.getABITypeAlign(ty);
 }
 
+SmallVector<GlobalVariable *, 0> llvm::getGlobals(Module &m, GVAttrKind attr) {
+  SmallVector<GlobalVariable *, 0> gs;
+  for (GlobalVariable &g : m.globals())
+    if (hasAttr(g, attr))
+      gs.push_back(&g);
+  return gs;
+}
+
 SmallVector<CallInst *, 0> llvm::getCalls(Module &m, Intrinsic::ID intr) {
   SmallVector<CallInst *, 0> calls;
   for (Function &f : m)

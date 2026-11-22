@@ -14,6 +14,7 @@
 #define KITSUNE_CORE_MODULE_UTILS_H
 
 #include "kitsune/Core/AddrSpace.h"
+#include "kitsune/Core/GVAttrs.h"
 #include "kitsune/Core/TTID.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
@@ -104,6 +105,9 @@ Align getPointerAlignment(const Module &m, unsigned addrSpace = KitAS::Default);
 
 /// Get the ABI alignment for type \p t in module \p m.
 Align getTypeAlignment(const Module &m, Type *ty);
+
+/// Get all global variables in a module that have the given attribute.
+SmallVector<GlobalVariable *, 0> getGlobals(Module &m, GVAttrKind attr);
 
 /// Get all calls to the intrinsic \p intr in a module.
 SmallVector<CallInst *, 0> getCalls(Module &m, Intrinsic::ID intr);

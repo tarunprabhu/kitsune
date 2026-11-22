@@ -15,6 +15,7 @@
 #include "kitsune/CodeGen/EmbModuleLegacyPass.h"
 #include "kitsune/Core/EmbUtils.h"
 #include "kitsune/Core/GVAttrs.h"
+#include "kitsune/Core/ModuleUtils.h"
 #include "kitsune/Support/ErrorHandling.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/Module.h"
@@ -26,17 +27,8 @@ EmbModuleLegacyPass::EmbModuleLegacyPass(char ID) : ModulePass(ID) {}
 void EmbModuleLegacyPass::getAnalysisUsage(AnalysisUsage &au) const {}
 
 bool EmbModuleLegacyPass::runOnModule(Module &m) {
-  // Calling resetEmbBCGlobal() will delete the global variable whose
-  // initializer is being reset. In this case, we can't iterate over the globals
-  // while running passes on them, so collect the globals first, then run the
-  // pass on each.
-  SmallVector<GlobalVariable *, 4> gs;
-  for (GlobalVariable &g : m.globals())
-    if (hasBitCodeAttr(g))
-      gs.push_back(&g);
-
   bool anyChanged = false;
-  for (GlobalVariable *g : gs) {
+  for (GlobalVariable *g : getGlobals(m, GVAttrKind::BitCode)) {
     Expected<std::unique_ptr<Module>> embMOrErr = parseEmbBCGlobal(*g);
     if (not embMOrErr)
       exitOnError(embMOrErr.takeError());
