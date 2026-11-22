@@ -52,14 +52,6 @@ using MaybeF64 = std::optional<double>;
 using MaybeStr = std::optional<StringRef>;
 using MaybeMDNode = std::optional<MDNode *>;
 
-// Create a new MDNode that will act as an attribute list with the given
-// attributes.
-static MDNode *makeAttrList(LLVMContext &ctx, ArrayRef<Metadata *> attrs) {
-  MDNode *md = MDNode::getDistinct(ctx, attrs);
-  md->replaceOperandWith(0, md);
-  return md;
-}
-
 static std::optional<unsigned> getAttrIndex(StringRef attrName,
                                             const MDNode *attrList) {
   if (attrList)
@@ -86,15 +78,14 @@ static MDNode *replaceInAttrList(MDNode *attrList, unsigned i, Metadata *attr) {
 // newly created attribute list. If \p attrList is nullptr, create a singleton
 // list containing only \p attr.
 static MDNode *appendToAttrList(MDNode *attrList, MDNode *attr) {
-  // The first element of the new attribute list must be a self-reference. It
-  // will be replaced when the new attribute list is created.
-  SmallVector<Metadata *, 8> newAttrs = {nullptr};
+  SmallVector<Metadata *, 0> newAttrs;
   if (attrList)
     for (Metadata *op : attrList->operands().drop_front())
       newAttrs.push_back(op);
   newAttrs.push_back(attr);
 
-  return makeAttrList(attr->getContext(), newAttrs);
+  LLVMContext &ctx = attr->getContext();
+  return createSelfReferencingMDNode(ctx, newAttrs);
 }
 
 bool llvm::detail::verifyRawAttrValueCount(KitVerifier &v, const MDNode &attr,
@@ -203,7 +194,7 @@ llvm::detail::getRawAttrsRange(const MDNode *attrList) {
 }
 
 MDNode *llvm::detail::getNewAttrList(LLVMContext &ctx) {
-  return makeAttrList(ctx, {nullptr});
+  return createSelfReferencingMDNode(ctx);
 }
 
 MDNode *llvm::detail::getAttrListWith(StringRef attrName,
@@ -222,22 +213,23 @@ MDNode *llvm::detail::getAttrListWithout(StringRef attrName, MDNode *attrList) {
 
   LLVMContext &ctx = attrList->getContext();
 
-  // Since we will always create a new attribute list node, the first element
-  // must be a self-reference. It will be replaced when the new attribute list
-  // is created.
-  SmallVector<Metadata *, 8> newAttrs = {nullptr};
+  SmallVector<Metadata *, 0> newAttrs;
   for (Metadata *op : attrList->operands().drop_front())
     if (auto *md = dyn_cast<MDNode>(op))
       if (auto *mdStr = dyn_cast<MDString>(md->getOperand(0)))
         if (mdStr->getString() != attrName)
           newAttrs.push_back(md);
 
-  if (newAttrs.size() == 1)
+  // The first operand in the original attribute list will be the self
+  // reference. This is not present in the new attribute list. If the number of
+  // operands in the new attribute list is one less than the number of operands
+  // in the original, then nothing has been removed.
+  if (newAttrs.empty())
     return nullptr;
-  else if (newAttrs.size() == attrList->getNumOperands())
+  else if (newAttrs.size() == attrList->getNumOperands() - 1)
     return attrList;
   else
-    return makeAttrList(ctx, newAttrs);
+    return createSelfReferencingMDNode(ctx, newAttrs);
 }
 
 using SetTTID = SmallSet<TTID, 0>;
