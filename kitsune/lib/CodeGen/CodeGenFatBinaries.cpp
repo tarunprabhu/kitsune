@@ -27,6 +27,7 @@
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/IOSandbox.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/ToolOutputFile.h"
 #include "llvm/Target/TargetMachine.h"
@@ -105,6 +106,7 @@ static cl::opt<bool>
 
 void llvm::detail::embedFatBinary(ToolOutputFile &fatbinFile,
                                   GlobalVariable &g) {
+  sys::sandbox::ScopedSetting disableSandbox = sys::sandbox::scopedDisable();
   ErrorOr<std::unique_ptr<MemoryBuffer>> bufOrErr =
       MemoryBuffer::getFile(fatbinFile.getFilename());
   if (std::error_code ec = bufOrErr.getError()) {

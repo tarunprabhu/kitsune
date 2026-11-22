@@ -34,6 +34,7 @@
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/Linker/Linker.h"
 #include "llvm/Support/Casting.h"
+#include "llvm/Support/IOSandbox.h"
 #include "llvm/Support/ModRef.h"
 #include "llvm/Transforms/Tapir/LoweringUtils.h"
 #include "llvm/Transforms/Tapir/Outline.h"
@@ -142,6 +143,7 @@ void OpenCilkABI::prepareModule() {
     LLVM_DEBUG(dbgs() << "Using external bitcode file for OpenCilk ABI: "
                       << getOptions().getOpenCilkRuntimeBCFile() << "\n");
     SMDiagnostic SMD;
+    sys::sandbox::ScopedSetting disableSandbox = sys::sandbox::scopedDisable();
 
     // Parse the bitcode file.  This call imports structure definitions, but not
     // function definitions.
