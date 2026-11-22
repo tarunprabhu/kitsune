@@ -195,7 +195,9 @@ public:
 
 } // namespace detail
 
-/// \ingroup kitsune
+/// \addtogroup kitsune
+/// @{
+
 /// CRTP base class for embedded bitcode passes that operate on embedded
 /// modules.
 ///
@@ -242,6 +244,68 @@ protected:
     return static_cast<PassT *>(this)->run(tt, devM, devMAM, hostM, hostMAM);
   }
 };
+
+/// CRTP base class for embedded bitcode passes that operate on defined
+/// functions in embedded modules.
+///
+/// The classes that inherit from this base class are the actual passes that
+/// will operate on the functions in the embedded module. These must provide
+/// *exactly* one function named run() with either of the following signatures:
+///
+///     bool run(TTID,
+///              Function& devF,
+///              Module& hostM,
+///              ModuleAnalysisManager& hostMAM);
+///
+///   OR
+///
+///     bool run(TTID,
+///              Function& devF,
+///              FunctionAnalysisManager& devFAM,
+///              Module& hostM,
+///              ModuleAnalysisManager& hostMAM);
+///
+/// The former is used if the pass does not require any analyses on the
+/// functions in the embedded module, while the latter is used if the pass may
+/// need analyses. While it is safe to always use the latter, it may be
+/// inefficient since it will involve the creation and initialization of several
+/// analysis managers unnecessarily.
+///
+/// NOTE: Embedded bitcode passes *MUST NOT* modify the host module. They
+/// may examine the host module and request analyses from it. The only
+/// modification these passes may make to the host is to update the initializer
+/// of the global variable containing the bitcode that was modified.
+///
+template <typename PassT>
+class EmbFunctionPass
+    : public detail::EmbPass<EmbFunctionPass, PassT, Function> {
+  friend class detail::EmbPass<EmbFunctionPass, PassT, Function>;
+
+protected:
+  bool runImpl(TTID tt, Module &devM, Module &hostM,
+               ModuleAnalysisManager &hostMAM) {
+    PassT *pass = static_cast<PassT *>(this);
+    bool changed = false;
+    for (Function &devF : devM)
+      if (devF.size())
+        changed |= pass->run(tt, devF, hostM, hostMAM);
+    return changed;
+  }
+
+  bool runImpl(TTID tt, Module &devM, ModuleAnalysisManager &devMAM,
+               Module &hostM, ModuleAnalysisManager &hostMAM) {
+    PassT *pass = static_cast<PassT *>(this);
+    auto &proxy = devMAM.getResult<FunctionAnalysisManagerModuleProxy>(devM);
+    FunctionAnalysisManager &devFAM = proxy.getManager();
+    bool changed = false;
+    for (Function &devF : devM)
+      if (devF.size())
+        changed |= pass->run(tt, devF, devFAM, hostM, hostMAM);
+    return changed;
+  }
+};
+
+/// @}
 
 } // namespace llvm
 
