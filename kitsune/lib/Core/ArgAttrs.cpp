@@ -32,9 +32,22 @@ MDNode *llvm::detail::getRawAttr(const Argument &a, StringRef attrName) {
 MDNode *llvm::detail::getRawAttrList(const Argument &a) {
   assert(a.getParent() && "Argument must have a parent");
 
+  // The list of argument attributes appears as shown:
+  //
+  //     define @f(ptr %a, i32 %b) !kit.args !0 {
+  //       ...
+  //     }
+  //
+  //     !0 = distinct !{!0, !1, !2}
+  //     !1 = distinct !{!1, ...}
+  //     !2 = distinct !{!2, ...}
+  //
+  // Here, the attributes for function arguments are maintained in a list of
+  // MDNodes, `l`. The attribute list for the `i`th argument of the function
+  // appears as the `i + 1`th operand of the list `l`.
   const Function &f = *a.getParent();
   if (MDNode *allArgsList = f.getMetadata(LLVMContext::MD_kit_arg_attrs))
-    if (Metadata *argAttrs = allArgsList->getOperand(a.getArgNo()).get())
+    if (Metadata *argAttrs = allArgsList->getOperand(a.getArgNo() + 1).get())
       if (auto *md = dyn_cast<MDNode>(argAttrs))
         return md;
   return nullptr;
@@ -47,13 +60,13 @@ void llvm::detail::setAttrList(Argument &a, MDNode *attrList) {
   if (!f.getMetadata(LLVMContext::MD_kit_arg_attrs)) {
     LLVMContext &ctx = f.getContext();
     FunctionType *fty = f.getFunctionType();
-    SmallVector<Metadata *, 4> ops(fty->getNumParams(), nullptr);
+    MDNode *md = createSelfReferencingMDNode(ctx, fty->getNumParams());
 
-    f.setMetadata(LLVMContext::MD_kit_arg_attrs, MDNode::get(ctx, ops));
+    f.setMetadata(LLVMContext::MD_kit_arg_attrs, md);
   }
 
   MDNode *allArgAttrs = f.getMetadata(LLVMContext::MD_kit_arg_attrs);
-  allArgAttrs->replaceOperandWith(a.getArgNo(), attrList);
+  allArgAttrs->replaceOperandWith(a.getArgNo() + 1, attrList);
 }
 
 void llvm::detail::addAttr(Argument &a, StringRef name,
