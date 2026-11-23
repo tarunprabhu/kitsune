@@ -32,6 +32,7 @@
 #include "kitsune/Transforms/EmbOptimize.h"
 #include "kitsune/Transforms/EmbPrepare.h"
 #include "kitsune/Transforms/EmbResolveLibDeviceCalls.h"
+#include "kitsune/Transforms/EmbSimplify.h"
 #include "kitsune/Transforms/GenerateCtors.h"
 #include "kitsune/Transforms/GuardLoop.h"
 #include "kitsune/Transforms/HoistAllocas.h"

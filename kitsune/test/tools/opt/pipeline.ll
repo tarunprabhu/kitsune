@@ -34,6 +34,7 @@
 ; DEFAULT-NOT: Running pass:       EmbHoistAllocasPass
 ; DEFAULT-NOT: Running pass:       TapirToTargetPass
 ; DEFAULT-NOT: Running pass:       PrefetchForDevicePass
+; DEFAULT-NOT: Running pass:       EmbSimplifyPass
 ; DEFAULT-NOT: Running pass:       EmbLowerIntrinsicsPass
 ; DEFAULT-NOT: Running pass:       EmbResolveLibDeviceCallsPass
 ; DEFAULT-NOT: Running pass:       EmbPreparePass
@@ -119,6 +120,7 @@
 ;
 ; ... pipeline post-tapir
 ; O123:        Running pass:       PrefetchForDevicePass
+; O123:        Running pass:       EmbSimplifyPass
 ; O123:        Running pass:       EmbLowerIntrinsicsPass
 ; O123:        Running pass:       EmbResolveLibDeviceCallsPass
 ; O123:        Running pass:       EmbPreparePass

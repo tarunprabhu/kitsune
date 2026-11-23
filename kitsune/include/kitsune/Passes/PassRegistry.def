@@ -38,6 +38,7 @@ MODULE_PASS("emb-optimize", EmbOptimizePass(PTO.TTOpts))
 MODULE_PASS("emb-prepare", EmbPreparePass(PTO.TTOpts))
 MODULE_PASS("emb-resolve-libdevice-calls",
             EmbResolveLibDeviceCallsPass(PTO.TTOpts))
+MODULE_PASS("emb-simplify", EmbSimplifyPass())
 MODULE_PASS("kit-cgfb", CodeGenFatBinariesPass(PTO.TTOpts))
 MODULE_PASS("kit-ctors", GenerateCtorsPass(PTO.TTOpts))
 MODULE_PASS("kit-kernel-properties", RecomputeKernelPropertiesPass())

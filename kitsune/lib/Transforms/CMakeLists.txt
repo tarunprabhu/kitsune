@@ -11,6 +11,7 @@ add_llvm_component_library(LLVMKitTransforms
   EmbResolveCallsCuda.cpp
   EmbResolveCallsHip.cpp
   EmbResolveLibDeviceCalls.cpp
+  EmbSimplify.cpp
   GenerateCtors.cpp
   GuardLoop.cpp
   HoistAllocas.cpp
