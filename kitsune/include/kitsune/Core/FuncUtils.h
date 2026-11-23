@@ -15,6 +15,7 @@
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
 
 namespace llvm {
@@ -93,6 +94,28 @@ bool sortBasicBlocks(Function &f);
 
 /// Get all calls to the intrinsic \p int in a function.
 SmallVector<CallInst *, 0> getCalls(Function &f, Intrinsic::ID intr);
+
+/// Get a unique instruction of type \tparam InstType in a function, or nullptr
+/// if one does not exist.
+template <typename InstType>
+static InstType *getUniqueInstIn(Function &f) {
+  InstType *uniq = nullptr;
+  for (BasicBlock &bb : f) {
+    for (Instruction &inst : bb) {
+      if (auto *asType = dyn_cast<InstType>(&inst)) {
+        if (uniq)
+          return nullptr;
+        uniq = asType;
+      }
+    }
+  }
+
+  // If no instructions of the given type were seen, this will be nullptr.
+  // Otherwise, this will contain the unique instruction. If more than one
+  // instruction of the given type was seen, the loop will have returned early -
+  // control will never reach here.
+  return uniq;
+}
 
 /// @}
 

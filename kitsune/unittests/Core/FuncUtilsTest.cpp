@@ -177,4 +177,27 @@ TEST(KitFuncUtils, getCalls) {
   EXPECT_EQ(calls3[0]->getArgOperand(0), one);
 }
 
+static constexpr StringRef multRet = R"(
+define i32 @f(i32 %n) {
+entry:
+  %cmp = icmp eq i32 %n, 0
+  br i1 %cmp, label %one, label %two
+
+one:
+  ret i32 50
+
+two:
+  ret i32 100
+}
+)";
+TEST(KitFuncUtils, getUniqueInstIn) {
+  LLVMContext ctx;
+  std::unique_ptr<Module> m = parseIR(ctx, multRet);
+  Function *f = m->getFunction("f");
+
+  EXPECT_FALSE(getUniqueInstIn<CallInst>(*f));
+  EXPECT_FALSE(getUniqueInstIn<ReturnInst>(*f));
+  EXPECT_TRUE(getUniqueInstIn<CmpInst>(*f));
+}
+
 } // namespace
