@@ -45,6 +45,7 @@
 // CHECK-NOT:  Running pass:       TapirToTargetPass
 // CHECK-NOT:  Running pass:       PrefetchForDevicePass
 // CHECK-NOT:  Running pass:       EmbSimplifyPass
+// CHECK-NOT:  Running pass:       EmbFinalizeReductionsPass
 // CHECK-NOT:  Running pass:       EmbLowerIntrinsicsPass
 // CHECK-NOT:  Running pass:       EmbResolveLibDeviceCallsPass
 // CHECK-NOT:  Running pass:       EmbPreparePass

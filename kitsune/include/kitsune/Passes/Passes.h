@@ -27,6 +27,7 @@
 #include "kitsune/Transforms/AnnotateEarly.h"
 #include "kitsune/Transforms/AnnotatePreLower.h"
 #include "kitsune/Transforms/ComputeReductionStrategy.h"
+#include "kitsune/Transforms/EmbFinalizeReductions.h"
 #include "kitsune/Transforms/EmbLinkLibDeviceBitcode.h"
 #include "kitsune/Transforms/EmbLowerIntrinsics.h"
 #include "kitsune/Transforms/EmbOptimize.h"

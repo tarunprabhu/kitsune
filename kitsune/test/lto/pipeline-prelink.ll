@@ -55,6 +55,7 @@
 ; O123-NOT:    Running pass:       TapirToTargetPass
 ; O123-NOT:    Running pass:       PrefetchForDevicePass
 ; O123-NOT:    Running pass:       EmbSimplifyPass
+; O123-NOT:    Running pass:       EmbFinalizeReductionsPass
 ; O123-NOT:    Running pass:       EmbLowerIntrinsicsPass
 ; O123-NOT:    Running pass:       EmbResolveLibDeviceCallsPass
 ; O123-NOT:    Running pass:       EmbPreparePass

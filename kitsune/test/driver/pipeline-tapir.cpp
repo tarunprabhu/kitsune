@@ -22,6 +22,7 @@
 // O0-NOT:     Running pass:       EmbHoistAllocasPass
 // O0-NOT:     Running pass:       PrefetchForDevicePass
 // O0-NOT:     Running pass:       EmbSimplifyPass
+// O0-NOT:     Running pass:       EmbFinalizeReductionsPass
 // O0-NOT:     Running pass:       EmbLowerIntrinsicsPass
 // O0-NOT:     Running pass:       EmbResolveLibDeviceCallsPass
 // O0-NOT:     Running pass:       EmbPreparePass
@@ -94,6 +95,7 @@
 // ... pipeline post-tapir
 // O123:       Running pass:       PrefetchForDevicePass
 // O123:       Running pass:       EmbSimplifyPass
+// O123:       Running pass:       EmbFinalizeReductionsPass
 // O123:       Running pass:       EmbLowerIntrinsicsPass
 // O123:       Running pass:       EmbResolveLibDeviceCallsPass
 // O123:       Running pass:       EmbPreparePass

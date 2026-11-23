@@ -381,6 +381,7 @@ llvm::populateKitPostTapirPasses(PassBuilder &pb, OptimizationLevel optLevel,
 
     addModulePass<PrefetchForDevicePass>(mpm, tto);
     addModulePass<EmbSimplifyPass>(mpm);
+    addModulePass<EmbFinalizeReductionsPass>(mpm);
     addModulePass<EmbLowerIntrinsicsPass>(mpm, tto);
     addModulePass<EmbResolveLibDeviceCallsPass>(mpm, tto);
     addModulePass<EmbPreparePass>(mpm, tto);

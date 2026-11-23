@@ -125,6 +125,9 @@ def ErrParseLLVM
 def ErrLinkLLVM
   : Error<"could not link LLVM file: {}">;
 
+def ErrNumUses
+  : Error<"incorrect number of uses. Expected {}. Got {}">;
+
 def ErrOptOccurrences
   : Error<"option '--{}' must be provided exactly once">;
 
@@ -283,6 +286,12 @@ def ErrKernelNoMainLoop
 
 def ErrKernelMainLoopNoExitBlock
   : Error<"main kernel loop must have a unique exit block">;
+
+def ErrFuncNoUniqueReturn
+  : Error<"function must have a unique return">;
+
+def ErrFuncExitNotPostDomEntry
+  : Error<"function exit does not post dominate entry">;
 
 def ErrMobileInitExpectSize
   : Error<"call '{}' requires an additional size argument of type '{}'">;

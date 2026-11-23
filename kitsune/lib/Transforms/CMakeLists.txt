@@ -2,6 +2,7 @@ add_llvm_component_library(LLVMKitTransforms
   AnnotateEarly.cpp
   AnnotatePreLower.cpp
   ComputeReductionStrategy.cpp
+  EmbFinalizeReductions.cpp
   EmbLinkLibDeviceBitcode.cpp
   EmbLowerIntrinsics.cpp
   EmbPrepare.cpp

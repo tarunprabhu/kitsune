@@ -69,6 +69,7 @@
 ; ... pipeline post-tapir
 ; O123:        Running pass:       PrefetchForDevicePass
 ; O123:        Running pass:       EmbSimplifyPass
+; O123:        Running pass:       EmbFinalizeReductionsPass
 ; O123:        Running pass:       EmbLowerIntrinsicsPass
 ; O123:        Running pass:       EmbResolveLibDeviceCallsPass
 ; O123:        Running pass:       EmbPreparePass
