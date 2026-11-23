@@ -65,6 +65,7 @@ protected:
                           const Locals &locals);
   void genReduceIntoFinal(Loop &loop, const Reductions &redxn,
                           const Locals &locals);
+  void updateCallAttributes(Loop &loop, const Reductions &redxns);
   bool localizeReduction(Loop &loop, const Reductions &redxns);
   bool localizeReductionCPU(Loop &loop, const Reductions &redxns);
   bool localizeReductionGPU(Loop &loop, const Reductions &redxns);
@@ -197,6 +198,17 @@ void LocalizeReductions::genReduceIntoFinal(Loop &loop,
   }
 }
 
+void LocalizeReductions::updateCallAttributes(Loop &loop,
+                                              const Reductions &redxns) {
+  for (const ReductionInfo &redxn : redxns) {
+    // The original reduction call may have been marked as tail since the
+    // destination of the reduction may be not be a stack pointer. However,
+    // after reducing into an alloca, it is no longer safe for this call to be
+    // a tail call.
+    redxn.call->setTailCall(CallInst::TCK_None);
+  }
+}
+
 bool LocalizeReductions::localizeReduction(Loop &loop,
                                            const Reductions &redxns) {
   // Generate allocas for the local reduction. We generate one alloca per
@@ -212,6 +224,9 @@ bool LocalizeReductions::localizeReduction(Loop &loop,
   // variable that was allocated. This will also update the reduction strategy.
   // After this, it is no longer safe to use the ReductionInfo object.
   genReduceIntoLocal(loop, redxns, locals);
+
+  // Update original reduction attributes.
+  updateCallAttributes(loop, redxns);
 
   return true;
 }
