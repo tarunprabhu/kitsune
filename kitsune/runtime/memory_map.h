@@ -53,29 +53,18 @@
 
 #include <stddef.h>
 
-/// Both the CUDA and HIP versions of the runtime track managed memory
-/// allocations. This is done by providing a map from the allocated pointer to a
-/// set of details about the allocation. The current information tracked per
-/// entry includes:
-///
-///    * The size in bytes of the allocation.
-///    * If the allocated region has been 'prefetched'.
-///
-/// Prefetching suggests a hint to the runtime/driver/OS to migrate all pages to
-/// the corresponding device's memory.
-
-/// TODO: Is prefetch better tracked as a location vs. a boolean?
-/// (Adding support for multiple devices will force this change but for now it
-/// is likely more complex than necessary).
-struct KitRTAllocMapEntry {
-  bool prefetched; ///< has the data been prefetched?
-  bool read_only;  ///< upcoming data usage is ("mostly") read only.
-  bool write_only; ///< upcoming data usage is ("mostly") write only.
-  size_t size;     ///< size of the allocated buffer in bytes.
-};
+/// Destroy the memory map. Use \p free_mem to free the actual allocation
+/// (runtime target dependent). Note we keep this as a C function to simplify
+/// things when dealing with existing APIs (e.g., CUDA).
+void __kitrt_destroy_memory_map(void (*free_mem)(void *));
 
 /// Register a memory allocation of \p nbytes bytes pointed to by \p addr.
 void __kitrt_register_mem_alloc(void *addr, size_t nbytes);
+
+/// Unregister a memory allocation. If the supplied pointer is not found in the
+/// allocation map the runtime will throw an assertion and terminate. This call
+/// does not free the memory allocation; that is assumed to be done elsewhere.
+void __kitrt_unregister_mem_alloc(void *addr);
 
 /// Set the prefetch status of the given memory allocation entry.
 void __kitrt_set_mem_prefetch(void *addr, bool prefetched);
@@ -123,17 +112,7 @@ void __kitrt_clear_mem_advice(void *addr);
 size_t __kitrt_get_mem_alloc_size(void *addr, bool *read_only,
                                   bool *write_only);
 
-/// Unregister a memory allocation. If the supplied pointer is not found in the
-/// allocation map the runtime will throw an assertion and terminate. This call
-/// does not free the memory allocation; that is assumed to be done elsewhere.
-void __kitrt_unregister_mem_alloc(void *addr);
-
 /// Print details about the memory allocation map to standard out.
 extern "C" void __kitrt_print_memory_map();
-
-/// Destroy the memory map. Use \p free_mem to free the actual allocation
-/// (runtime target dependent). Note we keep this as a C function to simplify
-/// things when dealing with existing APIs (e.g., CUDA).
-extern "C" void __kitrt_destroy_memory_map(void (*free_mem)(void *));
 
 #endif
