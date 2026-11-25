@@ -287,7 +287,7 @@ static hipStream_t launchKernel1(hipFunction_t f, void **args, size_t tcX,
     tpbY = tpb;
   }
   unsigned tpbZ = 1;
-  unsigned bpgX = (tcX + tpb - 1) / tpb;
+  unsigned bpgX = std::max((tcX + tpb - 1) / tpb, 1UL);
   unsigned bpgY = 1;
   unsigned bpgZ = 1;
   size_t sharedMemSize = 0;
@@ -319,8 +319,8 @@ static hipStream_t launchKernel2(hipFunction_t f, void **args, size_t tcY,
   unsigned tpbX = kitrt::nearestPowerOf2LE(t);
   unsigned tpbY = kitrt::nearestPowerOf2LE(t);
   unsigned tpbZ = 1;
-  unsigned bpgX = (tcX + tpbX - 1) / tpbX;
-  unsigned bpgY = (tcY + tpbY - 1) / tpbY;
+  unsigned bpgX = std::max((tcX + tpbX - 1) / tpbX, 1UL);
+  unsigned bpgY = std::max((tcY + tpbY - 1) / tpbY, 1UL);
   unsigned bpgZ = 1;
   size_t sharedMemSize = 0;
 
@@ -353,9 +353,9 @@ static hipStream_t launchKernel3(hipFunction_t f, void **args, size_t tcZ,
   unsigned tpbX = kitrt::nearestPowerOf2LE(t);
   unsigned tpbY = kitrt::nearestPowerOf2LE(t);
   unsigned tpbZ = kitrt::nearestPowerOf2LE(t);
-  unsigned bpgX = (tcX + tpbX - 1) / tpbX;
-  unsigned bpgY = (tcY + tpbY - 1) / tpbY;
-  unsigned bpgZ = (tcZ + tpbZ - 1) / tpbZ;
+  unsigned bpgX = std::max((tcX + tpbX - 1) / tpbX, 1UL);
+  unsigned bpgY = std::max((tcY + tpbY - 1) / tpbY, 1UL);
+  unsigned bpgZ = std::max((tcZ + tpbZ - 1) / tpbZ, 1UL);
   size_t sharedMemSize = 0;
 
   if (kitrt::gctx.verbose()) {
@@ -394,9 +394,9 @@ void *__kithip_launch_kernel(const void *fatbin, const char *name, int64_t tc_z,
   assert(name && "kitrt[hip]: launch with null name");
   assert(args && "kitrt[hip]: launch with null args");
   assert(tpb >= 0 && "kitrt[hip]: launch with negative threads per block");
-  assert(tc_x > 0 && "kitrt[hip]: launch with non-positive trips (x)");
-  assert(tc_y >= 0 && "kitrt[hip]: launch with negative trips (y)");
-  assert(tc_z >= 0 && "kitrt[hip]: launch with negative trips (z)");
+  assert(tc_x >= 0 && "kitrt[hip]: launch with negative trip count (x)");
+  assert(tc_y >= 0 && "kitrt[hip]: launch with negative trip count (y)");
+  assert(tc_z >= 0 && "kitrt[hip]: launch with negative trip count (z)");
 
   using namespace kithip_rt;
 
