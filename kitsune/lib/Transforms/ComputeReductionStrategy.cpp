@@ -75,9 +75,12 @@ ComputeStrategy::computeStrategyCPU(const ReductionInfo &redxn,
   // At this time, the only reduction strategy available on a CPU is "direct".
   // Even so, for consistency with the GPU implementation, we pretend as if we
   // actually have options.
-  if (clStrategyCPU.getNumOccurrences())
+  if (!loop.isLoopInvariant(redxn.getDest()))
+    return ReductionStrategy::Direct;
+  else if (clStrategyCPU.getNumOccurrences())
     return clStrategyCPU;
-  return defaultStrategyCPU;
+  else
+    return defaultStrategyCPU;
 }
 
 ReductionStrategy
@@ -87,9 +90,12 @@ ComputeStrategy::computeStrategyGPU(const ReductionInfo &redxn,
   // to reduce the partial reductions computed by each warp/block into the final
   // result. For now, we just use the default, or the explicit strategy, if one
   // has been provided.
-  if (clStrategyGPU.getNumOccurrences())
+  if (!loop.isLoopInvariant(redxn.getDest()))
+    return ReductionStrategy::Direct;
+  else if (clStrategyGPU.getNumOccurrences())
     return clStrategyGPU;
-  return defaultStrategyGPU;
+  else
+    return defaultStrategyGPU;
 }
 
 ReductionStrategy ComputeStrategy::computeStrategy(const ReductionInfo &redxn,

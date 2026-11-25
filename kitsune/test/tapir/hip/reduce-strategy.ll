@@ -1,5 +1,19 @@
-; Check that the -kit-gpu-reduce-strategy option is respected by the
-; kit-reduce-strategy pass.
+; Check that the kit-reduce-strategy pass works as expected.
+;
+; ------------------------------------------------------------------------------
+; If a reduction strategy is not provided, one should be computed.
+;
+; RUN: opt -passes='kit-reduce-strategy' \
+; RUN:     -S %s | FileCheck --check-prefixes=WSHFL %s
+;
+; ------------------------------------------------------------------------------
+; -kit-cpu-reduce-strategy is ignored when dealing with GPU-centric reductions
+;
+; RUN: opt -passes='kit-reduce-strategy' -kit-cpu-reduce-strategy=direct \
+; RUN:     -S %s | FileCheck --check-prefixes=WSHFL %s
+;
+; ------------------------------------------------------------------------------
+; The -kit-gpu-reduce-strategy option should be respected.
 ;
 ; RUN: opt -passes='kit-reduce-strategy' -kit-gpu-reduce-strategy=direct \
 ; RUN:     -S %s | FileCheck --check-prefixes=DIRECT %s
@@ -12,6 +26,8 @@
 ;
 ; RUN: opt -passes='kit-reduce-strategy' -kit-gpu-reduce-strategy=wshflshmem \
 ; RUN:     -S %s | FileCheck --check-prefixes=WSHFLSHMEM  %s
+;
+; ------------------------------------------------------------------------------
 ;
 ; DIRECT: call {{.+}} @llvm.kit.reduce
 ; DIRECT-SAME: i32 2
@@ -52,8 +68,8 @@ header1:
 
 body1:
   %f1 = uitofp i64 %i1 to double
-  call void(i32, i32, ptr, double, i32, i32, double, ptr, ...) @llvm.kit.reduce(i32 2, i32 5, ptr %fsum, double %f1, i32 0, i32 8, double 0.0, ptr @fadd)
-  call void(i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.reduce(i32 2, i32 5, ptr %isum, i64 %i1, i32 0, i32 8, i64 0, ptr @iadd)
+  call void(i32, i32, ptr, double, i32, i32, double, ptr, ...) @llvm.kit.reduce(i32 4, i32 5, ptr %fsum, double %f1, i32 0, i32 8, double 0.0, ptr @fadd)
+  call void(i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.reduce(i32 4, i32 5, ptr %isum, i64 %i1, i32 0, i32 8, i64 0, ptr @iadd)
   reattach within %sr, label %latch1
 
 latch1:
@@ -71,7 +87,7 @@ exit:
 declare void @fadd(ptr, double)
 declare void @iadd(ptr, i64)
 
-!0 = !{!"tapir.loop.target", i32 2}
+!0 = !{!"tapir.loop.target", i32 4}
 !1 = !{!"tapir.loop.perfect.level", i32 1}
 !2 = !{!"tapir.loop.perfect.depth", i32 1}
 !3 = !{!"tapir.loop.reduction"}

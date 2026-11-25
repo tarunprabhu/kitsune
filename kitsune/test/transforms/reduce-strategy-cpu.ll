@@ -1,22 +1,33 @@
-; Check that the correct reduction strategy is computed for a reduction in a
-; loop with a CPU-centric tapir target.
+; Check that the kit-reduce-strategy pass works as expected.
 ;
-; RUN: opt -passes='kit-reduce-strategy' -S %s | FileCheck %s
+; ------------------------------------------------------------------------------
+; If a reduction strategy is not provided, one should be computed.
 ;
-; CHECK-LABEL: @f
-; CHECK-SAME: ptr %[[RESULT:[^,]+]]
-; CHECK: %[[I:.+]] = phi i64
-; CHECK: call {{.+}} @llvm.kit.reduce
-; CHECK-SAME: i32 2
-; CHECK-SAME: i32 7
-; CHECK-SAME: ptr %[[RESULT]]
-; CHECK-SAME: i64 %[[I]]
-; CHECK-SAME: i32 10
-; CHECK-SAME: i32 8
-; CHECK-SAME: i64 1
-; CHECK-SAME: ptr @mul
+; RUN: opt -passes='kit-reduce-strategy' \
+; RUN:     -S %s | FileCheck --check-prefixes=DIRECT %s
+;
+; ------------------------------------------------------------------------------
+; -kit-gpu-reduce-strategy is ignored when dealing with GPU-centric reductions
+;
+; RUN: opt -passes='kit-reduce-strategy' -kit-gpu-reduce-strategy=wshfl \
+; RUN:     -S %s | FileCheck --check-prefixes=DIRECT %s
+;
+; ------------------------------------------------------------------------------
+; -kit-cpu-reduce strategy should be respected.
+;
+; RUN: opt -passes='kit-reduce-strategy' -kit-cpu-reduce-strategy=direct \
+; RUN:     -S %s | FileCheck --check-prefixes=DIRECT %s
+;
+; ------------------------------------------------------------------------------
+;
+; DIRECT: call {{.+}} @llvm.kit.reduce
+; DIRECT-SAME: i32 2
+; DIRECT-SAME: ptr @fadd
+; DIRECT: call {{.+}} @llvm.kit.reduce
+; DIRECT-SAME: i32 2
+; DIRECT-SAME: ptr @iadd
 
-define void @f(ptr %res, i64 %n) {
+define void @f(ptr %fsum, ptr %isum, i64 %n) {
 entry:
   %sr = call token @llvm.syncregion.start()
   br label %header1
@@ -26,7 +37,9 @@ header1:
   detach within %sr, label %body1, label %latch1
 
 body1:
-  call void(i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.reduce(i32 2, i32 7, ptr %res, i64 %i1, i32 0, i32 8, i64 1, ptr @mul)
+  %f1 = uitofp i64 %i1 to double
+  call void(i32, i32, ptr, double, i32, i32, double, ptr, ...) @llvm.kit.reduce(i32 512, i32 5, ptr %fsum, double %f1, i32 0, i32 8, double 0.0, ptr @fadd)
+  call void(i32, i32, ptr, i64, i32, i32, i64, ptr, ...) @llvm.kit.reduce(i32 512, i32 5, ptr %isum, i64 %i1, i32 0, i32 8, i64 0, ptr @iadd)
   reattach within %sr, label %latch1
 
 latch1:
@@ -41,9 +54,10 @@ exit:
   ret void
 }
 
-declare void @mul(ptr, i64)
+declare void @fadd(ptr, double)
+declare void @iadd(ptr, i64)
 
-!0 = !{!"tapir.loop.target", i32 2}
+!0 = !{!"tapir.loop.target", i32 512}
 !1 = !{!"tapir.loop.perfect.level", i32 1}
 !2 = !{!"tapir.loop.perfect.depth", i32 1}
 !3 = !{!"tapir.loop.reduction"}
