@@ -46,12 +46,14 @@ template Metadata *llvm::toMetadata(const StringLiteral &val, LLVMContext &ctx);
 template Metadata *llvm::toMetadata(const StringRef &val, LLVMContext &ctx);
 template Metadata *llvm::toMetadata(const std::string &val, LLVMContext &ctx);
 
-template <
-    typename T,
-    std::enable_if_t<std::is_integral_v<T> || std::is_floating_point_v<T>, int>>
+template <typename T,
+          std::enable_if_t<std::is_bool_v<T> || std::is_integral_v<T> ||
+                               std::is_floating_point_v<T>,
+                           int>>
 Metadata *llvm::toMetadata(const T &val, LLVMContext &ctx) {
   return ConstantAsMetadata::get(toConstant(val, ctx));
 }
+template Metadata *llvm::toMetadata(const bool &val, LLVMContext &ctx);
 template Metadata *llvm::toMetadata(const int8_t &val, LLVMContext &ctx);
 template Metadata *llvm::toMetadata(const uint8_t &val, LLVMContext &ctx);
 template Metadata *llvm::toMetadata(const int16_t &val, LLVMContext &ctx);
@@ -71,15 +73,17 @@ std::optional<T> llvm::fromMetadata(const Metadata *md) {
 }
 template std::optional<StringRef> llvm::fromMetadata(const Metadata *md);
 
-template <
-    typename T,
-    std::enable_if_t<std::is_integral_v<T> || std::is_floating_point_v<T>, int>>
+template <typename T,
+          std::enable_if_t<std::is_bool_v<T> || std::is_integral_v<T> ||
+                               std::is_floating_point_v<T>,
+                           int>>
 std::optional<T> llvm::fromMetadata(const Metadata *md) {
   if (auto *cmd = dyn_cast<ConstantAsMetadata>(md))
     if (auto *c = dyn_cast<Constant>(cmd->getValue()))
       return fromConstant<T>(*c);
   return std::nullopt;
 }
+template std::optional<bool> llvm::fromMetadata(const Metadata *md);
 template std::optional<int8_t> llvm::fromMetadata(const Metadata *md);
 template std::optional<uint8_t> llvm::fromMetadata(const Metadata *md);
 template std::optional<int16_t> llvm::fromMetadata(const Metadata *md);

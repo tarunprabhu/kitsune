@@ -65,7 +65,8 @@ MDNode *cloneSelfReferencingMDNode(MDNode *md);
 /// @{
 
 template <typename T,
-          std::enable_if_t<std::is_integral_v<T> || std::is_floating_point_v<T>,
+          std::enable_if_t<std::is_bool_v<T> || std::is_integral_v<T> ||
+                               std::is_floating_point_v<T>,
                            int> = 0>
 Metadata *toMetadata(const T &val, LLVMContext &ctx);
 
@@ -100,7 +101,8 @@ template <typename T, std::enable_if_t<std::is_same_v<T, StringRef>, int> = 0>
 std::optional<T> fromMetadata(const Metadata *md);
 
 template <typename T,
-          std::enable_if_t<std::is_integral_v<T> || std::is_floating_point_v<T>,
+          std::enable_if_t<std::is_bool_v<T> || std::is_integral_v<T> ||
+                               std::is_floating_point_v<T>,
                            int> = 0>
 std::optional<T> fromMetadata(const Metadata *md);
 

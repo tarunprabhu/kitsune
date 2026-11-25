@@ -55,47 +55,13 @@ TEST(KitMetadataUtils, cloneSelfReferencingMDNode) {
   EXPECT_EQ(clone->getOperand(2), mcstr);
 }
 
-TEST(KitMetadataUtils, fromMetadata) {
-  std::string s = "courtauld institute of art";
-  StringLiteral lit = "london school of hygiene and tropical medicine";
-
-  LLVMContext ctx;
-  Metadata *mi32 = toMetadata(1, ctx);
-  Metadata *mi64 = toMetadata(1L, ctx);
-  Metadata *mf32 = toMetadata(1.0F, ctx);
-  Metadata *mf64 = toMetadata(1.0, ctx);
-  Metadata *mTTID = toMetadata(TTID::Serial, ctx);
-  Metadata *mStrat = toMetadata(TapirSpawnStrategy::Sequential, ctx);
-  Metadata *mcstr = toMetadata("clare", ctx);
-  Metadata *mstring = toMetadata(s, ctx);
-  Metadata *mlit = toMetadata(lit, ctx);
-
-  EXPECT_FALSE(fromMetadata<int32_t>(mi64));
-  EXPECT_FALSE(fromMetadata<int32_t>(mf32));
-  EXPECT_FALSE(fromMetadata<int64_t>(mi32));
-  EXPECT_FALSE(fromMetadata<int64_t>(mf64));
-
-  EXPECT_FALSE(fromMetadata<float>(mf64));
-  EXPECT_FALSE(fromMetadata<float>(mi32));
-  EXPECT_FALSE(fromMetadata<double>(mf32));
-  EXPECT_FALSE(fromMetadata<double>(mi64));
-
-  EXPECT_FALSE(fromMetadata<int32_t>(mcstr));
-  EXPECT_FALSE(fromMetadata<int64_t>(mstring));
-  EXPECT_FALSE(fromMetadata<double>(mTTID));
-  EXPECT_FALSE(fromMetadata<StringRef>(mStrat));
-
-  EXPECT_FALSE(fromMetadata<TTID>(mi64));
-  EXPECT_FALSE(fromMetadata<TTID>(mf64));
-  EXPECT_FALSE(fromMetadata<TTID>(mf32));
-  EXPECT_FALSE(fromMetadata<TTID>(mlit));
-}
-
-TEST(KitMetadataUtils, toMetadata) {
+TEST(KitMetadataUtils, toFromMetadata) {
   std::string s = "lucy cavendish";
   StringLiteral lit = "heriot-watt";
 
   LLVMContext ctx;
+  Metadata *mf = toMetadata(false, ctx);
+  Metadata *mt = toMetadata(true, ctx);
   Metadata *mi32 = toMetadata(1, ctx);
   Metadata *mi64 = toMetadata(1L, ctx);
   Metadata *mf32 = toMetadata(1.0F, ctx);
@@ -106,6 +72,8 @@ TEST(KitMetadataUtils, toMetadata) {
   Metadata *mstring = toMetadata(s, ctx);
   Metadata *mlit = toMetadata(lit, ctx);
 
+  EXPECT_TRUE(isa<ConstantAsMetadata>(mf));
+  EXPECT_TRUE(isa<ConstantAsMetadata>(mt));
   EXPECT_TRUE(isa<ConstantAsMetadata>(mi32));
   EXPECT_TRUE(isa<ConstantAsMetadata>(mi64));
   EXPECT_TRUE(isa<ConstantAsMetadata>(mf32));
@@ -116,6 +84,8 @@ TEST(KitMetadataUtils, toMetadata) {
   EXPECT_TRUE(isa<MDString>(mstring));
   EXPECT_TRUE(isa<MDString>(mlit));
 
+  EXPECT_EQ(fromMetadata<bool>(mf), false);
+  EXPECT_EQ(fromMetadata<bool>(mt), true);
   EXPECT_EQ(fromMetadata<int32_t>(mi32), 1);
   EXPECT_EQ(fromMetadata<int64_t>(mi64), 1L);
   EXPECT_EQ(fromMetadata<float>(mf32), 1.0F);
