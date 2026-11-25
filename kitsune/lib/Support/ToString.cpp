@@ -19,6 +19,7 @@
 
 using namespace llvm;
 
+template <> StringRef llvm::toString<bool>() { return "bool"; }
 template <> StringRef llvm::toString<int8_t>() { return "int8_t"; }
 template <> StringRef llvm::toString<uint8_t>() { return "uint8_t"; }
 template <> StringRef llvm::toString<int16_t>() { return "int16_t"; }

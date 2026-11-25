@@ -32,6 +32,11 @@ T get(unsigned idx) {
   return pool[idx % 2];
 }
 
+template <typename T, std::enable_if_t<std::is_same_v<T, bool>, int> = 0>
+T get(unsigned idx) {
+  return idx % 2;
+}
+
 template <typename T, std::enable_if_t<std::is_same_v<T, uint8_t>, int> = 0>
 T get(unsigned idx) {
   static constexpr T pool[] = {

@@ -58,6 +58,9 @@ class BasicType<string NameParam, bit IsEnumParam = false> : Type {
 // do not take an actual value.
 def VoidTy : BasicType<"void">;
 
+// Boolean type.
+def BoolTy : BasicType<"bool">;
+
 // Builtin integer types.
 def U8Ty : BasicType<"uint8_t">;
 def U16Ty : BasicType<"uint16_t">;
