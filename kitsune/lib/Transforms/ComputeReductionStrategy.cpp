@@ -59,7 +59,6 @@ protected:
   ReductionStrategy computeStrategy(const ReductionInfo &redxn,
                                     const Loop &loop);
   bool updateStrategy(const ReductionInfo &redxn, ReductionStrategy strategy);
-  Reductions getReductions(Loop &loop);
 
 public:
   ComputeStrategy(LoopInfo &li) : li(li) {}
@@ -123,31 +122,6 @@ bool ComputeStrategy::updateStrategy(const ReductionInfo &redxn,
   call->setArgOperand(ReductionInfo::argNumStrategy, toConstant(strategy, ctx));
 
   return true;
-}
-
-Reductions ComputeStrategy::getReductions(Loop &loop) {
-  // The tapir loops in a nest will have been serialized, then wrapped with a
-  // single tapir loop. The final reductions will be in this wrapper loop. All
-  // other reductions will have been converted naive serial reductions. So we
-  // only need to look for reductions in the outermost loop.
-  auto collectFinalReductions = [](Loop &loop) -> Reductions {
-    Reductions redxns;
-    for (CallInst *call :
-         getCalls(loop, Intrinsic::kit_reduce, /*onlyInLoop=*/true))
-      redxns.emplace_back(call);
-    return redxns;
-  };
-
-  TTID tt = *getTargetAttr(loop);
-  if (tt == TTID::Serial)
-    return ::getReductions(loop);
-  else if (isCPUTT(tt))
-    return collectFinalReductions(loop);
-  else if (isGPUTT(tt))
-    return collectFinalReductions(*getInnermostTapirLoopInNest(loop));
-  else if (tt == TTID::Custom)
-    return {};
-  llvm_unreachable("ComputeStrategy::getReductions: Unknown TT kind");
 }
 
 bool ComputeStrategy::runOn(Function &f) {
