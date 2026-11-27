@@ -18,6 +18,7 @@
 namespace llvm {
 
 class Module;
+class PHINode;
 class Type;
 class Value;
 
@@ -96,6 +97,16 @@ bool isIntOne(const Value *v);
 
 /// Check that the given value is a constant 1 of the given type.
 bool isIntOne(const Value *v, Type *ty);
+
+/// Is the value \p v the increment of a canonical induction variable, \p iv.
+/// Since canonical induction variables are always incremented by one, this
+/// checks that \p inst is an add instruction where one operand is \p iv and the
+/// other is 1.
+bool isCanonicalIVIncr(Value &v, PHINode &iv);
+
+/// Is the value \p an address space cast instruction from Kitsune's mobile
+/// address space to the default address space.
+bool isMobileToDefaultCast(const Value &v);
 
 /// @}
 

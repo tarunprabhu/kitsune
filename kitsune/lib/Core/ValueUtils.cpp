@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "kitsune/Core/ValueUtils.h"
+#include "kitsune/Core/AddrSpace.h"
 #include "kitsune/Core/ArgUtils.h"
 #include "kitsune/Core/BasicBlockUtils.h"
 #include "kitsune/Core/ConstantUtils.h"
@@ -142,4 +143,26 @@ std::string llvm::getName(const Value &v) {
 
   v.printAsOperand(os, /*PrintType=*/false, getModule(v));
   return buf;
+}
+
+bool llvm::isCanonicalIVIncr(Value &v, PHINode &iv) {
+  Type *ty = v.getType();
+  if (auto *inst = dyn_cast<Instruction>(&v)) {
+    if (inst->getOpcode() == Instruction::Add) {
+      Value *op0 = inst->getOperand(0);
+      Value *op1 = inst->getOperand(1);
+      if ((isIntOne(op0, ty) && op1 == &iv) ||
+          (isIntOne(op1, ty) && op0 == &iv))
+        return true;
+    }
+  }
+  return false;
+}
+
+bool llvm::isMobileToDefaultCast(const Value &v) {
+  if (const auto *asCast = dyn_cast<AddrSpaceCastInst>(&v))
+    if (asCast->getSrcAddressSpace() == KitAS::Mobile &&
+        asCast->getDestAddressSpace() == KitAS::Default)
+      return true;
+  return false;
 }

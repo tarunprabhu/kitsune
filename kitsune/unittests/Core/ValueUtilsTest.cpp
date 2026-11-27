@@ -8,7 +8,9 @@
 
 #include "kitsune/Core/ValueUtils.h"
 #include "TestUtils.h"
+#include "kitsune/Core/AddrSpace.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/IR/LLVMContext.h"
 
 #include "gtest/gtest.h"
@@ -175,6 +177,40 @@ TEST(KitValueUtils, isPointerType) {
   EXPECT_FALSE(isPointer(*c64));
   EXPECT_FALSE(isPointer(*c64, 0));
   EXPECT_FALSE(isPointer(*c64, 64));
+}
+
+TEST(KitInstUtils, getMobileToDefaultCast) {
+  LLVMContext ctx;
+  Type *ptrD = PointerType::get(ctx, KitAS::Default);
+  Type *ptrM = PointerType::get(ctx, KitAS::Mobile);
+  Type *ptrO = PointerType::get(ctx, KitAS::Mobile + 1);
+  ReturnInst *ret = ReturnInst::Create(ctx);
+
+  Constant *vD = ConstantPointerNull::get(ptrD);
+  Constant *vM = ConstantPointerNull::get(ptrM);
+  Constant *vO = ConstantPointerNull::get(ptrO);
+
+  Value *cstDToD = CastInst::CreatePointerBitCastOrAddrSpaceCast(vD, ptrD);
+  Value *cstDToM = CastInst::CreatePointerBitCastOrAddrSpaceCast(vD, ptrM);
+  Value *cstDToO = CastInst::CreatePointerBitCastOrAddrSpaceCast(vD, ptrO);
+  Value *cstMToD = CastInst::CreatePointerBitCastOrAddrSpaceCast(vM, ptrD);
+  Value *cstMToM = CastInst::CreatePointerBitCastOrAddrSpaceCast(vM, ptrM);
+  Value *cstMToO = CastInst::CreatePointerBitCastOrAddrSpaceCast(vM, ptrO);
+  Value *cstOToD = CastInst::CreatePointerBitCastOrAddrSpaceCast(vO, ptrD);
+  Value *cstOToM = CastInst::CreatePointerBitCastOrAddrSpaceCast(vO, ptrM);
+  Value *cstOToO = CastInst::CreatePointerBitCastOrAddrSpaceCast(vO, ptrO);
+
+  EXPECT_FALSE(isMobileToDefaultCast(*ret));
+  EXPECT_FALSE(isMobileToDefaultCast(*cstDToD));
+  EXPECT_FALSE(isMobileToDefaultCast(*cstDToM));
+  EXPECT_FALSE(isMobileToDefaultCast(*cstDToO));
+  EXPECT_FALSE(isMobileToDefaultCast(*cstMToM));
+  EXPECT_FALSE(isMobileToDefaultCast(*cstMToO));
+  EXPECT_FALSE(isMobileToDefaultCast(*cstOToD));
+  EXPECT_FALSE(isMobileToDefaultCast(*cstOToM));
+  EXPECT_FALSE(isMobileToDefaultCast(*cstOToO));
+
+  EXPECT_TRUE(isMobileToDefaultCast(*cstMToD));
 }
 
 } // namespace

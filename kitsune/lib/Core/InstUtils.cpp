@@ -179,17 +179,3 @@ bool llvm::replaceStrategy(Instruction &inst, ReductionStrategy newStrategy) {
 
   return true;
 }
-
-bool llvm::isCanonicalIVIncr(Value &v, PHINode &iv) {
-  Type *ty = v.getType();
-  if (auto *inst = dyn_cast<Instruction>(&v)) {
-    if (inst->getOpcode() == Instruction::Add) {
-      Value *op0 = inst->getOperand(0);
-      Value *op1 = inst->getOperand(1);
-      if ((isIntOne(op0, ty) && op1 == &iv) ||
-          (isIntOne(op1, ty) && op0 == &iv))
-        return true;
-    }
-  }
-  return false;
-}
