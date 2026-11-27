@@ -124,14 +124,6 @@ static bool checkReductionLoop(TapirLoopInfo &tapirLoop, DominatorTree &dt,
   Loop &root = *tapirLoop.getLoop();
   Reductions redxns = getReductions(root);
 
-  // The destination of a reduction loop must be loop invariant. We currently
-  // do not support loop-variant destinations.
-  for (const ReductionInfo &redxn : redxns) {
-    Value *dest = redxn.getDest();
-    if (!root.isLoopInvariant(dest))
-      return emitDiagnostic(root, DiagID::ErrReduceDestLoopVariant, dest);
-  }
-
   // The transformations for parallel reductions, especially on the GPU, might
   // result in incorrect code if the destination of the reduction is used
   // anywhere except in a reduction intrinsic. This is certainly the case for
@@ -154,6 +146,23 @@ static bool checkReductionLoop(TapirLoopInfo &tapirLoop, DominatorTree &dt,
     if (!getUniqueNonDeadEndExitBlock(root))
       return emitDiagnostic(root,
                             DiagID::ErrTapirLoopNoUniqueNonDeadEndExitBlock);
+
+    // If the destination of a reduction is not in Kitsune's mobile address
+    // space, it cannot be accessed from the GPU. For GPU reductions, we would
+    // have to create shadow memory that is accessible from the GPU, use that
+    // as the destination of the reduction, then copy the result back to the
+    // originally requested destination. This only works if the destination of
+    // the reduction is loop-invariant. If it is loop-variant, it may not be
+    // possible to determine, at compile-time, how much shadow memory is
+    // required to carry out the reduction. Therefore, we raise an error if the
+    // destination of a reduction is loop-variant, and not in Kitsune's mobile
+    // address space.
+    for (const ReductionInfo &redxn : redxns) {
+      Value *dest = redxn.getDest();
+      if (!root.isLoopInvariant(dest) && !isMobileToDefaultCast(*dest))
+        return emitDiagnostic(root, DiagID::ErrReduceDestLoopVariant,
+                              getName(*dest));
+    }
   }
 
   // We don't currently support reductions where the value being reduced is
