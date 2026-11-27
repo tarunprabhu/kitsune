@@ -101,9 +101,9 @@ bool llvm::isIntOne(const Value *v, Type *ty) {
   return v->getType() == ty && isIntOne(v);
 }
 
-template <typename M, typename T,
-          std::enable_if_t<std::is_same_v<std::remove_cv_t<T>, Value>, int> = 0>
-static M *getModuleImpl(T &v) {
+template <typename M, typename V,
+          std::enable_if_t<std::is_same_v<std::remove_cv_t<V>, Value>, int> = 0>
+static M *getModuleImpl(V &v) {
   if (auto *a = dyn_cast<Argument>(&v))
     return getModule(*a);
   else if (auto *bb = dyn_cast<BasicBlock>(&v))
@@ -121,6 +121,40 @@ Module *llvm::getModule(Value &v) { return getModuleImpl<Module>(v); }
 
 const Module *llvm::getModule(const Value &v) {
   return getModuleImpl<const Module>(v);
+}
+
+template <typename F, typename V,
+          std::enable_if_t<std::is_same_v<std::remove_cv_t<V>, Value>, int> = 0>
+static F *getFunctionImpl(V &v) {
+  if (auto *a = dyn_cast<Argument>(&v))
+    return getFunction(*a);
+  else if (auto *bb = dyn_cast<BasicBlock>(&v))
+    return getFunction(*bb);
+  else if (auto *inst = dyn_cast<Instruction>(&v))
+    return getFunction(*inst);
+  return nullptr;
+}
+
+Function *llvm::getFunction(Value &v) { return getFunctionImpl<Function>(v); }
+
+const Function *llvm::getFunction(const Value &v) {
+  return getFunctionImpl<const Function>(v);
+}
+
+template <typename B, typename V,
+          std::enable_if_t<std::is_same_v<std::remove_cv_t<V>, Value>, int> = 0>
+static B *getBasicBlockImpl(V &v) {
+  if (auto *inst = dyn_cast<Instruction>(&v))
+    return inst->getParent();
+  return nullptr;
+}
+
+BasicBlock *llvm::getBasicBlock(Value &v) {
+  return getBasicBlockImpl<BasicBlock>(v);
+}
+
+const BasicBlock *llvm::getBasicBlock(const Value &v) {
+  return getBasicBlockImpl<const BasicBlock>(v);
 }
 
 std::string llvm::getName(const Value &v) {

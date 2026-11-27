@@ -40,6 +40,20 @@ LLVMContext &getContext(const Instruction &inst);
 Module *getModule(Instruction &inst);
 const Module *getModule(const Instruction &inst);
 
+/// Get the function containing the instruction, or nullptr if the instruction
+/// is not part of a function. Although instructions have a getFunction() method
+/// that returns this, these utilities are both more readable, and potentially
+/// useful in macro definitions.
+Function *getFunction(Instruction &inst);
+const Function *getFunction(const Instruction &inst);
+
+/// Get the basic block containing the instruction, or nullptr if the
+/// instruction is not part of a basic block. Although instructions have a
+/// getParent() method that returns this, these utilities are both more
+/// readable, and potentially useful in macro definitions.
+BasicBlock *getBasicBlock(Instruction &inst);
+const BasicBlock *getBasicBlock(const Instruction &inst);
+
 /// Get the name of an instruction. If the global is unnamed, a string of the
 /// form `%<N>` will be returned. This is how the instruction would appear in
 /// human-readable LLVM-IR.

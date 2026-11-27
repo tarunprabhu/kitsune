@@ -18,20 +18,28 @@
 namespace llvm {
 
 class Argument;
+class Function;
 class LLVMContext;
 class Module;
 
 /// \addtogroup kitsune
 /// @{
 
+/// Get the LLVM context from a function. This is useful when generating code
+/// from tablegen macros. This requires the argument to have a parent function.
+LLVMContext &getContext(const Argument &a);
+
 /// Get the module containing the function for which \p a is an argument, or
 /// nullptr, if the function is not in a module.
 Module *getModule(Argument &a);
 const Module *getModule(const Argument &a);
 
-/// Get the LLVM context from a function. This is useful when generating code
-/// from tablegen macros. This requires the argument to have a parent function.
-LLVMContext &getContext(const Argument &a);
+/// Get the function for which \p a is an argument, or nullptr if \p a is not an
+/// argument for a function. While the Argument class does have a `getParent`
+/// method that returns this, a utility is more readable, and may be useful in
+/// macro definitions.
+Function *getFunction(Argument &a);
+const Function *getFunction(const Argument &a);
 
 /// Get the name of a function argument. If the argument is unnamed, a string of
 /// the form `%<N>` will be returned. This is how the argument name would appear

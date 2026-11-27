@@ -22,18 +22,44 @@ LLVMContext &llvm::getContext(const Instruction &inst) {
   return inst.getContext();
 }
 
-Module *llvm::getModule(Instruction &inst) {
-  if (BasicBlock *bb = inst.getParent())
-    if (Function *f = bb->getParent())
-      return f->getParent();
+template <
+    typename M, typename I,
+    std::enable_if_t<std::is_same_v<std::remove_cv_t<I>, Instruction>, int> = 0>
+static M *getModuleImpl(I &inst) {
+  if (auto *f = getFunction(inst))
+    return f->getParent();
   return nullptr;
 }
 
+Module *llvm::getModule(Instruction &inst) {
+  return getModuleImpl<Module>(inst);
+}
+
 const Module *llvm::getModule(const Instruction &inst) {
-  if (const BasicBlock *bb = inst.getParent())
-    if (const Function *f = bb->getParent())
-      return f->getParent();
+  return getModuleImpl<const Module>(inst);
+}
+
+template <
+    typename F, typename I,
+    std::enable_if_t<std::is_same_v<std::remove_cv_t<I>, Instruction>, int> = 0>
+static F *getFunctionImpl(I &inst) {
+  if (auto *bb = getBasicBlock(inst))
+    return bb->getParent();
   return nullptr;
+}
+
+Function *llvm::getFunction(Instruction &inst) {
+  return getFunctionImpl<Function>(inst);
+}
+
+const Function *llvm::getFunction(const Instruction &inst) {
+  return getFunctionImpl<const Function>(inst);
+}
+
+BasicBlock *llvm::getBasicBlock(Instruction &inst) { return inst.getParent(); }
+
+const BasicBlock *llvm::getBasicBlock(const Instruction &inst) {
+  return inst.getParent();
 }
 
 std::string llvm::getName(const Instruction &inst) {

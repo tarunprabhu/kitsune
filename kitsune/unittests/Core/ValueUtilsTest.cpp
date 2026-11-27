@@ -179,7 +179,121 @@ TEST(KitValueUtils, isPointerType) {
   EXPECT_FALSE(isPointer(*c64, 64));
 }
 
-TEST(KitInstUtils, getMobileToDefaultCast) {
+TEST(KitValueUtils, getModule) {
+  LLVMContext ctx;
+  Type *voidTy = Type::getVoidTy(ctx);
+  Type *i32 = Type::getInt32Ty(ctx);
+  FunctionType *funcTy = FunctionType::get(voidTy, {i32}, /*IsVarArg=*/false);
+  GlobalValue::LinkageTypes linkage = GlobalValue::ExternalLinkage;
+
+  Constant *c = ConstantInt::get(i32, 11, /*isSigned=*/false);
+
+  Module m("", ctx);
+
+  GlobalVariable *gO = new GlobalVariable(i32, /*isConstant=*/false, linkage);
+  GlobalVariable *gM = new GlobalVariable(m, i32, /*isConstant=*/false, linkage,
+                                          /*initializer=*/nullptr);
+
+  Function *fO = Function::Create(funcTy, linkage, "fO");
+  Function *fM = Function::Create(funcTy, linkage, "fM", &m);
+
+  Argument aO(i32);
+  Argument aFO(i32, "", fO);
+  Argument aFM(i32, "", fM);
+
+  BasicBlock *bbO = BasicBlock::Create(ctx);
+  BasicBlock *bbFO = BasicBlock::Create(ctx, "", fO);
+  BasicBlock *bbFM = BasicBlock::Create(ctx, "", fM);
+
+  Instruction *retO = ReturnInst::Create(ctx);
+  Instruction *retBBO = ReturnInst::Create(ctx, bbO);
+  Instruction *retBBFO = ReturnInst::Create(ctx, bbFO);
+  Instruction *retBBFM = ReturnInst::Create(ctx, bbFM);
+
+  EXPECT_FALSE(getModule((Value &)*c));
+  EXPECT_FALSE(getModule((Value &)*gO));
+  EXPECT_FALSE(getModule((Value &)*fO));
+  EXPECT_FALSE(getModule((Value &)aO));
+  EXPECT_FALSE(getModule((Value &)aFO));
+  EXPECT_FALSE(getModule((Value &)*bbO));
+  EXPECT_FALSE(getModule((Value &)*bbFO));
+  EXPECT_FALSE(getModule((Value &)*retO));
+  EXPECT_FALSE(getModule((Value &)*retBBO));
+  EXPECT_FALSE(getModule((Value &)*retBBFO));
+
+  EXPECT_EQ(getModule((Value &)*gM), &m);
+  EXPECT_EQ(getModule((Value &)*fM), &m);
+  EXPECT_EQ(getModule((Value &)aFM), &m);
+  EXPECT_EQ(getModule((Value &)*bbFM), &m);
+  EXPECT_EQ(getModule((Value &)*retBBFM), &m);
+}
+
+TEST(KitValueUtils, getFunction) {
+  LLVMContext ctx;
+  Type *voidTy = Type::getVoidTy(ctx);
+  Type *i32 = Type::getInt32Ty(ctx);
+  FunctionType *funcTy = FunctionType::get(voidTy, {i32}, /*IsVarArg=*/false);
+  GlobalValue::LinkageTypes linkage = GlobalValue::ExternalLinkage;
+
+  Module m("", ctx);
+
+  Constant *c = ConstantInt::get(i32, 11, /*isSigned=*/false);
+  GlobalVariable *g = new GlobalVariable(i32, /*isConstant=*/false, linkage);
+  Function *f = Function::Create(funcTy, linkage, "f");
+
+  Argument a(i32);
+  Argument af(i32, "", f);
+
+  BasicBlock *bb = BasicBlock::Create(ctx);
+  BasicBlock *bbf = BasicBlock::Create(ctx, "", f);
+
+  Instruction *ret = ReturnInst::Create(ctx);
+  Instruction *retbb = ReturnInst::Create(ctx, bb);
+  Instruction *retbbf = ReturnInst::Create(ctx, bbf);
+
+  EXPECT_FALSE(getFunction((Value &)*c));
+  EXPECT_FALSE(getFunction((Value &)*g));
+  EXPECT_FALSE(getFunction((Value &)*f));
+  EXPECT_FALSE(getFunction((Value &)a));
+  EXPECT_FALSE(getFunction((Value &)*bb));
+  EXPECT_FALSE(getFunction((Value &)*ret));
+  EXPECT_FALSE(getFunction((Value &)*retbb));
+
+  EXPECT_EQ(getFunction((Value &)af), f);
+  EXPECT_EQ(getFunction((Value &)*bbf), f);
+  EXPECT_EQ(getFunction((Value &)*retbbf), f);
+}
+
+TEST(KitValueUtils, getBasicBlock) {
+  LLVMContext ctx;
+  Type *voidTy = Type::getVoidTy(ctx);
+  Type *i32 = Type::getInt32Ty(ctx);
+  FunctionType *funcTy = FunctionType::get(voidTy, {i32}, /*IsVarArg=*/false);
+  GlobalValue::LinkageTypes linkage = GlobalValue::ExternalLinkage;
+
+  Module m("", ctx);
+
+  Constant *c = ConstantInt::get(i32, 11, /*isSigned=*/false);
+  GlobalVariable *g = new GlobalVariable(i32, /*isConstant=*/false, linkage);
+  Function *f = Function::Create(funcTy, linkage, "f");
+  Argument a(i32);
+
+  BasicBlock *bb = BasicBlock::Create(ctx);
+
+  Instruction *ret = ReturnInst::Create(ctx);
+  Instruction *retbb = ReturnInst::Create(ctx, bb);
+
+  EXPECT_FALSE(getBasicBlock((Value &)*c));
+  EXPECT_FALSE(getBasicBlock((Value &)*g));
+  EXPECT_FALSE(getBasicBlock((Value &)*f));
+  EXPECT_FALSE(getBasicBlock((Value &)a));
+  EXPECT_FALSE(getBasicBlock((Value &)*bb));
+  EXPECT_FALSE(getBasicBlock((Value &)*ret));
+
+  EXPECT_EQ(getBasicBlock((Value &)*retbb), bb);
+}
+
+TEST(KitValueUtils, getMobileToDefaultCast) {
   LLVMContext ctx;
   Type *ptrD = PointerType::get(ctx, KitAS::Default);
   Type *ptrM = PointerType::get(ctx, KitAS::Mobile);

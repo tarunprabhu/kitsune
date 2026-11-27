@@ -36,6 +36,23 @@ TEST(KitArgUtils, getModule) {
   EXPECT_EQ(getModule(aFM), &m);
 }
 
+TEST(KitArgUtils, getFunction) {
+  LLVMContext ctx;
+  Type *voidTy = Type::getVoidTy(ctx);
+  Type *i32 = Type::getInt32Ty(ctx);
+  FunctionType *funcTy = FunctionType::get(voidTy, {i32}, /*IsVarArg=*/false);
+  GlobalValue::LinkageTypes linkage = GlobalValue::ExternalLinkage;
+
+  Module m("", ctx);
+  Function *f = Function::Create(funcTy, linkage, "f");
+
+  Argument a(i32);
+  Argument af(i32, "", f);
+
+  EXPECT_FALSE(getFunction(a));
+  EXPECT_EQ(getFunction(af), f);
+}
+
 TEST(KitArgUtils, getName) {
   LLVMContext ctx;
   Type *voidTy = Type::getVoidTy(ctx);

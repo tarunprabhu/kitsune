@@ -17,6 +17,8 @@
 
 namespace llvm {
 
+class BasicBlock;
+class Function;
 class Module;
 class PHINode;
 class Type;
@@ -30,6 +32,17 @@ class Value;
 /// will always return nullptr.
 Module *getModule(Value &v);
 const Module *getModule(const Value &v);
+
+/// Get the function in which an LLVM Value is contained. The value must be an
+/// Argument, BasicBlock, or Instruction. In all other cases, this will always
+/// return nullptr.
+Function *getFunction(Value &v);
+const Function *getFunction(const Value &v);
+
+/// If the given LLVM Value is an instruction, return the basic block in which
+/// it is contained.
+BasicBlock *getBasicBlock(Value &v);
+const BasicBlock *getBasicBlock(const Value &v);
 
 /// Return true if the given value has type `i1`, false otherwise.
 bool isBool(const Value *v);

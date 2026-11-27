@@ -60,6 +60,38 @@ TEST(KitInstUtils, getModule) {
   EXPECT_EQ(getModule(*retFM), &m);
 }
 
+TEST(KitInstUtils, getFunction) {
+  LLVMContext ctx;
+  Type *voidTy = Type::getVoidTy(ctx);
+  FunctionType *funcTy = FunctionType::get(voidTy, {}, /*IsVarArg=*/false);
+  GlobalValue::LinkageTypes linkage = GlobalValue::ExternalLinkage;
+
+  Module m("", ctx);
+  Function *f = Function::Create(funcTy, linkage, "f");
+
+  BasicBlock *bb = BasicBlock::Create(ctx);
+  BasicBlock *bbf = BasicBlock::Create(ctx, "", f);
+
+  ReturnInst *ret = ReturnInst::Create(ctx);
+  ReturnInst *retbb = ReturnInst::Create(ctx, bb);
+  ReturnInst *retf = ReturnInst::Create(ctx, bbf);
+
+  EXPECT_FALSE(getFunction(*ret));
+  EXPECT_FALSE(getFunction(*retbb));
+  EXPECT_EQ(getFunction(*retf), f);
+}
+
+TEST(KitInstUtils, getBasicBlock) {
+  LLVMContext ctx;
+  BasicBlock *bb = BasicBlock::Create(ctx);
+
+  ReturnInst *ret = ReturnInst::Create(ctx);
+  ReturnInst *retbb = ReturnInst::Create(ctx, bb);
+
+  EXPECT_FALSE(getBasicBlock(*ret));
+  EXPECT_EQ(getBasicBlock(*retbb), bb);
+}
+
 TEST(KitInstUtils, getName) {
   LLVMContext ctx;
   std::unique_ptr<Module> m = parseIR(ctx, ll);

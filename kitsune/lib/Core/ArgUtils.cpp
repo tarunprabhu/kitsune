@@ -15,21 +15,28 @@
 
 using namespace llvm;
 
-Module *llvm::getModule(Argument &a) {
-  if (Function *f = a.getParent())
-    return f->getParent();
-  return nullptr;
-}
-
-const Module *llvm::getModule(const Argument &a) {
-  if (const Function *f = a.getParent())
-    return f->getParent();
-  return nullptr;
-}
-
 LLVMContext &llvm::getContext(const Argument &a) {
   return a.getParent()->getContext();
 }
+
+template <
+    typename M, typename A,
+    std::enable_if_t<std::is_same_v<std::remove_cv_t<A>, Argument>, int> = 0>
+static M *getModuleImpl(A &a) {
+  if (auto *f = a.getParent())
+    return f->getParent();
+  return nullptr;
+}
+
+Module *llvm::getModule(Argument &a) { return getModuleImpl<Module>(a); }
+
+const Module *llvm::getModule(const Argument &a) {
+  return getModuleImpl<const Module>(a);
+}
+
+Function *llvm::getFunction(Argument &a) { return a.getParent(); }
+
+const Function *llvm::getFunction(const Argument &a) { return a.getParent(); }
 
 std::string llvm::getName(const Argument &a) {
   if (a.hasName())
