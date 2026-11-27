@@ -30,6 +30,7 @@
 #include "llvm/Analysis/TapirTaskInfo.h"
 #include "llvm/Transforms/Tapir/TapirLoopInfo.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/Transforms/Utils/ScalarEvolutionExpander.h"
 #include "llvm/Transforms/Utils/TapirUtils.h"
 
 #define DEBUG_TYPE "kit-prepare"
@@ -346,6 +347,8 @@ void PrepareTapirNestParallel::updateBoundsOfSubLoop(Loop &wrapperLoop,
     [[maybe_unused]] std::optional<Loop::LoopBounds> bounds =
         loop.getBounds(se);
     assert(bounds.has_value() && "Loop has computable bounds");
+    assert(isZero(&bounds->getInitialIVValue()) &&
+           "Initial value of loop induction variable is 0");
 
     [[maybe_unused]] Instruction *inc = &bounds->getStepInst();
     assert(inc->getOperand(0) == iv &&
@@ -391,12 +394,30 @@ void PrepareTapirNestParallel::updateBoundsOfSubLoop(Loop &wrapperLoop,
   Value *oldStart = &bounds.getInitialIVValue();
   Value *oldEnd = &bounds.getFinalIVValue();
 
-  // Since the loop has a canonical induction variable, has a guard, and the
-  // latch compare instruction predicate is EQ, the final value of the induction
-  // variable will be available before the loop guard condition is computed. We
-  // can therefore, insert the new guard computation just before the terminator
-  // of the guard.
-  //
+  // The final value of the induction variable may be computed in the loop
+  // preheader. This is needed to compute the new loop bounds, so we may need to
+  // clone some instructions into the guard block.
+  Value *oldLB = oldStart;
+  Value *oldUB = oldEnd;
+  if (BasicBlock *bb = getBasicBlock(*oldEnd)) {
+    if (!dt.dominates(bb, guard)) {
+      Instruction *term = guard->getTerminator();
+      SCEVExpander scevExpander(se, "");
+      const SCEV *scOldEnd = se.getSCEV(oldEnd);
+      if (!scevExpander.isSafeToExpandAt(scOldEnd, term)) {
+        emitDiagnostic(loop, DiagID::ErrNYI,
+                       "Expand unsafe final IV value into loop guard block");
+        exitOnError();
+      }
+
+      // This may not insert the code just before `term`. Instead, it checks
+      // if it is safe to hoist the value, and if it is, it will be inserted
+      // into the preheader of the containing loop containing the guard. In this
+      // case, it will be inserted into the preheader of the wrapper loop.
+      oldUB = scevExpander.expandCodeFor(scOldEnd, oldEnd->getType(), term);
+    }
+  }
+
   // The allocas for the out parameters of the bound computation are also added
   // to the guard. Since the outer tapir loop will eventually be outlined, the
   // allocas will then be present in a function that will be executed on each
@@ -409,7 +430,7 @@ void PrepareTapirNestParallel::updateBoundsOfSubLoop(Loop &wrapperLoop,
   PHINode *tid = wrapperLoop.getCanonicalInductionVariable();
   Constant *level = toConstant(*getPerfectLevelAttr(loop) - 1, ctx);
   createCall(builder, KitFunc::kitrt_nest_bounds,
-             {nestCtx, tid, oldStart, oldEnd, level, slotB, slotE}, "",
+             {nestCtx, tid, oldLB, oldUB, level, slotB, slotE}, "",
              /*allowArgCasts=*/true);
 
   LoadInst *s64 = builder.CreateLoad(i64, slotB);
