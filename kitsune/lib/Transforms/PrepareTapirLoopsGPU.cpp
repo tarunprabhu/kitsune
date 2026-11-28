@@ -8,12 +8,14 @@
 //
 // Transform a tapir loop nest for execution on a GPU.
 //
-// Nests that do not perform reductions are not transformed.
+// Nests that do not perform reductions are not transformed. For nests in which
+// reductions are performed, if the destination of the reduction is in Kitsune's
+// mobile address space, the nest is not transformed.
 //
-// For nests that perform reduction, shadow memory is allocated on the GPU into
-// which the GPU reduction will be accumulated. The reduction intrinsics are
-// modified to write to this location. The "shadow" memory is allocated in UVM
-// by default, but may also be allocated directly in global memory.
+// If the destination of the reduction is not in Kitsune's mobile address space,
+// shadow memory is allocated on the GPU which serves as the destination of the
+// reduction. Once the reduction has been computed on the GPU, the result is
+// copied back from the "shadow" memory into the final result.
 //
 //     int64_t r_sum = 0;
 //     int32_t r_and = 0;
@@ -25,11 +27,9 @@
 // This pass will transform this into the following for parallel execution on a
 // GPU.
 //
-//     int64_t numThreads = kit.num.cpu.threads();
-//     int64_t itersPerThread = (n + numThreads - 1) / numThreads;
 //     int32_t *g_sum = allocateShadowMemory<int32_t>(0);
 //     int64_t *g_and = allocateShadowMemory<int64_t>(0);
-//     parallel_for (int j = 0; j < numThreads; ++j) {
+//     parallel_for (int j = 0; j < n; ++j) {
 //         kit.reduce(&g_sum, sizeof(r_sum), i, 0, &f_sum);
 //         kit.reduce(&g_and, sizeof(r_and), i, 1, &f_and);
 //     }
@@ -37,9 +37,6 @@
 //     copyToFinalResult(&r_and, g_and, sizeof(int64_t));
 //     freeShadowMemory(g_sum);
 //     freeShadowMemory(g_and);
-//
-// This is the first in a multi-stage process of transforming such a nest.
-// Passes that run later in the pipeline will perform more transformations.
 //
 //===----------------------------------------------------------------------===//
 
@@ -51,6 +48,7 @@
 #include "kitsune/Core/LoopUtils.h"
 #include "kitsune/Core/Reductions.h"
 #include "kitsune/Core/TypeUtils.h"
+#include "kitsune/Core/ValueUtils.h"
 #include "kitsune/Support/CommandLineOptions.h"
 
 #define DEBUG_TYPE "kit-prepare"
@@ -278,24 +276,26 @@ static bool prepareReductionNest(const SmallVectorImpl<Loop *> &nest) {
   LLVM_DEBUG(dbgs() << "PrepareTapirReductionGPU: BEGIN '" << getName(*nest[0])
                     << "'\n");
 
+  bool changed = false;
   Loop &root = *nest[0];
   Reductions redxns = getReductions(root);
   std::unique_ptr<IShadowMem> iShadowMem = getShadowMemImpl(root);
   for (const ReductionInfo &redxn : redxns) {
-    // We have to save this because this will change during the course of the
-    // transformations.
     Value *dest = redxn.getDest();
-    Value *shadow = allocShadowMem(&*iShadowMem, root, redxn);
-    reduceIntoShadowMem(shadow, redxn);
-    copyShadowMemToDest(&*iShadowMem, root, shadow, dest, redxn);
-    freeShadowMem(&*iShadowMem, root, shadow, redxn);
+    if (!isMobileToDefaultCast(*dest)) {
+      Value *shadow = allocShadowMem(&*iShadowMem, root, redxn);
+      reduceIntoShadowMem(shadow, redxn);
+      copyShadowMemToDest(&*iShadowMem, root, shadow, dest, redxn);
+      freeShadowMem(&*iShadowMem, root, shadow, redxn);
+      changed |= true;
+    }
   }
 
   markNestPrepared(nest);
 
   LLVM_DEBUG(dbgs() << "PrepareTapirReductionGPU: END '" << getName(root)
                     << "'\n");
-  return true;
+  return changed;
 }
 
 static bool prepareParallelNest(const SmallVectorImpl<Loop *> &nest) {
